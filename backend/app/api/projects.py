@@ -1,0 +1,822 @@
+import time
+import uuid
+
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth.dependencies import CurrentUser, get_current_user
+from app.billing.entitlements import require_active_entitlement
+from app.database.chats import create_thread, title_from_message
+from app.database.draft_artifacts import (
+    accept_draft,
+    get_draft_artifact,
+    get_latest_draft_artifact_summaries,
+    get_latest_draft_artifact,
+    update_draft_content,
+)
+from app.database.projects import (
+    create_project,
+    ensure_default_project_catalog,
+    get_project,
+    list_projects,
+    project_overlay_summary,
+    user_owns_project,
+)
+from app.database.session import get_db
+from app.database.source_document import SourceDocument
+from app.database.users import ensure_user_exists
+from app.schemas.chat import ThreadResponse
+from app.schemas.projects import (
+    CreateCostPlanRequest,
+    CreateCostPlanResponse,
+    CreateProjectRequest,
+    CreatePmpRequest,
+    CreatePmpResponse,
+    PatchDraftRequest,
+    UpdatePmpRequest,
+    SortFilesRequest,
+    SortFilesResponse,
+    DraftArtifactResponse,
+    DraftArtifactSummary,
+    EvidencePreview,
+    InboxUploadResponse,
+    InboxUploadResult,
+    PdfAnalyzeResponse,
+    PdfSheetProposal,
+    PlatformKnowledgeBucket,
+    PlatformKnowledgeStatus,
+    ProjectCockpitBootstrapResponse,
+    ProjectDetail,
+    ProjectListResponse,
+    ProjectSummary,
+    ProjectWorkspaceTreeResponse,
+    StagedSplitRequest,
+)
+from app.evidence.service import delete_project_evidence
+from app.inbox.service import InboxUploadItem, upload_inbox_files
+from app.inbox.split_service import (
+    analyze_pdf_upload,
+    commit_staged_pdf_single,
+    split_staged_pdf,
+)
+from app.database.workspace_files import list_workspace_files_for_project
+from app.sitewise.workspace_tree import build_project_workspace_tree
+from app.workflows.create_cost_plan import run_create_cost_plan_workflow
+from app.workflows.create_pmp import run_create_pmp_workflow
+from app.workflows.sort_files import run_sort_files_workflow
+from app.workflows.update_pmp import run_update_pmp_workflow
+from app.logging import get_logger
+
+router = APIRouter(prefix="/projects", tags=["projects"])
+sitewise_router = APIRouter(prefix="/sitewise", tags=["sitewise"])
+log = get_logger(__name__)
+
+
+def _require_project_owner(project, user_id: uuid.UUID):
+    if project is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+    if not user_owns_project(project, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
+    return project
+
+
+def _project_summary(project) -> ProjectSummary:
+    return ProjectSummary.model_validate(
+        {
+            "id": project.id,
+            "slug": project.slug,
+            "title": project.title,
+            "workspace_path": project.workspace_path,
+            "phase": project.phase,
+            "archetype": project.archetype,
+            "user_role": project.user_role,
+            "state": project.state,
+            "status": project.status,
+            "overlay_status": project_overlay_summary(project),
+            "updated_at": project.updated_at,
+        }
+    )
+
+
+def _excerpt(text: str, limit: int = 360) -> str:
+    collapsed = " ".join(text.split())
+    if len(collapsed) <= limit:
+        return collapsed
+    return f"{collapsed[: limit - 3].rstrip()}..."
+
+
+def _metadata_text(metadata: dict | None, key: str) -> str | None:
+    if not metadata:
+        return None
+    value = metadata.get(key)
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _register_title_from_fields(
+    *,
+    metadata: dict | None,
+    document_type: str | None,
+    filename: str,
+) -> str:
+    metadata = metadata if isinstance(metadata, dict) else {}
+    return (
+        _metadata_text(metadata, "title")
+        or document_type
+        or filename
+    )
+
+
+def _is_markdown_filename(filename: str) -> bool:
+    return filename.lower().endswith((".md", ".markdown"))
+
+
+def _evidence_preview_from_values(
+    *,
+    document_id: uuid.UUID,
+    document_type: str | None,
+    metadata: dict | None,
+    filename: str,
+    relative_path: str,
+    source_type: str | None,
+    document_class: str,
+    excerpt_source: str,
+    content: str | None = None,
+) -> EvidencePreview:
+    metadata = metadata if isinstance(metadata, dict) else {}
+    return EvidencePreview(
+        id=document_id,
+        title=_register_title_from_fields(
+            metadata=metadata,
+            document_type=document_type,
+            filename=filename,
+        ),
+        filename=filename,
+        relative_path=relative_path,
+        source_type=source_type,
+        document_class=document_class,
+        excerpt=_excerpt(excerpt_source),
+        content=content,
+        document_number=_metadata_text(metadata, "document_number"),
+        revision=_metadata_text(metadata, "revision"),
+        category=_metadata_text(metadata, "discipline"),
+    )
+
+
+def _evidence_preview_from_document(
+    document: SourceDocument,
+    *,
+    include_content: bool = False,
+) -> EvidencePreview:
+    metadata = document.document_metadata if isinstance(document.document_metadata, dict) else {}
+    excerpt_source = document.normalized_content or ""
+    return _evidence_preview_from_values(
+        document_id=document.id,
+        document_type=document.document_type,
+        metadata=metadata,
+        filename=document.filename,
+        relative_path=document.relative_path,
+        source_type=document.source_type,
+        document_class=document.document_class,
+        excerpt_source=excerpt_source,
+        content=(
+            excerpt_source
+            if include_content and _is_markdown_filename(document.filename)
+            else None
+        ),
+    )
+
+
+def _is_inbox_path(relative_path: str) -> bool:
+    return "/_inbox/" in relative_path.replace("\\", "/")
+
+
+def _filter_stale_inbox_documents(
+    documents: list[SourceDocument],
+    workspace_paths: set[str],
+) -> list[SourceDocument]:
+    if not workspace_paths:
+        return documents
+    normalised_workspace_paths = {path.replace("\\", "/") for path in workspace_paths}
+    return [
+        document
+        for document in documents
+        if not (
+            _is_inbox_path(document.relative_path)
+            and document.relative_path.replace("\\", "/") not in normalised_workspace_paths
+        )
+    ]
+
+
+async def _list_project_evidence_previews(
+    session: AsyncSession,
+    *,
+    project_slug: str,
+    workspace_paths: set[str],
+) -> list[EvidencePreview]:
+    content_excerpt = func.left(SourceDocument.normalized_content, 720).label(
+        "content_excerpt"
+    )
+    stmt = (
+        select(
+            SourceDocument.id,
+            SourceDocument.document_type,
+            SourceDocument.document_metadata,
+            SourceDocument.filename,
+            SourceDocument.relative_path,
+            SourceDocument.source_type,
+            SourceDocument.document_class,
+            content_excerpt,
+        )
+        .where(
+            SourceDocument.project == project_slug,
+            SourceDocument.source_type == "project_evidence",
+        )
+        .order_by(SourceDocument.relative_path.asc())
+    )
+    result = await session.execute(stmt)
+    normalised_workspace_paths = {
+        path.replace("\\", "/")
+        for path in workspace_paths
+    }
+    previews: list[EvidencePreview] = []
+    for row in result.all():
+        relative_path = row.relative_path
+        if (
+            normalised_workspace_paths
+            and _is_inbox_path(relative_path)
+            and relative_path.replace("\\", "/") not in normalised_workspace_paths
+        ):
+            continue
+        previews.append(
+            _evidence_preview_from_values(
+                document_id=row.id,
+                document_type=row.document_type,
+                metadata=row.document_metadata,
+                filename=row.filename,
+                relative_path=relative_path,
+                source_type=row.source_type,
+                document_class=row.document_class,
+                excerpt_source=row.content_excerpt or "",
+            )
+        )
+    return previews
+
+
+async def _first_evidence_preview(
+    session: AsyncSession,
+    project_slug: str,
+) -> EvidencePreview | None:
+    stmt = (
+        select(SourceDocument)
+        .where(
+            SourceDocument.project == project_slug,
+            SourceDocument.source_type == "project_evidence",
+        )
+        .order_by(SourceDocument.created_at.asc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    document = result.scalar_one_or_none()
+    if document is None:
+        return None
+    return _evidence_preview_from_document(document)
+
+
+async def _platform_knowledge_status(session: AsyncSession) -> PlatformKnowledgeStatus:
+    kind_expr = SourceDocument.document_metadata["sitewise_knowledge_kind"].astext
+    stmt = (
+        select(kind_expr.label("kind"), func.count(SourceDocument.id).label("count"))
+        .where(SourceDocument.document_metadata["knowledge_scope"].astext == "platform")
+        .group_by(kind_expr)
+        .order_by(kind_expr.asc())
+    )
+    result = await session.execute(stmt)
+    buckets = [
+        PlatformKnowledgeBucket(kind=row.kind or "unknown", document_count=row.count)
+        for row in result.all()
+    ]
+    return PlatformKnowledgeStatus(available=bool(buckets), buckets=buckets)
+
+
+def _elapsed_ms(start: float) -> int:
+    return int((time.perf_counter() - start) * 1000)
+
+
+@router.get("")
+async def get_projects(
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectListResponse:
+    await ensure_user_exists(session, user)
+    await ensure_default_project_catalog(session, user.id)
+    projects = await list_projects(session, user.id)
+    return ProjectListResponse(projects=[_project_summary(project) for project in projects])
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def post_project(
+    body: CreateProjectRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectDetail:
+    await ensure_user_exists(session, user)
+    await require_active_entitlement(session, user)
+    project = await create_project(
+        session,
+        user_id=user.id,
+        title=body.title,
+        slug=body.slug,
+        archetype=body.archetype,
+        user_role=body.user_role,
+        state=body.state,
+        phase=body.phase,
+    )
+    summary = _project_summary(project)
+    return ProjectDetail(
+        **summary.model_dump(),
+        metadata=project.project_metadata,
+        evidence_preview=None,
+    )
+
+
+@router.get("/{project_id}")
+async def get_project_detail(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectDetail:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    summary = _project_summary(project)
+    return ProjectDetail(
+        **summary.model_dump(),
+        metadata=project.project_metadata,
+        evidence_preview=await _first_evidence_preview(session, project.slug),
+    )
+
+
+@router.get("/{project_id}/cockpit-bootstrap")
+async def get_project_cockpit_bootstrap(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectCockpitBootstrapResponse:
+    total_start = time.perf_counter()
+    timings_ms: dict[str, int] = {}
+
+    step_start = time.perf_counter()
+    await ensure_user_exists(session, user)
+    await ensure_default_project_catalog(session, user.id)
+    timings_ms["catalog"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    projects = await list_projects(session, user.id)
+    timings_ms["projects"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    workspace_paths = {record.workspace_path for record in workspace_files}
+    workspace_tree = ProjectWorkspaceTreeResponse(
+        project_id=project.id,
+        root_path=project.workspace_path,
+        tree=build_project_workspace_tree(
+            root_path=project.workspace_path,
+            workspace_paths=[record.workspace_path for record in workspace_files],
+        ),
+    )
+    timings_ms["workspace_tree"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    evidence = await _list_project_evidence_previews(
+        session,
+        project_slug=project.slug,
+        workspace_paths=workspace_paths,
+    )
+    timings_ms["evidence"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    platform_knowledge = await _platform_knowledge_status(session)
+    timings_ms["platform_knowledge"] = _elapsed_ms(step_start)
+
+    workflow_types = ["create_pmp", "create_cost_plan", "sort_files"]
+    step_start = time.perf_counter()
+    draft_rows = await get_latest_draft_artifact_summaries(
+        session,
+        project_id=project.id,
+        workflow_types=workflow_types,
+    )
+    latest_drafts = {
+        workflow_type: (
+            DraftArtifactSummary.model_validate(draft_rows[workflow_type])
+            if workflow_type in draft_rows
+            else None
+        )
+        for workflow_type in workflow_types
+    }
+    timings_ms["draft_summaries"] = _elapsed_ms(step_start)
+    timings_ms["total"] = _elapsed_ms(total_start)
+
+    summary = _project_summary(project)
+    log.info(
+        "project_cockpit_bootstrap_complete",
+        project_id=str(project.id),
+        evidence_count=len(evidence),
+        timings_ms=timings_ms,
+    )
+    return ProjectCockpitBootstrapResponse(
+        project=ProjectDetail(
+            **summary.model_dump(),
+            metadata=project.project_metadata,
+            evidence_preview=evidence[0] if evidence else None,
+        ),
+        projects=[_project_summary(item) for item in projects],
+        evidence=evidence,
+        workspace_tree=workspace_tree,
+        platform_knowledge=platform_knowledge,
+        latest_drafts=latest_drafts,
+        timings_ms=timings_ms,
+    )
+
+
+@router.get("/{project_id}/workspace-tree")
+async def get_project_workspace_tree(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectWorkspaceTreeResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    return ProjectWorkspaceTreeResponse(
+        project_id=project.id,
+        root_path=project.workspace_path,
+        tree=build_project_workspace_tree(
+            root_path=project.workspace_path,
+            workspace_paths=[record.workspace_path for record in workspace_files],
+        ),
+    )
+
+
+@router.post("/{project_id}/inbox/upload", status_code=status.HTTP_201_CREATED)
+async def post_inbox_upload(
+    project_id: uuid.UUID,
+    files: list[UploadFile] = File(...),
+    relative_path: str | None = Form(default=None),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> InboxUploadResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await ensure_user_exists(session, user)
+    await require_active_entitlement(session, user)
+
+    items: list[InboxUploadItem] = []
+    for upload in files:
+        content = await upload.read()
+        filename = upload.filename or "upload"
+        items.append(
+            InboxUploadItem(
+                filename=filename,
+                content=content,
+                relative_path=relative_path,
+            )
+        )
+
+    outcomes = await upload_inbox_files(session, project=project, items=items)
+    return InboxUploadResponse(
+        files=[
+            InboxUploadResult(
+                id=outcome.id,
+                filename=outcome.filename,
+                workspace_path=outcome.workspace_path,
+                content_hash=outcome.content_hash,
+                size_bytes=outcome.size_bytes,
+                ingest_status=outcome.ingest_status,
+                message=outcome.message,
+            )
+            for outcome in outcomes
+        ]
+    )
+
+
+@router.get("/{project_id}/evidence")
+async def get_project_evidence(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, list[EvidencePreview]]:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    workspace_paths = {record.workspace_path for record in workspace_files}
+    previews = await _list_project_evidence_previews(
+        session,
+        project_slug=project.slug,
+        workspace_paths=workspace_paths,
+    )
+    return {"evidence": previews}
+
+
+@router.get("/{project_id}/evidence/{evidence_id}")
+async def get_project_evidence_document(
+    project_id: uuid.UUID,
+    evidence_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> EvidencePreview:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    result = await session.execute(
+        select(SourceDocument).where(
+            SourceDocument.id == evidence_id,
+            SourceDocument.project == project.slug,
+            SourceDocument.source_type == "project_evidence",
+        )
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence not found",
+        )
+    return _evidence_preview_from_document(document, include_content=True)
+
+
+@router.delete(
+    "/{project_id}/evidence/{evidence_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_project_evidence_document(
+    project_id: uuid.UUID,
+    evidence_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await delete_project_evidence(session, project=project, evidence_id=evidence_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _upload_results(outcomes) -> InboxUploadResponse:
+    return InboxUploadResponse(
+        files=[
+            InboxUploadResult(
+                id=outcome.id,
+                filename=outcome.filename,
+                workspace_path=outcome.workspace_path,
+                content_hash=outcome.content_hash,
+                size_bytes=outcome.size_bytes,
+                ingest_status=outcome.ingest_status,
+                message=outcome.message,
+            )
+            for outcome in outcomes
+        ]
+    )
+
+
+@router.post("/{project_id}/inbox/analyze")
+async def post_inbox_analyze(
+    project_id: uuid.UUID,
+    file: UploadFile = File(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> PdfAnalyzeResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await ensure_user_exists(session, user)
+    content = await file.read()
+    result = await analyze_pdf_upload(
+        project=project, filename=file.filename or "upload.pdf", content=content
+    )
+    return PdfAnalyzeResponse(
+        staging_id=result.staging_id,
+        is_drawing_set=result.is_drawing_set,
+        confidence=result.confidence,
+        page_count=result.page_count,
+        scores=result.scores,
+        pages=[
+            PdfSheetProposal(
+                index=p.index,
+                proposed_title=p.proposed_title,
+                filename=p.filename,
+                has_text=p.has_text,
+            )
+            for p in result.pages
+        ],
+    )
+
+
+@router.post("/{project_id}/inbox/{staging_id}/split", status_code=status.HTTP_201_CREATED)
+async def post_inbox_split(
+    project_id: uuid.UUID,
+    staging_id: str,
+    body: StagedSplitRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> InboxUploadResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    outcomes = await split_staged_pdf(
+        session,
+        project=project,
+        staging_id=staging_id,
+        source_filename=body.source_filename,
+    )
+    return _upload_results(outcomes)
+
+
+@router.post("/{project_id}/inbox/{staging_id}/commit", status_code=status.HTTP_201_CREATED)
+async def post_inbox_commit_single(
+    project_id: uuid.UUID,
+    staging_id: str,
+    body: StagedSplitRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> InboxUploadResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    outcome = await commit_staged_pdf_single(
+        session,
+        project=project,
+        staging_id=staging_id,
+        source_filename=body.source_filename,
+    )
+    return _upload_results([outcome])
+
+
+@router.post("/{project_id}/threads", status_code=status.HTTP_201_CREATED)
+async def post_project_thread(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ThreadResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await ensure_user_exists(session, user)
+    await require_active_entitlement(session, user)
+    thread = await create_thread(
+        session,
+        user.id,
+        title=title_from_message(f"{project.title} project chat"),
+        project_id=project.id,
+    )
+    return ThreadResponse.model_validate(thread)
+
+
+@router.get("/{project_id}/drafts/latest")
+async def get_latest_project_draft(
+    project_id: uuid.UUID,
+    workflow_type: str = Query(default="create_pmp"),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DraftArtifactResponse | None:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    draft = await get_latest_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type=workflow_type,
+    )
+    return DraftArtifactResponse.model_validate(draft) if draft is not None else None
+
+
+@router.get("/{project_id}/drafts/{draft_id}")
+async def get_project_draft(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DraftArtifactResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    return DraftArtifactResponse.model_validate(draft)
+
+
+@router.post("/{project_id}/workflows/create-pmp")
+async def post_create_pmp(
+    project_id: uuid.UUID,
+    body: CreatePmpRequest = Body(default_factory=CreatePmpRequest),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CreatePmpResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    result = await run_create_pmp_workflow(
+        session,
+        user_id=user.id,
+        project=project,
+        thread_id=body.thread_id,
+        chat_model=body.chat_model,
+    )
+    return result
+
+
+@router.post("/{project_id}/workflows/create-cost-plan")
+async def post_create_cost_plan(
+    project_id: uuid.UUID,
+    body: CreateCostPlanRequest = Body(default_factory=CreateCostPlanRequest),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CreateCostPlanResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    result = await run_create_cost_plan_workflow(
+        session,
+        user_id=user.id,
+        project=project,
+        thread_id=body.thread_id,
+        chat_model=body.chat_model,
+    )
+    return result
+
+
+@router.post("/{project_id}/workflows/update-pmp")
+async def post_update_pmp(
+    project_id: uuid.UUID,
+    body: UpdatePmpRequest = Body(default_factory=UpdatePmpRequest),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CreatePmpResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    result = await run_update_pmp_workflow(
+        session,
+        user_id=user.id,
+        project=project,
+        thread_id=body.thread_id,
+        chat_model=body.chat_model,
+    )
+    return result
+
+
+@router.patch("/{project_id}/drafts/{draft_id}")
+async def patch_project_draft(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    body: PatchDraftRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DraftArtifactResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    updated = await update_draft_content(
+        session,
+        draft,
+        content_markdown=body.content_markdown,
+    )
+    return DraftArtifactResponse.model_validate(updated)
+
+
+@router.post("/{project_id}/drafts/{draft_id}/accept")
+async def post_accept_project_draft(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DraftArtifactResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    accepted = await accept_draft(session, draft)
+    return DraftArtifactResponse.model_validate(accepted)
+
+
+@router.post("/{project_id}/workflows/sort-files")
+async def post_sort_files(
+    project_id: uuid.UUID,
+    body: SortFilesRequest = Body(default_factory=SortFilesRequest),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> SortFilesResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    result = await run_sort_files_workflow(
+        session,
+        user_id=user.id,
+        project=project,
+        thread_id=body.thread_id,
+    )
+    return result
+
+
+@sitewise_router.get("/platform-knowledge")
+async def get_platform_knowledge_status(
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> PlatformKnowledgeStatus:
+    await ensure_user_exists(session, user)
+    return await _platform_knowledge_status(session)

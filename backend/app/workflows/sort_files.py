@@ -1,0 +1,196 @@
+import uuid
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.database.chats import create_message
+from app.database.draft_artifacts import create_draft_artifact, next_draft_version
+from app.database.project import Project
+from app.intake.sort_service import SortFilesResult, sort_inbox_files
+from app.schemas.projects import (
+    DraftArtifactResponse,
+    SortFilesResponse,
+    SortFileRow,
+    SortFilesSummary,
+    WorkflowTraceEvent,
+)
+from app.sitewise.gate import format_overlay_failure, overlay_status
+
+WORKFLOW_TYPE = "sort_files"
+RUNTIME_NAME = "clerk-sitewise-sort-files"
+
+
+def _trace(step: str, status: str, message: str, **metadata) -> WorkflowTraceEvent:
+    return WorkflowTraceEvent(
+        step=step,
+        status=status,
+        message=message,
+        metadata={key: value for key, value in metadata.items() if value is not None},
+    )
+
+
+def _summary(result: SortFilesResult) -> SortFilesSummary:
+    return SortFilesSummary(
+        inspected=result.counts.inspected,
+        moved=result.counts.moved,
+        already_filed=result.counts.already_filed,
+        unresolved=result.counts.unresolved,
+        skipped=result.counts.skipped,
+        refused=result.counts.refused,
+    )
+
+
+def _rows(result: SortFilesResult) -> list[SortFileRow]:
+    return [
+        SortFileRow(
+            source_path=record.source_path,
+            filename=record.filename,
+            outcome=record.outcome,
+            destination_path=record.destination_path,
+            destination_filename=record.destination_filename,
+            reason=record.reason,
+            document_number=record.document_number,
+            title=record.title,
+            revision=record.revision,
+            category=record.category,
+        )
+        for record in result.records
+    ]
+
+
+async def run_sort_files_workflow(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    project: Project,
+    thread_id: uuid.UUID | None,
+) -> SortFilesResponse:
+    trace: list[WorkflowTraceEvent] = []
+
+    gate = overlay_status(
+        archetype=project.archetype,
+        user_role=project.user_role,
+        state=project.state,
+    )
+    if not gate.ready:
+        message = format_overlay_failure(gate, workflow="Sort Files")
+        trace.append(_trace("gate", "blocked", message))
+        await _persist_trace_message(
+            session,
+            thread_id=thread_id,
+            content=message,
+            trace=trace,
+            status="blocked",
+        )
+        return SortFilesResponse(
+            status="blocked",
+            gate=gate,
+            trace=trace,
+            message=message,
+        )
+
+    trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
+
+    manifest_hint = await next_draft_version(
+        session,
+        project_id=project.id,
+        workflow_type=WORKFLOW_TYPE,
+    )
+    result = await sort_inbox_files(
+        session,
+        project=project,
+        manifest_version_hint=manifest_hint - 1,
+    )
+
+    trace.append(
+        _trace(
+            "inspect",
+            "complete",
+            f"Inspected {result.counts.inspected} inbox file(s).",
+            inspected=result.counts.inspected,
+            moved=result.counts.moved,
+            unresolved=result.counts.unresolved,
+            refused=result.counts.refused,
+            skipped=result.counts.skipped,
+            already_filed=result.counts.already_filed,
+        )
+    )
+
+    draft = await create_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type=WORKFLOW_TYPE,
+        title=f"Intake manifest v{result.manifest_version:02d}",
+        workspace_path=result.manifest_workspace_path,
+        author_user_id=user_id,
+        content_markdown=result.manifest_markdown,
+        model=None,
+        runtime=RUNTIME_NAME,
+        provenance_metadata={
+            "summary": _summary(result).model_dump(),
+            "rows": [row.model_dump() for row in _rows(result)],
+            "warnings": result.warnings,
+            "trace": [event.model_dump() for event in trace],
+        },
+    )
+    trace.append(
+        _trace(
+            "manifest_save",
+            "complete",
+            "Saved intake manifest as a versioned draft artefact.",
+            draft_id=str(draft.id),
+            version=draft.version,
+            manifest_path=result.manifest_workspace_path,
+        )
+    )
+
+    await session.commit()
+
+    message = (
+        f"Sort Files completed. {result.counts.moved} moved, "
+        f"{result.counts.unresolved} unresolved, {result.counts.refused} refused."
+    )
+    await _persist_trace_message(
+        session,
+        thread_id=thread_id,
+        content=message,
+        trace=trace,
+        status="complete",
+        draft_id=draft.id,
+    )
+
+    return SortFilesResponse(
+        status="complete",
+        gate=gate,
+        trace=trace,
+        summary=_summary(result),
+        rows=_rows(result),
+        warnings=result.warnings,
+        draft=DraftArtifactResponse.model_validate(draft),
+        message=message,
+    )
+
+
+async def _persist_trace_message(
+    session: AsyncSession,
+    *,
+    thread_id: uuid.UUID | None,
+    content: str,
+    trace: list[WorkflowTraceEvent],
+    status: str,
+    draft_id: uuid.UUID | None = None,
+) -> None:
+    if thread_id is None:
+        return
+    await create_message(
+        session,
+        thread_id=thread_id,
+        role="assistant",
+        content=content,
+        message_data={
+            "workflowType": WORKFLOW_TYPE,
+            "workflowStatus": status,
+            "workflowTrace": [event.model_dump() for event in trace],
+            "draftId": str(draft_id) if draft_id else None,
+        },
+    )

@@ -1,0 +1,128 @@
+import uuid
+from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+
+from app.auth.dependencies import CurrentUser, get_current_user
+from app.database.project import Project
+from app.database.session import get_db
+from app.evidence.service import delete_project_evidence
+from app.main import fastapi_app as app
+from tests.conftest import run_async
+
+USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
+EVIDENCE_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+NOW = datetime(2026, 6, 7, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def _project() -> Project:
+    return Project(
+        id=PROJECT_ID,
+        owner_user_id=USER_ID,
+        slug="demo",
+        title="Demo Project",
+        workspace_path="04-projects/demo",
+        phase="procurement",
+        archetype="small-commercial",
+        user_role="architect-pm",
+        state="NSW",
+        status="active",
+        project_metadata={},
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def _execute_result(scalars_all: list) -> MagicMock:
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = scalars_all
+    return result
+
+
+@pytest.fixture
+def mock_session() -> AsyncMock:
+    return AsyncMock()
+
+
+@pytest.fixture
+def client(mock_session: AsyncMock) -> TestClient:
+    current_user = CurrentUser(id=USER_ID, email="user@example.com")
+
+    async def override_get_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: current_user
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+def test_delete_project_evidence_removes_storage_and_records(mock_session: AsyncMock) -> None:
+    document = SimpleNamespace(
+        id=EVIDENCE_ID,
+        relative_path="04-projects/demo/_inbox/report.md",
+    )
+    workspace_file = SimpleNamespace(
+        id=uuid.uuid4(),
+        storage_key="demo/_inbox/report.md",
+        workspace_path="04-projects/demo/_inbox/report.md",
+    )
+    mock_session.scalar = AsyncMock(return_value=document)
+    mock_session.execute = AsyncMock(return_value=_execute_result([workspace_file]))
+
+    async def _run() -> None:
+        with patch("app.evidence.service.delete_project_file") as mock_delete_file:
+            await delete_project_evidence(
+                mock_session, project=_project(), evidence_id=EVIDENCE_ID
+            )
+
+        mock_delete_file.assert_called_once_with(storage_key="demo/_inbox/report.md")
+        # select workspace files + delete workspace files + delete source document
+        assert mock_session.execute.await_count == 3
+        mock_session.commit.assert_awaited_once()
+
+    run_async(_run())
+
+
+def test_delete_project_evidence_missing_document_raises_404(mock_session: AsyncMock) -> None:
+    mock_session.scalar = AsyncMock(return_value=None)
+
+    async def _run() -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_project_evidence(
+                mock_session, project=_project(), evidence_id=EVIDENCE_ID
+            )
+        assert exc_info.value.status_code == 404
+
+    run_async(_run())
+
+
+def test_delete_evidence_endpoint_requires_project_ownership(
+    client: TestClient, mock_session: AsyncMock
+) -> None:
+    other_project = _project()
+    other_project.owner_user_id = uuid.uuid4()
+
+    with patch("app.api.projects.get_project", new=AsyncMock(return_value=other_project)):
+        response = client.delete(f"/projects/{PROJECT_ID}/evidence/{EVIDENCE_ID}")
+
+    assert response.status_code == 403
+
+
+def test_delete_evidence_endpoint_returns_204(
+    client: TestClient, mock_session: AsyncMock
+) -> None:
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.delete_project_evidence", new=AsyncMock()) as mock_delete,
+    ):
+        response = client.delete(f"/projects/{PROJECT_ID}/evidence/{EVIDENCE_ID}")
+
+    assert response.status_code == 204
+    mock_delete.assert_awaited_once()

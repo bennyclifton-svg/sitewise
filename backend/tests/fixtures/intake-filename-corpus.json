@@ -1,0 +1,4555 @@
+{
+  "source": "1234-petersham-appartments/_inbox",
+  "entries": [
+    {
+      "fileName": "22372 PS1_Vista Access_Final+SR.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ACCESS/22372 PS1_Vista Access_Final+SR.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "22372",
+        "title": "PS1_Vista Access_Final+SR",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "22372 - PS1_Vista Access_Final+SR.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "22372 PS2_Vista Access_Final+SR.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ACCESS/22372 PS2_Vista Access_Final+SR.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "22372",
+        "title": "PS2_Vista Access_Final+SR",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "22372 - PS2_Vista Access_Final+SR.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "22372_Vista Access_CC_Issue A.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ACCESS/22372_Vista Access_CC_Issue A.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "22372_Vista Access_CC_Issue A",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "22372_Vista Access_CC_Issue A.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Acoustic Certification Design.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ACOUSTIC/Acoustic Certification Design.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Acoustic Certification Design",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Acoustic Certification Design.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Acoustic Details Hydraulic Flooring (Preliminary).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ACOUSTIC/Acoustic Details Hydraulic Flooring (Preliminary).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Acoustic Details Hydraulic Flooring (Preliminary)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Acoustic Details Hydraulic Flooring (Preliminary).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ARCHITCTURE DCD CC2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/ARCHITCTURE DCD CC2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ARCHITCTURE DCD CC2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "ARCHITCTURE DCD CC2.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ARCHITECTURE DESIGN VERIFICATION STATEMENT CC2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/ARCHITECTURE DESIGN VERIFICATION STATEMENT CC2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ARCHITECTURE DESIGN VERIFICATION STATEMENT CC2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "ARCHITECTURE DESIGN VERIFICATION STATEMENT CC2.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "CC-A-000 TITLE.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 000 _ TITLE & NOTES/CC-A-000 TITLE.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-000",
+        "title": "TITLE",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-000 - TITLE.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-001 NOTES.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 000 _ TITLE & NOTES/CC-A-001 NOTES.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-001",
+        "title": "NOTES",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-001 - NOTES.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-002 WALL TYPES.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 000 _ TITLE & NOTES/CC-A-002 WALL TYPES.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-002",
+        "title": "WALL TYPES",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-002 - WALL TYPES.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "Design-Compliance-Declaration-single-regulated-design - CC2 PETERSHAM.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 000 _ TITLE & NOTES/Design-Compliance-Declaration-single-regulated-design - CC2 PETERSHAM.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Design-Compliance-Declaration-single-regulated-design - CC2 PETERSHAM",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Design-Compliance-Declaration-single-regulated-design - CC2 PETERSHAM.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "CC-A-010 SITE PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 010 _ SITE PLAN/CC-A-010 SITE PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-010",
+        "title": "SITE PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-010 - SITE PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-050 FIRE COMPARTMENT PLAN LEVEL C1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 050 _ FIRE COMPARTMENT PLANS/CC-A-050 FIRE COMPARTMENT PLAN LEVEL C1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-050",
+        "title": "FIRE COMPARTMENT PLAN LEVEL C1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-050 - FIRE COMPARTMENT PLAN LEVEL C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-051 FIRE COMPARTMENT PLAN LEVEL 0.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 050 _ FIRE COMPARTMENT PLANS/CC-A-051 FIRE COMPARTMENT PLAN LEVEL 0.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-051",
+        "title": "FIRE COMPARTMENT PLAN LEVEL 0",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-051 - FIRE COMPARTMENT PLAN LEVEL 0.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-052 FIRE COMPARTMENT PLAN LEVEL 1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 050 _ FIRE COMPARTMENT PLANS/CC-A-052 FIRE COMPARTMENT PLAN LEVEL 1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-052",
+        "title": "FIRE COMPARTMENT PLAN LEVEL 1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-052 - FIRE COMPARTMENT PLAN LEVEL 1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-053 FIRE COMPARTMENT PLAN LEVEL 2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 050 _ FIRE COMPARTMENT PLANS/CC-A-053 FIRE COMPARTMENT PLAN LEVEL 2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-053",
+        "title": "FIRE COMPARTMENT PLAN LEVEL 2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-053 - FIRE COMPARTMENT PLAN LEVEL 2.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-054 FIRE COMPARTMENT PLAN LEVEL 3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 050 _ FIRE COMPARTMENT PLANS/CC-A-054 FIRE COMPARTMENT PLAN LEVEL 3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-054",
+        "title": "FIRE COMPARTMENT PLAN LEVEL 3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-054 - FIRE COMPARTMENT PLAN LEVEL 3.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-055 FIRE COMPARTMENT PLAN ROOF.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 050 _ FIRE COMPARTMENT PLANS/CC-A-055 FIRE COMPARTMENT PLAN ROOF.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-055",
+        "title": "FIRE COMPARTMENT PLAN ROOF",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-055 - FIRE COMPARTMENT PLAN ROOF.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-100 GA LEVEL C1 CARPARK PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 100 _ GA PLANS/CC-A-100 GA LEVEL C1 CARPARK PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-100",
+        "title": "GA LEVEL C1 CARPARK PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-100 - GA LEVEL C1 CARPARK PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-101 GA LEVEL L0 (GROUND) PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 100 _ GA PLANS/CC-A-101 GA LEVEL L0 (GROUND) PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-101",
+        "title": "GA LEVEL L0 (GROUND) PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-101 - GA LEVEL L0 (GROUND) PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-102 GA LEVEL L1 PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 100 _ GA PLANS/CC-A-102 GA LEVEL L1 PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-102",
+        "title": "GA LEVEL L1 PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-102 - GA LEVEL L1 PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-103 GA LEVEL L2 PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 100 _ GA PLANS/CC-A-103 GA LEVEL L2 PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-103",
+        "title": "GA LEVEL L2 PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-103 - GA LEVEL L2 PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-104 GA LEVEL L3 PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 100 _ GA PLANS/CC-A-104 GA LEVEL L3 PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-104",
+        "title": "GA LEVEL L3 PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-104 - GA LEVEL L3 PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-105 GA ROOF PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 100 _ GA PLANS/CC-A-105 GA ROOF PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-105",
+        "title": "GA ROOF PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-105 - GA ROOF PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-120 CONCRETE SETOUT - LEVEL C1 CARPARK.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-120 CONCRETE SETOUT - LEVEL C1 CARPARK.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-120",
+        "title": "CONCRETE SETOUT - LEVEL C1 CARPARK",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-120 - CONCRETE SETOUT - LEVEL C1 CARPARK.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-121 CONCRETE SETOUT - LEVEL L0 (GROUND).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-121 CONCRETE SETOUT - LEVEL L0 (GROUND).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-121",
+        "title": "CONCRETE SETOUT - LEVEL L0 (GROUND)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-121 - CONCRETE SETOUT - LEVEL L0 (GROUND).pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-122 CONCRETE SETOUT - LEVEL L1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-122 CONCRETE SETOUT - LEVEL L1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-122",
+        "title": "CONCRETE SETOUT - LEVEL L1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-122 - CONCRETE SETOUT - LEVEL L1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-123 CONCRETE SETOUT - LEVEL L2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-123 CONCRETE SETOUT - LEVEL L2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-123",
+        "title": "CONCRETE SETOUT - LEVEL L2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-123 - CONCRETE SETOUT - LEVEL L2.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-124 CONCRETE SETOUT - LEVEL L3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-124 CONCRETE SETOUT - LEVEL L3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-124",
+        "title": "CONCRETE SETOUT - LEVEL L3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-124 - CONCRETE SETOUT - LEVEL L3.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-125 CONCRETE SETOUT - ROOF.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-125 CONCRETE SETOUT - ROOF.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-125",
+        "title": "CONCRETE SETOUT - ROOF",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-125 - CONCRETE SETOUT - ROOF.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-126 CONC. SETOUT - DRIVEWAY CS1&CS6.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-126 CONC. SETOUT - DRIVEWAY CS1&CS6.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-126",
+        "title": "CONC. SETOUT - DRIVEWAY CS1&CS6",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-126 - CONC. SETOUT - DRIVEWAY CS1&CS6.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-127 CONCRETE SETOUT - SECTION CS2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-127 CONCRETE SETOUT - SECTION CS2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-127",
+        "title": "CONCRETE SETOUT - SECTION CS2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-127 - CONCRETE SETOUT - SECTION CS2.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-128 CONCRETE SETOUT - SECTION CS3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-128 CONCRETE SETOUT - SECTION CS3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-128",
+        "title": "CONCRETE SETOUT - SECTION CS3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-128 - CONCRETE SETOUT - SECTION CS3.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-129 CONCRETE SETOUT - SECTION CS4 & CS5.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-129 CONCRETE SETOUT - SECTION CS4 & CS5.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-129",
+        "title": "CONCRETE SETOUT - SECTION CS4 & CS5",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-129 - CONCRETE SETOUT - SECTION CS4 & CS5.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-130 CONCRETE SETOUT - SECTION CS7 & CS8.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-130 CONCRETE SETOUT - SECTION CS7 & CS8.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-130",
+        "title": "CONCRETE SETOUT - SECTION CS7 & CS8",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-130 - CONCRETE SETOUT - SECTION CS7 & CS8.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-131 CONCRETE SETOUT - SECTION CS9 & CS10.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 120 _ CONCRETE SETOUT/CC-A-131 CONCRETE SETOUT - SECTION CS9 & CS10.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-131",
+        "title": "CONCRETE SETOUT - SECTION CS9 & CS10",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-131 - CONCRETE SETOUT - SECTION CS9 & CS10.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-140 WATERPROOFING NOTES.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-140 WATERPROOFING NOTES.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-140",
+        "title": "WATERPROOFING NOTES",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-140 - WATERPROOFING NOTES.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-141 BASEMENT WATERPROOFING PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-141 BASEMENT WATERPROOFING PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-141",
+        "title": "BASEMENT WATERPROOFING PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-141 - BASEMENT WATERPROOFING PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-142 LEVEL 0 WATERPROOFING PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-142 LEVEL 0 WATERPROOFING PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-142",
+        "title": "LEVEL 0 WATERPROOFING PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-142 - LEVEL 0 WATERPROOFING PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-143 LEVEL 1 WATERPROOFING PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-143 LEVEL 1 WATERPROOFING PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-143",
+        "title": "LEVEL 1 WATERPROOFING PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-143 - LEVEL 1 WATERPROOFING PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-144 LEVEL 2 WATERPROOFING PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-144 LEVEL 2 WATERPROOFING PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-144",
+        "title": "LEVEL 2 WATERPROOFING PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-144 - LEVEL 2 WATERPROOFING PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-145 LEVEL 3 WATERPROOFING PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-145 LEVEL 3 WATERPROOFING PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-145",
+        "title": "LEVEL 3 WATERPROOFING PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-145 - LEVEL 3 WATERPROOFING PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-146 ROOF WATERPROOFING PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-146 ROOF WATERPROOFING PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-146",
+        "title": "ROOF WATERPROOFING PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-146 - ROOF WATERPROOFING PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-147 WATERPROOFING DETAILS - JUNCTIONS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-147 WATERPROOFING DETAILS - JUNCTIONS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-147",
+        "title": "WATERPROOFING DETAILS - JUNCTIONS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-147 - WATERPROOFING DETAILS - JUNCTIONS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-148 WATERPROOFING DETAILS - BALCONY.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-148 WATERPROOFING DETAILS - BALCONY.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-148",
+        "title": "WATERPROOFING DETAILS - BALCONY",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-148 - WATERPROOFING DETAILS - BALCONY.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-149 WATERPROOFING DETAILS - PLANTER.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-149 WATERPROOFING DETAILS - PLANTER.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-149",
+        "title": "WATERPROOFING DETAILS - PLANTER",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-149 - WATERPROOFING DETAILS - PLANTER.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-150 WATERPROOFING DETAILS - ROOF SLAB.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 140 _ WATERPROOFING PLANS/CC-A-150 WATERPROOFING DETAILS - ROOF SLAB.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-150",
+        "title": "WATERPROOFING DETAILS - ROOF SLAB",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-150 - WATERPROOFING DETAILS - ROOF SLAB.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-160 LEVEL C1 WALL SETOUT PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 160 _ WALL SETOUT/CC-A-160 LEVEL C1 WALL SETOUT PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-160",
+        "title": "LEVEL C1 WALL SETOUT PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-160 - LEVEL C1 WALL SETOUT PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-161 LEVEL 0 WALL SETOUT PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 160 _ WALL SETOUT/CC-A-161 LEVEL 0 WALL SETOUT PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-161",
+        "title": "LEVEL 0 WALL SETOUT PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-161 - LEVEL 0 WALL SETOUT PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-162 LEVEL 1 WALL SETOUT PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 160 _ WALL SETOUT/CC-A-162 LEVEL 1 WALL SETOUT PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-162",
+        "title": "LEVEL 1 WALL SETOUT PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-162 - LEVEL 1 WALL SETOUT PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-163 LEVEL 2 WALL SETOUT PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 160 _ WALL SETOUT/CC-A-163 LEVEL 2 WALL SETOUT PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-163",
+        "title": "LEVEL 2 WALL SETOUT PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-163 - LEVEL 2 WALL SETOUT PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-164 LEVEL 3 WALL SETOUT PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 160 _ WALL SETOUT/CC-A-164 LEVEL 3 WALL SETOUT PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-164",
+        "title": "LEVEL 3 WALL SETOUT PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-164 - LEVEL 3 WALL SETOUT PLAN.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-180 RCP - LEVEL C1 CARPARK.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 180 _ RCP/CC-A-180 RCP - LEVEL C1 CARPARK.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-180",
+        "title": "RCP - LEVEL C1 CARPARK",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-180 - RCP - LEVEL C1 CARPARK.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-181 RCP - LEVEL 0 (GROUND).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 180 _ RCP/CC-A-181 RCP - LEVEL 0 (GROUND).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-181",
+        "title": "RCP - LEVEL 0 (GROUND)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-181 - RCP - LEVEL 0 (GROUND).pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-182 RCP - LEVEL 1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 180 _ RCP/CC-A-182 RCP - LEVEL 1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-182",
+        "title": "RCP - LEVEL 1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-182 - RCP - LEVEL 1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-183 RCP - LEVEL 2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 180 _ RCP/CC-A-183 RCP - LEVEL 2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-183",
+        "title": "RCP - LEVEL 2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-183 - RCP - LEVEL 2.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-184 RCP - LEVEL 3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 180 _ RCP/CC-A-184 RCP - LEVEL 3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-184",
+        "title": "RCP - LEVEL 3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-184 - RCP - LEVEL 3.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-200 ELEVATION 01 - NORTH - BLDG.A - INC. SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-200 ELEVATION 01 - NORTH - BLDG.A - INC. SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-200",
+        "title": "ELEVATION 01 - NORTH - BLDG.A - INC. SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-200 - ELEVATION 01 - NORTH - BLDG.A - INC. SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-201 ELEVATION 02 - SOUTH - BLDG.A - INC. SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-201 ELEVATION 02 - SOUTH - BLDG.A - INC. SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-201",
+        "title": "ELEVATION 02 - SOUTH - BLDG.A - INC. SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-201 - ELEVATION 02 - SOUTH - BLDG.A - INC. SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-202 ELEVATION 02 - SOUTH - BLDG.A - NO SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-202 ELEVATION 02 - SOUTH - BLDG.A - NO SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-202",
+        "title": "ELEVATION 02 - SOUTH - BLDG.A - NO SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-202 - ELEVATION 02 - SOUTH - BLDG.A - NO SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-203 ELEVATION 03 - NORTH - BLDG.B - INC. SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-203 ELEVATION 03 - NORTH - BLDG.B - INC. SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-203",
+        "title": "ELEVATION 03 - NORTH - BLDG.B - INC. SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-203 - ELEVATION 03 - NORTH - BLDG.B - INC. SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-204 ELEVATION 03 - NORTH - BLDG.B - NO SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-204 ELEVATION 03 - NORTH - BLDG.B - NO SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-204",
+        "title": "ELEVATION 03 - NORTH - BLDG.B - NO SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-204 - ELEVATION 03 - NORTH - BLDG.B - NO SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-205 ELEVATION 04 - SOUTH - BLDG.B - INC. SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-205 ELEVATION 04 - SOUTH - BLDG.B - INC. SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-205",
+        "title": "ELEVATION 04 - SOUTH - BLDG.B - INC. SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-205 - ELEVATION 04 - SOUTH - BLDG.B - INC. SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-206 ELEVATION 04 - SOUTH - BLDG.B - NO SCREENS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-206 ELEVATION 04 - SOUTH - BLDG.B - NO SCREENS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-206",
+        "title": "ELEVATION 04 - SOUTH - BLDG.B - NO SCREENS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-206 - ELEVATION 04 - SOUTH - BLDG.B - NO SCREENS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-207 ELEVATIONS 02 - EAST AND WEST ELEVATIONS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-207 ELEVATIONS 02 - EAST AND WEST ELEVATIONS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-207",
+        "title": "ELEVATIONS 02 - EAST AND WEST ELEVATIONS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-207 - ELEVATIONS 02 - EAST AND WEST ELEVATIONS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-210 SECTION A.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-210 SECTION A.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-210",
+        "title": "SECTION A",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-210 - SECTION A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-211 SECTION B.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-211 SECTION B.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-211",
+        "title": "SECTION B",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-211 - SECTION B.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-212 SECTION C.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 200 _ ELEVATIONS & SECTIONS/CC-A-212 SECTION C.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-212",
+        "title": "SECTION C",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-212 - SECTION C.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-400 GENERAL ACCESS SPECIFICATION.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 400 _ LARGE SCALE PLANS 1_50 _ 1_25/CC-A-400 GENERAL ACCESS SPECIFICATION.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-400",
+        "title": "GENERAL ACCESS SPECIFICATION",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-400 - GENERAL ACCESS SPECIFICATION.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-401 POST ADAPTABLE APARTMENTS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 400 _ LARGE SCALE PLANS 1_50 _ 1_25/CC-A-401 POST ADAPTABLE APARTMENTS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-401",
+        "title": "POST ADAPTABLE APARTMENTS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-401 - POST ADAPTABLE APARTMENTS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-450 FIRE STAIR 01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 450 _ STAIRS & RAMPS (1_50)/CC-A-450 FIRE STAIR 01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-450",
+        "title": "FIRE STAIR 01",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-450 - FIRE STAIR 01.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-451 STAIRS & RAMP.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 450 _ STAIRS & RAMPS (1_50)/CC-A-451 STAIRS & RAMP.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-451",
+        "title": "STAIRS & RAMP",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-451 - STAIRS & RAMP.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-500 BALCONY DETAILS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-500 BALCONY DETAILS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-500",
+        "title": "BALCONY DETAILS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-500 - BALCONY DETAILS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-501 DETAILS FACADE -  AWNING & WALL QUAY.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-501 DETAILS FACADE -  AWNING & WALL QUAY.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-501",
+        "title": "DETAILS FACADE - AWNING & WALL QUAY",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-501 - DETAILS FACADE - AWNING & WALL QUAY.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-502 DETAILS FACADE - EXTERNAL WALLS 1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-502 DETAILS FACADE - EXTERNAL WALLS 1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-502",
+        "title": "DETAILS FACADE - EXTERNAL WALLS 1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-502 - DETAILS FACADE - EXTERNAL WALLS 1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-503 DETAILS FACADE -SILL & HEAD DETAILS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-503 DETAILS FACADE -SILL & HEAD DETAILS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-503",
+        "title": "DETAILS FACADE -SILL & HEAD DETAILS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-503 - DETAILS FACADE -SILL & HEAD DETAILS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-504 DETAILS FACADE - WALL _ SLAB EDGES.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-504 DETAILS FACADE - WALL _ SLAB EDGES.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-504",
+        "title": "DETAILS FACADE - WALL _ SLAB EDGES",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-504 - DETAILS FACADE - WALL _ SLAB EDGES.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-505 DETAIL FACADE - QUEEN STREET PLANTER.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-505 DETAIL FACADE - QUEEN STREET PLANTER.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-505",
+        "title": "DETAIL FACADE - QUEEN STREET PLANTER",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-505 - DETAIL FACADE - QUEEN STREET PLANTER.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-506 DETAILS QUEEN STREET GROUND AND LEVEL 1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-506 DETAILS QUEEN STREET GROUND AND LEVEL 1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-506",
+        "title": "DETAILS QUEEN STREET GROUND AND LEVEL 1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-506 - DETAILS QUEEN STREET GROUND AND LEVEL 1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-507 DETAILS QUEEN STREET MANSARD ROOF DETAIL.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-507 DETAILS QUEEN STREET MANSARD ROOF DETAIL.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-507",
+        "title": "DETAILS QUEEN STREET MANSARD ROOF DETAIL",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-507 - DETAILS QUEEN STREET MANSARD ROOF DETAIL.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-508 DETAILS FACADE - EXTERNAL WALLS 2.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-508 DETAILS FACADE - EXTERNAL WALLS 2.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-508",
+        "title": "DETAILS FACADE - EXTERNAL WALLS 2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-508 - DETAILS FACADE - EXTERNAL WALLS 2.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-509 DETAILS FACADE - EXTERNAL WALLS 3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-509 DETAILS FACADE - EXTERNAL WALLS 3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-509",
+        "title": "DETAILS FACADE - EXTERNAL WALLS 3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-509 - DETAILS FACADE - EXTERNAL WALLS 3.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-540 OTHER TYPICAL DETAILS I.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-540 OTHER TYPICAL DETAILS I.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-540",
+        "title": "OTHER TYPICAL DETAILS I",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-540 - OTHER TYPICAL DETAILS I.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-541 OTHER TYPICAL DETAILS II.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-541 OTHER TYPICAL DETAILS II.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-541",
+        "title": "OTHER TYPICAL DETAILS II",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-541 - OTHER TYPICAL DETAILS II.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-542 OTHER TYPICAL DETAILS III.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-542 OTHER TYPICAL DETAILS III.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-542",
+        "title": "OTHER TYPICAL DETAILS III",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-542 - OTHER TYPICAL DETAILS III.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-543 OTHER TYPICAL DETAILS V.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-543 OTHER TYPICAL DETAILS V.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-543",
+        "title": "OTHER TYPICAL DETAILS V",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-543 - OTHER TYPICAL DETAILS V.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-544 OTHER TYPICAL DETAILS VI.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 500_ DETAILS (1_10, 1_5)/CC-A-544 OTHER TYPICAL DETAILS VI.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-544",
+        "title": "OTHER TYPICAL DETAILS VI",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-544 - OTHER TYPICAL DETAILS VI.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-600 WINDOW SCHEDULE (1).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 600 _ WINDOW & DOOR PACKAGE/CC-A-600 WINDOW SCHEDULE (1).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-600",
+        "title": "WINDOW SCHEDULE (1)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-600 - WINDOW SCHEDULE (1).pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-601 WINDOW SCHEDULE (2).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 600 _ WINDOW & DOOR PACKAGE/CC-A-601 WINDOW SCHEDULE (2).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-601",
+        "title": "WINDOW SCHEDULE (2)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-601 - WINDOW SCHEDULE (2).pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-602 WINDOW SCHEDULE (3).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 600 _ WINDOW & DOOR PACKAGE/CC-A-602 WINDOW SCHEDULE (3).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-602",
+        "title": "WINDOW SCHEDULE (3)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-602 - WINDOW SCHEDULE (3).pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-603 WINDOW SCHEDULE (4).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 600 _ WINDOW & DOOR PACKAGE/CC-A-603 WINDOW SCHEDULE (4).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-603",
+        "title": "WINDOW SCHEDULE (4)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-603 - WINDOW SCHEDULE (4).pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-610 DOOR SCHEDULE.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 600 _ WINDOW & DOOR PACKAGE/CC-A-610 DOOR SCHEDULE.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-610",
+        "title": "DOOR SCHEDULE",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-610 - DOOR SCHEDULE.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-700 BATH, WC, LDRY PLAN DETAILS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 700 _ INTERIOR DETAILS _ WET AREA _ INT ELEVATIONS/CC-A-700 BATH, WC, LDRY PLAN DETAILS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-700",
+        "title": "BATH, WC, LDRY PLAN DETAILS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-700 - BATH, WC, LDRY PLAN DETAILS.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-701 BATHROOM ELEVATION DETAILS 01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 700 _ INTERIOR DETAILS _ WET AREA _ INT ELEVATIONS/CC-A-701 BATHROOM ELEVATION DETAILS 01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-701",
+        "title": "BATHROOM ELEVATION DETAILS 01",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-701 - BATHROOM ELEVATION DETAILS 01.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-702 BATHROOM ELEVATION DETAILS 02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 700 _ INTERIOR DETAILS _ WET AREA _ INT ELEVATIONS/CC-A-702 BATHROOM ELEVATION DETAILS 02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-702",
+        "title": "BATHROOM ELEVATION DETAILS 02",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-702 - BATHROOM ELEVATION DETAILS 02.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-703 BATH AND LAUNDRYU PLAN DETAILS II.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 700 _ INTERIOR DETAILS _ WET AREA _ INT ELEVATIONS/CC-A-703 BATH AND LAUNDRYU PLAN DETAILS II.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-703",
+        "title": "BATH AND LAUNDRYU PLAN DETAILS II",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-703 - BATH AND LAUNDRYU PLAN DETAILS II.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-704 BATHROOM ELEVATION DETAILS 03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 700 _ INTERIOR DETAILS _ WET AREA _ INT ELEVATIONS/CC-A-704 BATHROOM ELEVATION DETAILS 03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-704",
+        "title": "BATHROOM ELEVATION DETAILS 03",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-704 - BATHROOM ELEVATION DETAILS 03.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-705 BATHROOM ELEVATION DETAILS 04.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/CC 700 _ INTERIOR DETAILS _ WET AREA _ INT ELEVATIONS/CC-A-705 BATHROOM ELEVATION DETAILS 04.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-705",
+        "title": "BATHROOM ELEVATION DETAILS 04",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-705 - BATHROOM ELEVATION DETAILS 04.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "Smoke-Control-Systems-Windowshield-Fire-Shutters-Master-Spec-Document.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Fire Shutter/Smoke-Control-Systems-Windowshield-Fire-Shutters-Master-Spec-Document.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Smoke-Control-Systems-Windowshield-Fire-Shutters-Master-Spec-Document",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Smoke-Control-Systems-Windowshield-Fire-Shutters-Master-Spec-Document.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Smoke-Control-Windowshield-Fire-boundary-control-curtain-shutter.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Fire Shutter/Smoke-Control-Windowshield-Fire-boundary-control-curtain-shutter.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Smoke-Control-Windowshield-Fire-boundary-control-curtain-shutter",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Smoke-Control-Windowshield-Fire-boundary-control-curtain-shutter.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WINDOWSHIELD-STANDARD-TEMPLATE-07-09-2020.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Fire Shutter/WINDOWSHIELD-STANDARD-TEMPLATE-07-09-2020.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WINDOWSHIELD-STANDARD-TEMPLATE-07-09-2020",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WINDOWSHIELD-STANDARD-TEMPLATE-07-09-2020.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "20121475M01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/20121475M01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "20121475M01",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "20121475M01.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "23-31033-Design Certification.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/23-31033-Design Certification.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "23-31033-Design Certification",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "23-31033-Design Certification.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "568 Parramatta Rd Petersham.docx",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/568 Parramatta Rd Petersham.docx",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "568 Parramatta Rd Petersham",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "568 Parramatta Rd Petersham.docx",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "J2324-001-001.23.08.02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/J2324-001-001.23.08.02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "J2324-001-001",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "J2324-001-001.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "J2324-001-002.23.08.02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/J2324-001-002.23.08.02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "J2324-001-002",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "J2324-001-002.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "J2324-001-003.23.08.02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/J2324-001-003.23.08.02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "J2324-001-003",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "J2324-001-003.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "J2324-001-004.23.08.02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/J2324-001-004.23.08.02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "J2324-001-004",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "J2324-001-004.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "J2324-001-005.23.08.02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/J2324-001-005.23.08.02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "J2324-001-005",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "J2324-001-005.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "SD11-04_System_Drawing.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/SD11-04_System_Drawing.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SD11-04_System_Drawing",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SD11-04_System_Drawing.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Thump X1 Series Engineering Certification.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/Thump X1 Series Engineering Certification.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Thump X1 Series Engineering Certification",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Thump X1 Series Engineering Certification.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "X1 Cardno Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Glass balustrades/X1 Cardno Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "X1 Cardno Certificate",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "X1 Cardno Certificate.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FYREBOX.rfa",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/BIM-FyreBOX-Cast-In/BIM - FyreBOX CI/FYREBOX.rfa",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FYREBOX",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FYREBOX.rfa",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FYREBOX.rvt",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/BIM-FyreBOX-Cast-In/BIM - FyreBOX CI/FYREBOX.rvt",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FYREBOX",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FYREBOX.rvt",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "BIM-FyreBOX-Cast-In.zip",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/BIM-FyreBOX-Cast-In.zip",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "BIM-FyreBOX-Cast-In",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "BIM-FyreBOX-Cast-In.zip",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FyreBOX-Range-Test-Report.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/FyreBOX-Range-Test-Report.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FyreBOX-Range-Test-Report",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FyreBOX-Range-Test-Report.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FyreBOX_Cast_In_Technical_Manual.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/FyreBOX_Cast_In_Technical_Manual.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FyreBOX_Cast_In_Technical_Manual",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FyreBOX_Cast_In_Technical_Manual.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Ritek Control joint.msg",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/Ritek Control joint.msg",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Ritek Control joint",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Ritek Control joint.msg",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Trafalgar Fyrflex Control Joints.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Passive Fire/Trafalgar Fyrflex Control Joints.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Trafalgar Fyrflex Control Joints",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Trafalgar Fyrflex Control Joints.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Certificate-of-Test-1530.1-Quick-Render-Non-Combustible.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Render_TextureCoat/Certificate-of-Test-1530.1-Quick-Render-Non-Combustible.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Certificate-of-Test-1530.1-Quick-Render-Non-Combustible",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Certificate-of-Test-1530.1-Quick-Render-Non-Combustible.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "QuickRender_NonCombustible_TDS_June2023.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Render_TextureCoat/QuickRender_NonCombustible_TDS_June2023.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "QuickRender_NonCombustible_TDS_June2023",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "QuickRender_NonCombustible_TDS_June2023.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Arrow-Metal-P258-19mm-x-25.4mm-1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Screens/Arrow-Metal-P258-19mm-x-25.4mm-1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Arrow-Metal-P258-19mm-x-25.4mm-1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Arrow-Metal-P258-19mm-x-25.4mm-1.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Arrow-Metal-P261-25.4mm-x-35mm-straight-1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Screens/Arrow-Metal-P261-25.4mm-x-35mm-straight-1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Arrow-Metal-P261-25.4mm-x-35mm-straight-1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Arrow-Metal-P261-25.4mm-x-35mm-straight-1.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Privacy screens Sculptform_Click_on_Screens___Technical_Datasheet_280722.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Screens/Privacy screens Sculptform_Click_on_Screens___Technical_Datasheet_280722.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Privacy screens Sculptform_Click_on_Screens___Technical_Datasheet_280722",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Privacy screens Sculptform_Click_on_Screens___Technical_Datasheet_280722.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "csr-fire-seal-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/csr-fire-seal-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "csr-fire-seal-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "csr-fire-seal-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "fire-mastic-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/fire-mastic-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "fire-mastic-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "fire-mastic-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "gyprock-ec08-complete-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/gyprock-ec08-complete-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "gyprock-ec08-complete-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "gyprock-ec08-complete-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "gyprock-fyrchek-mr-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/gyprock-fyrchek-mr-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "gyprock-fyrchek-mr-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "gyprock-fyrchek-mr-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "gyprock-fyrchek-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/gyprock-fyrchek-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "gyprock-fyrchek-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "gyprock-fyrchek-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "gyprock-red-book--book-3-commercial-installation-guide.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/gyprock-red-book--book-3-commercial-installation-guide.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "gyprock-red-book--book-3-commercial-installation-guide",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "gyprock-red-book--book-3-commercial-installation-guide.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "gyprock-shaft-liner-mp-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/gyprock-shaft-liner-mp-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "gyprock-shaft-liner-mp-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "gyprock-shaft-liner-mp-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "gyprock-standard-13mm-product-data-sheet.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/CSR/gyprock-standard-13mm-product-data-sheet.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "gyprock-standard-13mm-product-data-sheet",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "gyprock-standard-13mm-product-data-sheet.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "CM40224-I02-R02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/JAMES HARDIE/CM40224-I02-R02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "CM40224-I02-R02",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CM40224-I02-R02.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Matrix_Cladding_Installation_Guide_Jun23.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/JAMES HARDIE/Matrix_Cladding_Installation_Guide_Jun23.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Matrix_Cladding_Installation_Guide_Jun23",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Matrix_Cladding_Installation_Guide_Jun23.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "23940_RitekAustralia_Technical_Update_Version_2022.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/RITEK/23940_RitekAustralia_Technical_Update_Version_2022.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "23940_RitekAustralia_Technical_Update_Version_2022",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "23940_RitekAustralia_Technical_Update_Version_2022.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Ritek-X-PLUS-thermal-rating_JMF.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/RITEK/Ritek-X-PLUS-thermal-rating_JMF.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Ritek-X-PLUS-thermal-rating_JMF",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Ritek-X-PLUS-thermal-rating_JMF.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "X-Plus-150-Report-2075FSV-Revision-B[1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/RITEK/X-Plus-150-Report-2075FSV-Revision-B[1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "X",
+        "title": "Plus - 150 - Report - 2075FSV - Revision - B",
+        "revision": "1",
+        "discipline": "Architectural",
+        "canonicalFileName": "X - Plus - 150 - Report - 2075FSV - Revision - B Rev 1.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March_Section 3.1 Internal Steel Framed Partition Walls.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March_Section 3.1 Internal Steel Framed Partition Walls.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March_Section 3.1 Internal Steel Framed Partition Walls",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March_Section 3.1 Internal Steel Framed Partition Walls.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March_Section 3.4 Internal Wet Areas using Plasterboard.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March_Section 3.4 Internal Wet Areas using Plasterboard.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March_Section 3.4 Internal Wet Areas using Plasterboard",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March_Section 3.4 Internal Wet Areas using Plasterboard.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March_Section 3.7 Shaft Wall.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March_Section 3.7 Shaft Wall.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March_Section 3.7 Shaft Wall",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March_Section 3.7 Shaft Wall.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March_Section 4.1 External Steel Stud Walls.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March_Section 4.1 External Steel Stud Walls.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March_Section 4.1 External Steel Stud Walls",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March_Section 4.1 External Steel Stud Walls.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March_Section 4.2 Openings in External Walls.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March_Section 4.2 Openings in External Walls.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March_Section 4.2 Openings in External Walls",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March_Section 4.2 Openings in External Walls.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SINIAT Blueprint v3_2022 March_Section 4.5 Top Hats over Wall Framing.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Walls/SINIAT/SINIAT Blueprint v3_2022 March_Section 4.5 Top Hats over Wall Framing.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SINIAT Blueprint v3_2022 March_Section 4.5 Top Hats over Wall Framing",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SINIAT Blueprint v3_2022 March_Section 4.5 Top Hats over Wall Framing.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "CM40317-I01-R04 - Internal Waterproofing Membranes.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Waterproofing codemark certificates/CM40317-I01-R04 - Internal Waterproofing Membranes.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CM40317-I01-R04",
+        "title": "Internal Waterproofing Membranes",
+        "revision": "04",
+        "discipline": "Architectural",
+        "canonicalFileName": "CM40317-I01-R04 - Internal Waterproofing Membranes Rev 04.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CM40318-I01-R04.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ARCHITECTURE/PRODUCT_SYSTEM DATA/Waterproofing codemark certificates/CM40318-I01-R04.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "CM40318-I01-R04",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CM40318-I01-R04.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ASP3 Design (Certified).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ASP3/ASP3 Design (Certified).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ASP3 Design (Certified)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "ASP3 Design (Certified).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ASP3 SER (Verified).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ASP3/ASP3 SER (Verified).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ASP3 SER (Verified)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "ASP3 SER (Verified).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "18218 Assessor Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/BASIX/18218 Assessor Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "18218",
+        "title": "Assessor Certificate",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "18218 - Assessor Certificate.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "18218 BASIX Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/BASIX/18218 BASIX Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "18218",
+        "title": "BASIX Certificate",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "18218 - BASIX Certificate.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "CC-A-000 TITLE.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/CC 000 _ TITLE & NOTES/CC-A-000 TITLE.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-000",
+        "title": "TITLE",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-000 - TITLE.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-001 NOTES.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/CC 000 _ TITLE & NOTES/CC-A-001 NOTES.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-001",
+        "title": "NOTES",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-001 - NOTES.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "CC-A-002 WALL TYPES.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/CC 000 _ TITLE & NOTES/CC-A-002 WALL TYPES.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "CC-A-002",
+        "title": "WALL TYPES",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CC-A-002 - WALL TYPES.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "Civil Design (revA for S138).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/CIVIL/Civil Design (revA for S138).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Civil",
+        "title": "Design",
+        "revision": "A FOR S138",
+        "discipline": "Architectural",
+        "canonicalFileName": "Civil - Design Rev A FOR S138.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "DRAFT - 21-2991 - CVL1.01-A- FOR ISSUE.dwg",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/CIVIL/DRAFT - 21-2991 - CVL1.01-A- FOR ISSUE.dwg",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "DRAFT - 21-2991 - CVL1.01-A- FOR ISSUE",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "DRAFT - 21-2991 - CVL1.01-A- FOR ISSUE.dwg",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "S138 Step 1 Approval Notice.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/CIVIL/S138 Step 1 Approval Notice.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "S138 Step 1 Approval Notice",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "S138 Step 1 Approval Notice.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "DA201500704 NOR (18 OCT 2016).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/01 DA 2016 (Original)/DA201500704 NOR (18 OCT 2016).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "DA201500704 NOR (18 OCT 2016)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "DA201500704 NOR (18 OCT 2016).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "DA201500704 STAMPED PLANS.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/01 DA 2016 (Original)/DA201500704 STAMPED PLANS.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "DA201500704 STAMPED PLANS",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "DA201500704 STAMPED PLANS.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD DA201500704.01 NOR (11 OCT 2018).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/02 MOD 2018/MOD DA201500704.01 NOR (11 OCT 2018).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD DA201500704.01 NOR (11 OCT 2018)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD DA201500704.01 NOR (11 OCT 2018).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MODDA2~2.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/02 MOD 2018/MODDA2~2.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MODDA2~2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MODDA2~2.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD 2022 0191 Cover letter_PAN-229227.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/03 MOD 2022/MOD 2022 0191 Cover letter_PAN-229227.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD 2022 0191 Cover letter_PAN-229227",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD 2022 0191 Cover letter_PAN-229227.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD 2022 0191 Stamped plans_PAN-229227.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/03 MOD 2022/MOD 2022 0191 Stamped plans_PAN-229227.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD 2022 0191 Stamped plans_PAN-229227",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD 2022 0191 Stamped plans_PAN-229227.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD202~3.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/03 MOD 2022/MOD202~3.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD202~3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD202~3.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD 2023 0177 NOR (4 AUG 2023).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/04 MOD 2023/MOD 2023 0177 NOR (4 AUG 2023).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD 2023 0177 NOR (4 AUG 2023)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD 2023 0177 NOR (4 AUG 2023).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD 2023 0177 STAMPED PLANS (4 AUG 2023).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/04 MOD 2023/MOD 2023 0177 STAMPED PLANS (4 AUG 2023).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD 2023 0177 STAMPED PLANS (4 AUG 2023)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD 2023 0177 STAMPED PLANS (4 AUG 2023).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "MOD202~3.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/DA, MODs & STAMPED PLANS/04 MOD 2023/MOD202~3.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "MOD202~3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "MOD202~3.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "E00",
+        "title": "COVER SHEET",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "E00 - COVER SHEET Rev C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "E01-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E01-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E01 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E01-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E02-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E02-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E02 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E02-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E03 - ELECTRICAL - LEVEL L1 - LIGHTING LAYOUT - [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E03 - ELECTRICAL - LEVEL L1 - LIGHTING LAYOUT - [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "E03",
+        "title": "LEVEL L1 - LIGHTING LAYOUT",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "E03 - LEVEL L1 - LIGHTING LAYOUT Rev C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "E04 - ELECTRICAL - LEVEL L2 - LIGHTING LAYOUT - [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E04 - ELECTRICAL - LEVEL L2 - LIGHTING LAYOUT - [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "E04",
+        "title": "LEVEL L2 - LIGHTING LAYOUT",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "E04 - LEVEL L2 - LIGHTING LAYOUT Rev C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "E05 - ELECTRICAL - LEVEL L3 - LIGHTING LAYOUT - [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E05 - ELECTRICAL - LEVEL L3 - LIGHTING LAYOUT - [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "E05",
+        "title": "LEVEL L3 - LIGHTING LAYOUT",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "E05 - LEVEL L3 - LIGHTING LAYOUT Rev C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "E06-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E06-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E06 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E06-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E07-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E07-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E07 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E07-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E08-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E08-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E08 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E08-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E09-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E09-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E09 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E09-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E10-EL~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E10-EL~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "E10 EL~1",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "E10-EL~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "E11 - ELECTRICAL - ELECTRICAL SCHEMATICS - [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E11 - ELECTRICAL - ELECTRICAL SCHEMATICS - [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "E11",
+        "title": "ELECTRICAL SCHEMATICS",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "E11 - ELECTRICAL SCHEMATICS Rev C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "E12 - ELECTRICAL - COMMUNICATIONS SCHEMATICS - [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/E12 - ELECTRICAL - COMMUNICATIONS SCHEMATICS - [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "E12",
+        "title": "COMMUNICATIONS SCHEMATICS",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "E12 - COMMUNICATIONS SCHEMATICS Rev C1.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "ELECTRICAL -  DESIGN VERIFICATION.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/ELECTRICAL -  DESIGN VERIFICATION.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ELECTRICAL - DESIGN VERIFICATION",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "ELECTRICAL -  DESIGN VERIFICATION.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ELECTRICAL - TRANSMITTAL - 2023.11.06.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/ELECTRICAL - TRANSMITTAL - 2023.11.06.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ELECTRICAL - TRANSMITTAL - 2023.11.06",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "ELECTRICAL - TRANSMITTAL - 2023.11.06.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ELECTRICAL DCD.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/ELECTRICAL DCD.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "",
+        "title": "ELECTRICAL DCD",
+        "revision": "Current",
+        "discipline": "Electrical",
+        "canonicalFileName": "ELECTRICAL DCD.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "ELECTRICAL LIGHTING SCHEDULE [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/ELECTRICAL LIGHTING SCHEDULE [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "ELECTRICAL",
+        "title": "LIGHTING SCHEDULE",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "ELECTRICAL - LIGHTING SCHEDULE Rev C1.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "ELECTRICAL SPECIFICATION [C1].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ELEC/ELECTRICAL SPECIFICATION [C1].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/electrical",
+      "parsed": {
+        "documentNumber": "ELECTRICAL",
+        "title": "SPECIFICATION",
+        "revision": "C1",
+        "discipline": "Electrical",
+        "canonicalFileName": "ELECTRICAL - SPECIFICATION Rev C1.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "DCD Facade Report.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FACADE REPORT/DCD Facade Report.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "DCD Facade Report",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "DCD Facade Report.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "External Wall Disclosure.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FACADE REPORT/External Wall Disclosure.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "External Wall Disclosure",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "External Wall Disclosure.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Facade Report [01].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FACADE REPORT/Facade Report [01].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Facade",
+        "title": "Report",
+        "revision": "01",
+        "discipline": "Architectural",
+        "canonicalFileName": "Facade - Report Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "FER FIRE SAFETY STUDIO DCD-001P.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FER - PRIMARY/FER FIRE SAFETY STUDIO DCD-001P.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FER FIRE SAFETY STUDIO DCD-001P",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FER FIRE SAFETY STUDIO DCD-001P.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FER FIRE SAFETY STUDIO V04 (Declared).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FER - PRIMARY/FER FIRE SAFETY STUDIO V04 (Declared).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FER FIRE SAFETY STUDIO V04 (Declared)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FER FIRE SAFETY STUDIO V04 (Declared).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FER E-LAB Ritek DCD.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FER - RITEK/FER E-LAB Ritek DCD.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FER E-LAB Ritek DCD",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FER E-LAB Ritek DCD.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FER E-LAB Ritek [01].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FER - RITEK/FER E-LAB Ritek [01].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "FER",
+        "title": "E-LAB Ritek",
+        "revision": "01",
+        "discipline": "Architectural",
+        "canonicalFileName": "FER - E-LAB Ritek Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "279129~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Electrical/279129~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "279129~1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "279129~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FAS190235 SERVICES THROUGH INTUBATT RIR1.15.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Electrical/FAS190235 SERVICES THROUGH INTUBATT RIR1.15.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS190235 SERVICES THROUGH INTUBATT RIR1.15",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS190235 SERVICES THROUGH INTUBATT RIR1.15.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FAS190~2.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Electrical/FAS190~2.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS190~2",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS190~2.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FCO 1579 Rev F.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Electrical/FCO 1579 Rev F.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "FCO 1579",
+        "title": "",
+        "revision": "F",
+        "discipline": "Architectural",
+        "canonicalFileName": "FCO 1579 Rev F.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "FAS190236 RIR TBA Firefly Core Hole Report R1.13_compressed.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Fire/FAS190236 RIR TBA Firefly Core Hole Report R1.13_compressed.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS190236 RIR TBA Firefly Core Hole Report R1.13_compressed",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS190236 RIR TBA Firefly Core Hole Report R1.13_compressed.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FAS200048 R2.1 - FyrePLUG Pillows (and others) 2021 update.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Fire/FAS200048 R2.1 - FyrePLUG Pillows (and others) 2021 update.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS200048 R2.1 - FyrePLUG Pillows (and others) 2021 update",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS200048 R2.1 - FyrePLUG Pillows (and others) 2021 update.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FCO 1579 Rev F.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Fire/FCO 1579 Rev F.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "FCO 1579",
+        "title": "",
+        "revision": "F",
+        "discipline": "Architectural",
+        "canonicalFileName": "FCO 1579 Rev F.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Warrington Fire Test Report  FRT190155.3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Fire/Warrington Fire Test Report  FRT190155.3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Warrington Fire Test Report FRT190155.3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Warrington Fire Test Report  FRT190155.3.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Fire Matrix [01].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Fire Matrix [01].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Fire",
+        "title": "Matrix",
+        "revision": "01",
+        "discipline": "Architectural",
+        "canonicalFileName": "Fire - Matrix Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "FAS180~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FAS180~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS180~1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS180~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FCO 1579 Rev F.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FCO 1579 Rev F.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "FCO 1579",
+        "title": "",
+        "revision": "F",
+        "discipline": "Architectural",
+        "canonicalFileName": "FCO 1579 Rev F.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "FCO3407.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FCO3407.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FCO3407",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FCO3407.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FCO3426-Short-Form.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FCO3426-Short-Form.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FCO3426-Short-Form",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FCO3426-Short-Form.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FRT190422 R2.1 (4).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FRT190422 R2.1 (4).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FRT190422 R2.1 (4)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FRT190422 R2.1 (4).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FSP1857a-Combat-Collar-1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FSP1857a-Combat-Collar-1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FSP1857a-Combat-Collar-1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FSP1857a-Combat-Collar-1.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FSP1875a-Combat-Collar-1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Hydraulic/FSP1875a-Combat-Collar-1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FSP1875a-Combat-Collar-1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FSP1875a-Combat-Collar-1.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "2283 FSV Revision A wall fire damper.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/2283 FSV Revision A wall fire damper.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "2283",
+        "title": "FSV Revision A wall fire damper",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "2283 - FSV Revision A wall fire damper.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "CSIRO FCO - 3449 - Fredon - For Reference Only.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/CSIRO FCO - 3449 - Fredon - For Reference Only.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "CSIRO FCO - 3449 - Fredon - For Reference Only",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "CSIRO FCO - 3449 - Fredon - For Reference Only.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FAR484~1.PDF",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/FAR484~1.PDF",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAR484~1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAR484~1.PDF",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FAS180439 R3.0 Rigid Wall.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/FAS180439 R3.0 Rigid Wall.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS180439 R3.0 Rigid Wall",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS180439 R3.0 Rigid Wall.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "FAS190235 SERVICES THROUGH INTUBATT RIR1.15.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/FAS190235 SERVICES THROUGH INTUBATT RIR1.15.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "FAS190235 SERVICES THROUGH INTUBATT RIR1.15",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "FAS190235 SERVICES THROUGH INTUBATT RIR1.15.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "IBD-FS[1819].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/IBD-FS[1819].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "IBD",
+        "title": "FS",
+        "revision": "1819",
+        "discipline": "Architectural",
+        "canonicalFileName": "IBD - FS Rev 1819.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "IFD44-LL Series WSW6.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/IFD44-LL Series WSW6.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "IFD44-LL Series WSW6",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "IFD44-LL Series WSW6.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "IFD44-LL-Series-WH1i_with smoke damper.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/IFD44-LL-Series-WH1i_with smoke damper.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "IFD44-LL-Series-WH1i_with smoke damper",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "IFD44-LL-Series-WH1i_with smoke damper.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Short form FCO-3356 Revision A.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/Short form FCO-3356 Revision A.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "FCO-3356",
+        "title": "",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "FCO-3356 Rev A.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "WALL FD EWFA41565100.1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/WALL FD EWFA41565100.1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WALL FD EWFA41565100.1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WALL FD EWFA41565100.1.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Warrington FAS200229 R1.1 -Fredon - For Reference Only.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE MATRIX/Mechanical/Warrington FAS200229 R1.1 -Fredon - For Reference Only.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Warrington FAS200229 R1.1 -Fredon - For Reference Only",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Warrington FAS200229 R1.1 -Fredon - For Reference Only.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "F-001-COVER-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-001-COVER-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-001",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-001.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-101-B1-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-101-B1-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-101",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-101.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-102-GF-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-102-GF-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-102",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-102.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-103-L1-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-103-L1-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-103",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-103.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-104-L2-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-104-L2-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-104",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-104.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-105-L3-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-105-L3-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-105",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-105.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-301-DETAIL-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-301-DETAIL-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-301",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-301.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-401-FS SCHEM-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-401-FS SCHEM-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-401",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-401.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "F-402-FS SCHEM-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/F-402-FS SCHEM-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "F-402",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "F-402.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Fire Wet & Dry DCD.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/Fire Wet & Dry DCD.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Fire Wet & Dry DCD",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Fire Wet & Dry DCD.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Fire Wet & Dry Design Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/FIRE WET & DRY/Fire Wet & Dry Design Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Fire Wet & Dry Design Certificate",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Fire Wet & Dry Design Certificate.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "H-001-COVER-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-001-COVER-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-001",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-001.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-002-LEGEND-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-002-LEGEND-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-002",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-002.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-100-SITE-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-100-SITE-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-100",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-100.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-101-B1-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-101-B1-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-101",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-101.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-102-GF-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-102-GF-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-102",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-102.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-103-L1-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-103-L1-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-103",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-103.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-104-L2-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-104-L2-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-104",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-104.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-105-L3-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-105-L3-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-105",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-105.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-106-ROOF-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-106-ROOF-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-106",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-106.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-201-B1-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-201-B1-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-201",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-201.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-202-GF-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-202-GF-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-202",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-202.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-203-L1-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-203-L1-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-203",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-203.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-204-L2-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-204-L2-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-204",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-204.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-205-L3-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-205-L3-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-205",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-205.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-301-DETAIL-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-301-DETAIL-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-301",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-301.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-302-DETAIL-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-302-DETAIL-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-302",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-302.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-401-CW SCHEM-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-401-CW SCHEM-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-401",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-401.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-402-HW & GAS SCHEM-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-402-HW & GAS SCHEM-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-402",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-402.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "H-403-SANITARY SCHEM-Layout1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/H-403-SANITARY SCHEM-Layout1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "H-403",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "H-403.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Hydraulic DCD Drainage.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/Hydraulic DCD Drainage.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Hydraulic DCD Drainage",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "Hydraulic DCD Drainage.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Hydraulic DCD Pressure Hose Reels.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/Hydraulic DCD Pressure Hose Reels.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Hydraulic DCD Pressure Hose Reels",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "Hydraulic DCD Pressure Hose Reels.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Hydraulic Design Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/HYDRAULIC/Hydraulic Design Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/hydraulic",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Hydraulic Design Certificate",
+        "revision": "Current",
+        "discipline": "Hydraulic",
+        "canonicalFileName": "Hydraulic Design Certificate.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Landscape Compliance Statement [D].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/LANDSCAPE/Landscape Compliance Statement [D].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Landscape",
+        "title": "Compliance Statement",
+        "revision": "D",
+        "discipline": "Architectural",
+        "canonicalFileName": "Landscape - Compliance Statement Rev D.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Landscape Design [D].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/LANDSCAPE/Landscape Design [D].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Landscape",
+        "title": "Design",
+        "revision": "D",
+        "discipline": "Architectural",
+        "canonicalFileName": "Landscape - Design Rev D.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Vertical Transportation DCD (Rev 01).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/LIFT/Vertical Transportation DCD (Rev 01).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Vertical",
+        "title": "Transportation DCD",
+        "revision": "01",
+        "discipline": "Architectural",
+        "canonicalFileName": "Vertical - Transportation DCD Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Vertical Transportation Design (Rev 02).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/LIFT/Vertical Transportation Design (Rev 02).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Vertical",
+        "title": "Transportation Design",
+        "revision": "02",
+        "discipline": "Architectural",
+        "canonicalFileName": "Vertical - Transportation Design Rev 02.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Mechanical DCD.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/MECH/Mechanical DCD.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Mechanical DCD",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Mechanical DCD.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Mechanical Design & Spec [C].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/MECH/Mechanical Design & Spec [C].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Mechanical",
+        "title": "Design & Spec",
+        "revision": "C",
+        "discipline": "Architectural",
+        "canonicalFileName": "Mechanical - Design & Spec Rev C.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Mechanical Design Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/MECH/Mechanical Design Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Mechanical Design Certificate",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Mechanical Design Certificate.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "PETERSHAM - NBN - NBN00[A].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/NBN/PETERSHAM - NBN - NBN00[A].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "NBN00",
+        "title": "NBN NBN00",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "NBN00 - NBN NBN00 Rev A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "PETERSHAM - NBN - NBN01[A].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/NBN/PETERSHAM - NBN - NBN01[A].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "NBN01",
+        "title": "NBN NBN01",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "NBN01 - NBN NBN01 Rev A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "PETERSHAM - NBN - NBN02[A].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/NBN/PETERSHAM - NBN - NBN02[A].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "NBN02",
+        "title": "NBN NBN02",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "NBN02 - NBN NBN02 Rev A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "PETERSHAM - NBN - NBN03[A].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/NBN/PETERSHAM - NBN - NBN03[A].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "NBN03",
+        "title": "NBN NBN03",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "NBN03 - NBN NBN03 Rev A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "PETERSHAM - NBN - NBN04[A].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/NBN/PETERSHAM - NBN - NBN04[A].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "NBN04",
+        "title": "NBN NBN04",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "NBN04 - NBN NBN04 Rev A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "PETERSHAM - NBN - NBN05[A].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/NBN/PETERSHAM - NBN - NBN05[A].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "NBN05",
+        "title": "NBN NBN05",
+        "revision": "A",
+        "discipline": "Architectural",
+        "canonicalFileName": "NBN05 - NBN NBN05 Rev A.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "A104 ROOF ACCESS L3.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ROOF ACCESS/A104 ROOF ACCESS L3.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "A104",
+        "title": "ROOF ACCESS L3",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "A104 - ROOF ACCESS L3.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "A105 ROOF ACCESS ROOF.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/ROOF ACCESS/A105 ROOF ACCESS ROOF.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "A105",
+        "title": "ROOF ACCESS ROOF",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "A105 - ROOF ACCESS ROOF.pdf",
+        "confidence": "high"
+      }
+    },
+    {
+      "fileName": "s73 NOR.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/s73 NOR.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "s73 NOR",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "s73 NOR.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sewer Design 1of2 (v2).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sewer Design 1of2 (v2).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sewer Design 1of2 (v2)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sewer Design 1of2 (v2).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sewer Design 2of2 (v2).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sewer Design 2of2 (v2).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sewer Design 2of2 (v2)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sewer Design 2of2 (v2).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sydney Water Developer Works Deed (Signed).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sydney Water Developer Works Deed (Signed).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sydney Water Developer Works Deed (Signed)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sydney Water Developer Works Deed (Signed).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sydney Water Developer Works Deed Standard Terms V5.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sydney Water Developer Works Deed Standard Terms V5.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sydney Water Developer Works Deed Standard Terms V5",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sydney Water Developer Works Deed Standard Terms V5.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sydney Water Developer Works Deed.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sydney Water Developer Works Deed.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sydney Water Developer Works Deed",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sydney Water Developer Works Deed.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sydney Water MLIM Agreement (Signed).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sydney Water MLIM Agreement (Signed).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sydney Water MLIM Agreement (Signed)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sydney Water MLIM Agreement (Signed).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sydney Water MLIM Agreement.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sydney Water MLIM Agreement.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sydney Water MLIM Agreement",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sydney Water MLIM Agreement.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Sydney Water MLIM Client Guidelines.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/s73 NOR DEVELOPER DEED & MLIM/Sydney Water MLIM Client Guidelines.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Sydney Water MLIM Client Guidelines",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Sydney Water MLIM Client Guidelines.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Section J Report 001 (E-Lab).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/SECTION J/Section J Report 001 (E-Lab).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Section J Report 001 (E-Lab)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Section J Report 001 (E-Lab).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Detailed Site Investigation R1.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/SITE INVESTIGATION/Detailed Site Investigation R1.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Detailed Site Investigation R1",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Detailed Site Investigation R1.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "D01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STORMWATER/D01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "D01",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "D01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "D02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STORMWATER/D02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "D02",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "D02.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "D03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STORMWATER/D03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "D03",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "D03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "D04.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STORMWATER/D04.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "D04",
+        "title": "",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "D04.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "Storm Water Design Certificate.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STORMWATER/Storm Water Design Certificate.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Storm Water Design Certificate",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Storm Water Design Certificate.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Stormwater DCD.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STORMWATER/Stormwater DCD.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Stormwater DCD",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Stormwater DCD.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "S100-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S100-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S100",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S100 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S101-02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S101-02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S101",
+        "title": "",
+        "revision": "02",
+        "discipline": "Structural",
+        "canonicalFileName": "S101 Rev 02.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S102-02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S102-02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S102",
+        "title": "",
+        "revision": "02",
+        "discipline": "Structural",
+        "canonicalFileName": "S102 Rev 02.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S103-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S103-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S103",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S103 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S104-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S104-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S104",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S104 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S111-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S111-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S111",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S111 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S112-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S112-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S112",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S112 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S113-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S113-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S113",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S113 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S114-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S114-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S114",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S114 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S201-04.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S201-04.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S201",
+        "title": "",
+        "revision": "04",
+        "discipline": "Structural",
+        "canonicalFileName": "S201 Rev 04.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S202-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S202-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S202",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S202 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S203-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S203-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S203",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S203 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S204-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S204-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S204",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S204 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S301-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S301-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S301",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S301 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S302-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S302-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S302",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S302 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S303-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S303-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S303",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S303 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S304-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S304-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S304",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S304 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S305-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S305-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S305",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S305 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S306-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S306-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S306",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S306 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S307-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S307-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S307",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S307 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S308-01.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S308-01.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S308",
+        "title": "",
+        "revision": "01",
+        "discipline": "Structural",
+        "canonicalFileName": "S308 Rev 01.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S401-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S401-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S401",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S401 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S501-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S501-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S501",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S501 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S502-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S502-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S502",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S502 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S503-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S503-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S503",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S503 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S504-02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S504-02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S504",
+        "title": "",
+        "revision": "02",
+        "discipline": "Structural",
+        "canonicalFileName": "S504 Rev 02.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S505-02.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S505-02.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S505",
+        "title": "",
+        "revision": "02",
+        "discipline": "Structural",
+        "canonicalFileName": "S505 Rev 02.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S601-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S601-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S601",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S601 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S602-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S602-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S602",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S602 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S701-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S701-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S701",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S701 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S702-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S702-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S702",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S702 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S801-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S801-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S801",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S801 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S802-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S802-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S802",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S802 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S901-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S901-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S901",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S901 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "S902-03.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/S902-03.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "S902",
+        "title": "",
+        "revision": "03",
+        "discipline": "Structural",
+        "canonicalFileName": "S902 Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "STRUCTURAL DCD 004L.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/STRUCTURAL DCD 004L.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "",
+        "title": "STRUCTURAL DCD 004L",
+        "revision": "Current",
+        "discipline": "Structural",
+        "canonicalFileName": "STRUCTURAL DCD 004L.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "STRUCTURAL DESIGN CERTFICATE.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/STRUCTURAL DESIGN CERTFICATE.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "",
+        "title": "STRUCTURAL DESIGN CERTFICATE",
+        "revision": "Current",
+        "discipline": "Structural",
+        "canonicalFileName": "STRUCTURAL DESIGN CERTFICATE.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "STRUCTURAL DRAWING TRANSMITTAL.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL/STRUCTURAL DRAWING TRANSMITTAL.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/structural",
+      "parsed": {
+        "documentNumber": "",
+        "title": "STRUCTURAL DRAWING TRANSMITTAL",
+        "revision": "Current",
+        "discipline": "Structural",
+        "canonicalFileName": "STRUCTURAL DRAWING TRANSMITTAL.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "BALUSTRADE DESIGN VERIFICATION (THUMP).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/STRUCTURAL BALUSTRADE DESIGN/BALUSTRADE DESIGN VERIFICATION (THUMP).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "BALUSTRADE DESIGN VERIFICATION (THUMP)",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "BALUSTRADE DESIGN VERIFICATION (THUMP).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "CTMP (Council Approval).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/TRAFFIC/CTMP (Council Approval).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/07-construction/04-management-plans",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Construction Traffic Management Plan (Council Approval)",
+        "revision": "Current",
+        "discipline": "Traffic",
+        "canonicalFileName": "Construction Traffic Management Plan (Council Approval).pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "CTMP (FINAL).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/TRAFFIC/CTMP (FINAL).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/07-construction/04-management-plans",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Construction Traffic Management Plan (FINAL)",
+        "revision": "Current",
+        "discipline": "Traffic",
+        "canonicalFileName": "Construction Traffic Management Plan (FINAL).pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "TRAFFIC DESIGN STATEMENT (V01).pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/TRAFFIC/TRAFFIC DESIGN STATEMENT (V01).pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/07-construction/04-management-plans",
+      "parsed": {
+        "documentNumber": "",
+        "title": "TRAFFIC DESIGN STATEMENT (V01)",
+        "revision": "Current",
+        "discipline": "Traffic",
+        "canonicalFileName": "TRAFFIC DESIGN STATEMENT (V01).pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Chomp Licences and Insurance.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WASTE MGT PLAN/Chomp Licences and Insurance.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "Chomp Licences and Insurance",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "Chomp Licences and Insurance.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "DEMO WORK PLAN.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WASTE MGT PLAN/DEMO WORK PLAN.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "DEMO WORK PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "DEMO WORK PLAN.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WASTE MGT PLAN.docx",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WASTE MGT PLAN/WASTE MGT PLAN.docx",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WASTE MGT PLAN",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WASTE MGT PLAN.docx",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "HYCHEM E100.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/HYCHEM E100.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "HYCHEM E100",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "HYCHEM E100.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "HYCHEM GP.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/HYCHEM GP.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "HYCHEM GP",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "HYCHEM GP.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "HYCHEM SUPAFLOOR.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/HYCHEM SUPAFLOOR.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "HYCHEM SUPAFLOOR",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "HYCHEM SUPAFLOOR.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SOPREMA ALSAN FLASHING.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/SOPREMA ALSAN FLASHING.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SOPREMA ALSAN FLASHING",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SOPREMA ALSAN FLASHING.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SOPREMA COLPHENE 3000.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/SOPREMA COLPHENE 3000.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SOPREMA COLPHENE 3000",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SOPREMA COLPHENE 3000.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SOPREMA ELASTOCOL STICK.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/SOPREMA ELASTOCOL STICK.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SOPREMA ELASTOCOL STICK",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SOPREMA ELASTOCOL STICK.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SOPREMA EP 100 H2O.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/SOPREMA EP 100 H2O.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SOPREMA EP 100 H2O",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SOPREMA EP 100 H2O.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "SOPREMA FLAGON AT.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/SOPREMA FLAGON AT.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "SOPREMA FLAGON AT",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "SOPREMA FLAGON AT.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Waterproofing Material Compliance Report [03].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/Waterproofing Material Compliance Report [03].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Waterproofing",
+        "title": "Material Compliance Report",
+        "revision": "03",
+        "discipline": "Architectural",
+        "canonicalFileName": "Waterproofing - Material Compliance Report Rev 03.pdf",
+        "confidence": "medium"
+      }
+    },
+    {
+      "fileName": "WPA 100.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA 100.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA 100",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA 100.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA 200.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA 200.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA 200",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA 200.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA 360.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA 360.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA 360",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA 360.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA 500.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA 500.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA 500",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA 500.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA 560.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA 560.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA 560",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA 560.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA 992UV.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA 992UV.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA 992UV",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA 992UV.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA ATC.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA ATC.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA ATC",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA ATC.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA BUTYL TAPE.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA BUTYL TAPE.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA BUTYL TAPE",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA BUTYL TAPE.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA DRAINAGE CELL .pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA DRAINAGE CELL .pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA DRAINAGE CELL",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA DRAINAGE CELL .pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA ELASTOBAND.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA ELASTOBAND.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA ELASTOBAND",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA ELASTOBAND.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA FC.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA FC.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA FC",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA FC.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "WPA SPUR.pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/MATERIALS DATA SHEETS/WPA SPUR.pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "",
+        "title": "WPA SPUR",
+        "revision": "Current",
+        "discipline": "Architectural",
+        "canonicalFileName": "WPA SPUR.pdf",
+        "confidence": "low"
+      }
+    },
+    {
+      "fileName": "Waterproofing Design Compliance Report [Final].pdf",
+      "sourcePath": "04-projects/1234-petersham-appartments/_inbox/WATERPROOFING/Waterproofing Design Compliance Report [Final].pdf",
+      "filedPath": "04-projects/1234-petersham-appartments/03-design/architect",
+      "parsed": {
+        "documentNumber": "Waterproofing",
+        "title": "Design Compliance Report",
+        "revision": "FINAL",
+        "discipline": "Architectural",
+        "canonicalFileName": "Waterproofing - Design Compliance Report Rev FINAL.pdf",
+        "confidence": "medium"
+      }
+    }
+  ]
+}
