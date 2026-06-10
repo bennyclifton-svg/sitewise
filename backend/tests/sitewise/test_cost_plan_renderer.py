@@ -78,3 +78,39 @@ def test_render_cost_plan_scaffold_is_fast() -> None:
         render_cost_plan_scaffold(project, pack, "evidence_grounded")
     elapsed_ms = (time.perf_counter() - start) * 1000 / 20
     assert elapsed_ms < 500
+
+
+def _breakdown_section(markdown: str) -> str:
+    out, collecting = [], False
+    for line in markdown.splitlines():
+        s = line.strip().lower()
+        if s.startswith("## ") and s[3:].strip() == "cost breakdown by category":
+            collecting = True
+            continue
+        if collecting and s.startswith("## "):
+            break
+        if collecting:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _money_to_int(cell: str) -> int | None:
+    cell = cell.replace("$", "").replace(",", "").strip()
+    return int(cell) if cell.isdigit() else None
+
+
+def test_grand_total_equals_sum_of_visible_subtotals() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded")
+    section = _breakdown_section(markdown)
+    subtotals, grand = [], None
+    for line in section.splitlines():
+        if "subtotal —" in line.lower():
+            cell = line.split("|")[4]
+            amount = _money_to_int(cell)
+            if amount is not None:
+                subtotals.append(amount)
+        if "grand total (ex gst)" in line.lower():
+            grand = _money_to_int(line.split("|")[4])
+    assert grand is not None
+    assert grand == sum(subtotals), f"grand {grand} != sum(subtotals) {sum(subtotals)}"
+    assert grand != 2_148_500

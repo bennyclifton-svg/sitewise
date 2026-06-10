@@ -417,9 +417,13 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
         f"{cont_status} | {cont_basis} |"
     )
 
-    indicative = _known_indicative_total_ex_gst(pack)
-    grand_total = f"${indicative:,}" if indicative is not None else "TBC"
-    grand_basis = "Known buckets only — pending tender" if indicative is not None else "Pending tender"
+    subtotal_amounts = [
+        _parse_amount(fee_subtotal),
+        _parse_amount(contingency),
+    ]
+    itemised_total = sum(amount for amount in subtotal_amounts if amount is not None)
+    grand_total = f"${itemised_total:,}" if itemised_total else "TBC"
+    grand_basis = "Sum of itemised subtotals — excludes construction ceiling and TBC lines"
     rows.extend(
         [
             f"| | | **Subtotal — Fees and charges** | {fee_subtotal} | | |",
