@@ -136,3 +136,37 @@ def test_grand_total_equals_sum_of_visible_subtotals() -> None:
     assert grand is not None
     assert grand == sum(subtotals), f"grand {grand} != sum(subtotals) {sum(subtotals)}"
     assert grand != 2_148_500
+
+
+def test_construction_rows_benchmarked_to_ceiling() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded")
+    section = _breakdown_section(markdown)
+    construction_amounts = []
+    construction_subtotal = None
+    for line in section.splitlines():
+        low = line.lower()
+        if "| construction |" in low and "subtotal" not in low:
+            amount = _money_to_int(line.split("|")[4])
+            if amount is not None:
+                construction_amounts.append(amount)
+        if "subtotal — construction" in low:
+            construction_subtotal = _money_to_int(line.split("|")[4])
+    assert len(construction_amounts) == 9
+    assert construction_subtotal == 1_850_000
+    assert sum(construction_amounts) == 1_850_000
+    assert "benchmark % of ceiling" in markdown.lower()
+
+
+def test_grand_total_includes_benchmarked_construction() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded")
+    section = _breakdown_section(markdown)
+    subtotals, grand = [], None
+    for line in section.splitlines():
+        if "subtotal —" in line.lower():
+            amount = _money_to_int(line.split("|")[4])
+            if amount is not None:
+                subtotals.append(amount)
+        if "grand total (ex gst)" in line.lower():
+            grand = _money_to_int(line.split("|")[4])
+    assert grand == sum(subtotals)
+    assert grand >= 1_850_000 + 148_500 + 120_000
