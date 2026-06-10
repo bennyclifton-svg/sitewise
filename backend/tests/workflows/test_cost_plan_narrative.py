@@ -143,3 +143,50 @@ def test_validator_rejects_generic_risk_owner() -> None:
 
     with pytest.raises(WorkflowValidationError, match="generic"):
         validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
+
+
+def _valid_output_with_owners(owners: list[str]) -> CostPlanNarrativeOutput:
+    return CostPlanNarrativeOutput(
+        judgements=[
+            "Tender must reconcile to the $1,850,000 ceiling.",
+            "DA + CC pathway is adopted.",
+        ],
+        recommendations=[
+            "Prepare tender docs by 2026-07-05.",
+            "Confirm planning pathway by 2026-07-05.",
+            "Declare Linden conflict by 2026-07-05.",
+        ],
+        risk_rows=[
+            RiskRow(
+                risk=letter,
+                owner=owner,
+                status="Open",
+                next_action="Act by 2026-07-05",
+                due_date="2026-07-05",
+            )
+            for letter, owner in zip("ABCDE", owners, strict=True)
+        ],
+        next_steps=[
+            "Step one by 2026-07-05.",
+            "Step two by 2026-07-05.",
+            "Step three by 2026-07-05.",
+        ],
+    )
+
+
+def test_validator_accepts_specific_risk_owners() -> None:
+    pack = _full_chen_pack()
+    output = _valid_output_with_owners(
+        ["Owner", "Architect-PM", "Structural Engineer", "Certifier", "Builder"]
+    )
+    # No generic owners and everything else valid — must not raise.
+    validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
+
+
+def test_validator_rejects_generic_owner_with_whitespace_and_case() -> None:
+    pack = _full_chen_pack()
+    output = _valid_output_with_owners(
+        ["Owner", "Architect-PM", "Builder", "Certifier", "  Various  "]
+    )
+    with pytest.raises(WorkflowValidationError, match="generic"):
+        validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))

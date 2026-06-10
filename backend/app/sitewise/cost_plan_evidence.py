@@ -46,6 +46,8 @@ _CERTIFIER_FEE_PATTERN = re.compile(
 
 class OwnerSuppliedItem(BaseModel):
     label: str
+    # Owner-supplied figures come straight from the owner brief, which does NOT state a
+    # GST basis. The field name is legacy — do not assume ex-GST or gross it up to inc-GST.
     amount_ex_gst: str | None = None
 
 
