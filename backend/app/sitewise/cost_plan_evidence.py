@@ -6,7 +6,12 @@ import re
 
 from pydantic import BaseModel, Field
 
-from app.sitewise.mobilisation_evidence import MobilisationEvidencePack, extract_mobilisation_evidence_pack
+from app.sitewise.mobilisation_evidence import (
+    GAP_CERTIFIER,
+    MobilisationEvidencePack,
+    extract_mobilisation_evidence_pack,
+    pack_has_gap,
+)
 
 _BUDGET_CEILING_PATTERN = re.compile(
     r"\*\*Working budget ceiling:\*\*\s*\$\s*([\d,]+)",
@@ -29,6 +34,14 @@ _PROJECT_TITLE_PATTERN = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _ALLOWANCE_AMOUNT_PATTERN = re.compile(r"\$\s*([\d,]+)")
+_CERTIFIER_NAME_PATTERN = re.compile(
+    r"appointed\s+([A-Z][\w&.'\- ]+?Pty Ltd)\s+as principal certifier",
+    re.IGNORECASE,
+)
+_CERTIFIER_FEE_PATTERN = re.compile(
+    r"(?:principal certifier|certifier|PCA|fee)[^.\n]*?\$\s*([\d,]+)\s*\+?\s*GST",
+    re.IGNORECASE,
+)
 
 
 class OwnerSuppliedItem(BaseModel):
@@ -57,6 +70,8 @@ class CostPlanEvidencePack(BaseModel):
     owner_brief_on_file: bool = False
     planning_pathway_summary: str | None = None
     planning_memo_on_file: bool = False
+    certifier_name: str | None = None
+    certifier_fee_ex_gst: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
 
     @property
@@ -198,6 +213,15 @@ def extract_cost_plan_evidence_pack(
     if isinstance(project_name, str) and project_name.endswith(","):
         project_name = project_name.rstrip(",").strip()
 
+    combined = "\n\n".join(source_texts)
+    certifier_name = None
+    certifier_fee = None
+    if not pack_has_gap(mobilisation, GAP_CERTIFIER):
+        name_match = _CERTIFIER_NAME_PATTERN.search(combined)
+        fee_match = _CERTIFIER_FEE_PATTERN.search(combined)
+        certifier_name = name_match.group(1).strip() if name_match else None
+        certifier_fee = f"${fee_match.group(1)}" if fee_match else None
+
     return CostPlanEvidencePack(
         mobilisation=mobilisation,
         project_name=project_name if isinstance(project_name, str) else None,
@@ -209,5 +233,7 @@ def extract_cost_plan_evidence_pack(
         owner_brief_on_file=bool(owner_fields.get("owner_brief_on_file")),
         planning_pathway_summary=planning_summary,
         planning_memo_on_file=bool(planning_text.strip()),
+        certifier_name=certifier_name,
+        certifier_fee_ex_gst=certifier_fee,
         evidence_refs=refs,
     )

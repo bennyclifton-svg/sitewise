@@ -54,6 +54,13 @@ def test_render_cost_plan_scaffold_surfaces_owner_brief_ceiling() -> None:
     assert "$$" not in markdown
 
 
+def test_certifier_row_is_grounded_when_appointed() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded").lower()
+    assert "principal certifier | tbc | assumption | not yet appointed" not in markdown
+    assert "$6,800" in markdown
+    assert "certify nsw" in markdown
+
+
 def test_owner_supplied_items_do_not_assert_gst_basis() -> None:
     markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded").lower()
     assert "$33,000 inc gst" not in markdown

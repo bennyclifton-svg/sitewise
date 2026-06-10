@@ -410,6 +410,14 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
             f"| {code} | Fees and charges | {label} | TBC | Assumption | Benchmark |"
         )
     for code, label in _CONSULTANT_ROWS:
+        if label == "Principal certifier" and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
+            fee = _money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else "Owner-direct"
+            name = pack.certifier_name or "appointed"
+            rows.append(
+                f"| {code} | Consultants | {label} | {fee} | Grounded | "
+                f"Appointed ({name}); owner-direct fee |"
+            )
+            continue
         rows.append(
             f"| {code} | Consultants | {label} | TBC | Assumption | Not yet appointed |"
         )
@@ -463,20 +471,29 @@ def _render_locked_appointments(pack: CostPlanEvidencePack) -> str:
     mob = pack.mobilisation
     executed = mob.engagement_executed_date or "TBC"
     fee = _money(mob.fee_total_ex_gst)
-    return "\n".join(
+    rows = [
+        "## Known locked contract and appointment values",
+        "",
+        "| Supplier | Scope | Amount (ex GST) | Date | Evidence |",
+        "| --- | --- | --- | --- | --- |",
+        (
+            f"| {mob.appointee or 'Harrison Clarke Studio Pty Ltd'} | Architect / PM | "
+            f"{fee} | {executed} | Engagement letter |"
+        ),
+    ]
+    if pack.certifier_name and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
+        cert_fee = _money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else "Owner-direct"
+        rows.append(
+            f"| {pack.certifier_name} | Principal certifier | {cert_fee} | Appointed | "
+            "Certifier appointment |"
+        )
+    rows.extend(
         [
-            "## Known locked contract and appointment values",
-            "",
-            "| Supplier | Scope | Amount (ex GST) | Date | Evidence |",
-            "| --- | --- | --- | --- | --- |",
-            (
-                f"| {mob.appointee or 'Harrison Clarke Studio Pty Ltd'} | Architect / PM | "
-                f"{fee} | {executed} | Engagement letter |"
-            ),
             "",
             "All other consultant and construction appointments: **Assumption — not yet locked**.",
         ]
     )
+    return "\n".join(rows)
 
 
 def _render_allowances_contingency(pack: CostPlanEvidencePack) -> str:
