@@ -83,3 +83,63 @@ def test_validate_cost_plan_narrative_rejects_geotech_commission_when_on_file() 
 
     with pytest.raises(WorkflowValidationError, match="geotechnical"):
         validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
+
+
+def test_validator_rejects_generic_risk_owner() -> None:
+    pack = _full_chen_pack()
+    output = CostPlanNarrativeOutput(
+        judgements=[
+            "Tender must reconcile to the $1,850,000 ceiling.",
+            "DA + CC pathway is adopted.",
+        ],
+        recommendations=[
+            "Prepare tender docs by 2026-07-05.",
+            "Confirm planning pathway by 2026-07-05.",
+            "Declare Linden conflict by 2026-07-05.",
+        ],
+        risk_rows=[
+            RiskRow(
+                risk="A",
+                owner="Project Team",
+                status="Open",
+                next_action="Act by 2026-07-05",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="B",
+                owner="Project Team",
+                status="Open",
+                next_action="Act by 2026-07-05",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="C",
+                owner="Project Team",
+                status="Open",
+                next_action="Act by 2026-07-05",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="D",
+                owner="Project Team",
+                status="Open",
+                next_action="Act by 2026-07-05",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="E",
+                owner="Project Team",
+                status="Open",
+                next_action="Act by 2026-07-05",
+                due_date="2026-07-05",
+            ),
+        ],
+        next_steps=[
+            "Step one by 2026-07-05.",
+            "Step two by 2026-07-05.",
+            "Step three by 2026-07-05.",
+        ],
+    )
+
+    with pytest.raises(WorkflowValidationError, match="generic"):
+        validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
