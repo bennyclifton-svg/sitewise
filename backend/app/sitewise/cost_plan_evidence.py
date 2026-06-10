@@ -213,14 +213,20 @@ def extract_cost_plan_evidence_pack(
     if isinstance(project_name, str) and project_name.endswith(","):
         project_name = project_name.rstrip(",").strip()
 
-    combined = "\n\n".join(source_texts)
     certifier_name = None
     certifier_fee = None
     if not pack_has_gap(mobilisation, GAP_CERTIFIER):
-        name_match = _CERTIFIER_NAME_PATTERN.search(combined)
-        fee_match = _CERTIFIER_FEE_PATTERN.search(combined)
-        certifier_name = name_match.group(1).strip() if name_match else None
-        certifier_fee = f"${fee_match.group(1)}" if fee_match else None
+        # Scope the certifier name AND fee to the certifier appointment document only.
+        # Searching the global combined text would let a different consultant's fee line
+        # (e.g. a stormwater quote) be captured as the certifier fee.
+        for text in source_texts:
+            name_match = _CERTIFIER_NAME_PATTERN.search(text)
+            if not name_match:
+                continue
+            certifier_name = name_match.group(1).strip()
+            fee_match = _CERTIFIER_FEE_PATTERN.search(text)
+            certifier_fee = f"${fee_match.group(1)}" if fee_match else None
+            break
 
     return CostPlanEvidencePack(
         mobilisation=mobilisation,
