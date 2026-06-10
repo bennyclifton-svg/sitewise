@@ -56,6 +56,13 @@ _PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
 
 _CONTINGENCY_CODE = "25"
 
+_STANDING_ASSUMPTIONS: tuple[str, ...] = (
+    "Construction trade pricing TBC pending head-builder tender.",
+    "Consultant fees (structural, geotechnical, survey, hydraulic, energy) TBC — not yet appointed.",
+    "Authority and statutory fees (DA/CC, BASIX, Sydney Water, levies) TBC — benchmark only.",
+    "PC allowance lines are placeholders until contract Schedule of Allowances.",
+)
+
 _RISK_SKELETON_ROWS: tuple[tuple[str, str, str, str, str], ...] = (
     (
         "Tender pricing vs owner brief ceiling",
@@ -251,7 +258,12 @@ def _render_source_evidence(pack: CostPlanEvidencePack) -> str:
             *rows,
             "",
             "**Gaps:** "
-            + ("; ".join(pack.gaps) if pack.gaps else "None identified beyond construction tender pricing."),
+            + (
+                "; ".join(pack.gaps)
+                if pack.gaps
+                else "No mobilisation evidence gaps; construction trade pricing, consultant "
+                "fees and authority charges remain unpriced (see Assumptions and exclusions)."
+            ),
         ]
     )
 
@@ -643,7 +655,8 @@ def _render_internal_audit(pack: CostPlanEvidencePack) -> str:
     if mob.target_da_lodgement:
         facts.append(f"Target DA lodgement {mob.target_da_lodgement} per engagement letter.")
 
-    assumptions = [f"Assumption: {gap}." for gap in pack.gaps] or ["Assumption: none identified."]
+    assumptions = [f"Assumption: {gap}." for gap in pack.gaps]
+    assumptions.extend(f"Assumption: {item}" for item in _STANDING_ASSUMPTIONS)
     return "\n".join(
         [
             "## Internal audit layer",

@@ -80,6 +80,14 @@ def test_render_cost_plan_scaffold_is_fast() -> None:
     assert elapsed_ms < 500
 
 
+def test_audit_assumptions_never_claims_none_when_breakdown_has_assumptions() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded").lower()
+    assert "assumption: none identified" not in markdown
+    assert "none identified beyond construction tender pricing" not in markdown
+    assert "construction trade pricing" in markdown
+    assert "consultant fees" in markdown
+
+
 def _breakdown_section(markdown: str) -> str:
     out, collecting = [], False
     for line in markdown.splitlines():
