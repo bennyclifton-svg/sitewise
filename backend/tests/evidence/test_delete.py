@@ -63,7 +63,9 @@ def client(mock_session: AsyncMock) -> TestClient:
     app.dependency_overrides.clear()
 
 
-def test_delete_project_evidence_removes_storage_and_records(mock_session: AsyncMock) -> None:
+def test_delete_project_evidence_removes_records_and_returns_storage_keys(
+    mock_session: AsyncMock,
+) -> None:
     document = SimpleNamespace(
         id=EVIDENCE_ID,
         relative_path="04-projects/demo/_inbox/report.md",
@@ -77,12 +79,13 @@ def test_delete_project_evidence_removes_storage_and_records(mock_session: Async
     mock_session.execute = AsyncMock(return_value=_execute_result([workspace_file]))
 
     async def _run() -> None:
-        with patch("app.evidence.service.delete_project_file") as mock_delete_file:
-            await delete_project_evidence(
-                mock_session, project=_project(), evidence_id=EVIDENCE_ID
-            )
+        storage_keys = await delete_project_evidence(
+            mock_session, project=_project(), evidence_id=EVIDENCE_ID
+        )
 
-        mock_delete_file.assert_called_once_with(storage_key="demo/_inbox/report.md")
+        # Storage removal is deferred to the caller: the service returns the keys
+        # rather than performing the slow object-storage round-trip itself.
+        assert storage_keys == ["demo/_inbox/report.md"]
         # select workspace files + delete workspace files + delete source document
         assert mock_session.execute.await_count == 3
         mock_session.commit.assert_awaited_once()
@@ -120,9 +123,31 @@ def test_delete_evidence_endpoint_returns_204(
 ) -> None:
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
-        patch("app.api.projects.delete_project_evidence", new=AsyncMock()) as mock_delete,
+        patch(
+            "app.api.projects.delete_project_evidence",
+            new=AsyncMock(return_value=[]),
+        ) as mock_delete,
     ):
         response = client.delete(f"/projects/{PROJECT_ID}/evidence/{EVIDENCE_ID}")
 
     assert response.status_code == 204
     mock_delete.assert_awaited_once()
+
+
+def test_delete_evidence_endpoint_schedules_background_storage_cleanup(
+    client: TestClient, mock_session: AsyncMock
+) -> None:
+    storage_keys = ["demo/_inbox/report.md"]
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch(
+            "app.api.projects.delete_project_evidence",
+            new=AsyncMock(return_value=storage_keys),
+        ),
+        patch("app.api.projects.delete_project_files") as mock_delete_files,
+    ):
+        response = client.delete(f"/projects/{PROJECT_ID}/evidence/{EVIDENCE_ID}")
+
+    assert response.status_code == 204
+    # The storage cleanup runs as a background task after the response is sent.
+    mock_delete_files.assert_called_once_with(storage_keys=storage_keys)

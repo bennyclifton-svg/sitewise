@@ -134,6 +134,25 @@ class ProjectWorkspaceTreeResponse(BaseModel):
     tree: list[WorkspaceTreeNode]
 
 
+class WorkbookCellStyle(BaseModel):
+    fill_color: str | None = None
+    bold: bool = False
+
+
+class WorkbookSheetPreview(BaseModel):
+    name: str
+    column_count: int
+    rows: list[list[str]]
+    styles: list[list[WorkbookCellStyle]] = Field(default_factory=list)
+
+
+class WorkbookPreviewResponse(BaseModel):
+    filename: str
+    workspace_path: str
+    sheets: list[WorkbookSheetPreview]
+    warnings: list[str] = Field(default_factory=list)
+
+
 class PlatformKnowledgeBucket(BaseModel):
     kind: str
     document_count: int

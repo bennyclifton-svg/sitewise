@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -13,9 +13,13 @@ from app.assistant.chat_models import resolve_chat_model
 from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
 from app.database.chats import create_message
+from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
 from app.database.source_document import SourceDocument
+from app.database.workspace_files import upsert_workspace_file
+from app.inbox.paths import build_storage_key
+from app.storage.project_files import upload_project_file
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
@@ -30,6 +34,7 @@ from app.sitewise.cost_plan_evidence_validation import (
     cost_plan_evidence_grounded_violations,
     ensure_evidence_grounded_cost_plan_scaffold,
 )
+from app.sitewise.cost_plan_workbook import build_cost_plan_workbook
 from app.sitewise.cost_plan_sources import (
     document_title_for_role,
     required_platform_paths,
@@ -44,6 +49,7 @@ from app.workflows.create_pmp import (
     _source_ref,
     normalize_pmp_markdown,
 )
+from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE = "create_cost_plan"
 RUNTIME_NAME = "clerk-sitewise-create-cost-plan"
@@ -582,6 +588,60 @@ def draft_workspace_path(project: Project, version: int) -> str:
     return f"{project.workspace_path}/01-cost/cost_plan_v{version:02d}.md"
 
 
+def workbook_workspace_path(project: Project, version: int) -> str:
+    return f"{project.workspace_path}/01-cost/Cost_Plan_v{version:02d}.draft.xlsx"
+
+
+async def save_cost_plan_workbook_artifact(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft: DraftArtifact,
+    markdown: str,
+) -> dict:
+    generated_at = datetime.now(UTC)
+    workbook = build_cost_plan_workbook(
+        project_title=project.title,
+        markdown=markdown,
+        version=draft.version,
+        generated_at=generated_at,
+    )
+    workspace_path = workbook_workspace_path(project, draft.version)
+    storage_key = build_storage_key(str(project.id), workspace_path)
+    content_hash = bytes_content_hash(workbook.content)
+
+    await asyncio.to_thread(
+        upload_project_file,
+        storage_key=storage_key,
+        content=workbook.content,
+        filename=workbook.filename,
+    )
+    await upsert_workspace_file(
+        session,
+        project_id=project.id,
+        workspace_path=workspace_path,
+        filename=workbook.filename,
+        storage_bucket=settings.supabase_storage_bucket,
+        storage_key=storage_key,
+        content_hash=content_hash,
+        size_bytes=len(workbook.content),
+        ingest_status="generated",
+        ingest_error=None,
+        source_document_id=None,
+    )
+    return {
+        "file_name": workbook.filename,
+        "workspace_path": workspace_path,
+        "version": draft.version,
+        "content_hash": content_hash,
+        "size_bytes": len(workbook.content),
+        "row_count": workbook.row_count,
+        "cost_item_lookup_count": workbook.cost_item_lookup_count,
+        "warnings": list(workbook.warnings),
+        "generated_at": generated_at.isoformat(),
+    }
+
+
 def _evidence_refs_from_passages(
     passages: list[SourcePassage],
     project_slug: str,
@@ -908,6 +968,20 @@ async def run_create_cost_plan_workflow(
         )
     )
 
+    provenance_metadata = {
+        "draft_mode": draft_mode,
+        "compiler": "hybrid" if use_hybrid else "legacy",
+        "seed_consulted": output.seed_consulted,
+        "evidence_refs": output.evidence_refs,
+        "context_refs": output.context_refs,
+        "trace": [event.model_dump() for event in trace],
+        "retrieval": {
+            "project_passages": project_count,
+            "platform_passages": platform_count,
+            "platform_retrieval": "overlay_mandatory_paths",
+        },
+    }
+
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     draft = await create_draft_artifact(
         session,
@@ -919,19 +993,7 @@ async def run_create_cost_plan_workflow(
         content_markdown=output.markdown,
         model=resolved_model,
         runtime=runtime_name,
-        provenance_metadata={
-            "draft_mode": draft_mode,
-            "compiler": "hybrid" if use_hybrid else "legacy",
-            "seed_consulted": output.seed_consulted,
-            "evidence_refs": output.evidence_refs,
-            "context_refs": output.context_refs,
-            "trace": [event.model_dump() for event in trace],
-            "retrieval": {
-                "project_passages": project_count,
-                "platform_passages": platform_count,
-                "platform_retrieval": "overlay_mandatory_paths",
-            },
-        },
+        provenance_metadata=provenance_metadata,
     )
     trace.append(
         _trace(
@@ -942,6 +1004,29 @@ async def run_create_cost_plan_workflow(
             version=draft.version,
         )
     )
+
+    workbook_metadata = await save_cost_plan_workbook_artifact(
+        session,
+        project=project,
+        draft=draft,
+        markdown=output.markdown,
+    )
+    trace.append(
+        _trace(
+            "workbook_export",
+            "complete",
+            "Generated Create Cost Plan workbook.",
+            workspace_path=workbook_metadata["workspace_path"],
+            row_count=workbook_metadata["row_count"],
+        )
+    )
+    draft.provenance_metadata = {
+        **provenance_metadata,
+        "workbook": workbook_metadata,
+        "trace": [event.model_dump() for event in trace],
+    }
+    await session.flush()
+    await session.refresh(draft)
 
     content = (
         f"Create Cost Plan completed. Draft v{draft.version} is ready for review: {draft.title}"

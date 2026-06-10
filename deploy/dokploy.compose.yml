@@ -1,0 +1,61 @@
+services:
+  sitewise-api:
+    image: sitewise-production-api:latest
+    pull_policy: never
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-project-files}
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      OPENAI_CHAT_MODELS: ${OPENAI_CHAT_MODELS:-gpt-4.1-nano,gpt-4o-mini,gpt-4.1-mini,gpt-4.1,gpt-4o,o4-mini,o3-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://sitewise.au}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://sitewise.au}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      POLAR_ENABLED: ${POLAR_ENABLED:-true}
+      POLAR_ENVIRONMENT: ${POLAR_ENVIRONMENT:-sandbox}
+      POLAR_ACCESS_TOKEN: ${POLAR_ACCESS_TOKEN}
+      POLAR_WEBHOOK_SECRET: ${POLAR_WEBHOOK_SECRET}
+      POLAR_STARTER_PRODUCT_ID: ${POLAR_STARTER_PRODUCT_ID}
+      POLAR_PROFESSIONAL_PRODUCT_ID: ${POLAR_PROFESSIONAL_PRODUCT_ID}
+      POLAR_CHECKOUT_SUCCESS_PATH: ${POLAR_CHECKOUT_SUCCESS_PATH:-/billing?checkout=success}
+      POLAR_CUSTOMER_PORTAL_RETURN_PATH: ${POLAR_CUSTOMER_PORTAL_RETURN_PATH:-/billing}
+    restart: unless-stopped
+    networks:
+      sitewise-public:
+        aliases:
+          - sitewise-api
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  sitewise-web:
+    image: sitewise-production-web:latest
+    pull_policy: never
+    depends_on:
+      sitewise-api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      sitewise-public:
+        aliases:
+          - sitewise-web
+    ports:
+      - "8080:80"
+
+networks:
+  sitewise-public:
+    external: true

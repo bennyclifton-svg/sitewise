@@ -1,7 +1,7 @@
 import time
 import uuid
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +54,7 @@ from app.schemas.projects import (
     StagedSplitRequest,
 )
 from app.evidence.service import delete_project_evidence
+from app.storage.project_files import delete_project_files
 from app.inbox.service import InboxUploadItem, upload_inbox_files
 from app.inbox.split_service import (
     analyze_pdf_upload,
@@ -552,11 +553,19 @@ async def get_project_evidence_document(
 async def delete_project_evidence_document(
     project_id: uuid.UUID,
     evidence_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    await delete_project_evidence(session, project=project, evidence_id=evidence_id)
+    storage_keys = await delete_project_evidence(
+        session, project=project, evidence_id=evidence_id
+    )
+    # The database delete is what removes the document from the repository view,
+    # so return immediately and let the slower object-storage cleanup run after
+    # the response is sent.
+    if storage_keys:
+        background_tasks.add_task(delete_project_files, storage_keys=storage_keys)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

@@ -41,6 +41,27 @@ def delete_project_file(*, storage_key: str) -> None:
     logger.info("storage_deleted", bucket=bucket, storage_key=storage_key)
 
 
+def delete_project_files(*, storage_keys: list[str]) -> None:
+    """Remove several object-storage files in a single storage API call.
+
+    Intended to run as a background task after the database delete has already
+    committed, so a slow or failing storage round-trip never blocks the
+    response. Failures are logged, not raised.
+    """
+
+    keys = [key for key in storage_keys if key]
+    if not keys:
+        return
+
+    bucket = settings.supabase_storage_bucket
+    client = get_service_client()
+    try:
+        client.storage.from_(bucket).remove(keys)
+        logger.info("storage_deleted_batch", bucket=bucket, count=len(keys))
+    except Exception:
+        logger.warning("storage_delete_batch_failed", bucket=bucket, storage_keys=keys)
+
+
 def move_project_file(
     *,
     source_key: str,

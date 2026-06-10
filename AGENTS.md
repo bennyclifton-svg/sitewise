@@ -6,7 +6,7 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 
 - **Backend:** Python + FastAPI
 - **Frontend:** Vite + React SPA + TypeScript
-- **Database:** Supabase Postgres (users, chats, source documents, chunks)
+- **Database:** Supabase Postgres (users, chats, projects, source documents, chunks, draft artefacts)
 - **Migrations:** SQLAlchemy models + Alembic from the backend
 - **Retrieval:** Supabase `pgvector` + Postgres full-text search
 - **Auth:** Supabase Auth
@@ -18,7 +18,7 @@ Stack is locked unless explicitly changed. Don't propose alternatives without a 
 ## Repo layout
 
 ```text
-document-copilot/
+clerk/
 ├── AGENTS.md           # this file
 ├── README.md
 ├── data/               # local corpus + download script (payloads gitignored)
@@ -26,6 +26,10 @@ document-copilot/
 ├── backend/            # FastAPI service (see backend/AGENTS.md)
 └── frontend/           # React SPA (see frontend/AGENTS.md)
 ```
+
+## Migration direction
+
+The governing migration document is `docs/plans/2026-06-07-clerk-practice-intelligence-integration-prd.md`. Clerk is the canonical hosted product repo. Practice Intelligence is source material and reference implementation; Hermes is retired as a separate runtime once Clerk reaches workflow parity.
 
 ## Dependency policy
 

@@ -30,12 +30,34 @@ pnpm-debug.log*
 !/data/downloads/.gitkeep
 *.parquet
 
+# Sample project-evidence corpus (payload-heavy, kept out of git per README)
+/data/advisary-NCCcompliance/
+/data/advisary-contamination-1/
+/data/delivery-bankstown/
+/data/delivery-house/
+/data/delivery-petersham/
+/data/procurement-blockb/
+/data/procurement-campy/
+/data/procurement-industrial-add/
+/data/procurement-industrial-new/
+/data/procurment-demo/
+
 # IDE / OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
+# Local scratch / agent runtime
+/tmp/
+.claude/
+.pytest-cache/
+
 # Logs
 *.log
 logs/
+
+# Deployment runtime env files
+/deploy/env/*.env
+/deploy/env/*.local
+!/deploy/env/*.env.example

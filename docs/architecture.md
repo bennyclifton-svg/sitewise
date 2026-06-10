@@ -1,8 +1,8 @@
-# Document Copilot Architecture
+# Clerk Architecture
 
 ## Purpose
 
-Document Copilot is an internal research assistant for analysts who need grounded answers from a curated SEC filing corpus. The architecture must optimize for trust: every answer is generated from retrieved source passages, every factual claim is citable, and the system fails clearly when the corpus does not support an answer.
+Clerk is an internal research assistant for analysts who need grounded answers from a curated SEC filing corpus. The architecture must optimize for trust: every answer is generated from retrieved source passages, every factual claim is citable, and the system fails clearly when the corpus does not support an answer.
 
 This document describes the target architecture for the chat experience, LLM orchestration, and the communication layer between the React SPA, Supabase, and FastAPI backend.
 
@@ -198,7 +198,7 @@ Retrieval and grounding remain independent from PydanticAI. This keeps ingestion
 
 ## Retrieval Strategy
 
-Document Copilot uses hybrid retrieval:
+Clerk uses hybrid retrieval:
 
 1. Embed the user's query with the configured OpenAI embedding model.
 2. Run a semantic search over `document_chunks.embedding` with `pgvector`.
@@ -272,7 +272,7 @@ Streaming responsibilities:
 
 Supabase tables should be small and product-oriented:
 
-- `profiles`: one row per authenticated user, keyed by Supabase `auth.users.id`.
+- `users`: one row per authenticated user, keyed by Supabase `auth.users.id`.
 - `chat_threads`: thread metadata, owner, title, timestamps.
 - `chat_messages`: user and assistant messages in order, with AI SDK-compatible message JSON where useful.
 - `message_citations`: normalized citation records linked to assistant messages.

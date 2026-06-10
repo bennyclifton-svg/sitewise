@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 import structlog
@@ -11,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.project import Project
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
-from app.storage.project_files import delete_project_file
 
 logger = structlog.get_logger(__name__)
 
@@ -21,14 +19,15 @@ async def delete_project_evidence(
     *,
     project: Project,
     evidence_id: uuid.UUID,
-) -> None:
+) -> list[str]:
     """Remove a project evidence document and all of its derived records.
 
     Deletes the source document (cascading to its chunks and citations via the
-    database FK constraints), any workspace_files rows that point at it, and the
-    backing object-storage file. A storage delete failure is logged but does not
-    block the database cleanup so the document still disappears from the
-    repository view.
+    database FK constraints) and any workspace_files rows that point at it, then
+    commits. Returns the object-storage keys for the backing files so the caller
+    can remove them out of band (a background task) — keeping the slow storage
+    round-trip off the request's response path. The document disappears from the
+    repository view as soon as the database delete commits.
     """
 
     document = await session.scalar(
@@ -54,18 +53,7 @@ async def delete_project_evidence(
         )
     )
     workspace_files = list(result.scalars().all())
-
-    for workspace_file in workspace_files:
-        try:
-            await asyncio.to_thread(
-                delete_project_file, storage_key=workspace_file.storage_key
-            )
-        except Exception:
-            logger.warning(
-                "evidence_storage_delete_failed",
-                storage_key=workspace_file.storage_key,
-                workspace_path=workspace_file.workspace_path,
-            )
+    storage_keys = [record.storage_key for record in workspace_files]
 
     if workspace_files:
         await session.execute(
@@ -86,3 +74,5 @@ async def delete_project_evidence(
         relative_path=document.relative_path,
         workspace_files=len(workspace_files),
     )
+
+    return storage_keys
