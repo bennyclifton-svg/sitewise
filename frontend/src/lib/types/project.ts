@@ -68,6 +68,25 @@ export type ProjectWorkspaceTree = {
   tree: WorkspaceTreeNode[];
 };
 
+export type WorkbookCellStyle = {
+  fill_color: string | null;
+  bold: boolean;
+};
+
+export type WorkbookSheetPreview = {
+  name: string;
+  column_count: number;
+  rows: string[][];
+  styles: WorkbookCellStyle[][];
+};
+
+export type WorkbookPreview = {
+  filename: string;
+  workspace_path: string;
+  sheets: WorkbookSheetPreview[];
+  warnings: string[];
+};
+
 export type PlatformKnowledgeBucket = {
   kind: string;
   document_count: number;

@@ -21,6 +21,7 @@ import type {
   ProjectDetail,
   ProjectSummary,
   ProjectWorkspaceTree,
+  WorkbookPreview,
 } from "@/lib/types/project";
 
 const WORKFLOW_TIMEOUT_MS = 600_000;
@@ -66,6 +67,61 @@ async function apiRequest<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
     timeoutMs,
   });
+}
+
+async function apiBlobRequest(path: string, timeoutMs = 30_000): Promise<Blob> {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new ApiError("Not signed in.", { kind: "http", status: 401 });
+  }
+
+  const base = env.apiBaseUrl.replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${base}${normalizedPath}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let detail = `Request failed with status ${response.status}`;
+      try {
+        const body = JSON.parse(text) as unknown;
+        if (
+          typeof body === "object" &&
+          body !== null &&
+          "detail" in body &&
+          typeof (body as { detail: unknown }).detail === "string"
+        ) {
+          detail = (body as { detail: string }).detail;
+        }
+      } catch {
+        if (text) detail = text;
+      }
+      throw new ApiError(detail, { kind: "http", status: response.status });
+    }
+
+    return await response.blob();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiError("Request timed out.", { kind: "timeout", cause: error });
+    }
+    throw new ApiError("Could not download the file.", {
+      kind: "network",
+      cause: error,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export const api = {
@@ -140,6 +196,26 @@ export const api = {
     projectId: string,
   ): Promise<ProjectWorkspaceTree> =>
     api.get<ProjectWorkspaceTree>(`/projects/${projectId}/workspace-tree`),
+
+  getWorkbookPreview: async (
+    projectId: string,
+    workspacePath: string,
+  ): Promise<WorkbookPreview> =>
+    api.get<WorkbookPreview>(
+      `/projects/${projectId}/workspace-files/preview?path=${encodeURIComponent(
+        workspacePath,
+      )}`,
+    ),
+
+  downloadWorkspaceFile: async (
+    projectId: string,
+    workspacePath: string,
+  ): Promise<Blob> =>
+    apiBlobRequest(
+      `/projects/${projectId}/workspace-files/download?path=${encodeURIComponent(
+        workspacePath,
+      )}`,
+    ),
 
   getProjectEvidence: async (projectId: string): Promise<EvidencePreview[]> => {
     const response = await api.get<{ evidence: EvidencePreview[] }>(

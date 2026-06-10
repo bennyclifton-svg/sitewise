@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Check, FileText, Pencil, RotateCcw, Save } from "lucide-react";
+import { Check, Download, FileText, Pencil, RotateCcw, Save, Table2 } from "lucide-react";
 
 import { CopyContentButton } from "@/components/project/CopyContentButton";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
+import { WorkbookGrid } from "@/components/project/WorkbookGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -36,6 +37,7 @@ export function DraftReviewPanel({
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isDownloadingWorkbook, setIsDownloadingWorkbook] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,6 +107,7 @@ export function DraftReviewPanel({
   const evidence = metadataList(loadedDraft?.provenance_metadata?.evidence_refs);
   const context = metadataList(loadedDraft?.provenance_metadata?.context_refs);
   const trace = metadataTrace(loadedDraft?.provenance_metadata?.trace);
+  const workbook = workbookMetadata(loadedDraft?.provenance_metadata?.workbook);
   const isAccepted = displayDraft.status === "accepted";
 
   async function saveEdits() {
@@ -134,6 +137,29 @@ export function DraftReviewPanel({
       setActionError(error instanceof ApiError ? error.message : "Could not accept draft.");
     } finally {
       setIsAccepting(false);
+    }
+  }
+
+  async function downloadWorkbook() {
+    if (!workbook) return;
+    setIsDownloadingWorkbook(true);
+    setActionError(null);
+    try {
+      const blob = await api.downloadWorkspaceFile(projectId, workbook.workspace_path);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = workbook.file_name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setActionError(
+        error instanceof ApiError ? error.message : "Could not download workbook.",
+      );
+    } finally {
+      setIsDownloadingWorkbook(false);
     }
   }
 
@@ -198,6 +224,17 @@ export function DraftReviewPanel({
               {isSaving ? "Saving..." : "Save edits"}
             </Button>
           ) : null}
+          {workbook ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void downloadWorkbook()}
+              disabled={isDownloadingWorkbook}
+            >
+              <Download className="size-4" aria-hidden />
+              {isDownloadingWorkbook ? "Downloading..." : "Download workbook"}
+            </Button>
+          ) : null}
           <Button disabled variant="outline" size="sm">
             <RotateCcw className="size-4" aria-hidden />
             Reopen
@@ -215,6 +252,21 @@ export function DraftReviewPanel({
       </div>
 
       <WorkflowTracePanel trace={trace} emptyMessage="No persisted trace recorded for this draft." />
+
+      {workbook ? (
+        <section className="rounded-md border bg-background">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h3 className="text-sm font-semibold">Cost workbook</h3>
+            </div>
+            <span className="max-w-full truncate text-xs text-muted-foreground">
+              {workbook.file_name}
+            </span>
+          </header>
+          <WorkbookGrid projectId={projectId} workbookPath={workbook.workspace_path} />
+        </section>
+      ) : null}
 
       <section className="rounded-md border bg-background">
         <header className="border-b px-4 py-3">
@@ -322,6 +374,26 @@ function metadataList(value: unknown): string[] {
 function metadataTrace(value: unknown): WorkflowTraceEvent[] {
   if (!Array.isArray(value)) return [];
   return value.filter(isTraceEvent);
+}
+
+type WorkbookMetadata = {
+  file_name: string;
+  workspace_path: string;
+};
+
+function workbookMetadata(value: unknown): WorkbookMetadata | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = value as Partial<WorkbookMetadata>;
+  if (
+    typeof candidate.file_name === "string" &&
+    typeof candidate.workspace_path === "string"
+  ) {
+    return {
+      file_name: candidate.file_name,
+      workspace_path: candidate.workspace_path,
+    };
+  }
+  return null;
 }
 
 function isTraceEvent(value: unknown): value is WorkflowTraceEvent {

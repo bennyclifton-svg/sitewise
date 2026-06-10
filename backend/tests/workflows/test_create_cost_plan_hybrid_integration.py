@@ -91,6 +91,17 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
     cost_passages = harrison_clarke_cost_passages(project_slug=project.slug)
     platform_passages = platform_passages_for_cost_plan(project)
     draft = mock_cost_plan_draft()
+    workbook_metadata = {
+        "file_name": "Cost_Plan_v01.draft.xlsx",
+        "workspace_path": "04-projects/test-project-112/01-cost/Cost_Plan_v01.draft.xlsx",
+        "version": 1,
+        "content_hash": "abc123",
+        "size_bytes": 1234,
+        "row_count": 10,
+        "cost_item_lookup_count": 10,
+        "warnings": [],
+        "generated_at": "2026-06-08T00:00:00+00:00",
+    }
 
     with (
         patch(
@@ -121,6 +132,10 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
             "app.workflows.create_cost_plan.create_draft_artifact",
             new=AsyncMock(return_value=draft),
         ) as create_draft,
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(return_value=workbook_metadata),
+        ),
     ):
         result = run_async(
             run_create_cost_plan_workflow(
@@ -171,6 +186,17 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
         context_refs=[f"{p.source_type}:{p.relative_path}#chunk=0" for p in platform_passages],
     )
     draft = mock_cost_plan_draft(runtime=RUNTIME_NAME)
+    workbook_metadata = {
+        "file_name": "Cost_Plan_v01.draft.xlsx",
+        "workspace_path": "04-projects/test-project-112/01-cost/Cost_Plan_v01.draft.xlsx",
+        "version": 1,
+        "content_hash": "abc123",
+        "size_bytes": 1234,
+        "row_count": 8,
+        "cost_item_lookup_count": 8,
+        "warnings": [],
+        "generated_at": "2026-06-08T00:00:00+00:00",
+    }
 
     with (
         patch("app.workflows.create_cost_plan.settings.cost_plan_hybrid_compiler", False),
@@ -206,6 +232,10 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
             "app.workflows.create_cost_plan.create_draft_artifact",
             new=AsyncMock(return_value=draft),
         ) as create_draft,
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(return_value=workbook_metadata),
+        ),
     ):
         result = run_async(
             run_create_cost_plan_workflow(

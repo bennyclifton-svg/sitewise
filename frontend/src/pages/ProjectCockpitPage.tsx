@@ -265,7 +265,7 @@ export function ProjectCockpitPage() {
         setSelectedWorkflowId("cost-plan");
         setActiveView("draft");
       }
-      await refreshMessages();
+      await Promise.all([refreshMessages(), refreshWorkspaceTree()]);
     } catch (runError) {
       setCostPlanWorkflowError(formatApiError(runError, "Create Cost Plan could not run."));
     } finally {

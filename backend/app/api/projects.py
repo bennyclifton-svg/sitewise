@@ -1,5 +1,8 @@
+import asyncio
+import mimetypes
 import time
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
@@ -52,16 +55,18 @@ from app.schemas.projects import (
     ProjectSummary,
     ProjectWorkspaceTreeResponse,
     StagedSplitRequest,
+    WorkbookPreviewResponse,
 )
 from app.evidence.service import delete_project_evidence
-from app.storage.project_files import delete_project_files
+from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
 from app.inbox.split_service import (
     analyze_pdf_upload,
     commit_staged_pdf_single,
     split_staged_pdf,
 )
-from app.database.workspace_files import list_workspace_files_for_project
+from app.database.workspace_files import get_workspace_file_by_path, list_workspace_files_for_project
+from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.create_cost_plan import run_create_cost_plan_workflow
 from app.workflows.create_pmp import run_create_pmp_workflow
@@ -136,6 +141,20 @@ def _register_title_from_fields(
 
 def _is_markdown_filename(filename: str) -> bool:
     return filename.lower().endswith((".md", ".markdown"))
+
+
+def _is_xlsx_filename(filename: str) -> bool:
+    return filename.lower().endswith(".xlsx")
+
+
+def _download_headers(filename: str) -> dict[str, str]:
+    safe_filename = filename.replace('"', "")
+    return {
+        "Content-Disposition": (
+            f'attachment; filename="{safe_filename}"; '
+            f"filename*=UTF-8''{quote(filename)}"
+        )
+    }
 
 
 def _evidence_preview_from_values(
@@ -461,6 +480,76 @@ async def get_project_workspace_tree(
             root_path=project.workspace_path,
             workspace_paths=[record.workspace_path for record in workspace_files],
         ),
+    )
+
+
+@router.get("/{project_id}/workspace-files/preview")
+async def get_project_workspace_file_preview(
+    project_id: uuid.UUID,
+    path: str = Query(..., min_length=1),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkbookPreviewResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    record = await get_workspace_file_by_path(
+        session,
+        project_id=project.id,
+        workspace_path=path,
+    )
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace file not found",
+        )
+    if not _is_xlsx_filename(record.filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workspace preview is only available for Excel workbooks",
+        )
+
+    content = await asyncio.to_thread(download_project_file, storage_key=record.storage_key)
+    preview = workbook_preview_from_bytes(content)
+    return WorkbookPreviewResponse(
+        filename=record.filename,
+        workspace_path=record.workspace_path,
+        sheets=[
+            {
+                "name": sheet.name,
+                "column_count": sheet.column_count,
+                "rows": sheet.rows,
+                "styles": sheet.styles,
+            }
+            for sheet in preview.sheets
+        ],
+        warnings=preview.warnings,
+    )
+
+
+@router.get("/{project_id}/workspace-files/download")
+async def download_project_workspace_file(
+    project_id: uuid.UUID,
+    path: str = Query(..., min_length=1),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    record = await get_workspace_file_by_path(
+        session,
+        project_id=project.id,
+        workspace_path=path,
+    )
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace file not found",
+        )
+
+    content = await asyncio.to_thread(download_project_file, storage_key=record.storage_key)
+    media_type, _ = mimetypes.guess_type(record.filename)
+    return Response(
+        content=content,
+        media_type=media_type or "application/octet-stream",
+        headers=_download_headers(record.filename),
     )
 
 

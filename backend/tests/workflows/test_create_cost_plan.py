@@ -293,6 +293,17 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
     draft.updated_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
+    workbook_metadata = {
+        "file_name": "Cost_Plan_v01.draft.xlsx",
+        "workspace_path": "04-projects/greenfield-demo/01-cost/Cost_Plan_v01.draft.xlsx",
+        "version": 1,
+        "content_hash": "abc123",
+        "size_bytes": 1234,
+        "row_count": 8,
+        "cost_item_lookup_count": 8,
+        "warnings": [],
+        "generated_at": "2026-06-07T00:00:00+00:00",
+    }
 
     platform_passage = _passage(
         project="seed",
@@ -329,6 +340,10 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
             "app.workflows.create_cost_plan.create_draft_artifact",
             new=AsyncMock(return_value=draft),
         ) as create_draft,
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(return_value=workbook_metadata),
+        ) as save_workbook,
     ):
         result = run_async(
             run_create_cost_plan_workflow(
@@ -342,8 +357,10 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     assert result.status == "complete"
     assert result.draft is not None
     create_draft.assert_awaited_once()
+    save_workbook.assert_awaited_once()
     assert create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"] == "platform_seeded"
     assert create_draft.await_args.kwargs["workspace_path"].endswith("01-cost/cost_plan_v01.md")
+    assert result.draft.provenance_metadata["workbook"]["file_name"] == "Cost_Plan_v01.draft.xlsx"
 
 
 def test_validate_cost_plan_output_accepts_platform_seeded() -> None:
