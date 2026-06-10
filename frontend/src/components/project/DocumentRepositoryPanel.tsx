@@ -5,7 +5,14 @@ import {
   Trash,
   Upload,
 } from "lucide-react";
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type MouseEvent,
+} from "react";
 
 import {
   IngestProgressStrip,
@@ -61,12 +68,28 @@ export function DocumentRepositoryPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [splitProposals, setSplitProposals] = useState<SplitProposal[]>([]);
   const [resolvingStagingId, setResolvingStagingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set<string>(),
+  );
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const [bulkDeletingIds, setBulkDeletingIds] = useState<Set<string>>(
+    () => new Set<string>(),
+  );
   const dragDepthRef = useRef(0);
   const registerRows = useMemo(() => sortRegisterRows(evidence), [evidence]);
+  const registerRowIds = useMemo(
+    () => new Set(registerRows.map((row) => row.id)),
+    [registerRows],
+  );
+  const selectedRows = useMemo(
+    () => registerRows.filter((row) => selectedIds.has(row.id)),
+    [registerRows, selectedIds],
+  );
   const inboxCount = useMemo(
     () => evidence.filter((item) => isInboxEvidence(item)).length,
     [evidence],
   );
+  const isDeletingSelection = bulkDeletingIds.size > 0;
 
   function handleDragEnter(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -101,12 +124,60 @@ export function DocumentRepositoryPanel({
     }
   }
 
-  function handleFileInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files ? [...event.target.files] : [];
     event.target.value = "";
     if (selected.length) {
       void uploadFilesBatch(selected);
     }
+  }
+
+  function handleRowClick(
+    event: MouseEvent<HTMLTableRowElement>,
+    row: EvidencePreview,
+  ) {
+    const additive = event.ctrlKey || event.metaKey;
+
+    if (event.shiftKey) {
+      const anchorId =
+        selectionAnchorId && registerRowIds.has(selectionAnchorId)
+          ? selectionAnchorId
+          : selectedEvidenceId && registerRowIds.has(selectedEvidenceId)
+            ? selectedEvidenceId
+            : row.id;
+      const anchorIndex = registerRows.findIndex((item) => item.id === anchorId);
+      const rowIndex = registerRows.findIndex((item) => item.id === row.id);
+      if (anchorIndex >= 0 && rowIndex >= 0) {
+        const start = Math.min(anchorIndex, rowIndex);
+        const end = Math.max(anchorIndex, rowIndex);
+        const rangeIds = registerRows.slice(start, end + 1).map((item) => item.id);
+        setSelectedIds((current) => {
+          const next = additive
+            ? new Set([...current].filter((id) => registerRowIds.has(id)))
+            : new Set<string>();
+          for (const id of rangeIds) next.add(id);
+          return next;
+        });
+        onSelectEvidence(row.id);
+        return;
+      }
+    }
+
+    if (additive) {
+      setSelectedIds((current) => {
+        const next = new Set([...current].filter((id) => registerRowIds.has(id)));
+        if (next.has(row.id)) {
+          next.delete(row.id);
+        } else {
+          next.add(row.id);
+        }
+        return next;
+      });
+    } else {
+      setSelectedIds(new Set([row.id]));
+    }
+    setSelectionAnchorId(row.id);
+    onSelectEvidence(row.id);
   }
 
   async function handleDelete(row: EvidencePreview) {
@@ -120,10 +191,55 @@ export function DocumentRepositoryPanel({
       // Optimistic: the row is removed from the cached list immediately; the
       // network round-trip runs in the background and rolls back on failure.
       await deleteEvidence.mutateAsync(row.id);
+      setSelectedIds((current) => {
+        if (!current.has(row.id)) return current;
+        const next = new Set(current);
+        next.delete(row.id);
+        return next;
+      });
+      setSelectionAnchorId((current) => (current === row.id ? null : current));
     } catch (error) {
       const detail =
         error instanceof ApiError ? error.message : "Please try again.";
       setUploadError(`Could not delete "${row.title}": ${detail}`);
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (!selectedRows.length) return;
+
+    const count = selectedRows.length;
+    const confirmed = window.confirm(
+      `Delete ${count} selected ${count === 1 ? "document" : "documents"}? This removes ${count === 1 ? "it" : "them"} from the document repository and cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setUploadError(null);
+    setBulkDeletingIds(new Set(selectedRows.map((row) => row.id)));
+
+    const failedRows: string[] = [];
+    const failedIds = new Set<string>();
+    try {
+      for (const row of selectedRows) {
+        try {
+          await deleteEvidence.mutateAsync(row.id);
+        } catch (error) {
+          const detail =
+            error instanceof ApiError ? error.message : "Please try again.";
+          failedRows.push(`${row.title}: ${detail}`);
+          failedIds.add(row.id);
+        }
+      }
+    } finally {
+      setBulkDeletingIds(new Set<string>());
+    }
+
+    setSelectedIds(failedIds);
+    setSelectionAnchorId(failedIds.values().next().value ?? null);
+    if (failedRows.length) {
+      setUploadError(
+        `Could not delete ${failedRows.length} selected ${failedRows.length === 1 ? "document" : "documents"}: ${failedRows.join("; ")}`,
+      );
     }
   }
 
@@ -298,6 +414,9 @@ export function DocumentRepositoryPanel({
                 : evidence.length
                   ? " · all filed"
                   : ""}
+              {selectedRows.length
+                ? ` · ${selectedRows.length} selected`
+                : ""}
               {isUploading && uploadProgress
                 ? ` · ingesting ${uploadProgress.completed} of ${uploadProgress.total}`
                 : isUploading
@@ -397,24 +516,61 @@ export function DocumentRepositoryPanel({
                 <th className="px-2 py-2 font-medium">Title</th>
                 <th className="px-1 py-2 font-medium">Rev</th>
                 <th className="px-1.5 py-2 font-medium">Category</th>
-                <th className="px-0.5 py-2" aria-label="Actions" />
+                <th className="px-0.5 py-1 text-center" aria-label="Actions">
+                  <button
+                    type="button"
+                    disabled={
+                      !selectedRows.length ||
+                      isDeletingSelection ||
+                      deleteEvidence.isPending
+                    }
+                    className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
+                    aria-label={
+                      selectedRows.length
+                        ? `Delete ${selectedRows.length} selected ${selectedRows.length === 1 ? "document" : "documents"}`
+                        : "Delete selected documents"
+                    }
+                    title={
+                      selectedRows.length
+                        ? `Delete ${selectedRows.length} selected`
+                        : "Select documents to delete"
+                    }
+                    onClick={() => void handleDeleteSelected()}
+                  >
+                    {isDeletingSelection ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash className="size-3.5" aria-hidden />
+                    )}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
               {registerRows.map((row) => {
-                const selected = selectedEvidenceId === row.id;
+                const active = selectedEvidenceId === row.id;
+                const selected = selectedIds.has(row.id);
                 const inInbox = isInboxEvidence(row);
+                const deletingRow =
+                  bulkDeletingIds.has(row.id) ||
+                  (deleteEvidence.isPending && deleteEvidence.variables === row.id);
                 return (
                   <tr
                     key={row.id}
                     className={cn(
-                      "cursor-pointer border-b border-l-2 transition-colors hover:bg-muted/60",
+                      "cursor-pointer select-none border-b border-l-2 transition-colors hover:bg-muted/60",
                       inInbox
                         ? "border-l-amber-400 bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
                         : "border-l-transparent",
-                      selected && (inInbox ? "bg-amber-50/80 dark:bg-amber-950/35" : "bg-muted"),
+                      active &&
+                        !selected &&
+                        (inInbox ? "bg-amber-50/80 dark:bg-amber-950/35" : "bg-muted"),
+                      selected &&
+                        (inInbox
+                          ? "bg-amber-100/80 dark:bg-amber-900/35"
+                          : "border-l-primary bg-primary/10 hover:bg-primary/15"),
                     )}
-                    onClick={() => onSelectEvidence(row.id)}
+                    onClick={(event) => handleRowClick(event, row)}
                   >
                     <td className="truncate px-1 py-2 tabular-nums text-muted-foreground">
                       {displayValue(row.document_number)}
@@ -438,10 +594,7 @@ export function DocumentRepositoryPanel({
                     <td className="px-0.5 py-1.5 text-center">
                       <button
                         type="button"
-                        disabled={
-                          deleteEvidence.isPending &&
-                          deleteEvidence.variables === row.id
-                        }
+                        disabled={deletingRow}
                         className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
                         aria-label={`Delete ${row.title}`}
                         title="Delete document"
@@ -450,8 +603,7 @@ export function DocumentRepositoryPanel({
                           void handleDelete(row);
                         }}
                       >
-                        {deleteEvidence.isPending &&
-                        deleteEvidence.variables === row.id ? (
+                        {deletingRow ? (
                           <Loader2 className="size-3.5 animate-spin" aria-hidden />
                         ) : (
                           <Trash className="size-3.5" aria-hidden />
