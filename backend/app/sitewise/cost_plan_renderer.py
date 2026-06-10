@@ -466,6 +466,9 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
         f"{cont_status} | {cont_basis} |"
     )
 
+    # The grounded certifier fee is owner-direct (outside the builder contract), so it is
+    # intentionally excluded from the Consultants subtotal and the grand total — same
+    # treatment as owner-supplied items. Consultants subtotal stays TBC until appointments.
     subtotal_amounts = [
         _parse_amount(fee_subtotal),
         _parse_amount(construction_subtotal),
