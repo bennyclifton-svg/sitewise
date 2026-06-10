@@ -50,8 +50,15 @@ def test_render_cost_plan_scaffold_surfaces_owner_brief_ceiling() -> None:
     assert "indicative total project cost" in markdown
     assert "inc gst" in markdown
     assert "owner-held contingency" in markdown
-    assert "pendant lights: $8,000 ex gst (owner-supplied)" in markdown
+    assert "pendant lights: $8,000 (owner-supplied" in markdown
     assert "$$" not in markdown
+
+
+def test_owner_supplied_items_do_not_assert_gst_basis() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded").lower()
+    assert "$33,000 inc gst" not in markdown
+    assert "owner-supplied allowances inc gst" not in markdown
+    assert "gst basis not stated" in markdown
 
 
 def test_render_cost_plan_scaffold_fee_stages_have_single_dollar_prefix() -> None:

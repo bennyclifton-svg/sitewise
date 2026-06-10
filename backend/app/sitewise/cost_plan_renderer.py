@@ -166,10 +166,10 @@ def _owner_supplied_lines(items: list[OwnerSuppliedItem]) -> list[str]:
     lines: list[str] = ["- **Owner-supplied items (below contract sum):**"]
     for item in items:
         amount = _money(item.amount_ex_gst) if item.amount_ex_gst else "TBC"
-        lines.append(f"  - {item.label}: {amount} ex GST (owner-supplied)")
+        lines.append(f"  - {item.label}: {amount} (owner-supplied; GST basis not stated in brief)")
     total = _owner_supplied_total_ex_gst(items)
     if total:
-        lines.append(f"  - **Owner-supplied subtotal:** ${_inc_gst(total):,} inc GST reference (${total:,} ex GST).")
+        lines.append(f"  - **Owner-supplied subtotal:** ${total:,} (owner brief allowance; GST basis not stated).")
     return lines
 
 
@@ -342,8 +342,8 @@ def _render_total_budget(pack: CostPlanEvidencePack) -> str:
         total = _owner_supplied_total_ex_gst(pack.owner_supplied_items)
         if total:
             lines.append(
-                f"- **Owner-supplied allowances (additional):** ${_inc_gst(total):,} inc GST reference "
-                f"(${total:,} ex GST) — owner procurement outside builder contract."
+                f"- **Owner-supplied allowances (additional):** ${total:,} — owner procurement outside "
+                "builder contract (owner brief allowance; GST basis not stated)."
             )
     indicative = _known_indicative_total_ex_gst(pack)
     if indicative is not None:
@@ -375,9 +375,6 @@ def _render_gst_basis(pack: CostPlanEvidencePack) -> str:
     contingency_amount = _parse_amount(pack.contingency_amount)
     if contingency_amount is not None:
         translations.append(f"Owner contingency inc GST: ${_inc_gst(contingency_amount):,}.")
-    owner_supplied_total = _owner_supplied_total_ex_gst(pack.owner_supplied_items)
-    if owner_supplied_total:
-        translations.append(f"Owner-supplied allowances inc GST: ${_inc_gst(owner_supplied_total):,}.")
 
     lines = [
         "## GST basis",
@@ -504,7 +501,7 @@ def _render_allowances_contingency(pack: CostPlanEvidencePack) -> str:
         lines.append("- **Owner-supplied allowances:**")
         for item in pack.owner_supplied_items:
             amount = _money(item.amount_ex_gst) if item.amount_ex_gst else "TBC"
-            lines.append(f"  - {item.label}: {amount} ex GST")
+            lines.append(f"  - {item.label}: {amount} (owner-supplied; GST basis not stated)")
     lines.append("- Do not use contingency to absorb unresolved scope without labelling.")
     return "\n".join(lines)
 
@@ -643,7 +640,7 @@ def _render_internal_audit(pack: CostPlanEvidencePack) -> str:
     if pack.owner_supplied_items:
         total = _owner_supplied_total_ex_gst(pack.owner_supplied_items)
         if total:
-            facts.append(f"Owner-supplied allowances total ${total:,} ex GST per owner brief.")
+            facts.append(f"Owner-supplied allowances total ${total:,} per owner brief (GST basis not stated).")
     if pack.planning_pathway_summary:
         facts.append(f"Planning pathway: {pack.planning_pathway_summary}.")
     if not pack_has_gap(pack.mobilisation, GAP_GEOTECHNICAL):
