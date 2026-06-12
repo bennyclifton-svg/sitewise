@@ -1,0 +1,31 @@
+# Golden evaluation set manifest (PRD §14)
+# Payload PDFs are gitignored per repo convention; annotations are committed.
+meta:
+  version: 1
+  targets: { real_documents_min: 30, synthetic_max_share_for_gates: 0.5 }
+annotation_schema:
+  document:
+    id: str
+    source: real|synthetic
+    difficulty: easy|medium|hard
+    doc_type: enum
+    state: NSW|VIC|QLD
+    build_type: enum
+    anonymised: bool
+  ground_truth:
+    line_items:
+      - description_raw: str
+        page: int
+        qty: num?
+        unit: str?
+        amount_cents: int?
+        item_status: enum
+        allowance_cents: int?
+        mappings:
+          - cell: code
+            fraction: num
+    cell_status:
+      - cell: code
+        status: enum
+        amount_cents: int?
+documents: []   # append entries as golden docs are acquired and annotated

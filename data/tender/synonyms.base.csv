@@ -1,0 +1,635 @@
+cell_code,phrase
+01.01,building permit
+01.01,building approval
+01.01,CDC approval
+01.01,DA fees
+01.01,council lodgement fees
+01.01,plan approval fees
+01.01,permit application
+01.02,working drawings
+01.02,construction drawings
+01.02,plan preparation
+01.02,drafting & documentation
+01.03,structural engineering
+01.03,engineering design
+01.03,engineers details
+01.03,footing design
+01.03,structural certification
+01.04,soil test
+01.04,soil report
+01.04,geotechnical report
+01.04,site classification
+01.04,bore log
+01.05,contour survey
+01.05,identification survey
+01.05,site survey
+01.05,set-out survey
+01.05,peg out
+01.06,energy report
+01.06,NatHERS assessment
+01.06,BASIX certificate
+01.06,6 star assessment
+01.06,7 star assessment
+01.06,thermal performance assessment
+01.07,site supervision
+01.07,project management
+01.07,site management
+01.07,builders preliminaries
+01.07,preliminaries
+01.08,contract works insurance
+01.08,public liability insurance
+01.08,construction insurance
+01.09,temporary fencing
+01.09,temp fence
+01.09,site fencing
+01.10,site toilet
+01.10,temporary power
+01.10,temporary water
+01.10,site shed
+01.11,safety signage
+01.11,OH&S compliance
+01.11,site safety
+01.12,rubbish removal
+01.12,waste bins
+01.12,skip bins
+01.12,site cleanups
+01.13,scaffolding
+01.13,scaffold hire
+01.13,edge protection
+01.13,fall protection
+01.14,traffic management
+01.14,traffic control
+01.15,crane hire
+01.15,access equipment
+01.16,final clean
+01.16,builders clean
+01.16,handover clean
+02.01,demolition of existing dwelling
+02.01,house demolition
+02.01,demolish existing residence
+02.01,knock down
+02.02,internal strip out
+02.02,partial demolition
+02.02,strip out works
+02.02,remove existing kitchen
+02.03,asbestos removal
+02.03,asbestos disposal
+02.03,ACM removal
+02.03,asbestos survey
+02.03,friable asbestos
+02.04,tree removal
+02.04,tree lopping
+02.04,tree protection zone
+02.04,stump grinding
+02.05,disconnect services
+02.05,cap off services
+02.05,service abolishment
+02.06,site clearing
+02.06,clear & grub
+02.06,vegetation removal
+02.07,temporary propping
+02.07,needle propping
+02.07,temporary support
+02.08,protect existing finishes
+02.08,salvage materials
+03.01,site costs
+03.01,siteworks allowance
+03.01,site works
+03.01,site preparation costs
+03.01,allowance for site conditions
+03.01,site costs TBA
+03.02,piering
+03.02,screw piles
+03.02,bored piers
+03.02,concrete piers
+03.02,pier & beam
+03.02,deep edge beams
+03.02,pile foundations
+03.03,cut & fill
+03.03,bulk earthworks
+03.03,excavation
+03.03,bench site
+03.03,levelling site
+03.03,detailed excavation
+03.04,rock excavation
+03.04,rock allowance
+03.04,rock breaking
+03.04,floater removal
+03.05,retaining wall
+03.05,retaining walls
+03.05,sleeper retaining
+03.05,block retaining wall
+03.05,boulder wall
+03.05,concrete sleeper wall
+03.05,timber retaining
+03.06,agi drain
+03.06,subsoil drainage
+03.06,ag lines
+03.06,site drainage
+03.07,dewatering
+03.07,pump out
+03.08,imported fill
+03.08,spoil removal
+03.08,excess soil cartage
+03.08,fill supply & compaction
+03.09,compaction testing
+03.09,level 1 supervision
+03.09,compaction certificate
+03.10,contaminated soil
+03.10,contamination allowance
+03.10,unexpected finds
+03.11,underpinning
+03.11,footing upgrade existing
+03.12,shoring
+03.12,soil anchors
+03.12,sheet piling
+04.01,concrete slab
+04.01,slab on ground
+04.01,waffle slab
+04.01,raft slab
+04.01,footings & slab
+04.01,concrete works
+04.02,slab upgrade
+04.02,H class slab
+04.02,M class slab
+04.02,slab stiffening
+04.03,waffle pods
+04.03,pod slab
+04.04,stumps
+04.04,subfloor framing
+04.04,bearers & joists
+04.04,timber floor system
+04.05,suspended slab
+04.05,suspended concrete floor
+04.06,termite protection
+04.06,termite barrier
+04.06,ant capping
+04.06,termimesh
+04.06,part A treatment
+04.07,vapour barrier
+04.07,damp proof membrane
+04.07,plastic membrane
+04.08,drop edge beam
+04.08,stepped footing
+04.08,split level slab
+05.01,wall frames
+05.01,timber framing
+05.01,steel framing
+05.01,frame & truss
+05.02,roof trusses
+05.02,roof framing
+05.02,truss package
+05.03,structural steel
+05.03,steel beams
+05.03,steel posts
+05.03,portal frame
+05.04,LVL beams
+05.04,laminated beams
+05.04,glulam
+05.05,wind rating upgrade
+05.05,N3 upgrade
+05.05,cyclone rated frame
+05.05,tie down upgrade
+05.06,upper floor joists
+05.06,first floor system
+05.06,floor sheeting upstairs
+06.01,roof tiles
+06.01,concrete tiles
+06.01,terracotta tiles
+06.01,tiled roof
+06.02,Colorbond roof
+06.02,metal roofing
+06.02,corrugated roofing
+06.02,steel roof sheeting
+06.03,sarking
+06.03,anticon blanket
+06.03,roof insulation blanket
+06.03,foil sarking
+06.04,fascia & gutter
+06.04,guttering
+06.04,fascia
+06.04,eaves gutter
+06.05,downpipes
+06.05,down pipes
+06.06,flashings
+06.06,ridge capping
+06.06,barge capping
+06.07,skylight
+06.07,roof window
+06.07,solar tube
+06.07,velux
+06.08,whirlybird
+06.08,roof ventilator
+06.09,gutter guard
+06.09,leaf guard
+06.09,ember guard
+07.01,brick veneer
+07.01,face brickwork
+07.01,bricks & bricklaying
+07.01,clay bricks
+07.02,render
+07.02,acrylic render
+07.02,cement render
+07.02,bagged finish
+07.02,texture coating
+07.03,fibre cement cladding
+07.03,FC sheet
+07.03,weatherboard
+07.03,Hardie cladding
+07.03,blueboard
+07.04,Axon cladding
+07.04,feature cladding
+07.04,timber battens
+07.04,composite cladding
+07.05,wall wrap
+07.05,breather membrane
+07.05,building wrap
+07.06,articulation joints
+07.06,brick sills
+07.06,brickwork extras
+08.01,aluminium windows
+08.01,windows & glazing
+08.01,window package
+08.01,powdercoated windows
+08.02,double glazing
+08.02,low-e glass
+08.02,glazing upgrade
+08.02,thermally broken frames
+08.03,BAL rated windows
+08.03,bushfire screens
+08.03,ember screens
+08.03,BAL 29 compliance
+08.04,entry door
+08.04,front door
+08.04,pivot door
+08.04,door furniture entry
+08.05,sliding doors
+08.05,stacker doors
+08.05,bifold doors
+08.05,glass sliding door
+08.06,flyscreens
+08.06,fly screens
+08.06,insect screens
+08.07,security screens
+08.07,window locks
+08.07,Crimsafe
+09.01,garage door
+09.01,sectional door
+09.01,panel lift door
+09.01,roller door
+09.01,garage door motor
+09.02,PA door
+09.02,garage access door
+09.03,keyed alike
+09.03,lockup hardware
+10.01,plumbing
+10.01,plumbing & drainage
+10.01,hydraulic services
+10.01,wet area plumbing
+10.01,rough-in plumbing
+10.02,hot water system
+10.02,hot water unit
+10.02,heat pump HWS
+10.02,instantaneous gas HWS
+10.02,electric storage HWS
+10.03,rainwater tank
+10.03,water tank & pump
+10.03,slimline tank
+10.04,electrical
+10.04,electrical works
+10.04,electrical rough-in
+10.04,sparky
+10.05,switchboard
+10.05,safety switches
+10.05,RCDs
+10.05,meter box
+10.06,power points
+10.06,GPOs
+10.06,light points
+10.06,double power point
+10.07,data points
+10.07,TV points
+10.07,cat6
+10.08,smoke alarms
+10.08,smoke detectors
+10.08,interconnected alarms
+10.09,air conditioning
+10.09,ducted aircon
+10.09,split system
+10.09,reverse cycle
+10.09,AC unit
+10.10,ducted heating
+10.10,gas heating
+10.10,hydronic heating
+10.11,gas points
+10.11,gas lines internal
+10.11,gas bayonet
+10.12,solar panels
+10.12,solar PV
+10.12,solar system
+10.12,battery ready
+10.12,solar conduit provision
+10.13,EV charger
+10.13,EV provision
+10.13,car charger circuit
+10.14,alarm system
+10.14,security system
+10.14,intercom
+10.14,CCTV
+10.15,ceiling fans
+10.16,exhaust fans
+10.16,bathroom exhaust
+10.16,rangehood ducting
+11.01,ceiling insulation
+11.01,ceiling batts
+11.01,R4.0 batts
+11.02,wall insulation
+11.02,wall batts
+11.03,underfloor insulation
+11.03,slab edge insulation
+11.04,energy compliance
+11.04,7 star compliance
+11.04,thermal upgrades
+11.04,energy efficiency measures
+11.05,BASIX commitments
+11.05,BASIX requirements
+11.06,condensation management
+11.06,vapour permeable wrap
+11.06,ventilation compliance
+11.07,draught sealing
+11.07,weather seals
+12.01,plasterboard
+12.01,gyprock
+12.01,plastering
+12.01,internal linings
+12.02,cornice
+12.02,75mm cove
+12.02,square set
+12.03,villaboard
+12.03,wet area sheeting
+12.03,fibre cement lining
+12.04,bulkheads
+12.04,feature ceiling
+12.04,coffered ceiling
+12.05,ceiling height upgrade
+12.05,2590 ceilings
+12.05,2740 ceilings
+12.05,high ceilings
+12.06,VJ panelling
+12.06,wall panelling
+12.06,wainscoting
+13.01,internal doors
+13.01,flush panel doors
+13.01,profiled doors
+13.01,cavity sliders
+13.02,door hardware
+13.02,door handles
+13.02,passage sets
+13.02,privacy sets
+13.03,skirting
+13.03,architraves
+13.03,skirting & architrave
+13.03,67mm skirting
+13.04,built-in robes
+13.04,robe doors
+13.04,robe shelving
+13.04,walk-in robe fitout
+13.05,linen shelving
+13.05,pantry shelving
+13.06,staircase
+13.06,stairs
+13.06,timber stairs
+13.06,stair stringer
+13.07,balustrade
+13.07,handrail
+13.07,glass balustrade
+13.08,study nook
+13.08,built-in joinery
+13.08,mudroom joinery
+13.08,TV unit joinery
+14.01,kitchen cabinetry
+14.01,kitchen cupboards
+14.01,kitchen joinery
+14.01,kitchen complete
+14.01,kitchen package
+14.02,benchtop
+14.02,stone benchtop
+14.02,laminate benchtop
+14.02,porcelain benchtop
+14.02,20mm stone
+14.02,40mm stone
+14.03,splashback
+14.03,tiled splashback
+14.03,glass splashback
+14.03,window splashback
+14.04,kitchen sink
+14.04,kitchen mixer
+14.04,sink & tapware
+14.05,butlers pantry
+14.05,scullery
+14.05,walk-in pantry fitout
+14.06,island bench
+14.06,waterfall ends
+14.07,soft close hardware
+14.07,drawer runners
+14.07,cabinetry hardware
+15.01,wall tiling
+15.01,bathroom wall tiles
+15.01,tiling to wet areas
+15.01,full height tiling
+15.02,floor tiling wet areas
+15.02,bathroom floor tiles
+15.03,waterproofing
+15.03,wet seal
+15.03,waterproof membrane
+15.04,vanity
+15.04,vanities
+15.04,wall hung vanity
+15.05,bath
+15.05,bathtub
+15.05,freestanding bath
+15.05,back to wall bath
+15.06,shower screen
+15.06,frameless screen
+15.06,semi-frameless screen
+15.07,shower base
+15.07,shower niche
+15.07,hob
+15.08,toilet
+15.08,toilet suite
+15.08,back to wall toilet
+15.08,in-wall cistern
+15.09,bathroom tapware
+15.09,bathroom accessories
+15.09,towel rails
+15.09,shower rail
+15.10,mirror
+15.10,shaving cabinet
+15.10,mirror cabinet
+15.11,laundry tub
+15.11,laundry cabinet
+15.11,laundry trough
+16.01,internal painting
+16.01,painting internal
+16.01,3 coat paint system
+16.01,paint to walls & ceilings
+16.02,external painting
+16.02,painting external
+16.02,exterior paint
+16.03,feature wall paint
+16.03,specialty finish
+16.04,staining
+16.04,clear finish timber
+17.01,floor tiles
+17.01,tiling to living
+17.01,porcelain floor tiles
+17.01,main floor tiling
+17.02,carpet
+17.02,carpet & underlay
+17.02,carpet to bedrooms
+17.03,timber flooring
+17.03,engineered timber
+17.03,hardwood flooring
+17.03,floating timber floor
+17.04,laminate flooring
+17.04,hybrid flooring
+17.04,vinyl plank
+17.04,SPC flooring
+17.05,polished concrete
+17.05,burnished concrete
+17.06,floor levelling
+17.06,floor preparation
+17.06,self levelling compound
+18.01,cooktop
+18.01,gas cooktop
+18.01,induction cooktop
+18.02,oven
+18.02,wall oven
+18.02,600mm oven
+18.02,900mm oven
+18.03,rangehood
+18.03,canopy rangehood
+18.03,undermount rangehood
+18.04,dishwasher
+18.04,dishwasher provision
+18.05,appliance package
+18.05,appliance allowance
+18.05,kitchen appliances
+18.06,light fittings
+18.06,LED downlights
+18.06,pendant lights
+18.06,lighting allowance
+18.07,blinds
+18.07,window furnishings
+18.07,curtains
+18.07,roller blinds
+19.01,driveway
+19.01,concrete driveway
+19.01,exposed aggregate driveway
+19.01,crossover
+19.01,plain concrete drive
+19.02,paths
+19.02,paving
+19.02,concrete paths
+19.02,porch & alfresco paving
+19.03,fencing
+19.03,boundary fencing
+19.03,Colorbond fence
+19.03,timber paling fence
+19.03,gates
+19.04,landscaping
+19.04,garden beds
+19.04,soft landscaping
+19.04,mulch & plants
+19.05,turf
+19.05,instant lawn
+19.05,returfing
+19.06,deck
+19.06,timber deck
+19.06,composite decking
+19.06,merbau decking
+19.07,pergola
+19.07,patio cover
+19.07,insulated patio roof
+19.07,gazebo
+19.08,letterbox
+19.08,clothesline
+19.08,fold down clothesline
+19.09,swimming pool
+19.09,pool & surrounds
+19.09,plunge pool
+19.09,spa
+20.01,power connection
+20.01,electrical connection
+20.01,consumer mains
+20.01,underground power pit
+20.01,temporary builders supply
+20.02,water connection
+20.02,water meter
+20.02,water service connection
+20.03,sewer connection
+20.03,sewer drainage
+20.03,connection to sewer main
+20.04,stormwater connection
+20.04,stormwater drainage
+20.04,OSD tank
+20.04,on-site detention
+20.04,soakage pits
+20.05,gas connection
+20.05,gas meter
+20.05,gas service
+20.06,NBN connection
+20.06,NBN conduit
+20.06,telecom lead-in
+20.07,section 73 certificate
+20.07,Sydney Water compliance
+21.01,HBCF insurance
+21.01,home building compensation
+21.01,home owners warranty NSW
+21.01,icare premium
+21.02,domestic building insurance
+21.02,DBI premium
+21.02,builders warranty VIC
+21.03,QBCC insurance
+21.03,QBCC home warranty
+21.03,Queensland home warranty premium
+21.04,long service levy
+21.04,portable long service
+21.04,QLeave levy
+21.05,certifier fees
+21.05,building surveyor
+21.05,private certifier
+21.05,PCA fees
+21.06,occupation certificate
+21.06,final inspection
+21.06,form 21
+21.07,council contributions
+21.07,s7.11 contributions
+21.07,infrastructure charges
+22.01,progress payments
+22.01,payment schedule
+22.01,deposit
+22.01,stage payments
+22.02,provisional sums
+22.02,provisional sum schedule
+22.02,PS items
+22.03,prime cost items
+22.03,PC items
+22.03,prime cost schedule
+22.04,contingency
+22.04,contingency sum
+22.05,builders margin
+22.05,margin on variations
+22.05,variation margin
+22.06,GST
+22.06,price includes GST
+22.07,price validity
+22.07,rise & fall
+22.07,cost escalation clause
+22.08,liquidated damages
+22.08,LD rate
+22.09,defects liability period
+22.09,maintenance period
+22.10,fixed site costs
+22.10,site cost guarantee
+22.10,no hidden site costs

@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any, Protocol
+
+from tender.schemas import ProjectContext, TenderDocumentPage
+
+
+@dataclass(frozen=True)
+class LLMExtractionResponse:
+    data: dict[str, Any]
+    model: str
+    prompt_version: str
+    request_id: str | None = None
+
+
+class TenderLLMClient(Protocol):
+    async def extract(
+        self,
+        document_pages: Sequence[TenderDocumentPage],
+        schema: dict[str, Any],
+        context: ProjectContext,
+    ) -> LLMExtractionResponse:
+        ...
+

@@ -1,0 +1,240 @@
+# TCM expectation rules — v1 (model_seed 2026-06-11, QS gate pending)
+# DSL per PRD Appendix A. Predicates evaluate against ProjectContext only.
+# severity: must (absence is always report-worthy) | should (typically expected)
+#           | conditional (expected only when predicate fires; informational)
+# NOTE FOR QS GATE: statutory scheme names, thresholds and current NCC/state
+# energy provisions flagged [VERIFY] must be confirmed before first report.
+meta: { version: 1 }
+
+rules:
+  # ── Universal documentation & prelims (all builds) ───────────────────
+  - { rule: PRELIM.APPROVAL.MUST, cell: "01.01", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Every project requires a building approval/permit pathway and lodgement fees. }
+  - { rule: PRELIM.ENGINEERING.MUST, cell: "01.03", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Structural design/certification is required for all Class 1 work. }
+  - { rule: PRELIM.SOIL.MUST.NEW, cell: "01.04", severity: must, build_type_tags: [new_build, addition],
+      predicate: { field: build_type, in: [new_build, addition] },
+      rationale: Footing design requires site classification (AS 2870). }
+  - { rule: PRELIM.SURVEY.MUST.NEW, cell: "01.05", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Contour/identification survey and set-out are required for new dwellings. }
+  - { rule: PRELIM.ENERGY.MUST, cell: "01.06", severity: must,
+      predicate: { field: build_type, in: [new_build, addition] },
+      rationale: "Energy assessment required: NatHERS 7-star pathway under NCC 2022; BASIX in NSW. [VERIFY current state adoption/transition]" }
+  - { rule: PRELIM.INSURANCE.MUST, cell: "01.08", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Contract works and public liability insurance during construction should be evidenced. }
+  - { rule: PRELIM.SCAFFOLD.2STOREY, cell: "01.13", severity: should,
+      predicate: { field: storeys, gte: 2 },
+      rationale: Two-storey work typically requires scaffolding/edge protection; commonly a hidden extra. }
+  - { rule: PRELIM.FINALCLEAN.SHOULD, cell: "01.16", severity: should,
+      predicate: { field: build_type, exists: true },
+      rationale: Builders clean or handover clean is commonly itemised; absence invites dispute. }
+
+  # ── Demolition & site preparation ────────────────────────────────────
+  - { rule: DEMO.FULL.CONDITIONAL, cell: "02.01", severity: must,
+      predicate: { field: demolition_required, eq: true },
+      rationale: Demolition stated as required in project context. }
+  - { rule: DEMO.SERVICES.CONDITIONAL, cell: "02.05", severity: must,
+      predicate: { field: demolition_required, eq: true },
+      rationale: Existing services must be disconnected/capped before demolition. }
+  - { rule: DEMO.ASBESTOS.ERA, cell: "02.03", severity: should, build_type_tags: [renovation, addition],
+      predicate: { all: [ { field: build_type, in: [renovation, addition] },
+                          { field: existing_dwelling_era, before: "1990" } ] },
+      rationale: Pre-1990 dwellings carry material likelihood of asbestos-containing materials. }
+  - { rule: DEMO.ASBESTOS.DEMO, cell: "02.03", severity: should,
+      predicate: { all: [ { field: demolition_required, eq: true },
+                          { field: existing_dwelling_era, before: "1990" } ] },
+      rationale: Asbestos survey/removal allowance expected when demolishing pre-1990 stock. }
+  - { rule: DEMO.PROTECT.RENO, cell: "02.07", severity: should, build_type_tags: [renovation, addition],
+      predicate: { field: build_type, in: [renovation, addition] },
+      rationale: Temporary propping/protection of retained structure is commonly under-scoped in reno quotes. }
+
+  # ── Site costs & groundworks ─────────────────────────────────────────
+  - { rule: SITE.PIERING.SOIL, cell: "03.02", severity: must,
+      predicate: { field: soil_class, in: [H2, E, P] },
+      rationale: Highly reactive/problem sites typically require engineered piering or deep footings. }
+  - { rule: SITE.PIERING.SOIL.SHOULD, cell: "03.02", severity: should,
+      predicate: { field: soil_class, in: [M, H1] },
+      rationale: Moderately-to-highly reactive sites frequently attract piering or beam upgrades; confirm basis. }
+  - { rule: SITE.CUTFILL.SLOPE, cell: "03.03", severity: should,
+      predicate: { field: slope_class, in: [moderate, steep] },
+      rationale: Sloping sites require cut/fill or split-level response. }
+  - { rule: SITE.RETAINING.SLOPE, cell: "03.05", severity: should,
+      predicate: { field: slope_class, in: [moderate, steep] },
+      rationale: Sloping sites typically require retaining structures. }
+  - { rule: SITE.ROCK.STEEP, cell: "03.04", severity: conditional,
+      predicate: { field: slope_class, eq: steep },
+      rationale: Steep sites carry elevated rock-excavation risk; absence of any allowance is notable. }
+  - { rule: SITE.DRAIN.SLOPE, cell: "03.06", severity: should,
+      predicate: { field: slope_class, in: [moderate, steep] },
+      rationale: Cut faces and retaining typically require subsoil drainage. }
+  - { rule: SITE.CONTAM.UNKNOWN, cell: "03.10", severity: conditional,
+      predicate: { field: soil_class, eq: P },
+      rationale: Class P sites may involve fill/contamination; treatment basis should be stated. }
+  - { rule: SITE.UNDERPIN.RENO, cell: "03.11", severity: conditional, build_type_tags: [addition, renovation],
+      predicate: { all: [ { field: build_type, in: [addition, renovation] },
+                          { field: storeys, gte: 2 } ] },
+      rationale: Second-storey additions commonly require underpinning/footing upgrade assessment. }
+  - { rule: SITE.CERTAINTY.DISCLOSE, cell: "22.10", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Quote should disclose whether site costs are fixed or provisional after soil/survey. }
+
+  # ── Substructure ─────────────────────────────────────────────────────
+  - { rule: SUB.SLAB.MUST, cell: "04.01", severity: must, build_type_tags: [new_build, addition],
+      predicate: { field: build_type, in: [new_build, addition] },
+      rationale: A footing/slab system must be priced (or subfloor alternative 04.04). }
+  - { rule: SUB.SLABUPGRADE.SOIL, cell: "04.02", severity: should,
+      predicate: { field: soil_class, in: [M, H1, H2, E] },
+      rationale: Reactive soil classes attract slab stiffening beyond class A/S base designs. }
+  - { rule: SUB.TERMITE.MUST, cell: "04.06", severity: must, build_type_tags: [new_build, addition],
+      predicate: { field: build_type, in: [new_build, addition] },
+      rationale: Termite management is an NCC requirement for new residential work. }
+  - { rule: SUB.DROPEDGE.SLOPE, cell: "04.08", severity: should,
+      predicate: { field: slope_class, in: [moderate, steep] },
+      rationale: Stepped/drop-edge slab detailing is typical on sloping sites and often a hidden extra. }
+  - { rule: SUB.FLOOD.RESPONSE, cell: "04.05", severity: conditional,
+      predicate: { field: flood_overlay, eq: true },
+      rationale: Flood overlays often drive suspended floors / minimum habitable levels; design response should be visible. }
+
+  # ── Frame, wind & upper storey ───────────────────────────────────────
+  - { rule: FRAME.WIND.UPGRADE, cell: "05.05", severity: should,
+      predicate: { field: wind_rating, in: [N3, N4, N5, N6, C1, C2, C3, C4] },
+      rationale: Elevated wind classification requires tie-down/bracing upgrades typically priced as extras. }
+  - { rule: FRAME.UPPERFLOOR.2ST, cell: "05.06", severity: must,
+      predicate: { field: storeys, gte: 2 },
+      rationale: Upper floor system must be priced on multi-storey work. }
+  - { rule: FIX.STAIRS.2ST, cell: "13.06", severity: must,
+      predicate: { field: storeys, gte: 2 },
+      rationale: Staircase must be priced on multi-storey work; spec level varies widely. }
+
+  # ── Bushfire (BAL) package ───────────────────────────────────────────
+  - { rule: BAL.WINDOWS, cell: "08.03", severity: must,
+      predicate: { field: bal_rating, in: ["12.5", "19", "29", "40", "FZ"] },
+      rationale: BAL-rated sites require compliant windows/screens/seals (AS 3959). }
+  - { rule: BAL.GUTTERGUARD, cell: "06.09", severity: should,
+      predicate: { field: bal_rating, in: ["12.5", "19", "29", "40", "FZ"] },
+      rationale: Ember protection to gutters/valleys expected on BAL-rated sites. }
+  - { rule: BAL.SARKING, cell: "06.03", severity: should,
+      predicate: { field: bal_rating, in: ["29", "40", "FZ"] },
+      rationale: Higher BAL ratings drive sarking and construction detail upgrades. }
+
+  # ── Services & compliance ────────────────────────────────────────────
+  - { rule: SVC.PLUMBING.MUST, cell: "10.01", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Plumbing scope must be priced on any habitable works. }
+  - { rule: SVC.ELECTRICAL.MUST, cell: "10.04", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Electrical scope must be priced on any habitable works. }
+  - { rule: SVC.HWS.MUST.NEW, cell: "10.02", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Hot water system type/efficiency must be stated; cheap tank vs heat pump is a real cost gap. }
+  - { rule: SVC.SMOKE.MUST, cell: "10.08", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: "Interconnected photoelectric smoke alarms required; QLD legislation is strictest. [VERIFY current state provisions]" }
+  - { rule: SVC.TANK.BASIX.NSW, cell: "10.03", severity: should, region_tags: [NSW], build_type_tags: [new_build],
+      predicate: { all: [ { field: state, eq: NSW }, { field: build_type, eq: new_build } ] },
+      rationale: "BASIX water commitments commonly require a rainwater tank or equivalent in NSW. [VERIFY]" }
+  - { rule: SVC.TANK.QLD, cell: "10.03", severity: conditional, region_tags: [QLD], build_type_tags: [new_build],
+      predicate: { all: [ { field: state, eq: QLD }, { field: build_type, eq: new_build } ] },
+      rationale: "Some QLD councils/QDC provisions require water tanks; confirm for the LGA. [VERIFY]" }
+  - { rule: ENERGY.PACKAGE.NEW, cell: "11.04", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: "7-star NatHERS compliance measures must be priced (insulation, glazing, sealing). [VERIFY adoption]" }
+  - { rule: ENERGY.BASIX.NSW, cell: "11.05", severity: must, region_tags: [NSW],
+      predicate: { all: [ { field: state, eq: NSW }, { field: build_type, in: [new_build, addition] } ] },
+      rationale: BASIX certificate commitments are mandatory for NSW dwellings/major works. }
+  - { rule: ENERGY.CONDENSATION, cell: "11.06", severity: should, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: NCC condensation management (vapour-permeable membranes, exhaust to outside) is current-code scope. }
+  - { rule: ENERGY.INSULATION.MUST, cell: "11.01", severity: must, build_type_tags: [new_build, addition],
+      predicate: { field: build_type, in: [new_build, addition] },
+      rationale: Insulation must be priced on new/added envelope. }
+  - { rule: BATH.WATERPROOF.MUST, cell: "15.03", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Wet area waterproofing to AS 3740 is mandatory wherever wet areas are built/renovated. }
+  - { rule: HEAT.VIC.SHOULD, cell: "10.10", severity: should, region_tags: [VIC], build_type_tags: [new_build],
+      predicate: { all: [ { field: state, eq: VIC }, { field: build_type, eq: new_build } ] },
+      rationale: "Heating is a baseline expectation in VIC; note gas-connection policy shift for new homes. [VERIFY current VIC gas policy]" }
+
+  # ── Connections (new build) ──────────────────────────────────────────
+  - { rule: CONN.POWER.NEW, cell: "20.01", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Power connection/consumer mains must be priced or explicitly excluded with owner scope stated. }
+  - { rule: CONN.WATER.NEW, cell: "20.02", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build }, rationale: Water connection must be addressed. }
+  - { rule: CONN.SEWER.NEW, cell: "20.03", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build }, rationale: Sewer/drainage connection must be addressed. }
+  - { rule: CONN.STORM.NEW, cell: "20.04", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Stormwater disposal (street, OSD, soakage) must be addressed; OSD is a five-figure surprise. }
+  - { rule: CONN.NBN.NEW, cell: "20.06", severity: should, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build }, rationale: Telecoms lead-in/conduit commonly missed. }
+  - { rule: CONN.S73.NSW, cell: "20.07", severity: should, region_tags: [NSW], build_type_tags: [new_build],
+      predicate: { all: [ { field: state, eq: NSW }, { field: build_type, eq: new_build } ] },
+      rationale: "Water authority compliance certificate (s73) applies to many NSW builds. [VERIFY applicability]" }
+
+  # ── Statutory & insurance ────────────────────────────────────────────
+  - { rule: STAT.HBCF.NSW, cell: "21.01", severity: must, region_tags: [NSW],
+      predicate: { field: state, eq: NSW },
+      rationale: "NSW: HBCF (icare) cover must be evidenced before deposit for residential work above threshold (~$20k). [VERIFY threshold]" }
+  - { rule: STAT.DBI.VIC, cell: "21.02", severity: must, region_tags: [VIC],
+      predicate: { field: state, eq: VIC },
+      rationale: "VIC: Domestic Building Insurance required above threshold (~$16k). [VERIFY threshold]" }
+  - { rule: STAT.QBCC.QLD, cell: "21.03", severity: must, region_tags: [QLD],
+      predicate: { field: state, eq: QLD },
+      rationale: "QLD: QBCC Home Warranty Scheme premium applies above threshold (~$3,300). [VERIFY threshold]" }
+  - { rule: STAT.CERTIFIER.MUST, cell: "21.05", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Certifier/building surveyor fees must sit somewhere — builder side or owner side, but stated. }
+  - { rule: STAT.LSL.SHOULD, cell: "21.04", severity: should,
+      predicate: { field: build_type, exists: true },
+      rationale: "Long service levy applies above state thresholds; commonly passed through. [VERIFY rates]" }
+  - { rule: STAT.CONTRIB.CONDITIONAL, cell: "21.07", severity: conditional, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Council contributions are usually owner-side; report should state who carries them. }
+
+  # ── Commercial terms ─────────────────────────────────────────────────
+  - { rule: COMM.SCHEDULE.MUST, cell: "22.01", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: "Deposit and progress schedule must be visible; statutory caps apply by state. [VERIFY caps]" }
+  - { rule: COMM.PSPC.MUST, cell: "22.02", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Provisional sums must be itemised with basis-of-allowance stated. }
+  - { rule: COMM.PC.MUST, cell: "22.03", severity: must,
+      predicate: { field: build_type, exists: true },
+      rationale: Prime cost items must be scheduled with supply allowances stated. }
+  - { rule: COMM.MARGIN.SHOULD, cell: "22.05", severity: should,
+      predicate: { field: build_type, exists: true },
+      rationale: Margin applied to variations/PS adjustments should be stated (HIA default conventions apply). }
+  - { rule: COMM.RISEFALL.SHOULD, cell: "22.07", severity: should,
+      predicate: { field: build_type, exists: true },
+      rationale: Price validity and any rise-and-fall/cost-escalation clause materially change risk. }
+  - { rule: COMM.LD.SHOULD, cell: "22.08", severity: should,
+      predicate: { field: build_type, exists: true },
+      rationale: Liquidated damages rate signals schedule accountability; $1/week tokens are a red flag. }
+  - { rule: COMM.DLP.SHOULD, cell: "22.09", severity: should,
+      predicate: { field: build_type, exists: true },
+      rationale: "Defects liability period should be stated; statutory warranties apply regardless. [VERIFY periods]" }
+
+  # ── Commonly-gamed completion scope (new build) ──────────────────────
+  - { rule: EXT.DRIVEWAY.NEW, cell: "19.01", severity: should, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Driveway is frequently excluded from headline price; often needed for occupancy/handover. }
+  - { rule: FLOOR.COVERINGS.NEW, cell: "17.01", severity: should, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Floor coverings are the most commonly excluded liveability item; absence must be surfaced. }
+  - { rule: PAINT.INTERNAL.MUST, cell: "16.01", severity: must, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Internal painting must be priced; some base quotes exclude it entirely. }
+  - { rule: EXT.LETTERBOX.QLD, cell: "19.08", severity: conditional, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Letterbox/clothesline trivial but commonly required for handover/estate covenants. }
+  - { rule: APPL.PACKAGE.NEW, cell: "18.05", severity: should, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Appliance inclusions or allowance should be explicit; PC games concentrate here. }
+  - { rule: GARAGE.DOOR.NEW, cell: "09.01", severity: should, build_type_tags: [new_build],
+      predicate: { field: build_type, eq: new_build },
+      rationale: Garage door inclusion conventions differ between builders; classic comparison trap. }

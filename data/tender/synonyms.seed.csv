@@ -1,0 +1,1827 @@
+cell_code,phrase,source
+01.01,CDC approval,seed
+01.01,CDC approvals,seed_expanded
+01.01,DA fee,seed_expanded
+01.01,DA fees,seed
+01.01,building approval,seed
+01.01,building approvals,seed_expanded
+01.01,building permit,seed
+01.01,building permits,seed_expanded
+01.01,council lodgement fee,seed_expanded
+01.01,council lodgement fees,seed
+01.01,permit application,seed
+01.01,permit applications,seed_expanded
+01.01,plan approval fee,seed_expanded
+01.01,plan approval fees,seed
+01.02,construction drawing,seed_expanded
+01.02,construction drawings,seed
+01.02,drafting & documentation,seed
+01.02,drafting & documentations,seed_expanded
+01.02,drafting and documentation,seed_expanded
+01.02,drafting and documentations,seed_expanded
+01.02,plan preparation,seed
+01.02,plan preparations,seed_expanded
+01.02,working drawing,seed_expanded
+01.02,working drawings,seed
+01.03,engineering design,seed
+01.03,engineering designs,seed_expanded
+01.03,engineers detail,seed_expanded
+01.03,engineers details,seed
+01.03,footing design,seed
+01.03,footing designs,seed_expanded
+01.03,structural certification,seed
+01.03,structural certifications,seed_expanded
+01.03,structural engineering,seed
+01.03,structural engineerings,seed_expanded
+01.04,bore log,seed
+01.04,geotechnical report,seed
+01.04,geotechnical reports,seed_expanded
+01.04,site classification,seed
+01.04,site classifications,seed_expanded
+01.04,soil report,seed
+01.04,soil reports,seed_expanded
+01.04,soil test,seed
+01.04,soil tests,seed_expanded
+01.05,contour survey,seed
+01.05,identification survey,seed
+01.05,peg out,seed
+01.05,set out survey,seed_expanded
+01.05,set-out survey,seed
+01.05,setout survey,seed_expanded
+01.05,site survey,seed
+01.06,6 star assessment,seed
+01.06,6 star assessments,seed_expanded
+01.06,7 star assessment,seed
+01.06,7 star assessments,seed_expanded
+01.06,BASIX certificate,seed
+01.06,BASIX certificates,seed_expanded
+01.06,NatHERS assessment,seed
+01.06,NatHERS assessments,seed_expanded
+01.06,energy report,seed
+01.06,energy reports,seed_expanded
+01.06,thermal performance assessment,seed
+01.06,thermal performance assessments,seed_expanded
+01.07,builders preliminarie,seed_expanded
+01.07,builders preliminaries,seed
+01.07,preliminarie,seed_expanded
+01.07,preliminaries,seed
+01.07,project management,seed
+01.07,project managements,seed_expanded
+01.07,site management,seed
+01.07,site managements,seed_expanded
+01.07,site supervision,seed
+01.07,site supervisions,seed_expanded
+01.08,construction insurance,seed
+01.08,construction insurances,seed_expanded
+01.08,contract works insurance,seed
+01.08,contract works insurances,seed_expanded
+01.08,public liability insurance,seed
+01.08,public liability insurances,seed_expanded
+01.09,site fencing,seed
+01.09,site fencings,seed_expanded
+01.09,temp fence,seed
+01.09,temp fences,seed_expanded
+01.09,temporary fencing,seed
+01.09,temporary fencings,seed_expanded
+01.10,site shed,seed
+01.10,site sheds,seed_expanded
+01.10,site toilet,seed
+01.10,site toilets,seed_expanded
+01.10,temporary power,seed
+01.10,temporary powers,seed_expanded
+01.10,temporary water,seed
+01.10,temporary waters,seed_expanded
+01.11,OH&S compliance,seed
+01.11,OH&S compliances,seed_expanded
+01.11,safety signage,seed
+01.11,safety signages,seed_expanded
+01.11,site safety,seed
+01.12,rubbish removal,seed
+01.12,rubbish removals,seed_expanded
+01.12,site cleanup,seed_expanded
+01.12,site cleanups,seed
+01.12,skip bin,seed_expanded
+01.12,skip bins,seed
+01.12,waste bin,seed_expanded
+01.12,waste bins,seed
+01.13,edge protection,seed
+01.13,edge protections,seed_expanded
+01.13,fall protection,seed
+01.13,fall protections,seed_expanded
+01.13,scaffold hire,seed
+01.13,scaffold hires,seed_expanded
+01.13,scaffolding,seed
+01.13,scaffoldings,seed_expanded
+01.14,traffic control,seed
+01.14,traffic controls,seed_expanded
+01.14,traffic management,seed
+01.14,traffic managements,seed_expanded
+01.15,access equipment,seed
+01.15,access equipments,seed_expanded
+01.15,crane hire,seed
+01.15,crane hires,seed_expanded
+01.16,builders clean,seed
+01.16,builders cleans,seed_expanded
+01.16,final clean,seed
+01.16,final cleans,seed_expanded
+01.16,handover clean,seed
+01.16,handover cleans,seed_expanded
+02.01,demolish existing residence,seed
+02.01,demolish existing residences,seed_expanded
+02.01,demolition of existing dwelling,seed
+02.01,demolition of existing dwellings,seed_expanded
+02.01,house demolition,seed
+02.01,house demolitions,seed_expanded
+02.01,knock down,seed
+02.01,knock downs,seed_expanded
+02.02,internal strip out,seed
+02.02,partial demolition,seed
+02.02,partial demolitions,seed_expanded
+02.02,remove existing kitchen,seed
+02.02,remove existing kitchens,seed_expanded
+02.02,strip out work,seed_expanded
+02.02,strip out works,seed
+02.03,ACM removal,seed
+02.03,ACM removals,seed_expanded
+02.03,asbestos disposal,seed
+02.03,asbestos disposals,seed_expanded
+02.03,asbestos removal,seed
+02.03,asbestos removals,seed_expanded
+02.03,asbestos survey,seed
+02.03,friable asbesto,seed_expanded
+02.03,friable asbestos,seed
+02.04,stump grinding,seed
+02.04,stump grindings,seed_expanded
+02.04,tree lopping,seed
+02.04,tree loppings,seed_expanded
+02.04,tree protection zone,seed
+02.04,tree protection zones,seed_expanded
+02.04,tree removal,seed
+02.04,tree removals,seed_expanded
+02.05,cap off service,seed_expanded
+02.05,cap off services,seed
+02.05,disconnect service,seed_expanded
+02.05,disconnect services,seed
+02.05,service abolishment,seed
+02.05,service abolishments,seed_expanded
+02.06,clear & grub,seed
+02.06,clear & grubs,seed_expanded
+02.06,clear and grub,seed_expanded
+02.06,clear and grubs,seed_expanded
+02.06,site clearing,seed
+02.06,site clearings,seed_expanded
+02.06,vegetation removal,seed
+02.06,vegetation removals,seed_expanded
+02.07,needle propping,seed
+02.07,needle proppings,seed_expanded
+02.07,temporary propping,seed
+02.07,temporary proppings,seed_expanded
+02.07,temporary support,seed
+02.07,temporary supports,seed_expanded
+02.08,protect existing finishe,seed_expanded
+02.08,protect existing finishes,seed
+02.08,salvage material,seed_expanded
+02.08,salvage materials,seed
+03.01,allowance for site condition,seed_expanded
+03.01,allowance for site conditions,seed
+03.01,site cost,seed_expanded
+03.01,site costs,seed
+03.01,site costs TBA,seed
+03.01,site preparation cost,seed_expanded
+03.01,site preparation costs,seed
+03.01,site work,seed_expanded
+03.01,site works,seed
+03.01,siteworks allowance,seed
+03.01,siteworks allowances,seed_expanded
+03.02,bored pier,seed_expanded
+03.02,bored piers,seed
+03.02,concrete pier,seed_expanded
+03.02,concrete piers,seed
+03.02,deep edge beam,seed_expanded
+03.02,deep edge beams,seed
+03.02,pier & beam,seed
+03.02,pier & beams,seed_expanded
+03.02,pier and beam,seed_expanded
+03.02,pier and beams,seed_expanded
+03.02,piering,seed
+03.02,pierings,seed_expanded
+03.02,pile foundation,seed_expanded
+03.02,pile foundations,seed
+03.02,screw pile,seed_expanded
+03.02,screw piles,seed
+03.03,bench site,seed
+03.03,bench sites,seed_expanded
+03.03,bulk earthwork,seed_expanded
+03.03,bulk earthworks,seed
+03.03,cut & fill,seed
+03.03,cut & fills,seed_expanded
+03.03,cut and fill,seed_expanded
+03.03,cut and fills,seed_expanded
+03.03,detailed excavation,seed
+03.03,detailed excavations,seed_expanded
+03.03,excavation,seed
+03.03,excavations,seed_expanded
+03.03,levelling site,seed
+03.03,levelling sites,seed_expanded
+03.04,floater removal,seed
+03.04,floater removals,seed_expanded
+03.04,rock allowance,seed
+03.04,rock allowances,seed_expanded
+03.04,rock breaking,seed
+03.04,rock breakings,seed_expanded
+03.04,rock excavation,seed
+03.04,rock excavations,seed_expanded
+03.05,block retaining wall,seed
+03.05,block retaining walls,seed_expanded
+03.05,boulder wall,seed
+03.05,boulder walls,seed_expanded
+03.05,concrete sleeper wall,seed
+03.05,concrete sleeper walls,seed_expanded
+03.05,retaining wall,seed
+03.05,retaining walls,seed_expanded
+03.05,sleeper retaining,seed
+03.05,sleeper retainings,seed_expanded
+03.05,timber retaining,seed
+03.05,timber retainings,seed_expanded
+03.06,ag line,seed_expanded
+03.06,ag lines,seed
+03.06,agi drain,seed
+03.06,agi drains,seed_expanded
+03.06,site drainage,seed
+03.06,site drainages,seed_expanded
+03.06,subsoil drainage,seed
+03.06,subsoil drainages,seed_expanded
+03.07,dewatering,seed
+03.07,dewaterings,seed_expanded
+03.07,pump out,seed
+03.08,excess soil cartage,seed
+03.08,excess soil cartages,seed_expanded
+03.08,fill supply & compaction,seed
+03.08,fill supply & compactions,seed_expanded
+03.08,fill supply and compaction,seed_expanded
+03.08,fill supply and compactions,seed_expanded
+03.08,imported fill,seed
+03.08,imported fills,seed_expanded
+03.08,spoil removal,seed
+03.08,spoil removals,seed_expanded
+03.09,compaction certificate,seed
+03.09,compaction certificates,seed_expanded
+03.09,compaction testing,seed
+03.09,compaction testings,seed_expanded
+03.09,level 1 supervision,seed
+03.09,level 1 supervisions,seed_expanded
+03.10,contaminated soil,seed
+03.10,contaminated soils,seed_expanded
+03.10,contamination allowance,seed
+03.10,contamination allowances,seed_expanded
+03.10,unexpected find,seed_expanded
+03.10,unexpected finds,seed
+03.11,footing upgrade existing,seed
+03.11,footing upgrade existings,seed_expanded
+03.11,underpinning,seed
+03.11,underpinnings,seed_expanded
+03.12,sheet piling,seed
+03.12,sheet pilings,seed_expanded
+03.12,shoring,seed
+03.12,shorings,seed_expanded
+03.12,soil anchor,seed_expanded
+03.12,soil anchors,seed
+04.01,concrete slab,seed
+04.01,concrete slabs,seed_expanded
+04.01,concrete work,seed_expanded
+04.01,concrete works,seed
+04.01,footings & slab,seed
+04.01,footings & slabs,seed_expanded
+04.01,footings and slab,seed_expanded
+04.01,footings and slabs,seed_expanded
+04.01,raft slab,seed
+04.01,raft slabs,seed_expanded
+04.01,slab on ground,seed
+04.01,slab on grounds,seed_expanded
+04.01,waffle slab,seed
+04.01,waffle slabs,seed_expanded
+04.02,H class slab,seed
+04.02,H class slabs,seed_expanded
+04.02,M class slab,seed
+04.02,M class slabs,seed_expanded
+04.02,slab stiffening,seed
+04.02,slab stiffenings,seed_expanded
+04.02,slab upgrade,seed
+04.02,slab upgrades,seed_expanded
+04.03,pod slab,seed
+04.03,pod slabs,seed_expanded
+04.03,waffle pod,seed_expanded
+04.03,waffle pods,seed
+04.04,bearers & joist,seed_expanded
+04.04,bearers & joists,seed
+04.04,bearers and joist,seed_expanded
+04.04,bearers and joists,seed_expanded
+04.04,stump,seed_expanded
+04.04,stumps,seed
+04.04,subfloor framing,seed
+04.04,subfloor framings,seed_expanded
+04.04,timber floor system,seed
+04.04,timber floor systems,seed_expanded
+04.05,suspended concrete floor,seed
+04.05,suspended concrete floors,seed_expanded
+04.05,suspended slab,seed
+04.05,suspended slabs,seed_expanded
+04.06,ant capping,seed
+04.06,ant cappings,seed_expanded
+04.06,part A treatment,seed
+04.06,part A treatments,seed_expanded
+04.06,termimesh,seed
+04.06,termimeshs,seed_expanded
+04.06,termite barrier,seed
+04.06,termite barriers,seed_expanded
+04.06,termite protection,seed
+04.06,termite protections,seed_expanded
+04.07,damp proof membrane,seed
+04.07,damp proof membranes,seed_expanded
+04.07,plastic membrane,seed
+04.07,plastic membranes,seed_expanded
+04.07,vapour barrier,seed
+04.07,vapour barriers,seed_expanded
+04.08,drop edge beam,seed
+04.08,drop edge beams,seed_expanded
+04.08,split level slab,seed
+04.08,split level slabs,seed_expanded
+04.08,stepped footing,seed
+04.08,stepped footings,seed_expanded
+05.01,frame & truss,seed
+05.01,frame and truss,seed_expanded
+05.01,steel framing,seed
+05.01,steel framings,seed_expanded
+05.01,timber framing,seed
+05.01,timber framings,seed_expanded
+05.01,wall frame,seed_expanded
+05.01,wall frames,seed
+05.02,roof framing,seed
+05.02,roof framings,seed_expanded
+05.02,roof trusse,seed_expanded
+05.02,roof trusses,seed
+05.02,truss package,seed
+05.02,truss packages,seed_expanded
+05.03,portal frame,seed
+05.03,portal frames,seed_expanded
+05.03,steel beam,seed_expanded
+05.03,steel beams,seed
+05.03,steel post,seed_expanded
+05.03,steel posts,seed
+05.03,structural steel,seed
+05.03,structural steels,seed_expanded
+05.04,LVL beam,seed_expanded
+05.04,LVL beams,seed
+05.04,glulam,seed
+05.04,glulams,seed_expanded
+05.04,laminated beam,seed_expanded
+05.04,laminated beams,seed
+05.05,N3 upgrade,seed
+05.05,N3 upgrades,seed_expanded
+05.05,cyclone rated frame,seed
+05.05,cyclone rated frames,seed_expanded
+05.05,tie down upgrade,seed
+05.05,tie down upgrades,seed_expanded
+05.05,wind rating upgrade,seed
+05.05,wind rating upgrades,seed_expanded
+05.06,first floor system,seed
+05.06,first floor systems,seed_expanded
+05.06,floor sheeting upstair,seed_expanded
+05.06,floor sheeting upstairs,seed
+05.06,upper floor joist,seed_expanded
+05.06,upper floor joists,seed
+06.01,concrete tile,seed_expanded
+06.01,concrete tiles,seed
+06.01,roof tile,seed_expanded
+06.01,roof tiles,seed
+06.01,supply & install concrete tile,seed_expanded
+06.01,supply & install concrete tiles,seed_expanded
+06.01,supply & install roof tile,seed_expanded
+06.01,supply & install roof tiles,seed_expanded
+06.01,supply & install terracotta tile,seed_expanded
+06.01,supply & install terracotta tiles,seed_expanded
+06.01,supply & install tiled roof,seed_expanded
+06.01,supply & install tiled roofs,seed_expanded
+06.01,supply & lay concrete tile,seed_expanded
+06.01,supply & lay concrete tiles,seed_expanded
+06.01,supply & lay roof tile,seed_expanded
+06.01,supply & lay roof tiles,seed_expanded
+06.01,supply & lay terracotta tile,seed_expanded
+06.01,supply & lay terracotta tiles,seed_expanded
+06.01,supply & lay tiled roof,seed_expanded
+06.01,supply & lay tiled roofs,seed_expanded
+06.01,supply and fix concrete tile,seed_expanded
+06.01,supply and fix concrete tiles,seed_expanded
+06.01,supply and fix roof tile,seed_expanded
+06.01,supply and fix roof tiles,seed_expanded
+06.01,supply and fix terracotta tile,seed_expanded
+06.01,supply and fix terracotta tiles,seed_expanded
+06.01,supply and fix tiled roof,seed_expanded
+06.01,supply and fix tiled roofs,seed_expanded
+06.01,supply and install concrete tile,seed_expanded
+06.01,supply and install concrete tiles,seed_expanded
+06.01,supply and install roof tile,seed_expanded
+06.01,supply and install roof tiles,seed_expanded
+06.01,supply and install terracotta tile,seed_expanded
+06.01,supply and install terracotta tiles,seed_expanded
+06.01,supply and install tiled roof,seed_expanded
+06.01,supply and install tiled roofs,seed_expanded
+06.01,terracotta tile,seed_expanded
+06.01,terracotta tiles,seed
+06.01,tiled roof,seed
+06.01,tiled roofs,seed_expanded
+06.02,Colorbond roof,seed
+06.02,Colorbond roofs,seed_expanded
+06.02,corrugated roofing,seed
+06.02,corrugated roofings,seed_expanded
+06.02,metal roofing,seed
+06.02,metal roofings,seed_expanded
+06.02,steel roof sheeting,seed
+06.02,steel roof sheetings,seed_expanded
+06.02,supply & install Colorbond roof,seed_expanded
+06.02,supply & install Colorbond roofs,seed_expanded
+06.02,supply & install corrugated roofing,seed_expanded
+06.02,supply & install corrugated roofings,seed_expanded
+06.02,supply & install metal roofing,seed_expanded
+06.02,supply & install metal roofings,seed_expanded
+06.02,supply & install steel roof sheeting,seed_expanded
+06.02,supply & install steel roof sheetings,seed_expanded
+06.02,supply & lay Colorbond roof,seed_expanded
+06.02,supply & lay Colorbond roofs,seed_expanded
+06.02,supply & lay corrugated roofing,seed_expanded
+06.02,supply & lay corrugated roofings,seed_expanded
+06.02,supply & lay metal roofing,seed_expanded
+06.02,supply & lay metal roofings,seed_expanded
+06.02,supply & lay steel roof sheeting,seed_expanded
+06.02,supply & lay steel roof sheetings,seed_expanded
+06.02,supply and fix Colorbond roof,seed_expanded
+06.02,supply and fix Colorbond roofs,seed_expanded
+06.02,supply and fix corrugated roofing,seed_expanded
+06.02,supply and fix corrugated roofings,seed_expanded
+06.02,supply and fix metal roofing,seed_expanded
+06.02,supply and fix metal roofings,seed_expanded
+06.02,supply and fix steel roof sheeting,seed_expanded
+06.02,supply and fix steel roof sheetings,seed_expanded
+06.02,supply and install Colorbond roof,seed_expanded
+06.02,supply and install Colorbond roofs,seed_expanded
+06.02,supply and install corrugated roofing,seed_expanded
+06.02,supply and install corrugated roofings,seed_expanded
+06.02,supply and install metal roofing,seed_expanded
+06.02,supply and install metal roofings,seed_expanded
+06.02,supply and install steel roof sheeting,seed_expanded
+06.02,supply and install steel roof sheetings,seed_expanded
+06.03,anticon blanket,seed
+06.03,anticon blankets,seed_expanded
+06.03,foil sarking,seed
+06.03,foil sarkings,seed_expanded
+06.03,roof insulation blanket,seed
+06.03,roof insulation blankets,seed_expanded
+06.03,sarking,seed
+06.03,sarkings,seed_expanded
+06.04,eaves gutter,seed
+06.04,eaves gutters,seed_expanded
+06.04,fascia,seed
+06.04,fascia & gutter,seed
+06.04,fascia & gutters,seed_expanded
+06.04,fascia and gutter,seed_expanded
+06.04,fascia and gutters,seed_expanded
+06.04,fascias,seed_expanded
+06.04,guttering,seed
+06.04,gutterings,seed_expanded
+06.05,down pipe,seed_expanded
+06.05,down pipes,seed
+06.05,downpipe,seed_expanded
+06.05,downpipes,seed
+06.06,barge capping,seed
+06.06,barge cappings,seed_expanded
+06.06,flashing,seed_expanded
+06.06,flashings,seed
+06.06,ridge capping,seed
+06.06,ridge cappings,seed_expanded
+06.07,roof window,seed
+06.07,roof windows,seed_expanded
+06.07,skylight,seed
+06.07,skylights,seed_expanded
+06.07,solar tube,seed
+06.07,solar tubes,seed_expanded
+06.07,velux,seed
+06.08,roof ventilator,seed
+06.08,roof ventilators,seed_expanded
+06.08,whirlybird,seed
+06.08,whirlybirds,seed_expanded
+06.09,ember guard,seed
+06.09,ember guards,seed_expanded
+06.09,gutter guard,seed
+06.09,gutter guards,seed_expanded
+06.09,leaf guard,seed
+06.09,leaf guards,seed_expanded
+07.01,brick veneer,seed
+07.01,brick veneers,seed_expanded
+07.01,bricks & bricklaying,seed
+07.01,bricks & bricklayings,seed_expanded
+07.01,bricks and bricklaying,seed_expanded
+07.01,bricks and bricklayings,seed_expanded
+07.01,clay brick,seed_expanded
+07.01,clay bricks,seed
+07.01,face brickwork,seed
+07.01,face brickworks,seed_expanded
+07.02,acrylic render,seed
+07.02,acrylic renders,seed_expanded
+07.02,bagged finish,seed
+07.02,bagged finishs,seed_expanded
+07.02,cement render,seed
+07.02,cement renders,seed_expanded
+07.02,render,seed
+07.02,renders,seed_expanded
+07.02,texture coating,seed
+07.02,texture coatings,seed_expanded
+07.03,FC sheet,seed
+07.03,FC sheets,seed_expanded
+07.03,Hardie cladding,seed
+07.03,Hardie claddings,seed_expanded
+07.03,blueboard,seed
+07.03,blueboards,seed_expanded
+07.03,fibre cement cladding,seed
+07.03,fibre cement claddings,seed_expanded
+07.03,supply & install FC sheet,seed_expanded
+07.03,supply & install FC sheets,seed_expanded
+07.03,supply & install Hardie cladding,seed_expanded
+07.03,supply & install Hardie claddings,seed_expanded
+07.03,supply & install blueboard,seed_expanded
+07.03,supply & install blueboards,seed_expanded
+07.03,supply & install fibre cement cladding,seed_expanded
+07.03,supply & install fibre cement claddings,seed_expanded
+07.03,supply & install weatherboard,seed_expanded
+07.03,supply & install weatherboards,seed_expanded
+07.03,supply & lay FC sheet,seed_expanded
+07.03,supply & lay FC sheets,seed_expanded
+07.03,supply & lay Hardie cladding,seed_expanded
+07.03,supply & lay Hardie claddings,seed_expanded
+07.03,supply & lay blueboard,seed_expanded
+07.03,supply & lay blueboards,seed_expanded
+07.03,supply & lay fibre cement cladding,seed_expanded
+07.03,supply & lay fibre cement claddings,seed_expanded
+07.03,supply & lay weatherboard,seed_expanded
+07.03,supply & lay weatherboards,seed_expanded
+07.03,supply and fix FC sheet,seed_expanded
+07.03,supply and fix FC sheets,seed_expanded
+07.03,supply and fix Hardie cladding,seed_expanded
+07.03,supply and fix Hardie claddings,seed_expanded
+07.03,supply and fix blueboard,seed_expanded
+07.03,supply and fix blueboards,seed_expanded
+07.03,supply and fix fibre cement cladding,seed_expanded
+07.03,supply and fix fibre cement claddings,seed_expanded
+07.03,supply and fix weatherboard,seed_expanded
+07.03,supply and fix weatherboards,seed_expanded
+07.03,supply and install FC sheet,seed_expanded
+07.03,supply and install FC sheets,seed_expanded
+07.03,supply and install Hardie cladding,seed_expanded
+07.03,supply and install Hardie claddings,seed_expanded
+07.03,supply and install blueboard,seed_expanded
+07.03,supply and install blueboards,seed_expanded
+07.03,supply and install fibre cement cladding,seed_expanded
+07.03,supply and install fibre cement claddings,seed_expanded
+07.03,supply and install weatherboard,seed_expanded
+07.03,supply and install weatherboards,seed_expanded
+07.03,weatherboard,seed
+07.03,weatherboards,seed_expanded
+07.04,Axon cladding,seed
+07.04,Axon claddings,seed_expanded
+07.04,composite cladding,seed
+07.04,composite claddings,seed_expanded
+07.04,feature cladding,seed
+07.04,feature claddings,seed_expanded
+07.04,timber batten,seed_expanded
+07.04,timber battens,seed
+07.05,breather membrane,seed
+07.05,breather membranes,seed_expanded
+07.05,building wrap,seed
+07.05,building wraps,seed_expanded
+07.05,wall wrap,seed
+07.05,wall wraps,seed_expanded
+07.06,articulation joint,seed_expanded
+07.06,articulation joints,seed
+07.06,brick sill,seed_expanded
+07.06,brick sills,seed
+07.06,brickwork extra,seed_expanded
+07.06,brickwork extras,seed
+08.01,aluminium window,seed_expanded
+08.01,aluminium windows,seed
+08.01,powdercoated window,seed_expanded
+08.01,powdercoated windows,seed
+08.01,window package,seed
+08.01,window packages,seed_expanded
+08.01,windows & glazing,seed
+08.01,windows & glazings,seed_expanded
+08.01,windows and glazing,seed_expanded
+08.01,windows and glazings,seed_expanded
+08.02,double glazing,seed
+08.02,double glazings,seed_expanded
+08.02,glazing upgrade,seed
+08.02,glazing upgrades,seed_expanded
+08.02,low e glass,seed_expanded
+08.02,low-e glass,seed
+08.02,thermally broken frame,seed_expanded
+08.02,thermally broken frames,seed
+08.03,BAL 29 compliance,seed
+08.03,BAL 29 compliances,seed_expanded
+08.03,BAL rated window,seed_expanded
+08.03,BAL rated windows,seed
+08.03,bushfire screen,seed_expanded
+08.03,bushfire screens,seed
+08.03,ember screen,seed_expanded
+08.03,ember screens,seed
+08.04,door furniture entry,seed
+08.04,entry door,seed
+08.04,entry doors,seed_expanded
+08.04,front door,seed
+08.04,front doors,seed_expanded
+08.04,pivot door,seed
+08.04,pivot doors,seed_expanded
+08.05,bifold door,seed_expanded
+08.05,bifold doors,seed
+08.05,glass sliding door,seed
+08.05,glass sliding doors,seed_expanded
+08.05,sliding door,seed_expanded
+08.05,sliding doors,seed
+08.05,stacker door,seed_expanded
+08.05,stacker doors,seed
+08.06,fly screen,seed_expanded
+08.06,fly screens,seed_expanded
+08.06,flyscreen,seed_expanded
+08.06,flyscreens,seed
+08.06,insect screen,seed_expanded
+08.06,insect screens,seed
+08.07,Crimsafe,seed
+08.07,Crimsafes,seed_expanded
+08.07,security screen,seed_expanded
+08.07,security screens,seed
+08.07,window lock,seed_expanded
+08.07,window locks,seed
+09.01,garage door,seed
+09.01,garage door motor,seed
+09.01,garage door motors,seed_expanded
+09.01,garage doors,seed_expanded
+09.01,panel lift door,seed
+09.01,panel lift doors,seed_expanded
+09.01,roller door,seed
+09.01,roller doors,seed_expanded
+09.01,sectional door,seed
+09.01,sectional doors,seed_expanded
+09.02,PA door,seed
+09.02,PA doors,seed_expanded
+09.02,garage access door,seed
+09.02,garage access doors,seed_expanded
+09.03,keyed alike,seed
+09.03,keyed alikes,seed_expanded
+09.03,lockup hardware,seed
+09.03,lockup hardwares,seed_expanded
+10.01,hydraulic service,seed_expanded
+10.01,hydraulic services,seed
+10.01,plumbing,seed
+10.01,plumbing & drainage,seed
+10.01,plumbing & drainages,seed_expanded
+10.01,plumbing and drainage,seed_expanded
+10.01,plumbing and drainages,seed_expanded
+10.01,plumbings,seed_expanded
+10.01,rough in plumbing,seed_expanded
+10.01,rough in plumbings,seed_expanded
+10.01,rough-in plumbing,seed
+10.01,rough-in plumbings,seed_expanded
+10.01,wet area plumbing,seed
+10.01,wet area plumbings,seed_expanded
+10.02,HWS,seed_expanded
+10.02,HWSs,seed_expanded
+10.02,electric storage HWS,seed
+10.02,electric storage hot water system,seed_expanded
+10.02,heat pump HWS,seed
+10.02,heat pump hot water system,seed_expanded
+10.02,hot water system,seed
+10.02,hot water systems,seed_expanded
+10.02,hot water unit,seed
+10.02,hot water units,seed_expanded
+10.02,instantaneous gas HWS,seed
+10.02,instantaneous gas hot water system,seed_expanded
+10.03,rainwater tank,seed
+10.03,rainwater tanks,seed_expanded
+10.03,slimline tank,seed
+10.03,slimline tanks,seed_expanded
+10.03,water tank & pump,seed
+10.03,water tank & pumps,seed_expanded
+10.03,water tank and pump,seed_expanded
+10.03,water tank and pumps,seed_expanded
+10.04,electrical,seed
+10.04,electrical rough in,seed_expanded
+10.04,electrical rough-in,seed
+10.04,electrical work,seed_expanded
+10.04,electrical works,seed
+10.04,electricals,seed_expanded
+10.04,sparky,seed
+10.05,RCD,seed_expanded
+10.05,RCDs,seed
+10.05,meter box,seed
+10.05,safety switche,seed_expanded
+10.05,safety switches,seed
+10.05,switchboard,seed
+10.05,switchboards,seed_expanded
+10.06,GPO,seed_expanded
+10.06,GPOs,seed
+10.06,double power point,seed
+10.06,double power points,seed_expanded
+10.06,double powerpoints,seed_expanded
+10.06,light point,seed_expanded
+10.06,light points,seed
+10.06,power point,seed_expanded
+10.06,power points,seed
+10.06,powerpoints,seed_expanded
+10.07,TV point,seed_expanded
+10.07,TV points,seed
+10.07,cat6,seed
+10.07,data point,seed_expanded
+10.07,data points,seed
+10.08,interconnected alarm,seed_expanded
+10.08,interconnected alarms,seed
+10.08,smoke alarm,seed_expanded
+10.08,smoke alarms,seed
+10.08,smoke detector,seed_expanded
+10.08,smoke detectors,seed
+10.09,A/C,seed_expanded
+10.09,A/Cs,seed_expanded
+10.09,AC unit,seed
+10.09,AC units,seed_expanded
+10.09,air conditioning,seed
+10.09,air conditionings,seed_expanded
+10.09,airconditioning,seed_expanded
+10.09,airconditionings,seed_expanded
+10.09,ducted air con,seed_expanded
+10.09,ducted air cons,seed_expanded
+10.09,ducted aircon,seed
+10.09,ducted aircons,seed_expanded
+10.09,reverse cycle,seed
+10.09,reverse cycles,seed_expanded
+10.09,split system,seed
+10.09,split systems,seed_expanded
+10.10,ducted heating,seed
+10.10,ducted heatings,seed_expanded
+10.10,gas heating,seed
+10.10,gas heatings,seed_expanded
+10.10,hydronic heating,seed
+10.10,hydronic heatings,seed_expanded
+10.11,gas bayonet,seed
+10.11,gas bayonets,seed_expanded
+10.11,gas lines internal,seed
+10.11,gas lines internals,seed_expanded
+10.11,gas point,seed_expanded
+10.11,gas points,seed
+10.12,battery ready,seed
+10.12,solar PV,seed
+10.12,solar conduit provision,seed
+10.12,solar conduit provisions,seed_expanded
+10.12,solar panel,seed_expanded
+10.12,solar panels,seed
+10.12,solar system,seed
+10.12,solar systems,seed_expanded
+10.13,EV charger,seed
+10.13,EV chargers,seed_expanded
+10.13,EV provision,seed
+10.13,EV provisions,seed_expanded
+10.13,car charger circuit,seed
+10.13,car charger circuits,seed_expanded
+10.14,CCTV,seed
+10.14,CCTVs,seed_expanded
+10.14,alarm system,seed
+10.14,alarm systems,seed_expanded
+10.14,intercom,seed
+10.14,intercoms,seed_expanded
+10.14,security system,seed
+10.14,security systems,seed_expanded
+10.15,ceiling fan,seed_expanded
+10.15,ceiling fans,seed
+10.16,bathroom exhaust,seed
+10.16,bathroom exhausts,seed_expanded
+10.16,exhaust fan,seed_expanded
+10.16,exhaust fans,seed
+10.16,range hood ducting,seed_expanded
+10.16,range hood ductings,seed_expanded
+10.16,rangehood ducting,seed
+10.16,rangehood ductings,seed_expanded
+11.01,R4.0 batt,seed_expanded
+11.01,R4.0 batts,seed
+11.01,ceiling batt,seed_expanded
+11.01,ceiling batts,seed
+11.01,ceiling insulation,seed
+11.01,ceiling insulations,seed_expanded
+11.01,supply & install R4.0 batt,seed_expanded
+11.01,supply & install R4.0 batts,seed_expanded
+11.01,supply & install ceiling batt,seed_expanded
+11.01,supply & install ceiling batts,seed_expanded
+11.01,supply & install ceiling insulation,seed_expanded
+11.01,supply & install ceiling insulations,seed_expanded
+11.01,supply & lay R4.0 batt,seed_expanded
+11.01,supply & lay R4.0 batts,seed_expanded
+11.01,supply & lay ceiling batt,seed_expanded
+11.01,supply & lay ceiling batts,seed_expanded
+11.01,supply & lay ceiling insulation,seed_expanded
+11.01,supply & lay ceiling insulations,seed_expanded
+11.01,supply and fix R4.0 batt,seed_expanded
+11.01,supply and fix R4.0 batts,seed_expanded
+11.01,supply and fix ceiling batt,seed_expanded
+11.01,supply and fix ceiling batts,seed_expanded
+11.01,supply and fix ceiling insulation,seed_expanded
+11.01,supply and fix ceiling insulations,seed_expanded
+11.01,supply and install R4.0 batt,seed_expanded
+11.01,supply and install R4.0 batts,seed_expanded
+11.01,supply and install ceiling batt,seed_expanded
+11.01,supply and install ceiling batts,seed_expanded
+11.01,supply and install ceiling insulation,seed_expanded
+11.01,supply and install ceiling insulations,seed_expanded
+11.02,supply & install wall batt,seed_expanded
+11.02,supply & install wall batts,seed_expanded
+11.02,supply & install wall insulation,seed_expanded
+11.02,supply & install wall insulations,seed_expanded
+11.02,supply & lay wall batt,seed_expanded
+11.02,supply & lay wall batts,seed_expanded
+11.02,supply & lay wall insulation,seed_expanded
+11.02,supply & lay wall insulations,seed_expanded
+11.02,supply and fix wall batt,seed_expanded
+11.02,supply and fix wall batts,seed_expanded
+11.02,supply and fix wall insulation,seed_expanded
+11.02,supply and fix wall insulations,seed_expanded
+11.02,supply and install wall batt,seed_expanded
+11.02,supply and install wall batts,seed_expanded
+11.02,supply and install wall insulation,seed_expanded
+11.02,supply and install wall insulations,seed_expanded
+11.02,wall batt,seed_expanded
+11.02,wall batts,seed
+11.02,wall insulation,seed
+11.02,wall insulations,seed_expanded
+11.03,slab edge insulation,seed
+11.03,slab edge insulations,seed_expanded
+11.03,underfloor insulation,seed
+11.03,underfloor insulations,seed_expanded
+11.04,7 star compliance,seed
+11.04,7 star compliances,seed_expanded
+11.04,energy compliance,seed
+11.04,energy compliances,seed_expanded
+11.04,energy efficiency measure,seed_expanded
+11.04,energy efficiency measures,seed
+11.04,thermal upgrade,seed_expanded
+11.04,thermal upgrades,seed
+11.05,BASIX commitment,seed_expanded
+11.05,BASIX commitments,seed
+11.05,BASIX requirement,seed_expanded
+11.05,BASIX requirements,seed
+11.06,condensation management,seed
+11.06,condensation managements,seed_expanded
+11.06,vapour permeable wrap,seed
+11.06,vapour permeable wraps,seed_expanded
+11.06,ventilation compliance,seed
+11.06,ventilation compliances,seed_expanded
+11.07,draught sealing,seed
+11.07,draught sealings,seed_expanded
+11.07,weather seal,seed_expanded
+11.07,weather seals,seed
+12.01,gyprock,seed
+12.01,gyprocks,seed_expanded
+12.01,internal lining,seed_expanded
+12.01,internal linings,seed
+12.01,plaster board,seed_expanded
+12.01,plaster boards,seed_expanded
+12.01,plasterboard,seed
+12.01,plasterboards,seed_expanded
+12.01,plastering,seed
+12.01,plasterings,seed_expanded
+12.02,75mm cove,seed
+12.02,75mm coves,seed_expanded
+12.02,cornice,seed
+12.02,cornices,seed_expanded
+12.02,square set,seed
+12.03,fibre cement lining,seed
+12.03,fibre cement linings,seed_expanded
+12.03,villaboard,seed
+12.03,villaboards,seed_expanded
+12.03,wet area sheeting,seed
+12.03,wet area sheetings,seed_expanded
+12.04,bulkhead,seed_expanded
+12.04,bulkheads,seed
+12.04,coffered ceiling,seed
+12.04,coffered ceilings,seed_expanded
+12.04,feature ceiling,seed
+12.04,feature ceilings,seed_expanded
+12.05,2590 ceiling,seed_expanded
+12.05,2590 ceilings,seed
+12.05,2740 ceiling,seed_expanded
+12.05,2740 ceilings,seed
+12.05,ceiling height upgrade,seed
+12.05,ceiling height upgrades,seed_expanded
+12.05,high ceiling,seed_expanded
+12.05,high ceilings,seed
+12.06,VJ panelling,seed
+12.06,VJ panellings,seed_expanded
+12.06,wainscoting,seed
+12.06,wainscotings,seed_expanded
+12.06,wall panelling,seed
+12.06,wall panellings,seed_expanded
+13.01,cavity slider,seed_expanded
+13.01,cavity sliders,seed
+13.01,flush panel door,seed_expanded
+13.01,flush panel doors,seed
+13.01,internal door,seed_expanded
+13.01,internal doors,seed
+13.01,profiled door,seed_expanded
+13.01,profiled doors,seed
+13.02,door handle,seed_expanded
+13.02,door handles,seed
+13.02,door hardware,seed
+13.02,door hardwares,seed_expanded
+13.02,passage set,seed_expanded
+13.02,passage sets,seed
+13.02,privacy set,seed_expanded
+13.02,privacy sets,seed
+13.03,67mm skirting,seed
+13.03,67mm skirtings,seed_expanded
+13.03,architrave,seed_expanded
+13.03,architraves,seed
+13.03,skirting,seed
+13.03,skirting & architrave,seed
+13.03,skirting & architraves,seed_expanded
+13.03,skirting and architrave,seed_expanded
+13.03,skirting and architraves,seed_expanded
+13.03,skirtings,seed_expanded
+13.04,built in robe,seed_expanded
+13.04,built in robes,seed_expanded
+13.04,built-in robe,seed_expanded
+13.04,built-in robes,seed
+13.04,robe door,seed_expanded
+13.04,robe doors,seed
+13.04,robe shelving,seed
+13.04,robe shelvings,seed_expanded
+13.04,walk in robe fitout,seed_expanded
+13.04,walk in robe fitouts,seed_expanded
+13.04,walk-in robe fitout,seed
+13.04,walk-in robe fitouts,seed_expanded
+13.05,linen shelving,seed
+13.05,linen shelvings,seed_expanded
+13.05,pantry shelving,seed
+13.05,pantry shelvings,seed_expanded
+13.06,stair,seed_expanded
+13.06,stair stringer,seed
+13.06,stair stringers,seed_expanded
+13.06,staircase,seed
+13.06,staircases,seed_expanded
+13.06,stairs,seed
+13.06,timber stair,seed_expanded
+13.06,timber stairs,seed
+13.07,balustrade,seed
+13.07,balustrades,seed_expanded
+13.07,glass balustrade,seed
+13.07,glass balustrades,seed_expanded
+13.07,handrail,seed
+13.07,handrails,seed_expanded
+13.08,TV unit joinery,seed
+13.08,built in joinery,seed_expanded
+13.08,built-in joinery,seed
+13.08,mudroom joinery,seed
+13.08,study nook,seed
+13.08,study nooks,seed_expanded
+14.01,kitchen cabinetry,seed
+14.01,kitchen complete,seed
+14.01,kitchen completes,seed_expanded
+14.01,kitchen cupboard,seed_expanded
+14.01,kitchen cupboards,seed
+14.01,kitchen joinery,seed
+14.01,kitchen package,seed
+14.01,kitchen packages,seed_expanded
+14.02,20mm stone,seed
+14.02,20mm stones,seed_expanded
+14.02,40mm stone,seed
+14.02,40mm stones,seed_expanded
+14.02,bench top,seed_expanded
+14.02,bench tops,seed_expanded
+14.02,benchtop,seed
+14.02,benchtops,seed_expanded
+14.02,laminate bench top,seed_expanded
+14.02,laminate bench tops,seed_expanded
+14.02,laminate benchtop,seed
+14.02,laminate benchtops,seed_expanded
+14.02,porcelain bench top,seed_expanded
+14.02,porcelain bench tops,seed_expanded
+14.02,porcelain benchtop,seed
+14.02,porcelain benchtops,seed_expanded
+14.02,stone bench top,seed_expanded
+14.02,stone bench tops,seed_expanded
+14.02,stone benchtop,seed
+14.02,stone benchtops,seed_expanded
+14.02,supply & install 20mm stone,seed_expanded
+14.02,supply & install 20mm stones,seed_expanded
+14.02,supply & install 40mm stone,seed_expanded
+14.02,supply & install 40mm stones,seed_expanded
+14.02,supply & install bench top,seed_expanded
+14.02,supply & install bench tops,seed_expanded
+14.02,supply & install benchtop,seed_expanded
+14.02,supply & install benchtops,seed_expanded
+14.02,supply & install laminate bench top,seed_expanded
+14.02,supply & install laminate bench tops,seed_expanded
+14.02,supply & install laminate benchtop,seed_expanded
+14.02,supply & install laminate benchtops,seed_expanded
+14.02,supply & install porcelain bench top,seed_expanded
+14.02,supply & install porcelain bench tops,seed_expanded
+14.02,supply & install porcelain benchtop,seed_expanded
+14.02,supply & install porcelain benchtops,seed_expanded
+14.02,supply & install stone bench top,seed_expanded
+14.02,supply & install stone bench tops,seed_expanded
+14.02,supply & install stone benchtop,seed_expanded
+14.02,supply & install stone benchtops,seed_expanded
+14.02,supply & lay 20mm stone,seed_expanded
+14.02,supply & lay 20mm stones,seed_expanded
+14.02,supply & lay 40mm stone,seed_expanded
+14.02,supply & lay 40mm stones,seed_expanded
+14.02,supply & lay bench top,seed_expanded
+14.02,supply & lay bench tops,seed_expanded
+14.02,supply & lay benchtop,seed_expanded
+14.02,supply & lay benchtops,seed_expanded
+14.02,supply & lay laminate bench top,seed_expanded
+14.02,supply & lay laminate bench tops,seed_expanded
+14.02,supply & lay laminate benchtop,seed_expanded
+14.02,supply & lay laminate benchtops,seed_expanded
+14.02,supply & lay porcelain bench top,seed_expanded
+14.02,supply & lay porcelain bench tops,seed_expanded
+14.02,supply & lay porcelain benchtop,seed_expanded
+14.02,supply & lay porcelain benchtops,seed_expanded
+14.02,supply & lay stone bench top,seed_expanded
+14.02,supply & lay stone bench tops,seed_expanded
+14.02,supply & lay stone benchtop,seed_expanded
+14.02,supply & lay stone benchtops,seed_expanded
+14.02,supply and fix 20mm stone,seed_expanded
+14.02,supply and fix 20mm stones,seed_expanded
+14.02,supply and fix 40mm stone,seed_expanded
+14.02,supply and fix 40mm stones,seed_expanded
+14.02,supply and fix bench top,seed_expanded
+14.02,supply and fix bench tops,seed_expanded
+14.02,supply and fix benchtop,seed_expanded
+14.02,supply and fix benchtops,seed_expanded
+14.02,supply and fix laminate bench top,seed_expanded
+14.02,supply and fix laminate bench tops,seed_expanded
+14.02,supply and fix laminate benchtop,seed_expanded
+14.02,supply and fix laminate benchtops,seed_expanded
+14.02,supply and fix porcelain bench top,seed_expanded
+14.02,supply and fix porcelain bench tops,seed_expanded
+14.02,supply and fix porcelain benchtop,seed_expanded
+14.02,supply and fix porcelain benchtops,seed_expanded
+14.02,supply and fix stone bench top,seed_expanded
+14.02,supply and fix stone bench tops,seed_expanded
+14.02,supply and fix stone benchtop,seed_expanded
+14.02,supply and fix stone benchtops,seed_expanded
+14.02,supply and install 20mm stone,seed_expanded
+14.02,supply and install 20mm stones,seed_expanded
+14.02,supply and install 40mm stone,seed_expanded
+14.02,supply and install 40mm stones,seed_expanded
+14.02,supply and install bench top,seed_expanded
+14.02,supply and install bench tops,seed_expanded
+14.02,supply and install benchtop,seed_expanded
+14.02,supply and install benchtops,seed_expanded
+14.02,supply and install laminate bench top,seed_expanded
+14.02,supply and install laminate bench tops,seed_expanded
+14.02,supply and install laminate benchtop,seed_expanded
+14.02,supply and install laminate benchtops,seed_expanded
+14.02,supply and install porcelain bench top,seed_expanded
+14.02,supply and install porcelain bench tops,seed_expanded
+14.02,supply and install porcelain benchtop,seed_expanded
+14.02,supply and install porcelain benchtops,seed_expanded
+14.02,supply and install stone bench top,seed_expanded
+14.02,supply and install stone bench tops,seed_expanded
+14.02,supply and install stone benchtop,seed_expanded
+14.02,supply and install stone benchtops,seed_expanded
+14.03,glass splash back,seed_expanded
+14.03,glass splash backs,seed_expanded
+14.03,glass splashback,seed
+14.03,glass splashbacks,seed_expanded
+14.03,splash back,seed_expanded
+14.03,splash backs,seed_expanded
+14.03,splashback,seed
+14.03,splashbacks,seed_expanded
+14.03,supply & install glass splash back,seed_expanded
+14.03,supply & install glass splash backs,seed_expanded
+14.03,supply & install glass splashback,seed_expanded
+14.03,supply & install glass splashbacks,seed_expanded
+14.03,supply & install splash back,seed_expanded
+14.03,supply & install splash backs,seed_expanded
+14.03,supply & install splashback,seed_expanded
+14.03,supply & install splashbacks,seed_expanded
+14.03,supply & install tiled splash back,seed_expanded
+14.03,supply & install tiled splash backs,seed_expanded
+14.03,supply & install tiled splashback,seed_expanded
+14.03,supply & install tiled splashbacks,seed_expanded
+14.03,supply & install window splash back,seed_expanded
+14.03,supply & install window splash backs,seed_expanded
+14.03,supply & install window splashback,seed_expanded
+14.03,supply & install window splashbacks,seed_expanded
+14.03,supply & lay glass splash back,seed_expanded
+14.03,supply & lay glass splash backs,seed_expanded
+14.03,supply & lay glass splashback,seed_expanded
+14.03,supply & lay glass splashbacks,seed_expanded
+14.03,supply & lay splash back,seed_expanded
+14.03,supply & lay splash backs,seed_expanded
+14.03,supply & lay splashback,seed_expanded
+14.03,supply & lay splashbacks,seed_expanded
+14.03,supply & lay tiled splash back,seed_expanded
+14.03,supply & lay tiled splash backs,seed_expanded
+14.03,supply & lay tiled splashback,seed_expanded
+14.03,supply & lay tiled splashbacks,seed_expanded
+14.03,supply & lay window splash back,seed_expanded
+14.03,supply & lay window splash backs,seed_expanded
+14.03,supply & lay window splashback,seed_expanded
+14.03,supply & lay window splashbacks,seed_expanded
+14.03,supply and fix glass splash back,seed_expanded
+14.03,supply and fix glass splash backs,seed_expanded
+14.03,supply and fix glass splashback,seed_expanded
+14.03,supply and fix glass splashbacks,seed_expanded
+14.03,supply and fix splash back,seed_expanded
+14.03,supply and fix splash backs,seed_expanded
+14.03,supply and fix splashback,seed_expanded
+14.03,supply and fix splashbacks,seed_expanded
+14.03,supply and fix tiled splash back,seed_expanded
+14.03,supply and fix tiled splash backs,seed_expanded
+14.03,supply and fix tiled splashback,seed_expanded
+14.03,supply and fix tiled splashbacks,seed_expanded
+14.03,supply and fix window splash back,seed_expanded
+14.03,supply and fix window splash backs,seed_expanded
+14.03,supply and fix window splashback,seed_expanded
+14.03,supply and fix window splashbacks,seed_expanded
+14.03,supply and install glass splash back,seed_expanded
+14.03,supply and install glass splash backs,seed_expanded
+14.03,supply and install glass splashback,seed_expanded
+14.03,supply and install glass splashbacks,seed_expanded
+14.03,supply and install splash back,seed_expanded
+14.03,supply and install splash backs,seed_expanded
+14.03,supply and install splashback,seed_expanded
+14.03,supply and install splashbacks,seed_expanded
+14.03,supply and install tiled splash back,seed_expanded
+14.03,supply and install tiled splash backs,seed_expanded
+14.03,supply and install tiled splashback,seed_expanded
+14.03,supply and install tiled splashbacks,seed_expanded
+14.03,supply and install window splash back,seed_expanded
+14.03,supply and install window splash backs,seed_expanded
+14.03,supply and install window splashback,seed_expanded
+14.03,supply and install window splashbacks,seed_expanded
+14.03,tiled splash back,seed_expanded
+14.03,tiled splash backs,seed_expanded
+14.03,tiled splashback,seed
+14.03,tiled splashbacks,seed_expanded
+14.03,window splash back,seed_expanded
+14.03,window splash backs,seed_expanded
+14.03,window splashback,seed
+14.03,window splashbacks,seed_expanded
+14.04,kitchen mixer,seed
+14.04,kitchen mixers,seed_expanded
+14.04,kitchen sink,seed
+14.04,kitchen sinks,seed_expanded
+14.04,sink & tapware,seed
+14.04,sink & tapwares,seed_expanded
+14.04,sink and tapware,seed_expanded
+14.04,sink and tapwares,seed_expanded
+14.05,butlers pantry,seed
+14.05,scullery,seed
+14.05,walk in pantry fitout,seed_expanded
+14.05,walk in pantry fitouts,seed_expanded
+14.05,walk-in pantry fitout,seed
+14.05,walk-in pantry fitouts,seed_expanded
+14.06,island bench,seed
+14.06,island benchs,seed_expanded
+14.06,waterfall end,seed_expanded
+14.06,waterfall ends,seed
+14.07,cabinetry hardware,seed
+14.07,cabinetry hardwares,seed_expanded
+14.07,drawer runner,seed_expanded
+14.07,drawer runners,seed
+14.07,soft close hardware,seed
+14.07,soft close hardwares,seed_expanded
+15.01,bathroom wall tile,seed_expanded
+15.01,bathroom wall tiles,seed
+15.01,full height tiling,seed
+15.01,full height tilings,seed_expanded
+15.01,supply & install bathroom wall tile,seed_expanded
+15.01,supply & install bathroom wall tiles,seed_expanded
+15.01,supply & install full height tiling,seed_expanded
+15.01,supply & install full height tilings,seed_expanded
+15.01,supply & install tiling to wet area,seed_expanded
+15.01,supply & install tiling to wet areas,seed_expanded
+15.01,supply & install wall tiling,seed_expanded
+15.01,supply & install wall tilings,seed_expanded
+15.01,supply & lay bathroom wall tile,seed_expanded
+15.01,supply & lay bathroom wall tiles,seed_expanded
+15.01,supply & lay full height tiling,seed_expanded
+15.01,supply & lay full height tilings,seed_expanded
+15.01,supply & lay tiling to wet area,seed_expanded
+15.01,supply & lay tiling to wet areas,seed_expanded
+15.01,supply & lay wall tiling,seed_expanded
+15.01,supply & lay wall tilings,seed_expanded
+15.01,supply and fix bathroom wall tile,seed_expanded
+15.01,supply and fix bathroom wall tiles,seed_expanded
+15.01,supply and fix full height tiling,seed_expanded
+15.01,supply and fix full height tilings,seed_expanded
+15.01,supply and fix tiling to wet area,seed_expanded
+15.01,supply and fix tiling to wet areas,seed_expanded
+15.01,supply and fix wall tiling,seed_expanded
+15.01,supply and fix wall tilings,seed_expanded
+15.01,supply and install bathroom wall tile,seed_expanded
+15.01,supply and install bathroom wall tiles,seed_expanded
+15.01,supply and install full height tiling,seed_expanded
+15.01,supply and install full height tilings,seed_expanded
+15.01,supply and install tiling to wet area,seed_expanded
+15.01,supply and install tiling to wet areas,seed_expanded
+15.01,supply and install wall tiling,seed_expanded
+15.01,supply and install wall tilings,seed_expanded
+15.01,tiling to wet area,seed_expanded
+15.01,tiling to wet areas,seed
+15.01,wall tiling,seed
+15.01,wall tilings,seed_expanded
+15.02,bathroom floor tile,seed_expanded
+15.02,bathroom floor tiles,seed
+15.02,floor tiling wet area,seed_expanded
+15.02,floor tiling wet areas,seed
+15.02,supply & install bathroom floor tile,seed_expanded
+15.02,supply & install bathroom floor tiles,seed_expanded
+15.02,supply & install floor tiling wet area,seed_expanded
+15.02,supply & install floor tiling wet areas,seed_expanded
+15.02,supply & lay bathroom floor tile,seed_expanded
+15.02,supply & lay bathroom floor tiles,seed_expanded
+15.02,supply & lay floor tiling wet area,seed_expanded
+15.02,supply & lay floor tiling wet areas,seed_expanded
+15.02,supply and fix bathroom floor tile,seed_expanded
+15.02,supply and fix bathroom floor tiles,seed_expanded
+15.02,supply and fix floor tiling wet area,seed_expanded
+15.02,supply and fix floor tiling wet areas,seed_expanded
+15.02,supply and install bathroom floor tile,seed_expanded
+15.02,supply and install bathroom floor tiles,seed_expanded
+15.02,supply and install floor tiling wet area,seed_expanded
+15.02,supply and install floor tiling wet areas,seed_expanded
+15.03,waterproof membrane,seed
+15.03,waterproof membranes,seed_expanded
+15.03,waterproofing,seed
+15.03,waterproofings,seed_expanded
+15.03,wet seal,seed
+15.03,wet seals,seed_expanded
+15.04,vanitie,seed_expanded
+15.04,vanities,seed
+15.04,vanity,seed
+15.04,wall hung vanity,seed
+15.05,back to wall bath,seed
+15.05,back to wall baths,seed_expanded
+15.05,bath,seed
+15.05,baths,seed_expanded
+15.05,bathtub,seed
+15.05,bathtubs,seed_expanded
+15.05,freestanding bath,seed
+15.05,freestanding baths,seed_expanded
+15.06,frameless screen,seed
+15.06,frameless screens,seed_expanded
+15.06,semi frameless screen,seed_expanded
+15.06,semi frameless screens,seed_expanded
+15.06,semi-frameless screen,seed
+15.06,semi-frameless screens,seed_expanded
+15.06,shower screen,seed
+15.06,shower screens,seed_expanded
+15.07,hob,seed
+15.07,shower base,seed
+15.07,shower bases,seed_expanded
+15.07,shower niche,seed
+15.07,shower niches,seed_expanded
+15.08,back to wall toilet,seed
+15.08,back to wall toilets,seed_expanded
+15.08,in wall cistern,seed_expanded
+15.08,in wall cisterns,seed_expanded
+15.08,in-wall cistern,seed
+15.08,in-wall cisterns,seed_expanded
+15.08,toilet,seed
+15.08,toilet suite,seed
+15.08,toilet suites,seed_expanded
+15.08,toilets,seed_expanded
+15.09,bathroom accessorie,seed_expanded
+15.09,bathroom accessories,seed
+15.09,bathroom tapware,seed
+15.09,bathroom tapwares,seed_expanded
+15.09,shower rail,seed
+15.09,shower rails,seed_expanded
+15.09,towel rail,seed_expanded
+15.09,towel rails,seed
+15.10,mirror,seed
+15.10,mirror cabinet,seed
+15.10,mirror cabinets,seed_expanded
+15.10,mirrors,seed_expanded
+15.10,shaving cabinet,seed
+15.10,shaving cabinets,seed_expanded
+15.11,laundry cabinet,seed
+15.11,laundry cabinets,seed_expanded
+15.11,laundry trough,seed
+15.11,laundry troughs,seed_expanded
+15.11,laundry tub,seed
+16.01,3 coat paint system,seed
+16.01,3 coat paint systems,seed_expanded
+16.01,internal painting,seed
+16.01,internal paintings,seed_expanded
+16.01,paint to walls & ceiling,seed_expanded
+16.01,paint to walls & ceilings,seed
+16.01,paint to walls and ceiling,seed_expanded
+16.01,paint to walls and ceilings,seed_expanded
+16.01,painting internal,seed
+16.01,painting internals,seed_expanded
+16.02,exterior paint,seed
+16.02,exterior paints,seed_expanded
+16.02,external painting,seed
+16.02,external paintings,seed_expanded
+16.02,painting external,seed
+16.02,painting externals,seed_expanded
+16.03,feature wall paint,seed
+16.03,feature wall paints,seed_expanded
+16.03,specialty finish,seed
+16.03,specialty finishs,seed_expanded
+16.04,clear finish timber,seed
+16.04,clear finish timbers,seed_expanded
+16.04,staining,seed
+16.04,stainings,seed_expanded
+17.01,floor tile,seed_expanded
+17.01,floor tiles,seed
+17.01,main floor tiling,seed
+17.01,main floor tilings,seed_expanded
+17.01,porcelain floor tile,seed_expanded
+17.01,porcelain floor tiles,seed
+17.01,supply & install floor tile,seed_expanded
+17.01,supply & install floor tiles,seed_expanded
+17.01,supply & install main floor tiling,seed_expanded
+17.01,supply & install main floor tilings,seed_expanded
+17.01,supply & install porcelain floor tile,seed_expanded
+17.01,supply & install porcelain floor tiles,seed_expanded
+17.01,supply & install tiling to living,seed_expanded
+17.01,supply & install tiling to livings,seed_expanded
+17.01,supply & lay floor tile,seed_expanded
+17.01,supply & lay floor tiles,seed_expanded
+17.01,supply & lay main floor tiling,seed_expanded
+17.01,supply & lay main floor tilings,seed_expanded
+17.01,supply & lay porcelain floor tile,seed_expanded
+17.01,supply & lay porcelain floor tiles,seed_expanded
+17.01,supply & lay tiling to living,seed_expanded
+17.01,supply & lay tiling to livings,seed_expanded
+17.01,supply and fix floor tile,seed_expanded
+17.01,supply and fix floor tiles,seed_expanded
+17.01,supply and fix main floor tiling,seed_expanded
+17.01,supply and fix main floor tilings,seed_expanded
+17.01,supply and fix porcelain floor tile,seed_expanded
+17.01,supply and fix porcelain floor tiles,seed_expanded
+17.01,supply and fix tiling to living,seed_expanded
+17.01,supply and fix tiling to livings,seed_expanded
+17.01,supply and install floor tile,seed_expanded
+17.01,supply and install floor tiles,seed_expanded
+17.01,supply and install main floor tiling,seed_expanded
+17.01,supply and install main floor tilings,seed_expanded
+17.01,supply and install porcelain floor tile,seed_expanded
+17.01,supply and install porcelain floor tiles,seed_expanded
+17.01,supply and install tiling to living,seed_expanded
+17.01,supply and install tiling to livings,seed_expanded
+17.01,tiling to living,seed
+17.01,tiling to livings,seed_expanded
+17.02,carpet,seed
+17.02,carpet & underlay,seed
+17.02,carpet and underlay,seed_expanded
+17.02,carpet to bedroom,seed_expanded
+17.02,carpet to bedrooms,seed
+17.02,carpets,seed_expanded
+17.02,supply & install carpet,seed_expanded
+17.02,supply & install carpet & underlay,seed_expanded
+17.02,supply & install carpet and underlay,seed_expanded
+17.02,supply & install carpet to bedroom,seed_expanded
+17.02,supply & install carpet to bedrooms,seed_expanded
+17.02,supply & install carpets,seed_expanded
+17.02,supply & lay carpet,seed_expanded
+17.02,supply & lay carpet & underlay,seed_expanded
+17.02,supply & lay carpet and underlay,seed_expanded
+17.02,supply & lay carpet to bedroom,seed_expanded
+17.02,supply & lay carpet to bedrooms,seed_expanded
+17.02,supply & lay carpets,seed_expanded
+17.02,supply and fix carpet,seed_expanded
+17.02,supply and fix carpet & underlay,seed_expanded
+17.02,supply and fix carpet and underlay,seed_expanded
+17.02,supply and fix carpet to bedroom,seed_expanded
+17.02,supply and fix carpet to bedrooms,seed_expanded
+17.02,supply and fix carpets,seed_expanded
+17.02,supply and install carpet,seed_expanded
+17.02,supply and install carpet & underlay,seed_expanded
+17.02,supply and install carpet and underlay,seed_expanded
+17.02,supply and install carpet to bedroom,seed_expanded
+17.02,supply and install carpet to bedrooms,seed_expanded
+17.02,supply and install carpets,seed_expanded
+17.03,engineered timber,seed
+17.03,engineered timbers,seed_expanded
+17.03,floating timber floor,seed
+17.03,floating timber floors,seed_expanded
+17.03,hardwood flooring,seed
+17.03,hardwood floorings,seed_expanded
+17.03,supply & install engineered timber,seed_expanded
+17.03,supply & install engineered timbers,seed_expanded
+17.03,supply & install floating timber floor,seed_expanded
+17.03,supply & install floating timber floors,seed_expanded
+17.03,supply & install hardwood flooring,seed_expanded
+17.03,supply & install hardwood floorings,seed_expanded
+17.03,supply & install timber flooring,seed_expanded
+17.03,supply & install timber floorings,seed_expanded
+17.03,supply & lay engineered timber,seed_expanded
+17.03,supply & lay engineered timbers,seed_expanded
+17.03,supply & lay floating timber floor,seed_expanded
+17.03,supply & lay floating timber floors,seed_expanded
+17.03,supply & lay hardwood flooring,seed_expanded
+17.03,supply & lay hardwood floorings,seed_expanded
+17.03,supply & lay timber flooring,seed_expanded
+17.03,supply & lay timber floorings,seed_expanded
+17.03,supply and fix engineered timber,seed_expanded
+17.03,supply and fix engineered timbers,seed_expanded
+17.03,supply and fix floating timber floor,seed_expanded
+17.03,supply and fix floating timber floors,seed_expanded
+17.03,supply and fix hardwood flooring,seed_expanded
+17.03,supply and fix hardwood floorings,seed_expanded
+17.03,supply and fix timber flooring,seed_expanded
+17.03,supply and fix timber floorings,seed_expanded
+17.03,supply and install engineered timber,seed_expanded
+17.03,supply and install engineered timbers,seed_expanded
+17.03,supply and install floating timber floor,seed_expanded
+17.03,supply and install floating timber floors,seed_expanded
+17.03,supply and install hardwood flooring,seed_expanded
+17.03,supply and install hardwood floorings,seed_expanded
+17.03,supply and install timber flooring,seed_expanded
+17.03,supply and install timber floorings,seed_expanded
+17.03,timber flooring,seed
+17.03,timber floorings,seed_expanded
+17.04,SPC flooring,seed
+17.04,SPC floorings,seed_expanded
+17.04,hybrid flooring,seed
+17.04,hybrid floorings,seed_expanded
+17.04,laminate flooring,seed
+17.04,laminate floorings,seed_expanded
+17.04,supply & install SPC flooring,seed_expanded
+17.04,supply & install SPC floorings,seed_expanded
+17.04,supply & install hybrid flooring,seed_expanded
+17.04,supply & install hybrid floorings,seed_expanded
+17.04,supply & install laminate flooring,seed_expanded
+17.04,supply & install laminate floorings,seed_expanded
+17.04,supply & install vinyl plank,seed_expanded
+17.04,supply & install vinyl planks,seed_expanded
+17.04,supply & lay SPC flooring,seed_expanded
+17.04,supply & lay SPC floorings,seed_expanded
+17.04,supply & lay hybrid flooring,seed_expanded
+17.04,supply & lay hybrid floorings,seed_expanded
+17.04,supply & lay laminate flooring,seed_expanded
+17.04,supply & lay laminate floorings,seed_expanded
+17.04,supply & lay vinyl plank,seed_expanded
+17.04,supply & lay vinyl planks,seed_expanded
+17.04,supply and fix SPC flooring,seed_expanded
+17.04,supply and fix SPC floorings,seed_expanded
+17.04,supply and fix hybrid flooring,seed_expanded
+17.04,supply and fix hybrid floorings,seed_expanded
+17.04,supply and fix laminate flooring,seed_expanded
+17.04,supply and fix laminate floorings,seed_expanded
+17.04,supply and fix vinyl plank,seed_expanded
+17.04,supply and fix vinyl planks,seed_expanded
+17.04,supply and install SPC flooring,seed_expanded
+17.04,supply and install SPC floorings,seed_expanded
+17.04,supply and install hybrid flooring,seed_expanded
+17.04,supply and install hybrid floorings,seed_expanded
+17.04,supply and install laminate flooring,seed_expanded
+17.04,supply and install laminate floorings,seed_expanded
+17.04,supply and install vinyl plank,seed_expanded
+17.04,supply and install vinyl planks,seed_expanded
+17.04,vinyl plank,seed
+17.04,vinyl planks,seed_expanded
+17.05,burnished concrete,seed
+17.05,burnished concretes,seed_expanded
+17.05,polished concrete,seed
+17.05,polished concretes,seed_expanded
+17.06,floor levelling,seed
+17.06,floor levellings,seed_expanded
+17.06,floor preparation,seed
+17.06,floor preparations,seed_expanded
+17.06,self levelling compound,seed
+17.06,self levelling compounds,seed_expanded
+18.01,cooktop,seed
+18.01,cooktops,seed_expanded
+18.01,gas cooktop,seed
+18.01,gas cooktops,seed_expanded
+18.01,induction cooktop,seed
+18.01,induction cooktops,seed_expanded
+18.02,600mm oven,seed
+18.02,600mm ovens,seed_expanded
+18.02,900mm oven,seed
+18.02,900mm ovens,seed_expanded
+18.02,oven,seed
+18.02,ovens,seed_expanded
+18.02,wall oven,seed
+18.02,wall ovens,seed_expanded
+18.03,canopy range hood,seed_expanded
+18.03,canopy range hoods,seed_expanded
+18.03,canopy rangehood,seed
+18.03,canopy rangehoods,seed_expanded
+18.03,range hood,seed_expanded
+18.03,range hoods,seed_expanded
+18.03,rangehood,seed
+18.03,rangehoods,seed_expanded
+18.03,undermount range hood,seed_expanded
+18.03,undermount range hoods,seed_expanded
+18.03,undermount rangehood,seed
+18.03,undermount rangehoods,seed_expanded
+18.04,dishwasher,seed
+18.04,dishwasher provision,seed
+18.04,dishwasher provisions,seed_expanded
+18.04,dishwashers,seed_expanded
+18.05,appliance allowance,seed
+18.05,appliance allowances,seed_expanded
+18.05,appliance package,seed
+18.05,appliance packages,seed_expanded
+18.05,kitchen appliance,seed_expanded
+18.05,kitchen appliances,seed
+18.06,LED down lights,seed_expanded
+18.06,LED downlight,seed_expanded
+18.06,LED downlights,seed
+18.06,light fitting,seed_expanded
+18.06,light fittings,seed
+18.06,lighting allowance,seed
+18.06,lighting allowances,seed_expanded
+18.06,pendant light,seed_expanded
+18.06,pendant lights,seed
+18.06,supply & install LED down lights,seed_expanded
+18.06,supply & install LED downlight,seed_expanded
+18.06,supply & install LED downlights,seed_expanded
+18.06,supply & install light fitting,seed_expanded
+18.06,supply & install light fittings,seed_expanded
+18.06,supply & install lighting allowance,seed_expanded
+18.06,supply & install lighting allowances,seed_expanded
+18.06,supply & install pendant light,seed_expanded
+18.06,supply & install pendant lights,seed_expanded
+18.06,supply & lay LED down lights,seed_expanded
+18.06,supply & lay LED downlight,seed_expanded
+18.06,supply & lay LED downlights,seed_expanded
+18.06,supply & lay light fitting,seed_expanded
+18.06,supply & lay light fittings,seed_expanded
+18.06,supply & lay lighting allowance,seed_expanded
+18.06,supply & lay lighting allowances,seed_expanded
+18.06,supply & lay pendant light,seed_expanded
+18.06,supply & lay pendant lights,seed_expanded
+18.06,supply and fix LED down lights,seed_expanded
+18.06,supply and fix LED downlight,seed_expanded
+18.06,supply and fix LED downlights,seed_expanded
+18.06,supply and fix light fitting,seed_expanded
+18.06,supply and fix light fittings,seed_expanded
+18.06,supply and fix lighting allowance,seed_expanded
+18.06,supply and fix lighting allowances,seed_expanded
+18.06,supply and fix pendant light,seed_expanded
+18.06,supply and fix pendant lights,seed_expanded
+18.06,supply and install LED down lights,seed_expanded
+18.06,supply and install LED downlight,seed_expanded
+18.06,supply and install LED downlights,seed_expanded
+18.06,supply and install light fitting,seed_expanded
+18.06,supply and install light fittings,seed_expanded
+18.06,supply and install lighting allowance,seed_expanded
+18.06,supply and install lighting allowances,seed_expanded
+18.06,supply and install pendant light,seed_expanded
+18.06,supply and install pendant lights,seed_expanded
+18.07,blind,seed_expanded
+18.07,blinds,seed
+18.07,curtain,seed_expanded
+18.07,curtains,seed
+18.07,roller blind,seed_expanded
+18.07,roller blinds,seed
+18.07,window furnishing,seed_expanded
+18.07,window furnishings,seed
+19.01,concrete driveway,seed
+19.01,crossover,seed
+19.01,crossovers,seed_expanded
+19.01,driveway,seed
+19.01,exposed aggregate driveway,seed
+19.01,plain concrete drive,seed
+19.01,plain concrete drives,seed_expanded
+19.02,concrete path,seed_expanded
+19.02,concrete paths,seed
+19.02,path,seed_expanded
+19.02,paths,seed
+19.02,paving,seed
+19.02,pavings,seed_expanded
+19.02,porch & alfresco paving,seed
+19.02,porch & alfresco pavings,seed_expanded
+19.02,porch and alfresco paving,seed_expanded
+19.02,porch and alfresco pavings,seed_expanded
+19.03,Colorbond fence,seed
+19.03,Colorbond fences,seed_expanded
+19.03,boundary fencing,seed
+19.03,boundary fencings,seed_expanded
+19.03,fencing,seed
+19.03,fencings,seed_expanded
+19.03,gate,seed_expanded
+19.03,gates,seed
+19.03,timber paling fence,seed
+19.03,timber paling fences,seed_expanded
+19.04,garden bed,seed_expanded
+19.04,garden beds,seed
+19.04,landscaping,seed
+19.04,landscapings,seed_expanded
+19.04,mulch & plant,seed_expanded
+19.04,mulch & plants,seed
+19.04,mulch and plant,seed_expanded
+19.04,mulch and plants,seed_expanded
+19.04,soft landscaping,seed
+19.04,soft landscapings,seed_expanded
+19.05,instant lawn,seed
+19.05,instant lawns,seed_expanded
+19.05,returfing,seed
+19.05,returfings,seed_expanded
+19.05,supply & install instant lawn,seed_expanded
+19.05,supply & install instant lawns,seed_expanded
+19.05,supply & install returfing,seed_expanded
+19.05,supply & install returfings,seed_expanded
+19.05,supply & install turf,seed_expanded
+19.05,supply & install turfs,seed_expanded
+19.05,supply & lay instant lawn,seed_expanded
+19.05,supply & lay instant lawns,seed_expanded
+19.05,supply & lay returfing,seed_expanded
+19.05,supply & lay returfings,seed_expanded
+19.05,supply & lay turf,seed_expanded
+19.05,supply & lay turfs,seed_expanded
+19.05,supply and fix instant lawn,seed_expanded
+19.05,supply and fix instant lawns,seed_expanded
+19.05,supply and fix returfing,seed_expanded
+19.05,supply and fix returfings,seed_expanded
+19.05,supply and fix turf,seed_expanded
+19.05,supply and fix turfs,seed_expanded
+19.05,supply and install instant lawn,seed_expanded
+19.05,supply and install instant lawns,seed_expanded
+19.05,supply and install returfing,seed_expanded
+19.05,supply and install returfings,seed_expanded
+19.05,supply and install turf,seed_expanded
+19.05,supply and install turfs,seed_expanded
+19.05,turf,seed
+19.05,turfs,seed_expanded
+19.06,composite decking,seed
+19.06,composite deckings,seed_expanded
+19.06,deck,seed
+19.06,decks,seed_expanded
+19.06,merbau decking,seed
+19.06,merbau deckings,seed_expanded
+19.06,timber deck,seed
+19.06,timber decks,seed_expanded
+19.07,gazebo,seed
+19.07,gazebos,seed_expanded
+19.07,insulated patio roof,seed
+19.07,insulated patio roofs,seed_expanded
+19.07,patio cover,seed
+19.07,patio covers,seed_expanded
+19.07,pergola,seed
+19.07,pergolas,seed_expanded
+19.08,clothesline,seed
+19.08,clotheslines,seed_expanded
+19.08,fold down clothesline,seed
+19.08,fold down clotheslines,seed_expanded
+19.08,letterbox,seed
+19.09,plunge pool,seed
+19.09,plunge pools,seed_expanded
+19.09,pool & surround,seed_expanded
+19.09,pool & surrounds,seed
+19.09,pool and surround,seed_expanded
+19.09,pool and surrounds,seed_expanded
+19.09,spa,seed
+19.09,swimming pool,seed
+19.09,swimming pools,seed_expanded
+20.01,consumer main,seed_expanded
+20.01,consumer mains,seed
+20.01,electrical connection,seed
+20.01,electrical connections,seed_expanded
+20.01,power connection,seed
+20.01,power connections,seed_expanded
+20.01,temporary builders supply,seed
+20.01,underground power pit,seed
+20.02,water connection,seed
+20.02,water connections,seed_expanded
+20.02,water meter,seed
+20.02,water meters,seed_expanded
+20.02,water service connection,seed
+20.02,water service connections,seed_expanded
+20.03,connection to sewer main,seed
+20.03,connection to sewer mains,seed_expanded
+20.03,sewer connection,seed
+20.03,sewer connections,seed_expanded
+20.03,sewer drainage,seed
+20.03,sewer drainages,seed_expanded
+20.04,OSD tank,seed
+20.04,OSD tanks,seed_expanded
+20.04,on site detention,seed_expanded
+20.04,on site detentions,seed_expanded
+20.04,on-site detention,seed
+20.04,on-site detentions,seed_expanded
+20.04,soakage pit,seed_expanded
+20.04,soakage pits,seed
+20.04,stormwater connection,seed
+20.04,stormwater connections,seed_expanded
+20.04,stormwater drainage,seed
+20.04,stormwater drainages,seed_expanded
+20.05,gas connection,seed
+20.05,gas connections,seed_expanded
+20.05,gas meter,seed
+20.05,gas meters,seed_expanded
+20.05,gas service,seed
+20.05,gas services,seed_expanded
+20.06,NBN conduit,seed
+20.06,NBN conduits,seed_expanded
+20.06,NBN connection,seed
+20.06,NBN connections,seed_expanded
+20.06,telecom lead in,seed_expanded
+20.06,telecom lead-in,seed
+20.07,Sydney Water compliance,seed
+20.07,Sydney Water compliances,seed_expanded
+20.07,section 73 certificate,seed
+20.07,section 73 certificates,seed_expanded
+21.01,HBCF insurance,seed
+21.01,HBCF insurances,seed_expanded
+21.01,home building compensation,seed
+21.01,home building compensations,seed_expanded
+21.01,home owners warranty NSW,seed
+21.01,icare premium,seed
+21.01,icare premiums,seed_expanded
+21.02,DBI premium,seed
+21.02,DBI premiums,seed_expanded
+21.02,builders warranty VIC,seed
+21.02,domestic building insurance,seed
+21.02,domestic building insurances,seed_expanded
+21.03,QBCC home warranty,seed
+21.03,QBCC insurance,seed
+21.03,QBCC insurances,seed_expanded
+21.03,Queensland home warranty premium,seed
+21.03,Queensland home warranty premiums,seed_expanded
+21.04,QLeave levy,seed
+21.04,long service levy,seed
+21.04,portable long service,seed
+21.04,portable long services,seed_expanded
+21.05,PCA fee,seed_expanded
+21.05,PCA fees,seed
+21.05,building surveyor,seed
+21.05,building surveyors,seed_expanded
+21.05,certifier fee,seed_expanded
+21.05,certifier fees,seed
+21.05,private certifier,seed
+21.05,private certifiers,seed_expanded
+21.06,final inspection,seed
+21.06,final inspections,seed_expanded
+21.06,form 21,seed
+21.06,occupation certificate,seed
+21.06,occupation certificates,seed_expanded
+21.07,council contribution,seed_expanded
+21.07,council contributions,seed
+21.07,infrastructure charge,seed_expanded
+21.07,infrastructure charges,seed
+21.07,s7.11 contribution,seed_expanded
+21.07,s7.11 contributions,seed
+22.01,deposit,seed
+22.01,deposits,seed_expanded
+22.01,payment schedule,seed
+22.01,payment schedules,seed_expanded
+22.01,progress payment,seed_expanded
+22.01,progress payments,seed
+22.01,stage payment,seed_expanded
+22.01,stage payments,seed
+22.02,PS item,seed_expanded
+22.02,PS items,seed
+22.02,provisional sum,seed_expanded
+22.02,provisional sum schedule,seed
+22.02,provisional sum schedules,seed_expanded
+22.02,provisional sums,seed
+22.03,PC item,seed_expanded
+22.03,PC items,seed
+22.03,prime cost item,seed_expanded
+22.03,prime cost items,seed
+22.03,prime cost schedule,seed
+22.03,prime cost schedules,seed_expanded
+22.04,contingency,seed
+22.04,contingency sum,seed
+22.05,builders margin,seed
+22.05,builders margins,seed_expanded
+22.05,margin on variation,seed_expanded
+22.05,margin on variations,seed
+22.05,variation margin,seed
+22.05,variation margins,seed_expanded
+22.06,GST,seed
+22.06,price includes GST,seed
+22.07,cost escalation clause,seed
+22.07,cost escalation clauses,seed_expanded
+22.07,price validity,seed
+22.07,rise & fall,seed
+22.07,rise & falls,seed_expanded
+22.07,rise and fall,seed_expanded
+22.07,rise and falls,seed_expanded
+22.08,LD rate,seed
+22.08,LD rates,seed_expanded
+22.08,liquidated damage,seed_expanded
+22.08,liquidated damages,seed
+22.09,defects liability period,seed
+22.09,defects liability periods,seed_expanded
+22.09,maintenance period,seed
+22.09,maintenance periods,seed_expanded
+22.10,fixed site cost,seed_expanded
+22.10,fixed site costs,seed
+22.10,no hidden site cost,seed_expanded
+22.10,no hidden site costs,seed
+22.10,site cost guarantee,seed
+22.10,site cost guarantees,seed_expanded

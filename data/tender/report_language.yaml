@@ -1,0 +1,46 @@
+# TCM report language — BINDING (PRD Appendix C + §9.7 claim-strength rule)
+meta: { version: 1 }
+
+status_phrases:
+  excluded_explicit: "Excluded (stated, p. {page})"
+  silent_ambiguous: "Not explicitly itemised — confirm with builder"
+  bundled: "Appears to be covered within {parent_name} — confirm"
+  ps: "Covered by provisional sum of {amount} — scope not fixed"
+  pc: "Allowance of {amount} for selection"
+  included: "Included"
+  not_required: "Not applicable to this site/project"
+
+claim_strength_by_benchmark_confidence:
+  high: "allowance is below the typical market range ({band})"
+  medium: "allowance appears low — worth querying"
+  low: null   # benchmark not citable in customer-facing text
+
+flag_phrases:
+  gap: "This item is not visible in the quote — confirm whether it is covered."
+  low_pc_allowance: "If you select mid-range products, expect to pay the difference as a variation."
+  unrealistic_ps: "The basis for this allowance is not stated; ask how it was estimated for your site."
+  missing_expected: "Projects like this one typically require this item."
+  scope_ambiguity: "The wording could be read more than one way — get the intended scope in writing."
+  price_outlier: "This figure differs notably from the other quotes — worth querying."
+  exclusion_risk: "Excluded items become your cost after signing — price them before comparing."
+  statutory_missing: "This is a compliance requirement — confirm who carries it and that it is costed."
+  arithmetic_inconsistency: "The stated figures do not reconcile — ask the builder to confirm the total."
+
+forbidden_terms:
+  - ripoff
+  - rip-off
+  - hiding
+  - hidden fees
+  - dodgy
+  - underquoting
+  - lowballing
+  - dishonest
+  - misleading
+  - scam
+
+principles:
+  - Findings describe documents, never motives.
+  - '"Excluded" appears only with an explicit exclusions-list page reference.'
+  - Inferred statuses always carry a confirm-with-builder action.
+  - Every customer-facing number carries provenance (page ref or benchmark id).
+  - Benchmark claims obey claim_strength_by_benchmark_confidence without exception.

@@ -1,0 +1,260 @@
+# TCM Class 1 taxonomy — v1 (model_seed 2026-06-11, QS gate pending)
+# Loader contract: meta.defaults fill omitted fields; grp derives from code prefix.
+# stage: prelim | base | lockup | fixing | completion | external | statutory
+# bt = build_type_tags override; rt = region_tags override; bp = bundling_parents; bk = benchmark_key
+meta:
+  version: 1
+  context_version: 1
+  defaults:
+    build_type_tags: [new_build, renovation, addition]
+    region_tags: [NSW, VIC, QLD]
+    active: true
+
+groups:
+  "01": { name: "Preliminaries & approvals" }
+  "02": { name: "Demolition & site preparation" }
+  "03": { name: "Site costs & groundworks" }
+  "04": { name: "Substructure" }
+  "05": { name: "Frame & structure" }
+  "06": { name: "Roofing" }
+  "07": { name: "External walls & cladding" }
+  "08": { name: "Windows & external doors" }
+  "09": { name: "Garage & lockup" }
+  "10": { name: "Services rough-in & fit-off" }
+  "11": { name: "Energy & compliance" }
+  "12": { name: "Internal linings" }
+  "13": { name: "Fixing & joinery" }
+  "14": { name: "Kitchen" }
+  "15": { name: "Bathrooms & wet areas" }
+  "16": { name: "Painting" }
+  "17": { name: "Floor coverings" }
+  "18": { name: "Appliances & fixtures" }
+  "19": { name: "External works" }
+  "20": { name: "Connections & authority" }
+  "21": { name: "Statutory, insurance & certification" }
+  "22": { name: "Contract commercials" }
+
+cells:
+  # ── 01 Preliminaries & approvals ─────────────────────────────────────
+  - { code: "01.01", name: "Building approval / permit & lodgement fees", stage: prelim, bk: prelim.approvals }
+  - { code: "01.02", name: "Working drawings & documentation", stage: prelim, bk: prelim.drawings }
+  - { code: "01.03", name: "Structural & civil engineering design", stage: prelim, bk: prelim.engineering }
+  - { code: "01.04", name: "Soil report / geotechnical investigation", stage: prelim, bk: prelim.soil_report }
+  - { code: "01.05", name: "Surveys (contour, identification, set-out)", stage: prelim, bk: prelim.survey }
+  - { code: "01.06", name: "Energy assessment & certificate (NatHERS / BASIX)", stage: prelim, bk: prelim.energy_assessment }
+  - { code: "01.07", name: "Site supervision & project management", stage: prelim, bk: prelim.supervision }
+  - { code: "01.08", name: "Insurances during construction (contract works, public liability)", stage: prelim }
+  - { code: "01.09", name: "Temporary fencing", stage: prelim, bp: ["01.07"] }
+  - { code: "01.10", name: "Site amenities & temporary services", stage: prelim, bp: ["01.07"] }
+  - { code: "01.11", name: "Safety compliance & signage", stage: prelim, bp: ["01.07"] }
+  - { code: "01.12", name: "Waste management & bins during works", stage: prelim, bp: ["01.07"] }
+  - { code: "01.13", name: "Scaffolding & edge protection", stage: prelim, bk: prelim.scaffold }
+  - { code: "01.14", name: "Traffic / pedestrian management", stage: prelim }
+  - { code: "01.15", name: "Crane / access equipment", stage: prelim }
+  - { code: "01.16", name: "Final clean & handover", stage: completion }
+
+  # ── 02 Demolition & site preparation ─────────────────────────────────
+  - { code: "02.01", name: "Demolition of existing dwelling (full)", stage: base, bt: [new_build, renovation], bk: demo.full_house }
+  - { code: "02.02", name: "Partial demolition / internal strip-out", stage: base, bt: [renovation, addition], bk: demo.strip_out }
+  - { code: "02.03", name: "Asbestos identification & removal", stage: base, bt: [renovation, addition, new_build], bk: demo.asbestos }
+  - { code: "02.04", name: "Tree removal & tree protection", stage: base, bk: demo.trees }
+  - { code: "02.05", name: "Disconnection / capping of existing services", stage: base, bt: [new_build, renovation, addition] }
+  - { code: "02.06", name: "Site clearing & grubbing", stage: base, bp: ["03.01"] }
+  - { code: "02.07", name: "Temporary works, propping & protection of existing structure", stage: base, bt: [renovation, addition] }
+  - { code: "02.08", name: "Salvage & protection of retained fabric", stage: base, bt: [renovation, addition] }
+
+  # ── 03 Site costs & groundworks ──────────────────────────────────────
+  - { code: "03.01", name: "Site costs allowance (lump sum / provisional)", stage: base, bk: site.allowance_lump }
+  - { code: "03.02", name: "Piering (screw / bored / concrete)", stage: base, bp: ["03.01"], bk: site.piering }
+  - { code: "03.03", name: "Cut & fill / bulk earthworks", stage: base, bp: ["03.01"], bk: site.cut_fill }
+  - { code: "03.04", name: "Rock excavation allowance", stage: base, bp: ["03.01"], bk: site.rock }
+  - { code: "03.05", name: "Retaining walls", stage: base, bp: ["03.01"], bk: site.retaining }
+  - { code: "03.06", name: "Subsoil / site drainage (agi lines)", stage: base, bp: ["03.01"] }
+  - { code: "03.07", name: "Dewatering", stage: base, bp: ["03.01"] }
+  - { code: "03.08", name: "Imported fill / spoil removal", stage: base, bp: ["03.01", "03.03"] }
+  - { code: "03.09", name: "Compaction & level-1 certification", stage: base, bp: ["03.03"] }
+  - { code: "03.10", name: "Contaminated soil allowance", stage: base, bp: ["03.01"] }
+  - { code: "03.11", name: "Underpinning of existing footings", stage: base, bt: [renovation, addition], bk: site.underpinning }
+  - { code: "03.12", name: "Shoring / soil anchoring", stage: base, bp: ["03.01"] }
+
+  # ── 04 Substructure ──────────────────────────────────────────────────
+  - { code: "04.01", name: "Concrete slab (engineer-designed)", stage: base, bk: sub.slab }
+  - { code: "04.02", name: "Slab class upgrade (M/H/E over A/S)", stage: base, bp: ["04.01"], bk: sub.slab_upgrade }
+  - { code: "04.03", name: "Waffle pod / raft slab system", stage: base, bp: ["04.01"] }
+  - { code: "04.04", name: "Stumps / piers & timber subfloor", stage: base, bk: sub.subfloor }
+  - { code: "04.05", name: "Suspended slab", stage: base, bk: sub.suspended_slab }
+  - { code: "04.06", name: "Termite management system", stage: base, bk: sub.termite }
+  - { code: "04.07", name: "Vapour barrier / damp-proof membrane", stage: base, bp: ["04.01"] }
+  - { code: "04.08", name: "Drop edge beams / stepped slab", stage: base, bp: ["04.01"], bk: sub.drop_edge }
+
+  # ── 05 Frame & structure ─────────────────────────────────────────────
+  - { code: "05.01", name: "Wall frames (timber / steel)", stage: base, bk: frame.walls }
+  - { code: "05.02", name: "Roof trusses / roof framing", stage: base, bk: frame.roof }
+  - { code: "05.03", name: "Structural steel (beams, columns, portals)", stage: base, bk: frame.steel }
+  - { code: "05.04", name: "Engineered beams (LVL / glulam)", stage: base, bp: ["05.01", "05.03"] }
+  - { code: "05.05", name: "Frame upgrade for wind rating (N3+ / C)", stage: base, bp: ["05.01"] }
+  - { code: "05.06", name: "Upper floor system (joists & flooring)", stage: base, bk: frame.upper_floor }
+
+  # ── 06 Roofing ───────────────────────────────────────────────────────
+  - { code: "06.01", name: "Roof covering — concrete / terracotta tiles", stage: lockup, bk: roof.tiles }
+  - { code: "06.02", name: "Roof covering — metal (Colorbond)", stage: lockup, bk: roof.metal }
+  - { code: "06.03", name: "Sarking / anticon blanket", stage: lockup, bp: ["06.01", "06.02"] }
+  - { code: "06.04", name: "Fascia & gutters", stage: lockup, bp: ["06.01", "06.02"], bk: roof.fascia_gutter }
+  - { code: "06.05", name: "Downpipes", stage: lockup, bp: ["06.04"] }
+  - { code: "06.06", name: "Flashings & capping", stage: lockup, bp: ["06.01", "06.02"] }
+  - { code: "06.07", name: "Skylights / roof windows", stage: lockup, bk: roof.skylights }
+  - { code: "06.08", name: "Roof ventilation (whirlybirds / vents)", stage: lockup }
+  - { code: "06.09", name: "Gutter guard (ember / leaf)", stage: lockup, bp: ["06.04"] }
+
+  # ── 07 External walls & cladding ─────────────────────────────────────
+  - { code: "07.01", name: "Brick veneer walling", stage: lockup, bk: walls.brick }
+  - { code: "07.02", name: "Render / bagging / texture coat", stage: lockup, bk: walls.render }
+  - { code: "07.03", name: "Lightweight cladding (FC sheet / weatherboard)", stage: lockup, bk: walls.cladding_light }
+  - { code: "07.04", name: "Premium / feature cladding & battens", stage: lockup, bk: walls.cladding_premium }
+  - { code: "07.05", name: "Wall wrap / breather membrane", stage: lockup, bp: ["05.01"] }
+  - { code: "07.06", name: "Brickwork extras (articulation, sills, arches)", stage: lockup, bp: ["07.01"] }
+
+  # ── 08 Windows & external doors ──────────────────────────────────────
+  - { code: "08.01", name: "Windows — aluminium (standard)", stage: lockup, bk: win.standard }
+  - { code: "08.02", name: "Glazing upgrade (double / low-E per energy report)", stage: lockup, bp: ["08.01"], bk: win.glazing_upgrade }
+  - { code: "08.03", name: "BAL-rated windows, screens & seals", stage: lockup, bp: ["08.01"], bk: win.bal }
+  - { code: "08.04", name: "Entry door & furniture", stage: lockup, bk: win.entry_door }
+  - { code: "08.05", name: "Sliding / stacker / bifold doors", stage: lockup, bk: win.sliders }
+  - { code: "08.06", name: "Flyscreens", stage: fixing, bp: ["08.01"] }
+  - { code: "08.07", name: "Window locks & security screens", stage: fixing, bp: ["08.01"] }
+
+  # ── 09 Garage & lockup ───────────────────────────────────────────────
+  - { code: "09.01", name: "Garage door & motor (incl. remotes)", stage: lockup, bk: garage.door }
+  - { code: "09.02", name: "Garage PA door & internal access door", stage: lockup, bp: ["09.01"] }
+  - { code: "09.03", name: "Keying & lockup hardware", stage: lockup }
+
+  # ── 10 Services rough-in & fit-off ───────────────────────────────────
+  - { code: "10.01", name: "Plumbing rough-in & fit-off (complete)", stage: fixing, bk: svc.plumbing }
+  - { code: "10.02", name: "Hot water system", stage: fixing, bp: ["10.01"], bk: svc.hot_water }
+  - { code: "10.03", name: "Rainwater tank & pump", stage: external, bk: svc.water_tank }
+  - { code: "10.04", name: "Electrical rough-in & fit-off (complete)", stage: fixing, bk: svc.electrical }
+  - { code: "10.05", name: "Switchboard, safety switches & surge protection", stage: fixing, bp: ["10.04"] }
+  - { code: "10.06", name: "Power & lighting points (count-based allowance)", stage: fixing, bp: ["10.04"], bk: svc.points }
+  - { code: "10.07", name: "Data / TV / NBN internal points", stage: fixing, bp: ["10.04"] }
+  - { code: "10.08", name: "Smoke alarms (interconnected photoelectric)", stage: fixing, bp: ["10.04"] }
+  - { code: "10.09", name: "Air conditioning (ducted / splits)", stage: fixing, bk: svc.ac }
+  - { code: "10.10", name: "Heating (ducted gas / hydronic)", stage: fixing, bk: svc.heating }
+  - { code: "10.11", name: "Gas internal lines & points", stage: fixing, bp: ["10.01"] }
+  - { code: "10.12", name: "Solar PV / battery (or provision & conduits)", stage: completion, bk: svc.solar }
+  - { code: "10.13", name: "EV charger provision / circuit", stage: fixing, bp: ["10.04"] }
+  - { code: "10.14", name: "Security / alarm / intercom / CCTV", stage: fixing, bk: svc.security }
+  - { code: "10.15", name: "Ceiling fans", stage: fixing, bp: ["10.04"] }
+  - { code: "10.16", name: "Exhaust fans & mechanical ventilation", stage: fixing, bp: ["10.04"] }
+
+  # ── 11 Energy & compliance ───────────────────────────────────────────
+  - { code: "11.01", name: "Ceiling insulation", stage: fixing, bk: energy.insulation }
+  - { code: "11.02", name: "External wall insulation", stage: fixing, bp: ["11.01"] }
+  - { code: "11.03", name: "Underfloor / slab edge insulation", stage: fixing, bp: ["11.01"] }
+  - { code: "11.04", name: "Energy compliance package (7-star NatHERS measures)", stage: fixing, bk: energy.compliance_package }
+  - { code: "11.05", name: "BASIX commitments (NSW)", stage: fixing, rt: [NSW] }
+  - { code: "11.06", name: "Condensation management & ventilation (NCC)", stage: fixing }
+  - { code: "11.07", name: "Draught sealing", stage: fixing, bp: ["11.04"] }
+
+  # ── 12 Internal linings ──────────────────────────────────────────────
+  - { code: "12.01", name: "Plasterboard walls & ceilings", stage: fixing, bk: lining.plaster }
+  - { code: "12.02", name: "Cornice", stage: fixing, bp: ["12.01"] }
+  - { code: "12.03", name: "Wet area linings (FC / villaboard)", stage: fixing, bp: ["12.01"] }
+  - { code: "12.04", name: "Bulkheads / feature ceilings", stage: fixing, bp: ["12.01"] }
+  - { code: "12.05", name: "Ceiling height upgrade (2590 / 2740mm)", stage: base, bk: lining.ceiling_height }
+  - { code: "12.06", name: "VJ panelling / feature linings", stage: fixing, bk: lining.feature }
+
+  # ── 13 Fixing & joinery ──────────────────────────────────────────────
+  - { code: "13.01", name: "Internal doors", stage: fixing, bk: fix.doors }
+  - { code: "13.02", name: "Door furniture & hardware", stage: fixing, bp: ["13.01"] }
+  - { code: "13.03", name: "Skirting & architraves", stage: fixing, bk: fix.skirting }
+  - { code: "13.04", name: "Built-in robes (fit-outs & doors)", stage: fixing, bk: fix.robes }
+  - { code: "13.05", name: "Linen / pantry / broom shelving", stage: fixing, bp: ["13.04"] }
+  - { code: "13.06", name: "Staircase", stage: fixing, bk: fix.stairs }
+  - { code: "13.07", name: "Internal balustrade", stage: fixing, bp: ["13.06"] }
+  - { code: "13.08", name: "Built-in joinery (study nook, TV unit, mudroom)", stage: fixing, bk: fix.joinery }
+
+  # ── 14 Kitchen ───────────────────────────────────────────────────────
+  - { code: "14.01", name: "Kitchen cabinetry (base, overhead, panels)", stage: fixing, bk: kit.cabinetry }
+  - { code: "14.02", name: "Benchtops (laminate / porcelain / natural stone)", stage: fixing, bp: ["14.01"], bk: kit.benchtop }
+  - { code: "14.03", name: "Splashback (tile / glass / stone)", stage: fixing, bp: ["14.01"], bk: kit.splashback }
+  - { code: "14.04", name: "Kitchen sink & tapware", stage: fixing, bp: ["14.01", "10.01"], bk: kit.sink_tap }
+  - { code: "14.05", name: "Butler's pantry / scullery fit-out", stage: fixing, bk: kit.butlers }
+  - { code: "14.06", name: "Island bench & waterfall ends", stage: fixing, bp: ["14.01", "14.02"] }
+  - { code: "14.07", name: "Cabinetry hardware upgrades (soft-close, internals)", stage: fixing, bp: ["14.01"] }
+
+  # ── 15 Bathrooms & wet areas ─────────────────────────────────────────
+  - { code: "15.01", name: "Wall tiling (extent: skirting height vs full height)", stage: fixing, bk: bath.wall_tiling }
+  - { code: "15.02", name: "Floor tiling — wet areas", stage: fixing, bk: bath.floor_tiling }
+  - { code: "15.03", name: "Waterproofing (AS 3740)", stage: fixing, bp: ["15.01", "15.02"] }
+  - { code: "15.04", name: "Vanities", stage: fixing, bk: bath.vanities }
+  - { code: "15.05", name: "Baths", stage: fixing, bk: bath.baths }
+  - { code: "15.06", name: "Shower screens", stage: fixing, bk: bath.screens }
+  - { code: "15.07", name: "Shower bases, hobs & niches", stage: fixing, bp: ["15.02"] }
+  - { code: "15.08", name: "Toilets", stage: fixing, bk: bath.toilets }
+  - { code: "15.09", name: "Tapware & bathroom accessories", stage: fixing, bk: bath.tapware }
+  - { code: "15.10", name: "Mirrors & shaving cabinets", stage: fixing, bp: ["15.04"] }
+  - { code: "15.11", name: "Laundry tub, cabinetry & tapware", stage: fixing, bk: bath.laundry }
+
+  # ── 16 Painting ──────────────────────────────────────────────────────
+  - { code: "16.01", name: "Internal painting (walls, ceilings, trim)", stage: completion, bk: paint.internal }
+  - { code: "16.02", name: "External painting", stage: completion, bk: paint.external }
+  - { code: "16.03", name: "Feature / specialty finishes", stage: completion, bp: ["16.01"] }
+  - { code: "16.04", name: "Staining & clear finishes (timber)", stage: completion, bp: ["16.01", "16.02"] }
+
+  # ── 17 Floor coverings ───────────────────────────────────────────────
+  - { code: "17.01", name: "Floor tiles — living areas", stage: completion, bk: floor.tiles }
+  - { code: "17.02", name: "Carpet", stage: completion, bk: floor.carpet }
+  - { code: "17.03", name: "Timber / engineered flooring", stage: completion, bk: floor.timber }
+  - { code: "17.04", name: "Laminate / hybrid flooring", stage: completion, bk: floor.hybrid }
+  - { code: "17.05", name: "Polished concrete finish", stage: completion, bk: floor.polished_concrete }
+  - { code: "17.06", name: "Floor preparation / levelling", stage: completion, bt: [renovation, addition], bp: ["17.01", "17.03", "17.04"] }
+
+  # ── 18 Appliances & fixtures (PC-heavy) ──────────────────────────────
+  - { code: "18.01", name: "Cooktop", stage: completion, bp: ["18.05"], bk: appl.cooktop }
+  - { code: "18.02", name: "Oven", stage: completion, bp: ["18.05"], bk: appl.oven }
+  - { code: "18.03", name: "Rangehood", stage: completion, bp: ["18.05"], bk: appl.rangehood }
+  - { code: "18.04", name: "Dishwasher (or provision only)", stage: completion, bp: ["18.05"], bk: appl.dishwasher }
+  - { code: "18.05", name: "Appliance package allowance", stage: completion, bk: appl.package }
+  - { code: "18.06", name: "Light fittings (PC)", stage: completion, bp: ["10.04"], bk: appl.lights }
+  - { code: "18.07", name: "Window furnishings (blinds / curtains)", stage: completion, bk: appl.window_furnishings }
+
+  # ── 19 External works ────────────────────────────────────────────────
+  - { code: "19.01", name: "Driveway & crossover", stage: external, bk: ext.driveway }
+  - { code: "19.02", name: "Paths & external paving", stage: external, bk: ext.paths }
+  - { code: "19.03", name: "Fencing & gates", stage: external, bk: ext.fencing }
+  - { code: "19.04", name: "Landscaping (soft, garden beds)", stage: external, bk: ext.landscaping }
+  - { code: "19.05", name: "Turf", stage: external, bp: ["19.04"], bk: ext.turf }
+  - { code: "19.06", name: "Decks", stage: external, bk: ext.decks }
+  - { code: "19.07", name: "Pergolas / patio covers", stage: external, bk: ext.pergolas }
+  - { code: "19.08", name: "Letterbox & clothesline", stage: external, bk: ext.letterbox_line }
+  - { code: "19.09", name: "Swimming pool / spa (scope marker)", stage: external, bk: ext.pool }
+
+  # ── 20 Connections & authority ───────────────────────────────────────
+  - { code: "20.01", name: "Electrical connection / consumer mains", stage: external, bk: conn.power }
+  - { code: "20.02", name: "Water connection / meter", stage: external, bk: conn.water }
+  - { code: "20.03", name: "Sewer connection / drainage to point", stage: external, bk: conn.sewer }
+  - { code: "20.04", name: "Stormwater connection / OSD / soakage", stage: external, bk: conn.stormwater }
+  - { code: "20.05", name: "Gas meter & connection", stage: external, bk: conn.gas }
+  - { code: "20.06", name: "NBN / telecoms lead-in", stage: external, bk: conn.nbn }
+  - { code: "20.07", name: "Water authority compliance (e.g. NSW s73 certificate)", stage: statutory, rt: [NSW] }
+
+  # ── 21 Statutory, insurance & certification ──────────────────────────
+  - { code: "21.01", name: "Home warranty insurance — NSW HBCF (icare)", stage: statutory, rt: [NSW], bk: stat.home_warranty }
+  - { code: "21.02", name: "Domestic Building Insurance — VIC DBI", stage: statutory, rt: [VIC], bk: stat.home_warranty }
+  - { code: "21.03", name: "QBCC Home Warranty Scheme — QLD", stage: statutory, rt: [QLD], bk: stat.home_warranty }
+  - { code: "21.04", name: "Long service levy / portable LSL", stage: statutory, bk: stat.lsl }
+  - { code: "21.05", name: "Certifier / building surveyor / PCA fees", stage: statutory, bk: stat.certifier }
+  - { code: "21.06", name: "Occupation certificate / final inspections", stage: statutory, bp: ["21.05"] }
+  - { code: "21.07", name: "Council infrastructure contributions (s7.11/7.12 or equiv.)", stage: statutory, bk: stat.contributions }
+
+  # ── 22 Contract commercials ──────────────────────────────────────────
+  - { code: "22.01", name: "Deposit & progress payment schedule", stage: statutory }
+  - { code: "22.02", name: "Provisional sums schedule (aggregate)", stage: statutory, bk: comm.ps_aggregate }
+  - { code: "22.03", name: "Prime cost schedule (aggregate)", stage: statutory, bk: comm.pc_aggregate }
+  - { code: "22.04", name: "Contingency allowance", stage: statutory, bk: comm.contingency }
+  - { code: "22.05", name: "Builder's margin on variations / PS adjustments", stage: statutory, bk: comm.margin_variations }
+  - { code: "22.06", name: "GST treatment", stage: statutory }
+  - { code: "22.07", name: "Price validity / rise-and-fall provisions", stage: statutory }
+  - { code: "22.08", name: "Liquidated damages rate", stage: statutory }
+  - { code: "22.09", name: "Defects liability period", stage: statutory }
+  - { code: "22.10", name: "Site cost certainty disclosure (fixed vs provisional)", stage: statutory }
