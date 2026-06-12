@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     tender_job_max_attempts: int = 3
     tender_job_backoff_base_seconds: int = 30
     tender_job_stale_lock_minutes: int = 10
+    tender_model_extract: str = "gpt-4.1-mini"
+    tender_extraction_confidence_threshold: float = 0.85
+    tender_reconciliation_tolerance: float = 0.01
 
     @field_validator("database_url")
     @classmethod

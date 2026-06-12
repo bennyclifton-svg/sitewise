@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProjectContext(BaseModel):
@@ -36,6 +37,11 @@ class ProjectContext(BaseModel):
     spec_level: Literal["builder_base", "mid", "high", "architectural"]
     target_budget_cents: int | None = None
     notes: str | None = None
+
+    @field_validator("target_budget_cents", mode="before")
+    @classmethod
+    def normalize_target_budget(cls, value: object) -> int | None:
+        return currency_to_cents(value)
 
 
 class ComparisonCreate(BaseModel):
@@ -123,3 +129,87 @@ class JobView(BaseModel):
 class DocumentUploadResponse(BaseModel):
     document: DocumentView
     job: JobView
+
+
+class BoundingBox(BaseModel):
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+class TenderDocumentPage(BaseModel):
+    document_id: str
+    page_no: int
+    text_content: str
+    image_path: str | None = None
+
+
+class ExtractedLineItem(BaseModel):
+    page_no: int
+    bbox: BoundingBox | None = None
+    description_raw: str
+    section_path: list[str] = Field(default_factory=list)
+    qty: float | None = None
+    unit: str | None = None
+    rate_cents: int | None = None
+    amount_cents: int | None = None
+    item_status: Literal["included", "excluded", "pc_allowance", "ps_allowance", "note"]
+    allowance_cents: int | None = None
+    extraction_confidence: float = Field(ge=0, le=1)
+
+    @field_validator("rate_cents", "amount_cents", "allowance_cents", mode="before")
+    @classmethod
+    def normalize_money(cls, value: object) -> int | None:
+        return currency_to_cents(value)
+
+
+class ExtractedPageSubtotal(BaseModel):
+    page_no: int
+    label: str
+    amount_cents: int
+    confidence: float = Field(ge=0, le=1)
+
+    @field_validator("amount_cents", mode="before")
+    @classmethod
+    def normalize_amount(cls, value: object) -> int | None:
+        return currency_to_cents(value)
+
+
+class ExtractionStructuredOutput(BaseModel):
+    line_items: list[ExtractedLineItem] = Field(default_factory=list)
+    page_subtotals: list[ExtractedPageSubtotal] = Field(default_factory=list)
+    quote_total_cents: int | None = None
+
+    @field_validator("quote_total_cents", mode="before")
+    @classmethod
+    def normalize_quote_total(cls, value: object) -> int | None:
+        return currency_to_cents(value)
+
+
+def currency_to_cents(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise ValueError("currency value cannot be boolean")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(round(value * 100))
+    if not isinstance(value, str):
+        raise ValueError("currency value must be int cents or dollar text")
+
+    cleaned = (
+        value.strip()
+        .replace("$", "")
+        .replace(",", "")
+        .replace("AUD", "")
+        .replace("aud", "")
+        .strip()
+    )
+    if not cleaned:
+        return None
+    try:
+        return int((Decimal(cleaned) * 100).quantize(Decimal("1")))
+    except InvalidOperation as exc:
+        raise ValueError(f"invalid currency value: {value}") from exc
