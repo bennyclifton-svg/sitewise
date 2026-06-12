@@ -421,6 +421,15 @@ class Benchmark(Base):
         _values_check("metric", BENCHMARK_METRICS, "benchmarks"),
         _values_check("source", BENCHMARK_SOURCES, "benchmarks"),
         _values_check("confidence", BENCHMARK_CONFIDENCES, "benchmarks"),
+        UniqueConstraint(
+            "benchmark_key",
+            "state",
+            "region",
+            "build_type",
+            "spec_level",
+            "metric",
+            name="uq_benchmarks_stable_key",
+        ),
         Index("ix_benchmarks_benchmark_key", "benchmark_key"),
     )
 

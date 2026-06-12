@@ -1,4 +1,4 @@
-"""Migration coverage for the tender chain (007–010).
+"""Migration coverage for the tender chain (007–011).
 
 The chain/structure tests run anywhere. The roundtrip test is marked
 ``integration``: it applies ``upgrade head``, walks back down to
@@ -20,6 +20,7 @@ TENDER_REVISIONS = [
     "008_tender_knowledge",
     "009_tender_mapping_status",
     "010_tender_jobs_eval",
+    "011_tender_report_language",
 ]
 
 
@@ -86,8 +87,19 @@ def test_tender_migrations_roundtrip_against_database() -> None:
 
         inspector = sa.inspect(engine)
         tables = inspector.get_table_names()
-        for table in ("tender_comparisons", "tender_pages", "tender_jobs", "eval_results"):
+        for table in (
+            "tender_comparisons",
+            "tender_pages",
+            "tender_jobs",
+            "eval_results",
+            "report_language",
+        ):
             assert table in tables
+
+        benchmark_unique_names = {
+            constraint["name"] for constraint in inspector.get_unique_constraints("benchmarks")
+        }
+        assert "uq_benchmarks_stable_key" in benchmark_unique_names
 
         unique_names = {
             constraint["name"] for constraint in inspector.get_unique_constraints("tender_pages")
