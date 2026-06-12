@@ -37,7 +37,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["app", "ingest"]
+packages = ["app", "ingest", "tender"]
 
 [tool.pytest.ini_options]
 markers = [
