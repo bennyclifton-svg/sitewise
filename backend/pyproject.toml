@@ -42,4 +42,5 @@ packages = ["app", "ingest", "tender"]
 [tool.pytest.ini_options]
 markers = [
     "integration: marks tests that require live external services",
+    "tender_eval: marks Tender Comparison Module golden-set evaluation tests",
 ]
