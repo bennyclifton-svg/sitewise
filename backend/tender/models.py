@@ -425,6 +425,22 @@ class Benchmark(Base):
     )
 
 
+class ReportLanguageEntry(Base):
+    __tablename__ = "report_language"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    key_path: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class TenderMapping(Base):
     __tablename__ = "tender_mappings"
 
