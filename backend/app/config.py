@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     polar_professional_product_id: str | None = None
     polar_checkout_success_path: str = "/billing?checkout=success"
     polar_customer_portal_return_path: str = "/billing"
+    tender_ocr_enabled: bool = True
+    tender_ocr_text_density_threshold: float = 0.05
+    tender_ocr_min_confidence: float = 0.5
+    tender_page_render_dpi: int = 150
+    tender_worker_poll_seconds: float = 2.0
+    tender_job_max_attempts: int = 3
+    tender_job_backoff_base_seconds: int = 30
+    tender_job_stale_lock_minutes: int = 10
 
     @field_validator("database_url")
     @classmethod
