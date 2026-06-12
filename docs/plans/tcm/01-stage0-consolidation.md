@@ -111,12 +111,12 @@ Confirm the consolidated branch has every file (`git diff --stat feature/tcm-mai
 
 ## Exit criteria
 
-- [ ] `feature/tcm-main` exists; `backend/tests/tender` fully green on it (output pasted)
-- [ ] Migration roundtrip 011↔010 verified (output pasted)
-- [ ] Seed load twice = zero changes (output pasted)
-- [ ] Ingestion audit findings appended to this doc
-- [ ] Working tree clean of untracked tender files
-- [ ] "Verified local commands" recorded in `00-handoff-overview.md`
+- [x] `feature/tcm-main` exists; `backend/tests/tender` fully green on it (56 passed, 2026-06-13)
+- [x] Migration roundtrip 011↔010 verified (upgrade → downgrade → upgrade clean, 2026-06-13)
+- [x] Seed load twice = zero changes (run 1: 2299 inserted; run 2: "Total: 0 changed / 2299 rows")
+- [x] Ingestion audit findings appended to this doc (see below — Stage 0.5 required)
+- [x] Working tree clean of untracked tender files (deleted with user confirmation, 2026-06-13)
+- [x] "Verified local commands" recorded in `00-handoff-overview.md`
 
 ## Ingestion audit findings (2026-06-13)
 
