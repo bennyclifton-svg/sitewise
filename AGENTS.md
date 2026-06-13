@@ -31,6 +31,17 @@ clerk/
 
 The governing migration document is `docs/plans/2026-06-07-clerk-practice-intelligence-integration-prd.md`. Clerk is the canonical hosted product repo. Practice Intelligence is source material and reference implementation; Hermes is retired as a separate runtime once Clerk reaches workflow parity.
 
+## Tender Comparison Module (TCM)
+
+The governing TCM document is `docs/plans/2026-06-11-tender-comparison-module-prd.md`. These rules are binding for all future TCM work:
+
+- TCM lives in `backend/tender/` and owns only `tender_*` tables. It may reference Clerk `projects`, `users`, and `drafts` by FK only. No Clerk core module may import from `backend/tender/`.
+- TCM never uses Clerk's RAG chunking pipeline. It is schema-oriented extraction only, sharing just upload/storage with Clerk core.
+- LLMs classify and map; all arithmetic, totals, deltas, comparables, percentages, and benchmark calculations are computed in Python.
+- Prompts are versioned files in `backend/tender/llm/prompts/`. Once the evaluation harness exists, no prompt, model, or taxonomy change merges without an eval run under PRD Section 14.
+- Seed data in `data/tender/` is loaded by idempotent upserts. Run `data/tender/tools/validate.py` in CI.
+- Report language must come from `data/tender/report_language.yaml`; never free-type customer-facing report phrases.
+
 ## Dependency policy
 
 **Default: write it yourself. Reach for a library only when the alternative would be non-trivial, error-prone, or reinvention of a standard.** Every dependency is a liability — bundle size, supply-chain risk, future upgrade work.

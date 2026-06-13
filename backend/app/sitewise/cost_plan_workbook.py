@@ -221,23 +221,18 @@ def _build_summary_sheet(
     worksheet.sheet_view.showGridLines = False
     worksheet.freeze_panes = "A5"
     worksheet.merge_cells("A1:L1")
-    worksheet.merge_cells("A2:L2")
+    worksheet.merge_cells("A2:I2")
     worksheet["A1"] = f"Project Cost Plan - {project_title}"
     worksheet["A2"] = "All figures exclude GST"
-    worksheet["J3"] = "Selected month"
-    worksheet["K3"] = _month_start(generated_at.date())
-    worksheet["K3"].number_format = "mmm-yy"
+    worksheet["J2"] = "Selected month"
+    worksheet["K2"] = _month_start(generated_at.date())
+    worksheet["K2"].number_format = "mmm-yy"
 
-    for cell in worksheet[1]:
-        cell.fill = fills["title"]
-        cell.font = Font(color="FFFFFF", bold=True, size=14)
-        cell.alignment = Alignment(horizontal="center")
-    worksheet["A2"].fill = fills["subtitle"]
-    worksheet["A2"].font = Font(italic=True, color="44546A")
-    worksheet["J3"].font = Font(bold=True, color="44546A")
-    worksheet["K3"].fill = fills["control"]
-    worksheet["K3"].font = Font(bold=True)
-    worksheet["K3"].alignment = Alignment(horizontal="center")
+    _style_summary_banner_row(worksheet, 1)
+    worksheet["J2"].font = Font(bold=True)
+    worksheet["K2"].fill = fills["control"]
+    worksheet["K2"].font = Font(bold=True)
+    worksheet["K2"].alignment = Alignment(horizontal="center")
 
     for column, header in enumerate(SUMMARY_HEADERS, start=1):
         cell = worksheet.cell(row=4, column=column, value=header)
@@ -346,8 +341,8 @@ def _write_summary_item_row(worksheet: Worksheet, row: int, item: CostPlanLine) 
         7: f"=SUMIF(Variations!$B$5:$B$500,C{row},Variations!$G$5:$G$500)",
         8: f"=SUM(E{row}:G{row})",
         9: f"=D{row}-H{row}",
-        10: f'=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C{row},Invoices!$H$5:$H$500,"<="&EOMONTH(K$3,0))',
-        11: f'=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C{row},Invoices!$H$5:$H$500,">="&EOMONTH(K$3,-1)+1,Invoices!$H$5:$H$500,"<="&EOMONTH(K$3,0))',
+        10: f'=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C{row},Invoices!$H$5:$H$500,"<="&EOMONTH(K$2,0))',
+        11: f'=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C{row},Invoices!$H$5:$H$500,">="&EOMONTH(K$2,-1)+1,Invoices!$H$5:$H$500,"<="&EOMONTH(K$2,0))',
         12: f"=D{row}-J{row}",
     }
     for column, value in values.items():
@@ -419,7 +414,7 @@ def _add_defined_names(workbook: Workbook, last_lookup_row: int) -> None:
 
 
 def _add_summary_validations(worksheet: Worksheet) -> None:
-    _add_list_validation(worksheet, "K3", "InvoiceBillingMonths", "Invalid Billing Month")
+    _add_list_validation(worksheet, "K2", "InvoiceBillingMonths", "Invalid Billing Month")
 
 
 def _add_list_validation(
@@ -479,6 +474,14 @@ def _style_summary_sheet(worksheet: Worksheet, last_row: int) -> None:
     for row in worksheet.iter_rows(min_row=1, max_row=61, min_col=13, max_col=14):
         for cell in row:
             cell.fill = fills["lookup"]
+
+
+def _style_summary_banner_row(worksheet: Worksheet, row: int) -> None:
+    fills = _fills()
+    for cell in worksheet[row]:
+        cell.fill = fills["subtitle"]
+        cell.font = Font(italic=True, color="44546A")
+        cell.alignment = Alignment(horizontal="center")
 
 
 def _style_title_rows(worksheet: Worksheet, final_column: str) -> None:
@@ -541,7 +544,7 @@ def _verify_workbook(workbook: Workbook) -> None:
             issues.append(f"Workbook is missing named range {name}.")
 
     expected_validations = {
-        "Summary": ("K3", "InvoiceBillingMonths"),
+        "Summary": ("K2", "InvoiceBillingMonths"),
         "Invoices": ("F5:F500", "CostItemLookup"),
         "Variations": ("B5:B500", "CostItemLookup"),
     }
@@ -607,7 +610,11 @@ def _summary_rollup_values(workbook: Workbook) -> dict[tuple[str, int, int], Any
     summary = workbook["Summary"]
     invoices = workbook["Invoices"]
     variations = workbook["Variations"]
-    selected_month = _month_start(_coerce_date(summary["K3"].value) or date.today())
+    selected_month = _month_start(
+        _coerce_date(summary["K2"].value)
+        or _coerce_date(summary["K3"].value)
+        or date.today()
+    )
 
     invoice_amounts = _invoice_amounts_by_cost_item(invoices)
     variation_amounts = _variation_amounts_by_cost_item(variations)
@@ -777,7 +784,7 @@ def _display_cell_value(sheet_name: str, row: int, column: int, value: Any) -> s
 
 
 def _display_date(sheet_name: str, row: int, column: int, value: date) -> str:
-    if sheet_name == "Summary" and row == 3 and column == 11:
+    if sheet_name == "Summary" and row in {2, 3} and column == 11:
         return value.strftime("%b-%y")
     if sheet_name == "Invoices" and column == 8:
         return value.strftime("%b-%y")

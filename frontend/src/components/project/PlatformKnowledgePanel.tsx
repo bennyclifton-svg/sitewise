@@ -17,7 +17,7 @@ export function PlatformKnowledgePanel({
 
   if (!filtered.length) {
     return (
-      <p className="px-2 text-xs text-muted-foreground">
+      <p className="px-1.5 text-xs text-muted-foreground">
         {mode === "skills"
           ? "No indexed SiteWise skills yet."
           : "No indexed doctrine, seed, or template material yet."}
@@ -26,14 +26,16 @@ export function PlatformKnowledgePanel({
   }
 
   return (
-    <ul className="space-y-2 px-1">
+    <ul>
       {filtered.map((bucket) => (
         <li
           key={bucket.kind}
-          className="flex items-center justify-between gap-2 rounded-md border bg-background px-2.5 py-2 text-xs"
+          className="flex h-[22px] items-center justify-between gap-2 rounded-sm px-1.5 text-xs text-muted-foreground"
         >
-          <span className="font-medium capitalize">{bucket.kind}</span>
-          <Badge variant="secondary">{bucket.document_count}</Badge>
+          <span className="truncate capitalize">{bucket.kind}</span>
+          <Badge variant="secondary" className="h-4 px-1 text-[10px] font-normal">
+            {bucket.document_count}
+          </Badge>
         </li>
       ))}
     </ul>
@@ -49,14 +51,14 @@ export function PlatformKnowledgeSummary({
   const total = platformStatus?.buckets.reduce((sum, bucket) => sum + bucket.document_count, 0) ?? 0;
 
   return (
-    <div className="space-y-2 px-1 text-xs">
-      <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
-        <span className="text-muted-foreground">Corpus</span>
-        <span className="font-medium">{available ? "Indexed" : "Not indexed"}</span>
+    <div className="text-xs text-muted-foreground">
+      <div className="flex h-[22px] items-center justify-between rounded-sm px-1.5">
+        <span>Corpus</span>
+        <span>{available ? "Indexed" : "Not indexed"}</span>
       </div>
-      <div className="flex items-center justify-between rounded-md border px-2.5 py-2">
-        <span className="text-muted-foreground">Documents</span>
-        <span className="font-medium">{total}</span>
+      <div className="flex h-[22px] items-center justify-between rounded-sm px-1.5">
+        <span>Documents</span>
+        <span>{total}</span>
       </div>
     </div>
   );

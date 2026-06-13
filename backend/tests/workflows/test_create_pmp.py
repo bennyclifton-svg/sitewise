@@ -11,6 +11,8 @@ from app.retrieval.schemas import SourcePassage
 from app.sitewise.pmp_sources import required_platform_paths, required_section_headings
 from app.workflows.create_pmp import (
     PmpDraftOutput,
+    canonical_pmp_workspace_path,
+    draft_workspace_path,
     RUNTIME_HYBRID_NAME,
     _source_excerpt_chars,
     normalize_pmp_markdown,
@@ -48,6 +50,22 @@ def _project(**overrides) -> Project:
     }
     values.update(overrides)
     return Project(**values)
+
+
+def test_draft_workspace_path_uses_stable_pmp_md() -> None:
+    assert (
+        draft_workspace_path(_project(), version=3)
+        == "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
+    )
+
+
+def test_canonical_pmp_workspace_path_normalises_legacy_draft_paths() -> None:
+    assert (
+        canonical_pmp_workspace_path(
+            "04-projects/demo/00-brief-pmp/PMP-draft-v01.md"
+        )
+        == "04-projects/demo/00-brief-pmp/PMP.md"
+    )
 
 
 def _valid_pmp_markdown(user_role: str = "architect-pm") -> str:
@@ -239,7 +257,7 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
     draft.version = 1
     draft.status = "draft"
     draft.title = output.title
-    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP-draft-v01.md"
+    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
     draft.model = "gpt-4o-mini"
@@ -320,7 +338,7 @@ def test_create_pmp_saves_evidence_grounded_draft() -> None:
     draft.version = 1
     draft.status = "draft"
     draft.title = output.title
-    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP-draft-v01.md"
+    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
     draft.model = "gpt-4o-mini"
@@ -944,7 +962,7 @@ def test_create_pmp_hybrid_compiler_saves_assembled_draft() -> None:
     draft.version = 1
     draft.status = "draft"
     draft.title = "Project Management Plan"
-    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP-draft-v01.md"
+    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = "# Project Management Plan"
     draft.model = "gpt-4o-mini"

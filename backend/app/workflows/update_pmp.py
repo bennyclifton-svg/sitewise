@@ -369,7 +369,11 @@ async def run_update_pmp_workflow(
 
     trace.append(_trace("validation", "passed", "Update PMP output passed validation."))
 
-    from app.workflows.create_pmp import draft_workspace_path, _next_version_hint
+    from app.workflows.create_pmp import (
+        _next_version_hint,
+        draft_workspace_path,
+        sync_pmp_draft_workspace,
+    )
 
     next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     output.markdown = sync_document_control_version(output.markdown, next_version)
@@ -394,6 +398,12 @@ async def run_update_pmp_workflow(
             "context_refs": output.context_refs,
             "trace": [event.model_dump() for event in trace],
         },
+    )
+    await sync_pmp_draft_workspace(
+        session,
+        project=project,
+        draft=draft,
+        markdown=output.markdown,
     )
     trace.append(
         _trace(

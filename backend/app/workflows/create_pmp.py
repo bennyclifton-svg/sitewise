@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import date, datetime
 from pathlib import Path
@@ -17,6 +18,9 @@ from app.config import settings
 from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
+from app.database.workspace_files import upsert_workspace_file
+from app.inbox.paths import build_storage_key
+from app.storage.project_files import upload_project_file
 from app.database.source_document import SourceDocument
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
@@ -36,6 +40,7 @@ from app.sitewise.pmp_sources import (
     required_section_headings,
     seed_consulted_includes_required,
 )
+from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE = "create_pmp"
 RUNTIME_NAME = "clerk-sitewise-create-pmp"
@@ -822,8 +827,79 @@ def validate_pmp_output(
             )
 
 
+PMP_WORKSPACE_FILENAME = "PMP.md"
+PMP_WORKFLOW_TYPES = frozenset({WORKFLOW_TYPE, "update_pmp"})
+
+
+def is_pmp_workflow(workflow_type: str) -> bool:
+    return workflow_type in PMP_WORKFLOW_TYPES
+
+
+def canonical_pmp_workspace_path(workspace_path: str) -> str | None:
+    normalised = workspace_path.replace("\\", "/")
+    marker = "/00-brief-pmp/"
+    index = normalised.lower().find(marker)
+    if index < 0:
+        return None
+    folder = normalised[: index + len(marker.rstrip("/"))]
+    return f"{folder}/{PMP_WORKSPACE_FILENAME}"
+
+
 def draft_workspace_path(project: Project, version: int) -> str:
-    return f"{project.workspace_path}/00-brief-pmp/PMP-draft-v{version:02d}.md"
+    _ = version
+    return f"{project.workspace_path}/00-brief-pmp/{PMP_WORKSPACE_FILENAME}"
+
+
+async def save_pmp_workspace_file(
+    session: AsyncSession,
+    *,
+    project: Project,
+    markdown: str,
+) -> str:
+    workspace_path = draft_workspace_path(project, version=0)
+    content = markdown.encode("utf-8")
+    storage_key = build_storage_key(str(project.id), workspace_path)
+    content_hash = bytes_content_hash(content)
+
+    await asyncio.to_thread(
+        upload_project_file,
+        storage_key=storage_key,
+        content=content,
+        filename=PMP_WORKSPACE_FILENAME,
+    )
+    await upsert_workspace_file(
+        session,
+        project_id=project.id,
+        workspace_path=workspace_path,
+        filename=PMP_WORKSPACE_FILENAME,
+        storage_bucket=settings.supabase_storage_bucket,
+        storage_key=storage_key,
+        content_hash=content_hash,
+        size_bytes=len(content),
+        ingest_status="generated",
+        ingest_error=None,
+        source_document_id=None,
+    )
+    return workspace_path
+
+
+async def sync_pmp_draft_workspace(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft,
+    markdown: str | None = None,
+) -> str:
+    canonical_path = draft_workspace_path(project, draft.version)
+    if draft.workspace_path != canonical_path:
+        draft.workspace_path = canonical_path
+        await session.flush()
+        await session.refresh(draft)
+    return await save_pmp_workspace_file(
+        session,
+        project=project,
+        markdown=markdown if markdown is not None else draft.content_markdown,
+    )
 
 
 async def run_create_pmp_workflow(
@@ -1087,6 +1163,12 @@ async def run_create_pmp_workflow(
                 "platform_retrieval": "overlay_mandatory_paths",
             },
         },
+    )
+    await sync_pmp_draft_workspace(
+        session,
+        project=project,
+        draft=draft,
+        markdown=output.markdown,
     )
     trace.append(
         _trace(

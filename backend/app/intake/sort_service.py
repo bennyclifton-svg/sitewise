@@ -87,6 +87,17 @@ async def _classification_preview(record: WorkspaceFile) -> str | None:
         )
     except Exception:
         return None
+    if extension == ".pdf":
+        try:
+            from app.inbox.pdf_inspect import inspect_pdf
+
+            info = inspect_pdf(content)
+        except Exception:
+            return None
+        if info.encrypted or not info.pages:
+            return None
+        text = info.pages[0].text.strip()
+        return text[:_PREVIEW_BYTE_LIMIT] if text else None
     return content[:_PREVIEW_BYTE_LIMIT].decode("utf-8", errors="replace")
 
 
@@ -220,12 +231,14 @@ async def _resolve_destination_filename(
     destination_folder: str,
     filename: str,
     project: Project,
+    preview_snippet: str | None = None,
 ) -> str:
     filed_path = _destination_workspace_path(project, destination_folder, filename)
     parsed = parse_document_metadata(
         file_name=filename,
         filed_path=filed_path,
         source_path=source_path,
+        preview_snippet=preview_snippet,
     )
     if parsed.confidence == "low":
         return filename
@@ -358,6 +371,7 @@ async def sort_inbox_files(
             destination_folder=destination_folder,
             filename=record.filename,
             project=project,
+            preview_snippet=preview_snippet,
         )
         destination_path = _destination_workspace_path(
             project,
@@ -389,6 +403,7 @@ async def sort_inbox_files(
                     source_path=record.workspace_path,
                     filed_path=destination_path,
                     filename=record.filename,
+                    preview_snippet=preview_snippet,
                 )
                 result.records.append(
                     SortFileRecord(
@@ -417,17 +432,34 @@ async def sort_inbox_files(
             result.counts.refused += 1
             continue
 
-        await _move_workspace_file(
-            session,
-            project=project,
-            record=record,
-            destination_workspace_path=destination_path,
-            destination_filename=destination_filename,
-        )
+        try:
+            await _move_workspace_file(
+                session,
+                project=project,
+                record=record,
+                destination_workspace_path=destination_path,
+                destination_filename=destination_filename,
+            )
+        except Exception as exc:
+            result.records.append(
+                SortFileRecord(
+                    source_path=record.workspace_path,
+                    filename=record.filename,
+                    outcome="refused",
+                    destination_path=destination_path,
+                    destination_filename=destination_filename,
+                    reason=f"Move failed: {exc}",
+                )
+            )
+            result.counts.refused += 1
+            result.warnings.append(f"Failed to move {record.filename}: {exc}")
+            continue
+
         metadata = _register_fields_from_path(
             source_path=record.workspace_path,
             filed_path=destination_path,
             filename=destination_filename,
+            preview_snippet=preview_snippet,
         )
         result.records.append(
             SortFileRecord(
@@ -460,11 +492,13 @@ def _register_fields_from_path(
     source_path: str,
     filed_path: str,
     filename: str,
+    preview_snippet: str | None = None,
 ) -> dict[str, str | None]:
     parsed = parse_document_metadata(
         file_name=filename,
         filed_path=filed_path,
         source_path=source_path,
+        preview_snippet=preview_snippet,
     )
     return {
         "document_number": parsed.document_number or None,

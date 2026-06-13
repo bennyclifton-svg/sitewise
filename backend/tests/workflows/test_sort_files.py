@@ -127,6 +127,36 @@ def test_sort_inbox_refuses_when_destination_hash_differs() -> None:
     assert result.records[0].outcome == "refused"
 
 
+def test_sort_inbox_refuses_when_move_fails() -> None:
+    session = AsyncMock()
+    source = _workspace_file()
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[source]),
+        ),
+        patch(
+            "app.intake.sort_service.get_workspace_file_by_path",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.intake.sort_service._resolve_destination_filename",
+            new=AsyncMock(return_value="CC-A-010.pdf"),
+        ),
+        patch(
+            "app.intake.sort_service._move_workspace_file",
+            new=AsyncMock(side_effect=RuntimeError("storage unavailable")),
+        ),
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert result.counts.refused == 1
+    assert result.records[0].outcome == "refused"
+    assert "Move failed" in (result.records[0].reason or "")
+    assert result.warnings
+
+
 def test_sort_inbox_moves_confident_match() -> None:
     session = AsyncMock()
     source = _workspace_file()

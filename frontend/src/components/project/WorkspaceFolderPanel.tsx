@@ -9,11 +9,9 @@ import type { EvidencePreview, WorkspaceTreeNode } from "@/lib/types/project";
 export function WorkspaceFolderPanel({
   folder,
   evidence,
-  onOpenEvidence,
 }: {
   folder: WorkspaceTreeNode | null;
   evidence: EvidencePreview[];
-  onOpenEvidence: () => void;
 }) {
   if (!folder) {
     return (
@@ -102,11 +100,6 @@ export function WorkspaceFolderPanel({
               <p className="mt-3 text-sm text-muted-foreground">No workflow mapped yet.</p>
             )}
           </section>
-
-          <Button variant="outline" className="w-full" onClick={onOpenEvidence}>
-            <FileText className="size-4" aria-hidden />
-            Open evidence register
-          </Button>
           <Button disabled className="w-full">
             <Play className="size-4" aria-hidden />
             Folder workflow

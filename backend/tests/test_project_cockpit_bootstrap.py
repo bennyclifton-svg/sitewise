@@ -64,7 +64,7 @@ def _draft_summary() -> dict:
         "version": 7,
         "status": "draft",
         "title": "PMP Draft",
-        "workspace_path": "04-projects/demo/00-brief-pmp/pmp.md",
+        "workspace_path": "04-projects/demo/00-brief-pmp/PMP.md",
         "author_user_id": USER_ID,
         "model": "gpt-4o-mini",
         "runtime": "clerk-sitewise",
@@ -110,6 +110,14 @@ def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
             "app.api.projects.get_latest_draft_artifact_summaries",
             new=AsyncMock(return_value={"create_pmp": _draft_summary()}),
         ),
+        patch(
+            "app.api.projects._ensure_pmp_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+        patch(
+            "app.api.projects._ensure_cost_plan_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -126,3 +134,101 @@ def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
     assert payload["latest_drafts"]["create_cost_plan"] is None
     assert payload["latest_drafts"]["sort_files"] is None
     assert "total" in payload["timings_ms"]
+
+
+def test_cockpit_bootstrap_includes_canonical_pmp_path_for_legacy_draft(
+    client: TestClient,
+) -> None:
+    legacy_draft = {
+        **_draft_summary(),
+        "workspace_path": "04-projects/demo/00-brief-pmp/PMP-draft-v07.md",
+    }
+
+    with (
+        patch("app.api.projects.ensure_user_exists", new=AsyncMock()),
+        patch("app.api.projects.ensure_default_project_catalog", new=AsyncMock()),
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.list_projects", new=AsyncMock(return_value=[_project()])),
+        patch(
+            "app.api.projects.list_workspace_files_for_project",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch("app.api.projects._list_project_evidence_previews", new=AsyncMock(return_value=[])),
+        patch(
+            "app.api.projects._platform_knowledge_status",
+            new=AsyncMock(return_value=PlatformKnowledgeStatus(available=False, buckets=[])),
+        ),
+        patch(
+            "app.api.projects.get_latest_draft_artifact_summaries",
+            new=AsyncMock(return_value={"create_pmp": legacy_draft}),
+        ),
+        patch(
+            "app.api.projects._ensure_pmp_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+        patch(
+            "app.api.projects._ensure_cost_plan_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
+
+    assert response.status_code == 200
+    tree = response.json()["workspace_tree"]["tree"]
+    brief_node = next(node for node in tree if node["name"] == "00-brief-pmp")
+    file_names = [child["name"] for child in brief_node["children"] if child["kind"] == "file"]
+    assert "PMP.md" in file_names
+
+
+def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
+    client: TestClient,
+) -> None:
+    cost_plan_draft = {
+        **_draft_summary(),
+        "workflow_type": "create_cost_plan",
+        "title": "Cost Plan Draft",
+        "workspace_path": "04-projects/demo/01-cost/cost_plan_v01.md",
+        "version": 1,
+    }
+
+    with (
+        patch("app.api.projects.ensure_user_exists", new=AsyncMock()),
+        patch("app.api.projects.ensure_default_project_catalog", new=AsyncMock()),
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.list_projects", new=AsyncMock(return_value=[_project()])),
+        patch(
+            "app.api.projects.list_workspace_files_for_project",
+            new=AsyncMock(
+                return_value=[
+                    SimpleNamespace(
+                        workspace_path="04-projects/demo/01-cost/Cost_Plan_v01.draft.xlsx"
+                    )
+                ]
+            ),
+        ),
+        patch("app.api.projects._list_project_evidence_previews", new=AsyncMock(return_value=[])),
+        patch(
+            "app.api.projects._platform_knowledge_status",
+            new=AsyncMock(return_value=PlatformKnowledgeStatus(available=False, buckets=[])),
+        ),
+        patch(
+            "app.api.projects.get_latest_draft_artifact_summaries",
+            new=AsyncMock(return_value={"create_cost_plan": cost_plan_draft}),
+        ),
+        patch(
+            "app.api.projects._ensure_pmp_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+        patch(
+            "app.api.projects._ensure_cost_plan_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
+
+    assert response.status_code == 200
+    tree = response.json()["workspace_tree"]["tree"]
+    cost_node = next(node for node in tree if node["name"] == "01-cost")
+    file_names = [child["name"] for child in cost_node["children"] if child["kind"] == "file"]
+    assert "cost_plan_v01.md" in file_names
+    assert "Cost_Plan_v01.draft.xlsx" in file_names

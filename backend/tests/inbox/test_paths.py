@@ -7,6 +7,7 @@ from app.inbox.paths import (
     sanitize_inbox_relative_path,
     sanitize_filename,
 )
+from app.storage.keys import sanitize_storage_key
 
 
 def test_build_inbox_workspace_path_defaults_to_inbox_root() -> None:
@@ -42,3 +43,28 @@ def test_build_storage_key_scopes_by_project() -> None:
         "04-projects/demo/_inbox/report.pdf",
     )
     assert key.startswith("11111111-1111-1111-1111-111111111111/")
+
+
+def test_sanitize_storage_key_replaces_square_brackets() -> None:
+    sanitized = sanitize_storage_key(
+        "E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
+    )
+    assert "[" not in sanitized
+    assert "]" not in sanitized
+    assert sanitized == "E00 - ELECTRICAL - COVER SHEET - _C1_.pdf"
+
+
+def test_sanitize_storage_key_replaces_tilde_in_windows_short_names() -> None:
+    sanitized = sanitize_storage_key("E01-EL~1.PDF")
+    assert "~" not in sanitized
+    assert sanitized == "E01-EL_1.PDF"
+
+
+def test_build_storage_key_sanitizes_revision_brackets_in_filename() -> None:
+    key = build_storage_key(
+        "11111111-1111-1111-1111-111111111111",
+        "04-projects/demo/_inbox/E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
+    )
+    assert "[" not in key
+    assert "]" not in key
+    assert key.endswith("E00 - ELECTRICAL - COVER SHEET - _C1_.pdf")

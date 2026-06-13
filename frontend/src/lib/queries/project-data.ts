@@ -90,6 +90,16 @@ export function useDeleteEvidence(projectId: string) {
   });
 }
 
+/** Fetch the latest workspace tree and write it into the query cache. */
+export async function reloadProjectWorkspaceTree(
+  queryClient: QueryClient,
+  projectId: string,
+) {
+  const tree = (await api.getProjectWorkspaceTree(projectId)).tree;
+  queryClient.setQueryData(projectKeys.workspaceTree(projectId), tree);
+  return tree;
+}
+
 /** Seed the project-data caches from a cockpit bootstrap response so the
  * dedicated queries render instantly without a second round-trip. */
 export function seedProjectData(

@@ -137,17 +137,22 @@ async def _upload_single_file(
             )
 
     try:
-        await asyncio.to_thread(
+        storage_key = await asyncio.to_thread(
             upload_project_file,
             storage_key=storage_key,
             content=item.content,
             filename=filename,
         )
     except Exception as exc:
-        logger.exception("inbox_storage_upload_failed", workspace_path=workspace_path)
+        logger.exception(
+            "inbox_storage_upload_failed",
+            workspace_path=workspace_path,
+            storage_key=storage_key,
+            error=str(exc),
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to store '{filename}' in object storage",
+            detail=f"Failed to store '{filename}' in object storage: {exc}",
         ) from exc
 
     record = await upsert_workspace_file(

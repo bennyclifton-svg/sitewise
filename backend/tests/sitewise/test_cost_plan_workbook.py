@@ -48,14 +48,14 @@ def test_build_cost_plan_workbook_preserves_sitewise_excel_contract() -> None:
     assert summary["H5"].value == "=SUM(E5:G5)"
     assert summary["K5"].value == (
         '=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C5,'
-        'Invoices!$H$5:$H$500,">="&EOMONTH(K$3,-1)+1,'
-        'Invoices!$H$5:$H$500,"<="&EOMONTH(K$3,0))'
+        'Invoices!$H$5:$H$500,">="&EOMONTH(K$2,-1)+1,'
+        'Invoices!$H$5:$H$500,"<="&EOMONTH(K$2,0))'
     )
     assert summary.column_dimensions["M"].hidden is True
     assert summary.column_dimensions["N"].hidden is True
     assert "CostItemLookup" in loaded.defined_names
     assert "InvoiceBillingMonths" in loaded.defined_names
-    assert _has_validation(summary, "K3", "InvoiceBillingMonths")
+    assert _has_validation(summary, "K2", "InvoiceBillingMonths")
     assert _has_validation(loaded["Invoices"], "F5:F500", "CostItemLookup")
     assert _has_validation(loaded["Variations"], "B5:B500", "CostItemLookup")
 
@@ -70,11 +70,11 @@ def test_workbook_preview_rolls_up_invoice_and_variation_values() -> None:
     summary = loaded["Summary"]
     invoices = loaded["Invoices"]
     variations = loaded["Variations"]
-    summary["K3"] = summary["N14"].value
+    summary["K2"] = summary["N14"].value
 
     invoices["F5"] = "Planning fees"
     invoices["G5"] = 3000
-    invoices["H5"] = summary["K3"].value
+    invoices["H5"] = summary["K2"].value
     variations["B5"] = "Planning fees"
     variations["D5"] = "Forecast"
     variations["E5"] = 1500

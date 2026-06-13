@@ -4,6 +4,7 @@ import structlog
 
 from app.config import settings
 from app.database.supabase import get_service_client
+from app.storage.keys import sanitize_storage_key
 
 logger = structlog.get_logger(__name__)
 
@@ -14,6 +15,7 @@ def _content_type(filename: str) -> str:
 
 
 def upload_project_file(*, storage_key: str, content: bytes, filename: str) -> str:
+    storage_key = sanitize_storage_key(storage_key)
     bucket = settings.supabase_storage_bucket
     client = get_service_client()
     client.storage.from_(bucket).upload(

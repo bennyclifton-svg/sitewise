@@ -133,6 +133,10 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
             new=AsyncMock(return_value=draft),
         ) as create_draft,
         patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value=draft.workspace_path),
+        ),
+        patch(
             "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
             new=AsyncMock(return_value=workbook_metadata),
         ),
@@ -233,6 +237,10 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
             new=AsyncMock(return_value=draft),
         ) as create_draft,
         patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value=draft.workspace_path),
+        ),
+        patch(
             "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
             new=AsyncMock(return_value=workbook_metadata),
         ),
@@ -252,3 +260,88 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
     assert create_draft.await_args.kwargs["provenance_metadata"]["compiler"] == "legacy"
     assert create_draft.await_args.kwargs["runtime"] == RUNTIME_NAME
     assert "model" in {event.step for event in result.trace}
+
+
+def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
+    from app.workflows.create_pmp import WorkflowValidationError
+
+    project = harrison_clarke_cost_project()
+    cost_passages = harrison_clarke_cost_passages(project_slug=project.slug)
+    platform_passages = platform_passages_for_cost_plan(project)
+    draft = mock_cost_plan_draft()
+    narrative = harrison_clarke_cost_narrative()
+    workbook_metadata = {
+        "file_name": "Cost_Plan_v01.draft.xlsx",
+        "workspace_path": "04-projects/test-project-112/01-cost/Cost_Plan_v01.draft.xlsx",
+        "version": 1,
+        "content_hash": "abc123",
+        "size_bytes": 1234,
+        "row_count": 10,
+        "cost_item_lookup_count": 10,
+        "warnings": [],
+        "generated_at": "2026-06-08T00:00:00+00:00",
+    }
+    narrative_mock = AsyncMock(
+        side_effect=[
+            WorkflowValidationError(
+                "Cost plan narrative validation failed: "
+                "next_steps item 3 must include an ISO due date (YYYY-MM-DD)"
+            ),
+            narrative,
+        ]
+    )
+
+    with (
+        patch(
+            "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.list_cost_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
+            new=AsyncMock(return_value=cost_passages),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_platform_documents_by_paths",
+            new=AsyncMock(return_value=(platform_passages, [])),
+        ),
+        patch(
+            "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
+            new=narrative_mock,
+        ),
+        patch(
+            "app.workflows.create_cost_plan._next_version_hint",
+            new=AsyncMock(return_value=1),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.create_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value=draft.workspace_path),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(return_value=workbook_metadata),
+        ),
+    ):
+        result = run_async(
+            run_create_cost_plan_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+            )
+        )
+
+    assert result.status == "complete"
+    assert narrative_mock.await_count == 2
+    retry_events = [
+        event for event in result.trace if event.step == "validation" and event.status == "retry"
+    ]
+    assert len(retry_events) == 1
+    assert "next_steps item 3" in retry_events[0].message

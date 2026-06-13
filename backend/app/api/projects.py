@@ -65,11 +65,24 @@ from app.inbox.split_service import (
     commit_staged_pdf_single,
     split_staged_pdf,
 )
+from app.database.workspace_file import WorkspaceFile
 from app.database.workspace_files import get_workspace_file_by_path, list_workspace_files_for_project
+from app.inbox.paths import is_inbox_workspace_path
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.workspace_tree import build_project_workspace_tree
-from app.workflows.create_cost_plan import run_create_cost_plan_workflow
-from app.workflows.create_pmp import run_create_pmp_workflow
+from app.workflows.create_cost_plan import (
+    draft_workspace_path as cost_plan_draft_workspace_path,
+    is_cost_plan_workflow,
+    run_create_cost_plan_workflow,
+    sync_cost_plan_draft_workspace,
+)
+from app.workflows.create_pmp import (
+    canonical_pmp_workspace_path,
+    draft_workspace_path,
+    is_pmp_workflow,
+    run_create_pmp_workflow,
+    sync_pmp_draft_workspace,
+)
 from app.workflows.sort_files import run_sort_files_workflow
 from app.workflows.update_pmp import run_update_pmp_workflow
 from app.logging import get_logger
@@ -189,6 +202,37 @@ def _evidence_preview_from_values(
     )
 
 
+def _evidence_preview_from_workspace_file(record: WorkspaceFile) -> EvidencePreview:
+    return EvidencePreview(
+        id=record.id,
+        title=record.filename,
+        filename=record.filename,
+        relative_path=record.workspace_path,
+        source_type="project_evidence",
+        document_class="inbox_pending",
+        excerpt="",
+        content=None,
+        document_number=None,
+        revision=None,
+        category=None,
+    )
+
+
+def _append_unindexed_inbox_workspace_files(
+    previews: list[EvidencePreview],
+    workspace_files: list[WorkspaceFile],
+) -> list[EvidencePreview]:
+    indexed_paths = {
+        preview.relative_path.replace("\\", "/") for preview in previews
+    }
+    for record in workspace_files:
+        path = record.workspace_path.replace("\\", "/")
+        if not _is_inbox_path(path) or path in indexed_paths:
+            continue
+        previews.append(_evidence_preview_from_workspace_file(record))
+    return previews
+
+
 def _evidence_preview_from_document(
     document: SourceDocument,
     *,
@@ -214,7 +258,7 @@ def _evidence_preview_from_document(
 
 
 def _is_inbox_path(relative_path: str) -> bool:
-    return "/_inbox/" in relative_path.replace("\\", "/")
+    return is_inbox_workspace_path(relative_path)
 
 
 def _filter_stale_inbox_documents(
@@ -234,11 +278,83 @@ def _filter_stale_inbox_documents(
     ]
 
 
+async def _ensure_pmp_workspace_file(
+    session: AsyncSession,
+    *,
+    project,
+    workspace_files,
+    draft_summaries: dict[str, DraftArtifactSummary | None],
+) -> list:
+    pmp_summary = draft_summaries.get("create_pmp")
+    if pmp_summary is None:
+        return workspace_files
+
+    canonical_path = draft_workspace_path(project, pmp_summary.version)
+    if any(record.workspace_path == canonical_path for record in workspace_files):
+        return workspace_files
+
+    draft = await get_latest_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type="create_pmp",
+    )
+    if draft is None:
+        return workspace_files
+
+    await sync_pmp_draft_workspace(session, project=project, draft=draft)
+    return await list_workspace_files_for_project(session, project_id=project.id)
+
+
+async def _ensure_cost_plan_workspace_file(
+    session: AsyncSession,
+    *,
+    project,
+    workspace_files,
+    draft_summaries: dict[str, DraftArtifactSummary | None],
+) -> list:
+    cost_plan_summary = draft_summaries.get("create_cost_plan")
+    if cost_plan_summary is None:
+        return workspace_files
+
+    canonical_path = cost_plan_draft_workspace_path(project, cost_plan_summary.version)
+    if any(record.workspace_path == canonical_path for record in workspace_files):
+        return workspace_files
+
+    draft = await get_latest_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type="create_cost_plan",
+    )
+    if draft is None:
+        return workspace_files
+
+    await sync_cost_plan_draft_workspace(session, project=project, draft=draft)
+    return await list_workspace_files_for_project(session, project_id=project.id)
+
+
+def _workspace_paths_for_tree(
+    workspace_files,
+    *,
+    draft_summaries: dict[str, DraftArtifactSummary | None],
+) -> list[str]:
+    paths = {record.workspace_path for record in workspace_files}
+    for draft in draft_summaries.values():
+        if draft is None:
+            continue
+        paths.add(draft.workspace_path)
+        if is_pmp_workflow(draft.workflow_type):
+            canonical = canonical_pmp_workspace_path(draft.workspace_path)
+            if canonical is not None:
+                paths.add(canonical)
+    return sorted(paths)
+
+
 async def _list_project_evidence_previews(
     session: AsyncSession,
     *,
     project_slug: str,
     workspace_paths: set[str],
+    workspace_files: list[WorkspaceFile] | None = None,
 ) -> list[EvidencePreview]:
     content_excerpt = func.left(SourceDocument.normalized_content, 720).label(
         "content_excerpt"
@@ -286,6 +402,9 @@ async def _list_project_evidence_previews(
                 excerpt_source=row.content_excerpt or "",
             )
         )
+    if workspace_files:
+        previews = _append_unindexed_inbox_workspace_files(previews, workspace_files)
+        previews.sort(key=lambda preview: preview.relative_path)
     return previews
 
 
@@ -400,31 +519,6 @@ async def get_project_cockpit_bootstrap(
     projects = await list_projects(session, user.id)
     timings_ms["projects"] = _elapsed_ms(step_start)
 
-    step_start = time.perf_counter()
-    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
-    workspace_paths = {record.workspace_path for record in workspace_files}
-    workspace_tree = ProjectWorkspaceTreeResponse(
-        project_id=project.id,
-        root_path=project.workspace_path,
-        tree=build_project_workspace_tree(
-            root_path=project.workspace_path,
-            workspace_paths=[record.workspace_path for record in workspace_files],
-        ),
-    )
-    timings_ms["workspace_tree"] = _elapsed_ms(step_start)
-
-    step_start = time.perf_counter()
-    evidence = await _list_project_evidence_previews(
-        session,
-        project_slug=project.slug,
-        workspace_paths=workspace_paths,
-    )
-    timings_ms["evidence"] = _elapsed_ms(step_start)
-
-    step_start = time.perf_counter()
-    platform_knowledge = await _platform_knowledge_status(session)
-    timings_ms["platform_knowledge"] = _elapsed_ms(step_start)
-
     workflow_types = ["create_pmp", "create_cost_plan", "sort_files"]
     step_start = time.perf_counter()
     draft_rows = await get_latest_draft_artifact_summaries(
@@ -441,6 +535,48 @@ async def get_project_cockpit_bootstrap(
         for workflow_type in workflow_types
     }
     timings_ms["draft_summaries"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    workspace_files = await _ensure_pmp_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=latest_drafts,
+    )
+    workspace_files = await _ensure_cost_plan_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=latest_drafts,
+    )
+    workspace_path_list = _workspace_paths_for_tree(
+        workspace_files,
+        draft_summaries=latest_drafts,
+    )
+    workspace_paths = set(workspace_path_list)
+    workspace_tree = ProjectWorkspaceTreeResponse(
+        project_id=project.id,
+        root_path=project.workspace_path,
+        tree=build_project_workspace_tree(
+            root_path=project.workspace_path,
+            workspace_paths=workspace_path_list,
+        ),
+    )
+    timings_ms["workspace_tree"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    evidence = await _list_project_evidence_previews(
+        session,
+        project_slug=project.slug,
+        workspace_paths=workspace_paths,
+        workspace_files=workspace_files,
+    )
+    timings_ms["evidence"] = _elapsed_ms(step_start)
+
+    step_start = time.perf_counter()
+    platform_knowledge = await _platform_knowledge_status(session)
+    timings_ms["platform_knowledge"] = _elapsed_ms(step_start)
     timings_ms["total"] = _elapsed_ms(total_start)
 
     summary = _project_summary(project)
@@ -473,12 +609,40 @@ async def get_project_workspace_tree(
 ) -> ProjectWorkspaceTreeResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    draft_rows = await get_latest_draft_artifact_summaries(
+        session,
+        project_id=project.id,
+        workflow_types=["create_pmp", "create_cost_plan", "sort_files"],
+    )
+    draft_summaries = {
+        workflow_type: (
+            DraftArtifactSummary.model_validate(draft_rows[workflow_type])
+            if workflow_type in draft_rows
+            else None
+        )
+        for workflow_type in ["create_pmp", "create_cost_plan", "sort_files"]
+    }
+    workspace_files = await _ensure_pmp_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=draft_summaries,
+    )
+    workspace_files = await _ensure_cost_plan_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=draft_summaries,
+    )
     return ProjectWorkspaceTreeResponse(
         project_id=project.id,
         root_path=project.workspace_path,
         tree=build_project_workspace_tree(
             root_path=project.workspace_path,
-            workspace_paths=[record.workspace_path for record in workspace_files],
+            workspace_paths=_workspace_paths_for_tree(
+                workspace_files,
+                draft_summaries=draft_summaries,
+            ),
         ),
     )
 
@@ -607,6 +771,7 @@ async def get_project_evidence(
         session,
         project_slug=project.slug,
         workspace_paths=workspace_paths,
+        workspace_files=workspace_files,
     )
     return {"evidence": previews}
 
@@ -627,12 +792,21 @@ async def get_project_evidence_document(
         )
     )
     document = result.scalar_one_or_none()
-    if document is None:
+    if document is not None:
+        return _evidence_preview_from_document(document, include_content=True)
+
+    workspace_file = await session.scalar(
+        select(WorkspaceFile).where(
+            WorkspaceFile.id == evidence_id,
+            WorkspaceFile.project_id == project.id,
+        )
+    )
+    if workspace_file is None or not _is_inbox_path(workspace_file.workspace_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Evidence not found",
         )
-    return _evidence_preview_from_document(document, include_content=True)
+    return _evidence_preview_from_workspace_file(workspace_file)
 
 
 @router.delete(
@@ -871,6 +1045,20 @@ async def patch_project_draft(
         draft,
         content_markdown=body.content_markdown,
     )
+    if is_pmp_workflow(updated.workflow_type):
+        await sync_pmp_draft_workspace(
+            session,
+            project=project,
+            draft=updated,
+            markdown=body.content_markdown,
+        )
+    elif is_cost_plan_workflow(updated.workflow_type):
+        await sync_cost_plan_draft_workspace(
+            session,
+            project=project,
+            draft=updated,
+            markdown=body.content_markdown,
+        )
     return DraftArtifactResponse.model_validate(updated)
 
 
@@ -890,6 +1078,8 @@ async def post_accept_project_draft(
             detail="Draft not found",
         )
     accepted = await accept_draft(session, draft)
+    if is_pmp_workflow(accepted.workflow_type):
+        await sync_pmp_draft_workspace(session, project=project, draft=accepted)
     return DraftArtifactResponse.model_validate(accepted)
 
 

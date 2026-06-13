@@ -592,6 +592,68 @@ def workbook_workspace_path(project: Project, version: int) -> str:
     return f"{project.workspace_path}/01-cost/Cost_Plan_v{version:02d}.draft.xlsx"
 
 
+COST_PLAN_WORKFLOW_TYPES = frozenset({WORKFLOW_TYPE})
+
+
+def is_cost_plan_workflow(workflow_type: str) -> bool:
+    return workflow_type in COST_PLAN_WORKFLOW_TYPES
+
+
+async def save_cost_plan_markdown_workspace_file(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft: DraftArtifact,
+    markdown: str,
+) -> str:
+    workspace_path = draft_workspace_path(project, draft.version)
+    filename = Path(workspace_path).name
+    content = markdown.encode("utf-8")
+    storage_key = build_storage_key(str(project.id), workspace_path)
+    content_hash = bytes_content_hash(content)
+
+    await asyncio.to_thread(
+        upload_project_file,
+        storage_key=storage_key,
+        content=content,
+        filename=filename,
+    )
+    await upsert_workspace_file(
+        session,
+        project_id=project.id,
+        workspace_path=workspace_path,
+        filename=filename,
+        storage_bucket=settings.supabase_storage_bucket,
+        storage_key=storage_key,
+        content_hash=content_hash,
+        size_bytes=len(content),
+        ingest_status="generated",
+        ingest_error=None,
+        source_document_id=None,
+    )
+    return workspace_path
+
+
+async def sync_cost_plan_draft_workspace(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft: DraftArtifact,
+    markdown: str | None = None,
+) -> str:
+    canonical_path = draft_workspace_path(project, draft.version)
+    if draft.workspace_path != canonical_path:
+        draft.workspace_path = canonical_path
+        await session.flush()
+        await session.refresh(draft)
+    return await save_cost_plan_markdown_workspace_file(
+        session,
+        project=project,
+        draft=draft,
+        markdown=markdown or draft.content_markdown,
+    )
+
+
 async def save_cost_plan_workbook_artifact(
     session: AsyncSession,
     *,
@@ -715,13 +777,27 @@ async def run_create_cost_plan_hybrid(
     validation_feedback: str | None = None
     run_date = date.today()
     for attempt in range(HYBRID_NARRATIVE_MAX_ATTEMPTS):
-        narrative = await run_cost_plan_narrative_model(
-            project=project,
-            pack=pack,
-            run_date=run_date,
-            validation_feedback=validation_feedback,
-            chat_model=chat_model,
-        )
+        try:
+            narrative = await run_cost_plan_narrative_model(
+                project=project,
+                pack=pack,
+                run_date=run_date,
+                validation_feedback=validation_feedback,
+                chat_model=chat_model,
+            )
+        except WorkflowValidationError as exc:
+            if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
+                validation_feedback = str(exc)
+                trace.append(
+                    _trace(
+                        "validation",
+                        "retry",
+                        f"Cost plan narrative validation failed — retrying: {validation_feedback}",
+                        attempt=attempt + 1,
+                    )
+                )
+                continue
+            raise
         trace.append(
             _trace(
                 "narrative",
@@ -776,7 +852,7 @@ async def run_create_cost_plan_hybrid(
             raise
 
     msg = "Hybrid cost plan compiler exhausted narrative retries"
-    raise RuntimeError(msg)
+    raise WorkflowValidationError(msg)
 
 
 async def run_create_cost_plan_workflow(
@@ -994,6 +1070,12 @@ async def run_create_cost_plan_workflow(
         model=resolved_model,
         runtime=runtime_name,
         provenance_metadata=provenance_metadata,
+    )
+    await sync_cost_plan_draft_workspace(
+        session,
+        project=project,
+        draft=draft,
+        markdown=output.markdown,
     )
     trace.append(
         _trace(

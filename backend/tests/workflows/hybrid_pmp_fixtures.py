@@ -169,7 +169,7 @@ def mock_draft_artifact(**overrides: Any) -> AsyncMock:
     draft.version = 1
     draft.status = "draft"
     draft.title = "Project Management Plan"
-    draft.workspace_path = "04-projects/test-project-112/00-brief-pmp/PMP-draft-v01.md"
+    draft.workspace_path = "04-projects/test-project-112/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = "# Project Management Plan"
     draft.model = "gpt-4o-mini"

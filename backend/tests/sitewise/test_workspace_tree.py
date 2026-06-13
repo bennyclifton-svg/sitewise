@@ -30,8 +30,18 @@ def test_workspace_tree_preserves_template_children_and_adds_inbox() -> None:
         workspace_paths=[f"{ROOT}/_inbox/report.pdf"],
     )
 
+    assert tree[0].name == "_inbox"
+    assert tree[1].name == "00-brief-pmp"
+
     cost = next(node for node in tree if node.name == "01-cost")
     assert {child.name for child in cost.children} == {"invoices", "variations"}
 
     inbox = next(node for node in tree if node.name == "_inbox")
     assert inbox.document_count == 1
+
+
+def test_workspace_tree_always_includes_empty_inbox_folder() -> None:
+    tree = build_project_workspace_tree(root_path=ROOT, workspace_paths=[])
+
+    assert tree[0].name == "_inbox"
+    assert tree[0].document_count == 0

@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     polar_professional_product_id: str | None = None
     polar_checkout_success_path: str = "/billing?checkout=success"
     polar_customer_portal_return_path: str = "/billing"
+    tender_model_extract: str = "gpt-4.1-mini"
+    tender_extraction_confidence_threshold: float = 0.85
+    tender_reconciliation_tolerance: float = 0.01
 
     @field_validator("database_url")
     @classmethod

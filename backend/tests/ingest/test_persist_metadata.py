@@ -74,6 +74,40 @@ def test_merged_metadata_uses_title_block_preview() -> None:
     assert metadata["metadata_confidence"] == "high"
 
 
+def test_merged_metadata_parses_electrical_windows_short_name_from_title_block() -> None:
+    entry = _entry(
+        "delivery-demo/03-design/electrical/E01-EL~1.PDF",
+    )
+    context = infer_project_context(entry.relative_path)
+    from ingest.classify import classify_entry
+
+    plan = build_ingest_plan(entry, context, classify_entry(entry))
+    assert plan.extractor == "pdf_drawing"
+    extracted = ExtractedDocument(
+        normalized_content=(
+            "# Drawing register: E01-EL~1.PDF\n\n"
+            "## Title block\n\n"
+            "Drawing No. E01\n"
+            "Drawing Title GENERAL NOTES & LEGEND\n"
+            "Revision C1"
+        ),
+        drawing_identity=DrawingIdentity(
+            drawing_number="E01",
+            revision=None,
+            title=None,
+        ),
+    )
+
+    metadata = _merged_metadata(plan, extracted)
+
+    assert metadata["document_number"] == "E01"
+    assert metadata["title"] == "GENERAL NOTES & LEGEND"
+    assert metadata["revision"] == "C1"
+    assert metadata["discipline"] == "Electrical"
+    assert metadata["metadata_confidence"] == "high"
+    assert metadata["canonical_file_name"] == "E01 - GENERAL NOTES & LEGEND Rev C1.PDF"
+
+
 def test_merged_metadata_preserves_classification_keys() -> None:
     entry = _entry("procurement-blockb/06 EVALUATION/matrix.pdf")
     context = infer_project_context(entry.relative_path)

@@ -136,6 +136,8 @@ def _child_sort_key(node: _MutableNode) -> tuple[int, str]:
 
 
 def _top_level_sort_key(node: _MutableNode) -> tuple[int, int | str]:
+    if node.name == "_inbox":
+        return (-1, 0)
     try:
         return (0, _TEMPLATE_ORDER.index(node.name))
     except ValueError:
@@ -172,12 +174,21 @@ def _to_schema(node: _MutableNode) -> WorkspaceTreeNode:
     )
 
 
+def _seed_inbox_folder(root_path: str) -> _MutableNode:
+    path = f"{root_path.rstrip('/')}/_inbox"
+    return _MutableNode(
+        name="_inbox",
+        path=path,
+        description=_dynamic_folder_description("_inbox", None),
+    )
+
+
 def build_project_workspace_tree(
     *,
     root_path: str,
     workspace_paths: list[str],
 ) -> list[WorkspaceTreeNode]:
-    roots: dict[str, _MutableNode] = {}
+    roots: dict[str, _MutableNode] = {"_inbox": _seed_inbox_folder(root_path)}
     for template_node in SITEWISE_PROJECT_TEMPLATE:
         seeded = _seed_from_template(template_node, root_path)
         roots[seeded.name] = seeded
