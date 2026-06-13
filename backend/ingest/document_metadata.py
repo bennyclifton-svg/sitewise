@@ -133,7 +133,39 @@ def parse_document_metadata(
     extension = _extract_extension(base_name)
     stem = base_name[: len(base_name) - (len(extension) + 1 if extension else 0)]
 
+    from_preview = _parse_from_preview(preview_snippet) if preview_snippet else None
+    from_file_name = _parse_from_file_name(stem)
+
     if _is_unparseable_file_name(base_name):
+        stub = _parse_windows_short_name(stem)
+        if from_preview:
+            merged = _merge_parsed_fields(
+                from_preview,
+                stub
+                or _ParsedFields(
+                    document_number="",
+                    title="",
+                    revision="Current",
+                    confidence="low",
+                ),
+            )
+            return _build_metadata(merged, base_name, filed_path, extension, source_path)
+        if stub:
+            # The Windows 8.3 alias hides the title, but the sheet-number prefix
+            # (e.g. "E01") is reliable. Record it for the register while keeping
+            # low confidence so the file is not renamed on a guessed title.
+            return _build_metadata(
+                _ParsedFields(
+                    document_number=stub.document_number,
+                    title="",
+                    revision="Current",
+                    confidence="low",
+                ),
+                base_name,
+                filed_path,
+                extension,
+                source_path,
+            )
         return _build_metadata(
             _ParsedFields(
                 document_number="",
@@ -147,8 +179,6 @@ def parse_document_metadata(
             source_path,
         )
 
-    from_preview = _parse_from_preview(preview_snippet) if preview_snippet else None
-    from_file_name = _parse_from_file_name(stem)
     merged = _merge_parsed_fields(from_preview, from_file_name)
 
     return _build_metadata(merged, base_name, filed_path, extension, source_path)
@@ -181,22 +211,26 @@ def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None
             ],
         )
     )
-    title = line_fields.get("title") or _extract_label_value(
-        compact,
-        [
-            re.compile(
-                r"(?:drawing|document|report)\s+title\s+(?!block\b)(.{3,120}?)(?:\s+(?:revision|rev|drawn|scale|date|project|checked|approved)\b|$)",
-                re.I,
-            ),
-            re.compile(
-                r"\btitle\s+(?!block\b)(.{3,120}?)(?:\s+(?:revision|rev|drawn|scale|date|project|checked|approved)\b|$)",
-                re.I,
-            ),
-            re.compile(
-                r"\bdescription\s*[:.]?\s*(.{3,120}?)(?:\s+(?:revision|rev|drawn|scale|date|project|checked|approved)\b|$)",
-                re.I,
-            ),
-        ],
+    title = (
+        line_fields.get("title")
+        or _extract_label_value(
+            compact,
+            [
+                re.compile(
+                    r"(?:drawing|document|report)\s+title\s+(?!block\b)(.{3,120}?)(?:\s+(?:revision|rev|drawn|scale|date|project|checked|approved)\b|$)",
+                    re.I,
+                ),
+                re.compile(
+                    r"\btitle\s+(?!block\b)(.{3,120}?)(?:\s+(?:revision|rev|drawn|scale|date|project|checked|approved)\b|$)",
+                    re.I,
+                ),
+                re.compile(
+                    r"\bdescription\s*[:.]?\s*(.{3,120}?)(?:\s+(?:revision|rev|drawn|scale|date|project|checked|approved)\b|$)",
+                    re.I,
+                ),
+            ],
+        )
+        or _title_above_scale(text)
     )
     revision = line_fields.get("revision") or _extract_label_value(
         compact,
@@ -648,18 +682,66 @@ def _extract_label_value(text: str, patterns: list[re.Pattern[str]]) -> str | No
     return None
 
 
+# Words that only ever appear as title-block *labels* or boilerplate, never as a
+# real document number / title / revision value. CAD title blocks (ArchiCAD,
+# Revit) often emit every label first and every value second, so a naive
+# "label then next line" pairing captures one label as another label's value
+# (e.g. "SHEET NUMBER" -> "SHEET TITLE"). A value made up entirely of these
+# words is noise regardless of how many words it has.
+_TITLE_BLOCK_LABEL_WORDS = frozenset(
+    {
+        "scale", "date", "drawn", "checked", "approved", "sheet", "size",
+        "format", "project", "job", "title", "description", "status", "stage",
+        "client", "revision", "rev", "issue", "version", "note", "notes",
+        "drawing", "document", "report", "reference", "ref", "number", "no",
+        "consultant", "contractor", "plot", "designed", "design", "datum",
+        "north", "dwg", "drg", "amendment", "amendments", "builder", "architect",
+        "engineer",
+        "at", "as", "not", "for", "use", "tbc", "tba", "nil", "none",
+    }
+)
+
+
 def _is_title_block_noise_value(value: str) -> bool:
     cleaned = re.sub(r"[:.\s]+$", "", value).strip()
-    return bool(
-        re.match(
-            r"^(?:scale|date|drawn|checked|approved|sheet|size|format|project|job|title|description"
-            r"|status|stage|client|revision|rev|issue|version|notes?|drawing|document|report"
-            r"|reference|number|consultant|contractor"
-            r"|at|as|not|for|use|n/a|tbc|tba|nil|none)$",
-            cleaned,
-            re.I,
-        )
-    )
+    if not cleaned:
+        return True
+    if re.match(r"^n/?a$", cleaned, re.I):
+        return True
+    words = re.findall(r"[A-Za-z]+", cleaned)
+    if not words:
+        return False
+    return all(word.lower() in _TITLE_BLOCK_LABEL_WORDS for word in words)
+
+
+_STANDALONE_SCALE_RE = re.compile(r"^\d{1,4}\s*:\s*\d{1,4}$")
+
+
+def _is_plausible_sheet_title(value: str) -> bool:
+    if not value or len(value) < 4 or len(value) > 80:
+        return False
+    if _is_title_block_noise_value(value):
+        return False
+    words = re.findall(r"[A-Za-z]{3,}", value)
+    return any(word.lower() not in _TITLE_BLOCK_LABEL_WORDS for word in words)
+
+
+def _title_above_scale(text: str) -> str | None:
+    """Recover the sheet title from CAD title blocks where labels and values are
+    graphically decoupled (all labels first, then values). In those blocks the
+    sheet title sits on the line directly above the drawing scale, which prints
+    as a standalone "1:50"/"1:100" token near the sheet number. Used only as a
+    last resort when label-based extraction yields no title.
+    """
+    lines = [line.strip() for line in re.split(r"\r?\n", text) if line.strip()]
+    best: str | None = None
+    for index, line in enumerate(lines):
+        if index == 0 or not _STANDALONE_SCALE_RE.match(line):
+            continue
+        candidate = _clean_title(lines[index - 1])
+        if _is_plausible_sheet_title(candidate):
+            best = candidate
+    return best
 
 
 def _expand_ctmp_title_from_text(text: str, existing_title: str | None = None) -> str | None:
@@ -679,6 +761,19 @@ def _expand_ctmp_title_from_text(text: str, existing_title: str | None = None) -
     if status_match:
         return f"Construction Traffic Management Plan ({_clean_title(status_match.group(1))})"
     return "Construction Traffic Management Plan"
+
+
+def _parse_windows_short_name(stem: str) -> _ParsedFields | None:
+    """Windows 8.3 aliases such as E01-EL~1.PDF — sheet prefix only, never the title."""
+    match = re.match(r"^(E\d{2})-[A-Z0-9]{2}~\d+$", stem, re.I)
+    if not match:
+        return None
+    return _ParsedFields(
+        document_number=match.group(1).upper(),
+        title="",
+        revision="Current",
+        confidence="medium",
+    )
 
 
 def _parse_from_file_name(stem: str) -> _ParsedFields:

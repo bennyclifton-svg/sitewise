@@ -4,14 +4,14 @@ import { Link } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
-import { EvidenceDetailPanel } from "@/components/project/EvidenceDetailPanel";
+import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
+import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { isMarkdownFilename } from "@/lib/markdown";
 import type {
   DraftArtifact,
   EvidencePreview,
@@ -116,6 +116,7 @@ const previewEvidence: EvidencePreview[] = [
 const previewWorkspaceTree: WorkspaceTreeNode[] = [
   templateNode("00-brief-pmp", "04-projects/sitewise-preview/00-brief-pmp", "Brief, project setup, and PMP drafts.", ["create_pmp"], [
     fileNode("client-brief.md", "04-projects/sitewise-preview/00-brief-pmp/client-brief.md"),
+    fileNode("PMP.md", "04-projects/sitewise-preview/00-brief-pmp/PMP.md"),
   ]),
   templateNode("01-cost", "04-projects/sitewise-preview/01-cost", "Cost plans, claims, invoices, and variations.", ["create_cost_plan"], [
     fileNode("cost-planning-note.md", "04-projects/sitewise-preview/01-cost/cost-planning-note.md"),
@@ -178,7 +179,7 @@ const previewDraft: DraftArtifact = {
   version: 2,
   status: "draft",
   title: "Preview Project Management Plan",
-  workspace_path: "04-projects/sitewise-preview/00-brief-pmp/PMP-draft-v02.md",
+  workspace_path: "04-projects/sitewise-preview/00-brief-pmp/PMP.md",
   author_user_id: "preview-user",
   content_markdown: [
     "# Preview Project Management Plan",
@@ -221,19 +222,32 @@ export function CockpitPreviewPage() {
     previewEvidence.find((item) => item.id === selectedEvidenceId) ?? previewEvidence[0];
   const selectedFolder = findWorkspaceNode(previewWorkspaceTree, selectedWorkspacePath);
 
-  function selectEvidence(evidenceId: string) {
+  function selectEvidenceFromRepository(evidenceId: string) {
     setSelectedEvidenceId(evidenceId);
-    setActiveView("evidence");
+    const item = previewEvidence.find((candidate) => candidate.id === evidenceId);
+    if (item) {
+      setSelectedWorkspacePath(normalizeWorkspacePath(item.relative_path));
+    }
   }
 
   function selectWorkspacePath(path: string) {
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(previewWorkspaceTree, path);
-    if (selectedNode?.kind === "file" && isMarkdownFilename(selectedNode.name)) {
+    if (selectedNode?.kind === "file") {
+      if (isPmpWorkspaceFile(selectedNode.path)) {
+        setSelectedWorkflowId("create-pmp");
+        setActiveView("draft");
+        return;
+      }
+      if (isCostPlanWorkspaceFile(selectedNode.path)) {
+        setSelectedWorkflowId("cost-plan");
+        setActiveView("draft");
+        return;
+      }
       const selectedDocument = findEvidenceByPath(previewEvidence, selectedNode.path);
       if (selectedDocument) {
         setSelectedEvidenceId(selectedDocument.id);
-        setActiveView("evidence");
+        setActiveView("file");
         return;
       }
     }
@@ -242,15 +256,13 @@ export function CockpitPreviewPage() {
 
   return (
     <ProjectShell
+      onShowWorkbench={() => setActiveView("workbench")}
       leftNav={
         <ProjectLeftNav
           project={previewProject}
           projects={previewProjects}
           projectsLoading={false}
           platformStatus={platformStatus}
-          latestDraft={previewDraft}
-          activeView={activeView}
-          evidenceCount={previewEvidence.length}
           workspaceTree={previewWorkspaceTree}
           selectedWorkspacePath={selectedWorkspacePath}
           onViewChange={setActiveView}
@@ -263,7 +275,7 @@ export function CockpitPreviewPage() {
           projectId="00000000-0000-0000-0000-000000000000"
           evidence={previewEvidence}
           selectedEvidenceId={selectedEvidence.id}
-          onSelectEvidence={selectEvidence}
+          onSelectEvidence={selectEvidenceFromRepository}
           onUploadComplete={async () => {}}
         />
       }
@@ -302,7 +314,6 @@ export function CockpitPreviewPage() {
           onRunCreateCostPlan={() => setActiveView("draft")}
           onRunSortFiles={() => undefined}
           onOpenDraft={() => setActiveView("draft")}
-          onOpenEvidence={() => setActiveView("evidence")}
           inboxCount={0}
           sortFilesResult={null}
           sortFilesDraft={null}
@@ -310,20 +321,11 @@ export function CockpitPreviewPage() {
           isRunningSortFiles={false}
         />
       ) : null}
-      {activeView === "evidence" ? (
-        <EvidenceDetailPanel
-          projectId={previewProject.id}
-          evidence={previewEvidence}
-          selectedEvidence={selectedEvidence}
-          onSelectEvidence={selectEvidence}
-        />
+      {activeView === "file" ? (
+        <WorkspaceFilePanel projectId={previewProject.id} evidence={selectedEvidence} />
       ) : null}
       {activeView === "folder" ? (
-        <WorkspaceFolderPanel
-          folder={selectedFolder}
-          evidence={previewEvidence}
-          onOpenEvidence={() => setActiveView("evidence")}
-        />
+        <WorkspaceFolderPanel folder={selectedFolder} evidence={previewEvidence} />
       ) : null}
       {activeView === "draft" ? (
         <DraftReviewPanel

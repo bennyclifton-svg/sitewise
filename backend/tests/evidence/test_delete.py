@@ -106,6 +106,28 @@ def test_delete_project_evidence_missing_document_raises_404(mock_session: Async
     run_async(_run())
 
 
+def test_delete_project_evidence_removes_unindexed_inbox_workspace_file(
+    mock_session: AsyncMock,
+) -> None:
+    workspace_file = SimpleNamespace(
+        id=EVIDENCE_ID,
+        storage_key="demo/_inbox/cover.pdf",
+        workspace_path="04-projects/demo/_inbox/cover.pdf",
+    )
+    mock_session.scalar = AsyncMock(side_effect=[None, workspace_file])
+
+    async def _run() -> None:
+        storage_keys = await delete_project_evidence(
+            mock_session, project=_project(), evidence_id=EVIDENCE_ID
+        )
+
+        assert storage_keys == ["demo/_inbox/cover.pdf"]
+        assert mock_session.execute.await_count == 1
+        mock_session.commit.assert_awaited_once()
+
+    run_async(_run())
+
+
 def test_delete_evidence_endpoint_requires_project_ownership(
     client: TestClient, mock_session: AsyncMock
 ) -> None:

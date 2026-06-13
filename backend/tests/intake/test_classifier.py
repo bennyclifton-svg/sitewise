@@ -56,6 +56,43 @@ def test_classify_electrical_sheet_prefix() -> None:
     assert destination == "03-design/electrical"
 
 
+def test_classify_electrical_package_folder_alias() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/Electrical/lighting.pdf",
+        filename="lighting.pdf",
+        project_workspace_path=PROJECT,
+    )
+    assert destination == "03-design/electrical"
+
+
+def test_classify_electrical_keyword_in_filename() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/electrical drawing.pdf",
+        filename="electrical drawing.pdf",
+        project_workspace_path=PROJECT,
+    )
+    assert destination == "03-design/electrical"
+
+
+def test_classify_electrical_from_preview_title_block() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/drawing.pdf",
+        filename="drawing.pdf",
+        project_workspace_path=PROJECT,
+        preview_snippet="E03 - ELECTRICAL - LEVEL L1 - LIGHTING LAYOUT - REV C1",
+    )
+    assert destination == "03-design/electrical"
+
+
+def test_classify_split_sheet_filename_with_electrical_caption() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/drawing set - 01 Electrical Plan.pdf",
+        filename="drawing set - 01 Electrical Plan.pdf",
+        project_workspace_path=PROJECT,
+    )
+    assert destination == "03-design/electrical"
+
+
 def test_classify_returns_none_for_unknown_files() -> None:
     destination = classify_inbox_destination(
         workspace_path=f"{PROJECT}/_inbox/random-notes.txt",

@@ -287,6 +287,78 @@ def test_keeps_windows_short_names_unchanged():
     )
     assert result.canonical_file_name == "E01-EL~1.PDF"
     assert result.confidence == "low"
+    assert result.document_number == "E01"
+
+
+def test_parses_electrical_windows_short_name_from_title_block():
+    result = _parse(
+        file_name="E01-EL~1.PDF",
+        filed_path="04-projects/demo/03-design/electrical",
+        source_path="04-projects/demo/_inbox/ELEC/E01-EL~1.PDF",
+        preview_snippet="\n".join(
+            [
+                "Drawing No. E01",
+                "Drawing Title GENERAL NOTES & LEGEND",
+                "Revision C1",
+            ]
+        ),
+    )
+    assert result.document_number == "E01"
+    assert result.title == "GENERAL NOTES & LEGEND"
+    assert result.revision == "C1"
+    assert result.discipline == "Electrical"
+    assert result.confidence == "high"
+    assert result.canonical_file_name == "E01 - GENERAL NOTES & LEGEND Rev C1.PDF"
+
+
+def test_rejects_grouped_label_titleblock_as_garbage_metadata():
+    # CAD title blocks that print every label first then every value second must
+    # not pair one label with the next label (e.g. SHEET NUMBER -> SHEET TITLE).
+    preview = "\n".join(
+        [
+            "SHEET NUMBER",
+            "PROJECT NUMBER",
+            "SHEET TITLE",
+            "ISSUE",
+            "SHEET SIZE",
+            "SHEET SCALE",
+        ]
+    )
+    result = _parse(
+        file_name="E01-EL~1.PDF",
+        filed_path="04-projects/demo/03-design/electrical",
+        source_path="04-projects/demo/_inbox/ELEC/E01-EL~1.PDF",
+        preview_snippet=preview,
+    )
+    assert result.document_number == "E01"
+    assert result.title == ""
+    assert "SHEET" not in result.title.upper()
+
+
+def test_recovers_title_from_decoupled_titleblock_via_scale_anchor():
+    # Sheet title sits directly above the standalone scale token near the sheet
+    # number; recover it when label pairing yields nothing.
+    preview = "\n".join(
+        [
+            "SHEET NUMBER",
+            "SHEET TITLE",
+            "SHEET SCALE",
+            "ELECTRICAL SERVICES",
+            "LEVEL C1 CAR PARK - LIGHTING LAYOUT",
+            "1:50",
+            "E01",
+        ]
+    )
+    result = _parse(
+        file_name="E01-EL~1.PDF",
+        filed_path="04-projects/demo/03-design/electrical",
+        source_path="04-projects/demo/_inbox/ELEC/E01-EL~1.PDF",
+        preview_snippet=preview,
+    )
+    assert result.document_number == "E01"
+    assert result.title == "LEVEL C1 CAR PARK - LIGHTING LAYOUT"
+    assert result.discipline == "Electrical"
+    assert result.canonical_file_name == "E01 - LEVEL C1 CAR PARK - LIGHTING LAYOUT.PDF"
 
 
 def test_parses_petersham_corpus_with_strong_coverage():

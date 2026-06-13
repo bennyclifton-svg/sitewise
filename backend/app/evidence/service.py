@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.project import Project
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
+from app.inbox.paths import is_inbox_workspace_path
 
 logger = structlog.get_logger(__name__)
 
@@ -38,10 +39,31 @@ async def delete_project_evidence(
         )
     )
     if document is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
+        workspace_file = await session.scalar(
+            select(WorkspaceFile).where(
+                WorkspaceFile.id == evidence_id,
+                WorkspaceFile.project_id == project.id,
+            )
         )
+        if workspace_file is None or not is_inbox_workspace_path(workspace_file.workspace_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+
+        storage_keys = [workspace_file.storage_key]
+        await session.execute(
+            delete(WorkspaceFile).where(WorkspaceFile.id == workspace_file.id)
+        )
+        await session.commit()
+
+        logger.info(
+            "inbox_workspace_file_deleted",
+            project=project.slug,
+            evidence_id=str(workspace_file.id),
+            relative_path=workspace_file.workspace_path,
+        )
+        return storage_keys
 
     result = await session.execute(
         select(WorkspaceFile).where(

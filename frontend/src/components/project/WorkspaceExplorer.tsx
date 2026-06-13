@@ -1,21 +1,25 @@
-import { ChevronRight, FileText } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { handleWorkspaceNodeSelect } from "@/components/project/workflow/workflowRouting";
+import { collectExplorerExpandPaths } from "@/components/project/workflow/workspaceRouting";
 import type { WorkspaceTreeNode } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
-type ExplorerNodeTone = {
-  letter?: string;
+const INDENT_PX = 10;
+const BASE_PADDING_PX = 2;
+
+type FileTypeMark = {
+  letter: string;
   colorClass: string;
 };
 
-function explorerNodeTone(node: WorkspaceTreeNode): ExplorerNodeTone | null {
-  if (node.kind !== "file") {
-    return { colorClass: "text-[var(--wf-ready-text)]" };
-  }
+function fileTypeMark(node: WorkspaceTreeNode): FileTypeMark | null {
+  if (node.kind !== "file") return null;
 
-  const extension = node.name.includes(".") ? node.name.split(".").pop()?.toLowerCase() : undefined;
+  const extension = node.name.includes(".")
+    ? node.name.split(".").pop()?.toLowerCase()
+    : undefined;
 
   switch (extension) {
     case "pdf":
@@ -33,20 +37,16 @@ function explorerNodeTone(node: WorkspaceTreeNode): ExplorerNodeTone | null {
   }
 }
 
-function ExplorerNodeIcon({ tone }: { tone: ExplorerNodeTone | null }) {
-  if (!tone?.letter) {
-    return tone ? null : <FileText className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />;
-  }
-
+function FileTypeIcon({ mark }: { mark: FileTypeMark }) {
   return (
     <span
       className={cn(
-        "grid size-3.5 shrink-0 place-items-center text-[11px] font-bold leading-none",
-        tone.colorClass,
+        "grid size-3 shrink-0 place-items-center text-[10px] font-bold leading-none",
+        mark.colorClass,
       )}
       aria-hidden
     >
-      {tone.letter}
+      {mark.letter}
     </span>
   );
 }
@@ -68,8 +68,12 @@ export function WorkspaceExplorer({
 }) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
 
+  useEffect(() => {
+    setExpandedPaths(collectExplorerExpandPaths(tree, selectedPath));
+  }, [tree, selectedPath]);
+
   if (!tree.length) {
-    return <p className="px-2 text-xs text-muted-foreground">Loading folder template...</p>;
+    return <p className="px-1.5 text-xs text-muted-foreground">Loading folder template...</p>;
   }
 
   function togglePath(path: string) {
@@ -82,7 +86,7 @@ export function WorkspaceExplorer({
   }
 
   return (
-    <div className="space-y-0.5" role="tree" aria-label="Project workspace explorer">
+    <div role="tree" aria-label="Project workspace explorer">
       {tree.map((node) => (
         <ExplorerNode
           key={node.path}
@@ -124,47 +128,41 @@ function ExplorerNode({
   const hasChildren = !isFile && node.children.length > 0;
   const expanded = expandedPaths.has(node.path);
   const selected = selectedPath === node.path;
-  const tone = explorerNodeTone(node);
+  const fileMark = fileTypeMark(node);
 
   return (
     <div role="none">
       <div
         className="flex min-w-0 items-center"
-        style={{ paddingLeft: `${0.25 + level * 0.65}rem` }}
+        style={{ paddingLeft: `${BASE_PADDING_PX + level * INDENT_PX}px` }}
       >
         {hasChildren ? (
           <button
             type="button"
-            className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted"
+            className="grid size-[18px] shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted/70"
             aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             onClick={() => onToggle(node.path)}
           >
             <ChevronRight
-              className={cn("size-3.5 transition-transform", expanded && "rotate-90")}
+              className={cn("size-3 transition-transform", expanded && "rotate-90")}
               aria-hidden
             />
           </button>
         ) : (
-          <span className="size-6 shrink-0" aria-hidden />
+          <span className="size-[18px] shrink-0" aria-hidden />
         )}
         <button
           type="button"
           role="treeitem"
           aria-selected={selected}
           className={cn(
-            "flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pr-2 text-left text-xs transition-colors hover:bg-muted/70",
-            selected && "bg-muted font-medium",
-            !selected && !tone && "text-muted-foreground",
+            "flex h-[22px] min-w-0 flex-1 items-center gap-1.5 truncate rounded-sm px-1 text-left text-xs transition-colors hover:bg-muted/70",
+            selected ? "bg-muted text-foreground" : "text-muted-foreground",
           )}
           onClick={() => onSelect(node)}
         >
-          <ExplorerNodeIcon tone={tone} />
-          <span className={cn("min-w-0 truncate", tone?.colorClass)}>{node.name}</span>
-          {node.document_count ? (
-            <span className="ml-auto rounded bg-background px-1.5 text-[0.65rem] text-muted-foreground">
-              {node.document_count}
-            </span>
-          ) : null}
+          {fileMark ? <FileTypeIcon mark={fileMark} /> : null}
+          <span className="min-w-0 truncate">{node.name}</span>
         </button>
       </div>
       {hasChildren && expanded

@@ -164,7 +164,7 @@ export function DraftReviewPanel({
   }
 
   return (
-    <article className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 lg:p-6">
+    <article className="flex w-full min-w-0 flex-col gap-4 p-4 lg:p-6">
       <header className="rounded-md border bg-background p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -245,14 +245,6 @@ export function DraftReviewPanel({
         ) : null}
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ReferenceList title="Seed consulted" items={seed} />
-        <ReferenceList title="Evidence refs" items={evidence} />
-        <ReferenceList title="Context refs" items={context} />
-      </div>
-
-      <WorkflowTracePanel trace={trace} emptyMessage="No persisted trace recorded for this draft." />
-
       {workbook ? (
         <section className="rounded-md border bg-background">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -295,6 +287,14 @@ export function DraftReviewPanel({
           </div>
         )}
       </section>
+
+      <WorkflowTracePanel trace={trace} emptyMessage="No persisted trace recorded for this draft." />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ReferenceList title="Seed consulted" items={seed} />
+        <ReferenceList title="Evidence refs" items={evidence} />
+        <ReferenceList title="Context refs" items={context} />
+      </div>
     </article>
   );
 }

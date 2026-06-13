@@ -1,8 +1,14 @@
 from pathlib import PurePosixPath
 
+from app.storage.keys import sanitize_storage_key
+
 
 class InboxPathError(ValueError):
     pass
+
+
+def is_inbox_workspace_path(workspace_path: str) -> bool:
+    return "/_inbox/" in workspace_path.replace("\\", "/")
 
 
 def sanitize_filename(filename: str) -> str:
@@ -44,4 +50,4 @@ def build_inbox_workspace_path(
 
 
 def build_storage_key(project_id: str, workspace_path: str) -> str:
-    return f"{project_id}/{workspace_path}"
+    return sanitize_storage_key(f"{project_id}/{workspace_path}")

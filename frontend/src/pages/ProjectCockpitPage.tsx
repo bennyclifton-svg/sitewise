@@ -5,10 +5,11 @@ import { Link, useParams } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
-import { EvidenceDetailPanel } from "@/components/project/EvidenceDetailPanel";
+import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
 import { ProjectChatBar } from "@/components/project/ProjectChatBar";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
+import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,11 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import {
   projectKeys,
+  reloadProjectWorkspaceTree,
   seedProjectData,
   useProjectEvidence,
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
-import { isMarkdownFilename } from "@/lib/markdown";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
   CreatePmpResponse,
@@ -193,16 +194,14 @@ export function ProjectCockpitPage() {
 
   async function refreshEvidence() {
     if (!projectId) return;
-    await queryClient.invalidateQueries({
+    await queryClient.refetchQueries({
       queryKey: projectKeys.evidence(projectId),
     });
   }
 
   async function refreshWorkspaceTree() {
     if (!projectId) return;
-    await queryClient.invalidateQueries({
-      queryKey: projectKeys.workspaceTree(projectId),
-    });
+    await reloadProjectWorkspaceTree(queryClient, projectId);
   }
 
   async function refreshMessages() {
@@ -242,9 +241,11 @@ export function ProjectCockpitPage() {
       }
       if (result.draft) {
         setLatestDraft(result.draft);
+        setSelectedWorkflowId("create-pmp");
+        setSelectedWorkspacePath(result.draft.workspace_path);
         setActiveView("draft");
       }
-      await refreshMessages();
+      await Promise.all([refreshMessages(), refreshWorkspaceTree()]);
     } catch (runError) {
       setWorkflowError(formatApiError(runError, "Create PMP could not run."));
     } finally {
@@ -265,6 +266,7 @@ export function ProjectCockpitPage() {
       if (result.draft) {
         setLatestCostPlanDraft(result.draft);
         setSelectedWorkflowId("cost-plan");
+        setSelectedWorkspacePath(result.draft.workspace_path);
         setActiveView("draft");
       }
       await Promise.all([refreshMessages(), refreshWorkspaceTree()]);
@@ -287,9 +289,11 @@ export function ProjectCockpitPage() {
       }
       if (result.draft) {
         setLatestDraft(result.draft);
+        setSelectedWorkflowId("create-pmp");
+        setSelectedWorkspacePath(result.draft.workspace_path);
         setActiveView("draft");
       }
-      await refreshMessages();
+      await Promise.all([refreshMessages(), refreshWorkspaceTree()]);
     } catch (runError) {
       setWorkflowError(formatApiError(runError, "Update PMP could not run."));
     } finally {
@@ -297,19 +301,32 @@ export function ProjectCockpitPage() {
     }
   }
 
-  function selectEvidence(evidenceId: string) {
+  function selectEvidenceFromRepository(evidenceId: string) {
     setSelectedEvidenceId(evidenceId);
-    setActiveView("evidence");
+    const item = evidence.find((candidate) => candidate.id === evidenceId);
+    if (item) {
+      setSelectedWorkspacePath(normalizeWorkspacePath(item.relative_path));
+    }
   }
 
   function selectWorkspacePath(path: string) {
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
-    if (selectedNode?.kind === "file" && isMarkdownFilename(selectedNode.name)) {
+    if (selectedNode?.kind === "file") {
+      if (isPmpWorkspaceFile(selectedNode.path)) {
+        setSelectedWorkflowId("create-pmp");
+        setActiveView("draft");
+        return;
+      }
+      if (isCostPlanWorkspaceFile(selectedNode.path)) {
+        setSelectedWorkflowId("cost-plan");
+        setActiveView("draft");
+        return;
+      }
       const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
       if (selectedDocument) {
         setSelectedEvidenceId(selectedDocument.id);
-        setActiveView("evidence");
+        setActiveView("file");
         return;
       }
     }
@@ -356,15 +373,13 @@ export function ProjectCockpitPage() {
 
   return (
     <ProjectShell
+      onShowWorkbench={() => setActiveView("workbench")}
       leftNav={
         <ProjectLeftNav
           project={project}
           projects={projects}
           projectsLoading={projectsLoading}
           platformStatus={platformStatus}
-          latestDraft={latestDraft}
-          activeView={activeView}
-          evidenceCount={evidence.length}
           workspaceTree={workspaceTree}
           selectedWorkspacePath={selectedWorkspacePath}
           onViewChange={setActiveView}
@@ -377,7 +392,7 @@ export function ProjectCockpitPage() {
           projectId={project.id}
           evidence={evidence}
           selectedEvidenceId={selectedEvidence?.id ?? null}
-          onSelectEvidence={selectEvidence}
+          onSelectEvidence={selectEvidenceFromRepository}
           onUploadComplete={async () => {
             await Promise.all([refreshEvidence(), refreshWorkspaceTree()]);
           }}
@@ -416,7 +431,6 @@ export function ProjectCockpitPage() {
           onRunCreateCostPlan={() => void runCreateCostPlan()}
           onRunSortFiles={() => void runSortFiles()}
           onOpenDraft={() => setActiveView("draft")}
-          onOpenEvidence={() => setActiveView("evidence")}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
           sortFilesDraft={sortFilesDraft}
@@ -424,32 +438,33 @@ export function ProjectCockpitPage() {
           isRunningSortFiles={isRunningSortFiles}
         />
       ) : null}
-      {activeView === "evidence" ? (
-        <EvidenceDetailPanel
-          projectId={project.id}
-          evidence={evidence}
-          selectedEvidence={selectedEvidence}
-          onSelectEvidence={selectEvidence}
-        />
+      {activeView === "file" ? (
+        <WorkspaceFilePanel projectId={project.id} evidence={selectedEvidence} />
       ) : null}
       {activeView === "folder" ? (
-        <WorkspaceFolderPanel
-          folder={selectedFolder}
-          evidence={evidence}
-          onOpenEvidence={() => setActiveView("evidence")}
-        />
+        <WorkspaceFolderPanel folder={selectedFolder} evidence={evidence} />
       ) : null}
       {activeView === "draft" && project ? (
         <DraftReviewPanel
           projectId={project.id}
           draft={activeDraft}
           workflowType={activeWorkflowType}
-          onDraftUpdated={(draft) => {
+          onDraftUpdated={async (draft) => {
             if (draft.workflow_type === "create_cost_plan") {
               setLatestCostPlanDraft(draft);
+              setSelectedWorkspacePath(draft.workspace_path);
             } else {
               setLatestDraft(draft);
+              const pmpPath = isPmpWorkspaceFile(draft.workspace_path)
+                ? draft.workspace_path
+                : project
+                  ? `${project.workspace_path}/00-brief-pmp/PMP.md`
+                  : null;
+              if (pmpPath) {
+                setSelectedWorkspacePath(pmpPath);
+              }
             }
+            await refreshWorkspaceTree();
           }}
         />
       ) : null}

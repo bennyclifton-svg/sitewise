@@ -49,7 +49,7 @@ def _baseline_draft() -> DraftArtifact:
         version=1,
         status="draft",
         title="Project Management Plan",
-        workspace_path="04-projects/test-project/00-brief-pmp/PMP-draft-v01.md",
+        workspace_path="04-projects/test-project/00-brief-pmp/PMP.md",
         author_user_id=USER_ID,
         content_markdown=_valid_pmp_markdown(),
         model="gpt-4o-mini",

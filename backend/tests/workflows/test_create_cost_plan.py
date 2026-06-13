@@ -341,6 +341,10 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
             new=AsyncMock(return_value=draft),
         ) as create_draft,
         patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value=draft.workspace_path),
+        ) as sync_markdown,
+        patch(
             "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
             new=AsyncMock(return_value=workbook_metadata),
         ) as save_workbook,
@@ -357,6 +361,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     assert result.status == "complete"
     assert result.draft is not None
     create_draft.assert_awaited_once()
+    sync_markdown.assert_awaited_once()
     save_workbook.assert_awaited_once()
     assert create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"] == "platform_seeded"
     assert create_draft.await_args.kwargs["workspace_path"].endswith("01-cost/cost_plan_v01.md")

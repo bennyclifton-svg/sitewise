@@ -20,6 +20,7 @@ INBOX_PACKAGE_DESTINATIONS: dict[str, str] = {
     "CIVIL": "03-design/civil",
     "DA, MODS & STAMPED PLANS": "04-planning-and-authorities",
     "ELEC": "03-design/electrical",
+    "ELECTRICAL": "03-design/electrical",
     "FACADE REPORT": "03-design/architect",
     "FER - PRIMARY": "03-design/fire",
     "FER - RITEK": "03-design/fire",
@@ -229,5 +230,9 @@ def classify_inbox_destination(
     for pattern, destination in _FILENAME_DESTINATION_PATTERNS:
         if pattern.search(stem) or pattern.search(filename):
             return destination
+
+    discipline_slug = _infer_discipline_slug(stem=stem, preview_snippet=preview_snippet)
+    if discipline_slug:
+        return f"03-design/{discipline_slug}"
 
     return None

@@ -305,16 +305,8 @@
     background: var(--bg-app);
   }
 
-  .cockpit-shell--left-collapsed {
-    grid-template-columns: 0 minmax(0, 1fr) 23rem;
-  }
-
   .cockpit-shell--repo-collapsed {
     grid-template-columns: 18rem minmax(0, 1fr) 0;
-  }
-
-  .cockpit-shell--left-collapsed.cockpit-shell--repo-collapsed {
-    grid-template-columns: 0 minmax(0, 1fr) 0;
   }
 
   @media (min-width: 1024px) {
@@ -369,5 +361,158 @@
     background: var(--wf-info-bg);
     padding: 0.125rem 0.375rem;
     border-radius: 3px;
+  }
+
+  /* Cost workbook preview — semantic fills (not raw Excel hex) */
+  .workbook-cell {
+    color: var(--text-body);
+    background: var(--bg-surface);
+  }
+
+  .workbook-cell--empty {
+    color: var(--text-faint);
+  }
+
+  .workbook-cell--title {
+    color: var(--text-on-brand);
+    background: var(--azure-strong);
+    font-weight: 600;
+  }
+
+  .workbook-cell--subtitle {
+    color: var(--info-text);
+    background: var(--info-bg);
+    font-style: italic;
+  }
+
+  .workbook-cell--header {
+    color: var(--gr-50);
+    background: var(--gr-700);
+    font-weight: 600;
+  }
+
+  .dark .workbook-cell--header {
+    color: var(--gr-100);
+    background: var(--gr-850);
+  }
+
+  .workbook-cell--control {
+    color: var(--warn-text);
+    background: var(--warn-bg);
+    font-weight: 600;
+  }
+
+  .workbook-cell--subtotal {
+    color: var(--ok-text);
+    background: var(--ok-bg);
+    font-weight: 600;
+  }
+
+  .workbook-cell--grand {
+    color: var(--info-text);
+    background: var(--info-bg);
+    font-weight: 600;
+  }
+
+  .workbook-cell--muted {
+    color: var(--text-muted);
+    background: var(--bg-sunken);
+  }
+
+  .workbook-table-wrap {
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+
+  .workbook-table {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .workbook-table--summary {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .workbook-table--summary col.workbook-col-code {
+    width: 1.1rem;
+  }
+
+  .workbook-table--summary col.workbook-col-category {
+    width: 8.5%;
+  }
+
+  .workbook-table--summary col.workbook-col-item {
+    width: 12%;
+  }
+
+  .workbook-table--summary col.workbook-col-money {
+    width: 7.4%;
+  }
+
+  .workbook-table--register {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .workbook-table--register col.workbook-col-date {
+    width: 10%;
+  }
+
+  .workbook-table--register col.workbook-col-text {
+    width: 18%;
+  }
+
+  .workbook-table--register col.workbook-col-money {
+    width: 9%;
+  }
+
+  .workbook-table--register col.workbook-col-narrow {
+    width: 8%;
+  }
+
+  .workbook-cell--banner {
+    text-align: left;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .workbook-cell--header-label {
+    height: auto;
+    min-height: 2.25rem;
+    padding: 0.25rem 0.125rem;
+    text-align: left;
+    white-space: normal;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  .workbook-cell--header-money {
+    text-align: center;
+  }
+
+  .workbook-cell--money {
+    padding-left: 0.125rem;
+    padding-right: 0.125rem;
+    font-feature-settings: "tnum" 1;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .workbook-cell--code {
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .workbook-cell--wrap {
+    white-space: normal;
+    line-height: 1.25;
+    word-break: break-word;
   }
 }

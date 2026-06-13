@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ClipboardList,
   FileText,
-  FolderOpen,
   HandCoins,
   Inbox,
   ListChecks,
@@ -68,7 +67,6 @@ export function ProjectControlBoard({
   onRunCreateCostPlan,
   onRunSortFiles,
   onOpenDraft,
-  onOpenEvidence,
   inboxCount,
   sortFilesResult,
   sortFilesDraft,
@@ -92,7 +90,6 @@ export function ProjectControlBoard({
   onRunCreateCostPlan: () => void;
   onRunSortFiles: () => void;
   onOpenDraft: () => void;
-  onOpenEvidence: () => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
   sortFilesDraft: DraftArtifactSummary | null;
@@ -177,7 +174,6 @@ export function ProjectControlBoard({
           onRunCreateCostPlan={onRunCreateCostPlan}
           onRunSortFiles={onRunSortFiles}
           onOpenDraft={onOpenDraft}
-          onOpenEvidence={onOpenEvidence}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
           sortFilesDraft={sortFilesDraft}
@@ -222,7 +218,6 @@ function WorkflowDetail({
   onRunCreateCostPlan,
   onRunSortFiles,
   onOpenDraft,
-  onOpenEvidence,
   inboxCount,
   sortFilesResult,
   sortFilesDraft,
@@ -245,7 +240,6 @@ function WorkflowDetail({
   onRunCreateCostPlan: () => void;
   onRunSortFiles: () => void;
   onOpenDraft: () => void;
-  onOpenEvidence: () => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
   sortFilesDraft: DraftArtifactSummary | null;
@@ -356,10 +350,6 @@ function WorkflowDetail({
                 )}
                 Update PMP
               </Button>
-              <Button variant="outline" onClick={onOpenEvidence}>
-                <FolderOpen className="size-4" aria-hidden />
-                Inspect evidence
-              </Button>
               <Button variant="secondary" onClick={onOpenDraft} disabled={!latestDraft}>
                 <Bot className="size-4" aria-hidden />
                 Review draft
@@ -419,10 +409,6 @@ function WorkflowDetail({
                   <Play className="size-4" aria-hidden />
                 )}
                 {isRunningCostPlan ? "Running" : "Create cost plan"}
-              </Button>
-              <Button variant="outline" onClick={onOpenEvidence}>
-                <FolderOpen className="size-4" aria-hidden />
-                Inspect evidence
               </Button>
               <Button variant="secondary" onClick={onOpenDraft} disabled={!activeDraft}>
                 <Bot className="size-4" aria-hidden />
@@ -488,10 +474,6 @@ function WorkflowDetail({
                   <Play className="size-4" aria-hidden />
                 )}
                 {isRunningSortFiles ? "Running" : "Run Sort Files"}
-              </Button>
-              <Button variant="outline" onClick={onOpenEvidence}>
-                <FolderOpen className="size-4" aria-hidden />
-                Inspect evidence
               </Button>
             </div>
 
