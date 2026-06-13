@@ -63,8 +63,19 @@ class Settings(BaseSettings):
     tender_job_backoff_base_seconds: int = 30
     tender_job_stale_lock_minutes: int = 10
     tender_model_extract: str = "gpt-4.1-mini"
+    tender_model_adjudicate_small: str = "gpt-4.1-mini"
+    tender_model_adjudicate_frontier: str = "gpt-4.1"
+    tender_embed_model: str = "text-embedding-3-small"
+    tender_embedding_dimensions: int = 1536
     tender_extraction_confidence_threshold: float = 0.85
     tender_reconciliation_tolerance: float = 0.01
+    tender_t0_trgm_threshold: float = 0.92
+    tender_t1_accept_sim: float = 0.80
+    tender_t1_accept_margin: float = 0.10
+    tender_t2_accept_conf: float = 0.80
+    tender_t3_review_conf: float = 0.70
+    tender_silence_ps_sim: float = 0.60
+    tender_silence_review_conf: float = 0.75
 
     @field_validator("database_url")
     @classmethod
@@ -109,6 +120,12 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"Polar is enabled, but these settings are missing: {', '.join(missing)}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_tender_embedding_dimensions(self) -> "Settings":
+        if self.tender_embedding_dimensions != 1536:
+            raise ValueError("TENDER_EMBEDDING_DIMENSIONS must be 1536 for M3 mappings")
         return self
 
     @property

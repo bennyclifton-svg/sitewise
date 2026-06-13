@@ -15,6 +15,16 @@ class LLMExtractionResponse:
     request_id: str | None = None
 
 
+@dataclass(frozen=True)
+class LLMAdjudicationResponse:
+    choice: str
+    confidence: float
+    rationale: str
+    model: str
+    prompt_version: str
+    request_id: str | None = None
+
+
 class TenderLLMClient(Protocol):
     async def extract(
         self,
@@ -24,3 +34,14 @@ class TenderLLMClient(Protocol):
     ) -> LLMExtractionResponse:
         ...
 
+    async def adjudicate(
+        self,
+        question: str,
+        choices: Sequence[str],
+        evidence: dict[str, Any],
+        context: ProjectContext,
+        *,
+        prompt_version: str,
+        model_key: str,
+    ) -> LLMAdjudicationResponse:
+        ...

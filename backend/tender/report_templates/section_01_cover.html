@@ -1,0 +1,15 @@
+<section id="cover">
+  <h1>{{ title }}</h1>
+  <p>{{ project_title }}</p>
+  <p class="muted">{{ section_titles.cover }}</p>
+  <table>
+    <thead>
+      <tr><th>{{ labels.builder }}</th><th>{{ labels.stated_total }}</th></tr>
+    </thead>
+    <tbody>
+      {% for quote in quotes %}
+      <tr><td>{{ quote.builder_name }}</td><td>{{ quote.stated_total }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

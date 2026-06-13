@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from app.config import settings
-from tender.llm.client import LLMExtractionResponse
+from tender.llm.client import LLMAdjudicationResponse, LLMExtractionResponse
 from tender.schemas import ProjectContext, TenderDocumentPage
 
 PROMPT_VERSION = "0.1.0"
@@ -21,10 +21,12 @@ class AsyncOpenAITenderClient:
         client: AsyncOpenAI | None = None,
         model: str | None = None,
         prompt_path: Path = PROMPT_PATH,
+        model_overrides: Mapping[str, str] | None = None,
     ) -> None:
         self.client = client or AsyncOpenAI(api_key=settings.openai_api_key)
         self.model = model or settings.tender_model_extract
         self.prompt_path = prompt_path
+        self.model_overrides = dict(model_overrides or {})
 
     async def extract(
         self,
@@ -53,6 +55,55 @@ class AsyncOpenAITenderClient:
             request_id=getattr(response, "id", None),
         )
 
+    async def adjudicate(
+        self,
+        question: str,
+        choices: Sequence[str],
+        evidence: dict[str, Any],
+        context: ProjectContext,
+        *,
+        prompt_version: str,
+        model_key: str,
+    ) -> LLMAdjudicationResponse:
+        model = self._model_for_key(model_key)
+        response = await self.client.responses.create(
+            model=model,
+            instructions=(
+                "Answer the tender mapping adjudication question using only the "
+                "provided choices and evidence."
+            ),
+            input=_build_adjudication_input(question, choices, evidence, context),
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "tender_adjudication",
+                    "schema": _adjudication_schema(choices),
+                    "strict": True,
+                }
+            },
+            temperature=0,
+        )
+        data = json.loads(_response_text(response))
+        choice = str(data["choice"])
+        if choice not in choices:
+            raise ValueError(f"adjudication returned unknown choice: {choice}")
+        return LLMAdjudicationResponse(
+            choice=choice,
+            confidence=float(data["confidence"]),
+            rationale=str(data["rationale"]),
+            model=model,
+            prompt_version=prompt_version,
+            request_id=getattr(response, "id", None),
+        )
+
+    def _model_for_key(self, model_key: str) -> str:
+        if model_key in self.model_overrides:
+            return self.model_overrides[model_key]
+        model = getattr(settings, model_key, None)
+        if not isinstance(model, str) or not model:
+            raise ValueError(f"unknown tender model config key: {model_key}")
+        return model
+
 
 def _build_input(
     document_pages: Sequence[TenderDocumentPage], context: ProjectContext
@@ -75,6 +126,36 @@ def _build_input(
     )
 
 
+def _build_adjudication_input(
+    question: str,
+    choices: Sequence[str],
+    evidence: dict[str, Any],
+    context: ProjectContext,
+) -> str:
+    return json.dumps(
+        {
+            "project_context": context.model_dump(mode="json"),
+            "question": question,
+            "choices": list(choices),
+            "evidence": evidence,
+        },
+        ensure_ascii=True,
+    )
+
+
+def _adjudication_schema(choices: Sequence[str]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "choice": {"type": "string", "enum": list(choices)},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "rationale": {"type": "string"},
+        },
+        "required": ["choice", "confidence", "rationale"],
+        "additionalProperties": False,
+    }
+
+
 def _response_text(response: Any) -> str:
     output_text = getattr(response, "output_text", None)
     if output_text:
@@ -86,4 +167,3 @@ def _response_text(response: Any) -> str:
             if text:
                 return str(text)
     raise ValueError("OpenAI structured extraction response did not contain text")
-

@@ -17,6 +17,7 @@ EXPECTED_TABLES = {
     "tender_mappings",
     "tender_cell_status",
     "tender_flags",
+    "tender_analysis_results",
     "tender_corrections",
     "tender_reports",
     # jobs & evaluation
@@ -63,6 +64,10 @@ def test_tender_cell_status_unique_constraint() -> None:
     )
 
 
+def test_tender_analysis_result_unique_constraint() -> None:
+    assert ("comparison_id",) in _unique_constraint_columns("tender_analysis_results")
+
+
 def test_taxonomy_synonyms_unique_constraint() -> None:
     assert ("cell_code", "phrase_norm") in _unique_constraint_columns("taxonomy_synonyms")
 
@@ -86,6 +91,15 @@ def test_line_item_embedding_is_1536_vector() -> None:
     from pgvector.sqlalchemy import Vector
 
     column = Base.metadata.tables["tender_line_items"].columns["embedding"]
+    assert isinstance(column.type, Vector)
+    assert column.type.dim == 1536
+    assert column.nullable
+
+
+def test_taxonomy_synonym_embedding_is_1536_vector() -> None:
+    from pgvector.sqlalchemy import Vector
+
+    column = Base.metadata.tables["taxonomy_synonyms"].columns["embedding"]
     assert isinstance(column.type, Vector)
     assert column.type.dim == 1536
     assert column.nullable

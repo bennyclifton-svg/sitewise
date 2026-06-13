@@ -18,6 +18,7 @@ from app.api.projects import sitewise_router
 from app.config import settings
 from app.database.session import get_engine
 from app.logging import configure_logging, get_logger
+from tender.router import router as tender_router
 
 configure_logging()
 log = get_logger(__name__)
@@ -77,6 +78,7 @@ fastapi_app.include_router(config_router)
 fastapi_app.include_router(chat_router)
 fastapi_app.include_router(projects_router)
 fastapi_app.include_router(sitewise_router)
+fastapi_app.include_router(tender_router)
 
 
 @fastapi_app.get("/health")

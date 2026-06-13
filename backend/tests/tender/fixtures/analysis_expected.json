@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "gap_matrix": [
+    {
+      "cell_code": "01.01",
+      "cell_name": "Approval",
+      "quotes": [
+        {
+          "status": "excluded_explicit",
+          "amount_cents": null,
+          "bundled_into_cell": null,
+          "qa_state": "needs_review",
+          "confidence": null
+        },
+        {
+          "status": "bundled",
+          "amount_cents": null,
+          "bundled_into_cell": "01.07",
+          "qa_state": "needs_review",
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "cell_code": "18.01",
+      "cell_name": "Cooktop",
+      "quotes": [
+        {
+          "status": "silent_ambiguous",
+          "amount_cents": null,
+          "bundled_into_cell": null,
+          "qa_state": "confirmed",
+          "confidence": null
+        },
+        {
+          "status": "pc",
+          "amount_cents": 200000,
+          "bundled_into_cell": null,
+          "qa_state": "auto_pass",
+          "confidence": null
+        }
+      ]
+    }
+  ],
+  "ledgers": [
+    {
+      "quote_id": "00000000-0000-0000-0000-000000000101",
+      "builder_name": "A Homes",
+      "stated_total_cents": 1000000,
+      "comparable_low_cents": 1600000,
+      "comparable_high_cents": 1600000,
+      "adjustments": [
+        {
+          "adjustment_type": "fill_at_benchmark",
+          "cell_code": "01.01",
+          "cell_name": "Approval",
+          "status": "excluded_explicit",
+          "amount_cents": 100000,
+          "amount_range_cents": null,
+          "include_in_headline": true,
+          "phrase_key": "claim_strength_by_benchmark_confidence.high",
+          "benchmark": {
+            "benchmark_id": "approval",
+            "benchmark_key": "approval",
+            "metric": "absolute",
+            "confidence": "high",
+            "source": "model_seed",
+            "provenance": "fixture",
+            "effective_date": "2026-01-01"
+          },
+          "evidence": {
+            "status": "excluded_explicit",
+            "amount_cents": null,
+            "qa_state": "needs_review",
+            "page_refs": [
+              {
+                "doc": "quote-a",
+                "page": 2
+              }
+            ],
+            "source_evidence": {
+              "page_refs": [
+                {
+                  "doc": "quote-a",
+                  "page": 2
+                }
+              ]
+            }
+          }
+        },
+        {
+          "adjustment_type": "fill_at_benchmark",
+          "cell_code": "18.01",
+          "cell_name": "Cooktop",
+          "status": "silent_ambiguous",
+          "amount_cents": 500000,
+          "amount_range_cents": null,
+          "include_in_headline": true,
+          "phrase_key": "claim_strength_by_benchmark_confidence.high",
+          "benchmark": {
+            "benchmark_id": "cooktop",
+            "benchmark_key": "cooktop",
+            "metric": "absolute",
+            "confidence": "high",
+            "source": "model_seed",
+            "provenance": "fixture",
+            "effective_date": "2026-01-01"
+          },
+          "evidence": {
+            "status": "silent_ambiguous",
+            "amount_cents": null,
+            "qa_state": "confirmed",
+            "page_refs": [],
+            "source_evidence": {}
+          }
+        }
+      ],
+      "unquantified_items": [],
+      "notes": []
+    },
+    {
+      "quote_id": "00000000-0000-0000-0000-000000000102",
+      "builder_name": "B Homes",
+      "stated_total_cents": 900000,
+      "comparable_low_cents": 1200000,
+      "comparable_high_cents": 1200000,
+      "adjustments": [
+        {
+          "adjustment_type": "allowance_topup",
+          "cell_code": "18.01",
+          "cell_name": "Cooktop",
+          "status": "pc",
+          "amount_cents": 300000,
+          "amount_range_cents": null,
+          "include_in_headline": true,
+          "phrase_key": "claim_strength_by_benchmark_confidence.high",
+          "benchmark": {
+            "benchmark_id": "cooktop",
+            "benchmark_key": "cooktop",
+            "metric": "absolute",
+            "confidence": "high",
+            "source": "model_seed",
+            "provenance": "fixture",
+            "effective_date": "2026-01-01"
+          },
+          "evidence": {
+            "status": "pc",
+            "amount_cents": 200000,
+            "qa_state": "auto_pass",
+            "page_refs": [],
+            "source_evidence": {
+              "mapped_line_items": [
+                {
+                  "line_item_id": "00000000-0000-0000-0000-000000000201",
+                  "item_status": "pc_allowance",
+                  "allocation_fraction": 1.0
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "unquantified_items": [],
+      "notes": []
+    }
+  ],
+  "flag_summary": [
+    [
+      "exclusion_risk",
+      "00000000-0000-0000-0000-000000000101",
+      "01.01",
+      "warning"
+    ],
+    [
+      "gap",
+      "00000000-0000-0000-0000-000000000101",
+      "18.01",
+      "warning"
+    ],
+    [
+      "low_pc_allowance",
+      "00000000-0000-0000-0000-000000000102",
+      "18.01",
+      "warning"
+    ]
+  ],
+  "questions": []
+}

@@ -1,0 +1,44 @@
+meta: {version: 1}
+
+concepts:
+  cut_and_fill:
+    - cut and fill
+    - cut & fill
+    - benching
+    - earthworks
+  asbestos:
+    - asbestos
+    - acm
+    - hazardous material
+  retaining:
+    - retaining wall
+    - sleeper wall
+    - block retaining
+  bushfire:
+    - bushfire
+    - bal
+    - ember protection
+  flood:
+    - flood
+    - overland flow
+    - flood planning
+  heritage:
+    - heritage
+    - conservation
+    - character overlay
+  stormwater:
+    - stormwater
+    - drainage
+    - osd
+  demolition:
+    - demolition
+    - strip out
+    - knockdown
+  rock:
+    - rock excavation
+    - sandstone
+    - shale
+  site_access:
+    - narrow access
+    - crane
+    - traffic control

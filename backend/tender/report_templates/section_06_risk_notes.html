@@ -1,0 +1,14 @@
+<section id="risk-notes">
+  <h2>{{ section_titles.risk_notes }}</h2>
+  <p>{{ narratives.risk_notes_intro }}</p>
+  <table>
+    <thead>
+      <tr><th>{{ labels.builder }}</th><th>{{ labels.flag }}</th><th>{{ labels.status }}</th></tr>
+    </thead>
+    <tbody>
+      {% for flag in flags %}
+      <tr><td>{{ flag.builder_name }}</td><td>{{ flag.headline }}</td><td>{{ flag.phrase }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

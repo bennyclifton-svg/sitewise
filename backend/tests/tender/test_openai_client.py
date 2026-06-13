@@ -36,21 +36,66 @@ def test_openai_client_requests_strict_structured_output(tmp_path: Path) -> None
     assert result.request_id == "resp-1"
 
 
+def test_openai_client_adjudicate_constrains_choice_enum(tmp_path: Path) -> None:
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("extract carefully", encoding="utf-8")
+    fake_client = FakeOpenAIClient(
+        output={"choice": "03.05", "confidence": 0.87, "rationale": "closest scope"}
+    )
+    client = AsyncOpenAITenderClient(
+        client=fake_client,  # type: ignore[arg-type]
+        model="gpt-test",
+        prompt_path=prompt_path,
+        model_overrides={"tender_model_adjudicate_small": "gpt-small-test"},
+    )
+
+    result = run_async(
+        client.adjudicate(
+            "Map this line item",
+            ["03.01", "03.05", "none_of_these"],
+            {"description": "retaining wall allowance"},
+            _context(),
+            prompt_version="0.1.0",
+            model_key="tender_model_adjudicate_small",
+        )
+    )
+
+    call = fake_client.responses.kwargs
+    schema = call["text"]["format"]["schema"]
+    assert call["model"] == "gpt-small-test"
+    assert call["text"]["format"]["type"] == "json_schema"
+    assert call["text"]["format"]["strict"] is True
+    assert schema["properties"]["choice"]["enum"] == [
+        "03.01",
+        "03.05",
+        "none_of_these",
+    ]
+    payload = json.loads(call["input"])
+    assert payload["question"] == "Map this line item"
+    assert payload["choices"] == ["03.01", "03.05", "none_of_these"]
+    assert payload["project_context"]["state"] == "NSW"
+    assert result.choice == "03.05"
+    assert result.confidence == 0.87
+    assert result.model == "gpt-small-test"
+    assert result.prompt_version == "0.1.0"
+
+
 class FakeResponses:
-    def __init__(self) -> None:
+    def __init__(self, output: dict[str, Any] | None = None) -> None:
         self.kwargs: dict[str, Any] = {}
+        self.output = output or {"line_items": [], "page_subtotals": []}
 
     async def create(self, **kwargs: Any) -> SimpleNamespace:
         self.kwargs = kwargs
         return SimpleNamespace(
             id="resp-1",
-            output_text=json.dumps({"line_items": [], "page_subtotals": []}),
+            output_text=json.dumps(self.output),
         )
 
 
 class FakeOpenAIClient:
-    def __init__(self) -> None:
-        self.responses = FakeResponses()
+    def __init__(self, output: dict[str, Any] | None = None) -> None:
+        self.responses = FakeResponses(output)
 
 
 def _page() -> TenderDocumentPage:
@@ -71,4 +116,3 @@ def _context() -> ProjectContext:
             "spec_level": "builder_base",
         }
     )
-

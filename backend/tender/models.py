@@ -350,6 +350,7 @@ class TaxonomySynonym(Base):
     phrase_norm: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="seed")
     confidence: Mapped[float | None] = mapped_column(Numeric)
+    embedding = mapped_column(Vector(1536), nullable=True)
     # FK to tender_corrections.id is added in migration 009 (the corrections
     # table is created after this one in the chain).
     correction_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -565,6 +566,39 @@ class TenderFlag(Base):
         _values_check("severity", FLAG_SEVERITIES, "tender_flags"),
         _values_check("qa_state", FLAG_QA_STATES, "tender_flags"),
         Index("ix_tender_flags_comparison_id", "comparison_id"),
+    )
+
+
+class TenderAnalysisResult(Base):
+    __tablename__ = "tender_analysis_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    comparison_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_comparisons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    gap_matrix: Mapped[list] = mapped_column(JSONB, nullable=False)
+    ledgers: Mapped[list] = mapped_column(JSONB, nullable=False)
+    questions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "comparison_id", name="uq_tender_analysis_results_comparison_id"
+        ),
+        Index("ix_tender_analysis_results_comparison_id", "comparison_id"),
     )
 
 

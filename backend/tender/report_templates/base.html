@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <style>{% include "print.css" %}</style>
+</head>
+<body class="report{% if draft %} draft{% endif %}">
+  {% if draft %}
+  <div class="watermark">{{ draft_label }}</div>
+  {% endif %}
+  <main>
+    {% include "section_01_cover.html" %}
+    {% include "section_02_executive_summary.html" %}
+    {% include "section_03_price_comparison.html" %}
+    {% include "section_04_comparison_matrix.html" %}
+    {% include "section_05_allowances.html" %}
+    {% include "section_06_risk_notes.html" %}
+    {% include "section_07_questions.html" %}
+    {% include "section_08_methodology.html" %}
+  </main>
+</body>
+</html>

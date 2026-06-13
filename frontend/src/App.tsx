@@ -7,6 +7,7 @@ import { CockpitPreviewPage } from "@/pages/CockpitPreviewPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ProjectCockpitPage } from "@/pages/ProjectCockpitPage";
+import { TenderCockpitPage } from "@/pages/TenderCockpitPage";
 
 export default function App() {
   return (
@@ -38,6 +39,46 @@ export default function App() {
           }
         />
         <Route path="/cockpit-preview" element={<CockpitPreviewPage />} />
+        <Route
+          path="/projects/:projectId/tender"
+          element={
+            <AuthGuard>
+              <TenderCockpitPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/projects/:projectId/tender/:comparisonId"
+          element={
+            <AuthGuard>
+              <TenderCockpitPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/projects/:projectId/tender/:comparisonId/qa"
+          element={
+            <AuthGuard>
+              <TenderCockpitPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/projects/:projectId/tender/:comparisonId/matrix"
+          element={
+            <AuthGuard>
+              <TenderCockpitPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/projects/:projectId/tender/:comparisonId/report"
+          element={
+            <AuthGuard>
+              <TenderCockpitPage />
+            </AuthGuard>
+          }
+        />
         <Route
           path="/projects/:projectId"
           element={

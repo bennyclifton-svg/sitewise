@@ -1,0 +1,721 @@
+from __future__ import annotations
+
+import re
+import asyncio
+import uuid
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import yaml
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.draft_artifacts import (
+    accept_draft,
+    create_draft_artifact,
+    get_draft_artifact,
+)
+from app.database.project import Project
+from app.storage.project_files import upload_project_file
+from tender.models import (
+    ReportLanguageEntry,
+    TaxonomyCell,
+    TenderAnalysisResult,
+    TenderCellStatus,
+    TenderComparison,
+    TenderFlag,
+    TenderJob,
+    TenderQuote,
+    TenderReport,
+)
+from tender.services import qa
+
+TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "report_templates"
+NARRATIVE_KEYS = ("executive_summary_intro", "risk_notes_intro")
+GLYPHS = {
+    "included": "✓",
+    "pc": "◷",
+    "ps": "◷",
+    "excluded_explicit": "✕",
+    "silent_ambiguous": "○",
+    "bundled": "○",
+    "not_required": "–",
+}
+
+
+class WeasyPrintUnavailable(RuntimeError):
+    pass
+
+
+class ReportLifecycleError(ValueError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class ReportQuote:
+    id: uuid.UUID
+    builder_name: str
+    stated_total_cents: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportCellStatus:
+    quote_id: uuid.UUID
+    status: str
+    amount_cents: int | None
+    evidence: dict[str, Any] = field(default_factory=dict)
+    parent_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportMatrixCell:
+    code: str
+    name: str
+    group: str
+    statuses: list[ReportCellStatus] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class ReportFlag:
+    builder_name: str
+    cell_name: str
+    flag_type: str
+    severity: str
+    headline: str
+    detail: str | None
+    evidence: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ReportData:
+    comparison_id: uuid.UUID
+    project_title: str
+    context: dict[str, Any]
+    quotes: list[ReportQuote]
+    ledgers: list[dict[str, Any]]
+    matrix: list[ReportMatrixCell]
+    flags: list[ReportFlag]
+    questions: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ReportArtifacts:
+    markdown: str
+    html: str
+    pdf_bytes: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class ReportLifecycleResult:
+    report_id: uuid.UUID
+    comparison_id: uuid.UUID
+    draft_id: uuid.UUID
+    version: int
+    html_path: str | None
+    pdf_path: str | None
+    status: str
+    approved_at: datetime | None = None
+    delivered_at: datetime | None = None
+
+
+async def assemble_report_draft(session: AsyncSession, job: TenderJob) -> None:
+    if job.comparison_id is None:
+        raise ValueError("assemble_report_draft job requires comparison_id")
+    comparison = await session.get(TenderComparison, job.comparison_id)
+    if comparison is None:
+        raise ReportLifecycleError(f"unknown comparison: {job.comparison_id}")
+    await build_report_draft(
+        session,
+        comparison_id=job.comparison_id,
+        user_id=comparison.created_by,
+    )
+
+
+async def build_report_draft(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> ReportLifecycleResult:
+    await qa.assert_no_pending_review(session, comparison_id=comparison_id)
+    comparison = await _comparison(session, comparison_id)
+    project = await _project(session, comparison.project_id)
+    latest = await _latest_report(session, comparison_id=comparison_id)
+    previous_markdown = await _previous_markdown(session, latest)
+    version = (latest.version if latest is not None else 0) + 1
+    language = await load_report_language(session)
+    artifacts = assemble_report_artifacts(
+        await load_report_data(session, comparison_id=comparison_id),
+        language=language,
+        previous_markdown=previous_markdown,
+        draft=True,
+    )
+    draft = await create_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type="tender_report",
+        title=f"{language_value(language, 'report.title')} v{version:02d}",
+        workspace_path=_draft_workspace_path(project, version),
+        author_user_id=user_id,
+        content_markdown=artifacts.markdown,
+        model=None,
+        runtime="clerk-tender",
+        provenance_metadata={
+            "comparison_id": str(comparison_id),
+            "version": version,
+            "watermark": "DRAFT",
+        },
+    )
+    html_path, pdf_path = await _store_artifacts(
+        project=project,
+        comparison_id=comparison_id,
+        version=version,
+        artifacts=artifacts,
+        final=False,
+    )
+    report = TenderReport(
+        comparison_id=comparison_id,
+        draft_id=draft.id,
+        version=version,
+        html_path=html_path,
+        pdf_path=pdf_path,
+    )
+    session.add(report)
+    comparison.status = "report_draft"
+    await session.flush()
+    return _lifecycle_result(report, status=comparison.status)
+
+
+async def approve_report(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> ReportLifecycleResult:
+    comparison = await _comparison(session, comparison_id)
+    project = await _project(session, comparison.project_id)
+    report = await _required_latest_report(session, comparison_id=comparison_id)
+    draft = await get_draft_artifact(session, report.draft_id)
+    if draft is None:
+        raise ReportLifecycleError(f"report draft not found: {report.draft_id}")
+    language = await load_report_language(session)
+    artifacts = assemble_report_artifacts(
+        await load_report_data(session, comparison_id=comparison_id),
+        language=language,
+        previous_markdown=draft.content_markdown,
+        draft=False,
+    )
+    html_path, pdf_path = await _store_artifacts(
+        project=project,
+        comparison_id=comparison_id,
+        version=report.version,
+        artifacts=artifacts,
+        final=True,
+    )
+    report.html_path = html_path
+    report.pdf_path = pdf_path
+    report.approved_by = user_id
+    report.approved_at = datetime.now(timezone.utc)
+    comparison.status = "approved"
+    await accept_draft(session, draft)
+    await session.flush()
+    return _lifecycle_result(report, status=comparison.status)
+
+
+async def mark_report_delivered(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    delivery_note: str | None,
+) -> ReportLifecycleResult:
+    comparison = await _comparison(session, comparison_id)
+    report = await _required_latest_report(session, comparison_id=comparison_id)
+    report.delivered_at = datetime.now(timezone.utc)
+    report.delivery_note = delivery_note
+    comparison.status = "delivered"
+    await session.flush()
+    return _lifecycle_result(report, status=comparison.status)
+
+
+async def load_report_language(session: AsyncSession) -> dict[str, Any]:
+    result = await session.execute(select(ReportLanguageEntry))
+    return {entry.key_path: entry.value for entry in result.scalars()}
+
+
+async def load_report_data(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> ReportData:
+    comparison = await _comparison(session, comparison_id)
+    project = await _project(session, comparison.project_id)
+    quote_result = await session.execute(
+        select(TenderQuote)
+        .where(TenderQuote.comparison_id == comparison_id)
+        .order_by(TenderQuote.created_at)
+    )
+    quotes = [
+        ReportQuote(
+            id=quote.id,
+            builder_name=quote.builder_name,
+            stated_total_cents=quote.stated_total_cents,
+        )
+        for quote in quote_result.scalars()
+    ]
+    analysis_result = await session.execute(
+        select(TenderAnalysisResult).where(
+            TenderAnalysisResult.comparison_id == comparison_id
+        )
+    )
+    analysis = analysis_result.scalar_one_or_none()
+    matrix = await _report_matrix(session, comparison_id=comparison_id)
+    flags = await _report_flags(session, comparison_id=comparison_id)
+    return ReportData(
+        comparison_id=comparison_id,
+        project_title=project.title,
+        context=comparison.context,
+        quotes=quotes,
+        ledgers=analysis.ledgers if analysis is not None else [],
+        matrix=matrix,
+        flags=flags,
+        questions=analysis.questions if analysis is not None else [],
+    )
+
+
+def load_report_language_yaml(path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    if not isinstance(data, dict):
+        raise ValueError("report language file must contain a mapping")
+    return data
+
+
+def assemble_report_artifacts(
+    data: ReportData,
+    *,
+    language: Mapping[str, Any],
+    draft: bool,
+    previous_markdown: str | None = None,
+    pdf_renderer: Callable[[str], bytes] | None = None,
+) -> ReportArtifacts:
+    narratives = default_narratives(language)
+    narratives.update(extract_narratives(previous_markdown or ""))
+    view = report_view(data, language=language, narratives=narratives)
+    markdown = render_draft_markdown(view, language=language, narratives=narratives)
+    html = render_report_html(view, language=language, narratives=narratives, draft=draft)
+    renderer = pdf_renderer or render_pdf_bytes
+    return ReportArtifacts(markdown=markdown, html=html, pdf_bytes=renderer(html))
+
+
+def render_pdf_bytes(html: str) -> bytes:
+    try:
+        from weasyprint import HTML
+    except Exception as exc:  # pragma: no cover - depends on host native libraries
+        raise WeasyPrintUnavailable(
+            f"WeasyPrint native dependencies are unavailable: {exc}"
+        ) from exc
+    return HTML(string=html).write_pdf()
+
+
+def default_narratives(language: Mapping[str, Any]) -> dict[str, str]:
+    return {
+        key: str(language_value(language, f"report.default_narratives.{key}") or "")
+        for key in NARRATIVE_KEYS
+    }
+
+
+def extract_narratives(markdown: str) -> dict[str, str]:
+    narratives: dict[str, str] = {}
+    for key in NARRATIVE_KEYS:
+        pattern = re.compile(
+            rf"<!-- tcm:narrative:{re.escape(key)}:start -->\n(.*?)\n<!-- tcm:narrative:{re.escape(key)}:end -->",
+            re.DOTALL,
+        )
+        match = pattern.search(markdown)
+        if match:
+            narratives[key] = match.group(1).strip()
+    return narratives
+
+
+def render_draft_markdown(
+    view: dict[str, Any],
+    *,
+    language: Mapping[str, Any],
+    narratives: Mapping[str, str],
+) -> str:
+    section_titles = _section_titles(language)
+    lines = [
+        f"# {language_value(language, 'report.title')}",
+        "",
+        f"## {section_titles['executive_summary']}",
+        _narrative_block("executive_summary_intro", narratives),
+        "",
+        f"## {section_titles['comparison_matrix']}",
+        _matrix_markdown(view),
+        "",
+        f"## {section_titles['risk_notes']}",
+        _narrative_block("risk_notes_intro", narratives),
+        _flags_markdown(view),
+        "",
+        f"## {section_titles['methodology']}",
+        str(language_value(language, "report.legal.disclaimer")),
+    ]
+    return "\n".join(lines).strip() + "\n"
+
+
+def render_report_html(
+    view: dict[str, Any],
+    *,
+    language: Mapping[str, Any],
+    narratives: Mapping[str, str],
+    draft: bool,
+) -> str:
+    env = Environment(
+        loader=FileSystemLoader(TEMPLATE_DIR),
+        autoescape=select_autoescape(("html", "xml")),
+    )
+    template = env.get_template("base.html")
+    return template.render(
+        title=language_value(language, "report.title"),
+        draft=draft,
+        draft_label=language_value(language, "report.draft_label"),
+        project_title=view["project_title"],
+        section_titles=_section_titles(language),
+        labels=_labels(language),
+        legal={
+            "disclaimer": language_value(language, "report.legal.disclaimer"),
+            "not_itemised": language_value(language, "report.legal.not_itemised"),
+        },
+        narratives=narratives,
+        quotes=view["quotes"],
+        ledgers=view["ledgers"],
+        matrix=view["matrix"],
+        allowances=view["allowances"],
+        flags=view["flags"],
+        questions=view["questions"],
+    )
+
+
+def report_view(
+    data: ReportData,
+    *,
+    language: Mapping[str, Any],
+    narratives: Mapping[str, str],
+) -> dict[str, Any]:
+    quotes = [
+        {
+            "id": str(quote.id),
+            "builder_name": quote.builder_name,
+            "stated_total": money(quote.stated_total_cents),
+        }
+        for quote in data.quotes
+    ]
+    builder_by_id = {quote.id: quote.builder_name for quote in data.quotes}
+    matrix = [
+        {
+            "code": cell.code,
+            "name": cell.name,
+            "group": cell.group,
+            "by_quote": {
+                str(status.quote_id): {
+                    "glyph": glyph_for_status(status.status),
+                    "phrase": status_phrase(cell, status, language),
+                    "amount": money(status.amount_cents),
+                }
+                for status in cell.statuses
+            },
+        }
+        for cell in data.matrix
+    ]
+    allowances = [
+        {
+            "builder_name": builder_by_id.get(status.quote_id, ""),
+            "cell_name": cell.name,
+            "amount": money(status.amount_cents),
+        }
+        for cell in data.matrix
+        for status in cell.statuses
+        if status.status in {"pc", "ps"}
+    ]
+    return {
+        "project_title": data.project_title,
+        "context": data.context,
+        "quotes": quotes,
+        "ledgers": [
+            {
+                "builder_name": str(row.get("builder_name", "")),
+                "cell_name": str(row.get("cell_name", "")),
+                "adjustment": money(row.get("adjustment_cents")),
+                "provenance": str(row.get("provenance", "")),
+            }
+            for row in data.ledgers
+        ],
+        "matrix": matrix,
+        "allowances": allowances,
+        "flags": [
+            {
+                "builder_name": flag.builder_name,
+                "headline": flag.headline,
+                "phrase": language_value(
+                    language,
+                    f"flag_phrases.{flag.flag_type}",
+                ),
+            }
+            for flag in data.flags
+        ],
+        "questions": data.questions,
+        "narratives": dict(narratives),
+    }
+
+
+def status_phrase(
+    cell: ReportMatrixCell,
+    status: ReportCellStatus,
+    language: Mapping[str, Any],
+) -> str:
+    status_key = status.status
+    if status.status == "excluded_explicit" and _first_page(status.evidence) is None:
+        status_key = "silent_ambiguous"
+    template = str(language_value(language, f"status_phrases.{status_key}"))
+    return template.format(
+        page=_first_page(status.evidence) or "",
+        amount=money(status.amount_cents),
+        parent_name=status.parent_name or "",
+        cell_name=cell.name,
+    )
+
+
+def glyph_for_status(status: str) -> str:
+    return GLYPHS.get(status, "○")
+
+
+def money(cents: Any) -> str:
+    if cents is None:
+        return ""
+    dollars = int(cents) / 100
+    return f"${dollars:,.0f}"
+
+
+def language_value(language: Mapping[str, Any], key_path: str) -> Any:
+    if key_path in language:
+        return language[key_path]
+    value: Any = language
+    for part in key_path.split("."):
+        if not isinstance(value, Mapping) or part not in value:
+            raise KeyError(f"missing report language key: {key_path}")
+        value = value[part]
+    return value
+
+
+def _section_titles(language: Mapping[str, Any]) -> dict[str, str]:
+    raw = language_value(language, "report.section_titles")
+    return {str(key): str(value) for key, value in raw.items()}
+
+
+def _labels(language: Mapping[str, Any]) -> dict[str, str]:
+    raw = language_value(language, "report.labels")
+    return {str(key): str(value) for key, value in raw.items()}
+
+
+def _narrative_block(key: str, narratives: Mapping[str, str]) -> str:
+    return (
+        f"<!-- tcm:narrative:{key}:start -->\n"
+        f"{narratives.get(key, '').strip()}\n"
+        f"<!-- tcm:narrative:{key}:end -->"
+    )
+
+
+def _matrix_markdown(view: Mapping[str, Any]) -> str:
+    quotes = view["quotes"]
+    header = "| Item | " + " | ".join(quote["builder_name"] for quote in quotes) + " |"
+    separator = "| --- | " + " | ".join("---" for _ in quotes) + " |"
+    rows = [header, separator]
+    for cell in view["matrix"]:
+        values = []
+        for quote in quotes:
+            status = cell["by_quote"].get(quote["id"])
+            values.append(f"{status['glyph']} {status['phrase']}" if status else "")
+        rows.append(f"| {cell['name']} | " + " | ".join(values) + " |")
+    return "\n".join(rows)
+
+
+def _flags_markdown(view: Mapping[str, Any]) -> str:
+    if not view["flags"]:
+        return ""
+    rows = ["| Builder | Flag |", "| --- | --- |"]
+    for flag in view["flags"]:
+        rows.append(f"| {flag['builder_name']} | {flag['headline']} |")
+    return "\n".join(rows)
+
+
+def _first_page(evidence: Mapping[str, Any]) -> int | None:
+    refs = evidence.get("page_refs")
+    if not isinstance(refs, list) or not refs:
+        return None
+    page = refs[0].get("page") if isinstance(refs[0], Mapping) else None
+    return int(page) if page is not None else None
+
+
+async def _comparison(
+    session: AsyncSession,
+    comparison_id: uuid.UUID,
+) -> TenderComparison:
+    comparison = await session.get(TenderComparison, comparison_id)
+    if comparison is None:
+        raise ReportLifecycleError(f"unknown comparison: {comparison_id}")
+    return comparison
+
+
+async def _project(session: AsyncSession, project_id: uuid.UUID) -> Project:
+    project = await session.get(Project, project_id)
+    if project is None:
+        raise ReportLifecycleError(f"unknown project: {project_id}")
+    return project
+
+
+async def _latest_report(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> TenderReport | None:
+    result = await session.execute(
+        select(TenderReport)
+        .where(TenderReport.comparison_id == comparison_id)
+        .order_by(TenderReport.version.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _required_latest_report(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> TenderReport:
+    report = await _latest_report(session, comparison_id=comparison_id)
+    if report is None:
+        raise ReportLifecycleError(f"report has not been built: {comparison_id}")
+    return report
+
+
+async def _previous_markdown(
+    session: AsyncSession,
+    report: TenderReport | None,
+) -> str | None:
+    if report is None:
+        return None
+    draft = await get_draft_artifact(session, report.draft_id)
+    return draft.content_markdown if draft is not None else None
+
+
+async def _report_matrix(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> list[ReportMatrixCell]:
+    result = await session.execute(
+        select(TenderCellStatus, TaxonomyCell)
+        .join(TaxonomyCell, TaxonomyCell.code == TenderCellStatus.cell_code)
+        .where(TenderCellStatus.comparison_id == comparison_id)
+        .order_by(TaxonomyCell.sort_order, TenderCellStatus.cell_code)
+    )
+    cells: dict[str, ReportMatrixCell] = {}
+    for status, cell in result.all():
+        report_cell = cells.setdefault(
+            cell.code,
+            ReportMatrixCell(code=cell.code, name=cell.name, group=cell.grp),
+        )
+        report_cell.statuses.append(
+            ReportCellStatus(
+                quote_id=status.quote_id,
+                status=status.status,
+                amount_cents=status.amount_cents,
+                evidence=status.evidence or {},
+                parent_name=status.bundled_into_cell,
+            )
+        )
+    return list(cells.values())
+
+
+async def _report_flags(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> list[ReportFlag]:
+    result = await session.execute(
+        select(TenderFlag, TenderQuote, TaxonomyCell)
+        .join(TenderQuote, TenderQuote.id == TenderFlag.quote_id)
+        .join(TaxonomyCell, TaxonomyCell.code == TenderFlag.cell_code)
+        .where(
+            TenderFlag.comparison_id == comparison_id,
+            TenderFlag.include_in_report.is_(True),
+        )
+    )
+    return [
+        ReportFlag(
+            builder_name=quote.builder_name,
+            cell_name=cell.name,
+            flag_type=flag.flag_type,
+            severity=flag.severity,
+            headline=flag.headline,
+            detail=flag.detail,
+            evidence=flag.evidence or {},
+        )
+        for flag, quote, cell in result.all()
+    ]
+
+
+async def _store_artifacts(
+    *,
+    project: Project,
+    comparison_id: uuid.UUID,
+    version: int,
+    artifacts: ReportArtifacts,
+    final: bool,
+) -> tuple[str, str]:
+    suffix = "final" if final else "draft"
+    base = f"{project.id}/tender/reports/{comparison_id}/v{version:02d}"
+    html_path = f"{base}/{suffix}.html"
+    pdf_path = f"{base}/{suffix}.pdf"
+    await asyncio.to_thread(
+        upload_project_file,
+        storage_key=html_path,
+        content=artifacts.html.encode("utf-8"),
+        filename=f"{suffix}.html",
+    )
+    await asyncio.to_thread(
+        upload_project_file,
+        storage_key=pdf_path,
+        content=artifacts.pdf_bytes,
+        filename=f"{suffix}.pdf",
+    )
+    return html_path, pdf_path
+
+
+def _draft_workspace_path(project: Project, version: int) -> str:
+    return (
+        f"{project.workspace_path}/05-procurement/"
+        f"tender-comparison-report-v{version:02d}.md"
+    )
+
+
+def _lifecycle_result(
+    report: TenderReport,
+    *,
+    status: str,
+) -> ReportLifecycleResult:
+    return ReportLifecycleResult(
+        report_id=report.id,
+        comparison_id=report.comparison_id,
+        draft_id=report.draft_id,
+        version=report.version,
+        html_path=report.html_path,
+        pdf_path=report.pdf_path,
+        status=status,
+        approved_at=report.approved_at,
+        delivered_at=report.delivered_at,
+    )

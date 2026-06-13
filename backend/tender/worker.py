@@ -21,14 +21,27 @@ from app.config import settings
 from app.logging import configure_logging, get_logger
 from tender.models import TenderJob
 from tender.services import jobs
+from tender.services.analysis import generate_flags, run_analysis
+from tender.services.embedding import embed_items
+from tender.services.expectations import run_expectations
 from tender.services.ingestion import ingest_document
+from tender.services.mapping import map_items
+from tender.services.report import assemble_report_draft
+from tender.services.silence import infer_silence
 
 log = get_logger(__name__)
 
 Handler = Callable[[AsyncSession, TenderJob], Awaitable[None]]
 
 HANDLERS: dict[str, Handler] = {
+    "embed_items": embed_items,
     "ingest_document": ingest_document,
+    "infer_silence": infer_silence,
+    "map_items": map_items,
+    "assemble_report_draft": assemble_report_draft,
+    "generate_flags": generate_flags,
+    "run_analysis": run_analysis,
+    "run_expectations": run_expectations,
 }
 
 

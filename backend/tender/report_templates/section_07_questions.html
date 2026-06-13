@@ -1,0 +1,11 @@
+<section id="questions">
+  <h2>{{ section_titles.questions }}</h2>
+  <table>
+    <thead><tr><th>{{ labels.question }}</th></tr></thead>
+    <tbody>
+      {% for question in questions %}
+      <tr><td>{{ question }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

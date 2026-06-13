@@ -1,0 +1,23 @@
+<section id="price-comparison">
+  <h2>{{ section_titles.price_comparison }}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ labels.builder }}</th>
+        <th>{{ labels.item }}</th>
+        <th>{{ labels.comparable_adjustment }}</th>
+        <th>{{ labels.provenance }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in ledgers %}
+      <tr>
+        <td>{{ row.builder_name }}</td>
+        <td>{{ row.cell_name }}</td>
+        <td>{{ row.adjustment }}</td>
+        <td>{{ row.provenance }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

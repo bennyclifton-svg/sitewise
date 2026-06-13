@@ -1,0 +1,13 @@
+<section id="allowances">
+  <h2>{{ section_titles.allowances }}</h2>
+  <table>
+    <thead>
+      <tr><th>{{ labels.item }}</th><th>{{ labels.builder }}</th><th>{{ labels.amount }}</th></tr>
+    </thead>
+    <tbody>
+      {% for allowance in allowances %}
+      <tr><td>{{ allowance.cell_name }}</td><td>{{ allowance.builder_name }}</td><td>{{ allowance.amount }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

@@ -8,6 +8,18 @@ import type {
   BillingStatus,
 } from "@/lib/types/billing";
 import type {
+  TenderComparison,
+  TenderComparisonListResponse,
+  TenderJob,
+  TenderMatrixResponse,
+  TenderQaQueueResponse,
+  TenderQaResolveRequest,
+  TenderQaResolveResponse,
+  TenderReportLifecycle,
+  TenderTaxonomyCell,
+  TenderTaxonomySearchResult,
+} from "@/lib/types/tender";
+import type {
   CreateCostPlanResponse,
   CreatePmpResponse,
   SortFilesResponse,
@@ -186,6 +198,76 @@ export const api = {
 
   getProject: async (projectId: string): Promise<ProjectDetail> =>
     api.get<ProjectDetail>(`/projects/${projectId}`),
+
+  listTenderComparisons: async (projectId: string): Promise<TenderComparison[]> => {
+    const response = await api.get<TenderComparisonListResponse>(
+      `/api/tender/comparisons?project_id=${encodeURIComponent(projectId)}`,
+    );
+    return response.comparisons;
+  },
+
+  getTenderComparison: async (comparisonId: string): Promise<TenderComparison> =>
+    api.get<TenderComparison>(`/api/tender/comparisons/${comparisonId}`),
+
+  retryTenderQuoteStage: async (
+    quoteId: string,
+    stage: string,
+  ): Promise<TenderJob> =>
+    api.post<TenderJob>(
+      `/api/tender/quotes/${quoteId}/retry/${encodeURIComponent(stage)}`,
+    ),
+
+  getTenderQaQueue: async (
+    comparisonId: string,
+  ): Promise<TenderQaQueueResponse> =>
+    api.get<TenderQaQueueResponse>(
+      `/api/tender/comparisons/${comparisonId}/qa/queue`,
+    ),
+
+  resolveTenderQaItem: async (
+    itemId: string,
+    body: TenderQaResolveRequest,
+  ): Promise<TenderQaResolveResponse> =>
+    api.post<TenderQaResolveResponse>(`/api/tender/qa/items/${itemId}/resolve`, body),
+
+  getTenderTaxonomy: async (): Promise<TenderTaxonomyCell[]> => {
+    const response = await api.get<{ cells: TenderTaxonomyCell[] }>(
+      "/api/tender/taxonomy",
+    );
+    return response.cells;
+  },
+
+  searchTenderTaxonomy: async (
+    query: string,
+  ): Promise<TenderTaxonomySearchResult[]> => {
+    const response = await api.get<{ results: TenderTaxonomySearchResult[] }>(
+      `/api/tender/taxonomy/search?q=${encodeURIComponent(query)}`,
+    );
+    return response.results;
+  },
+
+  getTenderMatrix: async (comparisonId: string): Promise<TenderMatrixResponse> =>
+    api.get<TenderMatrixResponse>(`/api/tender/comparisons/${comparisonId}/matrix`),
+
+  buildTenderReport: async (
+    comparisonId: string,
+  ): Promise<TenderReportLifecycle> =>
+    api.post<TenderReportLifecycle>(
+      `/api/tender/comparisons/${comparisonId}/report/build`,
+    ),
+
+  approveTenderReport: async (
+    comparisonId: string,
+  ): Promise<TenderReportLifecycle> =>
+    api.post<TenderReportLifecycle>(
+      `/api/tender/comparisons/${comparisonId}/report/approve`,
+    ),
+
+  getProjectDraft: async (
+    projectId: string,
+    draftId: string,
+  ): Promise<DraftArtifact> =>
+    api.get<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`),
 
   getProjectCockpitBootstrap: async (
     projectId: string,

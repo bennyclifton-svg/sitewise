@@ -1,0 +1,157 @@
+export type TenderProjectContext = {
+  context_version: number;
+  state: "NSW" | "VIC" | "QLD";
+  region: "metro" | "regional";
+  build_type: "new_build" | "renovation" | "addition";
+  dwelling_class: "class_1a";
+  storeys: number;
+  floor_area_m2: number | null;
+  site_area_m2: number | null;
+  soil_class: "A" | "S" | "M" | "H1" | "H2" | "E" | "P" | "unknown";
+  slope_class: "flat" | "moderate" | "steep" | "unknown";
+  bal_rating: "none" | "12.5" | "19" | "29" | "40" | "FZ" | "unknown";
+  wind_rating: string | null;
+  flood_overlay: boolean | null;
+  heritage_overlay: boolean | null;
+  existing_dwelling_era: string | null;
+  demolition_required: boolean | null;
+  spec_level: "builder_base" | "mid" | "high" | "architectural";
+  target_budget_cents: number | null;
+  notes: string | null;
+};
+
+export type TenderDocument = {
+  id: string;
+  quote_id: string;
+  storage_path: string;
+  original_filename: string;
+  mime_type: string;
+  doc_type: string | null;
+  ocr_applied: boolean;
+  page_count: number | null;
+  ingest_status: string;
+  created_at: string;
+};
+
+export type TenderQuote = {
+  id: string;
+  comparison_id: string;
+  builder_name: string;
+  builder_abn: string | null;
+  quote_ref: string | null;
+  quote_date: string | null;
+  stated_total_cents: number | null;
+  gst_treatment: string;
+  contract_type: string;
+  validity_days: number | null;
+  stage: string;
+  created_at: string;
+  documents?: TenderDocument[];
+};
+
+export type TenderComparison = {
+  id: string;
+  project_id: string;
+  status: string;
+  context: TenderProjectContext;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  quotes: TenderQuote[];
+};
+
+export type TenderComparisonListResponse = {
+  comparisons: TenderComparison[];
+};
+
+export type TenderJob = {
+  id: string;
+  kind: string;
+  comparison_id: string | null;
+  quote_id: string | null;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  run_after: string;
+  created_at: string;
+};
+
+export type TenderQaEntityType =
+  | "cell_status"
+  | "mapping"
+  | "flag"
+  | "document_classification";
+
+export type TenderQaItem = {
+  id: string;
+  entity_type: TenderQaEntityType;
+  report_impact_cents: number;
+  confidence: number | null;
+  payload: Record<string, unknown>;
+};
+
+export type TenderQaQueueResponse = {
+  items: TenderQaItem[];
+};
+
+export type TenderQaResolveAction = "accept" | "correct" | "suppress";
+
+export type TenderQaResolveRequest = {
+  action: TenderQaResolveAction;
+  corrected_value: Record<string, unknown> | null;
+  reason: string | null;
+};
+
+export type TenderQaResolveResponse = {
+  id: string;
+  entity_type: string;
+  action: string;
+  qa_state: string | null;
+};
+
+export type TenderTaxonomyCell = {
+  code: string;
+  name: string;
+  group: string;
+  stage: string;
+  description: string | null;
+};
+
+export type TenderTaxonomySearchResult = TenderTaxonomyCell & {
+  similarity: number;
+  via: string;
+};
+
+export type TenderMatrixQuoteCell = {
+  status: string;
+  amount_cents: number | null;
+  flags: string[];
+};
+
+export type TenderMatrixCell = {
+  code: string;
+  name: string;
+  quotes: Record<string, TenderMatrixQuoteCell>;
+};
+
+export type TenderMatrixGroup = {
+  name: string;
+  cells: TenderMatrixCell[];
+};
+
+export type TenderMatrixResponse = {
+  comparison_id: string;
+  groups: TenderMatrixGroup[];
+};
+
+export type TenderReportLifecycle = {
+  report_id: string;
+  comparison_id: string;
+  draft_id: string;
+  version: number;
+  html_path: string | null;
+  pdf_path: string | null;
+  status: string;
+  approved_at: string | null;
+  delivered_at: string | null;
+};

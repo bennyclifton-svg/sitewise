@@ -49,6 +49,10 @@ class ComparisonCreate(BaseModel):
     context: ProjectContext
 
 
+class ComparisonContextPatch(BaseModel):
+    context: ProjectContext
+
+
 class QuoteCreate(BaseModel):
     builder_name: str
     builder_abn: str | None = None
@@ -129,6 +133,99 @@ class JobView(BaseModel):
 class DocumentUploadResponse(BaseModel):
     document: DocumentView
     job: JobView
+
+
+class QAReviewItem(BaseModel):
+    id: uuid.UUID
+    entity_type: Literal[
+        "cell_status",
+        "mapping",
+        "flag",
+        "document_classification",
+    ]
+    report_impact_cents: int = 0
+    confidence: float | None = None
+    payload: dict = Field(default_factory=dict)
+
+
+class QAQueueResponse(BaseModel):
+    items: list[QAReviewItem] = Field(default_factory=list)
+
+
+class QAResolveRequest(BaseModel):
+    action: Literal["accept", "correct", "suppress"]
+    corrected_value: dict | None = None
+    reason: str | None = None
+
+
+class QAResolveResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    entity_type: str
+    action: str
+    qa_state: str | None = None
+
+
+class MatrixQuoteCell(BaseModel):
+    status: str
+    amount_cents: int | None = None
+    flags: list[str] = Field(default_factory=list)
+
+
+class MatrixCell(BaseModel):
+    code: str
+    name: str
+    quotes: dict[str, MatrixQuoteCell] = Field(default_factory=dict)
+
+
+class MatrixGroup(BaseModel):
+    name: str
+    cells: list[MatrixCell] = Field(default_factory=list)
+
+
+class MatrixResponse(BaseModel):
+    comparison_id: uuid.UUID
+    groups: list[MatrixGroup] = Field(default_factory=list)
+
+
+class TaxonomyCellView(BaseModel):
+    code: str
+    name: str
+    group: str
+    stage: str
+    description: str | None = None
+
+
+class TaxonomyListResponse(BaseModel):
+    cells: list[TaxonomyCellView] = Field(default_factory=list)
+
+
+class TaxonomySearchResult(TaxonomyCellView):
+    similarity: float
+    via: str
+
+
+class TaxonomySearchResponse(BaseModel):
+    results: list[TaxonomySearchResult] = Field(default_factory=list)
+
+
+class ReportLifecycleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    report_id: uuid.UUID
+    comparison_id: uuid.UUID
+    draft_id: uuid.UUID
+    version: int
+    html_path: str | None = None
+    pdf_path: str | None = None
+    status: str
+    approved_at: datetime | None = None
+    delivered_at: datetime | None = None
+
+
+class ReportDeliveredRequest(BaseModel):
+    delivery_note: str | None = None
 
 
 class BoundingBox(BaseModel):

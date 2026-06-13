@@ -1,6 +1,35 @@
 # TCM report language — BINDING (PRD Appendix C + §9.7 claim-strength rule)
 meta: { version: 1 }
 
+report:
+  title: "Tender comparison report"
+  draft_label: "DRAFT"
+  section_titles:
+    cover: "Cover & project context"
+    executive_summary: "Executive summary"
+    price_comparison: "Price comparison"
+    comparison_matrix: "Comparison matrix"
+    allowances: "Allowances under the microscope"
+    risk_notes: "Risk notes"
+    questions: "Questions to ask each builder"
+    methodology: "Methodology & limits"
+  default_narratives:
+    executive_summary_intro: "This draft compares the submitted tender documents on a like-for-like basis."
+    risk_notes_intro: "These notes highlight document gaps and allowances to clarify before signing."
+  legal:
+    disclaimer: "This report is information and document analysis only. It is not financial, legal, building, valuation, builder recommendation, or ranking advice."
+    not_itemised: "Not itemised does not mean excluded; it means the document does not state the item clearly enough to rely on without builder confirmation."
+  labels:
+    builder: "Builder"
+    stated_total: "Stated total"
+    comparable_adjustment: "Comparable adjustment"
+    provenance: "Provenance"
+    item: "Item"
+    status: "Status"
+    amount: "Amount"
+    flag: "Flag"
+    question: "Question"
+
 status_phrases:
   excluded_explicit: "Excluded (stated, p. {page})"
   silent_ambiguous: "Not explicitly itemised — confirm with builder"
@@ -25,6 +54,26 @@ flag_phrases:
   exclusion_risk: "Excluded items become your cost after signing — price them before comparing."
   statutory_missing: "This is a compliance requirement — confirm who carries it and that it is costed."
   arithmetic_inconsistency: "The stated figures do not reconcile — ask the builder to confirm the total."
+
+question_templates:
+  gap: "{builder_name}: Please confirm whether {cell_name} is included in your price, and if not, what amount should be added."
+  low_pc_allowance: "{builder_name}: Your allowance for {cell_name} is {amount}; please confirm what product/range this assumes and the likely upgrade cost."
+  unrealistic_ps: "{builder_name}: Your provisional sum for {cell_name} is {amount}; please provide the basis, quantities and exclusions behind that allowance."
+  missing_expected: "{builder_name}: Please confirm whether {cell_name} is required for this project and where it is allowed for in your quote."
+  scope_ambiguity: "{builder_name}: Please confirm the exact scope included for {cell_name}, including any exclusions or owner-supplied items."
+  price_outlier: "{builder_name}: Please confirm the basis of your {cell_name} amount and whether it includes the same scope as the other quotes."
+  exclusion_risk: "{builder_name}: Please price {cell_name} as an included item, or confirm the customer must carry this cost separately."
+  statutory_missing: "{builder_name}: Please confirm who is responsible for {cell_name} and where the cost is included."
+  arithmetic_inconsistency: "{builder_name}: Please confirm the arithmetic behind the quoted total and provide a corrected total if needed."
+
+analysis:
+  notes:
+    no_benchmark_available: "No benchmark available for this item."
+    floor_area_required: "Floor area is required before this benchmark can be priced."
+    stated_total_required: "A stated quote total is required before this percentage benchmark can be priced."
+    ratio_not_priced: "Ratio benchmarks are not priced directly in the comparison ledger."
+    low_confidence_unquantified: "A low-confidence benchmark exists, but it is not included in the customer-facing comparable price."
+    incomplete_benchmark: "The benchmark row is missing the percentile needed for this calculation."
 
 forbidden_terms:
   - ripoff

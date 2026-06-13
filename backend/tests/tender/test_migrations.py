@@ -21,6 +21,8 @@ TENDER_REVISIONS = [
     "009_tender_mapping_status",
     "010_tender_jobs_eval",
     "011_tender_report_language",
+    "012_tender_mapping_support",
+    "013_tender_analysis_results",
 ]
 
 
@@ -32,6 +34,7 @@ def _alembic_config() -> Config:
 
 def _script_directory() -> ScriptDirectory:
     return ScriptDirectory.from_config(_alembic_config())
+
 
 def test_tender_migrations_chain_in_order() -> None:
     scripts = _script_directory()
@@ -52,7 +55,10 @@ def test_every_tender_migration_has_real_downgrade() -> None:
         source = module_path.read_text(encoding="utf-8")
         assert "def downgrade() -> None:" in source
         downgrade_body = source.split("def downgrade() -> None:", 1)[1]
-        assert "drop_table" in downgrade_body, f"{revision} downgrade drops nothing"
+        assert any(
+            operation in downgrade_body
+            for operation in ("drop_table", "drop_column", "drop_index", "drop_constraint")
+        ), f"{revision} downgrade drops nothing"
 
 
 @pytest.mark.integration
@@ -93,6 +99,7 @@ def test_tender_migrations_roundtrip_against_database() -> None:
             "tender_jobs",
             "eval_results",
             "report_language",
+            "taxonomy_synonyms",
         ):
             assert table in tables
 
@@ -117,6 +124,31 @@ def test_tender_migrations_roundtrip_against_database() -> None:
                     """
                 )
             ).scalar_one()
+            synonym_embedding_type = connection.execute(
+                sa.text(
+                    """
+                    SELECT format_type(a.atttypid, a.atttypmod)
+                    FROM pg_attribute a
+                    WHERE a.attrelid = 'taxonomy_synonyms'::regclass
+                      AND a.attname = 'embedding'
+                    """
+                )
+            ).scalar_one()
+            synonym_indexes = {
+                row[0]
+                for row in connection.execute(
+                    sa.text(
+                        """
+                        SELECT indexname
+                        FROM pg_indexes
+                        WHERE tablename = 'taxonomy_synonyms'
+                        """
+                    )
+                )
+            }
         assert embedding_type == "vector(1536)"
+        assert synonym_embedding_type == "vector(1536)"
+        assert "ix_taxonomy_synonyms_phrase_norm_trgm" in synonym_indexes
+        assert "ix_taxonomy_synonyms_embedding" in synonym_indexes
     finally:
         engine.dispose()

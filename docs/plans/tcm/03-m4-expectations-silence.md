@@ -39,6 +39,13 @@
 
 - [ ] DSL evaluator: 100% comparator/combinator coverage, Appendix A examples pass verbatim
 - [ ] Downgrade test and never-auto-pass test exist and are green
+
+## Part A eval baseline
+
+Offline smoke baseline (`SilencePredictionRunner` with fake adjudicator, no live model):
+`bundled_precision=1.0`, `bundled_recall=1.0`, `ambiguous_precision=1.0`,
+`ambiguous_recall=1.0`; excluded / ps_covered / not_required have no observations
+in the smoke fixture yet, so their precision and recall are unset.
 - [ ] Explicit-exclusion path provably LLM-free
 - [ ] Full suite green (output pasted); silence eval baseline recorded
 
@@ -77,4 +84,4 @@
 ## Baseline (fill in at completion)
 
 - silence per-class P/R: _
-- ledger fixture hash: _
+- ledger fixture hash: `sha256:26345c25c82aec9951217ea4b616955e9451ed0023b7b0adc0e1c07fa909afab`

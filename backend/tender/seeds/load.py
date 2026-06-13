@@ -29,6 +29,10 @@ from tender.models import (  # noqa: E402
     TaxonomyCell,
     TaxonomySynonym,
 )
+from tender.services.expectations import (  # noqa: E402
+    PredicateValidationError,
+    validate_predicate,
+)
 
 
 DEFAULT_DATA_DIR = REPO_ROOT / "data" / "tender"
@@ -262,12 +266,20 @@ def read_taxonomy(path: Path) -> list[dict[str, Any]]:
     defaults = data.get("meta", {}).get("defaults", {})
     version = int(data.get("meta", {}).get("version", 1))
     groups = data["groups"]
+    concepts_path = path.with_name("concepts.yaml")
+    concepts = read_concepts(concepts_path) if concepts_path.exists() else {}
     rows: list[dict[str, Any]] = []
     for sort_order, cell in enumerate(data["cells"], start=1):
         code = str(cell["code"])
         prefix = code[:2]
         if prefix not in groups:
             raise ValueError(f"taxonomy cell {code} has no group for prefix {prefix}")
+        applicability = cell.get("applicability")
+        if applicability is not None:
+            try:
+                validate_predicate(applicability, concepts=concepts)
+            except PredicateValidationError as exc:
+                raise ValueError(f"taxonomy cell {code} applicability is invalid: {exc}") from exc
         rows.append(
             {
                 "code": code,
@@ -276,7 +288,7 @@ def read_taxonomy(path: Path) -> list[dict[str, Any]]:
                 "grp": groups[prefix]["name"],
                 "stage": cell["stage"],
                 "description": cell.get("description"),
-                "applicability": cell.get("applicability"),
+                "applicability": applicability,
                 "bundling_parents": list(cell.get("bp", cell.get("bundling_parents", []))),
                 "region_tags": list(
                     cell.get("rt", cell.get("region_tags", defaults.get("region_tags", [])))
@@ -317,8 +329,14 @@ def read_synonyms(path: Path) -> list[dict[str, Any]]:
 def read_expectations(path: Path) -> list[dict[str, Any]]:
     data = _read_yaml(path)
     version = int(data.get("meta", {}).get("version", 1))
+    concepts_path = path.with_name("concepts.yaml")
+    concepts = read_concepts(concepts_path) if concepts_path.exists() else {}
     rows: list[dict[str, Any]] = []
     for rule in data["rules"]:
+        try:
+            validate_predicate(rule["predicate"], concepts=concepts)
+        except PredicateValidationError as exc:
+            raise ValueError(f"expectation rule {rule['rule']} predicate is invalid: {exc}") from exc
         rows.append(
             {
                 "rule_code": rule["rule"],
@@ -332,6 +350,19 @@ def read_expectations(path: Path) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def read_concepts(path: Path) -> dict[str, tuple[str, ...]]:
+    data = _read_yaml(path)
+    raw = data.get("concepts", {})
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"{path} concepts must be a mapping")
+    concepts: dict[str, tuple[str, ...]] = {}
+    for key, phrases in raw.items():
+        if not isinstance(phrases, list) or not phrases:
+            raise ValueError(f"concept {key} must contain at least one phrase")
+        concepts[str(key)] = tuple(str(phrase) for phrase in phrases)
+    return concepts
 
 
 def read_benchmarks(path: Path) -> list[dict[str, Any]]:

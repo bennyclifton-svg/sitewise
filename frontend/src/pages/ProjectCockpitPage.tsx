@@ -33,6 +33,8 @@ import type {
   WorkspaceTreeNode,
 } from "@/lib/types/project";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 function formatApiError(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
 }

@@ -123,6 +123,25 @@ Run `uv run pytest -m tender_eval` against the golden set (however small) and **
 
 PRD M3 exit: **5 real quote sets end-to-end, however rough.** Requires ingestion (Stage 0.5 if it was found stubbed) and extraction working. Run the pipeline on real sets, note QA pain points in this doc. This is deliberately manual — do not skip, do not synthesize.
 
+## Baseline (2026-06-13)
+
+Command: `uv run pytest -m tender_eval`
+
+- Documents evaluated: 0
+- Mapping accuracy@1: null (no annotated golden mapping items)
+- Split F1: null (no annotated golden mapping pairs)
+- Mapping gold pair count: 0
+- Mapping predicted pair count: 0
+- Note: `data/tender/golden/manifest.yaml` currently contains no documents, so this is an infrastructure baseline only. The first real/synthetic golden annotations must replace these null metrics before they can be used as a quality gate.
+
+## Real-document checkpoint (2026-06-13)
+
+Not run. Blockers found in `feature/tcm-main`:
+
+- No real quote payloads or annotated golden documents are present in `data/tender/`.
+- `backend/tender/services/ingestion.py` still raises `NotImplementedError("ingest_document lands in the next commit")`.
+- Stage 0.5 remains required before the PRD M3 checkpoint can process 5 real quote sets end-to-end. No synthetic substitute was used.
+
 ## Exit criteria
 
 - [ ] All tier tests green; full suite green (output pasted)

@@ -1,0 +1,24 @@
+<section id="comparison-matrix">
+  <h2>{{ section_titles.comparison_matrix }}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ labels.item }}</th>
+        {% for quote in quotes %}
+        <th>{{ quote.builder_name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for cell in matrix %}
+      <tr>
+        <td>{{ cell.name }}</td>
+        {% for quote in quotes %}
+        {% set status = cell.by_quote.get(quote.id) %}
+        <td>{% if status %}{{ status.glyph }} {{ status.phrase }}{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
