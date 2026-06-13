@@ -47,6 +47,20 @@ _CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
     ("20", "Finishes and external works"),
 )
 
+# Practice-benchmark elemental split (Assumption — not market-rate advice).
+# Labels MUST match _CONSTRUCTION_ROWS; integer percents sum to 100.
+_CONSTRUCTION_BENCHMARK_PCT: tuple[tuple[str, int], ...] = (
+    ("Preliminaries", 8),
+    ("Siteworks and demolition", 7),
+    ("Footings and slab", 12),
+    ("Framing and roof", 18),
+    ("External envelope and lockup", 15),
+    ("Internal linings and joinery", 14),
+    ("Kitchen and bathrooms", 9),
+    ("Building services", 10),
+    ("Finishes and external works", 7),
+)
+
 _PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
     ("21", "Kitchen joinery PC"),
     ("22", "Wet area / sanitary PC"),
@@ -410,13 +424,39 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
             f"| {code} | Fees and charges | {label} | TBC | Assumption | Benchmark |"
         )
     for code, label in _CONSULTANT_ROWS:
+        if label == "Principal certifier" and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
+            fee = _money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else "Owner-direct"
+            name = pack.certifier_name or "appointed"
+            rows.append(
+                f"| {code} | Consultants | {label} | {fee} | Grounded | "
+                f"Appointed ({name}); owner-direct fee |"
+            )
+            continue
         rows.append(
             f"| {code} | Consultants | {label} | TBC | Assumption | Not yet appointed |"
         )
-    for code, label in _CONSTRUCTION_ROWS:
-        rows.append(
-            f"| {code} | Construction | {label} | TBC | Assumption | Pending head-builder tender |"
-        )
+    ceiling = _parse_amount(pack.construction_budget_ceiling)
+    if ceiling is not None:
+        pct_by_label = dict(_CONSTRUCTION_BENCHMARK_PCT)
+        running = 0
+        last_index = len(_CONSTRUCTION_ROWS) - 1
+        for index, (code, label) in enumerate(_CONSTRUCTION_ROWS):
+            if index == last_index:
+                amount = ceiling - running
+            else:
+                amount = round(ceiling * pct_by_label[label] / 100)
+                running += amount
+            rows.append(
+                f"| {code} | Construction | {label} | ${amount:,} | Assumption | "
+                f"Benchmark % of ceiling |"
+            )
+        construction_subtotal = f"${ceiling:,}"
+    else:
+        for code, label in _CONSTRUCTION_ROWS:
+            rows.append(
+                f"| {code} | Construction | {label} | TBC | Assumption | Pending head-builder tender |"
+            )
+        construction_subtotal = "TBC"
     for code, label in _PC_ALLOWANCE_ROWS:
         rows.append(
             f"| {code} | PC allowances | {label} | TBC | Assumption | Selection pending — contract PC schedule |"
@@ -426,18 +466,22 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
         f"{cont_status} | {cont_basis} |"
     )
 
+    # The grounded certifier fee is owner-direct (outside the builder contract), so it is
+    # intentionally excluded from the Consultants subtotal and the grand total — same
+    # treatment as owner-supplied items. Consultants subtotal stays TBC until appointments.
     subtotal_amounts = [
         _parse_amount(fee_subtotal),
+        _parse_amount(construction_subtotal),
         _parse_amount(contingency),
     ]
     itemised_total = sum(amount for amount in subtotal_amounts if amount is not None)
     grand_total = f"${itemised_total:,}" if itemised_total else "TBC"
-    grand_basis = "Sum of itemised subtotals — excludes construction ceiling and TBC lines"
+    grand_basis = "Sum of itemised subtotals — construction is benchmark % of ceiling, consultants/PC TBC"
     rows.extend(
         [
             f"| | | **Subtotal — Fees and charges** | {fee_subtotal} | | |",
             "| | | **Subtotal — Consultants** | TBC | | |",
-            "| | | **Subtotal — Construction** | TBC | | |",
+            f"| | | **Subtotal — Construction** | {construction_subtotal} | | |",
             "| | | **Subtotal — PC allowances** | TBC | | |",
             f"| | | **Subtotal — Contingency / allowances** | {contingency} | | |",
             f"| | | **Grand total (ex GST)** | {grand_total} | Assumption | {grand_basis} |",
@@ -450,7 +494,9 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
             "",
             "Workbook-ready groups: Fees and charges → Consultants → Construction → PC allowances → "
             "Contingency / allowances.",
-            "Construction rows follow NSW residential taxonomy; amounts TBC until head-builder tender.",
+            "Construction rows follow NSW residential taxonomy.",
+            "Construction rows are an indicative benchmark split of the owner ceiling (Assumption) "
+            "until head-builder tender returns a priced schedule.",
             "",
             *rows,
             "",
@@ -463,20 +509,29 @@ def _render_locked_appointments(pack: CostPlanEvidencePack) -> str:
     mob = pack.mobilisation
     executed = mob.engagement_executed_date or "TBC"
     fee = _money(mob.fee_total_ex_gst)
-    return "\n".join(
+    rows = [
+        "## Known locked contract and appointment values",
+        "",
+        "| Supplier | Scope | Amount (ex GST) | Date | Evidence |",
+        "| --- | --- | --- | --- | --- |",
+        (
+            f"| {mob.appointee or 'Harrison Clarke Studio Pty Ltd'} | Architect / PM | "
+            f"{fee} | {executed} | Engagement letter |"
+        ),
+    ]
+    if pack.certifier_name and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
+        cert_fee = _money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else "Owner-direct"
+        rows.append(
+            f"| {pack.certifier_name} | Principal certifier | {cert_fee} | Appointed | "
+            "Certifier appointment |"
+        )
+    rows.extend(
         [
-            "## Known locked contract and appointment values",
-            "",
-            "| Supplier | Scope | Amount (ex GST) | Date | Evidence |",
-            "| --- | --- | --- | --- | --- |",
-            (
-                f"| {mob.appointee or 'Harrison Clarke Studio Pty Ltd'} | Architect / PM | "
-                f"{fee} | {executed} | Engagement letter |"
-            ),
             "",
             "All other consultant and construction appointments: **Assumption — not yet locked**.",
         ]
     )
+    return "\n".join(rows)
 
 
 def _render_allowances_contingency(pack: CostPlanEvidencePack) -> str:

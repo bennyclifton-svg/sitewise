@@ -6,7 +6,12 @@ import re
 
 from pydantic import BaseModel, Field
 
-from app.sitewise.mobilisation_evidence import MobilisationEvidencePack, extract_mobilisation_evidence_pack
+from app.sitewise.mobilisation_evidence import (
+    GAP_CERTIFIER,
+    MobilisationEvidencePack,
+    extract_mobilisation_evidence_pack,
+    pack_has_gap,
+)
 
 _BUDGET_CEILING_PATTERN = re.compile(
     r"\*\*Working budget ceiling:\*\*\s*\$\s*([\d,]+)",
@@ -29,10 +34,20 @@ _PROJECT_TITLE_PATTERN = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _ALLOWANCE_AMOUNT_PATTERN = re.compile(r"\$\s*([\d,]+)")
+_CERTIFIER_NAME_PATTERN = re.compile(
+    r"appointed\s+([A-Z][\w&.'\- ]+?Pty Ltd)\s+as principal certifier",
+    re.IGNORECASE,
+)
+_CERTIFIER_FEE_PATTERN = re.compile(
+    r"(?:principal certifier|certifier|PCA|fee)[^.\n]*?\$\s*([\d,]+)\s*\+?\s*GST",
+    re.IGNORECASE,
+)
 
 
 class OwnerSuppliedItem(BaseModel):
     label: str
+    # Owner-supplied figures come straight from the owner brief, which does NOT state a
+    # GST basis. The field name is legacy — do not assume ex-GST or gross it up to inc-GST.
     amount_ex_gst: str | None = None
 
 
@@ -57,6 +72,8 @@ class CostPlanEvidencePack(BaseModel):
     owner_brief_on_file: bool = False
     planning_pathway_summary: str | None = None
     planning_memo_on_file: bool = False
+    certifier_name: str | None = None
+    certifier_fee_ex_gst: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
 
     @property
@@ -198,6 +215,21 @@ def extract_cost_plan_evidence_pack(
     if isinstance(project_name, str) and project_name.endswith(","):
         project_name = project_name.rstrip(",").strip()
 
+    certifier_name = None
+    certifier_fee = None
+    if not pack_has_gap(mobilisation, GAP_CERTIFIER):
+        # Scope the certifier name AND fee to the certifier appointment document only.
+        # Searching the global combined text would let a different consultant's fee line
+        # (e.g. a stormwater quote) be captured as the certifier fee.
+        for text in source_texts:
+            name_match = _CERTIFIER_NAME_PATTERN.search(text)
+            if not name_match:
+                continue
+            certifier_name = name_match.group(1).strip()
+            fee_match = _CERTIFIER_FEE_PATTERN.search(text)
+            certifier_fee = f"${fee_match.group(1)}" if fee_match else None
+            break
+
     return CostPlanEvidencePack(
         mobilisation=mobilisation,
         project_name=project_name if isinstance(project_name, str) else None,
@@ -209,5 +241,7 @@ def extract_cost_plan_evidence_pack(
         owner_brief_on_file=bool(owner_fields.get("owner_brief_on_file")),
         planning_pathway_summary=planning_summary,
         planning_memo_on_file=bool(planning_text.strip()),
+        certifier_name=certifier_name,
+        certifier_fee_ex_gst=certifier_fee,
         evidence_refs=refs,
     )

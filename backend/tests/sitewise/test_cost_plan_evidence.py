@@ -9,6 +9,19 @@ def _read(name: str) -> str:
     return (FIXTURE_DIR / name).read_text(encoding="utf-8")
 
 
+def _pack_with_certifier():
+    texts = [
+        _read("01-engagement-letter-harrison-clarke-studio.md"),
+        _read("02-fee-proposal-harrison-clarke-studio.md"),
+        _read("03-owner-project-brief-chen-residence.md"),
+        _read("09-planning-pathway-memo-harrison-clarke.md"),
+        _read("06-geotechnical-report-terratech.md"),
+        _read("11-master-programme-chen-residence.md"),
+        _read("12-certifier-appointment-chen-residence.md"),
+    ]
+    return extract_cost_plan_evidence_pack(texts, [])
+
+
 def test_extract_cost_plan_pack_includes_owner_brief_budget() -> None:
     texts = [
         _read("01-engagement-letter-harrison-clarke-studio.md"),
@@ -82,3 +95,30 @@ def test_extract_cost_plan_pack_resolves_brief_gaps_when_brief_present() -> None
     assert "Owner project brief formal sign-off" not in pack.gaps
     assert "Construction budget" not in pack.gaps
     assert "Geotechnical report" in pack.gaps
+
+
+def test_extract_certifier_appointment_and_fee() -> None:
+    pack = _pack_with_certifier()  # a pack built from chen fixtures INCLUDING file 12
+    assert pack.certifier_fee_ex_gst == "$6,800"
+    assert pack.certifier_name and "certify nsw" in pack.certifier_name.lower()
+
+
+def test_certifier_fee_not_confused_with_other_consultant_fee() -> None:
+    # File 10 (stormwater consultant) carries its own "**Fee:** $4,850 + GST" and is
+    # placed BEFORE file 12 (the certifier appointment, "$6,800 + GST"). A global
+    # fee search over the concatenated text would capture the stormwater $4,850.
+    texts = [
+        _read("01-engagement-letter-harrison-clarke-studio.md"),
+        _read("02-fee-proposal-harrison-clarke-studio.md"),
+        _read("03-owner-project-brief-chen-residence.md"),
+        _read("09-planning-pathway-memo-harrison-clarke.md"),
+        _read("06-geotechnical-report-terratech.md"),
+        _read("11-master-programme-chen-residence.md"),
+        _read("10-email-stormwater-consultant-quote.md"),
+        _read("12-certifier-appointment-chen-residence.md"),
+    ]
+    pack = extract_cost_plan_evidence_pack(texts, [])
+
+    assert pack.certifier_name and "certify nsw" in pack.certifier_name.lower()
+    assert pack.certifier_fee_ex_gst == "$6,800"
+    assert pack.certifier_fee_ex_gst != "$4,850"

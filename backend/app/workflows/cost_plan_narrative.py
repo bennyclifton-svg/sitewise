@@ -52,6 +52,10 @@ _MASTER_PROGRAMME_MISSING_PHRASES: tuple[str, ...] = (
     "inadequate programme management",
 )
 
+_GENERIC_RISK_OWNERS: frozenset[str] = frozenset(
+    {"project team", "team", "project", "tbc", "n/a", "various", "all"}
+)
+
 
 class CostPlanNarrativeOutput(BaseModel):
     judgements: list[str] = Field(min_length=2)
@@ -166,6 +170,13 @@ def validate_cost_plan_narrative_output(
         issues.append("risk_rows must include at least 5 items")
     if len(output.next_steps) < 3:
         issues.append("next_steps must include at least 3 items")
+
+    for index, row in enumerate(output.risk_rows, start=1):
+        if row.owner.strip().lower() in _GENERIC_RISK_OWNERS:
+            issues.append(
+                f"risk row {index} owner {row.owner!r} is generic — assign a specific "
+                "accountable party (Owner, Architect-PM, Structural Engineer, Certifier, Builder)"
+            )
 
     combined = "\n".join(
         [
