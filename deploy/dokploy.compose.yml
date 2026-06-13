@@ -1,8 +1,4 @@
-services:
-  sitewise-api:
-    image: sitewise-production-api:latest
-    pull_policy: never
-    environment:
+x-sitewise-api-environment: &sitewise-api-environment
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -24,6 +20,12 @@ services:
       POLAR_PROFESSIONAL_PRODUCT_ID: ${POLAR_PROFESSIONAL_PRODUCT_ID}
       POLAR_CHECKOUT_SUCCESS_PATH: ${POLAR_CHECKOUT_SUCCESS_PATH:-/billing?checkout=success}
       POLAR_CUSTOMER_PORTAL_RETURN_PATH: ${POLAR_CUSTOMER_PORTAL_RETURN_PATH:-/billing}
+
+services:
+  sitewise-api:
+    image: sitewise-production-api:latest
+    pull_policy: never
+    environment: *sitewise-api-environment
     restart: unless-stopped
     networks:
       sitewise-public:
@@ -41,6 +43,17 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  tender-worker:
+    image: sitewise-production-api:latest
+    pull_policy: never
+    command: python -m tender.worker
+    environment: *sitewise-api-environment
+    restart: unless-stopped
+    networks:
+      sitewise-public:
+        aliases:
+          - tender-worker
 
   sitewise-web:
     image: sitewise-production-web:latest

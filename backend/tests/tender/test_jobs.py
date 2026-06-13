@@ -32,7 +32,9 @@ def _claim_result(job: TenderJob | None) -> MagicMock:
 
 @pytest.fixture
 def mock_session() -> AsyncMock:
-    return AsyncMock()
+    session = AsyncMock()
+    session.add = MagicMock()
+    return session
 
 
 def test_enqueue_adds_and_flushes(mock_session: AsyncMock) -> None:

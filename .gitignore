@@ -50,6 +50,9 @@ Thumbs.db
 
 # Local scratch / agent runtime
 /tmp/
+.tmp/
+.tmp-env/
+.docker-config/
 .claude/
 .pytest-cache/
 
