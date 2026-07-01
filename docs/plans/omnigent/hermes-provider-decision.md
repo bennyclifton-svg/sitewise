@@ -99,7 +99,8 @@ primary ChatGPT path before adding a second provider.
 - [x] `hermes auth add openai-codex --type oauth` completes via device-code OAuth.
 - [x] `~/.hermes/config.yaml` contains the `openai-codex` provider.
 - [x] A Hermes turn completes without any OpenAI API key.
-- [ ] `omnigent setup` reports Hermes ready on `openai-codex / gpt-5.5` — Task 0.3.
+- [x] `omnigent setup` reports Hermes ready on `openai-codex / gpt-5.5` — done in
+      Task 0.3 (`Default model set to: gpt-5.5 (via OpenAI Codex)`, credentials ✓).
 
 ## Gotchas Log
 

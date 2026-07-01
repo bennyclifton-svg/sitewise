@@ -42,7 +42,7 @@ React 19 + Vite + Tailwind v4 + shadcn/ui + TanStack Query + Zustand + React Rou
 
 | Phase | File | Depends on | Status |
 |-------|------|-----------|--------|
-| 0 | [00-preflight.md](./00-preflight.md) | — | ☐ |
+| 0 | [00-preflight.md](./00-preflight.md) | — | ☑ |
 | 1 | [01-vendor-omnigent.md](./01-vendor-omnigent.md) | 0 | ☐ |
 | 2 | [02-domain-agent-tool-bridge.md](./02-domain-agent-tool-bridge.md) | 1 | ☐ |
 | 3 | [03-identity-bridge.md](./03-identity-bridge.md) | 2 | ☐ |
