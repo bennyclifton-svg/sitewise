@@ -169,15 +169,105 @@ flags (no config edit needed).
 **Status: unvalidated with live key** — no platform API key was available in
 the environment; config shape recorded from docs + CLI help only, per plan.
 
+## Task 2 — Scripted turn + streaming
+
+All runs piped (no TTY), from Windows via `wsl … -- bash -lc`. Note for a
+resuming agent: `$` in commands gets interpolated away by the Windows-side
+harness before reaching WSL, so the probes below were written to a script
+file and run with `tr -d '\r' < /mnt/c/…/script.sh | bash`.
+
+### Step 1 — non-interactive turn: WORKS, no TTY, no shims
+
+```text
+$ hermes -z 'Reply with exactly: HEADLESS OK' > /tmp/hermes-probe.txt 2>&1
+$ cat /tmp/hermes-probe.txt
+HEADLESS OK
+```
+
+No pty shim, no stdin tricks, no `--no-tui` needed. Exit code verified as 0
+on the identical `-z` invocation below (`HERMES_EXIT=${PIPESTATUS[0]}`).
+
+### Step 2 — streaming
+
+**`hermes -z` is final-only (buffered) — by design.** Timestamped run:
+
+```text
+START=21:49:52.441
+21:50:02.085 | 1
+21:50:02.087 | 2
+…
+21:50:02.098 | 10
+HERMES_EXIT=0
+END=21:50:02.334
+```
+
+All 10 lines in 13 ms after a ~10 s silent wait. Source-confirmed
+(`hermes_cli/oneshot.py`): the whole call tree runs under
+`redirect_stdout(devnull)`, the final response is written once at the end,
+and it explicitly sets `agent.stream_delta_callback = None` ("make sure
+AIAgent doesn't invoke any streaming display callbacks").
+
+**`hermes chat -q -Q` (quiet) is also final-only** — source-confirmed
+(`cli.py`, quiet single-query path): sets
+`cli.agent.stream_delta_callback = None` / `tool_gen_callback = None`
+("stdout stays machine-readable … response is printed once below"), prints
+`session_id: <id>` to **stderr** (stdout stays clean), exits 0/1
+(`result.get("failed")` → 1).
+
+**`hermes chat -q` (non-quiet) genuinely line-streams to a pipe** when
+`display.streaming: true` (this config's value). First try was inconclusive
+(10 short lines burst in 250 ms after a 7 s think — reasoning is hidden,
+short answers emit sub-second). Decisive run with a longer visible output:
+
+```text
+$ PYTHONUNBUFFERED=1 hermes chat -q 'Write exactly 12 one-sentence facts about
+  reinforced concrete, as a numbered list. No preamble.' 2>&1 | <timestamper>
+START=21:53:01.224
+21:53:01.796 | Query: Write exactly 12 one-sentence facts about reinforced concrete, as a
+21:53:01.901 | Initializing agent...
+21:53:03.373 | ────────────────────────────────────────
+21:53:08.617 | ╭─ ⚕ Hermes ───────────────────────────────────────────────╮
+21:53:08.732 |     1. Reinforced concrete combines concrete's compressive …
+21:53:08.988 |     2. Steel bars are embedded in concrete to resist …
+21:53:09.344 |     3. Concrete protects reinforcing steel from corrosion …
+21:53:09.771 |     4. …
+21:53:10.061 |     5. …
+21:53:10.539 |     6. …
+21:53:10.770 |     7. …
+21:53:11.208 |     8. …
+21:53:11.568 |     9. …
+21:53:11.958 |     10. …
+21:53:12.332 |     11. …
+21:53:13.094 |     12. …
+21:53:13.095 | ╰───────────────────────────────────────────────────────────╯
+21:53:13.251 | Session:        20260702_215301_af7c07
+HERMES_EXIT=0
+END=21:53:13.528
+```
+
+Lines arrived every 250–450 ms across ~4.4 s of generation = **line-level
+streaming, PASS** (matches `_stream_delta`'s docstring: "Line-buffered
+streaming callback for real-time token rendering"). Caveats for the Phase 2
+SSE relay:
+
+- The streamed path carries Rich chrome (box borders `╭─ ⚕ Hermes ─╮`,
+  indentation, wrapped `Query:` echo, session summary) — the relay must
+  strip/parse it, or use `chat -q -Q` (clean stdout, but final-only), or
+  move to `hermes serve`/`acp` for structured streaming.
+- Hidden reasoning (`show_reasoning: false`) means multi-second silent gaps
+  before visible text; SSE keep-alives will be needed.
+- `PYTHONUNBUFFERED=1` was set on the streaming run (not re-tested without;
+  early banner lines flushed progressively either way).
+
 ## Open questions
 
-- Does `-z` stream to stdout incrementally, or buffer the final text?
-  (`display.streaming: true` but top-level `streaming.enabled: false` in
-  config — meaning unclear.) → Task 2.
 - Do two concurrent headless turns collide on session files / locks?
   (`hermes profile` = "multiple isolated Hermes instances" exists as an
   isolation escape hatch, as does `--ignore-user-config`.) → Task 3.
 - `hermes serve` / `hermes acp` as longer-lived alternatives to per-turn CLI
-  spawns — out of scope for Phase 0, revisit in Phase 2 design.
+  spawns — structured streaming without Rich-chrome scraping. Out of scope
+  for Phase 0, revisit in Phase 2 design.
 - Per-turn Authorization headers: env-var interpolation is process-wide, not
   per-request; per-turn token injection strategy to be settled in Phase 2.
+- Exact token-level (sub-line) streaming granularity unmeasured — line-level
+  is confirmed and suffices for the gate.
