@@ -169,6 +169,14 @@ flags (no config edit needed).
 **Status: unvalidated with live key** — no platform API key was available in
 the environment; config shape recorded from docs + CLI help only, per plan.
 
+Task 3 checks: `~/.hermes/.env` is the shipped template with every provider
+key line commented out (`# OPENROUTER_API_KEY=…`, `# GOOGLE_API_KEY=…`, …)
+— confirmed no live key to test with. `hermes auth --help` surface:
+`add / list / remove / reset / status / logout` for pooled credentials
+(this is the OAuth/pooled-credential layer used for `openai-codex`; plain
+API keys use `.env` + `model.provider` as above, or per-invocation
+`--provider` / `-m`).
+
 ## Task 2 — Scripted turn + streaming
 
 All runs piped (no TTY), from Windows via `wsl … -- bash -lc`. Note for a
@@ -259,11 +267,60 @@ SSE relay:
 - `PYTHONUNBUFFERED=1` was set on the streaming run (not re-tested without;
   early banner lines flushed progressively either way).
 
+## Task 3 — Concurrency
+
+Two simultaneous `hermes -z` turns from one non-TTY shell (backgrounded,
+`wait`-ed, exit codes captured per process):
+
+```text
+START=21:54:58.519
+--A-- exit=0
+ALPHA
+--B-- exit=0
+BRAVO
+END=21:55:05.291
+```
+
+- Both completed correctly in ~7 s wall clock, outputs uncorrupted and
+  un-crossed, both exit 0.
+- **No lock/session collisions observed**: `find ~/.hermes -name '*.lock'
+  -newermt '… 21:49'` → nothing; `~/.hermes/sessions/` is empty (`-z` runs
+  are session-less by design — "no session_id line"); `errors.log` gained
+  nothing from the concurrent window (only pre-existing tool-availability
+  warnings from the earlier 21:53 run).
+- Shared `~/.hermes/logs/agent.log` is appended by both processes —
+  interleaved log lines, but that's cosmetic, not corrupting.
+- If Phase 2 uses `chat -q` (which *does* create sessions), ids are
+  timestamp+random (`20260702_215301_af7c07`), so collisions are unlikely;
+  per-turn `HOME`/`--profile` isolation remains available as a hardening
+  option but is **not required** by this probe's evidence.
+
+## Go/No-Go Gate — **PASS**
+
+| # | Gate item | Result | Evidence |
+|---|-----------|--------|----------|
+| a | Non-interactive turn works | **PASS** | `hermes -z 'Reply with exactly: HEADLESS OK'` through a TTY-less `wsl … bash -lc` pipe → `HEADLESS OK`, exit 0. No pty shim needed. |
+| b | Output at least line-streamed | **PASS** | `hermes chat -q '<prompt>'` (with config `display.streaming: true`) emitted lines every 250–450 ms across a ~4.4 s generation to a non-TTY pipe. (`-z` and `chat -q -Q` are final-only by design — use them where buffered-final is fine.) |
+| c | MCP-over-HTTP + custom headers declarable | **PASS** | `mcp_servers.<name>.url` + `headers: {Authorization: "Bearer …"}` per server, with `${ENV_VAR}` interpolation from `~/.hermes/.env`; confirmed in official docs *and* installed source (`hermes_cli/mcp_config.py`); `hermes mcp add --url … --auth header` writes exactly this shape. Not yet exercised against a live MCP endpoint (Phase 2). |
+| d | Concurrent turns don't corrupt each other | **PASS** | Two parallel `-z` turns → correct isolated outputs, both exit 0, no lock files, no new errors; `-z` is session-less. No isolation workaround required. |
+
+Residual risks carried into Phase 2 (none gate-blocking):
+
+1. Streaming currently rides the human-facing `chat -q` path → Rich chrome
+   must be stripped/parsed, or switch to `hermes serve`/`hermes acp` for a
+   structured stream.
+2. Per-turn `Authorization` values via `${ENV_VAR}` resolve from the
+   process env — per-turn token injection = env var on the spawned process
+   or per-profile config.
+3. API-key provider shape unvalidated with a live key.
+4. Probe ran on WSL2 Ubuntu-24.04; re-verify once on the real Linux deploy
+   host (same caveat as the earlier spike).
+
 ## Open questions
 
-- Do two concurrent headless turns collide on session files / locks?
-  (`hermes profile` = "multiple isolated Hermes instances" exists as an
-  isolation escape hatch, as does `--ignore-user-config`.) → Task 3.
+- ~~Do two concurrent headless turns collide?~~ Answered in Task 3: no
+  (with `-z`; `hermes profile` / `--ignore-user-config` remain as escape
+  hatches if `chat -q` sessions ever collide).
 - `hermes serve` / `hermes acp` as longer-lived alternatives to per-turn CLI
   spawns — structured streaming without Rich-chrome scraping. Out of scope
   for Phase 0, revisit in Phase 2 design.
