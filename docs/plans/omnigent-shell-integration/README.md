@@ -1,8 +1,55 @@
 # Omnigent Shell Integration — Plan Index
 
+> **⚠️ SUPERSEDED (2026-07-02):** Phases 1–8 of this plan are superseded by
+> [2026-07-02-agent-first-dashboard-design.md](../2026-07-02-agent-first-dashboard-design.md)
+> — Omnigent is **not** vendored; Hermes becomes the brain behind Clerk's own shell.
+> Phase 0's spike results (Hermes `openai-codex` OAuth, Linux runtime) remain valid and
+> are relied on by the new design. The MCP tool bridge, per-project isolation, and
+> Supabase identity decisions carry over. See the new design's decisions ledger.
+
 > **For any agent/LLM picking this up:** This is a sharded implementation plan. **Read this whole README first** — it is the shared context (goal, architecture, decisions, risks, tech stack) that every phase file assumes. Then open the phase file you're working on. Each phase file is self-contained enough to execute without re-reading the others, but all of them assume this README.
 >
 > **REQUIRED SUB-SKILL (if you have superpowers):** Use `superpowers:executing-plans` to implement a phase task-by-task. If you don't have that skill, just execute each task's numbered steps in order, committing after each task.
+
+## Quick launch (upstream spike — Linux only)
+
+> Omnigent is **not vendored into this repo yet** (only Phase 0 is done). This is how to run the
+> standalone upstream Omnigent CLI, as validated in the Phase 0 spike
+> ([../omnigent/spike-notes.md](../omnigent/spike-notes.md)). Runtime is **Linux only** (needs
+> `tmux` + `bubblewrap`); Windows is dev-only. On this box, "Linux" == WSL2 Ubuntu 24.04.
+
+```powershell
+# From Windows PowerShell — open Linux (WSL2 Ubuntu). Install first if missing:
+#   wsl --install -d Ubuntu-24.04
+wsl -d Ubuntu-24.04
+```
+
+Then, at the Ubuntu shell prompt:
+
+```sh
+# 1. Install (bootstrap; installs uv + bubblewrap, binary → ~/.local/bin/omnigent)
+curl -fsSL https://raw.githubusercontent.com/omnigent-ai/omnigent/main/scripts/install_oss.sh | sh
+
+# 2. Configure the brain — should report "gpt-5.5 (via OpenAI Codex)" ✓
+omnigent setup
+
+# 3. Start the web UI (headless; binds http://127.0.0.1:6767)
+omnigent server --no-open
+
+# 4. Register an execution host — REQUIRED, else the UI shows "No hosts"
+omnigent host --server http://localhost:6767
+
+# 5. The actual Hermes reasoning path (keyless ChatGPT-subscription brain)
+omnigent hermes
+```
+
+Open `http://localhost:6767` in the Windows browser (WSL2 loopback makes it reachable).
+
+**Gotchas:** use `omnigent hermes` (not the web chat's harness picker — those want API keys; our
+ChatGPT OAuth only works via Hermes' `openai-codex` provider). Pass `--no-open`/`--no-browser` and
+open URLs manually — WSL's `gio` can't auto-launch a browser.
+
+---
 
 ## Why this is sharded
 
