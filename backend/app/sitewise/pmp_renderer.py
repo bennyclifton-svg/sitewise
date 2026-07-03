@@ -445,7 +445,7 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     ]
     if state == "NSW":
         rows.append(
-            f"| BASIX (commitment) | Assumption | Owner / Architect-PM | Appoint assessor; align with DA |"
+            "| BASIX (commitment) | Assumption | Owner / Architect-PM | Appoint assessor; align with DA |"
         )
     certifier_status = (
         "Partial"

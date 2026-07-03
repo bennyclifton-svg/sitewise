@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.assistant.chat_models import resolve_chat_model
 from app.assistant.run_agent import run_agent_with_retry
-from app.config import settings
 from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact, get_latest_draft_artifact

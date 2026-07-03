@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
@@ -101,7 +101,7 @@ def pack_summary_for_narrative(pack: CostPlanEvidencePack) -> str:
         f"Geotechnical report on file: {not pack_has_gap(pack.mobilisation, GAP_GEOTECHNICAL)}",
         f"Master programme on file: {not pack_has_gap(pack.mobilisation, GAP_MASTER_PROGRAMME)}",
         f"Principal certifier appointed: {not pack_has_gap(pack.mobilisation, GAP_CERTIFIER)}",
-        f"Architect fee is outside the construction ceiling — not an overrun of the ceiling.",
+        "Architect fee is outside the construction ceiling — not an overrun of the ceiling.",
         f"Target DA lodgement: {mob.target_da_lodgement or 'TBC'}",
         f"Conflict disclosure: {mob.conflict_disclosure or 'None stated'}",
         "Owner-supplied items:",

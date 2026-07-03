@@ -2,7 +2,6 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact, next_draft_version
 from app.database.project import Project

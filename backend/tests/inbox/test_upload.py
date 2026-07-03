@@ -11,6 +11,7 @@ from app.database.project import Project
 from app.database.session import get_db
 from app.inbox.service import InboxUploadItem, InboxUploadOutcome, upload_inbox_files
 from app.main import fastapi_app as app
+from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -68,10 +69,6 @@ def test_validate_upload_batch_rejects_unsupported_extension() -> None:
     with pytest.raises(HTTPException) as exc_info:
         validate_upload_batch([InboxUploadItem(filename="notes.txt", content=b"hello")])
     assert exc_info.value.status_code == 400
-
-
-from tests.conftest import run_async
-
 
 def test_upload_inbox_files_stores_and_ingests(mock_session: AsyncMock) -> None:
     project = _project()
