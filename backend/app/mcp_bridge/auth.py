@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.project import Project
 from app.database.projects import get_project, user_owns_project
+from app.mcp_bridge.tokens import TurnClaims
 from app.mcp_bridge.tokens import TurnTokenError, verify_turn_token
 
 
@@ -13,12 +16,32 @@ class ToolAuthError(Exception):
     """Raised when a tool call is not permitted; message is safe to show the model."""
 
 
+@dataclass(frozen=True, slots=True)
+class ToolAuthorization:
+    project: Project
+    claims: TurnClaims
+
+
 async def authorize_project_access(
     session: AsyncSession,
     *,
     authorization_header: str | None,
     project_id: uuid.UUID,
-):
+) -> Project:
+    authorization = await authorize_project_access_with_claims(
+        session,
+        authorization_header=authorization_header,
+        project_id=project_id,
+    )
+    return authorization.project
+
+
+async def authorize_project_access_with_claims(
+    session: AsyncSession,
+    *,
+    authorization_header: str | None,
+    project_id: uuid.UUID,
+) -> ToolAuthorization:
     if not authorization_header or not authorization_header.lower().startswith("bearer "):
         raise ToolAuthError("missing turn token")
     try:
@@ -30,4 +53,4 @@ async def authorize_project_access(
     project = await get_project(session, project_id)
     if project is None or not user_owns_project(project, claims.user_id):
         raise ToolAuthError("project not found or not accessible")
-    return project
+    return ToolAuthorization(project=project, claims=claims)

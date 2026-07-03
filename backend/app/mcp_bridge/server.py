@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import HTTPException
 from fastmcp import FastMCP
@@ -10,7 +12,8 @@ from fastmcp.server.dependencies import get_http_headers
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.database.session import get_session_factory
-from app.mcp_bridge.auth import ToolAuthError, authorize_project_access
+from app.agent.status_bus import agent_turn_status_bus
+from app.mcp_bridge.auth import ToolAuthError, authorize_project_access_with_claims
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from tender.router import (
@@ -42,18 +45,63 @@ def _comparison_summary(comparison) -> dict:
     }
 
 
+def _turn_id(authorization) -> str | None:
+    return str(authorization.claims.turn_id) if authorization.claims.turn_id else None
+
+
+@asynccontextmanager
+async def _tool_status(
+    turn_id: str | None,
+    *,
+    tool: str,
+    running: str,
+    done: str,
+    error: str,
+) -> AsyncIterator[None]:
+    await agent_turn_status_bus.publish(
+        turn_id,
+        message=running,
+        tool=tool,
+        state="running",
+    )
+    try:
+        yield
+    except Exception:
+        await agent_turn_status_bus.publish(
+            turn_id,
+            message=error,
+            tool=tool,
+            state="error",
+        )
+        raise
+    else:
+        await agent_turn_status_bus.publish(
+            turn_id,
+            message=done,
+            tool=tool,
+            state="done",
+        )
+
+
 @mcp.tool
 async def list_tender_comparisons(project_id: str) -> list[dict]:
     """List tender comparisons for a project with their quotes and stages."""
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            await authorize_project_access(
+            authorization = await authorize_project_access_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
-        comparisons = await list_comparisons(session, project_id=pid)
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="list_tender_comparisons",
+            running="Listing tender comparisons",
+            done="Listed tender comparisons",
+            error="Tender comparison listing failed",
+        ):
+            comparisons = await list_comparisons(session, project_id=pid)
         return [_comparison_summary(c) for c in comparisons]
 
 
@@ -66,14 +114,21 @@ async def get_tender_comparison(comparison_id: str) -> dict:
         if comparison is None:
             raise ToolError("comparison not found")
         try:
-            await authorize_project_access(
+            authorization = await authorize_project_access_with_claims(
                 session,
                 authorization_header=_auth_header(),
                 project_id=comparison.project_id,
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
-        return _comparison_summary(comparison)
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="get_tender_comparison",
+            running="Loading tender comparison",
+            done="Loaded tender comparison",
+            error="Tender comparison lookup failed",
+        ):
+            return _comparison_summary(comparison)
 
 
 @mcp.tool
@@ -91,51 +146,59 @@ async def start_tender_comparison(
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            project = await authorize_project_access(
+            authorization = await authorize_project_access_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
+        project = authorization.project
 
-        comparison = await create_comparison(
-            session,
-            project_id=pid,
-            context=context,
-            created_by=project.owner_user_id,
-        )
-
-        quote_results: list[dict] = []
-        for spec in quotes:
-            quote = await create_quote(
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="start_tender_comparison",
+            running="Starting tender comparison",
+            done="Started tender comparison",
+            error="Tender comparison start failed",
+        ):
+            comparison = await create_comparison(
                 session,
-                comparison_id=comparison.id,
-                body=QuoteCreate(builder_name=spec["builder_name"]),
+                project_id=pid,
+                context=context,
+                created_by=project.owner_user_id,
             )
-            set_committed_value(quote, "comparison", comparison)
-            entry: dict = {
-                "quote_id": str(quote.id),
-                "builder_name": quote.builder_name,
-                "documents": [],
-            }
-            workspace_path = None
-            try:
-                for workspace_path in spec.get("workspace_paths", []):
-                    document = await store_project_file_quote_document(
-                        session, quote=quote, workspace_path=workspace_path
-                    )
-                    await jobs.enqueue(
-                        session,
-                        kind="ingest_document",
-                        comparison_id=quote.comparison_id,
-                        quote_id=quote.id,
-                        payload={"document_id": str(document.id)},
-                    )
-                    entry["documents"].append(str(document.id))
-            except HTTPException as exc:
-                entry["error"] = f"{workspace_path}: {exc.detail}"
-            quote_results.append(entry)
 
-        await session.commit()
+            quote_results: list[dict] = []
+            for spec in quotes:
+                quote = await create_quote(
+                    session,
+                    comparison_id=comparison.id,
+                    body=QuoteCreate(builder_name=spec["builder_name"]),
+                )
+                set_committed_value(quote, "comparison", comparison)
+                entry: dict = {
+                    "quote_id": str(quote.id),
+                    "builder_name": quote.builder_name,
+                    "documents": [],
+                }
+                workspace_path = None
+                try:
+                    for workspace_path in spec.get("workspace_paths", []):
+                        document = await store_project_file_quote_document(
+                            session, quote=quote, workspace_path=workspace_path
+                        )
+                        await jobs.enqueue(
+                            session,
+                            kind="ingest_document",
+                            comparison_id=quote.comparison_id,
+                            quote_id=quote.id,
+                            payload={"document_id": str(document.id)},
+                        )
+                        entry["documents"].append(str(document.id))
+                except HTTPException as exc:
+                    entry["error"] = f"{workspace_path}: {exc.detail}"
+                quote_results.append(entry)
+
+            await session.commit()
         return {"comparison_id": str(comparison.id), "quotes": quote_results}
 
 
@@ -145,20 +208,28 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            project = await authorize_project_access(
+            authorization = await authorize_project_access_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
-        retriever = DocumentRetriever(session)
-        passages = await retriever.retrieve(
-            query,
-            filters=RetrievalFilters(
-                active_project=project.slug,
-                include_platform_knowledge=False,
-            ),
-            include_neighbours=False,
-        )
+        project = authorization.project
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="search_documents",
+            running="Searching project documents",
+            done="Searched project documents",
+            error="Project document search failed",
+        ):
+            retriever = DocumentRetriever(session)
+            passages = await retriever.retrieve(
+                query,
+                filters=RetrievalFilters(
+                    active_project=project.slug,
+                    include_platform_knowledge=False,
+                ),
+                include_neighbours=False,
+            )
         return [
             {"document": p.filename, "snippet": p.content, "score": p.score}
             for p in passages

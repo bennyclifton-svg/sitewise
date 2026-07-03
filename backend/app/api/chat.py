@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import time
 from collections.abc import AsyncIterator
@@ -9,6 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic_ai.exceptions import ModelHTTPError
 
 from app.auth.dependencies import CurrentUser, get_current_user
+from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
+from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
+from app.agent.sse_relay import relay_agent_turn
+from app.agent.status_bus import agent_turn_status_bus
 from app.billing.entitlements import require_active_entitlement
 from app.chat.messages import extract_last_user_message
 from app.chat.orchestrator import run_chat_turn
@@ -31,6 +36,7 @@ from app.config import settings
 from app.database.users import ensure_user_exists
 from app.grounding.validator import GroundingError
 from app.logging import get_logger
+from app.mcp_bridge.tokens import TurnTokenConfigurationError, mint_turn_token
 from app.schemas.chat import (
     CreateThreadRequest,
     MessageListResponse,
@@ -191,6 +197,218 @@ async def _persist_chat_messages(
         message_id=assistant_message.id,
         answer=grounded_answer,
     )
+
+
+async def _persist_agent_user_message(
+    session: AsyncSession,
+    *,
+    thread: ChatThread,
+    user_text: str,
+) -> None:
+    if not thread.title:
+        await update_thread(
+            session,
+            thread,
+            title=title_from_message(user_text),
+        )
+    await create_message(
+        session,
+        thread_id=thread.id,
+        role="user",
+        content=user_text,
+        message_data={"agent": {"runtime": "hermes"}},
+    )
+
+
+async def _persist_agent_assistant_message(
+    session: AsyncSession,
+    *,
+    thread_id: uuid.UUID,
+    turn_id: uuid.UUID,
+    content: str,
+) -> None:
+    await create_message(
+        session,
+        thread_id=thread_id,
+        role="assistant",
+        content=content,
+        message_data={
+            "agent": {
+                "runtime": "hermes",
+                "turnId": str(turn_id),
+            }
+        },
+    )
+
+
+def _agent_workspace(thread_id: uuid.UUID, project_id: uuid.UUID) -> str:
+    path = settings.agent_workspace_root / str(project_id) / str(thread_id)
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
+@router.post("/agent/stream")
+async def post_agent_stream(
+    body: StreamChatRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    if not settings.agent_runtime_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hermes agent runtime is not enabled.",
+        )
+
+    user_text = extract_last_user_message(body.messages)
+    if not user_text:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No user message to send",
+        )
+
+    thread = await get_thread_by_id(session, body.thread_id)
+    require_thread_owner(thread, user.id)
+    await require_active_entitlement(session, user)
+    if thread.project_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Hermes agent chat requires a project thread.",
+        )
+    await require_project_owner(session, thread.project_id, user.id)
+
+    turn_id = uuid.uuid4()
+    try:
+        turn_token = mint_turn_token(
+            user_id=user.id,
+            project_id=thread.project_id,
+            turn_id=turn_id,
+        )
+    except TurnTokenConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Hermes agent turn tokens are not configured.",
+        ) from exc
+
+    await _persist_agent_user_message(session, thread=thread, user_text=user_text)
+    await session.commit()
+
+    workspace = _agent_workspace(body.thread_id, thread.project_id)
+    factory = get_session_factory()
+
+    log.info(
+        "agent_stream_start",
+        user_id=str(user.id),
+        thread_id=str(body.thread_id),
+        project_id=str(thread.project_id),
+        turn_id=str(turn_id),
+    )
+
+    async def event_stream() -> AsyncIterator[str]:
+        stream_start = time.perf_counter()
+        answer_parts: list[str] = []
+        completed = False
+
+        async def hermes_chunks() -> AsyncIterator[str]:
+            nonlocal completed
+            async for chunk in stream_hermes_turn(
+                user_text,
+                mcp_url=settings.agent_mcp_url,
+                turn_token=turn_token,
+                cwd=workspace,
+            ):
+                answer_parts.append(chunk)
+                yield chunk
+            completed = True
+
+        try:
+            async with agent_turn_registry.turn_scope(
+                str(turn_id),
+                thread_id=str(body.thread_id),
+            ):
+                async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
+                    async for event in relay_agent_turn(hermes_chunks(), status=statuses):
+                        yield event
+        except AgentTurnAlreadyRunning:
+            log.warning(
+                "agent_stream_already_running",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+            )
+            async for event in stream_error("An agent turn is already running for this chat."):
+                yield event
+            return
+        except asyncio.CancelledError:
+            log.info(
+                "agent_stream_cancelled",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+            )
+            async for event in stream_error("Agent turn cancelled."):
+                yield event
+            return
+        except HermesTurnTimeout:
+            log.warning(
+                "agent_stream_timeout",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+            )
+            async for event in stream_error("Hermes took too long to respond. Please try again."):
+                yield event
+            return
+        except HermesTurnError as exc:
+            log.warning(
+                "agent_stream_failed",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+                error=str(exc),
+            )
+            async for event in stream_error("Hermes could not complete this turn. Please try again."):
+                yield event
+            return
+
+        if completed:
+            content = "".join(answer_parts)
+            async with factory() as persist_session:
+                await _persist_agent_assistant_message(
+                    persist_session,
+                    thread_id=body.thread_id,
+                    turn_id=turn_id,
+                    content=content,
+                )
+                await persist_session.commit()
+            elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
+            log.info(
+                "agent_stream_persisted",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+                elapsed_ms=elapsed_ms,
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "x-vercel-ai-ui-message-stream": "v1",
+        },
+    )
+
+
+@router.post("/agent/{thread_id}/cancel")
+async def post_agent_cancel(
+    thread_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    thread = await get_thread_by_id(session, thread_id)
+    require_thread_owner(thread, user.id)
+    cancelled = await agent_turn_registry.cancel(str(thread_id))
+    return {"cancelled": cancelled}
 
 
 @router.post("/stream")

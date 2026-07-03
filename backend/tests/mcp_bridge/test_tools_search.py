@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from types import SimpleNamespace
 from typing import Any
 
@@ -7,6 +8,7 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from app.config import settings
+from app.agent.status_bus import agent_turn_status_bus
 from app.mcp_bridge.tokens import mint_turn_token
 from tests.conftest import run_async
 
@@ -59,11 +61,22 @@ def _project() -> SimpleNamespace:
     return SimpleNamespace(id=PROJECT_ID, owner_user_id=USER_ID, slug="test-project")
 
 
-def _install(monkeypatch, session: _Session, *, token_project: uuid.UUID = PROJECT_ID):
+def _install(
+    monkeypatch,
+    session: _Session,
+    *,
+    token_project: uuid.UUID = PROJECT_ID,
+    turn_id: uuid.UUID | None = None,
+):
     from app.mcp_bridge import server
 
     _StubRetriever.instances = []
-    token = mint_turn_token(user_id=USER_ID, project_id=token_project, secret=SECRET)
+    token = mint_turn_token(
+        user_id=USER_ID,
+        project_id=token_project,
+        turn_id=turn_id,
+        secret=SECRET,
+    )
     monkeypatch.setattr(
         server,
         "get_http_headers",
@@ -105,6 +118,31 @@ def test_authorized_search_returns_mapped_passages(monkeypatch):
     filters = call["filters"]
     assert filters.active_project == "test-project"
     assert filters.include_platform_knowledge is False
+
+
+def test_authorized_search_publishes_tool_status(monkeypatch):
+    turn_id = uuid.uuid4()
+    session = _Session(project=_project())
+    server = _install(monkeypatch, session, turn_id=turn_id)
+
+    async def _run():
+        async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
+            async with Client(server.mcp) as client:
+                result = await client.call_tool(
+                    "search_documents",
+                    {"project_id": str(PROJECT_ID), "query": "bearing capacity"},
+                )
+            running = await asyncio.wait_for(anext(statuses), timeout=0.1)
+            done = await asyncio.wait_for(anext(statuses), timeout=0.1)
+            return result, running, done
+
+    result, running, done = run_async(_run())
+
+    assert result.data
+    assert running["tool"] == "search_documents"
+    assert running["state"] == "running"
+    assert done["tool"] == "search_documents"
+    assert done["state"] == "done"
 
 
 def test_unauthorized_search_rejected(monkeypatch):

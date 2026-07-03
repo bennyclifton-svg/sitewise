@@ -25,6 +25,7 @@ class TurnClaims:
     user_id: uuid.UUID
     project_id: uuid.UUID
     expires_at: float
+    turn_id: uuid.UUID | None = None
 
 
 def _b64(data: bytes) -> str:
@@ -50,14 +51,18 @@ def mint_turn_token(
     *,
     user_id: uuid.UUID,
     project_id: uuid.UUID,
+    turn_id: uuid.UUID | None = None,
     ttl_seconds: int = 900,
     secret: str | None = None,
     now: float | None = None,
 ) -> str:
     secret = _resolve_secret(secret)
     now = time.time() if now is None else now
+    payload = {"uid": str(user_id), "pid": str(project_id), "exp": now + ttl_seconds}
+    if turn_id is not None:
+        payload["tid"] = str(turn_id)
     body = json.dumps(
-        {"uid": str(user_id), "pid": str(project_id), "exp": now + ttl_seconds},
+        payload,
         separators=(",", ":"),
     ).encode()
     return f"{_b64(body)}.{_sign(body, secret)}"
@@ -85,4 +90,5 @@ def verify_turn_token(
         user_id=uuid.UUID(payload["uid"]),
         project_id=uuid.UUID(payload["pid"]),
         expires_at=payload["exp"],
+        turn_id=uuid.UUID(payload["tid"]) if payload.get("tid") else None,
     )

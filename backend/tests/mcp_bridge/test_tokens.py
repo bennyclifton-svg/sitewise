@@ -19,6 +19,20 @@ def test_round_trip():
     claims = verify_turn_token(token, secret=SECRET, now=1500.0)
     assert claims.user_id == USER
     assert claims.project_id == PROJECT
+    assert claims.turn_id is None
+
+
+def test_round_trip_with_turn_id():
+    turn_id = uuid.uuid4()
+    token = mint_turn_token(
+        user_id=USER,
+        project_id=PROJECT,
+        turn_id=turn_id,
+        secret=SECRET,
+        now=1000.0,
+    )
+    claims = verify_turn_token(token, secret=SECRET, now=1500.0)
+    assert claims.turn_id == turn_id
 
 
 def test_expired_token_rejected():

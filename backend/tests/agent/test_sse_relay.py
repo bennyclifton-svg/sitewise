@@ -80,6 +80,19 @@ def test_relay_agent_turn_interleaves_structured_status_events() -> None:
     )
 
 
+async def _open_status_stream() -> AsyncIterator[dict[str, Any] | str]:
+    yield "Still working"
+    await asyncio.sleep(60)
+
+
+def test_relay_agent_turn_finishes_without_waiting_for_status_stream_end() -> None:
+    events = run_async(_collect(_text_chunks(), status=_open_status_stream()))
+    payloads = [_payload(event) for event in events]
+
+    assert payloads[-2]["type"] == "finish"
+    assert payloads[-1] == "[DONE]"
+
+
 async def _failing_chunks() -> AsyncIterator[str]:
     yield "Partial"
     raise RuntimeError("Hermes stopped")

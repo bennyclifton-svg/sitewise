@@ -54,7 +54,7 @@ async def relay_agent_turn(
     )
 
     try:
-        while chunk_task is not None or status_task is not None:
+        while chunk_task is not None:
             pending = {task for task in (chunk_task, status_task) if task is not None}
             done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
 
