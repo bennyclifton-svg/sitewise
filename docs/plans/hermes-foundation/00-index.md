@@ -42,4 +42,9 @@ Do not start a phase until the previous gate is green.
 Phase 2 is green as of 2026-07-03. The MCP bridge is mounted at `/mcp`, all
 four Phase 2 tools are covered, per-project turn-token authorization is proven,
 and the WSL Hermes smoke successfully called a read tool through the mounted
-endpoint. Phase 3 may begin.
+endpoint.
+
+Phase 3 is green as of 2026-07-03. The additive `/chat/agent/stream` endpoint
+streams AI-SDK-compatible events from a real Hermes process, multiplexes Clerk
+MCP tool status, persists successful turns, and supports cancellation. Phase 4
+may begin.

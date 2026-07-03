@@ -67,3 +67,18 @@ or another shared transport.
 - The turn calls one MCP tool successfully.
 - The unchanged chat UI can render the streamed text.
 
+## Gate Result
+
+Status: **GREEN** on 2026-07-03.
+
+- `uv run pytest tests -q`: 639 passed, 7 skipped, 4 warnings.
+- `uv run ruff check .`: all checks passed.
+- Manual smoke ran a temporary localhost FastAPI server with
+  `AGENT_RUNTIME_ENABLED=true`, `AGENT_TURN_TOKEN_SECRET` set, and Hermes
+  platform-key routing through `openai-api / gpt-5.1`.
+- `POST /chat/agent/stream` returned `start`, `text-start`,
+  `data-clerk-status`, `text-delta`, `text-end`, `finish`, and `[DONE]`.
+- Hermes called Clerk MCP `list_tender_comparisons` for project
+  `6ba20b0a-f469-427a-853c-00f549572b03`; the status bus emitted `running`
+  and `done`, and the assistant streamed: "The call returned 0 tender
+  comparisons."

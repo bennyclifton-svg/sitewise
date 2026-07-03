@@ -155,7 +155,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
             created_at=NOW,
         )
 
-    async def fake_stream_hermes_turn(prompt, *, mcp_url, turn_token, cwd):
+    async def fake_stream_hermes_turn(*, prompt, mcp_url, turn_token, cwd):
         seen.update(
             {
                 "prompt": prompt,

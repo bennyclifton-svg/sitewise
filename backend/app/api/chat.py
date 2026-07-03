@@ -311,7 +311,7 @@ async def post_agent_stream(
         async def hermes_chunks() -> AsyncIterator[str]:
             nonlocal completed
             async for chunk in stream_hermes_turn(
-                user_text,
+                prompt=user_text,
                 mcp_url=settings.agent_mcp_url,
                 turn_token=turn_token,
                 cwd=workspace,

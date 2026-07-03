@@ -52,8 +52,16 @@ The token never appears in argv, logs, or prompts.
 ## Platform Key Injection
 
 If `settings.agent_platform_api_key` is set, it is copied into the child
-environment as `OPENAI_API_KEY`. This follows Hermes' API-key provider shape
-from the Phase 0 probe. The key is never passed in argv.
+environment as `OPENAI_API_KEY`. Platform-key mode writes a per-turn Hermes
+config with `model.provider = openai-api` and `model.default = gpt-5.1`, both
+overridable through backend settings. This pair was verified in the Phase 3
+manual smoke. The key is never passed in argv.
+
+If no platform key is set, local OAuth/dev mode copies the active Hermes
+`config.yaml`, `auth.json`, and `.env` into the per-turn temp home, strips any
+existing `mcp_servers` block, and overlays the Clerk MCP server with the
+per-turn authorization header. This keeps local OAuth providers working without
+leaking the turn token into the user's global Hermes config.
 
 ## Session Mapping
 
