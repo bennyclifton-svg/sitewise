@@ -53,3 +53,9 @@ Phase 4 is green as of 2026-07-03. The AI-SDK chat UI now has structured tool
 chips, backend-backed stop/cancel, a per-project session list with
 resume/rename/delete/create, artefact cards, frontend tests, and readable
 agent-workflow error states. Phase 5 may begin.
+
+Phase 5 is in progress as of 2026-07-03, but its gate is not green. The worker,
+MCP tools, report artefact emission, timing ledger, and Windows JVM speed gate
+are implemented and verified. The required Linux/WSL2 scripted chat acceptance
+run is blocked because WSL lacks Java and the clean backend Docker build timed
+out before producing a runnable image. Phase 6 must not begin yet.

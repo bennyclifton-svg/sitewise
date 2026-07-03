@@ -52,3 +52,39 @@ added for MVP/dev, it must default off in production examples.
 - Simple three-tender cold run meets the agreed speed gate or produces a timing
   ledger that identifies the bottleneck before scope expands.
 
+## Gate Result - 2026-07-03
+
+Status: not green yet.
+
+Implemented and verified:
+
+- In-process tender worker loop exists behind `TENDER_WORKER_INPROC_ENABLED`,
+  defaulting off.
+- `list_selected_documents`, `get_comparison_status`, and
+  `get_comparison_result` are exposed as authenticated MCP tools.
+- `get_comparison_result` emits the existing `tender_report` draft/report as a
+  Phase 4 artefact event when one exists.
+- The worker records per-stage timing telemetry and now continues the pipeline
+  toward report assembly, while preserving the QA gate before report draft
+  creation.
+- Local migration `uv run alembic upgrade head` passed.
+- `uv run pytest tests/mcp_bridge tests/tender -q` passed: 218 passed,
+  1 skipped.
+- `uv run ruff check app/mcp_bridge tender tests/mcp_bridge tests/tender`
+  passed.
+- Windows JVM cold speed gate passed for the three pilot PDFs:
+  4.454 seconds total.
+
+Gate blockers:
+
+- WSL2 Ubuntu is available, but Java is not installed there and passwordless
+  `sudo` is unavailable, so the WSL ODL run could not be executed.
+- The backend Dockerfile now uses `default-jre-headless` after the clean Linux
+  build exposed that `openjdk-17-jre-headless` is unavailable on the current
+  `python:3.12-slim` Debian base. A clean Docker build from `git archive` still
+  timed out after 15 minutes before producing an image, due to the heavy ODL
+  dependency install path.
+- The full Linux/WSL2 scripted chat acceptance run has therefore not completed.
+
+Phase 6 must not start until this gate is rerun on a Linux environment with a
+working JVM/backend image and the chat-to-TCM artefact flow is observed.
