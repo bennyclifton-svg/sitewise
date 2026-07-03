@@ -75,6 +75,7 @@ class Settings(BaseSettings):
     tender_t3_review_conf: float = 0.70
     tender_silence_ps_sim: float = 0.60
     tender_silence_review_conf: float = 0.75
+    agent_turn_token_secret: str = ""
 
     @field_validator("database_url")
     @classmethod
