@@ -22,6 +22,7 @@ from tender.models import (
     TenderQuote,
 )
 from tender.schemas import ProjectContext
+from tender.services import jobs
 from tender.services.benchmarks import (
     BenchmarkRow,
     PricedBenchmark,
@@ -351,6 +352,12 @@ async def run_analysis(session: AsyncSession, job: TenderJob) -> None:
         benchmarks=inputs["benchmarks"],
     )
     await _upsert_analysis_result(session, job.comparison_id, result)
+    await jobs.enqueue(
+        session,
+        kind="generate_flags",
+        comparison_id=job.comparison_id,
+        payload={"reason": "analysis_complete"},
+    )
     await session.flush()
 
 
@@ -389,6 +396,21 @@ async def generate_flags(session: AsyncSession, job: TenderJob) -> None:
             questions=tuple(questions),
         ),
     )
+    comparison = await _comparison(session, job.comparison_id)
+    from tender.services import qa
+
+    try:
+        await qa.assert_no_pending_review(session, comparison_id=job.comparison_id)
+    except qa.PendingReviewError:
+        comparison.status = "qa"
+    else:
+        comparison.status = "processing"
+        await jobs.enqueue(
+            session,
+            kind="assemble_report_draft",
+            comparison_id=job.comparison_id,
+            payload={"reason": "qa_clear"},
+        )
     await session.flush()
 
 

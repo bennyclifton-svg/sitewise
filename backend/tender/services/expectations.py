@@ -21,6 +21,7 @@ from tender.models import (
     TenderQuote,
 )
 from tender.schemas import ProjectContext
+from tender.services import jobs
 
 ConceptMap = Mapping[str, Sequence[str]]
 
@@ -259,6 +260,14 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
                     "expected_because": draft.evidence.get("expected_because", []),
                 },
             )
+        )
+    comparison.status = "processing"
+    if not merge.silence_jobs:
+        await jobs.enqueue(
+            session,
+            kind="run_analysis",
+            comparison_id=job.comparison_id,
+            payload={"reason": "expectations_complete"},
         )
     await session.flush()
 

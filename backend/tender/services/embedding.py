@@ -12,8 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from tender.models import TaxonomySynonym, TenderJob, TenderLineItem
+from tender.models import TaxonomySynonym, TenderJob, TenderLineItem, TenderQuote
 from tender.seeds.load import normalize_phrase
+from tender.services import jobs
 
 MAX_EMBED_BATCH_SIZE = 256
 
@@ -54,6 +55,18 @@ async def embed_items(
     embedder: EmbeddingClient | None = None,
 ) -> None:
     await embed_line_items(session, quote_id=job.quote_id, embedder=embedder)
+    if job.quote_id is None:
+        return
+    quote = await session.get(TenderQuote, job.quote_id)
+    if quote is not None:
+        quote.stage = "map_items"
+    await jobs.enqueue(
+        session,
+        kind="map_items",
+        comparison_id=job.comparison_id,
+        quote_id=job.quote_id,
+        payload={"reason": "embedding_complete"},
+    )
 
 
 async def embed_line_items(

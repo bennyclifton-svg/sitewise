@@ -20,9 +20,11 @@ from tender.models import (
     TenderJob,
     TenderLineItem,
     TenderMapping,
+    TenderQuote,
 )
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
+from tender.services import jobs
 from tender.services.context import context_for_quote
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "llm" / "prompts"
@@ -184,6 +186,16 @@ async def map_items(
         )
         _add_mapping_rows(session, line_item.id, decision)
         await session.flush()
+    quote = await session.get(TenderQuote, job.quote_id)
+    if quote is not None:
+        quote.stage = "run_expectations"
+    await jobs.enqueue(
+        session,
+        kind="run_expectations",
+        comparison_id=job.comparison_id,
+        quote_id=job.quote_id,
+        payload={"reason": "mapping_complete"},
+    )
 
 
 async def map_line_item_cascade(
