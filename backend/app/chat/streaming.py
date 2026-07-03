@@ -91,8 +91,10 @@ async def stream_error(message: str) -> AsyncIterator[str]:
     yield _sse("[DONE]")
 
 
-def clerk_status_event(message: str) -> str:
-    return _sse({"type": "data-clerk-status", "data": {"message": message}})
+def clerk_status_event(message: str, **metadata: Any) -> str:
+    data = {"message": message}
+    data.update({key: value for key, value in metadata.items() if value is not None})
+    return _sse({"type": "data-clerk-status", "data": data})
 
 
 async def iter_chat_turn_with_status(
