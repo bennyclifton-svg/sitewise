@@ -24,6 +24,7 @@ TENDER_REVISIONS = [
     "012_tender_mapping_support",
     "013_tender_analysis_results",
 ]
+HEAD_REVISION = "014_chat_threads_hermes_session"
 
 
 def _alembic_config() -> Config:
@@ -46,7 +47,7 @@ def test_tender_migrations_chain_in_order() -> None:
 
 
 def test_head_is_last_tender_migration() -> None:
-    assert _script_directory().get_current_head() == TENDER_REVISIONS[-1]
+    assert _script_directory().get_current_head() == HEAD_REVISION
 
 
 def test_every_tender_migration_has_real_downgrade() -> None:

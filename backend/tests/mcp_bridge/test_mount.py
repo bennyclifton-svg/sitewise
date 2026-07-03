@@ -111,16 +111,23 @@ def test_mounted_tool_call_passes_authorization_header(monkeypatch):
     project_id = uuid.uuid4()
     seen: dict[str, str | None] = {}
 
-    async def authorize_project_access(session, *, authorization_header, project_id):
+    async def authorize_project_access_with_claims(session, *, authorization_header, project_id):
         seen["authorization_header"] = authorization_header
         return SimpleNamespace(
-            id=project_id,
-            owner_user_id=uuid.uuid4(),
-            slug="test-project",
+            project=SimpleNamespace(
+                id=project_id,
+                owner_user_id=uuid.uuid4(),
+                slug="test-project",
+            ),
+            claims=SimpleNamespace(turn_id=None),
         )
 
     monkeypatch.setattr(server, "get_session_factory", lambda: _session_factory)
-    monkeypatch.setattr(server, "authorize_project_access", authorize_project_access)
+    monkeypatch.setattr(
+        server,
+        "authorize_project_access_with_claims",
+        authorize_project_access_with_claims,
+    )
     monkeypatch.setattr(server, "list_comparisons", AsyncMock(return_value=[]))
 
     async def _run():
