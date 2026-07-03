@@ -77,6 +77,8 @@ export function ProjectChatBar({
               isFirstConversation={messages.length === 0}
               onConversationUpdate={onConversationUpdate}
               compact
+              agentMode
+              projectId={thread.project_id}
               showScopeControls
               scopeLabel={scopeLabel}
               crossProject={crossProject}
@@ -88,4 +90,3 @@ export function ProjectChatBar({
     </section>
   );
 }
-

@@ -208,6 +208,18 @@ export const api = {
   updateThreadTitle: async (threadId: string, title: string): Promise<ChatThread> =>
     api.patch<ChatThread>(`/chat/threads/${threadId}`, { title }),
 
+  deleteThread: async (threadId: string): Promise<void> => {
+    await api.delete<void>(`/chat/threads/${threadId}`);
+  },
+
+  cancelAgentTurn: async (threadId: string): Promise<boolean> => {
+    const response = await api.post<{ cancelled: boolean }>(
+      `/chat/agent/${threadId}/cancel`,
+      {},
+    );
+    return response.cancelled;
+  },
+
   getThreadMessages: async (threadId: string): Promise<ChatMessage[]> => {
     const response = await api.get<{ messages: ChatMessage[] }>(
       `/chat/threads/${threadId}/messages`,

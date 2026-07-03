@@ -35,6 +35,12 @@ function headingForKind(kind: ChatErrorKind): string {
       return "Could not verify sources";
     case "retrieval":
       return "Retrieval failed";
+    case "rate_limit":
+      return "Rate limit reached";
+    case "tool":
+      return "Tool failed";
+    case "partial_pipeline":
+      return "Workflow incomplete";
     case "network":
       return "Connection problem";
     default:

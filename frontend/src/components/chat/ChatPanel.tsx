@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Send } from "lucide-react";
+import { CircleStop, Send } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
@@ -11,7 +11,14 @@ import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
 import { UserMessage } from "@/components/chat/UserMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import {
+  artefactsFromMessage,
+  toolStatusesFromMessage,
+  type ArtefactEvent,
+  type ToolStatusEvent,
+} from "@/lib/chat-events";
 import {
   classifyChatError,
   messageDataById,
@@ -35,6 +42,8 @@ type ChatPanelProps = {
   showScopeControls?: boolean;
   crossProject?: boolean;
   onCrossProjectChange?: (value: boolean) => void;
+  agentMode?: boolean;
+  projectId?: string | null;
 };
 
 export function ChatPanel({
@@ -47,6 +56,8 @@ export function ChatPanel({
   showScopeControls = false,
   crossProject = false,
   onCrossProjectChange,
+  agentMode = false,
+  projectId,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -71,10 +82,11 @@ export function ChatPanel({
       params.set("chat_model", selectedModel);
     }
     const query = params.toString();
+    const streamPath = agentMode
+      ? "/chat/agent/stream"
+      : `/chat/stream${query ? `?${query}` : ""}`;
     return new DefaultChatTransport({
-      api: `${env.apiBaseUrl.replace(/\/$/, "")}/chat/stream${
-        query ? `?${query}` : ""
-      }`,
+      api: `${env.apiBaseUrl.replace(/\/$/, "")}${streamPath}`,
       headers: async (): Promise<Record<string, string>> => {
         const token = await getAccessToken();
         return token ? { Authorization: `Bearer ${token}` } : {};
@@ -84,13 +96,13 @@ export function ChatPanel({
           ...body,
           thread_id: id,
           messages,
-          ...(selectedModel ? { chat_model: selectedModel } : {}),
+          ...(!agentMode && selectedModel ? { chat_model: selectedModel } : {}),
         },
       }),
     });
-  }, [crossProject, chatModel]);
+  }, [agentMode, crossProject, chatModel]);
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status, error, stop } = useChat({
     id: threadId,
     messages: toUiMessages(initialMessages),
     transport,
@@ -117,12 +129,39 @@ export function ChatPanel({
   const isBusy = status === "submitted" || status === "streaming";
   const chatError = error ? classifyChatError(error) : null;
 
+  const { artefactsByMessageId, toolEventsByMessageId } = useMemo(() => {
+    const nextTools = new Map<string, ToolStatusEvent[]>();
+    const nextArtefacts = new Map<string, ArtefactEvent[]>();
+
+    for (const message of messages) {
+      if (message.role !== "assistant") continue;
+      const toolEvents = toolStatusesFromMessage(message);
+      const artefacts = artefactsFromMessage(message);
+      if (toolEvents.length > 0) nextTools.set(message.id, toolEvents);
+      if (artefacts.length > 0) nextArtefacts.set(message.id, artefacts);
+    }
+
+    return {
+      artefactsByMessageId: nextArtefacts,
+      toolEventsByMessageId: nextTools,
+    };
+  }, [messages]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
     if (!text || isBusy) return;
     setInput("");
     await sendMessage({ text });
+  }
+
+  async function handleStop() {
+    stop();
+    try {
+      await api.cancelAgentTurn(threadId);
+    } catch {
+      setStatusMessage("Cancellation requested");
+    }
   }
 
   return (
@@ -169,6 +208,9 @@ export function ChatPanel({
                     key={message.id}
                     message={message}
                     messageData={persistedMessageData.get(message.id)}
+                    toolEvents={toolEventsByMessageId.get(message.id)}
+                    artefacts={artefactsByMessageId.get(message.id)}
+                    projectId={projectId}
                     selectedCitationId={selectedCitation?.sourceId ?? null}
                     onSelectCitation={setSelectedCitation}
                   />
@@ -198,6 +240,12 @@ export function ChatPanel({
             <Send className="size-4" aria-hidden />
             {isBusy ? "Sending…" : "Send"}
           </Button>
+          {isBusy ? (
+            <Button type="button" variant="outline" onClick={() => void handleStop()}>
+              <CircleStop className="size-4" aria-hidden />
+              Stop
+            </Button>
+          ) : null}
         </form>
       </div>
 

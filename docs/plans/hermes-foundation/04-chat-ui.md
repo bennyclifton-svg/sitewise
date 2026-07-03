@@ -68,3 +68,19 @@ Artefact events:
 - Manual UX checklist covers streaming, chips, stop, resume/rename/delete,
   artefact navigation, and error states.
 
+## Gate Result - 2026-07-03
+
+Status: green.
+
+- `pnpm test`: passed, 7 files / 16 tests.
+- `pnpm lint`: passed with the pre-existing `TenderMatrix.tsx`
+  TanStack Virtual compiler warning and no errors.
+- `pnpm build`: passed.
+- Backend chat delete touchpoint is covered by `tests/test_chat_api.py`.
+- Manual UX checklist recorded in
+  `docs/plans/omnigent/phase4-ux-checklist.md`.
+
+Implementation note: tool and artefact cards are derived from structured
+AI-SDK message data parts keyed by message id at render time. This keeps them
+out of text parts while avoiding React compiler warnings from mirroring message
+parts into state synchronously.

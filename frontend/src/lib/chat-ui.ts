@@ -8,6 +8,9 @@ export type ChatErrorKind =
   | "forbidden"
   | "grounding"
   | "retrieval"
+  | "rate_limit"
+  | "tool"
+  | "partial_pipeline"
   | "network"
   | "generic";
 
@@ -94,6 +97,18 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
   }
 
   if (
+    text.includes("429") ||
+    lower.includes("rate limit") ||
+    lower.includes("too many requests")
+  ) {
+    return {
+      kind: "rate_limit",
+      message:
+        "Clerk is being rate limited. Wait a moment, then retry this turn.",
+    };
+  }
+
+  if (
     lower.includes("could not be verified against retrieved sources") ||
     lower.includes("grounding")
   ) {
@@ -109,6 +124,29 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
       kind: "retrieval",
       message:
         "Clerk had trouble searching your project documents. Check that ingestion has completed, then try again.",
+      };
+  }
+
+  if (
+    lower.includes("partial pipeline") ||
+    (lower.includes("pipeline") && lower.includes("incomplete"))
+  ) {
+    return {
+      kind: "partial_pipeline",
+      message:
+        "The workflow stopped before all steps completed. Review any saved artefacts, then retry the remaining step.",
+    };
+  }
+
+  if (
+    lower.includes("tool failed") ||
+    lower.includes("tool call") ||
+    lower.includes("mcp")
+  ) {
+    return {
+      kind: "tool",
+      message:
+        "A Clerk tool failed while handling this turn. Retry once; if it repeats, check the project data and tool logs.",
     };
   }
 

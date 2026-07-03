@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ChatSessionList } from "@/components/chat/ChatSessionList";
 import { ThreadTitle } from "@/components/chat/ThreadTitle";
 import { Button } from "@/components/ui/button";
 import {
@@ -130,6 +131,11 @@ export function ChatPage() {
         </Button>
       </div>
 
+      <ChatSessionList
+        activeThreadId={threadId}
+        projectId={thread?.project_id ?? null}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Conversation</CardTitle>
@@ -151,6 +157,8 @@ export function ChatPage() {
               initialMessages={messages}
               isFirstConversation={messages.length === 0}
               onConversationUpdate={() => void refreshConversation()}
+              agentMode={thread?.project_id != null}
+              projectId={thread?.project_id ?? null}
             />
           ) : null}
         </CardContent>

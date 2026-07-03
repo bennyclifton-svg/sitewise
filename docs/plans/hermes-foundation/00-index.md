@@ -47,4 +47,9 @@ endpoint.
 Phase 3 is green as of 2026-07-03. The additive `/chat/agent/stream` endpoint
 streams AI-SDK-compatible events from a real Hermes process, multiplexes Clerk
 MCP tool status, persists successful turns, and supports cancellation. Phase 4
-may begin.
+is complete.
+
+Phase 4 is green as of 2026-07-03. The AI-SDK chat UI now has structured tool
+chips, backend-backed stop/cancel, a per-project session list with
+resume/rename/delete/create, artefact cards, frontend tests, and readable
+agent-workflow error states. Phase 5 may begin.

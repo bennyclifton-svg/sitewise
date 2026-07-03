@@ -2,6 +2,7 @@ export type ChatThread = {
   id: string;
   project_id: string | null;
   title: string | null;
+  hermes_session_id?: string | null;
   created_at: string;
   updated_at: string;
 };
