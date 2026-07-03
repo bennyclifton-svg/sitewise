@@ -67,15 +67,14 @@ export function TenderRouteFrame({
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 lg:px-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 lg:p-6">
         <header className="rounded-md border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
                 <Link to={`/projects/${project.id}`}>
                   <ArrowLeft className="size-4" aria-hidden />
-                  Project cockpit
+                  Back to workbench
                 </Link>
               </Button>
               <p className="cockpit-eyebrow">Tender comparison</p>
@@ -119,7 +118,6 @@ export function TenderRouteFrame({
         </header>
 
         {children}
-      </div>
     </div>
   );
 }

@@ -4,7 +4,11 @@ import { AlertTriangle, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { WorkbookPreview, WorkbookSheetPreview } from "@/lib/types/project";
+import type {
+  WorkbookCellStyle,
+  WorkbookPreview,
+  WorkbookSheetPreview,
+} from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
 export function WorkbookGrid({
@@ -366,7 +370,7 @@ function SummaryCell({
   rowIndex: number;
   columnIndex: number;
   value: string;
-  styleRow: Array<{ fill_color?: string; bold?: boolean }> | undefined;
+  styleRow: WorkbookCellStyle[] | undefined;
   headerRow: number;
   displayIndex: number;
   borderLeft?: boolean;
@@ -466,7 +470,7 @@ function RegisterSheetTable({ sheet }: { sheet: WorkbookSheetPreview }) {
                     styleRow,
                   );
                   const isHeader = cellKind === "header";
-                  const isMoney = moneyColumns.has(columnIndex) || isMoney(value);
+                  const isMoneyCell = moneyColumns.has(columnIndex) || isMoney(value);
 
                   return (
                     <td
@@ -478,10 +482,10 @@ function RegisterSheetTable({ sheet }: { sheet: WorkbookSheetPreview }) {
                         CELL_KIND_CLASS[cellKind],
                         !value && "workbook-cell--empty",
                         isHeader && "workbook-cell--header-label sticky top-0 z-10",
-                        isHeader && isMoney && "workbook-cell--header-money",
-                        !isHeader && isMoney && "workbook-cell--money",
+                        isHeader && isMoneyCell && "workbook-cell--header-money",
+                        !isHeader && isMoneyCell && "workbook-cell--money",
                         !isHeader && style?.bold && "font-semibold",
-                        (isHeader || !isMoney) && "workbook-cell--wrap",
+                        (isHeader || !isMoneyCell) && "workbook-cell--wrap",
                       )}
                       title={value}
                     >
@@ -502,7 +506,7 @@ type SummaryRowProps = {
   sheet: WorkbookSheetPreview;
   row: string[];
   rowIndex: number;
-  styleRow: Array<{ fill_color?: string; bold?: boolean }> | undefined;
+  styleRow: WorkbookCellStyle[] | undefined;
   headerRow: number;
   displayIndex: number;
 };
@@ -550,12 +554,12 @@ function shouldShowPreviewRow(sheetName: string, rowIndex: number): boolean {
 }
 
 function previewCellKind(
-  sheet: WorkbookSheetPreview,
+  _sheet: WorkbookSheetPreview,
   rowIndex: number,
   columnIndex: number,
   row: string[],
   headerRow: number,
-  styleRow: Array<{ fill_color?: string; bold?: boolean }> | undefined,
+  styleRow: WorkbookCellStyle[] | undefined,
 ): WorkbookCellKind {
   const cellFillKind = fillKindFromHex(styleRow?.[columnIndex]?.fill_color);
   if (cellFillKind === "control") return "control";
@@ -578,7 +582,7 @@ function previewCellKind(
   return "data";
 }
 
-function fillKindFromHex(fillColor: string | undefined): WorkbookCellKind | null {
+function fillKindFromHex(fillColor: string | null | undefined): WorkbookCellKind | null {
   if (!fillColor) return null;
   const normalised = fillColor.replace("#", "").toUpperCase();
   return EXCEL_FILL_KIND[normalised] ?? null;

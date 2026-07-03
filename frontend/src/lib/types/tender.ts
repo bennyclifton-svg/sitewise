@@ -60,8 +60,24 @@ export type TenderComparison = {
   quotes: TenderQuote[];
 };
 
+export type TenderComparisonCreate = {
+  project_id: string;
+  context: TenderProjectContext;
+};
+
 export type TenderComparisonListResponse = {
   comparisons: TenderComparison[];
+};
+
+export type TenderQuoteCreate = {
+  builder_name: string;
+  builder_abn?: string | null;
+  quote_ref?: string | null;
+  quote_date?: string | null;
+  stated_total_cents?: number | null;
+  gst_treatment?: "inclusive" | "exclusive" | "unclear";
+  contract_type?: "hia" | "mba" | "custom" | "cost_plus" | "unknown";
+  validity_days?: number | null;
 };
 
 export type TenderJob = {
@@ -74,6 +90,11 @@ export type TenderJob = {
   last_error: string | null;
   run_after: string;
   created_at: string;
+};
+
+export type TenderDocumentUploadResponse = {
+  document: TenderDocument;
+  job: TenderJob;
 };
 
 export type TenderQaEntityType =

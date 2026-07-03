@@ -69,6 +69,8 @@ export function WorkspaceExplorer({
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
+    // External selection changes should reopen the path to the active file.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpandedPaths(collectExplorerExpandPaths(tree, selectedPath));
   }, [tree, selectedPath]);
 

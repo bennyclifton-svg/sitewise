@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
@@ -43,8 +43,16 @@ function formatApiError(error: unknown, fallback: string): string {
 const EMPTY_EVIDENCE: EvidencePreview[] = [];
 const EMPTY_WORKSPACE_TREE: WorkspaceTreeNode[] = [];
 
+/**
+ * Context handed to nested cockpit routes (e.g. the tender comparison views)
+ * that render inside the project shell's middle panel.
+ */
+export type ProjectCockpitOutletContext = { project: ProjectDetail | null };
+
 export function ProjectCockpitPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [bootstrapLoaded, setBootstrapLoaded] = useState(false);
   const [project, setProject] = useState<ProjectDetail | null>(null);
@@ -301,7 +309,17 @@ export function ProjectCockpitPage() {
     }
   }
 
+  // Nested tender routes render in the middle panel via <Outlet>. Any
+  // interaction that switches the middle panel back to a state-driven view must
+  // also leave the tender route so the outlet stops taking precedence.
+  function leaveTenderRoute() {
+    if (projectId && location.pathname !== `/projects/${projectId}`) {
+      navigate(`/projects/${projectId}`);
+    }
+  }
+
   function selectEvidenceFromRepository(evidenceId: string) {
+    leaveTenderRoute();
     setSelectedEvidenceId(evidenceId);
     const item = evidence.find((candidate) => candidate.id === evidenceId);
     if (item) {
@@ -310,6 +328,7 @@ export function ProjectCockpitPage() {
   }
 
   function selectWorkspacePath(path: string) {
+    leaveTenderRoute();
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
     if (selectedNode?.kind === "file") {
@@ -332,6 +351,10 @@ export function ProjectCockpitPage() {
     }
     setActiveView("folder");
   }
+
+  // When a nested tender route is active, its element renders in the middle
+  // panel; otherwise we fall back to the state-driven cockpit views below.
+  const tenderOutlet = useOutlet({ project } satisfies ProjectCockpitOutletContext);
 
   if (!projectId) return null;
 
@@ -373,7 +396,10 @@ export function ProjectCockpitPage() {
 
   return (
     <ProjectShell
-      onShowWorkbench={() => setActiveView("workbench")}
+      onShowWorkbench={() => {
+        leaveTenderRoute();
+        setActiveView("workbench");
+      }}
       leftNav={
         <ProjectLeftNav
           project={project}
@@ -382,7 +408,10 @@ export function ProjectCockpitPage() {
           platformStatus={platformStatus}
           workspaceTree={workspaceTree}
           selectedWorkspacePath={selectedWorkspacePath}
-          onViewChange={setActiveView}
+          onViewChange={(view) => {
+            leaveTenderRoute();
+            setActiveView(view);
+          }}
           onSelectWorkspacePath={selectWorkspacePath}
           onOpenWorkflow={setSelectedWorkflowId}
         />
@@ -412,6 +441,8 @@ export function ProjectCockpitPage() {
         />
       }
     >
+      {tenderOutlet ?? (
+        <>
       {activeView === "workbench" ? (
         <ProjectControlBoard
           project={project}
@@ -431,6 +462,7 @@ export function ProjectCockpitPage() {
           onRunCreateCostPlan={() => void runCreateCostPlan()}
           onRunSortFiles={() => void runSortFiles()}
           onOpenDraft={() => setActiveView("draft")}
+          onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
           sortFilesDraft={sortFilesDraft}
@@ -468,6 +500,8 @@ export function ProjectCockpitPage() {
           }}
         />
       ) : null}
+        </>
+      )}
     </ProjectShell>
   );
 }

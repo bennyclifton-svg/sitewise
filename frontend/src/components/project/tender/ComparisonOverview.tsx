@@ -15,6 +15,7 @@ import { ApiError } from "@/lib/http";
 import type { TenderComparison, TenderJob, TenderQuote } from "@/lib/types/tender";
 
 import {
+  TENDER_COMPARISON_STAGES,
   TENDER_QUOTE_STAGES,
   formatTenderDate,
   formatTenderMoney,
@@ -73,6 +74,25 @@ export function ComparisonOverview({
     setJob(null);
     try {
       const queued = await api.retryTenderQuoteStage(quote.id, stage);
+      setJob(queued);
+      await loadComparison();
+    } catch (retryError) {
+      setError(
+        retryError instanceof ApiError
+          ? retryError.message
+          : "Could not retry tender stage.",
+      );
+    } finally {
+      setRetrying(null);
+    }
+  }
+
+  async function retryComparisonStage(stage: string) {
+    setRetrying(`comparison:${stage}`);
+    setError(null);
+    setJob(null);
+    try {
+      const queued = await api.retryTenderComparisonStage(comparisonId, stage);
       setJob(queued);
       await loadComparison();
     } catch (retryError) {
@@ -197,6 +217,32 @@ export function ComparisonOverview({
             <Metric label="Storeys" value={String(comparison.context.storeys)} />
             <Metric label="Budget" value={formatTenderMoney(comparison.context.target_budget_cents)} />
           </dl>
+        </section>
+
+        <section className="rounded-md border bg-card p-4 shadow-sm">
+          <p className="cockpit-zone-title">Workflow actions</p>
+          <div className="mt-3 grid gap-2">
+            {TENDER_COMPARISON_STAGES.map((stage) => {
+              const key = `comparison:${stage}`;
+              return (
+                <Button
+                  key={stage}
+                  type="button"
+                  variant="outline"
+                  className="justify-start"
+                  disabled={retrying !== null}
+                  onClick={() => void retryComparisonStage(stage)}
+                >
+                  {retrying === key ? (
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <RefreshCw className="size-4" aria-hidden />
+                  )}
+                  {formatTenderStage(stage)}
+                </Button>
+              );
+            })}
+          </div>
         </section>
 
         <section className="rounded-md border bg-card p-4 shadow-sm">

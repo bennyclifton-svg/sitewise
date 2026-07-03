@@ -14,11 +14,12 @@ export const TENDER_QUOTE_STAGES = [
   "extract_line_items",
   "embed_items",
   "map_items",
+] as const;
+
+export const TENDER_COMPARISON_STAGES = [
   "run_expectations",
-  "infer_silence",
   "run_analysis",
   "generate_flags",
-  "assemble_report_draft",
 ] as const;
 
 export function formatTenderMoney(cents: number | null | undefined): string {

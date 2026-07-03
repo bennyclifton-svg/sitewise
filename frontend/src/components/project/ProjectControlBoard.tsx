@@ -67,6 +67,7 @@ export function ProjectControlBoard({
   onRunCreateCostPlan,
   onRunSortFiles,
   onOpenDraft,
+  onOpenTenderComparison,
   inboxCount,
   sortFilesResult,
   sortFilesDraft,
@@ -90,6 +91,7 @@ export function ProjectControlBoard({
   onRunCreateCostPlan: () => void;
   onRunSortFiles: () => void;
   onOpenDraft: () => void;
+  onOpenTenderComparison: () => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
   sortFilesDraft: DraftArtifactSummary | null;
@@ -174,6 +176,7 @@ export function ProjectControlBoard({
           onRunCreateCostPlan={onRunCreateCostPlan}
           onRunSortFiles={onRunSortFiles}
           onOpenDraft={onOpenDraft}
+          onOpenTenderComparison={onOpenTenderComparison}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
           sortFilesDraft={sortFilesDraft}
@@ -218,6 +221,7 @@ function WorkflowDetail({
   onRunCreateCostPlan,
   onRunSortFiles,
   onOpenDraft,
+  onOpenTenderComparison,
   inboxCount,
   sortFilesResult,
   sortFilesDraft,
@@ -240,6 +244,7 @@ function WorkflowDetail({
   onRunCreateCostPlan: () => void;
   onRunSortFiles: () => void;
   onOpenDraft: () => void;
+  onOpenTenderComparison: () => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
   sortFilesDraft: DraftArtifactSummary | null;
@@ -250,6 +255,7 @@ function WorkflowDetail({
   const isCreatePmp = tile.id === "create-pmp";
   const isCostPlan = tile.id === "cost-plan";
   const isDocumentIntake = tile.id === "document-intake";
+  const isProcurement = tile.id === "procurement";
   const activeTrace = isDocumentIntake
     ? (sortFilesResult?.trace ?? [])
     : isCostPlan
@@ -484,6 +490,34 @@ function WorkflowDetail({
 
             <WorkflowTracePanel trace={activeTrace} isRunning={activeRunning} />
           </>
+        ) : isProcurement ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-3">
+              <ReadinessItem
+                icon={BriefcaseBusiness}
+                label="Workflow"
+                value="Tender comparison"
+              />
+              <ReadinessItem
+                icon={FileText}
+                label="Evidence"
+                value={`${evidenceCount} indexed`}
+                attention={evidenceCount === 0}
+              />
+              <ReadinessItem
+                icon={ClipboardList}
+                label="QA"
+                value="Review gated"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={onOpenTenderComparison}>
+                <Play className="size-4" aria-hidden />
+                Run Tender Comparison
+              </Button>
+            </div>
+          </>
         ) : (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             {tile.implemented
@@ -674,10 +708,11 @@ function buildLifecycleTiles({
       label: "Procurement",
       folder: "05-procurement",
       icon: BriefcaseBusiness,
-      status: "unavailable",
-      statusLabel: "Soon",
-      description: "Procurement workflow placeholder.",
-      implemented: false,
+      status: "ready",
+      statusLabel: "Ready",
+      description:
+        "Create tender comparisons, review QA, inspect the matrix, and approve reports.",
+      implemented: true,
     },
     {
       id: "delivery",

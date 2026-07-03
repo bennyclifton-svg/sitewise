@@ -40,53 +40,19 @@ export default function App() {
         />
         <Route path="/cockpit-preview" element={<CockpitPreviewPage />} />
         <Route
-          path="/projects/:projectId/tender"
-          element={
-            <AuthGuard>
-              <TenderCockpitPage />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/projects/:projectId/tender/:comparisonId"
-          element={
-            <AuthGuard>
-              <TenderCockpitPage />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/projects/:projectId/tender/:comparisonId/qa"
-          element={
-            <AuthGuard>
-              <TenderCockpitPage />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/projects/:projectId/tender/:comparisonId/matrix"
-          element={
-            <AuthGuard>
-              <TenderCockpitPage />
-            </AuthGuard>
-          }
-        />
-        <Route
-          path="/projects/:projectId/tender/:comparisonId/report"
-          element={
-            <AuthGuard>
-              <TenderCockpitPage />
-            </AuthGuard>
-          }
-        />
-        <Route
           path="/projects/:projectId"
           element={
             <AuthGuard>
               <ProjectCockpitPage />
             </AuthGuard>
           }
-        />
+        >
+          <Route path="tender" element={<TenderCockpitPage />} />
+          <Route path="tender/:comparisonId" element={<TenderCockpitPage />} />
+          <Route path="tender/:comparisonId/qa" element={<TenderCockpitPage />} />
+          <Route path="tender/:comparisonId/matrix" element={<TenderCockpitPage />} />
+          <Route path="tender/:comparisonId/report" element={<TenderCockpitPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

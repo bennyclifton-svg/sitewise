@@ -9,12 +9,16 @@ import type {
 } from "@/lib/types/billing";
 import type {
   TenderComparison,
+  TenderComparisonCreate,
   TenderComparisonListResponse,
+  TenderDocumentUploadResponse,
   TenderJob,
   TenderMatrixResponse,
   TenderQaQueueResponse,
   TenderQaResolveRequest,
   TenderQaResolveResponse,
+  TenderQuote,
+  TenderQuoteCreate,
   TenderReportLifecycle,
   TenderTaxonomyCell,
   TenderTaxonomySearchResult,
@@ -136,6 +140,29 @@ async function apiBlobRequest(path: string, timeoutMs = 30_000): Promise<Blob> {
   }
 }
 
+async function apiFormRequest<T>(
+  path: string,
+  formData: FormData,
+  timeoutMs = WORKFLOW_TIMEOUT_MS,
+): Promise<T> {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new ApiError("Not signed in.", { kind: "http", status: 401 });
+  }
+
+  const base = env.apiBaseUrl.replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return httpRequest<T>(`${base}${normalizedPath}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+    timeoutMs,
+  });
+}
+
 export const api = {
   get: <T>(path: string, options?: Omit<ApiRequestOptions, "method" | "body">) =>
     apiRequest<T>(path, { ...options, method: "GET" }),
@@ -209,12 +236,52 @@ export const api = {
   getTenderComparison: async (comparisonId: string): Promise<TenderComparison> =>
     api.get<TenderComparison>(`/api/tender/comparisons/${comparisonId}`),
 
+  createTenderComparison: async (
+    input: TenderComparisonCreate,
+  ): Promise<TenderComparison> =>
+    api.post<TenderComparison>("/api/tender/comparisons", input),
+
+  createTenderQuote: async (
+    comparisonId: string,
+    input: TenderQuoteCreate,
+  ): Promise<TenderQuote> =>
+    api.post<TenderQuote>(`/api/tender/comparisons/${comparisonId}/quotes`, input),
+
+  attachTenderProjectDocument: async (
+    quoteId: string,
+    workspacePath: string,
+  ): Promise<TenderDocumentUploadResponse> =>
+    api.post<TenderDocumentUploadResponse>(
+      `/api/tender/quotes/${quoteId}/documents/from-project-file`,
+      { workspace_path: workspacePath },
+    ),
+
+  uploadTenderQuoteDocument: async (
+    quoteId: string,
+    file: File,
+  ): Promise<TenderDocumentUploadResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFormRequest<TenderDocumentUploadResponse>(
+      `/api/tender/quotes/${quoteId}/documents`,
+      formData,
+    );
+  },
+
   retryTenderQuoteStage: async (
     quoteId: string,
     stage: string,
   ): Promise<TenderJob> =>
     api.post<TenderJob>(
       `/api/tender/quotes/${quoteId}/retry/${encodeURIComponent(stage)}`,
+    ),
+
+  retryTenderComparisonStage: async (
+    comparisonId: string,
+    stage: string,
+  ): Promise<TenderJob> =>
+    api.post<TenderJob>(
+      `/api/tender/comparisons/${comparisonId}/retry/${encodeURIComponent(stage)}`,
     ),
 
   getTenderQaQueue: async (
@@ -325,24 +392,9 @@ export const api = {
   ): Promise<PdfAnalyzeResult> => {
     const formData = new FormData();
     formData.append("file", file);
-
-    const token = await getAccessToken();
-    if (!token) {
-      throw new ApiError("Not signed in.", { kind: "http", status: 401 });
-    }
-
-    const base = env.apiBaseUrl.replace(/\/$/, "");
-    return httpRequest<PdfAnalyzeResult>(
-      `${base}/projects/${projectId}/inbox/analyze`,
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-        timeoutMs: WORKFLOW_TIMEOUT_MS,
-      },
+    return apiFormRequest<PdfAnalyzeResult>(
+      `/projects/${projectId}/inbox/analyze`,
+      formData,
     );
   },
 

@@ -314,6 +314,7 @@ export function CockpitPreviewPage() {
           onRunCreateCostPlan={() => setActiveView("draft")}
           onRunSortFiles={() => undefined}
           onOpenDraft={() => setActiveView("draft")}
+          onOpenTenderComparison={() => undefined}
           inboxCount={0}
           sortFilesResult={null}
           sortFilesDraft={null}
