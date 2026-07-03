@@ -4,6 +4,13 @@ Date: 2026-07-02
 Status: validated design (brainstormed and approved 2026-07-02)
 Supersedes: `docs/plans/omnigent-shell-integration/` Phases 1–8 (Phase 0 spike results remain valid and are relied on here)
 
+> **Current-status note:** Keep this as design history and rationale. The
+> implementation plan in
+> `docs/plans/2026-07-03-hermes-foundation-phases-3-8.md` supersedes this file
+> where it is more precise, especially: Clerk chat is already Vercel AI SDK, not
+> Zustand; Supabase Storage is canonical for uploaded files, not the VPS
+> filesystem; and Phase 3 must preserve the existing AI-SDK SSE event vocabulary.
+
 ## Summary
 
 Hosted Clerk at `sitewise.au` becomes an agent-first construction management dashboard:
@@ -146,9 +153,9 @@ layer to Clerk endpoints; rebuild on shadcn primitives where too entangled.
 
 | Phase | Work | Gate |
 |-------|------|------|
-| 0 | Probe Hermes headless + streaming + platform API key (WSL2 spike) | A programmatic Hermes turn streams to a script |
-| 1 | Commit/land Stage-0.5 tender work; ODL intake behind extraction interface + fixture eval | Eval ≥ donor baseline |
-| 2 | MCP tool bridge + per-project authz (TDD) | Authz tests green; tools delegate only |
+| 0 | Probe Hermes headless + streaming + platform API key (WSL2 spike) | **Done 2026-07-02** — probe PASS (see `omnigent/hermes-headless-probe.md`) |
+| 1 | Commit/land Stage-0.5 tender work; ODL intake behind extraction interface + fixture eval | **Done 2026-07-03** — landed as split commits; ODL eval baseline recorded (3 fixtures, ~1.3 s/doc) |
+| 2 | MCP tool bridge + per-project authz (TDD) | **Done 2026-07-03** — authz tests green; 4 tools delegate to existing services; mounted at `/mcp` |
 | 3 | `backend/agent/` runtime + SSE + sessions in Postgres | Streamed turn E2E via API |
 | 4 | Chat UI transplant into Clerk SPA | Manual UX checklist passes |
 | 5 | Flagship E2E: NL trigger → TCM → panel + artefact | Speed gate + acceptance script |

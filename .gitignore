@@ -54,8 +54,11 @@ Thumbs.db
 /tmp/
 .tmp/
 .tmp-env/
+.agents
 .claude/
+.uv-cache/
 .pytest-cache/
+/projects
 
 # Logs
 *.log

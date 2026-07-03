@@ -4,6 +4,11 @@
 
 **Goal:** Turn the MCP tool bridge (Phase 2) into a working agent-first product — Hermes reasons behind Clerk's chat, drives the flagship tender-comparison workflow end-to-end, users edit agent artefacts and files in-app, subscribe via Stripe, and the whole thing ships to the `sitewise.au` VPS with the legacy cockpit retired.
 
+**Execution shards:** This file remains the canonical overview. Execute from the
+phase-specific shards under
+[`docs/plans/hermes-foundation/`](./hermes-foundation/00-index.md), starting with
+the Phase 2 gate before any Phase 3 implementation.
+
 **Architecture:** Clerk's FastAPI stays the system of record. A new `backend/agent/` module invokes headless Hermes (`hermes -z` / `hermes chat -q`, proven in Phase 0) per chat turn, feeds it the MCP server URL + a per-turn token (Phase 2), and relays Hermes output as **Vercel-AI-SDK-compatible SSE** so Clerk's existing React chat keeps working. The frontend is *extended*, not replaced. Billing swaps Polar→Stripe behind the existing entitlement seam. Deploy is Dokploy compose, with Hermes + a workspace volume added to the backend image.
 
 **Tech Stack:** Python 3.12, FastAPI, async SQLAlchemy 2, Alembic, `fastmcp`, Hermes CLI v0.17.0 (headless), `stripe` Python SDK, pytest. Frontend: React 19, Vite 8, Tailwind 4, radix-ui/shadcn, TanStack Query, react-router 7, **Vercel AI SDK (`@ai-sdk/react` + `ai`)**, vitest. Deploy: Docker + Dokploy, nginx, Supabase (external).

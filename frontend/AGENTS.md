@@ -1,90 +1,126 @@
-# Frontend — agent notes
+# Frontend Agent Notes
 
-This is the React SPA for Clerk. Read [../AGENTS.md](../AGENTS.md) first — universal building rules live there. This file adds frontend-specific conventions.
+This is the React SPA for Clerk. Read `../AGENTS.md` first; universal direction
+and code rules live there. This file adds frontend-specific conventions.
+
+## Current Direction
+
+The frontend is extended, not replaced. Clerk already uses the Vercel AI SDK
+chat primitives and `DefaultChatTransport`; Phase 4 builds on that path with
+tool-call chips, a stop button, session list, artefact cards, and vitest render
+tests. Do not vendor Omnigent's store or add Zustand. Use Omnigent only as a
+visual reference where the July plans say so.
 
 ## Stack
 
-- **Plain React SPA** (Vite + TypeScript, strict). **Not Next.js** — do not suggest Next, SSR, server components, or file-based routing.
-- **Tailwind CSS** for styling. No CSS modules, styled-components, Emotion, or `.module.css` files for component styles. Global theme tokens live in `src/index.css`.
-- **shadcn/ui** for UI primitives. Add components with `pnpm dlx shadcn@latest add <name>` — don't hand-roll what shadcn already ships.
-- **React Router** for routing.
-- **`@supabase/supabase-js`** for auth (email only — no Google sign-in, no SSO providers).
+- Vite + React SPA + TypeScript strict
+- React Router
+- Tailwind CSS
+- shadcn/radix UI primitives
+- TanStack Query where server state benefits from caching/invalidation
+- `@supabase/supabase-js` for browser auth
+- Vercel AI SDK (`@ai-sdk/react` + `ai`) for chat streaming
+- Vitest/testing-library from Phase 4 onward
 
-## Package manager
+No Next.js, SSR, server components, or frontend route handlers.
 
-**`pnpm` only.** Do not use `npm install` or `yarn add`. The lockfile is `pnpm-lock.yaml`. If you see `package-lock.json` or `yarn.lock` appear, that's a bug — delete it.
+## Package Manager
 
-**Minimum release age: 7 days.** Configured via `.npmrc` (`minimum-release-age=10080` minutes). pnpm will refuse to install any package version published less than 7 days ago. This defends against typosquat / compromised-release attacks where a malicious version of a popular package goes live and gets pulled within hours.
+Use `pnpm` only. Do not use `npm install` or `yarn add`. The lockfile is
+`pnpm-lock.yaml`; `package-lock.json` or `yarn.lock` should be removed if they
+appear.
 
-If a fresh package is genuinely required (e.g. urgent security fix in a dep we already use), override per-install and justify in the commit message — don't lower the global threshold.
+The `.npmrc` minimum release age policy protects against compromised fresh
+package releases. Override only for a real need and justify it in the commit
+message.
 
-## Dependency policy
+## Dependency Policy
 
-See universal policy in [../AGENTS.md](../AGENTS.md). Frontend-specific:
+See `../AGENTS.md` for universal policy. Frontend-specific rules:
 
-- **HTTP:** use the native `fetch` API through a thin client in `src/lib/http.ts` and the `api` singleton in `src/lib/api.ts`. **No axios, ky, got, superagent, redaxios.**
-- **Dates:** use native `Date` and `Intl.DateTimeFormat`. No moment, dayjs, date-fns unless genuinely needed.
-- **Utilities:** use native `Array` / `Object` / `Map` methods. No lodash, ramda.
-- **State:** `useState` / `useReducer` / `useContext` first. Only reach for external state libraries when the pain is real.
-- **Forms:** native `<form>` + `FormData` first.
-- **Validation:** only add a schema library when we actually need runtime validation at boundaries.
-- **UI components:** shadcn primitives via `pnpm dlx shadcn@latest add <name>`. Don't hand-roll what shadcn already ships.
+- HTTP: use native `fetch` through `src/lib/http.ts` and `src/lib/api.ts`. No
+  axios, ky, got, superagent, or redaxios.
+- Dates: use `Date` and `Intl.DateTimeFormat` unless a real runtime boundary
+  needs more.
+- Utilities: use native `Array`, `Object`, `Map`, and `Set`. No lodash or ramda.
+- State: local React state first; TanStack Query for server state. Do not add
+  Zustand/Jotai/Redux for the chat work.
+- Forms: native `<form>` and `FormData` first.
+- Validation: add runtime schema libraries only at real boundaries.
+- UI: use existing shadcn/radix primitives before building custom controls.
 
-Before adding a package, check:
-
-1. Is there a native browser or TS/JS API that does this?
-2. Does shadcn/ui already cover it?
-3. Is it small, well-maintained, and worth the maintenance cost?
-
-If yes to (3), add it — but flag the decision in the commit message.
-
-## Layout (to be created during build)
+## Layout
 
 ```text
 frontend/
-├── src/
-│   ├── components/        # App components. shadcn primitives under components/ui/
-│   ├── lib/               # Framework-agnostic helpers (http, api, auth, supabase, env)
-│   ├── pages/             # Route-level components
-│   ├── App.tsx            # Router
-│   ├── main.tsx
-│   └── index.css          # Tailwind directives + global theme tokens
-├── index.html
-├── vite.config.ts
-├── tsconfig.json
-└── package.json
+|-- src/
+|   |-- components/
+|   |   |-- chat/
+|   |   |-- project/
+|   |   `-- ui/
+|   |-- lib/
+|   |-- pages/
+|   |-- App.tsx
+|   |-- main.tsx
+|   `-- index.css
+|-- index.html
+|-- vite.config.ts
+|-- tsconfig.json
+`-- package.json
 ```
 
-Keep imports consistent with the `@/*` alias (e.g. `@/lib/api`, `@/components/ui/button`).
+Use the `@/*` alias consistently.
 
-## Code style (frontend-specific)
+## Code Style
 
-- **TypeScript strict.** No `any` unless there's no alternative; prefer `unknown` and narrow.
-- **Small, composable functions and components** over clever abstractions. Three similar lines > a premature generic.
-- **One component = one file.** Components stay small enough to fit on one screen.
-- **Tailwind classes inline.** No CSS modules, styled-components, Emotion, or `.module.css` for component styles. Global tokens live in `src/index.css`.
+- TypeScript strict. Avoid `any`; use `unknown` and narrow.
+- Small, composable components over clever abstractions.
+- One component per file unless a tiny local helper is truly private.
+- Tailwind classes inline. Global theme tokens live in `src/index.css`.
+- Keep UI text short and action-oriented. Do not add visible instructional copy
+  that explains the application to itself.
+- For chat UI work, preserve the existing AI-SDK stream contract and keep tool
+  chips/artefact cards in component state keyed by message id.
 
 ## Configuration
 
-- All env reads go through a single `src/lib/env.ts` module that validates required vars at boot. Never read `import.meta.env.X` directly in components.
-- Env vars are prefixed `VITE_` (Vite convention). Anything not prefixed is not exposed to the client.
+All env reads go through `src/lib/env.ts`, which validates required values at
+boot. Never read `import.meta.env.X` directly in components.
 
-## Backend integration
+Env vars exposed to the browser must use the `VITE_` prefix.
 
-- Talks to a separate Python backend over JSON. URL comes from `VITE_API_BASE_URL`.
-- Always use `api.get/post/put/patch/delete` from `@/lib/api` — it handles base URL, JSON, Supabase bearer token, timeouts, and typed `ApiError`s (including the `isNetworkError` flag that distinguishes CORS/network from HTTP errors).
-- Auth is Supabase email. The bearer token is injected automatically via the `api` client; never thread tokens through component props.
+## Backend Integration
+
+- Talk to the Python backend over JSON/SSE.
+- The base URL comes from `VITE_API_BASE_URL`.
+- Use `api.get/post/put/patch/delete` from `@/lib/api`; it handles base URL,
+  Supabase bearer token injection, timeouts, and typed `ApiError`s.
+- Never thread auth tokens through component props.
+- Chat transport must keep the backend's AI-SDK-compatible SSE vocabulary:
+  `start`, `text-start`, `text-delta`, `text-end`, `data-clerk-status`,
+  `source-document`, `finish`, and `[DONE]`.
 
 ## Testing
 
-**No frontend tests.** Do not write `*.test.ts` / `*.test.tsx` files or introduce a test runner. We verify the frontend manually in the browser plus `pnpm tsc --noEmit` and `pnpm lint`. If you find yourself reaching for vitest, Playwright, or Cypress — stop. That's not what this project does. Correctness for shared logic comes from keeping it simple and well-typed, not from a test suite.
+Before Phase 4, use manual browser verification plus:
 
-## Anti-patterns (rejected)
+```bash
+pnpm tsc --noEmit
+pnpm lint
+```
 
-- Reading `import.meta.env.X` directly outside `lib/env.ts`.
-- Importing an HTTP library when `fetch` would do.
-- Mixing client state libraries (Zustand + Jotai + Redux) for one project.
-- `any` annotations to silence the type-checker.
-- Custom CSS files / styled-components alongside Tailwind.
-- Re-implementing a shadcn primitive by hand.
-- Reaching for Next.js, SSR, or any framework that requires a Node server in front of the SPA.
+Phase 4 introduces vitest, testing-library, jsdom, and focused render tests for
+chat/tooling UI. After that point, frontend changes that touch tested surfaces
+should add or update vitest coverage.
+
+## Anti-Patterns
+
+- Reading `import.meta.env.X` directly outside `src/lib/env.ts`.
+- Importing an HTTP library when `fetch` is enough.
+- Adding Zustand/Jotai/Redux for chat state.
+- `any` annotations to silence TypeScript.
+- Custom CSS modules or styled-components alongside Tailwind.
+- Reimplementing a shadcn/radix primitive by hand.
+- Reaching for Next.js or any framework that requires a Node server in front of
+  the SPA.
+

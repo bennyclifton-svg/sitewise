@@ -1,65 +1,55 @@
 # SiteWise Production Deployment
 
-This is the deployment runbook for Clerk as the production SiteWise app at `https://sitewise.au`.
+This is the active deployment summary for Clerk as the SiteWise app at
+`https://sitewise.au`.
 
-## Target
+## Current State
 
-- Host: `sitewise.au`
-- VPS pattern: Kamatera VPS managed through Dokploy and Traefik
-- Services: `sitewise-web` and `sitewise-api`
-- Routing: `sitewise-web` serves the React SPA and proxies `/api/*` to FastAPI
-- Public network: Docker external network `sitewise-public`
-- Database: the single Clerk Supabase project
-- Auth: Supabase Auth
-- Billing authorization: Polar entitlements
+The deployed shape is a Dokploy compose app with:
 
-The old Assemble/SiteWise app, old hosted database, and Better Auth runtime are retired for this deployment. Do not migrate the Assemble database into production Clerk, and do not deploy Practice Node, Hermes, or Assemble runtime services.
+- `sitewise-api`: FastAPI backend container
+- `sitewise-web`: static React SPA served by nginx
+- external Docker network `sitewise-public`
+- hosted Supabase for Auth, Postgres, and Storage
 
-## VPS Login
+Polar billing exists in the current runtime and deployment env. It is not the
+final billing direction. Phase 7 swaps billing to Stripe behind the existing
+entitlement seam, and Phase 8 removes Polar after production acceptance.
 
-Run this from local Windows PowerShell:
+Hermes is not bundled in the backend image yet. Phase 8 adds Hermes CLI, MCP
+runtime validation, an agent workspace volume, and final Linux acceptance.
 
-```powershell
-ssh root@45-151-153-218.cloud-xip.com
-```
+## Phase 8 Target
 
-## Where Commands Run
+Phase 8 deploys the agent-first product to `sitewise.au`:
 
-- Local Windows PowerShell prompt looks like `PS D:\AI Projects\...`.
-- VPS SSH prompt looks like `root@assemblep2:~#`.
-- Run `git push` and the SSH login command locally.
-- Run Docker, Dokploy, Traefik, migrations, and health-check deployment commands on the VPS after SSH login.
-- If Docker prints a `docker-desktop://...` build link, the command ran locally and did not deploy to the VPS.
+1. Backend image includes Hermes CLI v0.17.x, JVM/ODL support, FastAPI, MCP, and
+   the Tender Comparison worker path.
+2. Backend has a persistent `AGENT_WORKSPACE_ROOT` volume for scratch/artefact
+   files. Supabase Storage remains canonical for uploaded source documents.
+3. nginx keeps `/api/*` and SSE streams unbuffered.
+4. Stripe env and webhook secrets replace Polar env after Phase 7 is complete.
+5. Production acceptance proves signup, subscription, project creation, tender
+   upload, chat-triggered comparison, tool chips, comparison panel, report
+   artefact, and artefact editing.
+6. Only after that gate passes, legacy chat runtime, old cockpit pages, and
+   Polar code are removed.
 
-## First-Time Setup
+## Services
 
-1. In Dokploy, create a compose app named `sitewise`.
-2. Point the app at this repo and use `deploy/dokploy.compose.yml`.
-3. Create the external public network on the VPS:
-
-```bash
-docker network create sitewise-public 2>/dev/null || true
-docker network connect sitewise-public dokploy-traefik 2>/dev/null || true
-```
-
-4. Configure Traefik/custom domain for `sitewise.au` to the `sitewise-web` service on port `80`.
-   If Dokploy's compose labels do not register with Traefik, use the manual route in `Manual Traefik Route`.
-5. Put backend runtime secrets in `deploy/env/sitewise-api.env` or Dokploy's secret/environment UI.
-6. Put frontend build values in `deploy/env/sitewise-build.env` or Dokploy's compose/build environment UI.
-7. Create a Polar webhook endpoint for `https://sitewise.au/api/billing/webhook/polar`.
-8. Subscribe the webhook to `customer.created`, `customer.updated`, `subscription.created`, `subscription.updated`, `subscription.active`, `subscription.canceled`, `subscription.uncanceled`, `subscription.revoked`, and `subscription.past_due`.
-9. Run backend migrations before routing traffic:
-
-```bash
-cd backend
-uv run alembic upgrade head
-```
+| Service | Role |
+| --- | --- |
+| `sitewise-api` | FastAPI API, TCM router, billing, and later Hermes/MCP runtime |
+| `sitewise-web` | Static React SPA and nginx proxy to FastAPI |
+| Supabase | Auth, Postgres, and object storage |
+| Stripe | Phase 7 billing provider |
 
 ## Environment
 
-Use placeholders in committed files only. Live values belong in Dokploy or ignored env files.
+Backend runtime values belong in Dokploy or ignored env files. Do not commit
+live secrets.
 
-Required backend values:
+Current required backend values:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
@@ -69,112 +59,99 @@ Required backend values:
 - `OPENAI_API_KEY`
 - `PUBLIC_APP_URL=https://sitewise.au`
 - `ALLOWED_ORIGINS=https://sitewise.au`
-- `POLAR_ENABLED=true`
-- `POLAR_ENVIRONMENT=sandbox` for first workflow test, then `production` when ready for real payments
+
+Current legacy billing values, retained until Phase 7/8:
+
+- `POLAR_ENABLED`
+- `POLAR_ENVIRONMENT`
 - `POLAR_ACCESS_TOKEN`
 - `POLAR_WEBHOOK_SECRET`
 - `POLAR_STARTER_PRODUCT_ID`
 - `POLAR_PROFESSIONAL_PRODUCT_ID`
 
-Required frontend build values:
+Phase 7/8 agent and Stripe values:
+
+- `AGENT_RUNTIME_ENABLED`
+- `HERMES_BINARY_PATH`
+- `HERMES_INVOCATION_MODE`
+- `AGENT_PLATFORM_API_KEY`
+- `AGENT_MCP_URL`
+- `AGENT_WORKSPACE_ROOT`
+- `AGENT_MAX_CONCURRENT_TURNS`
+- `AGENT_TURN_TIMEOUT_SECONDS`
+- `AGENT_TURN_TOKEN_SECRET`
+- `BILLING_PROVIDER=stripe`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID`
+- `STRIPE_CHECKOUT_SUCCESS_PATH`
+- `STRIPE_PORTAL_RETURN_PATH`
+
+Frontend build values:
 
 - `VITE_API_BASE_URL=/api`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-To import the existing Polar values from the Assemble local env into Clerk's local backend env without printing secrets:
+## Deployment Flow
 
-```powershell
-.\scripts\sync-assemble-polar-env.ps1
-```
+1. Push the target branch.
+2. Build the backend and frontend images on the VPS or through Dokploy's build
+   path.
+3. Apply Alembic migrations from `backend/` using the direct/session database
+   connection:
 
-## Deploy
+   ```bash
+   uv run alembic upgrade head
+   ```
 
-The Kamatera VPS currently uses local prebuilt images because its Docker Compose Bake path crashed during source builds.
-Build these images on the VPS from the Dokploy checkout before deploying:
+4. Deploy the Dokploy compose app.
+5. Confirm the external public network connects Traefik/nginx to
+   `sitewise-web`.
+6. Smoke test the app before routing users to it.
 
-```bash
-cd /etc/dokploy/compose/sitewise-3m1mco/code
+## Phase 8 Linux Validation
 
-VITE_SUPABASE_URL="$(awk -F= '$1=="VITE_SUPABASE_URL"{print substr($0,index($0,"=")+1)}' deploy/.env)"
-VITE_SUPABASE_ANON_KEY="$(awk -F= '$1=="VITE_SUPABASE_ANON_KEY"{print substr($0,index($0,"=")+1)}' deploy/.env)"
+On the real host or staging app, validate:
 
-docker build -t sitewise-production-api:latest -f deploy/docker/backend.Dockerfile .
-docker build -t sitewise-production-web:latest \
-  --build-arg VITE_API_BASE_URL=/api \
-  --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
-  --build-arg VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
-  -f deploy/docker/frontend.Dockerfile .
-```
+- backend container starts and `/health` responds
+- Hermes headless turn works in-container
+- MCP initialize/tool call round-trips over the internal network
+- SSE streams through nginx without buffering
+- ODL/JVM extraction works
+- Tender worker drains jobs
+- Stripe webhook updates entitlement state
+- full flagship demo completes on `sitewise.au`
 
-In Dokploy, trigger a deploy after the target branch is pushed and the images are built. Keep server-only values as runtime environment variables, not Docker build arguments.
-
-If the retired Assemble service still owns the domain, remove its Traefik labels:
-
-```bash
-docker service update \
-  --label-rm traefik.enable \
-  --label-rm traefik.http.routers.assembleai.entrypoints \
-  --label-rm traefik.http.routers.assembleai.rule \
-  --label-rm traefik.http.routers.assembleai.tls \
-  --label-rm traefik.http.routers.assembleai.tls.certresolver \
-  --label-rm traefik.http.services.assembleai.loadbalancer.server.port \
-  assembleai-assembleai-bxojdu
-```
-
-## Manual Traefik Route
-
-The current VPS uses this file route because the Dokploy compose labels did not consistently register for the non-Swarm compose containers:
-
-```bash
-docker network create sitewise-public 2>/dev/null || true
-docker network connect sitewise-public dokploy-traefik 2>/dev/null || true
-docker network connect --alias sitewise-api sitewise-public sitewise-3m1mco-sitewise-api-1 2>/dev/null || true
-docker network connect --alias sitewise-web sitewise-public sitewise-3m1mco-sitewise-web-1 2>/dev/null || true
-
-cat >/etc/dokploy/traefik/dynamic/sitewise-clerk.yml <<'EOF'
-http:
-  routers:
-    sitewise-clerk-websecure:
-      rule: "Host(`sitewise.au`)"
-      entryPoints:
-        - websecure
-      service: sitewise-clerk-web
-      tls:
-        certResolver: letsencrypt
-
-  services:
-    sitewise-clerk-web:
-      loadBalancer:
-        servers:
-          - url: "http://sitewise-web:80"
-EOF
-
-docker restart dokploy-traefik
-```
-
-Validate the route with:
-
-```bash
-curl -i http://127.0.0.1:8080/api/health
-curl -i https://sitewise.au/api/health
-```
+Record Phase 8 findings in `docs/plans/omnigent/phase8-deploy.md` when that
+phase is executed.
 
 ## Smoke Test
+
+Current pre-Hermes smoke path:
 
 1. Open `https://sitewise.au`.
 2. Sign in with Supabase Auth.
 3. Check `https://sitewise.au/api/health`.
 4. Confirm project list loads.
-5. Open billing and confirm the current entitlement status loads.
-6. Start Starter checkout and return from Polar.
-7. Confirm a webhook updates local subscription state.
-8. Open the customer portal from billing.
-9. Open a project cockpit.
-10. Ask a project-scoped chat question and inspect citations.
-11. Upload a small document to the project repository.
-12. Run Create PMP and inspect the saved draft provenance.
+5. Open a project cockpit.
+6. Ask a project-scoped chat question and inspect citations.
+7. Upload a small document to the project repository.
+8. Open billing and confirm entitlement state loads.
+
+Phase 8 smoke path:
+
+1. Sign up and subscribe through Stripe test mode.
+2. Create or open a project.
+3. Upload tender documents.
+4. Ask chat to compare the selected tenders.
+5. Confirm Hermes tool chips stream.
+6. Confirm the TCM worker completes.
+7. Confirm the comparison panel and report artefact populate.
+8. Edit the artefact and confirm persistence.
 
 ## Rollback
 
-If the new deployment fails, use Dokploy rollback to the previous working image. If DNS or Traefik routing was changed manually, restore the old route while keeping Supabase data untouched.
+Use Dokploy rollback to return to the previous working images. Keep Supabase data
+untouched unless a migration rollback has been explicitly planned and tested.
+

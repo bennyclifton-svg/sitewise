@@ -85,9 +85,11 @@ Then notebooks can import backend modules:
 from app.config import settings
 ```
 
-## Sample SEC data
+## Optional local data helper
 
-From the repo root (stdlib-only script, no backend env needed):
+`data/download.py` is a historical local corpus helper. It is not product
+runtime and is not required for the Hermes/TCM build. If you deliberately need
+that helper, run it from the repo root:
 
 ```bash
 uv run data/download.py

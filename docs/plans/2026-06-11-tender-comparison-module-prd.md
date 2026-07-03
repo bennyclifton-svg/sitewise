@@ -1,5 +1,12 @@
 # Tender Comparison Module — PRD
 
+> **Current-status note (July 2026):** This PRD remains binding for TCM
+> internals: schema-oriented extraction, `tender_*` ownership, deterministic
+> Python calculations, prompt/eval discipline, seed data, and report-language
+> rules. Its concierge/customer-surface assumptions are superseded by
+> `docs/plans/2026-07-03-hermes-foundation-phases-3-8.md`, which makes TCM the
+> flagship in-app Hermes workflow.
+
 - **Date:** 2026-06-11
 - **Status:** Draft for acceptance
 - **Repo target:** `docs/plans/2026-06-11-tender-comparison-module-prd.md`
