@@ -29,6 +29,7 @@ dependencies = [
     "weasyprint==69.0",
     "pillow==12.2.0",
     "opendataloader-pdf[hybrid]==2.4.7",
+    "fastmcp==3.4.2",
 ]
 
 [tool.uv]
