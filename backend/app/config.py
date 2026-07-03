@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     tender_silence_ps_sim: float = 0.60
     tender_silence_review_conf: float = 0.75
     agent_turn_token_secret: str = ""
+    agent_runtime_enabled: bool = False
+    hermes_binary_path: str = "hermes"
+    hermes_invocation_mode: str = "chat_stream"
+    agent_platform_api_key: str | None = None
+    agent_mcp_url: str = "http://127.0.0.1:8000/mcp"
+    agent_max_concurrent_turns: int = 4
+    agent_turn_timeout_seconds: int = 180
+    agent_workspace_root: Path = _BACKEND_DIR.parent / ".tmp" / "agent-workspaces"
 
     @field_validator("database_url")
     @classmethod
@@ -127,6 +135,13 @@ class Settings(BaseSettings):
         if self.tender_embedding_dimensions != 1536:
             raise ValueError("TENDER_EMBEDDING_DIMENSIONS must be 1536 for M3 mappings")
         return self
+
+    @field_validator("hermes_invocation_mode")
+    @classmethod
+    def validate_hermes_invocation_mode(cls, value: str) -> str:
+        if value not in {"chat_stream", "oneshot"}:
+            raise ValueError("HERMES_INVOCATION_MODE must be chat_stream or oneshot")
+        return value
 
     @property
     def ingest_supported_extensions_set(self) -> set[str]:
