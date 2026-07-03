@@ -5,7 +5,6 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import settings
 from app.database.models import Base
-import tender.models  # noqa: F401
 
 import tender.models  # noqa: E402,F401 — register tender_* tables on Base.metadata
 
