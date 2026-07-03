@@ -18,11 +18,14 @@ from app.api.projects import sitewise_router
 from app.config import settings
 from app.database.session import get_engine
 from app.logging import configure_logging, get_logger
+from app.mcp_bridge.server import mcp
 from tender.router import router as tender_router
 
 configure_logging()
 log = get_logger(__name__)
 _access_log = logging.getLogger("clerk.access")
+
+mcp_app = mcp.http_app(path="/")
 
 
 @asynccontextmanager
@@ -40,7 +43,9 @@ async def lifespan(_app: FastAPI):
         f"| log={settings.log_level}",
         flush=True,
     )
-    yield
+    # The MCP session manager needs its own lifespan running alongside ours.
+    async with mcp_app.lifespan(_app):
+        yield
     await get_engine().dispose()
 
 
@@ -79,6 +84,7 @@ fastapi_app.include_router(chat_router)
 fastapi_app.include_router(projects_router)
 fastapi_app.include_router(sitewise_router)
 fastapi_app.include_router(tender_router)
+fastapi_app.mount("/mcp", mcp_app)
 
 
 @fastapi_app.get("/health")
