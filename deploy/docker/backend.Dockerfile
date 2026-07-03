@@ -21,6 +21,10 @@ ENV PATH="/app/backend/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libreoffice openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system sitewise && adduser --system --ingroup sitewise sitewise
 
 COPY --from=builder --chown=sitewise:sitewise /app/backend /app/backend
