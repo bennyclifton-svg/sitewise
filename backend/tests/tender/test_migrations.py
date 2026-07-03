@@ -15,6 +15,17 @@ from alembic.script import ScriptDirectory
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 PRE_TENDER_REV = "006_cockpit_refresh_indexes"
+MIGRATION_CHAIN = [
+    "007_tender_core",
+    "008_tender_knowledge",
+    "009_tender_mapping_status",
+    "010_tender_jobs_eval",
+    "011_tender_report_language",
+    "012_tender_mapping_support",
+    "013_tender_analysis_results",
+    "014_chat_threads_hermes_session",
+    "015_tender_telemetry_events",
+]
 TENDER_REVISIONS = [
     "007_tender_core",
     "008_tender_knowledge",
@@ -23,8 +34,9 @@ TENDER_REVISIONS = [
     "011_tender_report_language",
     "012_tender_mapping_support",
     "013_tender_analysis_results",
+    "015_tender_telemetry_events",
 ]
-HEAD_REVISION = "014_chat_threads_hermes_session"
+HEAD_REVISION = "015_tender_telemetry_events"
 
 
 def _alembic_config() -> Config:
@@ -40,7 +52,7 @@ def _script_directory() -> ScriptDirectory:
 def test_tender_migrations_chain_in_order() -> None:
     scripts = _script_directory()
     expected_parent = PRE_TENDER_REV
-    for revision in TENDER_REVISIONS:
+    for revision in MIGRATION_CHAIN:
         script = scripts.get_revision(revision)
         assert script.down_revision == expected_parent
         expected_parent = revision

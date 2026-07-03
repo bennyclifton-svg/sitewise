@@ -20,6 +20,7 @@ EXPECTED_TABLES = {
     "tender_analysis_results",
     "tender_corrections",
     "tender_reports",
+    "tender_telemetry_events",
     # jobs & evaluation
     "tender_jobs",
     "golden_documents",
@@ -85,6 +86,13 @@ def test_tender_jobs_claim_index_exists() -> None:
     table = Base.metadata.tables["tender_jobs"]
     indexed = {tuple(column.name for column in index.columns) for index in table.indexes}
     assert ("status", "run_after") in indexed
+
+
+def test_tender_telemetry_indexes_exist() -> None:
+    table = Base.metadata.tables["tender_telemetry_events"]
+    indexed = {tuple(column.name for column in index.columns) for index in table.indexes}
+    assert ("comparison_id",) in indexed
+    assert ("comparison_id", "stage") in indexed
 
 
 def test_line_item_embedding_is_1536_vector() -> None:

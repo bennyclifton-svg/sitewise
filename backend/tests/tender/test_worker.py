@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 from tender import worker
@@ -17,6 +17,12 @@ def _job(kind: str = "ingest_document") -> TenderJob:
         status="running",
         attempts=0,
     )
+
+
+def _comparison_job(kind: str = "ingest_document") -> TenderJob:
+    job = _job(kind)
+    job.comparison_id = uuid.uuid4()
+    return job
 
 
 def _session_factory(session: AsyncMock):
@@ -42,19 +48,30 @@ def test_run_once_returns_false_when_queue_empty(mock_session: AsyncMock) -> Non
 
 
 def test_run_once_dispatches_by_kind_and_completes(mock_session: AsyncMock) -> None:
-    job = _job()
+    job = _comparison_job()
     handler = AsyncMock()
 
     async def _run() -> None:
         with (
             patch.object(worker.jobs, "claim_next", new=AsyncMock(return_value=job)),
             patch.object(worker.jobs, "complete", new=AsyncMock()) as mock_complete,
+            patch.object(
+                worker.telemetry, "record_stage_timing", new=AsyncMock()
+            ) as mock_timing,
             patch.dict(worker.HANDLERS, {"ingest_document": handler}),
         ):
             processed = await worker.run_once(_session_factory(mock_session), "host:1")
 
         assert processed is True
         handler.assert_awaited_once_with(mock_session, job)
+        mock_timing.assert_awaited_once_with(
+            mock_session,
+            comparison_id=job.comparison_id,
+            job_id=job.id,
+            stage="ingest_document",
+            duration_ms=ANY,
+            status="done",
+        )
         mock_complete.assert_awaited_once_with(mock_session, job)
 
     run_async(_run())

@@ -694,6 +694,38 @@ class TenderJob(Base):
     )
 
 
+class TenderTelemetryEvent(Base):
+    __tablename__ = "tender_telemetry_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    comparison_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_comparisons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tender_jobs.id", ondelete="SET NULL")
+    )
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    duration_ms: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    llm_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cache_hits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    event_metadata: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_tender_telemetry_events_comparison_id", "comparison_id"),
+        Index("ix_tender_telemetry_events_comparison_stage", "comparison_id", "stage"),
+    )
+
+
 class GoldenDocument(Base):
     __tablename__ = "golden_documents"
 

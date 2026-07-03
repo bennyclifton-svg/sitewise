@@ -12,6 +12,7 @@ import asyncio
 import os
 import signal
 import socket
+import time
 import traceback
 from collections.abc import Awaitable, Callable
 
@@ -21,7 +22,7 @@ import app.database.models  # noqa: F401 — register all SQLAlchemy mappers bef
 from app.config import settings
 from app.logging import configure_logging, get_logger
 from tender.models import TenderJob
-from tender.services import jobs
+from tender.services import jobs, telemetry
 from tender.services.analysis import generate_flags, run_analysis
 from tender.services.classification import classify_document
 from tender.services.embedding import embed_items
@@ -60,6 +61,15 @@ async def run_once(session_factory, worker_id: str) -> bool:
 
         handler = HANDLERS.get(job.kind)
         if handler is None:
+            await telemetry.record_stage_timing(
+                session,
+                comparison_id=job.comparison_id,
+                job_id=job.id,
+                stage=job.kind,
+                duration_ms=0,
+                status="failed",
+                metadata={"error": "unknown job kind"},
+            )
             await jobs.fail(
                 session,
                 job,
@@ -67,13 +77,34 @@ async def run_once(session_factory, worker_id: str) -> bool:
             )
             return True
 
+        started = time.perf_counter()
         try:
             await handler(session, job)
         except Exception:
+            error_text = traceback.format_exc()
+            duration_ms = int((time.perf_counter() - started) * 1000)
             await session.rollback()
-            await jobs.fail(session, job, traceback.format_exc())
+            await telemetry.record_stage_timing(
+                session,
+                comparison_id=job.comparison_id,
+                job_id=job.id,
+                stage=job.kind,
+                duration_ms=duration_ms,
+                status="failed",
+                metadata={"error": error_text.splitlines()[-1] if error_text else ""},
+            )
+            await jobs.fail(session, job, error_text)
             return True
 
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        await telemetry.record_stage_timing(
+            session,
+            comparison_id=job.comparison_id,
+            job_id=job.id,
+            stage=job.kind,
+            duration_ms=duration_ms,
+            status="done",
+        )
         await jobs.complete(session, job)
         return True
 
