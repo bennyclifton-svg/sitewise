@@ -11,6 +11,8 @@ from sqlalchemy.orm.attributes import set_committed_value
 
 from app.database.session import get_session_factory
 from app.mcp_bridge.auth import ToolAuthError, authorize_project_access
+from app.retrieval.retriever import DocumentRetriever
+from app.retrieval.schemas import RetrievalFilters
 from tender.router import (
     create_comparison,
     create_quote,
@@ -135,3 +137,29 @@ async def start_tender_comparison(
 
         await session.commit()
         return {"comparison_id": str(comparison.id), "quotes": quote_results}
+
+
+@mcp.tool
+async def search_documents(project_id: str, query: str) -> list[dict]:
+    """Search the project's ingested documents; returns snippets with scores."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            project = await authorize_project_access(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        retriever = DocumentRetriever(session)
+        passages = await retriever.retrieve(
+            query,
+            filters=RetrievalFilters(
+                active_project=project.slug,
+                include_platform_knowledge=False,
+            ),
+            include_neighbours=False,
+        )
+        return [
+            {"document": p.filename, "snippet": p.content, "score": p.score}
+            for p in passages
+        ]
