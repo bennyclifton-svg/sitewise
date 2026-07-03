@@ -2,27 +2,32 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import mimetypes
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.billing.entitlements import require_active_entitlement
 from app.database.projects import get_project, user_owns_project
 from app.database.session import get_db
 from app.database.users import ensure_user_exists
+from app.database.workspace_files import get_workspace_file_by_path
 from app.storage.project_files import upload_project_file
-from tender.models import QUOTE_STAGES, TenderComparison, TenderDocument, TenderQuote
+from tender.models import TenderComparison, TenderDocument, TenderQuote
 from tender.schemas import (
     ComparisonContextPatch,
     ComparisonCreate,
     ComparisonDetail,
+    ComparisonListResponse,
     DocumentUploadResponse,
     JobView,
     MatrixResponse,
+    ProjectFileDocumentAttach,
     QAQueueResponse,
     QAResolveRequest,
     QAResolveResponse,
@@ -36,6 +41,19 @@ from tender.schemas import (
 from tender.services import jobs, matrix, qa, report, taxonomy
 
 router = APIRouter(prefix="/api/tender", tags=["tender"])
+
+MANUAL_QUOTE_STAGES = {
+    "ingest_document",
+    "classify_document",
+    "extract_line_items",
+    "embed_items",
+    "map_items",
+}
+MANUAL_COMPARISON_STAGES = {
+    "run_expectations",
+    "run_analysis",
+    "generate_flags",
+}
 
 
 async def create_comparison(
@@ -53,6 +71,7 @@ async def create_comparison(
     session.add(comparison)
     await session.flush()
     await session.refresh(comparison)
+    set_committed_value(comparison, "quotes", [])
     return comparison
 
 
@@ -68,6 +87,22 @@ async def get_comparison_detail(
         .where(TenderComparison.id == comparison_id)
     )
     return result.scalar_one_or_none()
+
+
+async def list_comparisons(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+) -> list[TenderComparison]:
+    result = await session.execute(
+        select(TenderComparison)
+        .options(
+            selectinload(TenderComparison.quotes).selectinload(TenderQuote.documents)
+        )
+        .where(TenderComparison.project_id == project_id)
+        .order_by(TenderComparison.updated_at.desc(), TenderComparison.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 async def create_quote(
@@ -121,6 +156,38 @@ async def store_quote_document(
         mime_type=mime_type,
         ingest_status="pending",
         content_hash=hashlib.sha256(content).hexdigest(),
+    )
+    session.add(document)
+    await session.flush()
+    await session.refresh(document)
+    return document
+
+
+async def store_project_file_quote_document(
+    session: AsyncSession,
+    *,
+    quote: TenderQuote,
+    workspace_path: str,
+) -> TenderDocument:
+    record = await get_workspace_file_by_path(
+        session,
+        project_id=quote.comparison.project_id,
+        workspace_path=workspace_path,
+    )
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project file not found",
+        )
+
+    document = TenderDocument(
+        quote_id=quote.id,
+        storage_path=record.storage_key,
+        original_filename=record.filename,
+        mime_type=mimetypes.guess_type(record.filename)[0]
+        or "application/octet-stream",
+        ingest_status="pending",
+        content_hash=record.content_hash,
     )
     session.add(document)
     await session.flush()
@@ -211,6 +278,18 @@ async def post_comparison(
         project_id=body.project_id,
         context=body.context.model_dump(),
         created_by=user.id,
+    )
+
+
+@router.get("/comparisons", response_model=ComparisonListResponse)
+async def get_comparisons(
+    project_id: uuid.UUID = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ComparisonListResponse:
+    await _require_project_owner(session, project_id=project_id, user_id=user.id)
+    return ComparisonListResponse(
+        comparisons=await list_comparisons(session, project_id=project_id)
     )
 
 
@@ -309,6 +388,34 @@ async def post_quote_document(
 
 
 @router.post(
+    "/quotes/{quote_id}/documents/from-project-file",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DocumentUploadResponse,
+)
+async def post_quote_project_file_document(
+    quote_id: uuid.UUID,
+    body: ProjectFileDocumentAttach,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DocumentUploadResponse:
+    await require_active_entitlement(session, user)
+    quote = await require_quote_owner(session, quote_id=quote_id, user_id=user.id)
+    document = await store_project_file_quote_document(
+        session,
+        quote=quote,
+        workspace_path=body.workspace_path,
+    )
+    job = await jobs.enqueue(
+        session,
+        kind="ingest_document",
+        comparison_id=quote.comparison_id,
+        quote_id=quote.id,
+        payload={"document_id": str(document.id)},
+    )
+    return DocumentUploadResponse(document=document, job=job)
+
+
+@router.post(
     "/quotes/{quote_id}/retry/{stage}",
     status_code=status.HTTP_201_CREATED,
     response_model=JobView,
@@ -319,10 +426,10 @@ async def post_quote_stage_retry(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ):
-    if stage not in QUOTE_STAGES:
+    if stage not in MANUAL_QUOTE_STAGES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unknown tender stage",
+            detail="Tender stage cannot be manually run for a quote",
         )
     await require_active_entitlement(session, user)
     quote = await require_quote_owner(session, quote_id=quote_id, user_id=user.id)
@@ -332,6 +439,37 @@ async def post_quote_stage_retry(
         kind=stage,
         comparison_id=quote.comparison_id,
         quote_id=quote.id,
+        payload={"retry": True},
+    )
+
+
+@router.post(
+    "/comparisons/{comparison_id}/retry/{stage}",
+    status_code=status.HTTP_201_CREATED,
+    response_model=JobView,
+)
+async def post_comparison_stage_retry(
+    comparison_id: uuid.UUID,
+    stage: str,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    if stage not in MANUAL_COMPARISON_STAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tender stage cannot be manually run for a comparison",
+        )
+    await require_active_entitlement(session, user)
+    comparison = await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    comparison.status = "processing"
+    return await jobs.enqueue(
+        session,
+        kind=stage,
+        comparison_id=comparison.id,
         payload={"retry": True},
     )
 

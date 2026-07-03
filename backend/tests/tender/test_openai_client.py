@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from tender.llm.openai_client import AsyncOpenAITenderClient
-from tender.schemas import ProjectContext, TenderDocumentPage
+from tender.schemas import ExtractionStructuredOutput, ProjectContext, TenderDocumentPage
 from tests.conftest import run_async
 
 
@@ -34,6 +34,28 @@ def test_openai_client_requests_strict_structured_output(tmp_path: Path) -> None
     assert json.loads(call["input"])["project_context"]["state"] == "NSW"
     assert result.data == {"line_items": [], "page_subtotals": []}
     assert result.request_id == "resp-1"
+
+
+def test_openai_client_makes_extraction_schema_strict_for_openai(tmp_path: Path) -> None:
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("extract carefully", encoding="utf-8")
+    fake_client = FakeOpenAIClient()
+    client = AsyncOpenAITenderClient(
+        client=fake_client,  # type: ignore[arg-type]
+        model="gpt-test",
+        prompt_path=prompt_path,
+    )
+
+    run_async(
+        client.extract(
+            [_page()],
+            ExtractionStructuredOutput.model_json_schema(),
+            _context(),
+        )
+    )
+
+    schema = fake_client.responses.kwargs["text"]["format"]["schema"]
+    assert _strict_schema_errors(schema) == []
 
 
 def test_openai_client_adjudicate_constrains_choice_enum(tmp_path: Path) -> None:
@@ -116,3 +138,29 @@ def _context() -> ProjectContext:
             "spec_level": "builder_base",
         }
     )
+
+
+def _strict_schema_errors(node: Any, path: str = "$") -> list[str]:
+    errors: list[str] = []
+    if isinstance(node, list):
+        for index, item in enumerate(node):
+            errors.extend(_strict_schema_errors(item, f"{path}[{index}]"))
+        return errors
+    if not isinstance(node, dict):
+        return errors
+
+    if "default" in node:
+        errors.append(f"{path} has default")
+
+    properties = node.get("properties")
+    if isinstance(properties, dict):
+        if node.get("additionalProperties") is not False:
+            errors.append(f"{path} is missing additionalProperties=false")
+        if set(node.get("required", [])) != set(properties):
+            errors.append(f"{path} does not require every property")
+    elif node.get("type") == "object" and node.get("additionalProperties") is not False:
+        errors.append(f"{path} is missing additionalProperties=false")
+
+    for key, value in node.items():
+        errors.extend(_strict_schema_errors(value, f"{path}.{key}"))
+    return errors

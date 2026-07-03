@@ -17,13 +17,16 @@ from collections.abc import Awaitable, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.database.models  # noqa: F401 — register all SQLAlchemy mappers before any query
 from app.config import settings
 from app.logging import configure_logging, get_logger
 from tender.models import TenderJob
 from tender.services import jobs
 from tender.services.analysis import generate_flags, run_analysis
+from tender.services.classification import classify_document
 from tender.services.embedding import embed_items
 from tender.services.expectations import run_expectations
+from tender.services.extraction_handler import extract_line_items_job
 from tender.services.ingestion import ingest_document
 from tender.services.mapping import map_items
 from tender.services.report import assemble_report_draft
@@ -34,10 +37,12 @@ log = get_logger(__name__)
 Handler = Callable[[AsyncSession, TenderJob], Awaitable[None]]
 
 HANDLERS: dict[str, Handler] = {
-    "embed_items": embed_items,
     "ingest_document": ingest_document,
-    "infer_silence": infer_silence,
+    "classify_document": classify_document,
+    "extract_line_items": extract_line_items_job,
+    "embed_items": embed_items,
     "map_items": map_items,
+    "infer_silence": infer_silence,
     "assemble_report_draft": assemble_report_draft,
     "generate_flags": generate_flags,
     "run_analysis": run_analysis,
@@ -73,13 +78,115 @@ async def run_once(session_factory, worker_id: str) -> bool:
         return True
 
 
+async def _idle_wait(shutdown_event: asyncio.Event) -> None:
+    """Sleep one poll interval, but wake immediately on shutdown."""
+
+    try:
+        await asyncio.wait_for(
+            shutdown_event.wait(), timeout=settings.tender_worker_poll_seconds
+        )
+    except TimeoutError:
+        pass
+
+
+async def run_lane(
+    session_factory,
+    worker_id: str,
+    *,
+    shutdown_event: asyncio.Event,
+) -> None:
+    """One processing lane: claim and run jobs until shutdown.
+
+    The lane is self-healing — a transient error from claiming or completing
+    a job (a DB blip, say) is logged and the lane backs off one poll interval
+    rather than dying, so a single hiccup never drains the pool. Per-job
+    handler failures are already absorbed by ``run_once``/``jobs.fail``.
+    """
+
+    while not shutdown_event.is_set():
+        try:
+            processed = await run_once(session_factory, worker_id)
+        except Exception:
+            log.error(
+                "tender_worker_lane_error",
+                worker_id=worker_id,
+                error=traceback.format_exc(),
+            )
+            await _idle_wait(shutdown_event)
+            continue
+
+        if not processed and not shutdown_event.is_set():
+            await _idle_wait(shutdown_event)
+
+    log.info("tender_worker_lane_stopped", worker_id=worker_id)
+
+
+async def run_sweeper(
+    session_factory,
+    *,
+    shutdown_event: asyncio.Event,
+) -> None:
+    """Periodically return jobs stranded ``running`` by a crashed worker."""
+
+    while not shutdown_event.is_set():
+        try:
+            async with session_factory() as session:
+                await jobs.requeue_stale(
+                    session, older_than_minutes=settings.tender_job_stale_lock_minutes
+                )
+        except Exception:
+            log.error("tender_worker_sweeper_error", error=traceback.format_exc())
+
+        if not shutdown_event.is_set():
+            await _idle_wait(shutdown_event)
+
+    log.info("tender_worker_sweeper_stopped")
+
+
+async def run_pool(
+    session_factory,
+    worker_id: str,
+    *,
+    shutdown_event: asyncio.Event,
+    concurrency: int,
+) -> None:
+    """Run ``concurrency`` lanes plus one stale-lock sweeper concurrently.
+
+    Lanes pull distinct jobs via ``SELECT … FOR UPDATE SKIP LOCKED`` so the
+    only speedup limit is the OpenAI rate ceiling, not local CPU. All tasks
+    share the shutdown event and drain together on SIGINT/SIGTERM.
+    """
+
+    lanes = max(1, concurrency)
+    tasks = [
+        asyncio.create_task(
+            run_sweeper(session_factory, shutdown_event=shutdown_event)
+        ),
+        *(
+            asyncio.create_task(
+                run_lane(
+                    session_factory,
+                    f"{worker_id}#{index}",
+                    shutdown_event=shutdown_event,
+                )
+            )
+            for index in range(lanes)
+        ),
+    ]
+    await asyncio.gather(*tasks)
+
+
 async def run_loop(
     session_factory,
     worker_id: str,
     *,
     shutdown_event: asyncio.Event,
 ) -> None:
-    """Poll until shutdown; the in-flight job always finishes before exit."""
+    """Single-lane loop with an inline stale-lock sweep (used by tests).
+
+    ``run_pool`` is the production entrypoint; this remains the simplest
+    serial driver for one worker.
+    """
 
     while not shutdown_event.is_set():
         async with session_factory() as session:
@@ -90,12 +197,7 @@ async def run_loop(
         processed = await run_once(session_factory, worker_id)
 
         if not processed and not shutdown_event.is_set():
-            try:
-                await asyncio.wait_for(
-                    shutdown_event.wait(), timeout=settings.tender_worker_poll_seconds
-                )
-            except TimeoutError:
-                pass
+            await _idle_wait(shutdown_event)
 
     log.info("tender_worker_stopped", worker_id=worker_id)
 
@@ -118,15 +220,26 @@ async def main() -> None:
     shutdown_event = asyncio.Event()
     _install_signal_handlers(shutdown_event)
 
+    concurrency = max(1, settings.tender_worker_concurrency)
     log.info(
         "tender_worker_started",
         worker_id=worker_id,
         poll_seconds=settings.tender_worker_poll_seconds,
+        concurrency=concurrency,
         handlers=sorted(HANDLERS),
     )
-    print(f"Tender worker ready | {worker_id} | handlers={sorted(HANDLERS)}", flush=True)
+    print(
+        f"Tender worker ready | {worker_id} | lanes={concurrency} | "
+        f"handlers={sorted(HANDLERS)}",
+        flush=True,
+    )
 
-    await run_loop(get_session_factory(), worker_id, shutdown_event=shutdown_event)
+    await run_pool(
+        get_session_factory(),
+        worker_id,
+        shutdown_event=shutdown_event,
+        concurrency=concurrency,
+    )
 
 
 if __name__ == "__main__":

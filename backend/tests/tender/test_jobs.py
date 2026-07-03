@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm import make_transient_to_detached
 from tender.models import TenderJob
 from tender.services import jobs
 from tests.conftest import run_async
@@ -141,6 +143,25 @@ def test_fail_exhausts_attempts_and_marks_failed(mock_session: AsyncMock) -> Non
     run_async(_run())
 
 
+def test_fail_refreshes_expired_job_before_mutating(mock_session: AsyncMock) -> None:
+    expired = _expired_job()
+    job_id = sa_inspect(expired).identity[0]
+    refreshed = _job(id=job_id, status="running", attempts=0)
+    mock_session.get = AsyncMock(return_value=refreshed)
+
+    async def _run() -> None:
+        await jobs.fail(
+            mock_session, expired, "boom", max_attempts=3, backoff_base_seconds=30
+        )
+        mock_session.get.assert_awaited_once_with(TenderJob, refreshed.id)
+        assert refreshed.attempts == 1
+        assert refreshed.status == "queued"
+        assert refreshed.last_error == "boom"
+        mock_session.commit.assert_awaited_once()
+
+    run_async(_run())
+
+
 def test_requeue_stale_issues_update_and_commits(mock_session: AsyncMock) -> None:
     result = MagicMock()
     result.rowcount = 2
@@ -161,3 +182,10 @@ def test_claim_query_uses_skip_locked_and_run_after_order() -> None:
     assert "FOR UPDATE SKIP LOCKED" in sql
     assert "ORDER BY tender_jobs.run_after" in sql
     assert "LIMIT" in sql
+
+
+def _expired_job() -> TenderJob:
+    job = _job(status="running", attempts=0)
+    make_transient_to_detached(job)
+    sa_inspect(job)._expire(job.__dict__, job.__mapper__.column_attrs)
+    return job

@@ -13,17 +13,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from tender.llm.client import LLMAdjudicationResponse, TenderLLMClient
+from tender.llm.schema import openai_strict_json_schema
 from tender.models import (
     TaxonomyCell,
     TaxonomySynonym,
-    TenderComparison,
     TenderJob,
     TenderLineItem,
     TenderMapping,
-    TenderQuote,
 )
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
+from tender.services.context import context_for_quote
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "llm" / "prompts"
 T2_PROMPT_VERSION = "0.1.0"
@@ -128,7 +128,7 @@ class OpenAIFrontierMappingClient:
                 "format": {
                     "type": "json_schema",
                     "name": "tender_frontier_mapping",
-                    "schema": _frontier_mapping_schema(),
+                    "schema": openai_strict_json_schema(_frontier_mapping_schema()),
                     "strict": True,
                 }
             },
@@ -423,6 +423,8 @@ async def t3_map_item(
 ) -> MappingDecision:
     frontier_client = frontier_client or OpenAIFrontierMappingClient()
     ordered_cells = sorted(active_cells, key=lambda cell: (cell.sort_order, cell.code))
+    if not ordered_cells:
+        raise ValueError("tender taxonomy seed data has no active cells")
     response = await frontier_client.map_item_open(
         line_item=_line_item_payload(item),
         active_cells=list(ordered_cells),
@@ -651,12 +653,7 @@ def _candidate_decision(tier: str, candidate: CellCandidate) -> MappingDecision:
 
 
 async def _context_for_quote(session: AsyncSession, quote_id: uuid.UUID) -> ProjectContext:
-    result = await session.execute(
-        select(TenderComparison.context)
-        .join(TenderQuote, TenderQuote.comparison_id == TenderComparison.id)
-        .where(TenderQuote.id == quote_id)
-    )
-    return ProjectContext.model_validate(result.scalar_one())
+    return await context_for_quote(session, quote_id)
 
 
 async def _existing_mappings(

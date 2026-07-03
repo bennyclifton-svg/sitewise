@@ -158,6 +158,34 @@ def test_t3_unknown_cell_code_needs_review_without_invented_row() -> None:
     assert decision.adjudication["raw_response"]["mappings"][0]["cell_code"] == "99.99"
 
 
+def test_t3_rejects_empty_active_taxonomy() -> None:
+    frontier = FakeFrontierMapper(
+        mapping.FrontierMappingResponse(
+            allocations=(mapping.CellAllocation("03.05", 1.0),),
+            confidence=0.9,
+            rationale="unused",
+            model="gpt-frontier-test",
+            prompt_version=mapping.T3_PROMPT_VERSION,
+        )
+    )
+
+    async def _run() -> None:
+        try:
+            await mapping.t3_map_item(
+                _item("Retaining wall"),
+                active_cells=[],
+                context=_context(),
+                frontier_client=frontier,
+            )
+        except ValueError as exc:
+            assert str(exc) == "tender taxonomy seed data has no active cells"
+        else:
+            raise AssertionError("expected empty taxonomy to fail")
+
+    run_async(_run())
+    assert frontier.calls == []
+
+
 class FakeAdjudicator:
     def __init__(self, response: LLMAdjudicationResponse) -> None:
         self.response = response

@@ -16,13 +16,12 @@ from tender.models import (
     TaxonomyCell,
     TaxonomySynonym,
     TenderCellStatus,
-    TenderComparison,
     TenderJob,
     TenderLineItem,
-    TenderQuote,
 )
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
+from tender.services.context import context_for_quote
 from tender.services.expectations import ConceptMap, predicate_matches
 
 ALLOWED_OUTCOMES = ["excluded", "bundled", "ps_covered", "not_required", "ambiguous"]
@@ -475,12 +474,7 @@ async def _cell_status_row(
 
 
 async def _context_for_quote(session: AsyncSession, quote_id: Any) -> ProjectContext:
-    result = await session.execute(
-        select(TenderComparison.context)
-        .join(TenderQuote, TenderQuote.comparison_id == TenderComparison.id)
-        .where(TenderQuote.id == quote_id)
-    )
-    return ProjectContext.model_validate(result.scalar_one())
+    return await context_for_quote(session, quote_id)
 
 
 async def _packet_from_db(

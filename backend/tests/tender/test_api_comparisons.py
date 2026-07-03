@@ -3,15 +3,18 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import inspect
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.database.project import Project
 from app.database.session import get_db
 from app.main import fastapi_app as app
+from tender.router import create_comparison
+from tender.schemas import ComparisonDetail
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -61,6 +64,43 @@ def test_create_comparison_returns_created_comparison(client: TestClient) -> Non
     assert payload["project_id"] == str(PROJECT_ID)
     assert payload["status"] == "intake"
     assert payload["context"]["state"] == "NSW"
+
+
+def test_create_comparison_preloads_empty_quotes() -> None:
+    session = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock(side_effect=_refresh_comparison)
+
+    async def _run() -> None:
+        comparison = await create_comparison(
+            session,
+            project_id=PROJECT_ID,
+            context=_context(),
+            created_by=USER_ID,
+        )
+
+        assert "quotes" not in inspect(comparison).unloaded
+        assert ComparisonDetail.model_validate(comparison).quotes == []
+
+    from tests.conftest import run_async
+
+    run_async(_run())
+
+
+def test_list_comparisons_returns_project_scoped_rows(client: TestClient) -> None:
+    comparison = _comparison(id=COMPARISON_ID)
+    comparison.quotes = [_quote()]
+
+    with (
+        patch("tender.router.get_project", new=AsyncMock(return_value=_project())),
+        patch("tender.router.list_comparisons", new=AsyncMock(return_value=[comparison])),
+    ):
+        response = client.get(f"/api/tender/comparisons?project_id={PROJECT_ID}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["comparisons"][0]["id"] == str(COMPARISON_ID)
+    assert payload["comparisons"][0]["quotes"][0]["id"] == str(QUOTE_ID)
 
 
 def test_get_comparison_returns_full_state(client: TestClient) -> None:
@@ -163,6 +203,36 @@ def test_upload_document_stores_pending_document_and_enqueues_ingest(
     assert enqueue.await_args.kwargs["payload"] == {"document_id": str(DOCUMENT_ID)}
 
 
+def test_attach_project_file_document_enqueues_ingest(client: TestClient) -> None:
+    quote = _quote()
+    document = _document()
+    enqueue = AsyncMock(return_value=_job("ingest_document"))
+
+    with (
+        patch(
+            "tender.router.require_quote_owner",
+            new=AsyncMock(return_value=quote),
+        ),
+        patch(
+            "tender.router.store_project_file_quote_document",
+            new=AsyncMock(return_value=document),
+        ),
+        patch("tender.router.jobs.enqueue", new=enqueue),
+    ):
+        response = client.post(
+            f"/api/tender/quotes/{QUOTE_ID}/documents/from-project-file",
+            json={"workspace_path": "04-projects/demo/05-procurement/a-homes.pdf"},
+        )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["document"]["id"] == str(DOCUMENT_ID)
+    assert payload["job"]["kind"] == "ingest_document"
+    enqueue.assert_awaited_once()
+    assert enqueue.await_args.kwargs["quote_id"] == QUOTE_ID
+    assert enqueue.await_args.kwargs["payload"] == {"document_id": str(DOCUMENT_ID)}
+
+
 def test_retry_stage_enqueues_requested_stage(client: TestClient) -> None:
     enqueue = AsyncMock(return_value=_job("map_items"))
 
@@ -182,6 +252,58 @@ def test_retry_stage_enqueues_requested_stage(client: TestClient) -> None:
     assert enqueue.await_args.kwargs["kind"] == "map_items"
     assert enqueue.await_args.kwargs["quote_id"] == QUOTE_ID
     assert enqueue.await_args.kwargs["payload"] == {"retry": True}
+
+
+def test_quote_retry_rejects_internal_silence_stage(client: TestClient) -> None:
+    enqueue = AsyncMock()
+
+    with patch("tender.router.jobs.enqueue", new=enqueue):
+        response = client.post(f"/api/tender/quotes/{QUOTE_ID}/retry/infer_silence")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Tender stage cannot be manually run for a quote"
+    enqueue.assert_not_awaited()
+
+
+def test_comparison_retry_enqueues_comparison_stage(client: TestClient) -> None:
+    comparison = _comparison(id=COMPARISON_ID)
+    enqueue = AsyncMock(return_value=_job("run_analysis"))
+
+    with (
+        patch(
+            "tender.router.require_comparison_owner",
+            new=AsyncMock(return_value=comparison),
+        ),
+        patch("tender.router.jobs.enqueue", new=enqueue),
+    ):
+        response = client.post(
+            f"/api/tender/comparisons/{COMPARISON_ID}/retry/run_analysis"
+        )
+
+    assert response.status_code == 201
+    assert response.json()["kind"] == "run_analysis"
+    assert comparison.status == "processing"
+    enqueue.assert_awaited_once()
+    assert enqueue.await_args.kwargs["kind"] == "run_analysis"
+    assert enqueue.await_args.kwargs["comparison_id"] == COMPARISON_ID
+    assert "quote_id" not in enqueue.await_args.kwargs
+    assert enqueue.await_args.kwargs["payload"] == {"retry": True}
+
+
+def test_comparison_retry_rejects_internal_silence_stage(client: TestClient) -> None:
+    enqueue = AsyncMock()
+
+    with patch("tender.router.jobs.enqueue", new=enqueue):
+        response = client.post(
+            f"/api/tender/comparisons/{COMPARISON_ID}/retry/infer_silence"
+        )
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"]
+        == "Tender stage cannot be manually run for a comparison"
+    )
+    enqueue.assert_not_awaited()
 
 
 def _project() -> Project:
@@ -214,6 +336,13 @@ def _comparison(*, id: uuid.UUID = COMPARISON_ID):
         created_at=NOW,
         updated_at=NOW,
     )
+
+
+async def _refresh_comparison(comparison) -> None:
+    comparison.id = COMPARISON_ID
+    comparison.status = "intake"
+    comparison.created_at = NOW
+    comparison.updated_at = NOW
 
 
 def _quote():

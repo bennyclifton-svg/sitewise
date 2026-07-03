@@ -64,6 +64,10 @@ class QuoteCreate(BaseModel):
     validity_days: int | None = None
 
 
+class ProjectFileDocumentAttach(BaseModel):
+    workspace_path: str
+
+
 class DocumentView(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -114,6 +118,10 @@ class ComparisonView(BaseModel):
 
 class ComparisonDetail(ComparisonView):
     quotes: list[QuoteDetail] = []
+
+
+class ComparisonListResponse(BaseModel):
+    comparisons: list[ComparisonDetail] = Field(default_factory=list)
 
 
 class JobView(BaseModel):

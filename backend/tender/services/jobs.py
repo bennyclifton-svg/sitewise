@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, func, inspect as sa_inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -107,6 +107,7 @@ async def fail(
         else settings.tender_job_backoff_base_seconds
     )
 
+    job = await _refresh_if_expired(session, job)
     job.attempts += 1
     job.last_error = error
     job.locked_at = None
@@ -115,7 +116,11 @@ async def fail(
     if job.attempts >= max_attempts:
         job.status = "failed"
         logger.warning(
-            "tender_job_failed", job_id=str(job.id), kind=job.kind, attempts=job.attempts
+            "tender_job_failed",
+            job_id=str(job.id),
+            kind=job.kind,
+            attempts=job.attempts,
+            error=_error_summary(error),
         )
     else:
         backoff_seconds = backoff_base_seconds * 2 ** (job.attempts - 1)
@@ -127,9 +132,26 @@ async def fail(
             kind=job.kind,
             attempts=job.attempts,
             backoff_seconds=backoff_seconds,
+            error=_error_summary(error),
         )
 
     await session.commit()
+
+
+def _error_summary(error: str) -> str:
+    lines = [line.strip() for line in error.splitlines() if line.strip()]
+    return (lines[-1] if lines else error.strip())[:500]
+
+
+async def _refresh_if_expired(session: AsyncSession, job: TenderJob) -> TenderJob:
+    state = sa_inspect(job)
+    if not state.expired or not state.identity:
+        return job
+
+    refreshed = await session.get(TenderJob, state.identity[0])
+    if refreshed is None:
+        raise ValueError(f"cannot fail missing tender job: {state.identity[0]}")
+    return refreshed
 
 
 async def requeue_stale(session: AsyncSession, *, older_than_minutes: int) -> int:

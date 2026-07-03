@@ -104,6 +104,16 @@ def test_run_once_unknown_kind_fails_without_raising(mock_session: AsyncMock) ->
     run_async(_run())
 
 
+def test_front_half_handlers_registered() -> None:
+    from tender.services.classification import classify_document
+    from tender.services.extraction_handler import extract_line_items_job
+    from tender.services.ingestion import ingest_document
+
+    assert worker.HANDLERS["ingest_document"] is ingest_document
+    assert worker.HANDLERS["classify_document"] is classify_document
+    assert worker.HANDLERS["extract_line_items"] is extract_line_items_job
+
+
 def test_run_loop_stops_when_shutdown_event_set(mock_session: AsyncMock) -> None:
     async def _run() -> None:
         shutdown = asyncio.Event()
@@ -143,5 +153,89 @@ def test_run_loop_processes_then_stops_on_shutdown(mock_session: AsyncMock) -> N
             )
 
         assert handler_calls == [job]
+
+    run_async(_run())
+
+
+def test_run_pool_runs_concurrency_lanes_with_distinct_ids(
+    mock_session: AsyncMock,
+) -> None:
+    shutdown = asyncio.Event()
+    seen_ids: set[str] = set()
+
+    async def fake_run_once(session_factory, worker_id):
+        seen_ids.add(worker_id)
+        if len(seen_ids) >= 3:
+            shutdown.set()
+        return False
+
+    async def _run() -> None:
+        with (
+            patch.object(worker, "run_once", new=fake_run_once),
+            patch.object(worker.jobs, "requeue_stale", new=AsyncMock(return_value=0)),
+        ):
+            await asyncio.wait_for(
+                worker.run_pool(
+                    _session_factory(mock_session),
+                    "host:1",
+                    shutdown_event=shutdown,
+                    concurrency=3,
+                ),
+                timeout=5,
+            )
+
+        assert seen_ids == {"host:1#0", "host:1#1", "host:1#2"}
+
+    run_async(_run())
+
+
+def test_run_lane_continues_after_run_once_raises(mock_session: AsyncMock) -> None:
+    shutdown = asyncio.Event()
+    calls: list[int] = []
+
+    async def flaky_run_once(session_factory, worker_id):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("transient db blip")
+        shutdown.set()
+        return False
+
+    async def _run() -> None:
+        with (
+            patch.object(worker, "run_once", new=flaky_run_once),
+            patch.object(worker.settings, "tender_worker_poll_seconds", 0.01),
+        ):
+            await asyncio.wait_for(
+                worker.run_lane(
+                    _session_factory(mock_session), "host:1#0", shutdown_event=shutdown
+                ),
+                timeout=5,
+            )
+
+        # First call raised; the lane must self-heal and call run_once again.
+        assert len(calls) == 2
+
+    run_async(_run())
+
+
+def test_run_sweeper_requeues_stale_until_shutdown(mock_session: AsyncMock) -> None:
+    shutdown = asyncio.Event()
+    calls: list[int] = []
+
+    async def fake_requeue(session, *, older_than_minutes):
+        calls.append(older_than_minutes)
+        shutdown.set()
+        return 0
+
+    async def _run() -> None:
+        with patch.object(worker.jobs, "requeue_stale", new=fake_requeue):
+            await asyncio.wait_for(
+                worker.run_sweeper(
+                    _session_factory(mock_session), shutdown_event=shutdown
+                ),
+                timeout=5,
+            )
+
+        assert calls == [worker.settings.tender_job_stale_lock_minutes]
 
     run_async(_run())

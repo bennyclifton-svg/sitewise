@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 
 from app.config import settings
 from tender.llm.client import LLMAdjudicationResponse, LLMExtractionResponse
+from tender.llm.schema import openai_strict_json_schema
 from tender.schemas import ProjectContext, TenderDocumentPage
 
 PROMPT_VERSION = "0.1.0"
@@ -42,7 +43,7 @@ class AsyncOpenAITenderClient:
                 "format": {
                     "type": "json_schema",
                     "name": "tender_line_item_extraction",
-                    "schema": schema,
+                    "schema": openai_strict_json_schema(schema),
                     "strict": True,
                 }
             },
@@ -77,7 +78,7 @@ class AsyncOpenAITenderClient:
                 "format": {
                     "type": "json_schema",
                     "name": "tender_adjudication",
-                    "schema": _adjudication_schema(choices),
+                    "schema": openai_strict_json_schema(_adjudication_schema(choices)),
                     "strict": True,
                 }
             },
