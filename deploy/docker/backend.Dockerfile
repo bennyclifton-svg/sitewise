@@ -22,7 +22,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libreoffice openjdk-17-jre-headless \
+    && apt-get install -y --no-install-recommends libreoffice default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system sitewise && adduser --system --ingroup sitewise sitewise
