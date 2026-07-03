@@ -12,6 +12,7 @@ from fastmcp.server.dependencies import get_http_headers
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.database.session import get_session_factory
+from app.database.workspace_files import list_workspace_files_for_project
 from app.agent.status_bus import agent_turn_status_bus
 from app.mcp_bridge.auth import ToolAuthError, authorize_project_access_with_claims
 from app.retrieval.retriever import DocumentRetriever
@@ -28,6 +29,18 @@ from tender.services import jobs
 
 mcp = FastMCP("clerk")
 
+TENDER_DOCUMENT_KEYWORDS = (
+    "tender",
+    "quote",
+    "proposal",
+    "pricing",
+    "price",
+    "boq",
+    "schedule",
+    "inclusion",
+    "builder",
+)
+
 
 def _auth_header() -> str | None:
     headers = get_http_headers(include={"authorization"})
@@ -43,6 +56,39 @@ def _comparison_summary(comparison) -> dict:
             for q in comparison.quotes
         ],
     }
+
+
+def _candidate_document(record) -> dict | None:
+    path = record.workspace_path.replace("\\", "/")
+    filename = record.filename
+    if not filename.lower().endswith(".pdf") and not path.lower().endswith(".pdf"):
+        return None
+
+    haystack = f"{path} {filename}".lower()
+    matches = [keyword for keyword in TENDER_DOCUMENT_KEYWORDS if keyword in haystack]
+    return {
+        "workspace_path": path,
+        "filename": filename,
+        "size_bytes": record.size_bytes,
+        "content_hash": record.content_hash,
+        "source_document_id": (
+            str(record.source_document_id) if record.source_document_id else None
+        ),
+        "selection_source": "candidate_workspace_files",
+        "candidate_score": 10 + len(matches),
+        "candidate_reasons": matches or ["pdf"],
+    }
+
+
+def _candidate_documents(records) -> list[dict]:
+    candidates = [candidate for record in records if (candidate := _candidate_document(record))]
+    return sorted(
+        candidates,
+        key=lambda item: (
+            -item["candidate_score"],
+            item["workspace_path"].lower(),
+        ),
+    )
 
 
 def _turn_id(authorization) -> str | None:
@@ -200,6 +246,33 @@ async def start_tender_comparison(
 
             await session.commit()
         return {"comparison_id": str(comparison.id), "quotes": quote_results}
+
+
+@mcp.tool
+async def list_selected_documents(project_id: str) -> list[dict]:
+    """Return candidate tender PDFs from the project workspace.
+
+    Clerk does not yet persist a backend document-selection model. This tool
+    therefore returns likely tender/quote PDFs so Hermes can ask the user to
+    confirm explicit workspace_paths before starting a comparison.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="list_selected_documents",
+            running="Finding candidate tender documents",
+            done="Found candidate tender documents",
+            error="Candidate document lookup failed",
+        ):
+            records = await list_workspace_files_for_project(session, project_id=pid)
+        return _candidate_documents(records)
 
 
 @mcp.tool
