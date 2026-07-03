@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     polar_customer_portal_return_path: str = "/billing"
     tender_odl_hybrid_enabled: bool = True
     tender_page_render_dpi: int = 150
+    tender_worker_inproc_enabled: bool = False
     tender_worker_poll_seconds: float = 2.0
     tender_worker_concurrency: int = 4
     tender_job_max_attempts: int = 3

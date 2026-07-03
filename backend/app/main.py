@@ -19,6 +19,7 @@ from app.config import settings
 from app.database.session import get_engine
 from app.logging import configure_logging, get_logger
 from app.mcp_bridge.server import mcp
+from app.tender_worker import start_inprocess_tender_worker, stop_inprocess_tender_worker
 from tender.router import router as tender_router
 
 configure_logging()
@@ -44,9 +45,13 @@ async def lifespan(_app: FastAPI):
         flush=True,
     )
     # The MCP session manager needs its own lifespan running alongside ours.
-    async with mcp_app.lifespan(_app):
-        yield
-    await get_engine().dispose()
+    worker_handle = await start_inprocess_tender_worker()
+    try:
+        async with mcp_app.lifespan(_app):
+            yield
+    finally:
+        await stop_inprocess_tender_worker(worker_handle)
+        await get_engine().dispose()
 
 
 fastapi_app = FastAPI(title="Clerk API", lifespan=lifespan)
