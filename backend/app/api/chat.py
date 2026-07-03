@@ -4,6 +4,7 @@ import time
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +23,7 @@ from app.database.chat_thread import ChatThread
 from app.database.chats import (
     create_message,
     create_thread,
+    delete_thread,
     get_thread_by_id,
     list_messages,
     list_threads,
@@ -140,6 +142,20 @@ async def patch_thread(
     updated = await update_thread(session, thread, title=body.title)
     await session.commit()
     return ThreadResponse.model_validate(updated)
+
+
+@router.delete("/threads/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_chat_thread(
+    thread_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    thread = await get_thread_by_id(session, thread_id)
+    owned_thread = require_thread_owner(thread, user.id)
+    await require_active_entitlement(session, user)
+    await delete_thread(session, owned_thread)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/threads/{thread_id}/messages")

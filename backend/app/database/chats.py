@@ -68,6 +68,11 @@ async def update_thread(
     return thread
 
 
+async def delete_thread(session: AsyncSession, thread: ChatThread) -> None:
+    await session.delete(thread)
+    await session.flush()
+
+
 async def create_message(
     session: AsyncSession,
     *,

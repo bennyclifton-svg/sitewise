@@ -136,6 +136,31 @@ def test_patch_thread_updates_title(client: TestClient, mock_session: AsyncMock)
     assert payload["title"] == "Renamed thread"
 
 
+def test_delete_thread_deletes_owned_thread(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
+    thread = _thread()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("app.api.chat.get_thread_by_id", AsyncMock(return_value=thread))
+        delete_thread = AsyncMock()
+        patch.setattr("app.api.chat.delete_thread", delete_thread)
+        response = client.delete(f"/chat/threads/{THREAD_ID}")
+
+    assert response.status_code == 204
+    delete_thread.assert_awaited_once_with(mock_session, thread)
+    mock_session.commit.assert_awaited_once()
+
+
+def test_delete_thread_forbidden(client: TestClient, mock_session: AsyncMock) -> None:
+    other_thread = _thread(owner_id=OTHER_USER_ID)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("app.api.chat.get_thread_by_id", AsyncMock(return_value=other_thread))
+        response = client.delete(f"/chat/threads/{THREAD_ID}")
+
+    assert response.status_code == 403
+
+
 def test_get_thread_messages_returns_messages(
     client: TestClient,
     mock_session: AsyncMock,
