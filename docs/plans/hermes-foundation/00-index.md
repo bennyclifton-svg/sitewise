@@ -39,8 +39,7 @@ Do not start a phase until the previous gate is green.
 
 ## Current Preflight Status
 
-As of this shard, Phase 2 is not ready for Phase 3 handoff until
-[01-phase-2-gate.md](./01-phase-2-gate.md) passes. The repo contains turn-token
-auth and comparison read tools, but the mounted MCP endpoint, action/search
-tools, and Hermes smoke test still need to be proven.
-
+Phase 2 is green as of 2026-07-03. The MCP bridge is mounted at `/mcp`, all
+four Phase 2 tools are covered, per-project turn-token authorization is proven,
+and the WSL Hermes smoke successfully called a read tool through the mounted
+endpoint. Phase 3 may begin.

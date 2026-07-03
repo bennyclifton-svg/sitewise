@@ -7,6 +7,8 @@ Phase 3 must not begin until this gate is green.
 
 ## Current Repo Snapshot
 
+Status: **GREEN on 2026-07-03**. Phase 3 may begin.
+
 Present:
 
 - `backend/app/mcp_bridge/tokens.py`
@@ -14,16 +16,19 @@ Present:
 - `backend/app/mcp_bridge/server.py`
 - `list_tender_comparisons`
 - `get_tender_comparison`
-- unit tests for tokens, auth, and comparison read tools
-- `fastmcp==3.4.2` declared in `backend/pyproject.toml`
-
-Still required:
-
 - `start_tender_comparison`
 - `search_documents`
 - `/mcp` mounted in `backend/app/main.py`
-- mount/integration test proving missing-token calls fail safely
-- manual Hermes to Clerk MCP smoke test
+- mounted `/mcp` auth integration coverage
+- unit tests for tokens, auth, comparison read tools, action/search tools,
+  and mount behavior
+- `fastmcp==3.4.2` declared in `backend/pyproject.toml`
+
+Manual smoke:
+
+- WSL Hermes v0.17.0 connected to `http://<windows-host>:8000/mcp/`,
+  discovered all four Clerk tools, and called `list_tender_comparisons` with a
+  minted project turn token. Result: `{"result":{"result":[]}}`.
 
 ## Required Work
 
@@ -41,18 +46,17 @@ Still required:
 
 ## Gate Checklist
 
-- [ ] `uv run pytest tests/mcp_bridge -q`
-- [ ] `uv run pytest tests -q`
-- [ ] `uv run ruff check .`
-- [ ] `/mcp` is reachable from the FastAPI app.
-- [ ] Missing or invalid turn token returns a tool authorization error.
-- [ ] Cross-project token cannot access another project.
-- [ ] Hermes can call at least one read tool through the mounted MCP endpoint.
-- [ ] `start_tender_comparison` enqueues the expected TCM jobs.
-- [ ] `search_documents` delegates to the existing retriever.
+- [x] `uv run pytest tests/mcp_bridge -q` — 22 passed.
+- [x] `uv run pytest tests -q` — 615 passed, 7 skipped.
+- [x] `uv run ruff check .`
+- [x] `/mcp` is reachable from the FastAPI app.
+- [x] Missing or invalid turn token returns a tool authorization error.
+- [x] Cross-project token cannot access another project.
+- [x] Hermes can call at least one read tool through the mounted MCP endpoint.
+- [x] `start_tender_comparison` enqueues the expected TCM jobs.
+- [x] `search_documents` delegates to the existing retriever.
 
 ## Handoff Rule
 
 Only after every checklist item passes may Phase 3 begin. If any item fails,
 finish or revise Phase 2 instead of compensating in the Hermes runtime.
-

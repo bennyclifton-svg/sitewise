@@ -16,6 +16,10 @@ class TurnTokenError(Exception):
     pass
 
 
+class TurnTokenConfigurationError(TurnTokenError):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class TurnClaims:
     user_id: uuid.UUID
@@ -35,6 +39,13 @@ def _sign(body: bytes, secret: str) -> str:
     return _b64(hmac.new(secret.encode(), body, hashlib.sha256).digest())
 
 
+def _resolve_secret(secret: str | None) -> str:
+    value = secret if secret is not None else settings.agent_turn_token_secret
+    if not value:
+        raise TurnTokenConfigurationError("turn token secret is not configured")
+    return value
+
+
 def mint_turn_token(
     *,
     user_id: uuid.UUID,
@@ -43,7 +54,7 @@ def mint_turn_token(
     secret: str | None = None,
     now: float | None = None,
 ) -> str:
-    secret = secret or settings.agent_turn_token_secret
+    secret = _resolve_secret(secret)
     now = time.time() if now is None else now
     body = json.dumps(
         {"uid": str(user_id), "pid": str(project_id), "exp": now + ttl_seconds},
@@ -58,7 +69,7 @@ def verify_turn_token(
     secret: str | None = None,
     now: float | None = None,
 ) -> TurnClaims:
-    secret = secret or settings.agent_turn_token_secret
+    secret = _resolve_secret(secret)
     now = time.time() if now is None else now
     try:
         body_b64, sig = token.rsplit(".", 1)

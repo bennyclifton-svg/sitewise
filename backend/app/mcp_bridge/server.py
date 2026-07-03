@@ -27,7 +27,7 @@ mcp = FastMCP("clerk")
 
 
 def _auth_header() -> str | None:
-    headers = get_http_headers()
+    headers = get_http_headers(include={"authorization"})
     return headers.get("authorization")
 
 

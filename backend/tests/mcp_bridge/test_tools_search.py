@@ -65,7 +65,9 @@ def _install(monkeypatch, session: _Session, *, token_project: uuid.UUID = PROJE
     _StubRetriever.instances = []
     token = mint_turn_token(user_id=USER_ID, project_id=token_project, secret=SECRET)
     monkeypatch.setattr(
-        server, "get_http_headers", lambda: {"authorization": f"Bearer {token}"}
+        server,
+        "get_http_headers",
+        lambda **_kwargs: {"authorization": f"Bearer {token}"},
     )
     monkeypatch.setattr(server, "get_session_factory", lambda: lambda: session)
     monkeypatch.setattr(server, "DocumentRetriever", _StubRetriever)
