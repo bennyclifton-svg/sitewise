@@ -8,6 +8,8 @@ from app.database.polar_customer import PolarCustomer
 from app.database.polar_subscription import PolarSubscription
 from app.database.project import Project
 from app.database.source_document import SourceDocument
+from app.database.stripe_customer import StripeCustomer
+from app.database.stripe_subscription import StripeSubscription
 from app.database.user import User
 from app.database.workspace_file import WorkspaceFile
 
@@ -22,6 +24,8 @@ __all__ = [
     "PolarSubscription",
     "Project",
     "SourceDocument",
+    "StripeCustomer",
+    "StripeSubscription",
     "User",
     "WorkspaceFile",
 ]

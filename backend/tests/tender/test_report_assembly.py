@@ -77,6 +77,25 @@ def test_excluded_phrase_only_renders_with_page_reference() -> None:
     assert "Excluded (stated, p. 4)" in with_page.html
 
 
+def test_flat_report_language_rows_rebuild_nested_sections_and_lists() -> None:
+    language = report._nested_language(
+        {
+            "report.section_titles.cover": "Cover",
+            "report.section_titles.executive_summary": "Executive summary",
+            "report.labels.builder": "Builder",
+            "forbidden_terms.0000": "ripoff",
+            "forbidden_terms.0001": "dodgy",
+        }
+    )
+
+    assert report.language_value(language, "report.section_titles") == {
+        "cover": "Cover",
+        "executive_summary": "Executive summary",
+    }
+    assert report.language_value(language, "report.labels.builder") == "Builder"
+    assert language["forbidden_terms"] == ["ripoff", "dodgy"]
+
+
 def test_weasyprint_renderer_produces_nonzero_pdf_when_native_libs_available() -> None:
     try:
         pdf = report.render_pdf_bytes("<html><body><p>PDF smoke test</p></body></html>")

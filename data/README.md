@@ -45,11 +45,19 @@ Report language for customer-facing TCM output must come from
 ## Skills And Doctrine
 
 `data/skills/` contains workflow contracts. Clerk implements those contracts;
-the files are not a parallel runtime. Existing PMP/cost workflows may still use
-these until the Hermes-driven workflow pattern supersedes them.
+the files are not a parallel runtime. Each skill's disposition is tracked in
+the STATUS column of `data/skills/README.md` (implemented-in-clerk /
+superseded-by-runtime / standalone-era / future-hermes-workflow), and the
+path-mapping table there translates standalone-workspace references
+(`00-doctrine/doctrine.md` → `docs/clerk-brief.md`, etc.).
 
 `data/seed/` contains reference guides. Treat them as platform knowledge, not
-project evidence.
+project evidence. Every seed carries YAML frontmatter (`tier`, `loaded_by`,
+`topics`, `summary`, `required_by`) that the ingest pipeline persists into
+`document_metadata` and the platform-knowledge catalog
+(`backend/app/sitewise/knowledge_catalog.py`) reads for progressive
+disclosure. Frontmatter is contract, not decoration — keep it accurate when
+editing a seed.
 
 ## Project Templates
 

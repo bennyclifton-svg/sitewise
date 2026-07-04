@@ -1,5 +1,12 @@
 # Skill: seed-targeted-read
 
+> **STATUS: superseded-by-runtime.** In the hosted product this contract is
+> implemented by `backend/app/sitewise/knowledge_catalog.py` (selection +
+> section loading, driven by seed frontmatter) and exposed to the agent via the
+> `list_platform_knowledge` / `read_platform_knowledge` MCP tools. The
+> Step 1/Step 2 tables below are now generated truth in seed frontmatter
+> (`tier`, `loaded_by`, `topics`); this file remains the design rationale.
+
 **Job:** Load only the seed guides that match the task. Never load all of `../../01-seed/` by default. Loading is driven by the project's three-overlay declaration (`archetype`, `user_role`, `state`) plus the task subject.
 
 This skill is the gatekeeper for `doctrine.md §seed-consultation-discipline`. Every other skill that needs domain coverage calls this skill first.

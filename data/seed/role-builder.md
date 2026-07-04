@@ -1,9 +1,10 @@
 ---
-seed_tier: 3
+tier: role-overlay
 seed_type: role-overlay
 loaded_by: "user_role: builder"
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+summary: "Role overlay for the head-contract builder: statutory instruments (licence, HOW/HBCF, LSL), head-contract administration, progress-claim and variation issuance, EOT, subcontractor management and the builder mobilisation checklist."
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style]
 agents_anchors: [§1, §2, §3, §6, §9]
 ---

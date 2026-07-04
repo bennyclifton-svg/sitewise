@@ -1,11 +1,12 @@
 ---
-seed_tier: 3
+tier: role-overlay
 seed_type: role-overlay
 loaded_by: "user_role: d-and-c"
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
-doctrine_anchors: [seed-consultation-discipline, register-discipline, decision-discipline, escalation-triggers, evidence-discipline, voice-and-style, owner-communication]
-agents_anchors: [Sec. 1, Sec. 2, Sec. 3, Sec. 5, Sec. 6, Sec. 8, Sec. 9, Sec. 11]
+summary: "Role overlay for the D&C contractor: inherits the builder's obligations and adds design responsibility, the design responsibility matrix, consultant procurement, PI insurance posture and certifier submission control."
+doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style, §owner-communication]
+agents_anchors: [§1, §2, §3, §5, §6, §8, §9, §11]
 ---
 
 # Role overlay - D&C contractor

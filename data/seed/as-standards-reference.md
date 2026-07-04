@@ -1,10 +1,12 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: compliance
 loaded_by: task subject (AS 2870, AS 1684, AS 4055, AS 3959, AS 3500, AS 1170, footing classification, slab, framing, wind class, bushfire BAL, plumbing standard)
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+topics: [as-standards, compliance, structural]
+summary: "Orientation on the Australian Standards governing residential structure and services — AS 2870 footings and slabs, AS 1684 framing, AS 4055 wind, AS 3959 bushfire, AS 3500 plumbing, AS 1170 loads. Positions the agent to surface the right question and route it to the responsible professional; never a substitute for the engineer or certifier."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

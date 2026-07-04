@@ -25,6 +25,7 @@ MIGRATION_CHAIN = [
     "013_tender_analysis_results",
     "014_chat_threads_hermes_session",
     "015_tender_telemetry_events",
+    "016_stripe_billing",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -36,7 +37,7 @@ TENDER_REVISIONS = [
     "013_tender_analysis_results",
     "015_tender_telemetry_events",
 ]
-HEAD_REVISION = "015_tender_telemetry_events"
+HEAD_REVISION = "016_stripe_billing"
 
 
 def _alembic_config() -> Config:

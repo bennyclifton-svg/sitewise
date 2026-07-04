@@ -56,6 +56,7 @@ Thumbs.db
 .tmp-env/
 .agents
 .claude/
+.tools/
 .uv-cache/
 .pytest-cache/
 /projects

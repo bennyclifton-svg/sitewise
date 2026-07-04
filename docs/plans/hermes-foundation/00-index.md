@@ -54,8 +54,21 @@ chips, backend-backed stop/cancel, a per-project session list with
 resume/rename/delete/create, artefact cards, frontend tests, and readable
 agent-workflow error states. Phase 5 may begin.
 
-Phase 5 is in progress as of 2026-07-03, but its gate is not green. The worker,
-MCP tools, report artefact emission, timing ledger, and Windows JVM speed gate
-are implemented and verified. The required Linux/WSL2 scripted chat acceptance
-run is blocked because WSL lacks Java and the clean backend Docker build timed
-out before producing a runnable image. Phase 6 must not begin yet.
+Phase 5 is green as of 2026-07-04. The worker, MCP tools, report artefact
+emission, timing ledger, WSL JVM speed gate, and scripted WSL chat acceptance
+run are implemented and verified. A real Hermes turn started the TCM comparison,
+the worker completed the pipeline through report assembly, and a second Hermes
+turn retrieved the tender report artefact. Phase 6 may begin.
+
+Phase 6 is green as of 2026-07-04. Hermes now uses the project-scoped scratch
+root, traversal-safe MCP workspace tools are implemented, uploaded source
+documents remain read-only, in-app draft edits create new `draft_artifacts`
+versions, and the agent can read or version the latest editable artefact through
+workspace paths. Phase 7 may begin.
+
+Phase 7 is green as of 2026-07-04. Stripe-backed checkout, portal, webhook
+sync, entitlement branching, quota checks, and billing UI are covered by local
+tests and migration verification. A real Stripe test-mode Checkout created a
+subscription, the webhook flipped entitlement active, Customer Portal
+cancellation sent subscription update webhooks, and the canceled subscription
+blocked subscribed-only actions with 402. Phase 8 may begin.

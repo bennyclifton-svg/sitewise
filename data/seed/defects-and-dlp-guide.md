@@ -1,10 +1,12 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: construction
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 state_default: NSW
+topics: [defects, dlp, warranty]
+summary: "Defects and DLP posture: DLP mechanics after practical completion, common residential defect types, defect tracking, and role-aware statutory warranty obligations (HOW/HBCF). Surfaces issues and routes them to the right professional; never assesses warranty liability."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

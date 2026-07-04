@@ -2,7 +2,9 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const components: Components = {
+import { Badge } from "@/components/ui/badge";
+
+const baseComponents: Components = {
   h1: ({ children }) => (
     <h1 className="mb-4 text-2xl font-semibold leading-tight">{children}</h1>
   ),
@@ -55,6 +57,35 @@ const components: Components = {
   tr: ({ children }) => <tr className="even:bg-muted/20">{children}</tr>,
 };
 
+function markdownComponents(version?: number): Components {
+  if (version == null) {
+    return baseComponents;
+  }
+
+  let isFirstHeading = true;
+
+  return {
+    ...baseComponents,
+    h1: ({ children }) => {
+      if (isFirstHeading) {
+        isFirstHeading = false;
+        return (
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <h1 className="min-w-0 text-2xl font-semibold leading-tight">{children}</h1>
+            <Badge variant="secondary" className="shrink-0">
+              v{version}
+            </Badge>
+          </div>
+        );
+      }
+
+      return (
+        <h1 className="mb-4 text-2xl font-semibold leading-tight">{children}</h1>
+      );
+    },
+  };
+}
+
 function normalizeDraftMarkdown(markdown: string): string {
   return markdown
     .split("\n")
@@ -68,11 +99,20 @@ function normalizeDraftMarkdown(markdown: string): string {
     .join("\n");
 }
 
-export function MarkdownContent({ markdown }: { markdown: string }) {
+export function MarkdownContent({
+  markdown,
+  version,
+}: {
+  markdown: string;
+  version?: number;
+}) {
   const normalized = normalizeDraftMarkdown(markdown);
   return (
     <div className="draft-markdown text-sm text-foreground">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={markdownComponents(version)}
+      >
         {normalized}
       </ReactMarkdown>
     </div>

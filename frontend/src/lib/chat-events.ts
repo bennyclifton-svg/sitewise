@@ -11,6 +11,10 @@ export type ToolStatusEvent = {
   tool: string;
   state: ToolStatusState;
   message: string;
+  stage?: string;
+  percent?: number;
+  doneUnits?: number;
+  totalUnits?: number;
 };
 
 export type ArtefactEvent = {
@@ -48,6 +52,11 @@ export function toolStatusFromPart(part: MessagePart): ToolStatusEvent | null {
     tool: data.tool,
     state: data.state,
     message: data.message,
+    stage: typeof data.stage === "string" ? data.stage : undefined,
+    percent: typeof data.percent === "number" ? data.percent : undefined,
+    doneUnits: typeof data.doneUnits === "number" ? data.doneUnits : undefined,
+    totalUnits:
+      typeof data.totalUnits === "number" ? data.totalUnits : undefined,
   };
 }
 

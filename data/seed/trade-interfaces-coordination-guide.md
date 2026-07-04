@@ -1,10 +1,12 @@
 ---
-seed_tier: 3
+tier: topic
 seed_type: trade
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 state_default: NSW
+topics: [trade-interfaces, coordination, defects]
+summary: "The critical sequencing interfaces between residential trades — who is responsible, what evidence gates the next trade, and the common failure mode at each boundary. Used for programme coordination, scope drafting, hold points and defect root-cause work."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

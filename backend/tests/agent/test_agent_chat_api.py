@@ -135,6 +135,33 @@ def test_agent_stream_requires_active_entitlement(
     assert response.status_code == 402
 
 
+def test_agent_stream_blocks_over_quota(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "require_project_owner",
+        AsyncMock(return_value=SimpleNamespace(id=PROJECT_ID)),
+    )
+    monkeypatch.setattr(
+        chat_api,
+        "require_turn_within_quota",
+        AsyncMock(
+            side_effect=HTTPException(
+                status_code=402,
+                detail="Monthly agent turn quota exceeded.",
+            )
+        ),
+    )
+
+    response = client.post("/chat/agent/stream", json=BODY)
+
+    assert response.status_code == 402
+
+
 def test_agent_stream_persists_user_then_successful_assistant_message(
     client: TestClient,
     mock_session: AsyncMock,
@@ -175,6 +202,18 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
         chat_api,
+        "require_turn_within_quota",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                used_turns=12,
+                quota=100,
+                percent=12,
+                warning=False,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        chat_api,
         "require_project_owner",
         AsyncMock(return_value=SimpleNamespace(id=PROJECT_ID)),
     )
@@ -204,7 +243,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "prompt": "Compare the tender quotes",
         "mcp_url": "http://testserver/mcp",
         "turn_token": "turn-token",
-        "cwd": str(tmp_path / str(PROJECT_ID) / str(THREAD_ID)),
+        "cwd": str(tmp_path / str(PROJECT_ID)),
     }
     token_mint.assert_called_once()
     assert token_mint.call_args.kwargs["user_id"] == USER_ID

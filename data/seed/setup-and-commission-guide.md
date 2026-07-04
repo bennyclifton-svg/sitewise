@@ -1,13 +1,16 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: lifecycle
 loaded_by: task subject (mobilisation, commissioning, ready-to-start)
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+stub_depth: {owner-builder: deep, architect-pm: deep, builder: deep, d-and-c: deep}
+topics: [setup, mobilisation, commissioning, risk]
+summary: "The end-to-end setup and commissioning workflow between award and start on site: statutory instruments held, contract executed, evidence captured, programme baselined and the right registers opened, with deep role-specific paths for all four roles. The mandatory mobilisation seed for PMP drafting."
+required_by: {create-pmp: 1}
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §evidence-discipline]
 agents_anchors: [§1, §2, §3, §5, §9]
-stub_depth: {owner-builder: deep, architect-pm: deep, builder: deep, d-and-c: deep}
 ---
 
 # Setup and commission guide

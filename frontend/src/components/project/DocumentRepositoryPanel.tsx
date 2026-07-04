@@ -1,7 +1,11 @@
 import {
   AlertCircle,
+  FolderTree,
   Inbox,
   Loader2,
+  LoaderCircle,
+  Play,
+  TableProperties,
   Trash,
   Upload,
 } from "lucide-react";
@@ -18,6 +22,8 @@ import {
   IngestProgressStrip,
   type IngestUploadProgress,
 } from "@/components/project/IngestProgressStrip";
+import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
@@ -26,6 +32,7 @@ import type {
   EvidencePreview,
   InboxUploadResult,
   PdfAnalyzeResult,
+  WorkspaceTreeNode,
 } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +50,8 @@ type SplitProposal = {
   analysis: PdfAnalyzeResult;
 };
 
+type RepositoryPanelView = "schedule" | "tree";
+
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
 }
@@ -51,17 +60,37 @@ export function DocumentRepositoryPanel({
   projectId,
   evidence,
   selectedEvidenceId,
+  workspaceTree,
+  selectedWorkspacePath,
   onSelectEvidence,
+  onSelectWorkspacePath,
+  onOpenWorkflow,
+  onViewWorkbench,
+  onViewFolder,
   onUploadComplete,
+  onRunSortFiles,
+  isRunningSortFiles = false,
+  overlayReady = true,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
   selectedEvidenceId: string | null;
+  workspaceTree: WorkspaceTreeNode[];
+  selectedWorkspacePath: string | null;
   onSelectEvidence: (evidenceId: string) => void;
+  onSelectWorkspacePath: (path: string) => void;
+  onOpenWorkflow: (tileId: string) => void;
+  onViewWorkbench: () => void;
+  onViewFolder: () => void;
   onUploadComplete: () => Promise<void>;
+  onRunSortFiles?: () => void;
+  isRunningSortFiles?: boolean;
+  overlayReady?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
+  const [activePanelView, setActivePanelView] =
+    useState<RepositoryPanelView>("schedule");
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<IngestUploadProgress | null>(null);
@@ -403,32 +432,78 @@ export function DocumentRepositoryPanel({
         </div>
       ) : null}
 
-      <header className="border-b px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold">Document repository</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {evidence.length} {evidence.length === 1 ? "document" : "documents"}
-              {inboxCount
-                ? ` · ${inboxCount} awaiting Sort Files`
-                : evidence.length
-                  ? " · all filed"
-                  : ""}
-              {selectedRows.length
-                ? ` · ${selectedRows.length} selected`
-                : ""}
-              {isUploading && uploadProgress
-                ? ` · ingesting ${uploadProgress.completed} of ${uploadProgress.total}`
-                : isUploading
-                  ? " · ingesting…"
-                  : " · drag files here to upload"}
-            </p>
-            {inboxCount ? (
-              <p className="mt-1 text-[0.65rem] text-muted-foreground">
-                <span className="mr-1.5 inline-block size-2 rounded-sm bg-amber-400/80 align-middle" />
-                Amber rows are in <code>_inbox/</code> until Sort Files runs
+      <header className="border-b px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">
+              {activePanelView === "schedule" ? "Documents" : "Tree view"}
+            </h2>
+            {activePanelView === "schedule" && selectedRows.length ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selectedRows.length} selected
               </p>
             ) : null}
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              {isUploading ? (
+                <span className="text-xs text-muted-foreground">
+                  {uploadProgress
+                    ? `ingesting ${uploadProgress.completed} of ${uploadProgress.total}`
+                    : "ingesting…"}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="size-3 shrink-0" aria-hidden />
+                  upload files
+                </button>
+              )}
+              {inboxCount && onRunSortFiles ? (
+                <Button
+                  type="button"
+                  className="border-amber-400/50 bg-amber-50/40 text-amber-900 hover:bg-amber-50/70 dark:border-amber-400/40 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-950/30"
+                  disabled={!overlayReady || isRunningSortFiles}
+                  onClick={onRunSortFiles}
+                >
+                  {isRunningSortFiles ? (
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Play className="size-4" aria-hidden />
+                  )}
+                  {isRunningSortFiles ? "Running" : "Sort Files"}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <div
+            className="flex shrink-0 items-center rounded-md border bg-muted/30 p-0.5"
+            role="group"
+            aria-label="Right panel view"
+          >
+            <Button
+              type="button"
+              variant={activePanelView === "schedule" ? "secondary" : "ghost"}
+              size="icon-xs"
+              aria-label="Document schedule"
+              aria-pressed={activePanelView === "schedule"}
+              title="Document schedule"
+              onClick={() => setActivePanelView("schedule")}
+            >
+              <TableProperties className="size-3.5" aria-hidden />
+            </Button>
+            <Button
+              type="button"
+              variant={activePanelView === "tree" ? "secondary" : "ghost"}
+              size="icon-xs"
+              aria-label="Tree view"
+              aria-pressed={activePanelView === "tree"}
+              title="Tree view"
+              onClick={() => setActivePanelView("tree")}
+            >
+              <FolderTree className="size-3.5" aria-hidden />
+            </Button>
           </div>
         </div>
       </header>
@@ -501,7 +576,18 @@ export function DocumentRepositoryPanel({
       })}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {registerRows.length ? (
+        {activePanelView === "tree" ? (
+          <div className="px-3 py-3">
+            <WorkspaceExplorer
+              tree={workspaceTree}
+              selectedPath={selectedWorkspacePath}
+              onSelectPath={onSelectWorkspacePath}
+              onOpenWorkflow={onOpenWorkflow}
+              onViewWorkbench={onViewWorkbench}
+              onViewFolder={onViewFolder}
+            />
+          </div>
+        ) : registerRows.length ? (
           <table className="w-full table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
               <col className="w-[2.75rem]" />

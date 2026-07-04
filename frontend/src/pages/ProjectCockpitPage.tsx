@@ -324,7 +324,21 @@ export function ProjectCockpitPage() {
     const item = evidence.find((candidate) => candidate.id === evidenceId);
     if (item) {
       setSelectedWorkspacePath(normalizeWorkspacePath(item.relative_path));
+      if (isPmpWorkspaceFile(item.relative_path)) {
+        setSelectedWorkflowId("create-pmp");
+        setActiveView("draft");
+        return;
+      }
+      if (isCostPlanWorkspaceFile(item.relative_path)) {
+        setSelectedWorkflowId("cost-plan");
+        setActiveView("draft");
+        return;
+      }
     }
+    if (activeView === "draft") {
+      return;
+    }
+    setActiveView("file");
   }
 
   function selectWorkspacePath(path: string) {
@@ -393,6 +407,13 @@ export function ProjectCockpitPage() {
   const selectedEvidence =
     evidence.find((item) => item.id === selectedEvidenceId) ?? evidence[0] ?? null;
   const selectedFolder = findWorkspaceNode(workspaceTree, selectedWorkspacePath);
+  const repositoryEvidence = selectedEvidenceId
+    ? evidence.find((item) => item.id === selectedEvidenceId) ?? null
+    : null;
+  const draftEvidencePanel =
+    repositoryEvidence && !evidenceMatchesDraftPath(repositoryEvidence, activeDraft)
+      ? repositoryEvidence
+      : null;
 
   return (
     <ProjectShell
@@ -406,14 +427,6 @@ export function ProjectCockpitPage() {
           projects={projects}
           projectsLoading={projectsLoading}
           platformStatus={platformStatus}
-          workspaceTree={workspaceTree}
-          selectedWorkspacePath={selectedWorkspacePath}
-          onViewChange={(view) => {
-            leaveTenderRoute();
-            setActiveView(view);
-          }}
-          onSelectWorkspacePath={selectWorkspacePath}
-          onOpenWorkflow={setSelectedWorkflowId}
         />
       }
       repository={
@@ -421,10 +434,25 @@ export function ProjectCockpitPage() {
           projectId={project.id}
           evidence={evidence}
           selectedEvidenceId={selectedEvidence?.id ?? null}
+          workspaceTree={workspaceTree}
+          selectedWorkspacePath={selectedWorkspacePath}
           onSelectEvidence={selectEvidenceFromRepository}
+          onSelectWorkspacePath={selectWorkspacePath}
+          onOpenWorkflow={setSelectedWorkflowId}
+          onViewWorkbench={() => {
+            leaveTenderRoute();
+            setActiveView("workbench");
+          }}
+          onViewFolder={() => {
+            leaveTenderRoute();
+            setActiveView("folder");
+          }}
           onUploadComplete={async () => {
             await Promise.all([refreshEvidence(), refreshWorkspaceTree()]);
           }}
+          onRunSortFiles={() => void runSortFiles()}
+          isRunningSortFiles={isRunningSortFiles}
+          overlayReady={project.overlay_status.ready}
         />
       }
       chatBar={
@@ -477,28 +505,36 @@ export function ProjectCockpitPage() {
         <WorkspaceFolderPanel folder={selectedFolder} evidence={evidence} />
       ) : null}
       {activeView === "draft" && project ? (
-        <DraftReviewPanel
-          projectId={project.id}
-          draft={activeDraft}
-          workflowType={activeWorkflowType}
-          onDraftUpdated={async (draft) => {
-            if (draft.workflow_type === "create_cost_plan") {
-              setLatestCostPlanDraft(draft);
-              setSelectedWorkspacePath(draft.workspace_path);
-            } else {
-              setLatestDraft(draft);
-              const pmpPath = isPmpWorkspaceFile(draft.workspace_path)
-                ? draft.workspace_path
-                : project
-                  ? `${project.workspace_path}/00-brief-pmp/PMP.md`
-                  : null;
-              if (pmpPath) {
-                setSelectedWorkspacePath(pmpPath);
+        <>
+          <DraftReviewPanel
+            projectId={project.id}
+            draft={activeDraft}
+            workflowType={activeWorkflowType}
+            onDraftUpdated={async (draft) => {
+              if (draft.workflow_type === "create_cost_plan") {
+                setLatestCostPlanDraft(draft);
+                setSelectedWorkspacePath(draft.workspace_path);
+              } else {
+                setLatestDraft(draft);
+                const pmpPath = isPmpWorkspaceFile(draft.workspace_path)
+                  ? draft.workspace_path
+                  : project
+                    ? `${project.workspace_path}/00-brief-pmp/PMP.md`
+                    : null;
+                if (pmpPath) {
+                  setSelectedWorkspacePath(pmpPath);
+                }
               }
-            }
-            await refreshWorkspaceTree();
-          }}
-        />
+              await refreshWorkspaceTree();
+            }}
+          />
+          {draftEvidencePanel ? (
+            <WorkspaceFilePanel
+              projectId={project.id}
+              evidence={draftEvidencePanel}
+            />
+          ) : null}
+        </>
       ) : null}
         </>
       )}
@@ -531,4 +567,15 @@ function findEvidenceByPath(
 
 function normalizeWorkspacePath(path: string): string {
   return path.replaceAll("\\", "/");
+}
+
+function evidenceMatchesDraftPath(
+  item: EvidencePreview,
+  draft: DraftArtifactSummary | null,
+): boolean {
+  if (!draft) return false;
+  return (
+    normalizeWorkspacePath(item.relative_path) ===
+    normalizeWorkspacePath(draft.workspace_path)
+  );
 }

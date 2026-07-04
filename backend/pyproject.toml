@@ -30,6 +30,7 @@ dependencies = [
     "pillow==12.2.0",
     "opendataloader-pdf[hybrid]==2.4.7",
     "fastmcp==3.4.2",
+    "stripe==15.3.0",
 ]
 
 [tool.uv]

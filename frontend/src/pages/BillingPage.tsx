@@ -115,7 +115,7 @@ export function BillingPage() {
                 key={plan.id}
                 plan={plan}
                 currentPlanId={status?.current_plan_id}
-                disabled={!plans?.polar_enabled || !plan.configured || busyPlan !== null}
+                disabled={!plans?.billing_enabled || !plan.configured || busyPlan !== null}
                 busy={busyPlan === plan.id}
                 onCheckout={() => void startCheckout(plan.id)}
               />
@@ -137,13 +137,14 @@ export function BillingPage() {
             <Button
               className="mt-4 w-full"
               variant="secondary"
-              disabled={!status?.has_polar_customer || portalBusy}
+              disabled={!status?.has_customer || portalBusy}
               onClick={() => void openPortal()}
             >
               <ExternalLink className="size-4" aria-hidden />
               {portalBusy ? "Opening..." : "Customer portal"}
             </Button>
           </section>
+          {status?.quota ? <QuotaPanel quota={status.quota} /> : null}
         </aside>
       </main>
     </div>
@@ -192,5 +193,37 @@ function StatusRow({ label, value }: { label: string; value: string }) {
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="truncate font-medium">{value}</dd>
     </div>
+  );
+}
+
+function QuotaPanel({
+  quota,
+}: {
+  quota: {
+    used_turns: number;
+    quota: number;
+    percent: number;
+    warning: boolean;
+  };
+}) {
+  const percent = Math.min(100, Math.max(0, quota.percent));
+  return (
+    <section className="rounded-md border bg-background p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">Agent usage</h2>
+        <span className="text-sm font-medium tabular-nums">{percent}%</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {quota.used_turns} of {quota.quota} turns this month
+      </p>
+      {quota.warning ? (
+        <p className="mt-3 rounded-md border border-amber-400/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-100">
+          You are near this month's agent quota.
+        </p>
+      ) : null}
+    </section>
   );
 }

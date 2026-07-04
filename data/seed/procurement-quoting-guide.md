@@ -1,3 +1,17 @@
+---
+tier: topic
+seed_type: procurement-reference
+loaded_by: task subject (procurement, tender, quote, EOI, RFT, evaluation, contractor selection)
+applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
+applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
+state_default: NSW
+topics: [procurement, tender, quoting]
+summary: "Residential procurement reality: informal subbie quote comparison alongside the formal EOI-RFT-evaluation-recommendation pathway, trade scope traps, weighting discipline and probity where it matters. The mandatory procurement seed for PMP drafting."
+required_by: {create-pmp: 5}
+doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline]
+agents_anchors: [§1, §2, §8]
+---
+
 # Procurement & Quoting Guide — Residential
 
 This is the residential procurement seed for SiteWise. It is the cross-cutting topic seed loaded by `seed-targeted-read` when the task signal is procurement, tender, quote, EOI, RFT, evaluation, recommendation, or contractor selection (see `../02-skills/atomic/seed-targeted-read.md §"Step 2 — Match task subject to cross-cutting topic seeds"`).

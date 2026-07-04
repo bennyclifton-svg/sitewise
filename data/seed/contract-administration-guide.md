@@ -1,10 +1,13 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: contract-reference
 loaded_by: task subject (contract setup, variation, EOT, claim, notice, clause interpretation)
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+topics: [contract-admin, variations, eot, claims, notices]
+summary: "The NSW residential head-contract landscape across the HIA, MBA, Fair Trading prescribed, AS and ABIC families — payment, variation, EOT, latent conditions, notices, completion and DLP mechanisms. Clause-aware but not clause-exhaustive: the executed contract always wins."
+required_by: {create-pmp: 2}
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §voice-and-style, §register-discipline]
 agents_anchors: [§1, §6, §9]
 ---

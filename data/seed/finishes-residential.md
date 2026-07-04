@@ -1,10 +1,12 @@
 ---
-seed_tier: 3
+tier: topic
 seed_type: trade
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 state_default: NSW
+topics: [finishes, waterproofing, defects]
+summary: "Finishes literacy for Class 1a work: external envelope, roofing, internal linings, wet-area waterproofing, tiling, joinery, glazing and flooring, with common defects at trade interfaces. Supports scoping, specification review, defect identification and PC inspection preparation."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

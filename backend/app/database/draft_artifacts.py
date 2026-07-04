@@ -77,6 +77,24 @@ async def get_latest_draft_artifact(
     return result.scalar_one_or_none()
 
 
+async def get_latest_draft_artifact_by_workspace_path(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    workspace_path: str,
+) -> DraftArtifact | None:
+    result = await session.execute(
+        select(DraftArtifact)
+        .where(
+            DraftArtifact.project_id == project_id,
+            DraftArtifact.workspace_path == workspace_path,
+        )
+        .order_by(DraftArtifact.version.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_latest_draft_artifact_summaries(
     session: AsyncSession,
     *,
@@ -132,6 +150,35 @@ async def update_draft_content(
     await session.flush()
     await session.refresh(draft)
     return draft
+
+
+async def create_draft_revision(
+    session: AsyncSession,
+    *,
+    draft: DraftArtifact,
+    author_user_id: uuid.UUID,
+    content_markdown: str,
+    edit_source: str,
+) -> DraftArtifact:
+    provenance_metadata = dict(draft.provenance_metadata or {})
+    provenance_metadata["edited_from"] = {
+        "draft_id": str(draft.id),
+        "version": draft.version,
+        "workspace_path": draft.workspace_path,
+        "edit_source": edit_source,
+    }
+    return await create_draft_artifact(
+        session,
+        project_id=draft.project_id,
+        workflow_type=draft.workflow_type,
+        title=draft.title,
+        workspace_path=draft.workspace_path,
+        author_user_id=author_user_id,
+        content_markdown=content_markdown,
+        model=draft.model,
+        runtime=draft.runtime,
+        provenance_metadata=provenance_metadata,
+    )
 
 
 async def accept_draft(

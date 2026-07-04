@@ -42,3 +42,40 @@ agent-turn quota checks without blocking dashboard/document access.
 - Entitlement gate allows and blocks correctly.
 - Quota exhaustion blocks only the agent turn path.
 
+## Gate Result - 2026-07-04
+
+Status: green.
+
+Implemented and verified:
+
+- `BILLING_PROVIDER` now selects `none`, `polar`, or `stripe`.
+- Polar remains importable behind the legacy provider path.
+- Stripe Checkout, Customer Portal, webhook signature verification, webhook
+  sync, Stripe customer/subscription tables, and entitlement branching are
+  implemented.
+- Monthly agent-turn quota checks are wired only into `/chat/agent/stream`.
+- Billing UI surfaces quota usage and the 80 percent warning.
+- `uv run alembic upgrade head` passed.
+- `uv run pytest tests/billing tests/agent tests/mcp_bridge tests/test_project_draft_versioning.py tests/tender/test_migrations.py -q`
+  passed: 92 passed, 1 skipped.
+- Backend ruff passed for the Phase 7 billing surface.
+- `npm test` passed: 10 files, 23 tests.
+- `npm run build` passed.
+- `npm run lint` passed with one pre-existing TanStack Virtual warning in
+  `TenderMatrix.tsx`.
+
+External Stripe test-mode gate:
+
+- Stripe test-mode Checkout created a subscription and redirected to the app.
+- `checkout.session.completed` was forwarded through the Stripe CLI to the
+  local backend and returned 200.
+- The webhook upserted the Stripe customer/subscription and flipped entitlement
+  to `active`, `read_only=false`, `plan_id=starter`.
+- Stripe Customer Portal cancellation sent `customer.subscription.updated`
+  webhooks and the local backend returned 200.
+- The canceled subscription now blocks `require_active_entitlement` with 402.
+- The live gate exposed and fixed two issues: Stripe SDK event objects require
+  `_to_dict_recursive()` conversion, and canceled Stripe subscriptions can
+  retain `status=active` while setting `canceled_at`.
+
+Phase 8 may begin.

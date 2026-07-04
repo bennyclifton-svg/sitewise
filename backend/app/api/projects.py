@@ -13,10 +13,10 @@ from app.billing.entitlements import require_active_entitlement
 from app.database.chats import create_thread, title_from_message
 from app.database.draft_artifacts import (
     accept_draft,
+    create_draft_revision,
     get_draft_artifact,
     get_latest_draft_artifact_summaries,
     get_latest_draft_artifact,
-    update_draft_content,
 )
 from app.database.projects import (
     create_project,
@@ -1040,10 +1040,12 @@ async def patch_project_draft(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found",
         )
-    updated = await update_draft_content(
+    updated = await create_draft_revision(
         session,
-        draft,
+        draft=draft,
+        author_user_id=user.id,
         content_markdown=body.content_markdown,
+        edit_source="user",
     )
     if is_pmp_workflow(updated.workflow_type):
         await sync_pmp_draft_workspace(

@@ -13,6 +13,7 @@ from ingest.extractors.base import ExtractedDocument
 from ingest.hashing import file_content_hash
 from ingest.ids import chunk_id, document_id
 from ingest.document_metadata import parse_document_metadata
+from ingest.frontmatter import parse_frontmatter
 from ingest.metadata import infer_document_type
 from ingest.platform import sitewise_platform_metadata
 from ingest.types import IngestPlan
@@ -69,7 +70,12 @@ def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[s
 
 def _merged_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict:
     metadata = dict(plan.classification.document_metadata)
-    metadata.update(sitewise_platform_metadata(plan.entry.relative_path))
+    platform_metadata = sitewise_platform_metadata(plan.entry.relative_path)
+    metadata.update(platform_metadata)
+    if platform_metadata and plan.entry.filename.lower().endswith(".md"):
+        frontmatter = parse_frontmatter(extracted.normalized_content)
+        if frontmatter:
+            metadata["frontmatter"] = frontmatter
     metadata.update(_register_metadata(plan, extracted))
     metadata["filename"] = plan.entry.filename
     return metadata

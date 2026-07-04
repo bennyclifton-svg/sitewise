@@ -1,10 +1,12 @@
 """Clerk's MCP tool server: thin tools delegating to existing services."""
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections import Counter
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import HTTPException
 from fastmcp import FastMCP
@@ -13,10 +15,23 @@ from fastmcp.server.dependencies import get_http_headers
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import set_committed_value
 
-from app.database.draft_artifacts import get_draft_artifact
+from app.agent.workspace_paths import (
+    WorkspacePathError,
+    normalize_workspace_path,
+    project_workspace_root,
+    resolve_workspace_path,
+)
+from app.database.draft_artifacts import (
+    create_draft_revision,
+    get_draft_artifact,
+    get_latest_draft_artifact_by_workspace_path,
+)
 from app.database.session import get_session_factory
-from app.database.workspace_files import list_workspace_files_for_project
 from app.agent.status_bus import agent_turn_status_bus
+from app.database.workspace_files import (
+    get_workspace_file_by_path,
+    list_workspace_files_for_project,
+)
 from app.mcp_bridge.auth import ToolAuthError, authorize_project_access_with_claims
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
@@ -178,6 +193,67 @@ def _turn_id(authorization) -> str | None:
     return str(authorization.claims.turn_id) if authorization.claims.turn_id else None
 
 
+def _tool_workspace_path(path: str | None) -> str:
+    try:
+        return normalize_workspace_path(path)
+    except WorkspacePathError as exc:
+        raise ToolError(f"invalid workspace path: {exc}") from exc
+
+
+def _tool_resolve_path(project_id: uuid.UUID, path: str | None) -> Path:
+    try:
+        return resolve_workspace_path(project_id, path)
+    except WorkspacePathError as exc:
+        raise ToolError(f"invalid workspace path: {exc}") from exc
+
+
+def _scratch_relative_path(project_id: uuid.UUID, path: Path) -> str:
+    root = project_workspace_root(project_id).resolve(strict=False)
+    resolved = path.resolve(strict=False)
+    if not resolved.is_relative_to(root):
+        raise WorkspacePathError("workspace path escapes the project root")
+    return resolved.relative_to(root).as_posix()
+
+
+def _list_scratch_directory(project_id: uuid.UUID, path: Path) -> list[dict]:
+    entries: list[dict] = []
+    for item in sorted(path.iterdir(), key=lambda entry: (not entry.is_dir(), entry.name.lower())):
+        rel_path = _scratch_relative_path(project_id, item)
+        entries.append(
+            {
+                "name": item.name,
+                "path": rel_path,
+                "kind": "directory" if item.is_dir() else "file",
+                "size_bytes": item.stat().st_size if item.is_file() else 0,
+            }
+        )
+    return entries
+
+
+def _read_text_file(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _write_text_file(path: Path, content: str) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    return path.stat().st_size
+
+
+def _draft_file_payload(draft) -> dict:
+    content = draft.content_markdown
+    return {
+        "kind": "artefact",
+        "path": draft.workspace_path,
+        "draftId": str(draft.id),
+        "workflowType": draft.workflow_type,
+        "version": draft.version,
+        "title": draft.title,
+        "content": content,
+        "size_bytes": len(content.encode("utf-8")),
+    }
+
+
 async def _comparison_jobs(
     session,
     comparison_id: uuid.UUID,
@@ -288,15 +364,16 @@ async def _tool_status(
     running: str,
     done: str,
     error: str,
-) -> AsyncIterator[None]:
+) -> AsyncIterator[dict]:
     await agent_turn_status_bus.publish(
         turn_id,
         message=running,
         tool=tool,
         state="running",
     )
+    extra: dict = {}
     try:
-        yield
+        yield extra
     except Exception:
         await agent_turn_status_bus.publish(
             turn_id,
@@ -311,6 +388,7 @@ async def _tool_status(
             message=done,
             tool=tool,
             state="done",
+            **extra,
         )
 
 
@@ -384,8 +462,15 @@ async def get_comparison_status(comparison_id: str) -> dict:
             running="Checking comparison progress",
             done="Checked comparison progress",
             error="Comparison status lookup failed",
-        ):
-            return await _comparison_status_payload(session, comparison)
+        ) as extra:
+            payload = await _comparison_status_payload(session, comparison)
+            progress = payload.get("progress")
+            if progress:
+                extra["stage"] = progress["stage"]
+                extra["percent"] = progress["percent"]
+                extra["doneUnits"] = progress["done_units"]
+                extra["totalUnits"] = progress["total_units"]
+            return payload
 
 
 @mcp.tool
@@ -523,6 +608,148 @@ async def list_selected_documents(project_id: str) -> list[dict]:
         ):
             records = await list_workspace_files_for_project(session, project_id=pid)
         return _candidate_documents(records)
+
+
+@mcp.tool
+async def list_workspace(project_id: str, path: str = ".") -> list[dict]:
+    """List text scratch files under the project's scoped agent workspace."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="list_workspace",
+            running="Listing workspace files",
+            done="Listed workspace files",
+            error="Workspace listing failed",
+        ):
+            target = _tool_resolve_path(pid, path)
+            root = _tool_resolve_path(pid, ".")
+            await asyncio.to_thread(root.mkdir, parents=True, exist_ok=True)
+            if not await asyncio.to_thread(target.exists):
+                return []
+            if not await asyncio.to_thread(target.is_dir):
+                raise ToolError("workspace path is not a directory")
+            try:
+                return await asyncio.to_thread(_list_scratch_directory, pid, target)
+            except WorkspacePathError as exc:
+                raise ToolError(f"invalid workspace path: {exc}") from exc
+
+
+@mcp.tool
+async def read_workspace_file(project_id: str, path: str) -> dict:
+    """Read a UTF-8 scratch file or latest editable artefact for this project."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="read_workspace_file",
+            running="Reading workspace file",
+            done="Read workspace file",
+            error="Workspace file read failed",
+        ):
+            workspace_path = _tool_workspace_path(path)
+            draft = await get_latest_draft_artifact_by_workspace_path(
+                session,
+                project_id=pid,
+                workspace_path=workspace_path,
+            )
+            if draft is not None:
+                return _draft_file_payload(draft)
+
+            source = await get_workspace_file_by_path(
+                session,
+                project_id=pid,
+                workspace_path=workspace_path,
+            )
+            if source is not None:
+                raise ToolError("source documents must be read through document tools")
+
+            target = _tool_resolve_path(pid, workspace_path)
+            if not await asyncio.to_thread(target.exists):
+                raise ToolError("workspace file not found")
+            if not await asyncio.to_thread(target.is_file):
+                raise ToolError("workspace path is not a file")
+            try:
+                content = await asyncio.to_thread(_read_text_file, target)
+            except UnicodeDecodeError as exc:
+                raise ToolError("workspace file is not UTF-8 text") from exc
+            return {
+                "kind": "scratch",
+                "path": workspace_path,
+                "content": content,
+                "size_bytes": len(content.encode("utf-8")),
+            }
+
+
+@mcp.tool
+async def write_workspace_file(project_id: str, path: str, content: str) -> dict:
+    """Write a UTF-8 scratch file or create a new version of an editable artefact."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="write_workspace_file",
+            running="Writing workspace file",
+            done="Wrote workspace file",
+            error="Workspace file write failed",
+        ):
+            workspace_path = _tool_workspace_path(path)
+            draft = await get_latest_draft_artifact_by_workspace_path(
+                session,
+                project_id=pid,
+                workspace_path=workspace_path,
+            )
+            if draft is not None:
+                updated = await create_draft_revision(
+                    session,
+                    draft=draft,
+                    author_user_id=authorization.claims.user_id,
+                    content_markdown=content,
+                    edit_source="agent",
+                )
+                await session.commit()
+                return {
+                    "kind": "artefact",
+                    "path": updated.workspace_path,
+                    "draftId": str(updated.id),
+                    "workflowType": updated.workflow_type,
+                    "version": updated.version,
+                    "bytes_written": len(content.encode("utf-8")),
+                }
+
+            source = await get_workspace_file_by_path(
+                session,
+                project_id=pid,
+                workspace_path=workspace_path,
+            )
+            if source is not None:
+                raise ToolError("source documents are read-only")
+
+            target = _tool_resolve_path(pid, workspace_path)
+            bytes_written = await asyncio.to_thread(_write_text_file, target, content)
+            return {
+                "kind": "scratch",
+                "path": workspace_path,
+                "bytes_written": bytes_written,
+            }
 
 
 @mcp.tool

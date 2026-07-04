@@ -1,3 +1,17 @@
+---
+tier: topic
+seed_type: cost-reference
+loaded_by: task subject (cost, budget, contingency, claim, variation pricing)
+applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
+applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
+state_default: NSW
+topics: [cost, budget, contingency, claims, variations]
+summary: "Residential cost-management conventions: HIA Schedule of Allowances format, PC sums, owner-supplied items, the 5-10% contingency band, GST-inclusive reporting, stage-payment claims and HIA variation discipline. The mandatory cost seed for PMP and cost-plan drafting."
+required_by: {create-pmp: 3, create-cost-plan: 1}
+doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §voice-and-style]
+agents_anchors: [§1, §2, §8]
+---
+
 # Cost Management Principles — Residential
 
 This is the residential cost-management seed for SiteWise. It is the cross-cutting topic seed loaded by `seed-targeted-read` when the task signal is cost, budget, contingency, claim, or variation pricing (see `../02-skills/atomic/seed-targeted-read.md §"Step 2 — Match task subject to cross-cutting topic seeds"`).

@@ -17,15 +17,35 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app/backend
 
+ARG HERMES_RELEASE_TAG=v2026.6.19
+
 ENV PATH="/app/backend/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV HERMES_HOME=/opt/hermes
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libreoffice default-jre-headless \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        default-jre-headless \
+        git \
+        libreoffice \
+        xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-RUN addgroup --system sitewise && adduser --system --ingroup sitewise sitewise
+RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh -o /tmp/hermes-install.sh \
+    && bash /tmp/hermes-install.sh \
+        --branch "${HERMES_RELEASE_TAG}" \
+        --non-interactive \
+        --no-skills \
+    && rm /tmp/hermes-install.sh \
+    && hermes --version
+
+RUN addgroup --system sitewise \
+    && adduser --system --ingroup sitewise --home /home/sitewise sitewise \
+    && mkdir -p /opt/hermes /app/agent-workspaces \
+    && chown -R sitewise:sitewise /opt/hermes /app/agent-workspaces
 
 COPY --from=builder --chown=sitewise:sitewise /app/backend /app/backend
 

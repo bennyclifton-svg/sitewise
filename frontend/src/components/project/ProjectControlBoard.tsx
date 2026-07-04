@@ -1,7 +1,6 @@
 import {
   Bot,
   BriefcaseBusiness,
-  CalendarDays,
   CheckCircle2,
   ClipboardList,
   FileText,
@@ -14,7 +13,6 @@ import {
   RefreshCw,
   Scale,
   ShieldAlert,
-  Stamp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,7 +22,6 @@ import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel"
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import {
   workflowDockTileClass,
-  workflowSpineNodeClass,
   workflowStatusBadgeClass,
   workflowTileClass,
   type WorkflowStatus,
@@ -121,32 +118,12 @@ export function ProjectControlBoard({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="cockpit-eyebrow">Project cockpit</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{project.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            SiteWise lifecycle, evidence, workflow trace, and draft review.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
-          <Metric label="Evidence" value={String(evidence.length)} />
-          <Metric label="Gate" value={project.overlay_status.ready ? "Ready" : "Blocked"} />
-          <Metric label="PMP" value={latestDraft ? `v${latestDraft.version}` : "None"} />
-          <Metric label="Cost" value={latestCostPlanDraft ? `v${latestCostPlanDraft.version}` : "None"} />
-        </div>
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
       </header>
 
       <section className="cockpit-signature-card cockpit-signature-card--bracketed rounded-lg border bg-card shadow-sm">
-        <header className="border-b px-4 py-3">
-          <p className="cockpit-zone-title">Lifecycle</p>
-        </header>
-        <LifecycleSpine
-          tiles={lifecycle}
-          selectedId={selectedTile.id}
-          onSelect={onSelectWorkflow}
-        />
-        <div className="grid gap-2 p-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-2 p-3 md:grid-cols-3">
           {lifecycle.map((tile) => (
             <WorkflowButton
               key={tile.id}
@@ -530,36 +507,6 @@ function WorkflowDetail({
   );
 }
 
-function LifecycleSpine({
-  tiles,
-  selectedId,
-  onSelect,
-}: {
-  tiles: WorkflowTile[];
-  selectedId: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className="cockpit-lifecycle-spine border-b px-2" role="presentation">
-      {tiles.map((tile) => {
-        const selected = tile.id === selectedId;
-        return (
-          <div key={tile.id} className="cockpit-spine-segment">
-            <button
-              type="button"
-              className={workflowSpineNodeClass(tile.status, selected)}
-              title={`${tile.label}: ${tile.statusLabel}`}
-              onClick={() => onSelect(tile.id)}
-            >
-              <span className="size-1.5 rounded-full bg-current" />
-            </button>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function WorkflowButton({
   tile,
   selected,
@@ -606,15 +553,6 @@ function WorkflowDockButton({
         {tile.statusLabel}
       </Badge>
     </button>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-24 rounded-md border bg-background px-3 py-2">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
-    </div>
   );
 }
 
@@ -694,16 +632,6 @@ function buildLifecycleTiles({
       implemented: true,
     },
     {
-      id: "design",
-      label: "Design",
-      folder: "02-consultant / 03-design",
-      icon: Stamp,
-      status: "unavailable",
-      statusLabel: "Soon",
-      description: "Design and consultant coordination workflow placeholder.",
-      implemented: false,
-    },
-    {
       id: "procurement",
       label: "Procurement",
       folder: "05-procurement",
@@ -713,26 +641,6 @@ function buildLifecycleTiles({
       description:
         "Create tender comparisons, review QA, inspect the matrix, and approve reports.",
       implemented: true,
-    },
-    {
-      id: "delivery",
-      label: "Delivery",
-      folder: "07-construction",
-      icon: ClipboardList,
-      status: "unavailable",
-      statusLabel: "Soon",
-      description: "Delivery workflow placeholder.",
-      implemented: false,
-    },
-    {
-      id: "handover",
-      label: "Handover",
-      folder: "09-handover-dlp",
-      icon: CalendarDays,
-      status: "unavailable",
-      statusLabel: "Soon",
-      description: "Handover workflow placeholder.",
-      implemented: false,
     },
   ];
 }

@@ -1,8 +1,8 @@
 # Phase 5 Acceptance
 
-Date: 2026-07-03
+Date: 2026-07-04
 
-Status: not green yet.
+Status: green.
 
 ## Implemented
 
@@ -18,6 +18,11 @@ Status: not green yet.
   flags, and report assembly when QA is clear.
 - Backend Dockerfile now installs `default-jre-headless` for ODL on the current
   Debian slim base.
+- Comparison-level continuation jobs are guarded so concurrent mapping and
+  silence work do not create duplicate `run_expectations` or `run_analysis`
+  jobs.
+- The seeded report-language rows are rehydrated into the nested dictionary
+  expected by report draft assembly.
 
 ## Verification
 
@@ -28,6 +33,11 @@ Status: not green yet.
   passed.
 - `uv run pytest tests/tender/test_flagship_speed_gate.py -m tender_eval -q -s`:
   passed on Windows with Java available.
+- WSL speed gate:
+  `UV_PROJECT_ENVIRONMENT=/home/bennyclifton/.cache/clerk-phase5-wsl-venv uv run pytest tests/tender/test_flagship_speed_gate.py -m tender_eval -q -s`
+  passed: 1 passed in 8.20 seconds.
+- Scripted WSL chat acceptance:
+  `scripts/phase5_acceptance.py` passed with `PHASE 5 ACCEPTANCE: GREEN`.
 
 Timing table from the Windows JVM run:
 
@@ -38,27 +48,33 @@ Timing table from the Windows JVM run:
 | odl_extract:NexusBuilt.pdf | done | 1525 | 0 | 0 | 0 | 0 |
 | package_total | done | 4454 | 0 | 0 | 0 | 0 |
 
-## Blockers
+Timing table from the WSL JVM run:
 
-- WSL2 Ubuntu is running, but `java -version` fails because Java is not
-  installed.
-- `sudo -n true` fails in WSL, so Java cannot be installed non-interactively
-  from this session.
-- A clean Linux Docker build from `git archive` confirmed the previous
-  `openjdk-17-jre-headless` package was unavailable and that the Dockerfile
-  needed `default-jre-headless`. After that fix, the clean build still timed
-  out after 15 minutes before producing an image.
-- Because there is no runnable Linux/WSL2 backend with Java from this session,
-  the full scripted chat acceptance run was not completed.
+| stage | status | duration_ms | llm_calls | input_tokens | output_tokens | cache_hits |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| odl_extract:Enmore.pdf | done | 4386 | 0 | 0 | 0 | 0 |
+| odl_extract:Kaposi.pdf | done | 981 | 0 | 0 | 0 | 0 |
+| odl_extract:NexusBuilt.pdf | done | 1488 | 0 | 0 | 0 | 0 |
+| package_total | done | 6856 | 0 | 0 | 0 | 0 |
+
+Acceptance output:
+
+- `PHASE 5 ACCEPTANCE: GREEN`
+- `comparison_id=5e7135e3-c206-4fc9-afbb-afc260583452`
+- `report_id=2e573d4a-4341-4edb-999e-d60a02d3273e`
+- `draft_id=162f9c3d-49d8-499f-8328-62cabd3fcd02`
+- `artefact_title=Tender comparison report v01`
+- `matrix_groups=16`
 
 ## Decision
 
-Do not begin Phase 6 yet. Rerun the acceptance on a Linux environment with a
-working JVM/backend image, then verify:
+Phase 5 is green. Phase 6 may begin.
+
+Verified:
 
 - Candidate tender PDFs are found from chat.
 - Hermes starts the tender comparison through MCP.
 - The worker drains the TCM pipeline.
-- The comparison panel populates.
+- The comparison result contains a populated matrix.
 - A `tender_report` artefact card appears in chat.
 - The timing ledger is attached to the run.

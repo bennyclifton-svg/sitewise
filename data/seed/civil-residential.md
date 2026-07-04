@@ -1,10 +1,12 @@
 ---
-seed_tier: 3
+tier: topic
 seed_type: trade
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 state_default: NSW
+topics: [civil, stormwater, earthworks, drainage]
+summary: "Residential civil and site-works literacy: earthworks cut and fill, stormwater and OSD, sewer connection, driveway crossovers, and subdivision civil interfaces. Equips the project lead to scope work, raise the right RFIs, and flag when the civil or hydraulic engineer must be engaged."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

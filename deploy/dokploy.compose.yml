@@ -1,29 +1,58 @@
+x-sitewise-api-environment: &sitewise-api-environment
+  SUPABASE_URL: ${SUPABASE_URL}
+  SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+  SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+  SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-project-files}
+  DATABASE_URL: ${DATABASE_URL}
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+  OPENAI_CHAT_MODELS: ${OPENAI_CHAT_MODELS:-gpt-4.1-nano,gpt-4o-mini,gpt-4.1-mini,gpt-4.1,gpt-4o,o4-mini,o3-mini}
+  OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+  OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
+  PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://sitewise.au}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://sitewise.au}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  BILLING_PROVIDER: ${BILLING_PROVIDER:-stripe}
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+  STRIPE_PRICE_ID: ${STRIPE_PRICE_ID}
+  STRIPE_CHECKOUT_SUCCESS_PATH: ${STRIPE_CHECKOUT_SUCCESS_PATH:-/billing?checkout=success}
+  STRIPE_PORTAL_RETURN_PATH: ${STRIPE_PORTAL_RETURN_PATH:-/billing}
+  POLAR_ENABLED: ${POLAR_ENABLED:-false}
+  POLAR_ENVIRONMENT: ${POLAR_ENVIRONMENT:-sandbox}
+  POLAR_ACCESS_TOKEN: ${POLAR_ACCESS_TOKEN}
+  POLAR_WEBHOOK_SECRET: ${POLAR_WEBHOOK_SECRET}
+  POLAR_STARTER_PRODUCT_ID: ${POLAR_STARTER_PRODUCT_ID}
+  POLAR_PROFESSIONAL_PRODUCT_ID: ${POLAR_PROFESSIONAL_PRODUCT_ID}
+  POLAR_CHECKOUT_SUCCESS_PATH: ${POLAR_CHECKOUT_SUCCESS_PATH:-/billing?checkout=success}
+  POLAR_CUSTOMER_PORTAL_RETURN_PATH: ${POLAR_CUSTOMER_PORTAL_RETURN_PATH:-/billing}
+  AGENT_RUNTIME_ENABLED: ${AGENT_RUNTIME_ENABLED:-true}
+  HERMES_BINARY_PATH: ${HERMES_BINARY_PATH:-hermes}
+  HERMES_INVOCATION_MODE: ${HERMES_INVOCATION_MODE:-chat_stream}
+  HERMES_MODEL_PROVIDER: ${HERMES_MODEL_PROVIDER:-openai-api}
+  HERMES_MODEL: ${HERMES_MODEL:-gpt-5.1}
+  AGENT_PLATFORM_API_KEY: ${AGENT_PLATFORM_API_KEY}
+  AGENT_MCP_URL: ${AGENT_MCP_URL:-http://127.0.0.1:8000/mcp}
+  AGENT_WORKSPACE_ROOT: ${AGENT_WORKSPACE_ROOT:-/app/agent-workspaces}
+  AGENT_MAX_CONCURRENT_TURNS: ${AGENT_MAX_CONCURRENT_TURNS:-4}
+  AGENT_TURN_TIMEOUT_SECONDS: ${AGENT_TURN_TIMEOUT_SECONDS:-180}
+  AGENT_TURN_TOKEN_SECRET: ${AGENT_TURN_TOKEN_SECRET}
+  AGENT_MONTHLY_TURN_QUOTA: ${AGENT_MONTHLY_TURN_QUOTA:-500}
+  TENDER_WORKER_INPROC_ENABLED: ${TENDER_WORKER_INPROC_ENABLED:-false}
+  TENDER_WORKER_POLL_SECONDS: ${TENDER_WORKER_POLL_SECONDS:-2}
+  TENDER_WORKER_CONCURRENCY: ${TENDER_WORKER_CONCURRENCY:-4}
+  TENDER_JOB_MAX_ATTEMPTS: ${TENDER_JOB_MAX_ATTEMPTS:-3}
+  TENDER_JOB_BACKOFF_BASE_SECONDS: ${TENDER_JOB_BACKOFF_BASE_SECONDS:-30}
+  TENDER_JOB_STALE_LOCK_MINUTES: ${TENDER_JOB_STALE_LOCK_MINUTES:-10}
+
 services:
   sitewise-api:
     image: sitewise-production-api:latest
     pull_policy: never
     environment:
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-project-files}
-      DATABASE_URL: ${DATABASE_URL}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
-      OPENAI_CHAT_MODELS: ${OPENAI_CHAT_MODELS:-gpt-4.1-nano,gpt-4o-mini,gpt-4.1-mini,gpt-4.1,gpt-4o,o4-mini,o3-mini}
-      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
-      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://sitewise.au}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://sitewise.au}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      POLAR_ENABLED: ${POLAR_ENABLED:-true}
-      POLAR_ENVIRONMENT: ${POLAR_ENVIRONMENT:-sandbox}
-      POLAR_ACCESS_TOKEN: ${POLAR_ACCESS_TOKEN}
-      POLAR_WEBHOOK_SECRET: ${POLAR_WEBHOOK_SECRET}
-      POLAR_STARTER_PRODUCT_ID: ${POLAR_STARTER_PRODUCT_ID}
-      POLAR_PROFESSIONAL_PRODUCT_ID: ${POLAR_PROFESSIONAL_PRODUCT_ID}
-      POLAR_CHECKOUT_SUCCESS_PATH: ${POLAR_CHECKOUT_SUCCESS_PATH:-/billing?checkout=success}
-      POLAR_CUSTOMER_PORTAL_RETURN_PATH: ${POLAR_CUSTOMER_PORTAL_RETURN_PATH:-/billing}
+      <<: *sitewise-api-environment
+    volumes:
+      - sitewise-agent-workspaces:${AGENT_WORKSPACE_ROOT:-/app/agent-workspaces}
     restart: unless-stopped
     networks:
       sitewise-public:
@@ -42,6 +71,22 @@ services:
       retries: 5
       start_period: 20s
 
+  sitewise-worker:
+    image: sitewise-production-api:latest
+    pull_policy: never
+    command: ["python", "-m", "tender.worker"]
+    depends_on:
+      sitewise-api:
+        condition: service_healthy
+    environment:
+      <<: *sitewise-api-environment
+      TENDER_WORKER_INPROC_ENABLED: "false"
+    restart: unless-stopped
+    networks:
+      sitewise-public:
+        aliases:
+          - sitewise-worker
+
   sitewise-web:
     image: sitewise-production-web:latest
     pull_policy: never
@@ -55,6 +100,9 @@ services:
           - sitewise-web
     ports:
       - "8080:80"
+
+volumes:
+  sitewise-agent-workspaces:
 
 networks:
   sitewise-public:

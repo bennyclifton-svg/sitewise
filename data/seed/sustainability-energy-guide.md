@@ -1,10 +1,12 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: sustainability
 loaded_by: task subject (BASIX, NatHERS, energy efficiency, sustainability, thermal comfort, glazing U-value, SHGC, insulation R-value, hot water, PV, BASIX certificate, OC, energy compliance)
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+topics: [basix, nathers, sustainability, energy]
+summary: "BASIX and NatHERS posture for NSW residential work: application workflow, thermal simulation, common compliance failure points, procurement discipline for committed items, and certificate amendment. The agent never predicts a certificate outcome."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

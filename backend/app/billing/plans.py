@@ -16,20 +16,23 @@ class BillingPlan:
 
 
 def get_public_plans() -> list[BillingPlan]:
+    stripe_enabled = settings.billing_provider == "stripe"
     return [
         BillingPlan(
             id=STARTER_PLAN_ID,
             name="Starter",
             description="For PMs and small teams proving SiteWise on active work.",
             price_monthly=49,
-            product_id=settings.polar_starter_product_id,
+            product_id=(
+                settings.stripe_price_id if stripe_enabled else settings.polar_starter_product_id
+            ),
         ),
         BillingPlan(
             id=PROFESSIONAL_PLAN_ID,
             name="Professional",
             description="For practices and owner-side teams running multiple live projects.",
             price_monthly=149,
-            product_id=settings.polar_professional_product_id,
+            product_id=None if stripe_enabled else settings.polar_professional_product_id,
         ),
     ]
 

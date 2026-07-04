@@ -1,10 +1,11 @@
 ---
-seed_tier: 2
+tier: archetype
 seed_type: archetype
 loaded_by: "archetype: small-commercial"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 state_default: NSW
 confidence: reduced
+summary: "Thin graceful-degradation coverage for occasional small commercial work (Class 5, 6, 7b and 8 fitouts and shells) at the edge of SiteWise's residential domain. Every output under this archetype carries confidence: reduced and routes material commercial scope to specialists."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §state-handling]
 agents_anchors: [§1, §2, §3, §8, §11]
 ---

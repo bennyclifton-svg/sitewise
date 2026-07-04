@@ -16,12 +16,11 @@ from tender.models import (
     TaxonomyCell,
     TaxonomySynonym,
     TenderCellStatus,
-    TenderJob,
     TenderLineItem,
+    TenderJob,
 )
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
-from tender.services import jobs
 from tender.services.context import context_for_quote
 from tender.services.expectations import ConceptMap, predicate_matches
 
@@ -204,13 +203,6 @@ async def infer_silence(
         packet,
         context,
         llm_client=llm_client or _default_llm_client(),
-    )
-    await jobs.enqueue(
-        session,
-        kind="run_analysis",
-        comparison_id=job.comparison_id,
-        quote_id=job.quote_id,
-        payload={"reason": "silence_complete", "cell_code": cell_code},
     )
     await session.flush()
 

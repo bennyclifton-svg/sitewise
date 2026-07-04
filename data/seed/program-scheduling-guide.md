@@ -1,10 +1,13 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: programme-reference
 loaded_by: task subject (programme, schedule, critical path, lead time, residential cycle time, risk register)
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+topics: [programme, critical-path, lead-times, risk]
+summary: "Residential programme and cycle-time posture: master programme shape, trade durations, lead times, lookahead discipline, programme risk triggers and EOT evidence. The mandatory programme seed for PMP drafting."
+required_by: {create-pmp: 4}
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §voice-and-style, §escalation-triggers]
 agents_anchors: [§1, §2, §3, §5, §6, §8, §9, §11]
 ---

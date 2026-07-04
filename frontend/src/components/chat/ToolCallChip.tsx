@@ -48,11 +48,15 @@ export function ToolCallChip({ event }: ToolCallChipProps) {
           aria-hidden
         />
         <span className="max-w-44 truncate">{event.tool}</span>
+        {event.percent !== undefined ? (
+          <span className="tabular-nums">{Math.round(event.percent)}%</span>
+        ) : null}
         <ToggleIcon className="size-3" aria-hidden />
       </button>
       {expanded ? (
         <span className="max-w-xs rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground shadow-xs">
           {event.message}
+          {event.stage ? ` · Stage: ${event.stage}` : null}
         </span>
       ) : null}
     </span>

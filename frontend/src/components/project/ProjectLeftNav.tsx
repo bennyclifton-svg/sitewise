@@ -9,16 +9,14 @@ import {
   PlatformKnowledgeSummary,
 } from "@/components/project/PlatformKnowledgePanel";
 import { ProjectSwitcher } from "@/components/project/ProjectSwitcher";
-import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
 import { Button } from "@/components/ui/button";
 import type {
   PlatformKnowledgeStatus,
   ProjectDetail,
   ProjectSummary,
-  WorkspaceTreeNode,
 } from "@/lib/types/project";
 
-type NavSectionId = "explorer" | "skills" | "knowledge" | "admin";
+type NavSectionId = "skills" | "knowledge" | "admin";
 
 export type ProjectNavView = "workbench" | "file" | "draft" | "folder";
 
@@ -27,24 +25,14 @@ export function ProjectLeftNav({
   projects,
   projectsLoading,
   platformStatus,
-  workspaceTree,
-  selectedWorkspacePath,
-  onViewChange,
-  onSelectWorkspacePath,
-  onOpenWorkflow,
 }: {
   project: ProjectDetail;
   projects: ProjectSummary[];
   projectsLoading: boolean;
   platformStatus: PlatformKnowledgeStatus | null;
-  workspaceTree: WorkspaceTreeNode[];
-  selectedWorkspacePath: string | null;
-  onViewChange: (view: ProjectNavView) => void;
-  onSelectWorkspacePath: (path: string) => void;
-  onOpenWorkflow: (tileId: string) => void;
 }) {
   const [openSections, setOpenSections] = useState<Set<NavSectionId>>(
-    () => new Set(["explorer", "admin"]),
+    () => new Set(["admin"]),
   );
 
   function toggleSection(id: NavSectionId) {
@@ -74,21 +62,6 @@ export function ProjectLeftNav({
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2" aria-label="Project cockpit">
-        <NavAccordionSection
-          label="Explorer"
-          isOpen={openSections.has("explorer")}
-          onToggle={() => toggleSection("explorer")}
-        >
-          <WorkspaceExplorer
-            tree={workspaceTree}
-            selectedPath={selectedWorkspacePath}
-            onSelectPath={onSelectWorkspacePath}
-            onOpenWorkflow={onOpenWorkflow}
-            onViewWorkbench={() => onViewChange("workbench")}
-            onViewFolder={() => onViewChange("folder")}
-          />
-        </NavAccordionSection>
-
         <NavAccordionSection
           label="Skills"
           isOpen={openSections.has("skills")}

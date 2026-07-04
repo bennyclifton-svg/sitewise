@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     pmp_hybrid_compiler: bool = True
     cost_plan_hybrid_compiler: bool = True
     public_app_url: str = "http://localhost:5173"
+    billing_provider: str = "none"
     polar_enabled: bool = False
     polar_environment: str = "sandbox"
     polar_access_token: str | None = None
@@ -54,6 +55,12 @@ class Settings(BaseSettings):
     polar_professional_product_id: str | None = None
     polar_checkout_success_path: str = "/billing?checkout=success"
     polar_customer_portal_return_path: str = "/billing"
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_price_id: str | None = None
+    stripe_checkout_success_path: str = "/billing?checkout=success"
+    stripe_portal_return_path: str = "/billing"
+    agent_monthly_turn_quota: int = 500
     tender_odl_hybrid_enabled: bool = True
     tender_page_render_dpi: int = 150
     tender_worker_inproc_enabled: bool = False
@@ -112,9 +119,16 @@ class Settings(BaseSettings):
             raise ValueError("POLAR_ENVIRONMENT must be sandbox or production")
         return value
 
+    @field_validator("billing_provider")
+    @classmethod
+    def validate_billing_provider(cls, value: str) -> str:
+        if value not in {"none", "polar", "stripe"}:
+            raise ValueError("BILLING_PROVIDER must be none, polar, or stripe")
+        return value
+
     @model_validator(mode="after")
     def require_polar_settings_when_enabled(self) -> "Settings":
-        if not self.polar_enabled:
+        if not self.polar_enabled and self.billing_provider != "polar":
             return self
 
         missing = [
@@ -137,6 +151,34 @@ class Settings(BaseSettings):
     def validate_tender_embedding_dimensions(self) -> "Settings":
         if self.tender_embedding_dimensions != 1536:
             raise ValueError("TENDER_EMBEDDING_DIMENSIONS must be 1536 for M3 mappings")
+        return self
+
+    @model_validator(mode="after")
+    def require_stripe_settings_when_enabled(self) -> "Settings":
+        if self.billing_provider != "stripe":
+            return self
+
+        missing = [
+            name
+            for name, value in {
+                "STRIPE_SECRET_KEY": self.stripe_secret_key,
+                "STRIPE_WEBHOOK_SECRET": self.stripe_webhook_secret,
+                "STRIPE_PRICE_ID": self.stripe_price_id,
+            }.items()
+            if not value
+        ]
+        if missing:
+            raise ValueError(
+                f"Stripe is enabled, but these settings are missing: {', '.join(missing)}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def require_agent_secret_when_enabled(self) -> "Settings":
+        if self.agent_runtime_enabled and not self.agent_turn_token_secret:
+            raise ValueError(
+                "AGENT_RUNTIME_ENABLED is true, but AGENT_TURN_TOKEN_SECRET is missing"
+            )
         return self
 
     @field_validator("hermes_invocation_mode")

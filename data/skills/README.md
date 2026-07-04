@@ -4,6 +4,29 @@ Reusable SiteWise workflows for residential project management.
 
 `02-skills/` is the canonical workflow contract layer. The Clerk app implements these contracts; it is not a parallel source of truth for workflow behaviour.
 
+## Path Mapping (standalone workspace → this repo)
+
+Skill files were authored against the numbered standalone-workspace convention.
+When a skill references one of those paths, translate it:
+
+| Skill reference | In this repo |
+| --- | --- |
+| `00-doctrine/doctrine.md` | `docs/clerk-brief.md` (the SiteWise Doctrine) |
+| `01-seed/` | `data/seed/` |
+| `02-skills/` | `data/skills/` |
+| `AGENTS.md` (workspace root) | Hosted product: the three-overlay declaration lives on the `projects` record (`archetype`, `user_role`, `state`), not a README frontmatter |
+| `04-projects/<project>/` | Hosted product: Supabase Storage via `workspace_files` |
+| `project.db` | Does not exist. The hosted substrate is Postgres (see Substrate Boundary below) |
+
+## Status Vocabulary
+
+Each indexed skill carries a STATUS:
+
+- **implemented-in-clerk** — the contract's behaviour is live in the hosted product (the file remains the spec).
+- **superseded-by-runtime** — a runtime mechanism now does this job; the file is design rationale.
+- **standalone-era** — assumes the Markdown/Excel standalone substrate; not applicable to the hosted product.
+- **future-hermes-workflow** — candidate for a Hermes-driven workflow; not yet implemented.
+
 ```text
 02-skills/
   atomic/      # one-job mechanics used by systems
@@ -57,47 +80,55 @@ Every skill file must state:
 
 ## Substrate Boundary
 
-Markdown and Excel are the active register and tracker substrates in v1. `project.db` remains a future migration target only; current skills and Clerk local-v1 workflows do not write to it.
+Markdown and Excel are the active register and tracker substrates in the standalone v1 convention. `project.db` never became real and is not a target. The hosted product's substrate is Postgres (Supabase): documents in `source_documents`/`workspace_files`, drafts in `draft_artifacts`, knowledge served through the platform-knowledge catalog.
 
 ## Index
 
 ### atomic/
 
-- `evidence-sweep.md` - sweep the active project folder for relevant artefacts before drafting.
-- `seed-targeted-read.md` - load only the seed guides that match the project overlays and task.
-- `markdown-draft-for-review.md` - produce a draft markdown output with provenance and review status.
-- `register-row-draft.md` - propose register rows for review before any controlled register update.
-- `excel-safe-edit.md` - edit `.xlsx` files without breaking formulas, tables or validations.
-- `excel-verify.md` - post-edit checklist for Excel work.
+| Skill | STATUS | Job |
+| --- | --- | --- |
+| `evidence-sweep.md` | superseded-by-runtime | Sweep the active project folder for relevant artefacts before drafting. Hosted: hybrid corpus retrieval + `search_documents`. |
+| `seed-targeted-read.md` | superseded-by-runtime | Load only the seed guides that match the project overlays and task. Hosted: `backend/app/sitewise/knowledge_catalog.py` + the `list_platform_knowledge` / `read_platform_knowledge` MCP tools. |
+| `markdown-draft-for-review.md` | implemented-in-clerk | Produce a draft markdown output with provenance and review status (hosted: `draft_artifacts`). |
+| `register-row-draft.md` | future-hermes-workflow | Propose register rows for review before any controlled register update. |
+| `excel-safe-edit.md` | standalone-era | Edit `.xlsx` files without breaking formulas, tables or validations. |
+| `excel-verify.md` | standalone-era | Post-edit checklist for Excel work. |
 
 ### _shared/
 
-- `pm-contract.md` - shared system-skill execution contract.
+| Skill | STATUS | Job |
+| --- | --- | --- |
+| `pm-contract.md` | implemented-in-clerk | Shared system-skill execution contract. Its disciplines (authority stack, seed_consulted audit, evidence labelling) are enforced in `backend/app/assistant/instructions.md` and the deterministic workflows. |
 
 ### systems/
 
-- `contract-setup-system.md` - framework alias `commission-pmp`; commissioning, architect-PM PMP facet, contract setup and ready-to-start workflow.
-- `cost-report-system.md` - framework alias `cost-report`; recurring cost report, contingency, invoice, variation and budget-pressure reconciliation.
-- `cost-plan-system.md` - framework alias `cost-plan`; cost plan preparation, review and workbook update.
-- `decision-record-system.md` - framework alias `decision-record`; append-only project decision register workflow.
-- `document-intake-register-system.md` - framework alias `document-intake-register`; canonical contract for Clerk Sort Files and document intake.
-- `escalation-note-system.md` - framework alias `escalation-note`; early-warning note, role-shaped routing and recommended action workflow.
-- `handover-pc-system.md` - framework alias `handover-dlp-plan`; handover, practical completion and DLP close-out.
-- `meeting-minutes-system.md` - framework alias `meeting-minutes`; meeting records that separate discussion, decisions, actions and escalation handoffs.
-- `programme-system.md` - framework alias `programme`; baseline, revised programme, milestone, lookahead and critical-path workflow.
-- `authority-approvals-system.md` - framework alias `authority-approvals`; approval pathway, authority tracker, consent-condition register and approval handoffs.
-- `consultant-coordination-system.md` - framework alias `consultant-coordination`; consultant appointments, responsibility matrix, deliverables, advice and design-question controls.
-- `design-review-evaluation-system.md` - framework alias `design-review-evaluation`; design submissions reviewed against brief, budget, authority, compliance and responsibility boundaries.
-- `procurement-evaluation-system.md` - framework alias `procurement-evaluation`; stage-aware procurement strategy, RFT, evaluation and recommendation workflow.
-- `project-report-system.md` - framework alias `project-report`; recurring owner/internal reporting across time, cost, scope, quality, risk and source-control gaps.
-- `progress-claim-assessment-system.md` - framework alias `payment-claim-assessment`; claim reconciliation and payment recommendation.
-- `risk-register-system.md` - first-class Tier 1 residential risk register workflow.
-- `register-maintenance-system.md` - framework alias `register-maintenance`; general register hygiene, reconciliation and stale-row reporting.
-- `rfi-management-system.md` - framework alias `rfi-management`; RFI intake, routing, response coordination, due-date tracking and impact handoffs.
-- `variation-management-system.md` - framework alias `variation-eot-assessment`; variation and EOT evidence assessment.
+| Skill | STATUS | Job |
+| --- | --- | --- |
+| `contract-setup-system.md` | implemented-in-clerk | Framework alias `commission-pmp`; commissioning, architect-PM PMP facet, contract setup and ready-to-start workflow (hosted: `backend/app/workflows/create_pmp.py`). |
+| `cost-plan-system.md` | implemented-in-clerk | Framework alias `cost-plan`; cost plan preparation, review and workbook update (hosted: `backend/app/workflows/create_cost_plan.py`). |
+| `document-intake-register-system.md` | implemented-in-clerk | Framework alias `document-intake-register`; canonical contract for Clerk Sort Files and document intake. |
+| `cost-report-system.md` | future-hermes-workflow | Framework alias `cost-report`; recurring cost report, contingency, invoice, variation and budget-pressure reconciliation. |
+| `decision-record-system.md` | future-hermes-workflow | Framework alias `decision-record`; append-only project decision register workflow. Earmarked as the CM-native memory design (decision register as project memory). |
+| `escalation-note-system.md` | future-hermes-workflow | Framework alias `escalation-note`; early-warning note, role-shaped routing and recommended action workflow. |
+| `handover-pc-system.md` | future-hermes-workflow | Framework alias `handover-dlp-plan`; handover, practical completion and DLP close-out. |
+| `meeting-minutes-system.md` | future-hermes-workflow | Framework alias `meeting-minutes`; meeting records that separate discussion, decisions, actions and escalation handoffs. |
+| `programme-system.md` | future-hermes-workflow | Framework alias `programme`; baseline, revised programme, milestone, lookahead and critical-path workflow. |
+| `authority-approvals-system.md` | future-hermes-workflow | Framework alias `authority-approvals`; approval pathway, authority tracker, consent-condition register and approval handoffs. |
+| `consultant-coordination-system.md` | future-hermes-workflow | Framework alias `consultant-coordination`; consultant appointments, responsibility matrix, deliverables, advice and design-question controls. |
+| `design-review-evaluation-system.md` | future-hermes-workflow | Framework alias `design-review-evaluation`; design submissions reviewed against brief, budget, authority, compliance and responsibility boundaries. |
+| `procurement-evaluation-system.md` | future-hermes-workflow | Framework alias `procurement-evaluation`; stage-aware procurement strategy, RFT, evaluation and recommendation workflow. |
+| `project-report-system.md` | future-hermes-workflow | Framework alias `project-report`; recurring owner/internal reporting across time, cost, scope, quality, risk and source-control gaps. |
+| `progress-claim-assessment-system.md` | future-hermes-workflow | Framework alias `payment-claim-assessment`; claim reconciliation and payment recommendation. |
+| `risk-register-system.md` | future-hermes-workflow | First-class Tier 1 residential risk register workflow. |
+| `register-maintenance-system.md` | future-hermes-workflow | Framework alias `register-maintenance`; general register hygiene, reconciliation and stale-row reporting. |
+| `rfi-management-system.md` | future-hermes-workflow | Framework alias `rfi-management`; RFI intake, routing, response coordination, due-date tracking and impact handoffs. |
+| `variation-management-system.md` | future-hermes-workflow | Framework alias `variation-eot-assessment`; variation and EOT evidence assessment. |
 
 New gap workflows use `*-system.md` filenames and are sequenced by `../99-docs/issues/sitewise-skills-framework-alignment/`.
 
 ### reference/
 
-- `nsw-residential-cost-breakdown-reference.md` - practice-level NSW residential cost taxonomy for cost planning and reporting.
+| Skill | STATUS | Job |
+| --- | --- | --- |
+| `nsw-residential-cost-breakdown-reference.md` | implemented-in-clerk | Practice-level NSW residential cost taxonomy for cost planning and reporting. Runtime-required by the Create Cost Plan workflow (`backend/app/sitewise/cost_plan_sources.py`). |

@@ -15,10 +15,17 @@ from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
 from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
+from app.agent.workspace_paths import project_workspace_root
 from app.billing.entitlements import require_active_entitlement
+from app.billing.usage import require_turn_within_quota
 from app.chat.messages import extract_last_user_message
 from app.chat.orchestrator import run_chat_turn
-from app.chat.streaming import iter_chat_turn_with_status, stream_error, stream_grounded_answer
+from app.chat.streaming import (
+    clerk_status_event,
+    iter_chat_turn_with_status,
+    stream_error,
+    stream_grounded_answer,
+)
 from app.database.chat_thread import ChatThread
 from app.database.chats import (
     create_message,
@@ -257,8 +264,8 @@ async def _persist_agent_assistant_message(
     )
 
 
-def _agent_workspace(thread_id: uuid.UUID, project_id: uuid.UUID) -> str:
-    path = settings.agent_workspace_root / str(project_id) / str(thread_id)
+def _agent_workspace(project_id: uuid.UUID) -> str:
+    path = project_workspace_root(project_id)
     path.mkdir(parents=True, exist_ok=True)
     return str(path)
 
@@ -291,6 +298,7 @@ async def post_agent_stream(
             detail="Hermes agent chat requires a project thread.",
         )
     await require_project_owner(session, thread.project_id, user.id)
+    quota_state = await require_turn_within_quota(session, user)
 
     turn_id = uuid.uuid4()
     try:
@@ -308,7 +316,7 @@ async def post_agent_stream(
     await _persist_agent_user_message(session, thread=thread, user_text=user_text)
     await session.commit()
 
-    workspace = _agent_workspace(body.thread_id, thread.project_id)
+    workspace = _agent_workspace(thread.project_id)
     factory = get_session_factory()
 
     log.info(
@@ -341,6 +349,14 @@ async def post_agent_stream(
                 str(turn_id),
                 thread_id=str(body.thread_id),
             ):
+                if quota_state.warning:
+                    yield clerk_status_event(
+                        "You are near this month's agent quota.",
+                        kind="quota",
+                        usedTurns=quota_state.used_turns,
+                        quota=quota_state.quota,
+                        percent=quota_state.percent,
+                    )
                 async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
                     async for event in relay_agent_turn(hermes_chunks(), status=statuses):
                         yield event

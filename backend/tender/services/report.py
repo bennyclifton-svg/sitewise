@@ -243,7 +243,9 @@ async def mark_report_delivered(
 
 async def load_report_language(session: AsyncSession) -> dict[str, Any]:
     result = await session.execute(select(ReportLanguageEntry))
-    return {entry.key_path: entry.value for entry in result.scalars()}
+    return _nested_language(
+        {entry.key_path: entry.value for entry in result.scalars()}
+    )
 
 
 async def load_report_data(
@@ -509,6 +511,33 @@ def language_value(language: Mapping[str, Any], key_path: str) -> Any:
             raise KeyError(f"missing report language key: {key_path}")
         value = value[part]
     return value
+
+
+def _nested_language(flat_language: Mapping[str, Any]) -> dict[str, Any]:
+    nested: dict[str, Any] = {}
+    for key_path, value in flat_language.items():
+        target = nested
+        parts = key_path.split(".")
+        for part in parts[:-1]:
+            child = target.setdefault(part, {})
+            if not isinstance(child, dict):
+                raise ValueError(f"conflicting report language key: {key_path}")
+            target = child
+        target[parts[-1]] = value
+    return _restore_language_lists(nested)
+
+
+def _restore_language_lists(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    restored = {key: _restore_language_lists(child) for key, child in value.items()}
+    if restored and all(_language_list_key(key) for key in restored):
+        return [restored[key] for key in sorted(restored, key=int)]
+    return restored
+
+
+def _language_list_key(value: str) -> bool:
+    return value.isdigit()
 
 
 def _section_titles(language: Mapping[str, Any]) -> dict[str, str]:

@@ -22,7 +22,7 @@ import app.database.models  # noqa: F401 — register all SQLAlchemy mappers bef
 from app.config import settings
 from app.logging import configure_logging, get_logger
 from tender.models import TenderJob
-from tender.services import jobs, telemetry
+from tender.services import continuations, jobs, telemetry
 from tender.services.analysis import generate_flags, run_analysis
 from tender.services.classification import classify_document
 from tender.services.embedding import embed_items
@@ -77,6 +77,9 @@ async def run_once(session_factory, worker_id: str) -> bool:
             )
             return True
 
+        job_id = job.id
+        job_kind = job.kind
+        comparison_id = job.comparison_id
         started = time.perf_counter()
         try:
             await handler(session, job)
@@ -86,9 +89,9 @@ async def run_once(session_factory, worker_id: str) -> bool:
             await session.rollback()
             await telemetry.record_stage_timing(
                 session,
-                comparison_id=job.comparison_id,
-                job_id=job.id,
-                stage=job.kind,
+                comparison_id=comparison_id,
+                job_id=job_id,
+                stage=job_kind,
                 duration_ms=duration_ms,
                 status="failed",
                 metadata={"error": error_text.splitlines()[-1] if error_text else ""},
@@ -99,13 +102,19 @@ async def run_once(session_factory, worker_id: str) -> bool:
         duration_ms = int((time.perf_counter() - started) * 1000)
         await telemetry.record_stage_timing(
             session,
-            comparison_id=job.comparison_id,
-            job_id=job.id,
-            stage=job.kind,
+            comparison_id=comparison_id,
+            job_id=job_id,
+            stage=job_kind,
             duration_ms=duration_ms,
             status="done",
         )
         await jobs.complete(session, job)
+        await continuations.after_job_complete(
+            session,
+            job_id=job_id,
+            job_kind=job_kind,
+            comparison_id=comparison_id,
+        )
         return True
 
 

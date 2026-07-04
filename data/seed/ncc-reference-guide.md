@@ -1,10 +1,12 @@
 ---
-seed_tier: cross-cutting
+tier: topic
 seed_type: compliance
 loaded_by: task subject (NCC, BCA, building code, Class 1, Class 10, DTS, performance solution, deemed-to-satisfy, building classification)
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
 state_default: NSW
+topics: [ncc, compliance]
+summary: "NCC posture for Class 1 and Class 10 buildings: classification, DTS versus performance-solution pathways, key Volume Two provisions, NCC 2022 NSW adoption, and the certifier's role. Orientation only — the certifier's advice and the project's CC documentation are the source of truth."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
 agents_anchors: [§1, §2, §8]
 ---

@@ -165,6 +165,47 @@ export function DraftReviewPanel({
 
   return (
     <article className="flex w-full min-w-0 flex-col gap-4 p-4 lg:p-6">
+      <section className="rounded-md border bg-background">
+        {isLoadingDraft ? (
+          <p className="p-4 text-sm text-muted-foreground" role="status">
+            Loading draft content...
+          </p>
+        ) : !loadedDraft ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            Draft content could not be loaded.
+          </p>
+        ) : isEditing ? (
+          <textarea
+            className="min-h-[38rem] w-full resize-y border-0 bg-transparent p-4 font-mono text-sm leading-relaxed outline-none focus-visible:ring-0"
+            value={editorValue}
+            onChange={(event) => setEditorValue(event.target.value)}
+            spellCheck={false}
+          />
+        ) : (
+          <div className="p-4">
+            <MarkdownContent
+              markdown={loadedDraft.content_markdown}
+              version={displayDraft.version}
+            />
+          </div>
+        )}
+      </section>
+
+      {workbook ? (
+        <section className="rounded-md border bg-background">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h3 className="text-sm font-semibold">Cost workbook</h3>
+            </div>
+            <span className="max-w-full truncate text-xs text-muted-foreground">
+              {workbook.file_name}
+            </span>
+          </header>
+          <WorkbookGrid projectId={projectId} workbookPath={workbook.workspace_path} />
+        </section>
+      ) : null}
+
       <header className="rounded-md border bg-background p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -244,49 +285,6 @@ export function DraftReviewPanel({
           <p className="mt-3 text-sm text-destructive">{actionError}</p>
         ) : null}
       </header>
-
-      {workbook ? (
-        <section className="rounded-md border bg-background">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h3 className="text-sm font-semibold">Cost workbook</h3>
-            </div>
-            <span className="max-w-full truncate text-xs text-muted-foreground">
-              {workbook.file_name}
-            </span>
-          </header>
-          <WorkbookGrid projectId={projectId} workbookPath={workbook.workspace_path} />
-        </section>
-      ) : null}
-
-      <section className="rounded-md border bg-background">
-        <header className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">
-            {isEditing ? "Edit draft content" : "Draft content"}
-          </h3>
-        </header>
-        {isLoadingDraft ? (
-          <p className="p-4 text-sm text-muted-foreground" role="status">
-            Loading draft content...
-          </p>
-        ) : !loadedDraft ? (
-          <p className="p-4 text-sm text-muted-foreground">
-            Draft content could not be loaded.
-          </p>
-        ) : isEditing ? (
-          <textarea
-            className="min-h-[38rem] w-full resize-y border-0 bg-transparent p-4 font-mono text-sm leading-relaxed outline-none focus-visible:ring-0"
-            value={editorValue}
-            onChange={(event) => setEditorValue(event.target.value)}
-            spellCheck={false}
-          />
-        ) : (
-          <div className="max-h-[38rem] overflow-auto p-4">
-            <MarkdownContent markdown={loadedDraft.content_markdown} />
-          </div>
-        )}
-      </section>
 
       <WorkflowTracePanel trace={trace} emptyMessage="No persisted trace recorded for this draft." />
 

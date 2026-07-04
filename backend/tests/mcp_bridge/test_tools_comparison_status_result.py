@@ -134,6 +134,39 @@ def test_get_comparison_status_returns_progress_jobs_and_report(monkeypatch) -> 
     assert data["quotes"][0]["documents"][0]["filename"] == "nexus-tender.pdf"
 
 
+def test_get_comparison_status_publishes_progress_on_done_event(monkeypatch) -> None:
+    server = _install(monkeypatch, turn_id=TURN_ID)
+    monkeypatch.setattr(
+        server,
+        "_comparison_jobs",
+        AsyncMock(return_value=[_job("queued")]),
+    )
+    monkeypatch.setattr(server, "_pending_review_count", AsyncMock(return_value=2))
+    monkeypatch.setattr(server, "_latest_report_payload", AsyncMock(return_value=None))
+
+    async def _run():
+        async with agent_turn_status_bus.subscribe(str(TURN_ID)) as stream:
+            async with Client(server.mcp) as client:
+                await client.call_tool(
+                    "get_comparison_status", {"comparison_id": str(COMPARISON_ID)}
+                )
+            events = [
+                await asyncio.wait_for(anext(stream), timeout=1),
+                await asyncio.wait_for(anext(stream), timeout=1),
+            ]
+        return events
+
+    events = run_async(_run())
+
+    done_events = [event for event in events if event.get("state") == "done"]
+    assert len(done_events) == 1
+    done_event = done_events[0]
+    assert done_event["stage"] == "qa"
+    assert isinstance(done_event["percent"], (int, float))
+    assert isinstance(done_event["doneUnits"], int)
+    assert isinstance(done_event["totalUnits"], int)
+
+
 def test_get_comparison_result_publishes_report_artefact(monkeypatch) -> None:
     server = _install(monkeypatch, turn_id=TURN_ID)
     draft_id = uuid.uuid4()

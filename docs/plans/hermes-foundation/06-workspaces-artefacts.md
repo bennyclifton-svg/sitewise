@@ -47,3 +47,38 @@ keeping Supabase Storage canonical for source documents.
 - Agent creates or updates an artefact, user edits it in-app, reopened draft
   shows the edit, and the agent can read the latest version.
 
+## Gate Result - 2026-07-04
+
+Status: green.
+
+Implemented and verified:
+
+- `backend/app/agent/workspace_paths.py` resolves project-scoped scratch paths
+  under `AGENT_WORKSPACE_ROOT/{project_id}/` and rejects traversal, absolute
+  paths, drive paths, colon segments, and symlink escapes.
+- Hermes chat turns now use the project-scoped workspace root.
+- MCP tools `list_workspace`, `read_workspace_file`, and
+  `write_workspace_file` are authorized by the Phase 2 turn token and use the
+  traversal-safe resolver.
+- `read_workspace_file` returns the latest editable artefact from
+  `draft_artifacts` when the path is an artefact workspace path.
+- `write_workspace_file` creates a new draft version when the path is an
+  existing artefact workspace path, writes only disposable scratch files
+  otherwise, and rejects uploaded source-document paths as read-only.
+- `PATCH /projects/{project_id}/drafts/{draft_id}` now creates a new
+  `draft_artifacts` version, preserving the previous version by id.
+- The existing repository UI already covers browse/upload/download/delete
+  through workspace tree, inbox upload, workspace-file download, and evidence
+  delete paths.
+- The draft editor save path renders the returned new draft version after save.
+
+Verification:
+
+- `uv run pytest tests/agent tests/mcp_bridge tests/test_project_draft_versioning.py tests/inbox tests/evidence -q`:
+  103 passed, 2 skipped.
+- `uv run ruff check app/agent app/api app/database app/mcp_bridge tests/agent tests/mcp_bridge tests/test_project_draft_versioning.py tests/inbox tests/evidence`:
+  passed.
+- `npm test`: 9 files passed, 22 tests passed.
+- `npm run build`: passed.
+
+Phase 7 may begin.
