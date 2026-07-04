@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base
 
 if TYPE_CHECKING:
+    from app.database.activity_event import ActivityEvent
     from app.database.chat_thread import ChatThread
     from app.database.draft_artifact import DraftArtifact
     from app.database.user import User
@@ -49,6 +50,7 @@ class Project(Base):
     chat_threads: Mapped[list["ChatThread"]] = relationship(back_populates="project")
     draft_artifacts: Mapped[list["DraftArtifact"]] = relationship(back_populates="project")
     workspace_files: Mapped[list["WorkspaceFile"]] = relationship(back_populates="project")
+    activity_events: Mapped[list["ActivityEvent"]] = relationship(back_populates="project")
 
     __table_args__ = (
         UniqueConstraint("owner_user_id", "slug", name="uq_projects_owner_user_id_slug"),

@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 import structlog
@@ -16,6 +17,24 @@ from ingest.types import FolderSummary, IngestPlan, ManifestEntry
 logger = structlog.get_logger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+TraceCallback = Callable[[str, str, str, dict[str, object]], None]
+
+
+def _emit_trace(
+    trace_callback: TraceCallback | None,
+    step: str,
+    status: str,
+    message: str,
+    **metadata: object,
+) -> None:
+    if trace_callback is None:
+        return
+    trace_callback(
+        step,
+        status,
+        message,
+        {key: value for key, value in metadata.items() if value is not None},
+    )
 
 
 def _manifest_from_file(file_path: Path, data_dir: Path) -> ManifestEntry | None:
@@ -75,28 +94,90 @@ def plan_folder(
     return plans
 
 
-def ingest_plan(plan: IngestPlan, *, skip_if_unchanged: bool = True) -> bool:
+def ingest_plan(
+    plan: IngestPlan,
+    *,
+    skip_if_unchanged: bool = True,
+    trace_callback: TraceCallback | None = None,
+) -> bool:
     extracted = extract_document(plan)
     if extracted is None:
+        _emit_trace(
+            trace_callback,
+            "extract",
+            "skipped",
+            "No extractable content found.",
+            extractor=plan.extractor,
+        )
         return False
+    _emit_trace(
+        trace_callback,
+        "extract",
+        "complete",
+        "Extracted document text.",
+        extractor=plan.extractor,
+        page_count=len(extracted.pages),
+        character_count=len(extracted.normalized_content),
+    )
 
     if should_persist_chunks(plan):
         chunks = chunk_document(extracted, plan)
         if not chunks:
             logger.warning("chunk_empty", relative_path=plan.entry.relative_path)
+            _emit_trace(
+                trace_callback,
+                "chunk",
+                "failed",
+                "Chunking returned no retrieval chunks.",
+                chunker=plan.chunker,
+            )
             return False
+        _emit_trace(
+            trace_callback,
+            "chunk",
+            "complete",
+            "Chunked document for retrieval.",
+            chunker=plan.chunker,
+            chunk_count=len(chunks),
+        )
         embeddings = embed_texts([chunk.content for chunk in chunks])
+        _emit_trace(
+            trace_callback,
+            "embed",
+            "complete",
+            "Embedded retrieval chunks.",
+            embedding_count=len(embeddings),
+        )
     else:
         chunks = []
         embeddings = []
+        _emit_trace(
+            trace_callback,
+            "chunk",
+            "skipped",
+            "Document class does not use retrieval chunks.",
+            chunker=plan.chunker,
+        )
 
-    return persist_ingest(
+    persisted = persist_ingest(
         plan,
         extracted,
         chunks,
         embeddings,
         skip_if_unchanged=skip_if_unchanged,
     )
+    _emit_trace(
+        trace_callback,
+        "persist",
+        "complete" if persisted else "skipped",
+        (
+            "Persisted document and retrieval data."
+            if persisted
+            else "Ingest skipped because content is unchanged."
+        ),
+        chunk_count=len(chunks),
+    )
+    return persisted
 
 
 def summarize_folder(folder: str, *, data_dir: Path | None = None, limit: int | None = None) -> FolderSummary:

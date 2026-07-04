@@ -31,6 +31,7 @@ x-sitewise-api-environment: &sitewise-api-environment
   HERMES_INVOCATION_MODE: ${HERMES_INVOCATION_MODE:-chat_stream}
   HERMES_MODEL_PROVIDER: ${HERMES_MODEL_PROVIDER:-openai-api}
   HERMES_MODEL: ${HERMES_MODEL:-gpt-5.1}
+  HERMES_MODEL_OPTIONS: ${HERMES_MODEL_OPTIONS:-openai-codex:gpt-5.5:gpt-5.5 (Codex),openai-api:gpt-5.1:gpt-5.1 (OpenAI API)}
   AGENT_PLATFORM_API_KEY: ${AGENT_PLATFORM_API_KEY}
   AGENT_MCP_URL: ${AGENT_MCP_URL:-http://127.0.0.1:8000/mcp}
   AGENT_WORKSPACE_ROOT: ${AGENT_WORKSPACE_ROOT:-/app/agent-workspaces}

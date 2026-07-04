@@ -112,6 +112,62 @@ def test_explicit_exclusion_short_circuit_skips_llm() -> None:
     assert row.evidence["adjudication"]["cites"] == ["line-1"]
 
 
+def test_low_evidence_silence_defaults_without_llm() -> None:
+    row = _status_row()
+    packet = _low_evidence_packet()
+
+    decision = run_async(
+        silence.infer_silence_from_packet(
+            row,
+            packet,
+            _context(),
+            llm_client=ExplodingSilenceClient(),
+        )
+    )
+
+    assert decision.status == "silent_ambiguous"
+    assert row.status == "silent_ambiguous"
+    assert row.evidence["adjudication"]["source"] == "deterministic_low_evidence_default"
+    assert row.evidence["adjudication"]["model"] is None
+
+
+def test_not_required_signal_defaults_without_llm() -> None:
+    row = _status_row()
+    packet = silence.EvidencePacket(
+        packet={**_low_evidence_packet().packet, "not_required_candidate": True}
+    )
+
+    decision = run_async(
+        silence.infer_silence_from_packet(
+            row,
+            packet,
+            _context(),
+            llm_client=ExplodingSilenceClient(),
+        )
+    )
+
+    assert decision.status == "not_required"
+    assert row.status == "not_required"
+    assert row.evidence["adjudication"]["source"] == "deterministic_not_required"
+
+
+def test_batch_adjudicates_remaining_packets_with_one_client_call() -> None:
+    client = FakeBatchSilenceClient(["bundled", "ps_covered"])
+
+    decisions = run_async(
+        silence.adjudicate_silence_packets(
+            [_packet(), _ps_packet()],
+            _context(),
+            llm_client=client,
+        )
+    )
+
+    assert [decision.status for decision in decisions] == ["bundled", "ps"]
+    assert client.batch_calls == 1
+    assert client.single_calls == 0
+    assert len(client.evidence_items) == 2
+
+
 def test_adjudication_stores_full_packet_and_metadata() -> None:
     row = _status_row()
 
@@ -143,6 +199,7 @@ def test_adjudication_stores_full_packet_and_metadata() -> None:
 
 def test_worker_registers_infer_silence_handler() -> None:
     assert worker.HANDLERS["infer_silence"] is silence.infer_silence
+    assert worker.HANDLERS["infer_silence_batch"] is silence.infer_silence_batch
 
 
 class FakeSilenceClient:
@@ -167,6 +224,45 @@ class FakeSilenceClient:
         )
 
 
+class FakeBatchSilenceClient:
+    def __init__(self, outcomes: list[str]) -> None:
+        self.outcomes = outcomes
+        self.batch_calls = 0
+        self.single_calls = 0
+        self.evidence_items: list[dict] = []
+
+    async def adjudicate_many(
+        self,
+        question,
+        choices,
+        evidence_items,
+        context,
+        *,
+        prompt_version,
+        model_key,
+    ):
+        self.batch_calls += 1
+        self.evidence_items = list(evidence_items)
+        assert choices == silence.ALLOWED_OUTCOMES
+        assert prompt_version == "0.1.0"
+        assert model_key == "tender_model_adjudicate_small"
+        return [
+            LLMAdjudicationResponse(
+                choice=outcome,
+                confidence=0.9,
+                rationale=f"fake batch rationale {index}",
+                model="fake-model",
+                prompt_version=prompt_version,
+                request_id=f"fake-request-{index}",
+            )
+            for index, outcome in enumerate(self.outcomes)
+        ]
+
+    async def adjudicate(self, *args, **kwargs):
+        self.single_calls += 1
+        raise AssertionError("single adjudication should not be used for batches")
+
+
 class ExplodingSilenceClient:
     async def adjudicate(self, *args, **kwargs):
         raise AssertionError("LLM should not be called for explicit exclusions")
@@ -186,6 +282,35 @@ def _packet() -> silence.EvidencePacket:
             "context_signals": {"slope_class": "steep", "soil_class": "H2"},
             "not_required_candidate": False,
             "allowed_outcomes": silence.ALLOWED_OUTCOMES,
+        }
+    )
+
+
+def _ps_packet() -> silence.EvidencePacket:
+    return silence.EvidencePacket(
+        packet={
+            **_packet().packet,
+            "candidate_ps_lines": [
+                {
+                    "line_item_id": "line-2",
+                    "description": "Site works PS",
+                    "allowance_cents": 500_000,
+                    "similarity": 0.7,
+                    "page_ref": {"doc": "quote-a", "page": 4},
+                }
+            ],
+        }
+    )
+
+
+def _low_evidence_packet() -> silence.EvidencePacket:
+    return silence.EvidencePacket(
+        packet={
+            **_packet().packet,
+            "explicit_exclusions": [],
+            "candidate_ps_lines": [],
+            "bundling_parents_present": [],
+            "not_required_candidate": False,
         }
     )
 

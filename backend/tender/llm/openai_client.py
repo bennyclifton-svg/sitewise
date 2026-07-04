@@ -97,6 +97,84 @@ class AsyncOpenAITenderClient:
             request_id=getattr(response, "id", None),
         )
 
+    async def adjudicate_many(
+        self,
+        question: str,
+        choices: Sequence[str],
+        evidence_items: Sequence[dict[str, Any]],
+        context: ProjectContext,
+        *,
+        prompt_version: str,
+        model_key: str,
+    ) -> tuple[LLMAdjudicationResponse, ...]:
+        if not evidence_items:
+            return ()
+
+        model = self._model_for_key(model_key)
+        response = await self.client.responses.create(
+            model=model,
+            instructions=(
+                "Answer each tender mapping adjudication question using only the "
+                "provided choices and evidence. Return one decision for every "
+                "input item, preserving each item's index."
+            ),
+            input=_build_batch_adjudication_input(
+                question,
+                choices,
+                evidence_items,
+                context,
+            ),
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "tender_batch_adjudication",
+                    "schema": openai_strict_json_schema(
+                        _batch_adjudication_schema(choices)
+                    ),
+                    "strict": True,
+                }
+            },
+            temperature=0,
+        )
+        data = json.loads(_response_text(response))
+        decisions = data.get("decisions")
+        if not isinstance(decisions, list):
+            raise ValueError("batch adjudication returned no decisions list")
+
+        by_index: dict[int, dict[str, Any]] = {}
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                raise ValueError("batch adjudication returned an invalid decision")
+            index = int(decision["index"])
+            if index in by_index:
+                raise ValueError(f"batch adjudication duplicated index: {index}")
+            by_index[index] = decision
+
+        expected = set(range(len(evidence_items)))
+        if set(by_index) != expected:
+            raise ValueError(
+                "batch adjudication returned indexes "
+                f"{sorted(by_index)}; expected {sorted(expected)}"
+            )
+
+        responses: list[LLMAdjudicationResponse] = []
+        for index in range(len(evidence_items)):
+            decision = by_index[index]
+            choice = str(decision["choice"])
+            if choice not in choices:
+                raise ValueError(f"adjudication returned unknown choice: {choice}")
+            responses.append(
+                LLMAdjudicationResponse(
+                    choice=choice,
+                    confidence=float(decision["confidence"]),
+                    rationale=str(decision["rationale"]),
+                    model=model,
+                    prompt_version=prompt_version,
+                    request_id=getattr(response, "id", None),
+                )
+            )
+        return tuple(responses)
+
     def _model_for_key(self, model_key: str) -> str:
         if model_key in self.model_overrides:
             return self.model_overrides[model_key]
@@ -144,6 +222,26 @@ def _build_adjudication_input(
     )
 
 
+def _build_batch_adjudication_input(
+    question: str,
+    choices: Sequence[str],
+    evidence_items: Sequence[dict[str, Any]],
+    context: ProjectContext,
+) -> str:
+    return json.dumps(
+        {
+            "project_context": context.model_dump(mode="json"),
+            "question": question,
+            "choices": list(choices),
+            "items": [
+                {"index": index, "evidence": evidence}
+                for index, evidence in enumerate(evidence_items)
+            ],
+        },
+        ensure_ascii=True,
+    )
+
+
 def _adjudication_schema(choices: Sequence[str]) -> dict[str, Any]:
     return {
         "type": "object",
@@ -153,6 +251,30 @@ def _adjudication_schema(choices: Sequence[str]) -> dict[str, Any]:
             "rationale": {"type": "string"},
         },
         "required": ["choice", "confidence", "rationale"],
+        "additionalProperties": False,
+    }
+
+
+def _batch_adjudication_schema(choices: Sequence[str]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "decisions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "index": {"type": "integer", "minimum": 0},
+                        "choice": {"type": "string", "enum": list(choices)},
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                        "rationale": {"type": "string"},
+                    },
+                    "required": ["index", "choice", "confidence", "rationale"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["decisions"],
         "additionalProperties": False,
     }
 

@@ -1,4 +1,5 @@
 from app.database.base import Base
+from app.database.activity_event import ActivityEvent
 from app.database.chat_message import ChatMessage
 from app.database.chat_thread import ChatThread
 from app.database.document_chunk import DocumentChunk
@@ -15,6 +16,7 @@ from app.database.workspace_file import WorkspaceFile
 
 __all__ = [
     "Base",
+    "ActivityEvent",
     "ChatMessage",
     "ChatThread",
     "DocumentChunk",

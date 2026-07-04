@@ -221,15 +221,16 @@ export function CockpitPreviewPage() {
   const selectedEvidence =
     previewEvidence.find((item) => item.id === selectedEvidenceId) ?? previewEvidence[0];
   const selectedFolder = findWorkspaceNode(previewWorkspaceTree, selectedWorkspacePath);
-  const repositoryEvidence = selectedEvidenceId
-    ? previewEvidence.find((item) => item.id === selectedEvidenceId) ?? null
-    : null;
-  const draftEvidencePanel =
-    repositoryEvidence &&
-    normalizeWorkspacePath(repositoryEvidence.relative_path) !==
-      normalizeWorkspacePath(previewDraft.workspace_path)
-      ? repositoryEvidence
-      : null;
+
+  function openWorkflowFromExplorer(workflowId: string) {
+    setSelectedWorkflowId(workflowId);
+    if (workflowId === "create-pmp" || workflowId === "cost-plan") {
+      setSelectedEvidenceId(null);
+      setActiveView("draft");
+      return;
+    }
+    setActiveView("workbench");
+  }
 
   function selectEvidenceFromRepository(evidenceId: string) {
     setSelectedEvidenceId(evidenceId);
@@ -259,11 +260,15 @@ export function CockpitPreviewPage() {
     if (selectedNode?.kind === "file") {
       if (isPmpWorkspaceFile(selectedNode.path)) {
         setSelectedWorkflowId("create-pmp");
+        const selectedDocument = findEvidenceByPath(previewEvidence, selectedNode.path);
+        setSelectedEvidenceId(selectedDocument?.id ?? null);
         setActiveView("draft");
         return;
       }
       if (isCostPlanWorkspaceFile(selectedNode.path)) {
         setSelectedWorkflowId("cost-plan");
+        const selectedDocument = findEvidenceByPath(previewEvidence, selectedNode.path);
+        setSelectedEvidenceId(selectedDocument?.id ?? null);
         setActiveView("draft");
         return;
       }
@@ -297,7 +302,7 @@ export function CockpitPreviewPage() {
           selectedWorkspacePath={selectedWorkspacePath}
           onSelectEvidence={selectEvidenceFromRepository}
           onSelectWorkspacePath={selectWorkspacePath}
-          onOpenWorkflow={setSelectedWorkflowId}
+          onOpenWorkflow={openWorkflowFromExplorer}
           onViewWorkbench={() => setActiveView("workbench")}
           onViewFolder={() => setActiveView("folder")}
           onUploadComplete={async () => {}}
@@ -353,19 +358,11 @@ export function CockpitPreviewPage() {
         <WorkspaceFolderPanel folder={selectedFolder} evidence={previewEvidence} />
       ) : null}
       {activeView === "draft" ? (
-        <>
-          <DraftReviewPanel
-            projectId={previewProject.id}
-            draft={previewDraft}
-            onDraftUpdated={() => undefined}
-          />
-          {draftEvidencePanel ? (
-            <WorkspaceFilePanel
-              projectId={previewProject.id}
-              evidence={draftEvidencePanel}
-            />
-          ) : null}
-        </>
+        <DraftReviewPanel
+          projectId={previewProject.id}
+          draft={previewDraft}
+          onDraftUpdated={() => undefined}
+        />
       ) : null}
     </ProjectShell>
   );

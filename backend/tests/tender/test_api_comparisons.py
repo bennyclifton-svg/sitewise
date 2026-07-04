@@ -39,7 +39,10 @@ def client(mock_session: AsyncMock) -> TestClient:
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
-    with TestClient(app) as test_client:
+    with (
+        patch("tender.router.require_active_entitlement", new=AsyncMock()),
+        TestClient(app) as test_client,
+    ):
         yield test_client
     app.dependency_overrides.clear()
 
@@ -254,11 +257,15 @@ def test_retry_stage_enqueues_requested_stage(client: TestClient) -> None:
     assert enqueue.await_args.kwargs["payload"] == {"retry": True}
 
 
-def test_quote_retry_rejects_internal_silence_stage(client: TestClient) -> None:
+@pytest.mark.parametrize("stage", ["infer_silence", "infer_silence_batch"])
+def test_quote_retry_rejects_internal_silence_stage(
+    client: TestClient,
+    stage: str,
+) -> None:
     enqueue = AsyncMock()
 
     with patch("tender.router.jobs.enqueue", new=enqueue):
-        response = client.post(f"/api/tender/quotes/{QUOTE_ID}/retry/infer_silence")
+        response = client.post(f"/api/tender/quotes/{QUOTE_ID}/retry/{stage}")
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Tender stage cannot be manually run for a quote"
@@ -290,12 +297,16 @@ def test_comparison_retry_enqueues_comparison_stage(client: TestClient) -> None:
     assert enqueue.await_args.kwargs["payload"] == {"retry": True}
 
 
-def test_comparison_retry_rejects_internal_silence_stage(client: TestClient) -> None:
+@pytest.mark.parametrize("stage", ["infer_silence", "infer_silence_batch"])
+def test_comparison_retry_rejects_internal_silence_stage(
+    client: TestClient,
+    stage: str,
+) -> None:
     enqueue = AsyncMock()
 
     with patch("tender.router.jobs.enqueue", new=enqueue):
         response = client.post(
-            f"/api/tender/comparisons/{COMPARISON_ID}/retry/infer_silence"
+            f"/api/tender/comparisons/{COMPARISON_ID}/retry/{stage}"
         )
 
     assert response.status_code == 400

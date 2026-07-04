@@ -2,6 +2,7 @@ import asyncio
 import mimetypes
 import time
 import uuid
+from datetime import datetime
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.billing.entitlements import require_active_entitlement
+from app.database.activity_events import list_project_activity_runs
 from app.database.chats import create_thread, title_from_message
 from app.database.draft_artifacts import (
     accept_draft,
@@ -49,6 +51,9 @@ from app.schemas.projects import (
     PdfSheetProposal,
     PlatformKnowledgeBucket,
     PlatformKnowledgeStatus,
+    ProjectActivityEvent,
+    ProjectActivityResponse,
+    ProjectActivityRun,
     ProjectCockpitBootstrapResponse,
     ProjectDetail,
     ProjectListResponse,
@@ -152,10 +157,6 @@ def _register_title_from_fields(
     )
 
 
-def _is_markdown_filename(filename: str) -> bool:
-    return filename.lower().endswith((".md", ".markdown"))
-
-
 def _is_xlsx_filename(filename: str) -> bool:
     return filename.lower().endswith(".xlsx")
 
@@ -249,11 +250,7 @@ def _evidence_preview_from_document(
         source_type=document.source_type,
         document_class=document.document_class,
         excerpt_source=excerpt_source,
-        content=(
-            excerpt_source
-            if include_content and _is_markdown_filename(document.filename)
-            else None
-        ),
+        content=excerpt_source if include_content else None,
     )
 
 
@@ -645,6 +642,48 @@ async def get_project_workspace_tree(
             ),
         ),
     )
+
+
+@router.get("/{project_id}/activity")
+async def get_project_activity(
+    project_id: uuid.UUID,
+    since: datetime | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectActivityResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    runs = await list_project_activity_runs(
+        session,
+        project_id=project.id,
+        since=since,
+        limit=limit,
+    )
+    response_runs = [
+        ProjectActivityRun(
+            run_id=run.run_id,
+            source=run.source,
+            reference_type=run.reference_type,
+            reference_id=run.reference_id,
+            status=run.status,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+            events=[
+                ProjectActivityEvent(
+                    id=event.id,
+                    step=event.step,
+                    status=event.status,
+                    message=event.message,
+                    metadata=event.event_metadata or {},
+                    created_at=event.created_at,
+                )
+                for event in run.events
+            ],
+        )
+        for run in runs
+    ]
+    newest = max((run.updated_at for run in response_runs), default=None)
+    return ProjectActivityResponse(runs=response_runs, newest_created_at=newest)
 
 
 @router.get("/{project_id}/workspace-files/preview")

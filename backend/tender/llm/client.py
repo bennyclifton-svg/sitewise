@@ -45,3 +45,15 @@ class TenderLLMClient(Protocol):
         model_key: str,
     ) -> LLMAdjudicationResponse:
         ...
+
+    async def adjudicate_many(
+        self,
+        question: str,
+        choices: Sequence[str],
+        evidence_items: Sequence[dict[str, Any]],
+        context: ProjectContext,
+        *,
+        prompt_version: str,
+        model_key: str,
+    ) -> Sequence[LLMAdjudicationResponse]:
+        ...

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.assistant.chat_models import resolve_chat_model
 from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
+from app.database.activity_events import record_activity_events
 from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
@@ -864,6 +865,7 @@ async def run_create_cost_plan_workflow(
     chat_model: str | None = None,
 ) -> CreateCostPlanResponse:
     trace: list[WorkflowTraceEvent] = []
+    run_id = uuid.uuid4()
     resolved_model = resolve_chat_model(chat_model)
 
     gate = overlay_status(
@@ -876,6 +878,8 @@ async def run_create_cost_plan_workflow(
         trace.append(_trace("gate", "blocked", message))
         await _persist_trace_message(
             session,
+            project_id=project.id,
+            run_id=run_id,
             thread_id=thread_id,
             content=message,
             trace=trace,
@@ -898,6 +902,8 @@ async def run_create_cost_plan_workflow(
         trace.append(_trace("retrieval", "failed", message))
         await _persist_trace_message(
             session,
+            project_id=project.id,
+            run_id=run_id,
             thread_id=thread_id,
             content=message,
             trace=trace,
@@ -915,6 +921,8 @@ async def run_create_cost_plan_workflow(
         trace.append(_trace("retrieval", "failed", message, missing_paths=missing_paths))
         await _persist_trace_message(
             session,
+            project_id=project.id,
+            run_id=run_id,
             thread_id=thread_id,
             content=message,
             trace=trace,
@@ -954,6 +962,8 @@ async def run_create_cost_plan_workflow(
         trace.append(_trace("validation", "failed", message))
         await _persist_trace_message(
             session,
+            project_id=project.id,
+            run_id=run_id,
             thread_id=thread_id,
             content=message,
             trace=trace,
@@ -1028,6 +1038,8 @@ async def run_create_cost_plan_workflow(
         trace.append(_trace("validation", "failed", message))
         await _persist_trace_message(
             session,
+            project_id=project.id,
+            run_id=run_id,
             thread_id=thread_id,
             content=message,
             trace=trace,
@@ -1115,6 +1127,8 @@ async def run_create_cost_plan_workflow(
     )
     await _persist_trace_message(
         session,
+        project_id=project.id,
+        run_id=run_id,
         thread_id=thread_id,
         content=content,
         trace=trace,
@@ -1147,12 +1161,23 @@ async def _next_version_hint(
 async def _persist_trace_message(
     session: AsyncSession,
     *,
+    project_id: uuid.UUID,
+    run_id: uuid.UUID,
     thread_id: uuid.UUID | None,
     content: str,
     trace: list[WorkflowTraceEvent],
     status: str,
     draft_id: uuid.UUID | None = None,
 ) -> None:
+    await record_activity_events(
+        session,
+        project_id=project_id,
+        source=WORKFLOW_TYPE,
+        run_id=run_id,
+        reference_type="draft_artifact" if draft_id else None,
+        reference_id=draft_id,
+        events=trace,
+    )
     if thread_id is None:
         return
     await create_message(

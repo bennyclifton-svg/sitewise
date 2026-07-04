@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
+import { ActivityFeed } from "@/components/project/ActivityFeed";
+import { CockpitPanelResizeHandle } from "@/components/project/CockpitPanelResizeHandle";
+import { useCockpitShellResize } from "@/components/project/cockpitShellLayout";
 import { NavAccordionSection } from "@/components/project/NavAccordionSection";
 import {
   PlatformKnowledgePanel,
@@ -16,7 +19,7 @@ import type {
   ProjectSummary,
 } from "@/lib/types/project";
 
-type NavSectionId = "skills" | "knowledge" | "admin";
+type NavSectionId = "skills" | "knowledge" | "activity" | "admin";
 
 export type ProjectNavView = "workbench" | "file" | "draft" | "folder";
 
@@ -25,14 +28,19 @@ export function ProjectLeftNav({
   projects,
   projectsLoading,
   platformStatus,
+  onSelectWorkspacePath,
+  onOpenWorkflow,
 }: {
   project: ProjectDetail;
   projects: ProjectSummary[];
   projectsLoading: boolean;
   platformStatus: PlatformKnowledgeStatus | null;
+  onSelectWorkspacePath: (path: string) => void;
+  onOpenWorkflow: (workflowId: string) => void;
 }) {
+  const { onResizeLeftPanel } = useCockpitShellResize();
   const [openSections, setOpenSections] = useState<Set<NavSectionId>>(
-    () => new Set(["admin"]),
+    () => new Set(["activity", "admin"]),
   );
 
   function toggleSection(id: NavSectionId) {
@@ -61,33 +69,54 @@ export function ProjectLeftNav({
         />
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2" aria-label="Project cockpit">
-        <NavAccordionSection
-          label="Skills"
-          isOpen={openSections.has("skills")}
-          onToggle={() => toggleSection("skills")}
-        >
-          <PlatformKnowledgePanel platformStatus={platformStatus} mode="skills" />
-        </NavAccordionSection>
+      <div className="relative min-h-0 flex-1">
+        {onResizeLeftPanel ? (
+          <CockpitPanelResizeHandle
+            ariaLabel="Resize navigation panel"
+            edge="end"
+            onResize={onResizeLeftPanel}
+          />
+        ) : null}
+        <nav className="h-full min-h-0 overflow-y-auto px-2 py-2" aria-label="Project cockpit">
+          <NavAccordionSection
+            label="Skills"
+            isOpen={openSections.has("skills")}
+            onToggle={() => toggleSection("skills")}
+          >
+            <PlatformKnowledgePanel platformStatus={platformStatus} mode="skills" />
+          </NavAccordionSection>
 
-        <NavAccordionSection
-          label="Knowledge"
-          isOpen={openSections.has("knowledge")}
-          onToggle={() => toggleSection("knowledge")}
-        >
-          <PlatformKnowledgePanel platformStatus={platformStatus} mode="knowledge" />
-        </NavAccordionSection>
+          <NavAccordionSection
+            label="Knowledge"
+            isOpen={openSections.has("knowledge")}
+            onToggle={() => toggleSection("knowledge")}
+          >
+            <PlatformKnowledgePanel platformStatus={platformStatus} mode="knowledge" />
+          </NavAccordionSection>
 
-        <NavAccordionSection
-          label="Admin"
-          isOpen={openSections.has("admin")}
-          onToggle={() => toggleSection("admin")}
-        >
-          <PlatformKnowledgeSummary platformStatus={platformStatus} />
-        </NavAccordionSection>
-      </nav>
+          <NavAccordionSection
+            label="Activity"
+            isOpen={openSections.has("activity")}
+            onToggle={() => toggleSection("activity")}
+          >
+            <ActivityFeed
+              projectId={project.id}
+              onSelectWorkspacePath={onSelectWorkspacePath}
+              onOpenWorkflow={onOpenWorkflow}
+            />
+          </NavAccordionSection>
 
-      <AppSystemFooter />
+          <NavAccordionSection
+            label="Admin"
+            isOpen={openSections.has("admin")}
+            onToggle={() => toggleSection("admin")}
+          >
+            <PlatformKnowledgeSummary platformStatus={platformStatus} />
+          </NavAccordionSection>
+        </nav>
+      </div>
+
+      <AppSystemFooter className="bg-background" />
     </div>
   );
 }

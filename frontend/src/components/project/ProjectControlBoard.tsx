@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import {
-  workflowDockTileClass,
   workflowStatusBadgeClass,
   workflowTileClass,
   type WorkflowStatus,
@@ -135,48 +134,30 @@ export function ProjectControlBoard({
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <WorkflowDetail
-          tile={selectedTile}
-          project={project}
-          evidenceCount={evidence.length}
-          latestDraft={latestDraft}
-          latestCostPlanDraft={latestCostPlanDraft}
-          trace={trace}
-          costPlanTrace={costPlanTrace}
-          workflowError={workflowError}
-          costPlanWorkflowError={costPlanWorkflowError}
-          isRunningWorkflow={isRunningWorkflow}
-          isRunningCostPlan={isRunningCostPlan}
-          onRunCreatePmp={onRunCreatePmp}
-          onRunUpdatePmp={onRunUpdatePmp}
-          onRunCreateCostPlan={onRunCreateCostPlan}
-          onRunSortFiles={onRunSortFiles}
-          onOpenDraft={onOpenDraft}
-          onOpenTenderComparison={onOpenTenderComparison}
-          inboxCount={inboxCount}
-          sortFilesResult={sortFilesResult}
-          sortFilesDraft={sortFilesDraft}
-          sortFilesError={sortFilesError}
-          isRunningSortFiles={isRunningSortFiles}
-        />
-
-        <section className="cockpit-signature-card rounded-lg border bg-card shadow-sm">
-          <header className="border-b px-4 py-3">
-            <p className="cockpit-zone-title">Always on</p>
-          </header>
-          <div className="space-y-2 p-3">
-            {recurring.map((tile) => (
-              <WorkflowDockButton
-                key={tile.id}
-                tile={tile}
-                selected={selectedTile.id === tile.id}
-                onSelect={() => onSelectWorkflow(tile.id)}
-              />
-            ))}
-          </div>
-        </section>
-      </div>
+      <WorkflowDetail
+        tile={selectedTile}
+        project={project}
+        evidenceCount={evidence.length}
+        latestDraft={latestDraft}
+        latestCostPlanDraft={latestCostPlanDraft}
+        trace={trace}
+        costPlanTrace={costPlanTrace}
+        workflowError={workflowError}
+        costPlanWorkflowError={costPlanWorkflowError}
+        isRunningWorkflow={isRunningWorkflow}
+        isRunningCostPlan={isRunningCostPlan}
+        onRunCreatePmp={onRunCreatePmp}
+        onRunUpdatePmp={onRunUpdatePmp}
+        onRunCreateCostPlan={onRunCreateCostPlan}
+        onRunSortFiles={onRunSortFiles}
+        onOpenDraft={onOpenDraft}
+        onOpenTenderComparison={onOpenTenderComparison}
+        inboxCount={inboxCount}
+        sortFilesResult={sortFilesResult}
+        sortFilesDraft={sortFilesDraft}
+        sortFilesError={sortFilesError}
+        isRunningSortFiles={isRunningSortFiles}
+      />
     </div>
   );
 }
@@ -531,27 +512,6 @@ function WorkflowButton({
       </div>
       <p className="mt-3 font-medium leading-tight">{tile.label}</p>
       <p className="mt-1 text-xs text-muted-foreground">{tile.folder}</p>
-    </button>
-  );
-}
-
-function WorkflowDockButton({
-  tile,
-  selected,
-  onSelect,
-}: {
-  tile: WorkflowTile;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = tile.icon;
-  return (
-    <button type="button" className={workflowDockTileClass(selected)} onClick={onSelect}>
-      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="min-w-0 flex-1 truncate font-medium">{tile.label}</span>
-      <Badge variant="outline" className={cn("shrink-0", workflowStatusBadgeClass(tile.status))}>
-        {tile.statusLabel}
-      </Badge>
     </button>
   );
 }

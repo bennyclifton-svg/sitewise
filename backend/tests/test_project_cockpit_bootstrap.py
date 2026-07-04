@@ -232,3 +232,44 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
     file_names = [child["name"] for child in cost_node["children"] if child["kind"] == "file"]
     assert "cost_plan_v01.md" in file_names
     assert "Cost_Plan_v01.draft.xlsx" in file_names
+
+
+def test_project_activity_returns_grouped_runs(client: TestClient) -> None:
+    run_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
+    event_id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    workspace_file_id = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    run = SimpleNamespace(
+        run_id=run_id,
+        source="document_ingest",
+        reference_type="workspace_file",
+        reference_id=workspace_file_id,
+        status="complete",
+        created_at=NOW,
+        updated_at=NOW,
+        events=[
+            SimpleNamespace(
+                id=event_id,
+                step="store",
+                status="complete",
+                message="Stored file in the project workspace.",
+                event_metadata={"filename": "quote.pdf"},
+                created_at=NOW,
+            )
+        ],
+    )
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch(
+            "app.api.projects.list_project_activity_runs",
+            new=AsyncMock(return_value=[run]),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/activity")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["runs"][0]["run_id"] == str(run_id)
+    assert payload["runs"][0]["source"] == "document_ingest"
+    assert payload["runs"][0]["events"][0]["metadata"] == {"filename": "quote.pdf"}
+    assert payload["newest_created_at"] == NOW.isoformat().replace("+00:00", "Z")

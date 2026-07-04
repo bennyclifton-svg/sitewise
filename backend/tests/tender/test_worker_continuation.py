@@ -178,6 +178,42 @@ def test_completed_infer_silence_queues_analysis_after_barrier(monkeypatch) -> N
     session.commit.assert_awaited_once()
 
 
+def test_completed_infer_silence_batch_queues_analysis_after_barrier(monkeypatch) -> None:
+    comparison_id = uuid.uuid4()
+    session = AsyncMock()
+    enqueue = AsyncMock()
+
+    monkeypatch.setattr(
+        continuations,
+        "_has_active_jobs",
+        AsyncMock(return_value=False),
+    )
+    monkeypatch.setattr(
+        continuations,
+        "_has_existing_job",
+        AsyncMock(return_value=False),
+    )
+    monkeypatch.setattr(continuations.jobs, "enqueue", enqueue)
+
+    async def _run() -> None:
+        await continuations.after_job_complete(
+            session,
+            job_id=uuid.uuid4(),
+            job_kind="infer_silence_batch",
+            comparison_id=comparison_id,
+        )
+
+    run_async(_run())
+
+    enqueue.assert_awaited_once_with(
+        session,
+        kind="run_analysis",
+        comparison_id=comparison_id,
+        payload={"reason": "all_silence_complete"},
+    )
+    session.commit.assert_awaited_once()
+
+
 def test_generate_flags_queues_report_when_qa_is_clear(monkeypatch) -> None:
     comparison_id = uuid.uuid4()
     comparison = SimpleNamespace(status="processing")

@@ -3,7 +3,7 @@ import tempfile
 import uuid
 
 from ingest.classify import classify_entry
-from ingest.pipeline import ingest_plan
+from ingest.pipeline import TraceCallback, ingest_plan
 from ingest.router import build_ingest_plan
 from ingest.types import ManifestEntry, ProjectContext
 
@@ -17,6 +17,7 @@ def ingest_hosted_file(
     filename: str,
     extension: str,
     skip_if_unchanged: bool = True,
+    trace_callback: TraceCallback | None = None,
 ) -> bool:
     suffix = extension if extension.startswith(".") else f".{extension}"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as handle:
@@ -39,7 +40,23 @@ def ingest_hosted_file(
         )
         classification = classify_entry(entry)
         plan = build_ingest_plan(entry, context, classification)
-        return ingest_plan(plan, skip_if_unchanged=skip_if_unchanged)
+        if trace_callback is not None:
+            trace_callback(
+                "classify",
+                "complete",
+                "Classified document for ingest.",
+                {
+                    "document_class": classification.document_class,
+                    "ingest_mode": classification.ingest_mode,
+                    "extractor": plan.extractor,
+                    "chunker": plan.chunker,
+                },
+            )
+        return ingest_plan(
+            plan,
+            skip_if_unchanged=skip_if_unchanged,
+            trace_callback=trace_callback,
+        )
     finally:
         temp_path.unlink(missing_ok=True)
 

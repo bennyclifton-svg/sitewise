@@ -127,6 +127,33 @@ def test_secrets_are_in_env_not_argv(monkeypatch, tmp_path: Path) -> None:
     assert "default: gpt-5.1" in config
 
 
+def test_model_override_is_passed_as_cli_flags(tmp_path: Path) -> None:
+    from app.agent.hermes_process import stream_hermes_turn
+
+    seen: dict[str, Any] = {}
+
+    async def spawn(**kwargs: Any) -> _FakeProcess:
+        seen.update(kwargs)
+        return _FakeProcess(stdout=["ok\n"])
+
+    _collect(
+        stream_hermes_turn(
+            prompt="Use selected model",
+            mcp_url="http://test/mcp",
+            turn_token="turn-token",
+            cwd=tmp_path,
+            provider="openai-codex",
+            model="gpt-5.5",
+            spawn=spawn,
+        )
+    )
+
+    assert "--provider" in seen["argv"]
+    assert "openai-codex" in seen["argv"]
+    assert "--model" in seen["argv"]
+    assert "gpt-5.5" in seen["argv"]
+
+
 def test_oauth_mode_copies_existing_config_and_overlays_mcp(
     monkeypatch,
     tmp_path: Path,

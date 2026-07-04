@@ -31,7 +31,7 @@ from tender.services.extraction_handler import extract_line_items_job
 from tender.services.ingestion import ingest_document
 from tender.services.mapping import map_items
 from tender.services.report import assemble_report_draft
-from tender.services.silence import infer_silence
+from tender.services.silence import infer_silence, infer_silence_batch
 
 log = get_logger(__name__)
 
@@ -44,6 +44,7 @@ HANDLERS: dict[str, Handler] = {
     "embed_items": embed_items,
     "map_items": map_items,
     "infer_silence": infer_silence,
+    "infer_silence_batch": infer_silence_batch,
     "assemble_report_draft": assemble_report_draft,
     "generate_flags": generate_flags,
     "run_analysis": run_analysis,

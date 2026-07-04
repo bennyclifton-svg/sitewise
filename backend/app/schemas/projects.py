@@ -216,6 +216,27 @@ class WorkflowTraceEvent(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ProjectActivityEvent(WorkflowTraceEvent):
+    id: uuid.UUID
+    created_at: datetime
+
+
+class ProjectActivityRun(BaseModel):
+    run_id: uuid.UUID
+    source: str
+    reference_type: str | None = None
+    reference_id: uuid.UUID | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    events: list[ProjectActivityEvent]
+
+
+class ProjectActivityResponse(BaseModel):
+    runs: list[ProjectActivityRun]
+    newest_created_at: datetime | None = None
+
+
 class CreatePmpRequest(BaseModel):
     thread_id: uuid.UUID | None = None
     chat_model: str | None = Field(

@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 from app.api.projects import (
     _append_unindexed_inbox_workspace_files,
+    _evidence_preview_from_document,
     _evidence_preview_from_values,
     _filter_stale_inbox_documents,
-    _is_markdown_filename,
 )
 
 
@@ -36,12 +36,6 @@ def test_filter_stale_inbox_documents_keeps_legacy_projects_without_workspace_fi
     documents = [_document("04-projects/demo/_inbox/legacy.md")]
 
     assert _filter_stale_inbox_documents(documents, set()) == documents
-
-
-def test_markdown_filename_detection_covers_markdown_extension() -> None:
-    assert _is_markdown_filename("brief.md")
-    assert _is_markdown_filename("brief.markdown")
-    assert not _is_markdown_filename("brief.docx")
 
 
 def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> None:
@@ -79,3 +73,35 @@ def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> Non
     assert pending.id == workspace_file_id
     assert pending.category is None
     assert pending.document_class == "inbox_pending"
+
+
+def _source_document(filename: str, normalized_content: str):
+    return SimpleNamespace(
+        id=uuid.UUID("77777777-7777-7777-7777-777777777777"),
+        document_type=None,
+        document_metadata={},
+        filename=filename,
+        relative_path=f"04-projects/demo/03-design/{filename}",
+        source_type="project_evidence",
+        document_class="project_evidence",
+        normalized_content=normalized_content,
+    )
+
+
+def test_evidence_preview_includes_full_content_for_non_markdown_documents() -> None:
+    document = _source_document(
+        "E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
+        "# Cover Sheet\n\nFull extracted markdown body.",
+    )
+
+    preview = _evidence_preview_from_document(document, include_content=True)
+
+    assert preview.content == "# Cover Sheet\n\nFull extracted markdown body."
+
+
+def test_evidence_preview_omits_content_when_not_requested() -> None:
+    document = _source_document("brief.pdf", "Full extracted markdown body.")
+
+    preview = _evidence_preview_from_document(document, include_content=False)
+
+    assert preview.content is None

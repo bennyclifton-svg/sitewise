@@ -51,3 +51,22 @@ Only after production acceptance passes:
 - Backend tests, ruff, frontend lint, frontend build, and frontend tests pass.
 - Legacy deletion is complete only after the safety valve is no longer needed.
 
+## Implementation Status - 2026-07-04
+
+Status: deploy scaffolding implemented; production acceptance pending.
+
+Implemented:
+
+- Backend Docker image installs pinned Hermes `v0.17.0` / `2026.6.19`.
+- Backend Docker image preserves JVM and LibreOffice and now bakes the base
+  Hermes MCP config.
+- Dokploy compose has `AGENT_WORKSPACE_ROOT`, agent/MCP/Stripe/worker env, and
+  the separate `sitewise-worker` service.
+- nginx disables buffering for `/api/*`, covering the chat SSE route.
+- `scripts/sitewise-vps-phase8-validate.ps1` records the Linux validation run.
+
+Not completed:
+
+- Live production acceptance on `sitewise.au`.
+- Legacy PydanticAI/cockpit/Polar deletion, because that is gated on the live
+  production acceptance.

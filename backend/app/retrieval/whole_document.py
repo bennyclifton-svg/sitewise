@@ -8,6 +8,7 @@ from app.config import settings
 from app.database.source_document import SourceDocument
 from app.retrieval.query_text import lexical_query_text
 from app.retrieval.schemas import SourcePassage
+from app.sitewise.markdown_sections import doctrine_core_content
 
 logger = structlog.get_logger(__name__)
 
@@ -104,6 +105,22 @@ def _row_to_passage(row, *, max_chars: int, terms: list[str]) -> SourcePassage:
     )
 
 
+def doctrine_passage_content(full_text: str, *, max_chars: int) -> tuple[str, bool]:
+    """Content served for the always-loaded doctrine passage.
+
+    Assembles the doctrine core (preamble + cross-cutting rules) so every
+    platform turn sees the disciplines rather than the accidental first
+    max_chars of the file. Falls back to legacy truncation when the heading
+    structure is not recognised. Returns (content, is_core).
+    """
+    core = doctrine_core_content(
+        full_text, max_chars=settings.doctrine_core_content_chars
+    )
+    if core is None:
+        return full_text[:max_chars], False
+    return core, True
+
+
 async def _load_doctrine_document(
     session: AsyncSession,
     *,
@@ -111,7 +128,7 @@ async def _load_doctrine_document(
     terms: list[str],
 ):
     stmt = (
-        select(*_document_columns(content_chars=max_chars))
+        select(*_document_columns(content_chars=None))
         .where(_platform_scope_filter(), SourceDocument.source_type == "doctrine")
         .limit(1)
     )
@@ -119,7 +136,16 @@ async def _load_doctrine_document(
     row = result.first()
     if row is None:
         return None
-    return _row_to_passage(row, max_chars=max_chars, terms=terms)
+    passage = _row_to_passage(row, max_chars=max_chars, terms=terms)
+    content, is_core = doctrine_passage_content(
+        row.normalized_content or "", max_chars=max_chars
+    )
+    return passage.model_copy(
+        update={
+            "content": content,
+            "chunk_metadata": {"whole_document": True, "doctrine_core": is_core},
+        }
+    )
 
 
 async def _load_matching_seed_documents(

@@ -118,10 +118,21 @@ async def _default_spawn(*, argv: list[str], env: dict[str, str], cwd: str) -> _
         )
 
 
-def _build_argv(prompt: str) -> list[str]:
+def _build_argv(
+    prompt: str,
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+) -> list[str]:
     if settings.hermes_invocation_mode == "oneshot":
-        return [settings.hermes_binary_path, "-z", prompt]
-    return [
+        argv = [settings.hermes_binary_path, "-z", prompt]
+        if provider:
+            argv.extend(["--provider", provider])
+        if model:
+            argv.extend(["--model", model])
+        return argv
+
+    argv = [
         settings.hermes_binary_path,
         "chat",
         "-q",
@@ -129,6 +140,11 @@ def _build_argv(prompt: str) -> list[str]:
         "--source",
         "tool",
     ]
+    if provider:
+        argv.extend(["--provider", provider])
+    if model:
+        argv.extend(["--model", model])
+    return argv
 
 
 def _existing_hermes_home(env: dict[str, str]) -> Path | None:
@@ -299,9 +315,11 @@ async def stream_hermes_turn(
     mcp_url: str,
     turn_token: str,
     cwd: str | Path,
+    provider: str | None = None,
+    model: str | None = None,
     spawn: Spawn = _default_spawn,
 ) -> AsyncIterator[str]:
-    argv = _build_argv(prompt)
+    argv = _build_argv(prompt, provider=provider, model=model)
     stderr_tail: deque[str] = deque(maxlen=20)
 
     with tempfile.TemporaryDirectory(prefix="clerk-hermes-") as hermes_home:

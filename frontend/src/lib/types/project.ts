@@ -134,6 +134,27 @@ export type WorkflowTraceEvent = {
   metadata: Record<string, unknown>;
 };
 
+export type ProjectActivityEvent = WorkflowTraceEvent & {
+  id: string;
+  created_at: string;
+};
+
+export type ProjectActivityRun = {
+  run_id: string;
+  source: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  events: ProjectActivityEvent[];
+};
+
+export type ProjectActivityResponse = {
+  runs: ProjectActivityRun[];
+  newest_created_at: string | null;
+};
+
 export type CreatePmpResponse = {
   status: "blocked" | "failed" | "complete" | string;
   gate: OverlayStatus;

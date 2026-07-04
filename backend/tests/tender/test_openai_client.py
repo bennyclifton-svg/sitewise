@@ -102,6 +102,49 @@ def test_openai_client_adjudicate_constrains_choice_enum(tmp_path: Path) -> None
     assert result.prompt_version == "0.1.0"
 
 
+def test_openai_client_batch_adjudication_preserves_indexes(tmp_path: Path) -> None:
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("extract carefully", encoding="utf-8")
+    fake_client = FakeOpenAIClient(
+        output={
+            "decisions": [
+                {"index": 1, "choice": "ambiguous", "confidence": 0.66, "rationale": "unclear"},
+                {"index": 0, "choice": "bundled", "confidence": 0.91, "rationale": "parent covers it"},
+            ]
+        }
+    )
+    client = AsyncOpenAITenderClient(
+        client=fake_client,  # type: ignore[arg-type]
+        model="gpt-test",
+        prompt_path=prompt_path,
+        model_overrides={"tender_model_adjudicate_small": "gpt-small-test"},
+    )
+
+    result = run_async(
+        client.adjudicate_many(
+            "Infer silence",
+            ["bundled", "ambiguous"],
+            [{"cell": {"code": "03.01"}}, {"cell": {"code": "03.02"}}],
+            _context(),
+            prompt_version="0.1.0",
+            model_key="tender_model_adjudicate_small",
+        )
+    )
+
+    call = fake_client.responses.kwargs
+    schema = call["text"]["format"]["schema"]
+    payload = json.loads(call["input"])
+    assert call["model"] == "gpt-small-test"
+    assert schema["properties"]["decisions"]["items"]["properties"]["choice"]["enum"] == [
+        "bundled",
+        "ambiguous",
+    ]
+    assert payload["items"][0]["index"] == 0
+    assert payload["items"][1]["evidence"]["cell"]["code"] == "03.02"
+    assert [item.choice for item in result] == ["bundled", "ambiguous"]
+    assert result[0].request_id == "resp-1"
+
+
 class FakeResponses:
     def __init__(self, output: dict[str, Any] | None = None) -> None:
         self.kwargs: dict[str, Any] = {}

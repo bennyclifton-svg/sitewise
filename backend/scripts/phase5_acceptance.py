@@ -633,13 +633,14 @@ async def _timing_ledger(comparison_id: uuid.UUID) -> list[dict[str, Any]]:
 def _assert_pipeline_stages(ledger: list[dict[str, Any]]) -> None:
     required = {
         "run_expectations",
-        "infer_silence",
         "run_analysis",
         "generate_flags",
         "assemble_report_draft",
     }
     seen = {row["stage"] for row in ledger if row["status"] == "done"}
     missing = sorted(required - seen)
+    if not seen.intersection({"infer_silence", "infer_silence_batch"}):
+        missing.append("infer_silence/infer_silence_batch")
     if missing:
         raise RuntimeError(f"TCM pipeline skipped required stages: {missing}")
 

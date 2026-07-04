@@ -1,4 +1,5 @@
 import { getAccessToken } from "@/lib/auth";
+import type { AgentModelsResponse } from "@/lib/agent-model";
 import { workflowChatModelPayload, type ChatModelsResponse } from "@/lib/chat-model";
 import { env } from "@/lib/env";
 import { ApiError, httpRequest } from "@/lib/http";
@@ -33,6 +34,7 @@ import type {
   InboxUploadResult,
   PdfAnalyzeResult,
   PlatformKnowledgeStatus,
+  ProjectActivityResponse,
   ProjectCockpitBootstrap,
   ProjectDetail,
   ProjectSummary,
@@ -358,6 +360,14 @@ export const api = {
   ): Promise<ProjectWorkspaceTree> =>
     api.get<ProjectWorkspaceTree>(`/projects/${projectId}/workspace-tree`),
 
+  getProjectActivity: async (
+    projectId: string,
+    since?: string,
+  ): Promise<ProjectActivityResponse> =>
+    api.get<ProjectActivityResponse>(
+      `/projects/${projectId}/activity${since ? `?since=${encodeURIComponent(since)}` : ""}`,
+    ),
+
   getWorkbookPreview: async (
     projectId: string,
     workspacePath: string,
@@ -444,6 +454,9 @@ export const api = {
 
   getLlmModels: async (): Promise<ChatModelsResponse> =>
     api.get<ChatModelsResponse>("/config/llm/models"),
+
+  getAgentModels: async (): Promise<AgentModelsResponse> =>
+    api.get<AgentModelsResponse>("/config/agent/models"),
 
   getBillingPlans: async (): Promise<BillingPlansResponse> =>
     api.get<BillingPlansResponse>("/billing/plans", { auth: false }),

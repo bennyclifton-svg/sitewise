@@ -20,6 +20,8 @@ const WORKFLOW_SLUG_TO_TILE: Record<string, string> = {
 
 const IMPLEMENTED_TILES = new Set(["create-pmp", "cost-plan", "document-intake"]);
 
+const DRAFT_WORKFLOW_TILES = new Set(["create-pmp", "cost-plan"]);
+
 export function resolveWorkflowTileId(relatedWorkflows: string[]): string | null {
   for (const slug of relatedWorkflows) {
     const tileId = WORKFLOW_SLUG_TO_TILE[slug];
@@ -51,7 +53,9 @@ export function handleWorkspaceNodeSelect(
   const tileId = resolveWorkflowTileId(node.related_workflows);
   if (tileId) {
     callbacks.onOpenWorkflow(tileId);
-    callbacks.onViewWorkbench();
+    if (!DRAFT_WORKFLOW_TILES.has(tileId)) {
+      callbacks.onViewWorkbench();
+    }
     return;
   }
   callbacks.onViewFolder();

@@ -1,7 +1,14 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { CircleStop, Send } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { ArrowDown, CircleStop, Send } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
@@ -12,6 +19,10 @@ import { UserMessage } from "@/components/chat/UserMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import {
+  getSelectedAgentModel,
+  subscribeSelectedAgentModel,
+} from "@/lib/agent-model";
 import { getAccessToken } from "@/lib/auth";
 import {
   artefactsFromMessage,
@@ -62,6 +73,8 @@ export function ChatPanel({
   const [input, setInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
   const persistedMessageData = useMemo(
     () => messageDataById(initialMessages),
     [initialMessages],
@@ -69,6 +82,11 @@ export function ChatPanel({
   const chatModel = useSyncExternalStore(
     subscribeSelectedChatModel,
     getSelectedChatModel,
+    () => null,
+  );
+  const agentModel = useSyncExternalStore(
+    subscribeSelectedAgentModel,
+    getSelectedAgentModel,
     () => null,
   );
 
@@ -96,11 +114,17 @@ export function ChatPanel({
           ...body,
           thread_id: id,
           messages,
-          ...(!agentMode && selectedModel ? { chat_model: selectedModel } : {}),
+          ...(agentMode
+            ? agentModel
+              ? { agent_model: agentModel }
+              : {}
+            : selectedModel
+              ? { chat_model: selectedModel }
+              : {}),
         },
       }),
     });
-  }, [agentMode, crossProject, chatModel]);
+  }, [agentMode, crossProject, chatModel, agentModel]);
 
   const { messages, sendMessage, status, error, stop } = useChat({
     id: threadId,
@@ -128,6 +152,29 @@ export function ChatPanel({
 
   const isBusy = status === "submitted" || status === "streaming";
   const chatError = error ? classifyChatError(error) : null;
+
+  const updateScrollButton = useCallback(() => {
+    const history = historyRef.current;
+    if (!history) return;
+    const distanceFromBottom =
+      history.scrollHeight - history.clientHeight - history.scrollTop;
+    setShowScrollButton(distanceFromBottom > 32);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const history = historyRef.current;
+    if (!history) return;
+    history.scrollTop = history.scrollHeight;
+    setShowScrollButton(false);
+  }, []);
+
+  useEffect(() => {
+    if (isBusy || !showScrollButton) {
+      scrollToBottom();
+      return;
+    }
+    updateScrollButton();
+  }, [isBusy, messages, scrollToBottom, showScrollButton, updateScrollButton]);
 
   const { artefactsByMessageId, toolEventsByMessageId } = useMemo(() => {
     const nextTools = new Map<string, ToolStatusEvent[]>();
@@ -164,9 +211,16 @@ export function ChatPanel({
     }
   }
 
+  const shellClass = compact
+    ? "grid min-h-0 gap-4"
+    : "grid min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]";
+  const chatColumnClass = compact
+    ? "flex h-[min(30rem,calc(100vh-10rem))] min-h-[18rem] min-w-0 flex-col gap-4"
+    : "flex h-[min(42rem,calc(100vh-16rem))] min-h-[28rem] min-w-0 flex-col gap-4";
+
   return (
-    <div className={compact ? "grid gap-4" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"}>
-      <div className="flex min-h-[28rem] flex-col gap-4">
+    <div className={shellClass}>
+      <div className={chatColumnClass}>
         {showScopeControls ? (
           <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs">
             <div className="min-w-0">
@@ -192,43 +246,65 @@ export function ChatPanel({
           </div>
         ) : null}
 
-        <div className="flex-1 space-y-3 overflow-y-auto rounded-md border p-4">
-          {messages.length === 0 ? (
-            <ChatEmptyState variant={isFirstConversation ? "first-time" : "thread"} />
-          ) : (
-            messages.map((message) => {
-              const text = message.parts
-                .filter((part) => part.type === "text")
-                .map((part) => part.text)
-                .join("");
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={historyRef}
+            role="log"
+            aria-label="Conversation history"
+            onScroll={updateScrollButton}
+            className="h-full min-h-0 space-y-3 overflow-y-auto rounded-md border p-4 scroll-smooth"
+          >
+            {messages.length === 0 ? (
+              <ChatEmptyState variant={isFirstConversation ? "first-time" : "thread"} />
+            ) : (
+              messages.map((message) => {
+                const text = message.parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("");
 
-              if (message.role === "assistant") {
-                return (
-                  <AssistantMessage
-                    key={message.id}
-                    message={message}
-                    messageData={persistedMessageData.get(message.id)}
-                    toolEvents={toolEventsByMessageId.get(message.id)}
-                    artefacts={artefactsByMessageId.get(message.id)}
-                    projectId={projectId}
-                    selectedCitationId={selectedCitation?.sourceId ?? null}
-                    onSelectCitation={setSelectedCitation}
-                  />
-                );
-              }
+                if (message.role === "assistant") {
+                  return (
+                    <AssistantMessage
+                      key={message.id}
+                      message={message}
+                      messageData={persistedMessageData.get(message.id)}
+                      toolEvents={toolEventsByMessageId.get(message.id)}
+                      artefacts={artefactsByMessageId.get(message.id)}
+                      projectId={projectId}
+                      selectedCitationId={selectedCitation?.sourceId ?? null}
+                      onSelectCitation={setSelectedCitation}
+                    />
+                  );
+                }
 
-              return <UserMessage key={message.id} text={text} />;
-            })
-          )}
+                return <UserMessage key={message.id} text={text} />;
+              })
+            )}
 
-          {isBusy ? <StreamingIndicator message={statusMessage} /> : null}
+            {isBusy ? <StreamingIndicator message={statusMessage} /> : null}
+          </div>
+
+          {showScrollButton ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="absolute right-3 bottom-3 shadow-md"
+              aria-label="Scroll to latest message"
+              title="Scroll to latest message"
+              onClick={scrollToBottom}
+            >
+              <ArrowDown className="size-4" aria-hidden />
+            </Button>
+          ) : null}
         </div>
 
         {chatError ? (
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />
         ) : null}
 
-        <form className="flex gap-2" onSubmit={(event) => void handleSubmit(event)}>
+        <form className="flex shrink-0 gap-2" onSubmit={(event) => void handleSubmit(event)}>
           <Input
             value={input}
             onChange={(event) => setInput(event.target.value)}

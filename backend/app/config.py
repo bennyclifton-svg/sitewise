@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     assistant_passage_content_chars: int = 800
     whole_document_content_chars: int = 12000
     whole_document_passage_limit: int = 3
+    # The assembled doctrine core (preamble + cross-cutting rules) runs ~13.8k
+    # chars, so it carries its own cap rather than the 12k whole-document one.
+    doctrine_core_content_chars: int = 16000
+    agent_history_message_limit: int = 12
+    agent_history_message_chars: int = 1500
     openai_rate_limit_max_retries: int = 5
     pmp_hybrid_compiler: bool = True
     cost_plan_hybrid_compiler: bool = True
@@ -89,6 +94,7 @@ class Settings(BaseSettings):
     hermes_invocation_mode: str = "chat_stream"
     hermes_model_provider: str = "openai-api"
     hermes_model: str = "gpt-5.1"
+    hermes_model_options: str = "openai-codex:gpt-5.5:gpt-5.5 (Codex)"
     agent_platform_api_key: str | None = None
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"
     agent_max_concurrent_turns: int = 4

@@ -31,6 +31,11 @@ BODY = {
     ],
 }
 
+BODY_WITH_AGENT_MODEL = {
+    **BODY,
+    "agent_model": "openai-codex:gpt-5.5",
+}
+
 
 def _thread(
     *,
@@ -182,13 +187,23 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
             created_at=NOW,
         )
 
-    async def fake_stream_hermes_turn(*, prompt, mcp_url, turn_token, cwd):
+    async def fake_stream_hermes_turn(
+        *,
+        prompt,
+        mcp_url,
+        turn_token,
+        cwd,
+        provider=None,
+        model=None,
+    ):
         seen.update(
             {
                 "prompt": prompt,
                 "mcp_url": mcp_url,
                 "turn_token": turn_token,
                 "cwd": cwd,
+                "provider": provider,
+                "model": model,
             }
         )
         yield "Hello"
@@ -198,6 +213,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
 
     monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
+    monkeypatch.setattr(settings, "hermes_model_options", "openai-codex:gpt-5.5")
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
@@ -215,7 +231,26 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     monkeypatch.setattr(
         chat_api,
         "require_project_owner",
-        AsyncMock(return_value=SimpleNamespace(id=PROJECT_ID)),
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                archetype="new-dwelling",
+                user_role="builder",
+                state="NSW",
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        chat_api,
+        "list_messages",
+        AsyncMock(
+            return_value=[
+                SimpleNamespace(role="user", content="What quotes do we have?"),
+                SimpleNamespace(
+                    role="assistant", content="Three structural quotes are on file."
+                ),
+            ]
+        ),
     )
     monkeypatch.setattr(chat_api, "update_thread", AsyncMock(return_value=thread))
     monkeypatch.setattr(
@@ -231,7 +266,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         lambda: _SessionFactory(assistant_session),
     )
 
-    with client.stream("POST", "/chat/agent/stream", json=BODY) as response:
+    with client.stream("POST", "/chat/agent/stream", json=BODY_WITH_AGENT_MODEL) as response:
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
@@ -239,11 +274,27 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     assert "Hello" in body
     assert '"type":"finish"' in body
     assert "[DONE]" in body
+    expected_prompt = (
+        "<project-context>\n"
+        "archetype: new-dwelling\n"
+        "user_role: builder\n"
+        "state: NSW\n"
+        "</project-context>\n"
+        "\n"
+        "<recent-conversation>\n"
+        "user: What quotes do we have?\n"
+        "assistant: Three structural quotes are on file.\n"
+        "</recent-conversation>\n"
+        "\n"
+        "Compare the tender quotes"
+    )
     assert seen == {
-        "prompt": "Compare the tender quotes",
+        "prompt": expected_prompt,
         "mcp_url": "http://testserver/mcp",
         "turn_token": "turn-token",
         "cwd": str(tmp_path / str(PROJECT_ID)),
+        "provider": "openai-codex",
+        "model": "gpt-5.5",
     }
     token_mint.assert_called_once()
     assert token_mint.call_args.kwargs["user_id"] == USER_ID

@@ -1,8 +1,37 @@
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useSyncExternalStore, useState, type ReactNode } from "react";
 
+import { CockpitPanelResizeHandle } from "@/components/project/CockpitPanelResizeHandle";
+import { CockpitShellResizeProvider } from "@/components/project/CockpitShellResizeProvider";
+import {
+  clampPanelWidth,
+  COCKPIT_LEFT_PANEL_DEFAULT_WIDTH,
+  COCKPIT_LEFT_PANEL_MAX_WIDTH,
+  COCKPIT_LEFT_PANEL_MIN_WIDTH,
+  COCKPIT_LEFT_PANEL_WIDTH_KEY,
+  COCKPIT_REPO_PANEL_DEFAULT_WIDTH,
+  COCKPIT_REPO_PANEL_MAX_WIDTH,
+  COCKPIT_REPO_PANEL_MIN_WIDTH,
+  COCKPIT_REPO_PANEL_WIDTH_KEY,
+  readStoredPanelWidth,
+  writeStoredPanelWidth,
+} from "@/components/project/cockpitShellLayout";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+function subscribeToLargeLayout(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia("(min-width: 1024px)");
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getLargeLayoutSnapshot() {
+  return window.matchMedia("(min-width: 1024px)").matches;
+}
+
+function getLargeLayoutServerSnapshot() {
+  return false;
+}
 
 export function ProjectShell({
   leftNav,
@@ -18,20 +47,66 @@ export function ProjectShell({
   onShowWorkbench: () => void;
 }) {
   const [repoCollapsed, setRepoCollapsed] = useState(false);
+  const [leftWidth, setLeftWidth] = useState(() =>
+    readStoredPanelWidth(COCKPIT_LEFT_PANEL_WIDTH_KEY, COCKPIT_LEFT_PANEL_DEFAULT_WIDTH),
+  );
+  const [repoWidth, setRepoWidth] = useState(() =>
+    readStoredPanelWidth(COCKPIT_REPO_PANEL_WIDTH_KEY, COCKPIT_REPO_PANEL_DEFAULT_WIDTH),
+  );
+  const largeLayout = useSyncExternalStore(
+    subscribeToLargeLayout,
+    getLargeLayoutSnapshot,
+    getLargeLayoutServerSnapshot,
+  );
+
+  function resizeLeftPanel(deltaX: number) {
+    setLeftWidth((current) => {
+      const next = clampPanelWidth(
+        current + deltaX,
+        COCKPIT_LEFT_PANEL_MIN_WIDTH,
+        COCKPIT_LEFT_PANEL_MAX_WIDTH,
+      );
+      writeStoredPanelWidth(COCKPIT_LEFT_PANEL_WIDTH_KEY, next);
+      return next;
+    });
+  }
+
+  function resizeRepoPanel(deltaX: number) {
+    setRepoWidth((current) => {
+      const next = clampPanelWidth(
+        current - deltaX,
+        COCKPIT_REPO_PANEL_MIN_WIDTH,
+        COCKPIT_REPO_PANEL_MAX_WIDTH,
+      );
+      writeStoredPanelWidth(COCKPIT_REPO_PANEL_WIDTH_KEY, next);
+      return next;
+    });
+  }
+
+  const shellColumns = largeLayout
+    ? repoCollapsed
+      ? `${leftWidth}px minmax(0, 1fr) 0px`
+      : `${leftWidth}px minmax(0, 1fr) ${repoWidth}px`
+    : undefined;
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen bg-secondary lg:h-screen lg:overflow-hidden">
       <div
         className={cn(
-          "cockpit-shell grid min-h-screen max-lg:grid-cols-1",
+          "cockpit-shell grid min-h-screen max-lg:grid-cols-1 lg:h-full lg:min-h-0 lg:overflow-hidden",
           repoCollapsed && "cockpit-shell--repo-collapsed max-lg:grid-cols-1",
         )}
+        style={shellColumns ? { gridTemplateColumns: shellColumns } : undefined}
       >
-        <aside className="min-w-0 border-b bg-card lg:border-r lg:border-b-0">
-          {leftNav}
+        <aside className="relative min-w-0 border-b bg-background lg:h-full lg:min-h-0 lg:overflow-hidden lg:border-b-0">
+          <CockpitShellResizeProvider
+            onResizeLeftPanel={largeLayout ? resizeLeftPanel : undefined}
+          >
+            {leftNav}
+          </CockpitShellResizeProvider>
         </aside>
 
-        <main className="relative flex min-h-[48rem] min-w-0 flex-col bg-background">
+        <main className="relative flex min-h-[48rem] min-w-0 flex-col bg-background lg:h-full lg:min-h-0 lg:max-h-full">
           <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
             <button
               type="button"
@@ -65,10 +140,17 @@ export function ProjectShell({
 
         <aside
           className={cn(
-            "min-w-0 border-t bg-background lg:border-t-0 lg:border-l",
+            "relative min-w-0 border-t bg-background lg:h-full lg:min-h-0 lg:overflow-hidden lg:border-t-0",
             repoCollapsed && "cockpit-panel-collapsed max-lg:hidden",
           )}
         >
+          {!repoCollapsed ? (
+            <CockpitPanelResizeHandle
+              ariaLabel="Resize documents panel"
+              edge="start"
+              onResize={resizeRepoPanel}
+            />
+          ) : null}
           {repository}
         </aside>
       </div>

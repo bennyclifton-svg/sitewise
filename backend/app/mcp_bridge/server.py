@@ -32,9 +32,16 @@ from app.database.workspace_files import (
     get_workspace_file_by_path,
     list_workspace_files_for_project,
 )
+from app.config import settings
 from app.mcp_bridge.auth import ToolAuthError, authorize_project_access_with_claims
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
+from app.sitewise.gate import format_overlay_failure, overlay_status
+from app.sitewise.knowledge_catalog import (
+    list_platform_knowledge as catalog_platform_knowledge,
+    load_sections as load_platform_sections,
+    select_required_paths,
+)
 from tender.router import (
     create_comparison,
     create_quote,
@@ -776,6 +783,9 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
                 query,
                 filters=RetrievalFilters(
                     active_project=project.slug,
+                    # Platform knowledge stays out of evidence search by design:
+                    # it arrives through list/read_platform_knowledge so the
+                    # evidence-beats-seed authority stack stays structural.
                     include_platform_knowledge=False,
                 ),
                 include_neighbours=False,
@@ -784,3 +794,126 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
             {"document": p.filename, "snippet": p.content, "score": p.score}
             for p in passages
         ]
+
+
+@mcp.tool
+async def list_platform_knowledge(project_id: str, topics: list[str] | None = None) -> dict:
+    """Catalog SiteWise platform knowledge (doctrine + seed guides) for this project.
+
+    Applies the three-overlay gate: if the project has not declared archetype,
+    user_role, and state, no knowledge is listed — resolve the gate with the
+    user first. When the gate passes, returns the mandatory reading list per
+    workflow and the guides that apply to the declared overlays (metadata and
+    section IDs only — load content with read_platform_knowledge). Optionally
+    filter by topics (e.g. ["cost", "programme"]). Platform knowledge informs
+    drafting; project evidence always beats it.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        project = authorization.project
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="list_platform_knowledge",
+            running="Listing platform knowledge",
+            done="Listed platform knowledge",
+            error="Platform knowledge listing failed",
+        ):
+            status = overlay_status(
+                archetype=project.archetype,
+                user_role=project.user_role,
+                state=project.state,
+            )
+            gate = {
+                "archetype": project.archetype,
+                "user_role": project.user_role,
+                "state": project.state,
+                "ready": status.ready,
+                "issues": [issue.model_dump() for issue in status.issues],
+            }
+            if not status.ready:
+                return {
+                    "gate": gate,
+                    "message": format_overlay_failure(
+                        status, workflow="Platform knowledge access"
+                    ),
+                    "required": {},
+                    "available": [],
+                }
+            required = {
+                workflow: select_required_paths(
+                    workflow=workflow,
+                    archetype=project.archetype,
+                    user_role=project.user_role,
+                )
+                for workflow in ("create-pmp", "create-cost-plan")
+            }
+            available = await catalog_platform_knowledge(
+                session,
+                archetype=project.archetype,
+                user_role=project.user_role,
+                topics=topics,
+            )
+        return {"gate": gate, "required": required, "available": available}
+
+
+@mcp.tool
+async def read_platform_knowledge(
+    project_id: str, path: str, section_ids: list[str] | None = None
+) -> dict:
+    """Read a platform knowledge document, whole or by targeted sections.
+
+    Use paths and section IDs from list_platform_knowledge. Reading the
+    doctrine without section_ids serves its core (authority stack and
+    cross-cutting rules); stage sections (e.g. "01-cost", "07-construction")
+    load by section ID. Cite the source path in any output that uses this
+    content, and record it as consulted knowledge, not project evidence.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="read_platform_knowledge",
+            running=f"Reading platform knowledge: {path}",
+            done=f"Read platform knowledge: {path}",
+            error="Platform knowledge read failed",
+        ) as extra:
+            loaded = await load_platform_sections(
+                session,
+                path,
+                section_ids,
+                max_chars=settings.whole_document_content_chars,
+            )
+            if loaded is None:
+                raise ToolError(
+                    f"Platform document not in the corpus: {path}. "
+                    "Check the path against list_platform_knowledge."
+                )
+            # The Hermes analog of the deterministic workflows' seed_consulted
+            # audit: every knowledge read is visible on the turn's status feed.
+            extra["knowledge_path"] = path
+            extra["section_ids"] = section_ids or []
+        if loaded.passage is None:
+            return {
+                "path": path,
+                "error": "unknown_sections",
+                "missing_sections": loaded.missing_sections,
+                "available_sections": loaded.available_sections,
+            }
+        return {
+            "path": path,
+            "section_ids": section_ids or [],
+            "available_sections": loaded.available_sections,
+            "content": loaded.passage.content,
+        }

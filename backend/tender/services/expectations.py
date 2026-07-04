@@ -249,15 +249,18 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
         session.add(_cell_status_model(draft))
     for row_state, draft in merge.updates:
         _apply_draft(models_by_key[(row_state.comparison_id, row_state.quote_id, row_state.cell_code)], draft)
+    silence_jobs_by_quote: dict[uuid.UUID, list[CellStatusDraft]] = defaultdict(list)
     for draft in merge.silence_jobs:
+        silence_jobs_by_quote[draft.quote_id].append(draft)
+
+    for quote_id, drafts in silence_jobs_by_quote.items():
         session.add(
             TenderJob(
-                kind="infer_silence",
-                comparison_id=draft.comparison_id,
-                quote_id=draft.quote_id,
+                kind="infer_silence_batch",
+                comparison_id=job.comparison_id,
+                quote_id=quote_id,
                 payload={
-                    "cell_code": draft.cell_code,
-                    "expected_because": draft.evidence.get("expected_because", []),
+                    "cell_codes": sorted(draft.cell_code for draft in drafts),
                 },
             )
         )

@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.activity_events import record_activity_events
 from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact, next_draft_version
 from app.database.project import Project
@@ -57,6 +58,41 @@ def _rows(result: SortFilesResult) -> list[SortFileRow]:
     ]
 
 
+def _record_status(outcome: str) -> str:
+    if outcome in {"moved", "already-filed"}:
+        return "complete"
+    if outcome == "unresolved":
+        return "blocked"
+    if outcome in {"refused", "skipped"}:
+        return outcome
+    return "complete"
+
+
+def _record_message(record) -> str:
+    if record.destination_path:
+        return f"{record.filename}: {record.outcome} to {record.destination_path}."
+    return f"{record.filename}: {record.reason or record.outcome}."
+
+
+def _record_trace_events(result: SortFilesResult) -> list[WorkflowTraceEvent]:
+    return [
+        _trace(
+            "file",
+            _record_status(record.outcome),
+            _record_message(record),
+            source_path=record.source_path,
+            destination_path=record.destination_path,
+            outcome=record.outcome,
+            reason=record.reason,
+            document_number=record.document_number,
+            title=record.title,
+            revision=record.revision,
+            category=record.category,
+        )
+        for record in result.records
+    ]
+
+
 async def run_sort_files_workflow(
     session: AsyncSession,
     *,
@@ -65,6 +101,7 @@ async def run_sort_files_workflow(
     thread_id: uuid.UUID | None,
 ) -> SortFilesResponse:
     trace: list[WorkflowTraceEvent] = []
+    run_id = uuid.uuid4()
 
     gate = overlay_status(
         archetype=project.archetype,
@@ -76,6 +113,8 @@ async def run_sort_files_workflow(
         trace.append(_trace("gate", "blocked", message))
         await _persist_trace_message(
             session,
+            project_id=project.id,
+            run_id=run_id,
             thread_id=thread_id,
             content=message,
             trace=trace,
@@ -114,6 +153,7 @@ async def run_sort_files_workflow(
             already_filed=result.counts.already_filed,
         )
     )
+    trace.extend(_record_trace_events(result))
 
     draft = await create_draft_artifact(
         session,
@@ -151,6 +191,8 @@ async def run_sort_files_workflow(
     )
     await _persist_trace_message(
         session,
+        project_id=project.id,
+        run_id=run_id,
         thread_id=thread_id,
         content=message,
         trace=trace,
@@ -173,12 +215,23 @@ async def run_sort_files_workflow(
 async def _persist_trace_message(
     session: AsyncSession,
     *,
+    project_id: uuid.UUID,
+    run_id: uuid.UUID,
     thread_id: uuid.UUID | None,
     content: str,
     trace: list[WorkflowTraceEvent],
     status: str,
     draft_id: uuid.UUID | None = None,
 ) -> None:
+    await record_activity_events(
+        session,
+        project_id=project_id,
+        source=WORKFLOW_TYPE,
+        run_id=run_id,
+        reference_type="draft_artifact" if draft_id else None,
+        reference_id=draft_id,
+        events=trace,
+    )
     if thread_id is None:
         return
     await create_message(

@@ -45,6 +45,16 @@ RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh -o /tmp/hermes-i
 RUN addgroup --system sitewise \
     && adduser --system --ingroup sitewise --home /home/sitewise sitewise \
     && mkdir -p /opt/hermes /app/agent-workspaces \
+    && printf '%s\n' \
+        'model:' \
+        '  provider: openai-api' \
+        '  default: gpt-5.1' \
+        'mcp_servers:' \
+        '  clerk:' \
+        '    url: "http://127.0.0.1:8000/mcp"' \
+        '    headers:' \
+        '      Authorization: "Bearer ${AGENT_TURN_TOKEN}"' \
+        > /opt/hermes/config.yaml \
     && chown -R sitewise:sitewise /opt/hermes /app/agent-workspaces
 
 COPY --from=builder --chown=sitewise:sitewise /app/backend /app/backend

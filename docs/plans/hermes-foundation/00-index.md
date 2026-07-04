@@ -72,3 +72,8 @@ tests and migration verification. A real Stripe test-mode Checkout created a
 subscription, the webhook flipped entitlement active, Customer Portal
 cancellation sent subscription update webhooks, and the canceled subscription
 blocked subscribed-only actions with 402. Phase 8 may begin.
+
+Phase 8 deploy scaffolding is implemented as of 2026-07-04. The backend image,
+Dokploy compose, nginx config, production env examples, and VPS validation
+script are ready. The live `sitewise.au` production acceptance gate is still
+pending, so Phase 8.5 legacy deletion has not started.

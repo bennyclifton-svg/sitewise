@@ -12,12 +12,13 @@ The deployed shape is a Dokploy compose app with:
 - external Docker network `sitewise-public`
 - hosted Supabase for Auth, Postgres, and Storage
 
-Polar billing exists in the current runtime and deployment env. It is not the
-final billing direction. Phase 7 swaps billing to Stripe behind the existing
-entitlement seam, and Phase 8 removes Polar after production acceptance.
+Stripe is the Phase 7+ billing provider. Polar remains importable and disabled
+as a safety valve until the Phase 8.5 cutover gate passes.
 
-Hermes is not bundled in the backend image yet. Phase 8 adds Hermes CLI, MCP
-runtime validation, an agent workspace volume, and final Linux acceptance.
+The Phase 8 deploy scaffold bundles Hermes CLI, MCP runtime config, an agent
+workspace volume, and a separate Tender Comparison worker. Final Linux
+acceptance still has to run against the live `sitewise.au` deployment before
+legacy code is deleted.
 
 ## Phase 8 Target
 
@@ -39,7 +40,8 @@ Phase 8 deploys the agent-first product to `sitewise.au`:
 
 | Service | Role |
 | --- | --- |
-| `sitewise-api` | FastAPI API, TCM router, billing, and later Hermes/MCP runtime |
+| `sitewise-api` | FastAPI API, TCM router, billing, Hermes/MCP runtime |
+| `sitewise-worker` | Tender Comparison worker running `python -m tender.worker` |
 | `sitewise-web` | Static React SPA and nginx proxy to FastAPI |
 | Supabase | Auth, Postgres, and object storage |
 | Stripe | Phase 7 billing provider |
@@ -60,7 +62,7 @@ Current required backend values:
 - `PUBLIC_APP_URL=https://sitewise.au`
 - `ALLOWED_ORIGINS=https://sitewise.au`
 
-Current legacy billing values, retained until Phase 7/8:
+Legacy billing values, retained disabled until Phase 8.5:
 
 - `POLAR_ENABLED`
 - `POLAR_ENVIRONMENT`
@@ -112,7 +114,13 @@ Frontend build values:
 
 ## Phase 8 Linux Validation
 
-On the real host or staging app, validate:
+On the real host or staging app, run:
+
+```powershell
+./scripts/sitewise-vps-phase8-validate.ps1
+```
+
+The script writes `tmp/sitewise-vps-phase8-validate-*.txt` and validates:
 
 - backend container starts and `/health` responds
 - Hermes headless turn works in-container
@@ -121,7 +129,9 @@ On the real host or staging app, validate:
 - ODL/JVM extraction works
 - Tender worker drains jobs
 - Stripe webhook updates entitlement state
-- full flagship demo completes on `sitewise.au`
+- production container env is present without printing secrets
+
+Then manually validate that the full flagship demo completes on `sitewise.au`.
 
 Record Phase 8 findings in `docs/plans/omnigent/phase8-deploy.md` when that
 phase is executed.
@@ -154,4 +164,3 @@ Phase 8 smoke path:
 
 Use Dokploy rollback to return to the previous working images. Keep Supabase data
 untouched unless a migration rollback has been explicitly planned and tested.
-

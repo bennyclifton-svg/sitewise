@@ -100,5 +100,100 @@ def test_cell_status_merge_is_idempotent_and_protects_reviewed_rows() -> None:
     assert second.silence_jobs == []
 
 
+def test_run_expectations_queues_one_silence_batch_per_quote(monkeypatch) -> None:
+    comparison_id = uuid.uuid4()
+    quote_a = uuid.uuid4()
+    quote_b = uuid.uuid4()
+    jobs_added = []
+
+    class _Session:
+        def add(self, value):
+            jobs_added.append(value)
+
+        async def flush(self):
+            return None
+
+    monkeypatch.setattr(
+        expectations,
+        "_comparison",
+        lambda _session, _comparison_id: _awaitable(
+            type(
+                "Comparison",
+                (),
+                {
+                    "id": comparison_id,
+                    "context": {
+                        "state": "NSW",
+                        "region": "metro",
+                        "build_type": "new_build",
+                        "dwelling_class": "class_1a",
+                        "storeys": 1,
+                        "soil_class": "M",
+                        "slope_class": "flat",
+                        "bal_rating": "none",
+                        "spec_level": "builder_base",
+                    },
+                    "status": "intake",
+                },
+            )()
+        ),
+    )
+    monkeypatch.setattr(
+        expectations,
+        "evaluate_rules",
+        lambda *_args, **_kwargs: [
+            expectations.FiredRule("R1", "03.01", "must", None),
+            expectations.FiredRule("R2", "03.02", "must", None),
+        ],
+    )
+    scalar_results = [
+        [],
+        [
+            type("Quote", (), {"id": quote_a})(),
+            type("Quote", (), {"id": quote_b})(),
+        ],
+        [],
+    ]
+    monkeypatch.setattr(
+        expectations,
+        "_scalars",
+        lambda *_args, **_kwargs: _awaitable(scalar_results.pop(0)),
+    )
+    monkeypatch.setattr(
+        expectations,
+        "_mapped_items_for_comparison",
+        lambda *_args, **_kwargs: _awaitable([]),
+    )
+
+    from tests.conftest import run_async
+
+    run_async(
+        expectations.run_expectations(
+            _Session(),
+            type(
+                "Job",
+                (),
+                {
+                    "comparison_id": comparison_id,
+                    "payload": {},
+                },
+            )(),
+        )
+    )
+
+    silence_jobs = [
+        job
+        for job in jobs_added
+        if getattr(job, "kind", None) == "infer_silence_batch"
+    ]
+    assert len(silence_jobs) == 2
+    assert {job.quote_id for job in silence_jobs} == {quote_a, quote_b}
+    assert all(job.payload == {"cell_codes": ["03.01", "03.02"]} for job in silence_jobs)
+
+
+async def _awaitable(value):
+    return value
+
+
 def test_worker_registers_run_expectations_handler() -> None:
     assert worker.HANDLERS["run_expectations"] is expectations.run_expectations

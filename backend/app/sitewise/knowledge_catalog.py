@@ -28,6 +28,7 @@ from app.retrieval.whole_document import (
     _document_columns,
     _platform_scope_filter,
     _row_to_passage,
+    doctrine_passage_content,
 )
 from app.sitewise.markdown_sections import (
     assemble_sections,
@@ -274,11 +275,15 @@ async def load_sections(
     available = list_section_ids(full_text)
 
     requested = [ref.strip() for ref in section_ids or [] if ref.strip()]
+    passage = _row_to_passage(row, max_chars=max_chars, terms=[])
     if not requested:
-        passage = _row_to_passage(row, max_chars=max_chars, terms=[])
-        capped = SourcePassage(
-            **{**passage.model_dump(), "content": full_text[:max_chars]}
-        )
+        if row.source_type == "doctrine":
+            # A whole-doctrine read serves the core (disciplines), not the
+            # accidental first max_chars; stage sections load by section ID.
+            content, _ = doctrine_passage_content(full_text, max_chars=max_chars)
+        else:
+            content = full_text[:max_chars]
+        capped = passage.model_copy(update={"content": content})
         return LoadedKnowledge(passage=capped, missing_sections=[], available_sections=available)
 
     assembled = assemble_sections(full_text, requested, max_chars=max_chars)
@@ -288,10 +293,8 @@ async def load_sections(
             passage=None, missing_sections=missing, available_sections=available
         )
 
-    passage = _row_to_passage(row, max_chars=max_chars, terms=[])
-    section_passage = SourcePassage(
-        **{
-            **passage.model_dump(),
+    section_passage = passage.model_copy(
+        update={
             "content": assembled,
             "chunk_metadata": {"whole_document": True, "section_ids": requested},
         }

@@ -23,7 +23,7 @@ async def after_job_complete(
     try:
         if job_kind == "map_items":
             await _enqueue_expectations_if_ready(session, comparison_id=comparison_id)
-        elif job_kind == "infer_silence":
+        elif job_kind in {"infer_silence", "infer_silence_batch"}:
             await _enqueue_analysis_if_ready(session, comparison_id=comparison_id)
     finally:
         in_transaction = session.in_transaction()
@@ -83,6 +83,10 @@ async def _enqueue_analysis_if_ready(
         session,
         comparison_id=comparison_id,
         kind="infer_silence",
+    ) or await _has_active_jobs(
+        session,
+        comparison_id=comparison_id,
+        kind="infer_silence_batch",
     ):
         return
     if await _has_existing_job(

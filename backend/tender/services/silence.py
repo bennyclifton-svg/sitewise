@@ -160,15 +160,17 @@ async def infer_silence_from_packet(
     packet: EvidencePacket,
     context: ProjectContext,
     *,
-    llm_client: TenderLLMClient,
+    llm_client: TenderLLMClient | None = None,
 ) -> SilenceDecision:
     if packet.explicit_exclusion is not None:
         decision = _explicit_exclusion_decision(packet)
+    elif (decision := deterministic_silence_decision(packet)) is not None:
+        pass
     else:
         decision = await adjudicate_silence_packet(
             packet,
             context,
-            llm_client=llm_client,
+            llm_client=llm_client or _default_llm_client(),
         )
     apply_silence_decision(row, decision)
     return decision
@@ -202,9 +204,124 @@ async def infer_silence(
         row,
         packet,
         context,
-        llm_client=llm_client or _default_llm_client(),
+        llm_client=llm_client,
     )
     await session.flush()
+
+
+async def infer_silence_batch(
+    session: AsyncSession,
+    job: TenderJob,
+    *,
+    llm_client: TenderLLMClient | None = None,
+) -> None:
+    if job.comparison_id is None or job.quote_id is None:
+        raise ValueError("infer_silence_batch job requires comparison_id and quote_id")
+    cell_codes = (job.payload or {}).get("cell_codes")
+    if (
+        not isinstance(cell_codes, list)
+        or not cell_codes
+        or not all(isinstance(cell_code, str) and cell_code for cell_code in cell_codes)
+    ):
+        raise ValueError("infer_silence_batch job payload requires cell_codes")
+
+    unique_cell_codes = tuple(dict.fromkeys(cell_codes))
+    rows_by_code = await _cell_status_rows(
+        session,
+        job.comparison_id,
+        job.quote_id,
+        unique_cell_codes,
+    )
+    context = await _context_for_quote(session, job.quote_id)
+    line_items = await _line_items(session, job.quote_id)
+    mapped_cells = await _mapped_cells(session, job.comparison_id, job.quote_id)
+    pending: list[tuple[TenderCellStatus, EvidencePacket]] = []
+
+    for cell_code in unique_cell_codes:
+        row = rows_by_code[cell_code]
+        packet = await _packet_from_db(
+            session,
+            row,
+            context,
+            line_items=line_items,
+            mapped_cells=mapped_cells,
+        )
+        if packet.explicit_exclusion is not None:
+            decision = _explicit_exclusion_decision(packet)
+            apply_silence_decision(row, decision)
+            continue
+        deterministic = deterministic_silence_decision(packet)
+        if deterministic is not None:
+            apply_silence_decision(row, deterministic)
+            continue
+        pending.append((row, packet))
+
+    if pending:
+        decisions = await adjudicate_silence_packets(
+            [packet for _, packet in pending],
+            context,
+            llm_client=llm_client or _default_llm_client(),
+        )
+        for (row, _packet), decision in zip(pending, decisions, strict=True):
+            apply_silence_decision(row, decision)
+
+    await session.flush()
+
+
+def deterministic_silence_decision(packet: EvidencePacket) -> SilenceDecision | None:
+    if packet.explicit_exclusion is not None:
+        return _explicit_exclusion_decision(packet)
+    evidence = packet.packet
+    if evidence.get("not_required_candidate") is True:
+        return _deterministic_not_required_decision(packet)
+    if (
+        not evidence.get("explicit_exclusions")
+        and not evidence.get("candidate_ps_lines")
+        and not evidence.get("bundling_parents_present")
+    ):
+        return _deterministic_ambiguous_decision(packet)
+    return None
+
+
+async def adjudicate_silence_packets(
+    packets: Sequence[EvidencePacket],
+    context: ProjectContext,
+    *,
+    llm_client: TenderLLMClient,
+) -> tuple[SilenceDecision, ...]:
+    if not packets:
+        return ()
+
+    adjudicate_many = getattr(llm_client, "adjudicate_many", None)
+    if adjudicate_many is not None:
+        responses = await adjudicate_many(
+            _prompt_text(),
+            ALLOWED_OUTCOMES,
+            [packet.packet for packet in packets],
+            context,
+            prompt_version=PROMPT_VERSION,
+            model_key="tender_model_adjudicate_small",
+        )
+    else:
+        responses = [
+            await llm_client.adjudicate(
+                _prompt_text(),
+                ALLOWED_OUTCOMES,
+                packet.packet,
+                context,
+                prompt_version=PROMPT_VERSION,
+                model_key="tender_model_adjudicate_small",
+            )
+            for packet in packets
+        ]
+    if len(responses) != len(packets):
+        raise ValueError(
+            f"silence batch returned {len(responses)} decisions for {len(packets)} packets"
+        )
+    return tuple(
+        _decision_from_adjudication(packet, response)
+        for packet, response in zip(packets, responses, strict=True)
+    )
 
 
 def _explicit_exclusions(
@@ -432,6 +549,56 @@ def _explicit_exclusion_decision(packet: EvidencePacket) -> SilenceDecision:
     )
 
 
+def _deterministic_not_required_decision(packet: EvidencePacket) -> SilenceDecision:
+    return SilenceDecision(
+        status="not_required",
+        qa_state="needs_review",
+        confidence=1.0,
+        bundled_into_cell=None,
+        evidence={
+            "packet": packet.packet,
+            "adjudication": {
+                "outcome": "not_required",
+                "stored_status": "not_required",
+                "confidence": 1.0,
+                "rationale": "The taxonomy cell applicability predicate does not match the project context.",
+                "model": None,
+                "prompt_version": None,
+                "request_id": None,
+                "cites": [],
+                "downgraded": False,
+                "source": "deterministic_not_required",
+                "review_reason": "silence_never_auto_pass_v1",
+            },
+        },
+    )
+
+
+def _deterministic_ambiguous_decision(packet: EvidencePacket) -> SilenceDecision:
+    return SilenceDecision(
+        status="silent_ambiguous",
+        qa_state="needs_review",
+        confidence=None,
+        bundled_into_cell=None,
+        evidence={
+            "packet": packet.packet,
+            "adjudication": {
+                "outcome": "ambiguous",
+                "stored_status": "silent_ambiguous",
+                "confidence": None,
+                "rationale": "No explicit exclusion, likely provisional sum, likely bundled parent, or not-required signal was found.",
+                "model": None,
+                "prompt_version": None,
+                "request_id": None,
+                "cites": [],
+                "downgraded": False,
+                "source": "deterministic_low_evidence_default",
+                "review_reason": "ambiguous",
+            },
+        },
+    )
+
+
 def _status_for_outcome(outcome: str) -> str:
     return {
         "excluded": "silent_ambiguous",
@@ -473,6 +640,26 @@ async def _cell_status_row(
     return result.scalar_one()
 
 
+async def _cell_status_rows(
+    session: AsyncSession,
+    comparison_id: Any,
+    quote_id: Any,
+    cell_codes: Sequence[str],
+) -> dict[str, TenderCellStatus]:
+    result = await session.execute(
+        select(TenderCellStatus).where(
+            TenderCellStatus.comparison_id == comparison_id,
+            TenderCellStatus.quote_id == quote_id,
+            TenderCellStatus.cell_code.in_(list(cell_codes)),
+        )
+    )
+    rows = {row.cell_code: row for row in result.scalars()}
+    missing = [cell_code for cell_code in cell_codes if cell_code not in rows]
+    if missing:
+        raise ValueError(f"missing tender cell statuses: {', '.join(missing)}")
+    return rows
+
+
 async def _context_for_quote(session: AsyncSession, quote_id: Any) -> ProjectContext:
     return await context_for_quote(session, quote_id)
 
@@ -481,11 +668,20 @@ async def _packet_from_db(
     session: AsyncSession,
     row: TenderCellStatus,
     context: ProjectContext,
+    *,
+    line_items: Sequence[SilenceLineItem] | None = None,
+    mapped_cells: Sequence[SilenceMappedCell] | None = None,
 ) -> EvidencePacket:
     cell_model = await _taxonomy_cell(session, row.cell_code)
     synonyms = await _synonyms(session, row.cell_code)
-    line_items = await _line_items(session, row.quote_id)
-    mapped_cells = await _mapped_cells(session, row.comparison_id, row.quote_id)
+    if line_items is None:
+        line_items = await _line_items(session, row.quote_id)
+    else:
+        line_items = tuple(line_items)
+    if mapped_cells is None:
+        mapped_cells = await _mapped_cells(session, row.comparison_id, row.quote_id)
+    else:
+        mapped_cells = tuple(mapped_cells)
     parent_cells = await _parent_cells(session, cell_model.bundling_parents or ())
     cells_by_code = {
         row.cell_code: _silence_cell_from_model(

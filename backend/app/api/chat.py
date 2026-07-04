@@ -13,8 +13,10 @@ from pydantic_ai.exceptions import ModelHTTPError
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
 from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
+from app.agent.hermes_models import resolve_hermes_model_override
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
+from app.agent.turn_context import HistoryMessage, build_agent_prompt
 from app.agent.workspace_paths import project_workspace_root
 from app.billing.entitlements import require_active_entitlement
 from app.billing.usage import require_turn_within_quota
@@ -297,7 +299,7 @@ async def post_agent_stream(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Hermes agent chat requires a project thread.",
         )
-    await require_project_owner(session, thread.project_id, user.id)
+    project = await require_project_owner(session, thread.project_id, user.id)
     quota_state = await require_turn_within_quota(session, user)
 
     turn_id = uuid.uuid4()
@@ -312,6 +314,21 @@ async def post_agent_stream(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Hermes agent turn tokens are not configured.",
         ) from exc
+
+    # History is read before the new user message is persisted so the window
+    # holds prior turns only; the current message travels as the prompt body.
+    prior_messages = await list_messages(session, thread.id)
+    agent_prompt = build_agent_prompt(
+        user_text,
+        archetype=project.archetype,
+        user_role=project.user_role,
+        state=project.state,
+        history=[
+            HistoryMessage(role=message.role, content=message.content)
+            for message in prior_messages
+        ],
+    )
+    model_override = resolve_hermes_model_override(body.agent_model)
 
     await _persist_agent_user_message(session, thread=thread, user_text=user_text)
     await session.commit()
@@ -335,10 +352,12 @@ async def post_agent_stream(
         async def hermes_chunks() -> AsyncIterator[str]:
             nonlocal completed
             async for chunk in stream_hermes_turn(
-                prompt=user_text,
+                prompt=agent_prompt,
                 mcp_url=settings.agent_mcp_url,
                 turn_token=turn_token,
                 cwd=workspace,
+                provider=model_override.provider if model_override else None,
+                model=model_override.model if model_override else None,
             ):
                 answer_parts.append(chunk)
                 yield chunk

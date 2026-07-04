@@ -5,7 +5,6 @@ import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import { isMarkdownFilename } from "@/lib/markdown";
 import type { EvidencePreview } from "@/lib/types/project";
 
 export function WorkspaceFilePanel({
@@ -29,7 +28,7 @@ export function WorkspaceFilePanel({
         setLoadingDetail(false);
         return;
       }
-      if (!isMarkdownEvidence(evidence) || evidence.content) {
+      if (evidence.content) {
         setDetail(evidence);
         setLoadingDetail(false);
         return;
@@ -94,16 +93,16 @@ export function WorkspaceFilePanel({
         <section className="rounded-md border bg-background">
           <header className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">
-              {isMarkdownEvidence(displayEvidence) ? "Document content" : "Extracted excerpt"}
+              {displayEvidence.content ? "Document content" : "Extracted excerpt"}
             </h2>
           </header>
           {detailError ? (
             <p className="p-4 text-sm text-destructive">{detailError}</p>
-          ) : loadingDetail && isMarkdownEvidence(displayEvidence) ? (
+          ) : loadingDetail ? (
             <p className="p-4 text-sm text-muted-foreground" role="status">
               Loading document content...
             </p>
-          ) : isMarkdownEvidence(displayEvidence) && displayEvidence.content ? (
+          ) : displayEvidence.content ? (
             <div className="p-4">
               <MarkdownContent markdown={displayEvidence.content} />
             </div>
@@ -116,10 +115,6 @@ export function WorkspaceFilePanel({
       </article>
     </section>
   );
-}
-
-function isMarkdownEvidence(item: EvidencePreview): boolean {
-  return isMarkdownFilename(item.filename);
 }
 
 function MetaItem({ label, value }: { label: string; value: string }) {

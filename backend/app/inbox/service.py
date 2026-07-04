@@ -6,15 +6,18 @@ import structlog
 from fastapi import HTTPException, status
 
 from app.config import settings
+from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.workspace_files import get_workspace_file_by_path, upsert_workspace_file
 from app.inbox.paths import InboxPathError, build_inbox_workspace_path, build_storage_key, sanitize_filename
+from app.schemas.projects import WorkflowTraceEvent
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
+ACTIVITY_SOURCE = "document_ingest"
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +43,39 @@ class InboxUploadValidationError(ValueError):
         self.filename = filename
         self.detail = detail
         super().__init__(detail)
+
+
+def _activity_trace(
+    step: str,
+    status: str,
+    message: str,
+    **metadata,
+) -> WorkflowTraceEvent:
+    return WorkflowTraceEvent(
+        step=step,
+        status=status,
+        message=message,
+        metadata={key: value for key, value in metadata.items() if value is not None},
+    )
+
+
+async def _record_file_activity(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    run_id: uuid.UUID,
+    workspace_file_id: uuid.UUID | None,
+    events: list[WorkflowTraceEvent],
+) -> None:
+    await record_activity_events(
+        session,
+        project_id=project_id,
+        source=ACTIVITY_SOURCE,
+        run_id=run_id,
+        reference_type="workspace_file" if workspace_file_id else None,
+        reference_id=workspace_file_id,
+        events=events,
+    )
 
 
 def _extension(filename: str) -> str:
@@ -108,6 +144,7 @@ async def _upload_single_file(
     project: Project,
     item: InboxUploadItem,
 ) -> InboxUploadOutcome:
+    run_id = uuid.uuid4()
     filename = sanitize_filename(item.filename)
     extension = _extension(filename)
     content_hash = bytes_content_hash(item.content)
@@ -126,6 +163,22 @@ async def _upload_single_file(
     )
     if existing is not None and existing.content_hash == content_hash:
         if existing.ingest_status in {"ingested", "skipped"}:
+            await _record_file_activity(
+                session,
+                project_id=project.id,
+                run_id=run_id,
+                workspace_file_id=existing.id,
+                events=[
+                    _activity_trace(
+                        "dedupe",
+                        "skipped",
+                        "Identical content already exists in the project workspace.",
+                        filename=filename,
+                        workspace_path=workspace_path,
+                        ingest_status=existing.ingest_status,
+                    )
+                ],
+            )
             return InboxUploadOutcome(
                 id=existing.id,
                 filename=filename,
@@ -150,6 +203,22 @@ async def _upload_single_file(
             storage_key=storage_key,
             error=str(exc),
         )
+        await _record_file_activity(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            workspace_file_id=None,
+            events=[
+                _activity_trace(
+                    "store",
+                    "failed",
+                    f"Could not store {filename} in project storage.",
+                    filename=filename,
+                    workspace_path=workspace_path,
+                    error=str(exc),
+                )
+            ],
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to store '{filename}' in object storage: {exc}",
@@ -168,12 +237,44 @@ async def _upload_single_file(
         ingest_error=None,
         source_document_id=None,
     )
+    await _record_file_activity(
+        session,
+        project_id=project.id,
+        run_id=run_id,
+        workspace_file_id=record.id,
+        events=[
+            _activity_trace(
+                "store",
+                "complete",
+                "Stored file in the project workspace.",
+                filename=filename,
+                workspace_path=workspace_path,
+                size_bytes=len(item.content),
+            )
+        ],
+    )
 
     ingest_status = "failed"
     ingest_error: str | None = None
     message: str | None = None
+    ingest_events: list[WorkflowTraceEvent] = []
 
     try:
+        def collect_ingest_event(
+            step: str,
+            status: str,
+            message: str,
+            metadata: dict[str, object],
+        ) -> None:
+            ingest_events.append(
+                WorkflowTraceEvent(
+                    step=step,
+                    status=status,
+                    message=message,
+                    metadata=metadata,
+                )
+            )
+
         ingested = await asyncio.to_thread(
             ingest_hosted_file,
             content=item.content,
@@ -183,6 +284,14 @@ async def _upload_single_file(
             filename=filename,
             extension=extension,
             skip_if_unchanged=True,
+            trace_callback=collect_ingest_event,
+        )
+        await _record_file_activity(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            workspace_file_id=record.id,
+            events=ingest_events,
         )
         if ingested:
             ingest_status = "ingested"
@@ -194,6 +303,29 @@ async def _upload_single_file(
         ingest_error = str(exc)
         message = "Uploaded but ingest failed"
         logger.exception("inbox_ingest_failed", workspace_path=workspace_path)
+        await _record_file_activity(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            workspace_file_id=record.id,
+            events=ingest_events,
+        )
+        await _record_file_activity(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            workspace_file_id=record.id,
+            events=[
+                _activity_trace(
+                    "ingest",
+                    "failed",
+                    "Ingest failed after the file was stored.",
+                    filename=filename,
+                    workspace_path=workspace_path,
+                    error=str(exc),
+                )
+            ],
+        )
 
     source_doc_id = await asyncio.to_thread(source_document_id_for_path, workspace_path)
     record = await upsert_workspace_file(
@@ -208,6 +340,22 @@ async def _upload_single_file(
         ingest_status=ingest_status,
         ingest_error=ingest_error,
         source_document_id=source_doc_id,
+    )
+    await _record_file_activity(
+        session,
+        project_id=project.id,
+        run_id=run_id,
+        workspace_file_id=record.id,
+        events=[
+            _activity_trace(
+                "workspace_status",
+                "complete" if ingest_status == "ingested" else ingest_status,
+                message or "Updated workspace ingest status.",
+                filename=filename,
+                workspace_path=workspace_path,
+                ingest_status=ingest_status,
+            )
+        ],
     )
 
     return InboxUploadOutcome(

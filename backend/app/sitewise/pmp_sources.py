@@ -110,21 +110,17 @@ ROLE_DOCUMENT_TITLES: dict[str, str] = {
 
 
 def required_platform_paths(*, archetype: str, user_role: str) -> list[str]:
-    """Return the mandatory doctrine + overlay + cross-cutting paths for Create PMP."""
-    archetype_path = ARCHETYPE_SEED_PATHS.get(archetype)
-    role_path = ROLE_SEED_PATHS.get(user_role)
-    if archetype_path is None or role_path is None:
-        msg = f"Unsupported overlay combination: archetype={archetype!r}, user_role={user_role!r}"
-        raise ValueError(msg)
+    """Return the mandatory doctrine + overlay + cross-cutting paths for Create PMP.
 
-    paths = [DOCTRINE_PATH, archetype_path, role_path, *PMP_CROSS_CUTTING_SEED_PATHS]
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for path in paths:
-        if path not in seen:
-            seen.add(path)
-            ordered.append(path)
-    return ordered
+    Delegates to the platform knowledge catalog (seed frontmatter is the
+    source of truth); tests/sitewise/test_catalog_parity.py pins the output
+    to the frozen constants above.
+    """
+    from app.sitewise.knowledge_catalog import select_required_paths
+
+    return select_required_paths(
+        workflow="create-pmp", archetype=archetype, user_role=user_role
+    )
 
 
 def required_section_headings(user_role: str) -> tuple[str, ...]:
