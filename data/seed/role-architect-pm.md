@@ -3,6 +3,8 @@ tier: role-overlay
 seed_type: role-overlay
 loaded_by: "user_role: architect-pm"
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
+applies_to_classes: [residential, commercial, industrial, institution, mixed, infrastructure]
+applies_to_work_types: [new, refurb, extend, remediation, advisory]
 state_default: NSW
 summary: "Role overlay for the client-side architect-PM advising a residential owner: two-brief discipline, engagement pack, consultant coordination, procurement posture, claims and variation support, escalation routing and owner-facing voice register."
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style, §owner-communication]

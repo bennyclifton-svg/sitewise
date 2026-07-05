@@ -4,6 +4,8 @@ seed_type: trade
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+applies_to_classes: [residential]
+applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 topics: [structural, footings, framing, wind, bal]
 summary: "Structural literacy under the residential standards suite: AS 2870 footings and slabs, AS 1684 framing, AS 4055 wind classification, AS 1170 loads and AS 3959 BAL. Supports RFIs, scope descriptions and inspection-gate coordination; never replaces the structural engineer."

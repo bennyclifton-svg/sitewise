@@ -1,13 +1,15 @@
 ---
 tier: topic
 seed_type: procurement-reference
-loaded_by: task subject (procurement, tender, quote, EOI, RFT, evaluation, contractor selection)
+loaded_by: "task subject (procurement, tender, quote, EOI, RFT, evaluation, contractor selection)"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
+applies_to_classes: [residential]
+applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 topics: [procurement, tender, quoting]
 summary: "Residential procurement reality: informal subbie quote comparison alongside the formal EOI-RFT-evaluation-recommendation pathway, trade scope traps, weighting discipline and probity where it matters. The mandatory procurement seed for PMP drafting."
-required_by: {create-pmp: 5}
+required_by: {create-pmp: 7}
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline]
 agents_anchors: [§1, §2, §8]
 ---

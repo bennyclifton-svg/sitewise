@@ -98,6 +98,27 @@ async def create_project(
     return project
 
 
+async def update_project_taxonomy(
+    session: AsyncSession,
+    *,
+    project: Project,
+    building_class: str | None,
+    work_type: str | None,
+    taxonomy: dict | None,
+) -> Project:
+    project.building_class = building_class
+    project.work_type = work_type
+    project_metadata = dict(project.project_metadata or {})
+    if taxonomy is None:
+        project_metadata.pop("taxonomy", None)
+    else:
+        project_metadata["taxonomy"] = taxonomy
+    project.project_metadata = project_metadata
+    await session.flush()
+    await session.refresh(project)
+    return project
+
+
 async def ensure_default_project_catalog(
     session: AsyncSession,
     user_id: uuid.UUID,

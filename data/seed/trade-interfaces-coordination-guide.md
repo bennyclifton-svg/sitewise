@@ -4,6 +4,8 @@ seed_type: trade
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+applies_to_classes: [residential]
+applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 topics: [trade-interfaces, coordination, defects]
 summary: "The critical sequencing interfaces between residential trades — who is responsible, what evidence gates the next trade, and the common failure mode at each boundary. Used for programme coordination, scope drafting, hold points and defect root-cause work."

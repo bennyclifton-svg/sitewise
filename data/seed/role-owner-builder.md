@@ -3,6 +3,8 @@ tier: role-overlay
 seed_type: role-overlay
 loaded_by: "user_role: owner-builder"
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
+applies_to_classes: [residential]
+applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 summary: "Role overlay for the owner-builder acting as both principal and builder: permit and statutory posture, self-defined brief, direct trade engagement, claims and payment handling, self-direction discipline and escalation routing."
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style, §owner-communication]

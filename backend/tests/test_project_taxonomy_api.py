@@ -100,6 +100,10 @@ def test_create_project_persists_taxonomy_payload(client: TestClient) -> None:
     assert payload["building_class"] == "commercial"
     assert payload["work_type"] == "refurb"
     assert payload["metadata"]["taxonomy"]["subclasses"] == ["office"]
+    assert [flag["value"] for flag in payload["risk_flags"]] == [
+        "live_operations",
+        "critical_infrastructure",
+    ]
     create_project.assert_awaited_once()
     kwargs = create_project.await_args.kwargs
     assert kwargs["building_class"] == "commercial"
@@ -157,7 +161,12 @@ def test_get_project_detail_exposes_taxonomy_metadata(client: TestClient) -> Non
     project = _project(
         building_class="residential",
         work_type="new",
-        project_metadata={"taxonomy": {"subclasses": ["house"]}},
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["house"],
+                "complexity": {"access_constraints": "remote"},
+            }
+        },
     )
 
     with (
@@ -170,7 +179,87 @@ def test_get_project_detail_exposes_taxonomy_metadata(client: TestClient) -> Non
     payload = response.json()
     assert payload["building_class"] == "residential"
     assert payload["work_type"] == "new"
-    assert payload["metadata"]["taxonomy"] == {"subclasses": ["house"]}
+    assert payload["metadata"]["taxonomy"]["subclasses"] == ["house"]
+    assert [flag["value"] for flag in payload["risk_flags"]] == ["remote_site"]
+
+
+def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> None:
+    project = _project()
+    updated_project = _project(
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={
+            "source": "hosted-create-project",
+            "workspace_model": "sitewise-template-v1",
+            "taxonomy": {
+                "subclasses": [{"value": "other", "label": "Laboratory office"}],
+                "scale": {"nla_sqm": 1200},
+                "complexity": {"operational_constraints": "live_environment"},
+                "work_scope": ["fire_services"],
+            },
+        },
+    )
+    update_project_taxonomy = AsyncMock(return_value=updated_project)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={
+                "building_class": "commercial",
+                "work_type": "refurb",
+                "subclasses": [{"value": "other", "label": "Laboratory office"}],
+                "scale": {"nla_sqm": 1200},
+                "complexity": {"operational_constraints": "live_environment"},
+                "work_scope": ["fire_services"],
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["building_class"] == "commercial"
+    assert payload["work_type"] == "refurb"
+    assert payload["metadata"]["taxonomy"]["subclasses"] == [
+        {"value": "other", "label": "Laboratory office"}
+    ]
+    assert [flag["value"] for flag in payload["risk_flags"]] == [
+        "live_operations",
+        "critical_infrastructure",
+    ]
+    update_project_taxonomy.assert_awaited_once()
+    kwargs = update_project_taxonomy.await_args.kwargs
+    assert kwargs["project"] is project
+    assert kwargs["building_class"] == "commercial"
+    assert kwargs["work_type"] == "refurb"
+    assert kwargs["taxonomy"]["subclasses"] == [
+        {"value": "other", "label": "Laboratory office"}
+    ]
+
+
+def test_patch_project_rejects_invalid_taxonomy_combo(client: TestClient) -> None:
+    update_project_taxonomy = AsyncMock()
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={
+                "building_class": "residential",
+                "work_type": "new",
+                "subclasses": ["house", "apartments"],
+            },
+        )
+
+    assert response.status_code == 422
+    assert "allows only one subclass" in str(response.json()["detail"])
+    update_project_taxonomy.assert_not_awaited()
 
 
 def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> None:

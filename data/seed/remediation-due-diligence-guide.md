@@ -1,12 +1,11 @@
 ---
-domainSlug: domain-remediation-dd
-name: Remediation & Due Diligence Guide
-domainType: best_practices
-tags: [remediation, due-diligence, environmental]
-version: "1.0.0"
-repoType: knowledge_practices
-applicableProjectTypes: [remediation, advisory]
-applicableStates: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+tier: overlay
+loaded_by: "work_type: remediation"
+applies_to_classes: [residential, commercial, industrial, institution, mixed, infrastructure]
+applies_to_work_types: [remediation]
+topics: [remediation, due-diligence, environmental, contamination, approvals]
+summary: "Remediation and due-diligence guide for contaminated or constrained sites: Phase 1 and 2 investigation, NEPM, regulators, RAPs, remediation methods, validation, asbestos, PFAS, ASS, approvals, reporting and program impacts."
+required_by: {create-pmp: 1}
 ---
 
 # Remediation & Due Diligence Guide

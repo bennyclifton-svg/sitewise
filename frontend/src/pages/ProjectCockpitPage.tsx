@@ -521,6 +521,14 @@ export function ProjectCockpitPage() {
           sortFilesDraft={sortFilesDraft}
           sortFilesError={sortFilesError}
           isRunningSortFiles={isRunningSortFiles}
+          onProjectUpdated={(updatedProject) => {
+            setProject(updatedProject);
+            setProjects((current) =>
+              current.map((item) =>
+                item.id === updatedProject.id ? updatedProject : item,
+              ),
+            );
+          }}
         />
       ) : null}
       {activeView === "file" ? (

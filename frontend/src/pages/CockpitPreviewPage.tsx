@@ -28,6 +28,8 @@ const previewProject: ProjectDetail = {
   workspace_path: "04-projects/sitewise-preview",
   phase: "brief-planning",
   archetype: "renovation",
+  building_class: "residential",
+  work_type: "refurb",
   user_role: "architect-pm",
   state: "NSW",
   status: "preview",
@@ -41,6 +43,7 @@ const previewProject: ProjectDetail = {
     invalid: [],
   },
   evidence_preview: null,
+  risk_flags: [],
 };
 
 const previewEvidence: EvidencePreview[] = [

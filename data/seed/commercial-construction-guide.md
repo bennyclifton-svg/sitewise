@@ -1,12 +1,11 @@
 ---
-domainSlug: domain-commercial-guide
-name: Commercial Construction Guide
-domainType: best_practices
-tags: [commercial, construction]
-version: "1.0.0"
-repoType: knowledge_practices
-applicableProjectTypes: [refurb, extend, new]
-applicableStates: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+tier: overlay
+loaded_by: "building_class: commercial"
+applies_to_classes: [commercial, industrial, institution, mixed]
+applies_to_work_types: [new, refurb, extend]
+topics: [commercial, construction, ncc, services, fitout]
+summary: "Commercial and institutional construction guide for Class 5-9 projects: classifications, fire, egress, accessibility, base-build versus fitout, services, ESM, sustainability, programming, QA, handover and commercial refurbishment risks."
+required_by: {create-pmp: 1}
 ---
 
 # Commercial Construction Guide

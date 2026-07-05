@@ -3,6 +3,8 @@ tier: archetype
 seed_type: archetype
 loaded_by: "archetype: new-dwelling"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
+applies_to_classes: [residential]
+applies_to_work_types: [new]
 state_default: NSW
 summary: "Archetype coverage for a standalone Class 1a dwelling on a vacant or cleared site, including knockdown-rebuild: the typical NSW lifecycle sequence, site due diligence, planning pathway, BASIX baseline, structural posture and inspection gates, and new-dwelling sequencing risks."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline]

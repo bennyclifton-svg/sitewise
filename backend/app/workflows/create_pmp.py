@@ -364,6 +364,7 @@ async def retrieve_create_pmp_sources(
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
         user_role=project.user_role or "",
+        project=project,
     )
     platform_passages, missing_paths = await load_platform_documents_by_paths(
         session,
@@ -516,6 +517,7 @@ async def run_create_pmp_model(
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
         user_role=user_role,
+        project=project,
     )
 
     prompt_parts = [
@@ -745,6 +747,7 @@ async def run_create_pmp_hybrid(
                 draft_mode,
                 archetype=project.archetype or "",
                 user_role=user_role,
+                project=project,
                 source_texts=project_source_texts,
             )
             return output
@@ -772,6 +775,7 @@ def validate_pmp_output(
     *,
     archetype: str,
     user_role: str,
+    project: Project | None = None,
     source_texts: list[str] | None = None,
 ) -> None:
     if not output.seed_consulted:
@@ -789,6 +793,7 @@ def validate_pmp_output(
         output.seed_consulted,
         archetype=archetype,
         user_role=user_role,
+        project=project,
     )
     if missing_seeds:
         joined = ", ".join(missing_seeds)
@@ -1037,6 +1042,7 @@ async def run_create_pmp_workflow(
             mandatory_seed_count=len(required_platform_paths(
                 archetype=project.archetype or "",
                 user_role=project.user_role or "",
+                project=project,
             )),
         )
     )
@@ -1112,6 +1118,7 @@ async def run_create_pmp_workflow(
                         draft_mode,
                         archetype=project.archetype or "",
                         user_role=project.user_role or "",
+                        project=project,
                         source_texts=project_source_texts,
                     )
                     break

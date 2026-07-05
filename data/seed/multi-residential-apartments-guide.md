@@ -1,12 +1,11 @@
 ---
-domainSlug: domain-multi-residential-guide
-name: Multi-Residential/Apartments Guide
-domainType: best_practices
-tags: [residential, commercial, apartments]
-version: "1.0.0"
-repoType: knowledge_practices
-applicableProjectTypes: [refurb, new]
-applicableStates: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+tier: overlay
+loaded_by: "building_class: residential subclass: apartments"
+applies_to_classes: [residential, mixed]
+applies_to_work_types: [new, refurb, extend]
+topics: [residential, apartments, class-2, strata, fire-safety]
+summary: "Multi-residential and apartment guide for Class 2 and mixed residential projects: classification, fire, accessibility, waterproofing, facade, services, strata, cost planning, quality, sustainability and delivery considerations."
+required_by: {create-pmp: 1}
 ---
 
 # Multi-Residential/Apartments Guide

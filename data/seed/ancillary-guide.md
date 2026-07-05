@@ -3,6 +3,8 @@ tier: archetype
 seed_type: archetype
 loaded_by: "archetype: ancillary"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
+applies_to_classes: [residential]
+applies_to_work_types: [extend]
 state_default: NSW
 summary: "Archetype coverage for secondary structures on an existing residential lot — granny flats, studios, garages, pool houses, sheds. Covers the NCC class fork, the NSW CDC Affordable Housing pathway, BASIX treatment, statutory instruments, and the sequencing risks specific to ancillary scope."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §state-handling]

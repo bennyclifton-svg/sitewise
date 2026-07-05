@@ -4,6 +4,8 @@ seed_type: trade
 loaded_by: task-loaded
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+applies_to_classes: [residential]
+applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 topics: [mep, electrical, plumbing, ventilation]
 summary: "Mechanical, electrical and plumbing literacy for residential work: hot water, gas, electrical, NBN and mechanical ventilation, with the inspection gates per service. Never a substitute for the licensed trade or hydraulic engineer."

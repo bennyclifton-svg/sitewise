@@ -1,20 +1,18 @@
 import { FolderPlus, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import {
+  TaxonomyPicker,
+  type TaxonomyPickerValue,
+} from "@/components/project/TaxonomyPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { compactTaxonomyValue } from "@/lib/project-taxonomy";
+import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type { ProjectDetail } from "@/lib/types/project";
-
-const archetypeOptions = [
-  { value: "renovation", label: "Renovation" },
-  { value: "new-dwelling", label: "New dwelling" },
-  { value: "multi-dwelling", label: "Multi-dwelling" },
-  { value: "ancillary", label: "Ancillary" },
-  { value: "small-commercial", label: "Small commercial" },
-];
 
 const roleOptions = [
   { value: "architect-pm", label: "Architect / PM" },
@@ -32,11 +30,12 @@ export function CreateProjectPanel({
 }) {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [archetype, setArchetype] = useState("renovation");
+  const [taxonomy, setTaxonomy] = useState<TaxonomyPickerValue>({});
   const [userRole, setUserRole] = useState("architect-pm");
   const [state, setState] = useState("NSW");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const taxonomyQuery = useTaxonomy();
   const generatedSlug = useMemo(() => slugFromTitle(title), [title]);
   const effectiveSlug = slug.trim() || generatedSlug;
 
@@ -48,10 +47,12 @@ export function CreateProjectPanel({
     setSubmitting(true);
     setError(null);
     try {
+      const taxonomyInput = compactTaxonomyValue(taxonomy);
       const project = await api.createProject({
         title: trimmedTitle,
         slug: slug.trim() || undefined,
-        archetype,
+        archetype: deriveArchetype(taxonomyInput),
+        ...taxonomyInput,
         user_role: userRole,
         state,
         phase: "brief-planning",
@@ -59,6 +60,7 @@ export function CreateProjectPanel({
       onCreated(project);
       setTitle("");
       setSlug("");
+      setTaxonomy({});
     } catch (createError) {
       setError(
         createError instanceof ApiError
@@ -106,14 +108,7 @@ export function CreateProjectPanel({
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <SelectField
-            id="project-archetype"
-            label="Archetype"
-            value={archetype}
-            onChange={setArchetype}
-            options={archetypeOptions}
-          />
+        <div className="grid gap-3 md:grid-cols-2">
           <SelectField
             id="project-role"
             label="Role"
@@ -129,6 +124,20 @@ export function CreateProjectPanel({
             options={stateOptions.map((item) => ({ value: item, label: item }))}
           />
         </div>
+
+        <TaxonomyPicker
+          catalog={taxonomyQuery.data}
+          value={taxonomy}
+          onChange={setTaxonomy}
+          disabled={submitting}
+          idPrefix="create-project-taxonomy"
+        />
+
+        {taxonomyQuery.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            Project profile options could not load.
+          </p>
+        ) : null}
 
         {error ? (
           <p className="text-sm text-destructive" role="alert">
@@ -192,3 +201,22 @@ function slugFromTitle(value: string): string {
   return slug || "";
 }
 
+function deriveArchetype(taxonomy: TaxonomyPickerValue): string | undefined {
+  if (taxonomy.building_class === "commercial") return "small-commercial";
+  if (taxonomy.building_class !== "residential") return undefined;
+  if (taxonomy.work_type === "refurb" || taxonomy.work_type === "remediation") {
+    return "renovation";
+  }
+  if (taxonomy.work_type === "extend") return "ancillary";
+  if (taxonomy.work_type !== "new") return undefined;
+
+  const subclasses = taxonomy.subclasses ?? [];
+  const subclassValues = subclasses.map((item) =>
+    typeof item === "string" ? item : item.value,
+  );
+  return subclassValues.some((item) =>
+    ["apartments", "townhouses", "btr", "student_housing"].includes(item),
+  )
+    ? "multi-dwelling"
+    : "new-dwelling";
+}

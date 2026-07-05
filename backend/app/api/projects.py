@@ -3,6 +3,7 @@ import mimetypes
 import time
 import uuid
 from datetime import datetime
+from typing import Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
@@ -29,6 +30,7 @@ from app.database.projects import (
     get_project,
     list_projects,
     project_overlay_summary,
+    update_project_taxonomy,
     user_owns_project,
 )
 from app.database.session import get_db
@@ -45,6 +47,7 @@ from app.schemas.projects import (
     DeleteProjectActivityRequest,
     DeleteProjectActivityResponse,
     PatchDraftRequest,
+    PatchProjectRequest,
     UpdatePmpRequest,
     SortFilesRequest,
     SortFilesResponse,
@@ -65,7 +68,9 @@ from app.schemas.projects import (
     ProjectDetail,
     ProjectListResponse,
     ProjectSummary,
+    ProjectSubclassSelection,
     ProjectWorkspaceTreeResponse,
+    RiskFlag,
     StagedSplitRequest,
     WorkbookPreviewResponse,
 )
@@ -81,7 +86,11 @@ from app.database.workspace_file import WorkspaceFile
 from app.database.workspace_files import get_workspace_file_by_path, list_workspace_files_for_project
 from app.inbox.paths import is_inbox_workspace_path
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
-from app.sitewise.taxonomy import taxonomy_options_payload, validate_project_taxonomy
+from app.sitewise.taxonomy import (
+    derive_risk_flags,
+    taxonomy_options_payload,
+    validate_project_taxonomy,
+)
 from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.create_cost_plan import (
     draft_workspace_path as cost_plan_draft_workspace_path,
@@ -465,15 +474,111 @@ def _elapsed_ms(start: float) -> int:
     return int((time.perf_counter() - start) * 1000)
 
 
-def _project_taxonomy_metadata(body: CreateProjectRequest) -> dict | None:
+def _project_detail_response(
+    project,
+    *,
+    evidence_preview: EvidencePreview | None,
+) -> ProjectDetail:
+    summary = _project_summary(project)
+    return ProjectDetail(
+        **summary.model_dump(),
+        metadata=project.project_metadata,
+        evidence_preview=evidence_preview,
+        risk_flags=_risk_flags_for_project(project),
+    )
+
+
+def _risk_flags_for_project(project) -> list[RiskFlag]:
+    taxonomy = _metadata_taxonomy(project.project_metadata)
+    complexity = _string_dict(taxonomy.get("complexity"))
+    work_scope = _string_list(taxonomy.get("work_scope"))
+    return [
+        RiskFlag(
+            value=flag.value,
+            severity=flag.severity,
+            title=flag.title,
+            description=flag.description,
+        )
+        for flag in derive_risk_flags(complexity, work_scope)
+    ]
+
+
+def _metadata_taxonomy(metadata: dict | None) -> dict[str, Any]:
+    if not isinstance(metadata, dict):
+        return {}
+    taxonomy = metadata.get("taxonomy")
+    return taxonomy if isinstance(taxonomy, dict) else {}
+
+
+def _project_taxonomy_metadata(body: CreateProjectRequest | PatchProjectRequest) -> dict | None:
+    return _taxonomy_metadata_from_values(
+        subclasses=body.subclasses,
+        scale=body.scale,
+        complexity=body.complexity,
+        work_scope=body.work_scope,
+    )
+
+
+def _taxonomy_metadata_from_values(
+    *,
+    subclasses: list[str | ProjectSubclassSelection] | None,
+    scale: dict[str, Any] | None,
+    complexity: dict[str, Any] | None,
+    work_scope: list[str] | None,
+) -> dict | None:
     taxonomy = {
-        "subclasses": body.subclasses,
-        "scale": body.scale,
-        "complexity": body.complexity,
-        "work_scope": body.work_scope,
+        "subclasses": _subclass_metadata_payload(subclasses),
+        "scale": scale,
+        "complexity": complexity,
+        "work_scope": work_scope,
     }
     compact = {key: value for key, value in taxonomy.items() if value is not None}
     return compact or None
+
+
+def _subclass_metadata_payload(
+    subclasses: list[str | ProjectSubclassSelection] | None,
+) -> list[str | dict[str, str]] | None:
+    if not subclasses:
+        return None
+    payload: list[str | dict[str, str]] = []
+    for item in subclasses:
+        if isinstance(item, str):
+            payload.append(item)
+            continue
+        subclass = {"value": item.value}
+        if item.label:
+            subclass["label"] = item.label
+        payload.append(subclass)
+    return payload or None
+
+
+def _subclass_values(
+    subclasses: list[str | ProjectSubclassSelection] | None,
+) -> list[str] | None:
+    if not subclasses:
+        return None
+    values = [
+        item if isinstance(item, str) else item.value
+        for item in subclasses
+    ]
+    return values or None
+
+
+def _string_dict(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(key): str(item)
+        for key, item in value.items()
+        if isinstance(key, str) and isinstance(item, str) and item.strip()
+    }
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
 def _activity_references_from_metadata(
@@ -524,7 +629,7 @@ async def post_project(
     taxonomy_errors = validate_project_taxonomy(
         building_class=body.building_class,
         work_type=body.work_type,
-        subclasses=body.subclasses,
+        subclasses=_subclass_values(body.subclasses),
     )
     if taxonomy_errors:
         raise HTTPException(
@@ -544,12 +649,7 @@ async def post_project(
         phase=body.phase,
         taxonomy=_project_taxonomy_metadata(body),
     )
-    summary = _project_summary(project)
-    return ProjectDetail(
-        **summary.model_dump(),
-        metadata=project.project_metadata,
-        evidence_preview=None,
-    )
+    return _project_detail_response(project, evidence_preview=None)
 
 
 @router.get("/taxonomy")
@@ -563,6 +663,38 @@ async def get_project_taxonomy(
     return taxonomy_options_payload()
 
 
+@router.patch("/{project_id}")
+async def patch_project(
+    project_id: uuid.UUID,
+    body: PatchProjectRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectDetail:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    taxonomy_errors = validate_project_taxonomy(
+        building_class=body.building_class,
+        work_type=body.work_type,
+        subclasses=_subclass_values(body.subclasses),
+    )
+    if taxonomy_errors:
+        raise HTTPException(
+            status_code=422,
+            detail=taxonomy_errors,
+        )
+    updated = await update_project_taxonomy(
+        session,
+        project=project,
+        building_class=body.building_class,
+        work_type=body.work_type,
+        taxonomy=_project_taxonomy_metadata(body),
+    )
+    return _project_detail_response(
+        updated,
+        evidence_preview=await _first_evidence_preview(session, updated.slug),
+    )
+
+
 @router.get("/{project_id}")
 async def get_project_detail(
     project_id: uuid.UUID,
@@ -570,10 +702,8 @@ async def get_project_detail(
     session: AsyncSession = Depends(get_db),
 ) -> ProjectDetail:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    summary = _project_summary(project)
-    return ProjectDetail(
-        **summary.model_dump(),
-        metadata=project.project_metadata,
+    return _project_detail_response(
+        project,
         evidence_preview=await _first_evidence_preview(session, project.slug),
     )
 
@@ -657,7 +787,6 @@ async def get_project_cockpit_bootstrap(
     timings_ms["platform_knowledge"] = _elapsed_ms(step_start)
     timings_ms["total"] = _elapsed_ms(total_start)
 
-    summary = _project_summary(project)
     log.info(
         "project_cockpit_bootstrap_complete",
         project_id=str(project.id),
@@ -665,9 +794,8 @@ async def get_project_cockpit_bootstrap(
         timings_ms=timings_ms,
     )
     return ProjectCockpitBootstrapResponse(
-        project=ProjectDetail(
-            **summary.model_dump(),
-            metadata=project.project_metadata,
+        project=_project_detail_response(
+            project,
             evidence_preview=evidence[0] if evidence else None,
         ),
         projects=[_project_summary(item) for item in projects],

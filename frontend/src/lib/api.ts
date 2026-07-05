@@ -39,6 +39,8 @@ import type {
   ProjectCockpitBootstrap,
   ProjectDetail,
   ProjectSummary,
+  TaxonomyCatalog,
+  UpdateProjectInput,
   ProjectWorkspaceTree,
   WorkbookPreview,
 } from "@/lib/types/project";
@@ -238,8 +240,17 @@ export const api = {
   createProject: async (input: CreateProjectInput): Promise<ProjectDetail> =>
     api.post<ProjectDetail>("/projects", input),
 
+  updateProject: async (
+    projectId: string,
+    input: UpdateProjectInput,
+  ): Promise<ProjectDetail> =>
+    api.patch<ProjectDetail>(`/projects/${projectId}`, input),
+
   getProject: async (projectId: string): Promise<ProjectDetail> =>
     api.get<ProjectDetail>(`/projects/${projectId}`),
+
+  getTaxonomy: async (): Promise<TaxonomyCatalog> =>
+    api.get<TaxonomyCatalog>("/projects/taxonomy"),
 
   listTenderComparisons: async (projectId: string): Promise<TenderComparison[]> => {
     const response = await api.get<TenderComparisonListResponse>(

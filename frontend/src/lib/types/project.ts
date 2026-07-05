@@ -10,6 +10,111 @@ export type OverlayStatus = {
   invalid: OverlayIssue[];
 };
 
+export type TaxonomyOption = {
+  value: string;
+  label: string;
+};
+
+export type ScaleField = {
+  key: string;
+  label: string;
+  type: "text" | "number" | "integer" | "boolean" | string;
+  typical?: string;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+};
+
+export type Subclass = {
+  value: string;
+  label: string;
+  ncc_class: string | null;
+  scale_fields: ScaleField[];
+};
+
+export type BuildingClass = {
+  value: string;
+  label: string;
+  multi_subclass: boolean;
+  work_types: string[];
+  subclasses: Subclass[];
+};
+
+export type ComplexityDimension = {
+  key: string;
+  label: string;
+  options: TaxonomyOption[];
+};
+
+export type RiskSeverity = "critical" | "warning" | "info" | string;
+
+export type RiskFlagDefinition = {
+  value: string;
+  severity: RiskSeverity;
+  title: string;
+  description: string;
+};
+
+export type WorkScopeItem = {
+  value: string;
+  label: string;
+  consultants?: string[];
+  riskFlag?: string;
+  complexityPoints?: number;
+};
+
+export type WorkScopeCategory = {
+  value: string;
+  label: string;
+  items: WorkScopeItem[];
+};
+
+export type WorkScopeDefinition = {
+  categories: WorkScopeCategory[];
+};
+
+export type TaxonomyCatalog = {
+  work_types: TaxonomyOption[];
+  building_classes: BuildingClass[];
+  complexity_dimensions: Record<string, ComplexityDimension[]>;
+  risk_flags: Record<string, RiskFlagDefinition>;
+  work_scopes: Record<string, WorkScopeDefinition>;
+  emphasis_profiles: {
+    sections: string[];
+    base_weights: Record<string, Record<string, number>>;
+    modifiers: Array<Record<string, unknown>>;
+  };
+};
+
+export type TaxonomyScalar = string | number | boolean;
+
+export type ProjectSubclassSelection = string | {
+  value: string;
+  label?: string;
+};
+
+export type ProjectTaxonomyMetadata = {
+  subclasses?: ProjectSubclassSelection[];
+  scale?: Record<string, TaxonomyScalar>;
+  complexity?: Record<string, string>;
+  work_scope?: string[];
+};
+
+export type ProjectMetadata = Record<string, unknown> & {
+  taxonomy?: ProjectTaxonomyMetadata;
+};
+
+export type ProjectTaxonomyInput = {
+  building_class?: string | null;
+  work_type?: string | null;
+  subclasses?: ProjectSubclassSelection[];
+  scale?: Record<string, TaxonomyScalar>;
+  complexity?: Record<string, string>;
+  work_scope?: string[];
+};
+
+export type RiskFlag = RiskFlagDefinition;
+
 export type ProjectSummary = {
   id: string;
   slug: string;
@@ -17,6 +122,8 @@ export type ProjectSummary = {
   workspace_path: string;
   phase: string;
   archetype: string | null;
+  building_class: string | null;
+  work_type: string | null;
   user_role: string | null;
   state: string | null;
   status: string;
@@ -28,10 +135,18 @@ export type CreateProjectInput = {
   title: string;
   slug?: string;
   archetype?: string;
+  building_class?: string | null;
+  work_type?: string | null;
+  subclasses?: ProjectSubclassSelection[];
+  scale?: Record<string, TaxonomyScalar>;
+  complexity?: Record<string, string>;
+  work_scope?: string[];
   user_role?: string;
   state?: string;
   phase?: string;
 };
+
+export type UpdateProjectInput = ProjectTaxonomyInput;
 
 export type EvidencePreview = {
   id: string;
@@ -48,8 +163,9 @@ export type EvidencePreview = {
 };
 
 export type ProjectDetail = ProjectSummary & {
-  metadata: Record<string, unknown> | null;
+  metadata: ProjectMetadata | null;
   evidence_preview: EvidencePreview | null;
+  risk_flags: RiskFlag[];
 };
 
 export type WorkspaceTreeNode = {

@@ -46,6 +46,7 @@ def validate_update_pmp_output(
     archetype: str,
     user_role: str,
     has_evidence_delta: bool,
+    project: Project | None = None,
     source_texts: list[str] | None = None,
 ) -> None:
     if not output.seed_consulted:
@@ -63,6 +64,7 @@ def validate_update_pmp_output(
         output.seed_consulted,
         archetype=archetype,
         user_role=user_role,
+        project=project,
     )
     if missing_seeds:
         joined = ", ".join(missing_seeds)
@@ -121,6 +123,7 @@ async def run_update_pmp_model(
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
         user_role=user_role,
+        project=project,
     )
     baseline_headings = markdown_section_headings(baseline.content_markdown)
     heading_list = "\n".join(f"- {heading}" for heading in baseline_headings)
@@ -339,6 +342,7 @@ async def run_update_pmp_workflow(
                     archetype=project.archetype or "",
                     user_role=project.user_role or "",
                     has_evidence_delta=has_delta,
+                    project=project,
                     source_texts=delta_source_texts,
                 )
                 break

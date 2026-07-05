@@ -3,6 +3,8 @@ tier: archetype
 seed_type: archetype
 loaded_by: "archetype: multi-dwelling"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
+applies_to_classes: [residential]
+applies_to_work_types: [new]
 state_default: NSW
 summary: "Archetype coverage for two or more dwellings delivered as one project — townhouses, terraces, villas, repeated detached dwellings. Covers the classification gate, party-wall fire rating, separate metering, infrastructure contributions, staging, and the cost, programme and procurement postures specific to small multi-dwelling work."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §state-handling]

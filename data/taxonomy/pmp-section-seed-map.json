@@ -1,0 +1,166 @@
+{
+  "sections": {
+    "project-snapshot": {
+      "required": [
+        {
+          "path": "seed/setup-and-commission-guide.md",
+          "section_ids": ["shared-setup-workflow-all-roles"]
+        }
+      ]
+    },
+    "scope-client-requirements": {
+      "required": [
+        {
+          "path": "seed/residential-construction-guide.md",
+          "section_ids": [
+            "site-assessment-and-due-diligence",
+            "construction-sequence-and-programming-for-residential-projects"
+          ],
+          "when": {"building_class": "residential", "work_type": "new"}
+        },
+        {
+          "path": "seed/residential-construction-guide.md",
+          "section_ids": [
+            "foundations-and-footing-systems",
+            "structural-framing-systems"
+          ],
+          "when": {
+            "building_class": "residential",
+            "work_scope": ["substructure", "superstructure"]
+          }
+        },
+        {
+          "path": "seed/multi-residential-apartments-guide.md",
+          "section_ids": [
+            "building-classification-for-multi-residential-projects",
+            "strata-title-and-common-property"
+          ],
+          "when": {
+            "building_class": ["residential", "mixed"],
+            "subclasses": ["apartments", "btr", "student_housing", "residential_retail", "residential_commercial"]
+          }
+        }
+      ],
+      "optional": [
+        {
+          "path": "seed/residential-construction-guide.md",
+          "section_ids": ["wet-area-construction-and-waterproofing"],
+          "when": {"building_class": "residential", "work_scope": ["wet_areas"]}
+        }
+      ]
+    },
+    "compliance-approvals": {
+      "required": [
+        {
+          "path": "seed/ncc-reference-guide.md",
+          "section_ids": ["compliance-pathways-and-documentation"]
+        },
+        {
+          "path": "seed/commercial-construction-guide.md",
+          "section_ids": [
+            "fire-detection-alarm-and-suppression-systems",
+            "essential-safety-measures-esm"
+          ],
+          "when": {
+            "building_class": ["commercial", "industrial", "institution", "mixed"],
+            "work_scope": ["fire_services"]
+          }
+        },
+        {
+          "path": "seed/as-standards-reference.md",
+          "section_ids": [
+            "as-2419-series-fire-hydrant-installations",
+            "as-2941-fixed-fire-protection-installations-pumpset-systems"
+          ],
+          "when": {
+            "building_class": ["commercial", "industrial", "institution", "mixed"],
+            "work_scope": ["fire_services"]
+          }
+        }
+      ],
+      "optional": [
+        {
+          "path": "seed/remediation-due-diligence-guide.md",
+          "section_ids": ["regulatory-approvals-and-planning-controls"],
+          "when": {"work_type": "remediation"}
+        }
+      ]
+    },
+    "cost-budget-control": {
+      "required": [
+        {
+          "path": "seed/cost-management-principles.md",
+          "section_ids": ["cost-planning-fundamentals"]
+        },
+        {
+          "path": "seed/cost-management-principles.md",
+          "section_ids": ["risk-adjusted-budgets"],
+          "when": {"risk_flags": ["contaminated_land", "live_operations", "remote_site"]}
+        }
+      ]
+    },
+    "procurement-delivery": {
+      "required": [
+        {
+          "path": "seed/procurement-quoting-guide.md",
+          "section_ids": ["5-formal-procurement-pathway-eoi-rft-tender-period-evaluation-recommendation"],
+          "when": {"building_class": "residential", "work_type": ["new", "refurb", "extend"]}
+        },
+        {
+          "path": "seed/procurement-tendering-guide.md",
+          "section_ids": [
+            "1-procurement-methods-and-strategies",
+            "3-the-tendering-process-flow",
+            "5-tender-evaluation-and-award"
+          ],
+          "when": {
+            "building_class": ["commercial", "industrial", "institution", "mixed", "infrastructure"]
+          }
+        }
+      ]
+    },
+    "programme-milestones": {
+      "required": [
+        {
+          "path": "seed/program-scheduling-guide.md",
+          "section_ids": ["construction-programming-fundamentals", "milestone-planning-and-tracking"]
+        },
+        {
+          "path": "seed/remediation-due-diligence-guide.md",
+          "section_ids": ["remediation-in-the-construction-program"],
+          "when": {"work_type": "remediation"}
+        }
+      ]
+    },
+    "services-deliverables": {
+      "required": [
+        {
+          "path": "seed/procurement-tendering-guide.md",
+          "section_ids": [
+            "1-procurement-methods-and-strategies",
+            "4-tender-documentation-and-deliverables"
+          ],
+          "when": {"work_type": "advisory"}
+        },
+        {
+          "path": "seed/contract-administration-guide.md",
+          "section_ids": ["contract-documentation-hierarchy"],
+          "when": {"work_type": "advisory"}
+        }
+      ]
+    },
+    "remediation-due-diligence": {
+      "required": [
+        {
+          "path": "seed/remediation-due-diligence-guide.md",
+          "section_ids": [
+            "preliminary-site-assessment-phase-1",
+            "detailed-site-investigation-phase-2",
+            "remediation-action-plans-raps"
+          ],
+          "when": {"work_type": "remediation"}
+        }
+      ]
+    }
+  }
+}

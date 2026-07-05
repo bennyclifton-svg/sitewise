@@ -3,6 +3,8 @@ tier: archetype
 seed_type: archetype
 loaded_by: "archetype: renovation"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
+applies_to_classes: [residential]
+applies_to_work_types: [refurb, extend]
 state_default: NSW
 summary: "Archetype coverage for altering an existing dwelling: due diligence package, latent conditions, dilapidation and neighbour management, structural intervention, BASIX for additions, heritage checks, live-occupancy staging and old-to-new tie-in risks."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §state-handling]

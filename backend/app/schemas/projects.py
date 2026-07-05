@@ -42,6 +42,34 @@ class ProjectListResponse(BaseModel):
     projects: list[ProjectSummary]
 
 
+class RiskFlag(BaseModel):
+    value: str
+    severity: str
+    title: str
+    description: str
+
+
+class ProjectSubclassSelection(BaseModel):
+    value: str = Field(min_length=1, max_length=128)
+    label: str | None = Field(default=None, max_length=512)
+
+    @field_validator("value")
+    @classmethod
+    def strip_value(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
+
+    @field_validator("label")
+    @classmethod
+    def strip_label(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+
 class InboxUploadResult(BaseModel):
     id: uuid.UUID
     filename: str
@@ -82,7 +110,7 @@ class CreateProjectRequest(BaseModel):
     archetype: str | None = Field(default=None, max_length=64)
     building_class: str | None = Field(default=None, max_length=64)
     work_type: str | None = Field(default=None, max_length=64)
-    subclasses: list[str] | None = None
+    subclasses: list[str | ProjectSubclassSelection] | None = None
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
@@ -113,13 +141,61 @@ class CreateProjectRequest(BaseModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("subclasses", "work_scope")
+    @field_validator("subclasses")
+    @classmethod
+    def strip_optional_subclasses(
+        cls,
+        value: list[str | ProjectSubclassSelection] | None,
+    ) -> list[str | ProjectSubclassSelection] | None:
+        if value is None:
+            return None
+        stripped: list[str | ProjectSubclassSelection] = []
+        for item in value:
+            if isinstance(item, str):
+                text = item.strip()
+                if text:
+                    stripped.append(text)
+            else:
+                stripped.append(item)
+        return stripped or None
+
+    @field_validator("work_scope")
     @classmethod
     def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
         if value is None:
             return None
         stripped = [item.strip() for item in value if item.strip()]
         return stripped or None
+
+
+class PatchProjectRequest(BaseModel):
+    building_class: str | None = Field(default=None, max_length=64)
+    work_type: str | None = Field(default=None, max_length=64)
+    subclasses: list[str | ProjectSubclassSelection] | None = None
+    scale: dict[str, Any] | None = None
+    complexity: dict[str, Any] | None = None
+    work_scope: list[str] | None = None
+
+    @field_validator("building_class", "work_type")
+    @classmethod
+    def strip_optional_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    @field_validator("subclasses")
+    @classmethod
+    def strip_optional_subclasses(
+        cls,
+        value: list[str | ProjectSubclassSelection] | None,
+    ) -> list[str | ProjectSubclassSelection] | None:
+        return CreateProjectRequest.strip_optional_subclasses(value)
+
+    @field_validator("work_scope")
+    @classmethod
+    def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
+        return CreateProjectRequest.strip_optional_string_lists(value)
 
 
 class EvidencePreview(BaseModel):
@@ -139,6 +215,7 @@ class EvidencePreview(BaseModel):
 class ProjectDetail(ProjectSummary):
     metadata: dict[str, Any] | None
     evidence_preview: EvidencePreview | None
+    risk_flags: list[RiskFlag] = Field(default_factory=list)
 
 
 class WorkspaceTreeNode(BaseModel):

@@ -11,15 +11,21 @@ import {
   MessageSquareWarning,
   Play,
   RefreshCw,
+  Save,
   Scale,
+  Settings2,
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
+import {
+  TaxonomyPicker,
+  type TaxonomyPickerValue,
+} from "@/components/project/TaxonomyPicker";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import {
   workflowStatusBadgeClass,
@@ -33,6 +39,13 @@ import type {
   SortFilesResponse,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
+import { api } from "@/lib/api";
+import { ApiError } from "@/lib/http";
+import {
+  compactTaxonomyValue,
+  taxonomyValueFromProject,
+} from "@/lib/project-taxonomy";
+import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
 
 type WorkflowTile = {
@@ -70,6 +83,7 @@ export function ProjectControlBoard({
   sortFilesDraft,
   sortFilesError,
   isRunningSortFiles,
+  onProjectUpdated,
 }: {
   project: ProjectDetail;
   evidence: EvidencePreview[];
@@ -94,6 +108,7 @@ export function ProjectControlBoard({
   sortFilesDraft: DraftArtifactSummary | null;
   sortFilesError: string | null;
   isRunningSortFiles: boolean;
+  onProjectUpdated?: (project: ProjectDetail) => void;
 }) {
   const lifecycle = buildLifecycleTiles({
     project,
@@ -120,7 +135,16 @@ export function ProjectControlBoard({
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
+        <RiskFlagChips flags={project.risk_flags} />
       </header>
+
+      {onProjectUpdated ? (
+        <ProjectProfileSection
+          key={project.id}
+          project={project}
+          onProjectUpdated={onProjectUpdated}
+        />
+      ) : null}
 
       <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
         <div className="grid gap-2 p-3 md:grid-cols-3">
@@ -161,6 +185,118 @@ export function ProjectControlBoard({
       </section>
     </div>
   );
+}
+
+function ProjectProfileSection({
+  project,
+  onProjectUpdated,
+}: {
+  project: ProjectDetail;
+  onProjectUpdated: (project: ProjectDetail) => void;
+}) {
+  const taxonomyQuery = useTaxonomy();
+  const [profile, setProfile] = useState<TaxonomyPickerValue>(() =>
+    taxonomyValueFromProject(project),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function saveProfile() {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const updated = await api.updateProject(
+        project.id,
+        compactTaxonomyValue(profile),
+      );
+      onProjectUpdated(updated);
+      setSaved(true);
+    } catch (saveError) {
+      setError(
+        saveError instanceof ApiError
+          ? saveError.message
+          : "Project profile could not be saved.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border bg-card shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Settings2 className="size-4 text-muted-foreground" aria-hidden />
+          <h2 className="text-base font-semibold">Project profile</h2>
+        </div>
+        {saved ? <Badge variant="secondary">Saved</Badge> : null}
+      </header>
+      <div className="grid gap-4 p-4">
+        <TaxonomyPicker
+          catalog={taxonomyQuery.data}
+          value={profile}
+          onChange={setProfile}
+          disabled={saving}
+          idPrefix={`project-profile-${project.id}`}
+        />
+        {taxonomyQuery.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            Project profile options could not load.
+          </p>
+        ) : null}
+        {error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={() => void saveProfile()}
+            disabled={saving || !taxonomyQuery.data}
+          >
+            {saving ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="size-4" aria-hidden />
+            )}
+            {saving ? "Saving" : "Save profile"}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RiskFlagChips({ flags }: { flags: ProjectDetail["risk_flags"] }) {
+  if (!flags.length) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {flags.map((flag) => (
+        <Badge
+          key={flag.value}
+          variant="outline"
+          title={flag.description}
+          className={riskFlagClass(flag.severity)}
+        >
+          {flag.title}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function riskFlagClass(severity: string): string {
+  if (severity === "critical") {
+    return "border-destructive/40 bg-destructive/10 text-destructive";
+  }
+  if (severity === "warning") {
+    return "border-amber-300 bg-amber-50 text-amber-900";
+  }
+  return "border-sky-300 bg-sky-50 text-sky-900";
 }
 
 function WorkflowDetail({

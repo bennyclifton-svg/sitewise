@@ -1,12 +1,11 @@
 ---
-domainSlug: domain-procurement-tendering
-name: Procurement & Tendering Guide
-domainType: best_practices
-tags: [procurement, contracts, tendering]
-version: "1.0.0"
-repoType: knowledge_practices
-applicableProjectTypes: [refurb, extend, new, remediation, advisory]
-applicableStates: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+tier: overlay
+loaded_by: task subject (commercial procurement, tendering, RFT, evaluation, award)
+applies_to_classes: [commercial, industrial, institution, mixed, infrastructure]
+applies_to_work_types: [new, refurb, extend, remediation, advisory]
+topics: [procurement, contracts, tendering, commercial]
+summary: "Commercial procurement and tendering guide: construct-only, D&C, managing contractor, ECI, alliances, standard forms, RFT documentation, tender-period controls, evaluation, probity, award and service-deliverable procurement."
+required_by: {create-pmp: 7}
 ---
 
 # Procurement & Tendering Guide

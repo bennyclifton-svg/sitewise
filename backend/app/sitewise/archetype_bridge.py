@@ -46,4 +46,12 @@ def _metadata_subclasses(metadata: dict | None) -> tuple[str, ...]:
     subclasses = taxonomy.get("subclasses")
     if not isinstance(subclasses, list):
         return ()
-    return tuple(item for item in subclasses if isinstance(item, str) and item.strip())
+    values: list[str] = []
+    for item in subclasses:
+        if isinstance(item, str) and item.strip():
+            values.append(item)
+        elif isinstance(item, dict):
+            value = item.get("value")
+            if isinstance(value, str) and value.strip():
+                values.append(value)
+    return tuple(values)

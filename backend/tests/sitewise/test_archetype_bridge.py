@@ -29,6 +29,21 @@ def test_new_taxonomy_columns_win_over_legacy_archetype() -> None:
     assert taxonomy.subclasses == ("office",)
 
 
+def test_metadata_subclass_objects_resolve_to_values() -> None:
+    taxonomy = effective_taxonomy(
+        _project(
+            building_class="commercial",
+            work_type="refurb",
+            archetype="renovation",
+            project_metadata={
+                "taxonomy": {"subclasses": [{"value": "other", "label": "Lab"}]}
+            },
+        )
+    )
+
+    assert taxonomy.subclasses == ("other",)
+
+
 def test_legacy_new_dwelling_mapping() -> None:
     assert effective_taxonomy(_project(archetype="new-dwelling")) == (
         "residential",
