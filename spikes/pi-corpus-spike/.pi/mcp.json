@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "clerk": {
+      "url": "http://127.0.0.1:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CLERK_MCP_TOKEN}"
+      },
+      "bearerTokenEnv": "CLERK_MCP_TOKEN",
+      "directTools": [
+        "find_document_text",
+        "search_documents",
+        "get_document",
+        "list_platform_knowledge",
+        "read_platform_knowledge"
+      ]
+    }
+  }
+}
