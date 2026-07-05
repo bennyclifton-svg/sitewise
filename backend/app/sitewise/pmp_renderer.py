@@ -26,6 +26,9 @@ from app.sitewise.pmp_greenfield_brief import (
     strip_due_diligence_contract_meta,
 )
 from app.sitewise.pmp_sources import document_title_for_role, required_section_headings
+from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
+from app.sitewise.section_contracts import heading_for_section_id, pmp_section_headings
+from app.sitewise.taxonomy import work_scope_items_for
 
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
@@ -80,6 +83,78 @@ def _baseline_risk_rows(
             "TBC",
         ),
     )
+
+
+_RISK_SEVERITY_RANK: dict[str, int] = {
+    "critical": 0,
+    "warning": 1,
+    "info": 2,
+}
+
+
+def _ranked_risk_rows(
+    rows: list[tuple[str, str, str, str, str, str | None]],
+) -> list[tuple[str, str, str, str, str]]:
+    ranked = sorted(
+        rows,
+        key=lambda row: (_RISK_SEVERITY_RANK.get(row[5] or "info", 3), row[0]),
+    )
+    return [row[:5] for row in ranked[:8]]
+
+
+def _taxonomy_risk_rows(
+    project: Project,
+    pack: MobilisationEvidencePack | None = None,
+) -> tuple[tuple[str, str, str, str, str], ...]:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return ()
+
+    if pack is not None:
+        if project.archetype == "renovation":
+            base = _renovation_risk_rows(pack)
+        else:
+            base = _baseline_risk_rows(pack)
+    else:
+        base = (
+            (
+                "Project setup incomplete",
+                "Owner",
+                "Assumption",
+                "Confirm scope, budget, approvals pathway, and decision owner",
+                "TBC",
+            ),
+            (
+                "Current corpus evidence not uploaded",
+                "Architect-PM",
+                "Not evidenced",
+                "Upload brief, authority, cost, programme, and consultant records",
+                "TBC",
+            ),
+            (
+                "Consultant and approval pathway unresolved",
+                "Architect-PM",
+                "Assumption",
+                "Confirm discipline roster and approval certifier/authority path",
+                "TBC",
+            ),
+        )
+
+    rows: list[tuple[str, str, str, str, str, str | None]] = [
+        (*row, "warning") for row in base
+    ]
+    rows.extend(
+        (
+            flag.title,
+            "Architect-PM",
+            "Assumption",
+            flag.description,
+            "TBC",
+            flag.severity,
+        )
+        for flag in context.risk_flags
+    )
+    return tuple(_ranked_risk_rows(rows))
 
 
 def _renovation_risk_rows(
@@ -678,7 +753,9 @@ def _render_consultant_coordination(pack: MobilisationEvidencePack) -> str:
 def _render_risks_skeleton(project: Project, pack: MobilisationEvidencePack) -> str:
     risk_header = _table_lines_from_brief(RISK_REGISTER_TABLE).splitlines()[0:2]
     rows = list(risk_header)
-    if project.archetype == "renovation":
+    if project_has_taxonomy(project):
+        risk_rows = _taxonomy_risk_rows(project, pack)
+    elif project.archetype == "renovation":
         risk_rows = _renovation_risk_rows(pack)
     else:
         risk_rows = _baseline_risk_rows(pack)
@@ -764,14 +841,397 @@ def _render_internal_audit(pack: MobilisationEvidencePack) -> str:
     )
 
 
+def _metadata_value(value: object) -> str:
+    if value is None:
+        return "TBC"
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, (int, float)):
+        return f"{value:g}"
+    if isinstance(value, list):
+        return ", ".join(_metadata_value(item) for item in value) or "TBC"
+    if isinstance(value, dict):
+        return ", ".join(
+            f"{key}: {_metadata_value(item)}"
+            for key, item in value.items()
+            if item not in (None, "", [], {})
+        ) or "TBC"
+    text = str(value).strip()
+    return text or "TBC"
+
+
+def _taxonomy_scale_summary(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "TBC"
+    scale = ", ".join(
+        f"{key} {_metadata_value(value)}" for key, value in context.scale.items()
+    )
+    subclass = ", ".join(context.subclasses) or "TBC"
+    return f"{subclass}; {scale or 'scale TBC'}"
+
+
+def _top_weighted_section_id(project: Project) -> str | None:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return None
+    candidates = [
+        (section_id, weight)
+        for section_id, weight in context.section_weights.items()
+        if section_id != "snapshot"
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: item[1])[0]
+
+
+def _emphasis_note(project: Project, section_id: str) -> str:
+    if _top_weighted_section_id(project) != section_id:
+        return ""
+    return (
+        "Profile emphasis: this section carries the highest weighting for the selected "
+        "taxonomy. Give it the most project-specific depth, retain concrete setup facts, "
+        "and cut generic prose elsewhere before reducing this content."
+    )
+
+
+def _evidence_status_table() -> str:
+    return "\n".join(
+        [
+            "| Topic | Status | Basis | Next action |",
+            "| --- | --- | --- | --- |",
+            "| Project setup | User provided | Project title and taxonomy fields | Confirm missing details |",
+            "| Current corpus | Not evidenced | No uploaded project documents used in this scaffold | Upload brief, approvals, programme, and cost records |",
+            "| Seed doctrine | Assumption | Curated platform seed sections | Replace assumptions as evidence arrives |",
+        ]
+    )
+
+
+def _render_taxonomy_snapshot(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    fields = context.user_provided_fields
+    rows = [
+        "| Field | Value | Evidence status |",
+        "| --- | --- | --- |",
+        f"| Project | {_metadata_value(project.title)} | User provided |",
+        f"| Site / address | {_metadata_value(fields.get('site_address'))} | User provided / Not evidenced |",
+        f"| Client | {_metadata_value(fields.get('client'))} | User provided / Not evidenced |",
+        f"| State | {_metadata_value(project.state or 'NSW')} | User provided |",
+        f"| Taxonomy | {context.building_class} / {context.work_type or 'TBC'} | User provided |",
+        f"| Subclass and scale | {_taxonomy_scale_summary(project)} | User provided |",
+        f"| Budget | {_metadata_value(fields.get('budget'))} | User provided / Assumption |",
+        f"| Timeframe | {_metadata_value(fields.get('timeframe'))} | User provided / Assumption |",
+        f"| Procurement route | {_metadata_value(fields.get('procurement_route'))} | User provided / Assumption |",
+    ]
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('snapshot', work_type=context.work_type)}",
+            "",
+            "\n".join(rows),
+            "",
+            _evidence_status_table(),
+            "",
+            "Scaffold status: this PMP is useful immediately from setup inputs, but every "
+            "project-specific delivery claim remains open until current project documents "
+            "are uploaded or the user confirms the assumption.",
+        ]
+    )
+
+
+def _render_taxonomy_scope(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    scope_items = work_scope_items_for(context.work_type, context.work_scope)
+    roster = [
+        "| Scope item | Expected consultants | Evidence status |",
+        "| --- | --- | --- |",
+    ]
+    if scope_items:
+        for item in scope_items:
+            roster.append(
+                f"| {item.label} | {', '.join(item.consultants) or 'TBC'} | Assumption |"
+            )
+    else:
+        roster.append("| Scope selection | Architect-PM / Project Manager | Assumption |")
+
+    residential_note = (
+        "For residential new work, confirm finishes, fixtures, wet-area scope, kitchen/bathroom "
+        "allowances, appliance and tapware selections, flooring, joinery, external works, "
+        "landscaping, utility connections, owner selections, and owner-supplied items before procurement. "
+        "Keep finishes/fixtures explicit because this is where budget and expectation gaps "
+        "usually appear."
+        if context.building_class == "residential" and context.work_type == "new"
+        else "Confirm the scope boundary, exclusions, interfaces, and client acceptance criteria before procurement or advisory delivery."
+    )
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('scope-client-requirements', work_type=context.work_type)}",
+            "",
+            f"Class/type/subclass: **User provided** {context.building_class} / {context.work_type or 'TBC'} / {', '.join(context.subclasses) or 'TBC'}.",
+            f"Scale summary: **User provided** {_taxonomy_scale_summary(project)}.",
+            residential_note,
+            "Any project-specific scope not yet supported by current corpus documents remains **Assumption** until uploaded evidence confirms it.",
+            "Use this section as the control point for scope drift: record inclusions, "
+            "exclusions, interfaces, owner/client decisions, and consultant information "
+            "requests before procurement or service delivery starts.",
+            _emphasis_note(project, "scope-client-requirements"),
+            "",
+            "\n".join(roster),
+        ]
+    )
+
+
+def _render_taxonomy_compliance(project: Project, seed_section_refs: dict[str, tuple[str, ...]] | None) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    refs = seed_section_refs.get("compliance-approvals", ()) if seed_section_refs else ()
+    rows = [
+        "| Approval / compliance item | Status | Basis | Next action |",
+        "| --- | --- | --- | --- |",
+        "| NCC pathway | Assumption | Taxonomy and loaded seed doctrine | Confirm DtS/performance pathway with certifier |",
+        "| Authority approvals | Not evidenced | No current approval records used | Upload planning/approval records |",
+        "| Essential safety measures | Assumption | Seed doctrine | Confirm ESM schedule where applicable |",
+    ]
+    if "fire_services" in context.work_scope:
+        rows.extend(
+            [
+                "| Fire hydrant systems | Assumption | AS 2419.1 seed reference | Confirm hydrant scope and authority requirements |",
+                "| Fire pumpsets | Assumption | AS 2941 seed reference | Confirm pumpset duty, redundancy, and commissioning pathway |",
+            ]
+        )
+    ref_line = f"Loaded seed sections: {', '.join(refs)}." if refs else "Loaded seed sections: TBC."
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('compliance-approvals', work_type=context.work_type)}",
+            "",
+            ref_line,
+            "Do not use generic compliance prose where a required seed section is absent; mark the gap for user confirmation.",
+            "The approval pathway, certifier position, authority inputs, and inspection or "
+            "commissioning hold points are **Not evidenced** until the current corpus "
+            "contains approval records, consultant advice, or authority correspondence.",
+            _emphasis_note(project, "compliance-approvals"),
+            "",
+            "\n".join(rows),
+        ]
+    )
+
+
+def _render_taxonomy_programme(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('programme', work_type=context.work_type)}",
+            "",
+            "| Milestone | Status | Evidence basis | Next action |",
+            "| --- | --- | --- | --- |",
+            "| Setup / brief confirmation | User provided | Taxonomy setup | Confirm scope and budget lock |",
+            "| Authority pathway | Assumption | Seed doctrine | Confirm approval route and lead times |",
+            "| Procurement / services start | Assumption | Work type and role | Confirm procurement or advisory deliverables programme |",
+            "| Delivery / reporting cadence | Not evidenced | No programme document used | Upload programme or agree reporting cadence |",
+            "",
+            "Programme logic should stay milestone-based until a current programme is uploaded. "
+            "Authority lead times, live-environment staging, shutdown windows, and client "
+            "review periods are assumptions that need confirmation before dates are issued.",
+            _emphasis_note(project, "programme"),
+        ]
+    )
+
+
+def _render_taxonomy_cost(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    budget = context.user_provided_fields.get("budget")
+    risk_text = "; ".join(flag.title for flag in context.risk_flags) or "No derived uplift flags"
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('cost-budget', work_type=context.work_type)}",
+            "",
+            f"Budget: **User provided / Assumption** {_metadata_value(budget)}.",
+            f"Complexity/risk uplift watch: **Assumption** {risk_text}.",
+            "Cost plan, contingency, PC/PS allowances, and benchmark basis are **Not evidenced** until current project documents are uploaded.",
+            "Use companion cost/risk annexures for detailed line items; keep the primary PMP to budget status, constraints, and decisions.",
+            "Before commitment, confirm whether the stated budget covers consultants, authority "
+            "fees, escalation, contingency, temporary works, and risk allowances triggered by "
+            "the selected complexity profile.",
+            _emphasis_note(project, "cost-budget"),
+        ]
+    )
+
+
+def _render_taxonomy_procurement(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    if context.work_type == "advisory":
+        rows = [
+            "| Deliverable | Status | Next action |",
+            "| --- | --- | --- |",
+            "| Technical due diligence / review output | Assumption | Confirm report format and review hold points |",
+            "| Exclusions and reliance limits | Assumption | Confirm in engagement scope |",
+            "| Evidence request list | Not evidenced | Issue document request register |",
+        ]
+    else:
+        rows = [
+            "| Procurement / delivery item | Status | Next action |",
+            "| --- | --- | --- |",
+            "| Procurement route | User provided / Assumption | Confirm contract and tender pathway |",
+            "| Consultant inputs | Assumption | Appoint or confirm discipline roster |",
+            "| Tender / award gates | Not evidenced | Upload procurement programme and evaluation criteria |",
+        ]
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('procurement-delivery', work_type=context.work_type)}",
+            "",
+            "\n".join(rows),
+            "",
+            "Delivery responsibilities remain an **Assumption** until appointment documents "
+            "confirm who decides, who advises, who certifies, who contracts, and who carries "
+            "coordination risk for each work-scope item.",
+            _emphasis_note(project, "procurement-delivery"),
+        ]
+    )
+
+
+def _render_taxonomy_risks(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    rows = ["| Risk | Owner | Status | Next action | Due |", "| --- | --- | --- | --- | --- |"]
+    for risk, owner, status, action, due in _taxonomy_risk_rows(project):
+        rows.append(f"| {risk} | {owner} | {status} | {action} | {due} |")
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('risks', work_type=context.work_type)}",
+            "",
+            "\n".join(rows),
+            "",
+            "Primary risk register is capped at 8 rows. Full risk detail belongs in a companion annexure.",
+            "Risk status is deliberately conservative in scaffold mode: selected complexity "
+            "options create risk rows, but severity and mitigation should be recalibrated "
+            "when the current corpus contains consultant advice, authority records, or cost "
+            "evidence.",
+            _emphasis_note(project, "risks"),
+        ]
+    )
+
+
+def _decision_block(block_id: str, label: str, prompt: str) -> str:
+    return "\n".join(
+        [
+            "```pmp-decision",
+            "{",
+            f'  "id": "{block_id}",',
+            f'  "label": "{label}",',
+            f'  "prompt": "{prompt}",',
+            '  "selected": "decision-required",',
+            '  "source": "agent",',
+            '  "options": [',
+            '    {"value": "decision-required", "label": "Decision required"},',
+            '    {"value": "confirmed", "label": "Confirmed"},',
+            '    {"value": "defer", "label": "Defer"}',
+            "  ]",
+            "}",
+            "```",
+        ]
+    )
+
+
+def _render_taxonomy_actions(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    actions = [
+        "| Action / decision | Owner | Status | Next action |",
+        "| --- | --- | --- | --- |",
+        "| Confirm scope boundary and exclusions | Owner | User provided / Assumption | Lock client requirements before procurement |",
+        "| Confirm approval pathway | Architect-PM | Assumption | Test NCC/authority path with certifier |",
+        "| Confirm budget and contingency basis | Owner | Assumption | Provide budget or cost plan evidence |",
+        "| Confirm consultant roster | Architect-PM | Assumption | Appoint required disciplines from work-scope list |",
+    ]
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('actions-decisions', work_type=context.work_type)}",
+            "",
+            "\n".join(actions),
+            "",
+            "Decision blocks below are placeholders for the user to lock the PMP basis. "
+            "Locked decisions should survive refreshes; conflicting uploaded evidence should "
+            "create a visible action rather than silently changing the taxonomy or section "
+            "weighting.",
+            _emphasis_note(project, "actions-decisions"),
+            "",
+            _decision_block("scope-boundary", "Scope boundary", "Confirm the scope boundary and exclusions."),
+            "",
+            _decision_block("approval-pathway", "Approval pathway", "Confirm the approval and certification pathway."),
+            "",
+            _decision_block("budget-basis", "Budget basis", "Confirm the budget, contingency, and cost-plan basis."),
+            "",
+            _decision_block("consultant-roster", "Consultant roster", "Confirm the required consultant roster."),
+        ]
+    )
+
+
+def _render_taxonomy_platform_scaffold(
+    project: Project,
+    *,
+    seed_section_refs: dict[str, tuple[str, ...]] | None = None,
+) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    sections = [
+        _render_taxonomy_snapshot(project),
+        _render_taxonomy_scope(project),
+        _render_taxonomy_compliance(project, seed_section_refs),
+        _render_taxonomy_programme(project),
+        _render_taxonomy_cost(project),
+        _render_taxonomy_procurement(project),
+        _render_taxonomy_risks(project),
+        _render_taxonomy_actions(project),
+    ]
+    rendered_headings = {
+        line.strip()[3:].strip().lower()
+        for section in sections
+        for line in section.splitlines()
+        if line.strip().startswith("## ")
+    }
+    missing = [
+        heading
+        for heading in pmp_section_headings(work_type=context.work_type)
+        if heading.lower() not in rendered_headings
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise RuntimeError(f"PMP scaffold missing required sections: {joined}")
+    title = document_title_for_role(
+        project.user_role or "architect-pm",
+        project=project,
+    )
+    return f"# {title}\n\n" + "\n\n".join(sections) + "\n"
+
+
 def render_pmp_scaffold(
     project: Project,
     pack: MobilisationEvidencePack,
     draft_mode: DraftMode,
     *,
     version: int = 1,
+    seed_section_refs: dict[str, tuple[str, ...]] | None = None,
 ) -> str:
     """Render deterministic PMP markdown scaffold from project overlays and evidence pack."""
+    if draft_mode == "platform_seeded" and project_has_taxonomy(project):
+        return _render_taxonomy_platform_scaffold(
+            project,
+            seed_section_refs=seed_section_refs,
+        )
+
     if draft_mode != "evidence_grounded":
         msg = f"PMP scaffold renderer supports evidence_grounded mode only (got {draft_mode!r})"
         raise ValueError(msg)
@@ -798,7 +1258,7 @@ def render_pmp_scaffold(
         _render_internal_audit(pack),
     ]
 
-    headings = required_section_headings(user_role)
+    headings = required_section_headings(user_role, project=project)
     rendered_headings = {
         line.strip()[3:].strip().lower()
         for section in sections
@@ -810,6 +1270,6 @@ def render_pmp_scaffold(
         joined = ", ".join(missing)
         raise RuntimeError(f"PMP scaffold missing required sections: {joined}")
 
-    title = document_title_for_role(user_role)
+    title = document_title_for_role(user_role, project=project)
     body = "\n\n".join(sections)
     return f"# {title}\n\n{body}\n"

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
+from app.sitewise.gate import overlay_status
 from app.workflows.create_pmp import PmpDraftOutput, markdown_section_headings
 from app.workflows.update_pmp import (
     run_update_pmp_workflow,
@@ -127,9 +128,23 @@ def test_markdown_section_headings_extracts_custom_sections() -> None:
 
 
 def test_update_pmp_fails_without_baseline() -> None:
-    with patch(
-        "app.workflows.update_pmp.get_latest_draft_artifact",
-        new=AsyncMock(return_value=None),
+    with (
+        patch(
+            "app.workflows.update_pmp.overlay_status",
+            return_value=overlay_status(
+                archetype="new-dwelling",
+                user_role="architect-pm",
+                state="NSW",
+            ),
+        ),
+        patch(
+            "app.workflows.update_pmp.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.update_pmp.get_latest_draft_artifact",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         result = run_async(
             run_update_pmp_workflow(

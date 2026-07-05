@@ -800,3 +800,177 @@ def evidence_grounded_violations(
         seen.add(issue)
         deduped.append(issue)
     return deduped
+
+
+_USER_PROVIDED_LABEL = "user provided"
+_GROUNDED_LABELS = ("grounded", "partial", "on file — unverified", "on file - unverified")
+_DOWNGRADE_TARGET = "Not evidenced"
+_CONFLICTED_TARGET = "Conflict"
+
+
+def apply_corpus_evidence_downgrades(
+    markdown: str,
+    *,
+    removed_paths: set[str],
+    current_source_texts: list[str] | None = None,
+) -> tuple[str, dict[str, list[str]]]:
+    """Downgrade grounded rows when their supporting documents left the active corpus."""
+    if not removed_paths:
+        return markdown, {"downgraded": [], "conflicted": []}
+
+    downgraded: list[str] = []
+    conflicted: list[str] = []
+    updated = markdown
+    violating_sections = set()
+    if current_source_texts is not None:
+        for issue in evidence_map_claim_violations(updated, current_source_texts):
+            match = re.search(r"evidence map row '([^']+)'", issue)
+            if match:
+                violating_sections.add(match.group(1))
+
+    evidence_basis = _markdown_section(updated, "Evidence basis and document control")
+    if evidence_basis:
+        repaired_basis, basis_downgraded, basis_conflicted = _downgrade_evidence_map_rows(
+            evidence_basis,
+            removed_paths=removed_paths,
+            violating_sections=violating_sections,
+            empty_corpus=current_source_texts is not None and not current_source_texts,
+        )
+        if repaired_basis != evidence_basis:
+            updated = _replace_markdown_section(
+                updated,
+                "Evidence basis and document control",
+                repaired_basis,
+            )
+        downgraded.extend(basis_downgraded)
+        conflicted.extend(basis_conflicted)
+
+    for heading in ("Project overview", "Scope & client requirements", "Scope and client requirements"):
+        section = _markdown_section(updated, heading)
+        if not section:
+            continue
+        repaired_section, section_downgraded, section_conflicted = _downgrade_inline_status_rows(
+            section,
+            removed_paths=removed_paths,
+        )
+        if repaired_section != section:
+            updated = _replace_markdown_section(updated, heading, repaired_section)
+        downgraded.extend(section_downgraded)
+        conflicted.extend(section_conflicted)
+
+    return updated, {"downgraded": downgraded, "conflicted": conflicted}
+
+
+def _ref_matches_removed_paths(ref: str, removed_paths: set[str]) -> bool:
+    ref_lower = ref.strip().lower()
+    if ref_lower in {"—", "-", "n/a", "none", ""}:
+        return False
+    for path in removed_paths:
+        path_lower = path.lower()
+        filename = path_lower.rsplit("/", 1)[-1]
+        if path_lower in ref_lower or filename in ref_lower:
+            return True
+    return False
+
+
+def _downgrade_evidence_map_rows(
+    section: str,
+    *,
+    removed_paths: set[str],
+    violating_sections: set[str] | None = None,
+    empty_corpus: bool = False,
+) -> tuple[str, list[str], list[str]]:
+    downgraded: list[str] = []
+    conflicted: list[str] = []
+    lines: list[str] = []
+    violations = violating_sections or set()
+    for line in section.splitlines():
+        match = _EVIDENCE_MAP_ROW_PATTERN.match(line.strip())
+        if not match:
+            lines.append(line)
+            continue
+        section_name = match.group("section").strip()
+        status = match.group("status").strip()
+        ref = match.group("ref").strip()
+        status_lower = status.lower()
+        if status_lower in {"evidence status", "---"}:
+            lines.append(line)
+            continue
+        path_match = _ref_matches_removed_paths(ref, removed_paths)
+        should_downgrade = path_match or section_name in violations or (
+            empty_corpus
+            and (
+                any(label in status_lower for label in _GROUNDED_LABELS)
+                or _USER_PROVIDED_LABEL in status_lower
+            )
+        )
+        if not should_downgrade:
+            lines.append(line)
+            continue
+        if _USER_PROVIDED_LABEL in status_lower:
+            new_status = f"{status} — current corpus no longer supports"
+            conflicted.append(section_name)
+        elif any(label in status_lower for label in _GROUNDED_LABELS):
+            new_status = _DOWNGRADE_TARGET
+            downgraded.append(section_name)
+        else:
+            lines.append(line)
+            continue
+        lines.append(
+            f"| {section_name} | {new_status} | {ref} |"
+        )
+    return "\n".join(lines), downgraded, conflicted
+
+
+def _downgrade_inline_status_rows(
+    section: str,
+    *,
+    removed_paths: set[str],
+) -> tuple[str, list[str], list[str]]:
+    downgraded: list[str] = []
+    conflicted: list[str] = []
+    updated_lines: list[str] = []
+    for line in section.splitlines():
+        updated_line = line
+        if "**Grounded**" in line or "**Partial**" in line:
+            if any(path.rsplit("/", 1)[-1].lower() in line.lower() for path in removed_paths):
+                if _USER_PROVIDED_LABEL in line.lower():
+                    updated_line = line.replace(
+                        "**Grounded**",
+                        f"**{_CONFLICTED_TARGET}**",
+                    ).replace(
+                        "**Partial**",
+                        f"**{_CONFLICTED_TARGET}**",
+                    )
+                    if "current corpus no longer supports" not in updated_line.lower():
+                        updated_line = f"{updated_line.rstrip()} — current corpus no longer supports"
+                    conflicted.append(line.strip()[:80])
+                else:
+                    updated_line = line.replace("**Grounded**", f"**{_DOWNGRADE_TARGET}**")
+                    updated_line = updated_line.replace("**Partial**", f"**{_DOWNGRADE_TARGET}**")
+                    downgraded.append(line.strip()[:80])
+        updated_lines.append(updated_line)
+    return "\n".join(updated_lines), downgraded, conflicted
+
+
+def taxonomy_provenance_violations(
+    markdown: str,
+    *,
+    draft_mode: str,
+) -> list[str]:
+    """Validate provenance labels for taxonomy-backed PMP drafts."""
+    violations: list[str] = []
+    body_lower = markdown.lower()
+    if draft_mode == "platform_seeded" and re.search(r"\bgrounded\b", markdown, re.IGNORECASE):
+        violations.append(
+            "taxonomy platform_seeded drafts must not contain Grounded claims; "
+            "use User provided, Assumption, or Not evidenced"
+        )
+    if draft_mode == "platform_seeded" and not any(
+        label in body_lower for label in ("user provided", "assumption", "not evidenced")
+    ):
+        violations.append(
+            "taxonomy platform_seeded drafts must label setup facts and gaps with "
+            "User provided, Assumption, or Not evidenced"
+        )
+    return violations

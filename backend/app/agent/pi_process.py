@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -109,9 +110,20 @@ async def _default_spawn(*, argv: list[str], env: dict[str, str], cwd: str) -> _
         )
 
 
+def resolve_subprocess_binary(binary: str) -> str:
+    """Resolve a command to an executable path (npm .cmd shims on Windows need this)."""
+    path = Path(binary)
+    if path.is_file():
+        return str(path.resolve())
+    resolved = shutil.which(binary)
+    if resolved:
+        return resolved
+    return binary
+
+
 def _build_argv(*, prompt: str) -> list[str]:
     return [
-        settings.pi_binary_path,
+        resolve_subprocess_binary(settings.pi_binary_path),
         "--no-tools",
         "--provider",
         settings.pi_model_provider,
@@ -219,7 +231,17 @@ async def stream_pi_turn(
     env = _build_env(mcp_url=mcp_url, turn_token=turn_token, cwd=workspace)
     stderr_tail: deque[str] = deque(maxlen=20)
 
-    process = await spawn(argv=argv, env=env, cwd=str(workspace))
+    try:
+        process = await spawn(argv=argv, env=env, cwd=str(workspace))
+    except FileNotFoundError as exc:
+        binary = argv[0]
+        raise PiTurnError(
+            f"Cannot run Pi agent binary '{binary}'. "
+            "On Windows, npm-installed `pi` is a .cmd shim — set PI_BINARY_PATH "
+            "to the full path (for example "
+            "C:\\Users\\<you>\\AppData\\Roaming\\npm\\pi.cmd), or install pi "
+            "where Python can execute it directly."
+        ) from exc
     stderr_task = asyncio.create_task(_read_stderr(process.stderr, stderr_tail))
     try:
         try:

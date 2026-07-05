@@ -836,6 +836,76 @@ def _detect_gaps(combined_text: str) -> list[str]:
     return gaps
 
 
+_LIST_FIELDS = (
+    "scope_bullets",
+    "fee_stages",
+    "builder_quotes",
+    "other_evidence",
+    "evidence_refs",
+)
+
+
+def _recompute_merged_gaps(pack: MobilisationEvidencePack) -> list[str]:
+    gaps = list(dict.fromkeys(pack.gaps))
+    if has_engagement_evidence(pack):
+        gaps = [gap for gap in gaps if gap != GAP_ENGAGEMENT]
+    if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF):
+        gaps = [gap for gap in gaps if gap != GAP_OWNER_BRIEF]
+    if pack.construction_budget_ceiling and not pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET):
+        gaps = [gap for gap in gaps if gap != GAP_CONSTRUCTION_BUDGET]
+    if not pack_has_gap(pack, GAP_GEOTECHNICAL):
+        gaps = [gap for gap in gaps if gap != GAP_GEOTECHNICAL]
+    if not pack_has_gap(pack, GAP_CERTIFIER):
+        gaps = [gap for gap in gaps if gap != GAP_CERTIFIER]
+    if not pack_has_gap(pack, GAP_MASTER_PROGRAMME):
+        gaps = [gap for gap in gaps if gap != GAP_MASTER_PROGRAMME]
+    if not has_engagement_evidence(pack) and GAP_ENGAGEMENT not in gaps:
+        gaps.insert(0, GAP_ENGAGEMENT)
+    return gaps
+
+
+def merge_evidence_packs(
+    base: MobilisationEvidencePack,
+    incoming: MobilisationEvidencePack,
+) -> MobilisationEvidencePack:
+    """Merge two packs; incoming wins scalar conflicts, lists are unioned."""
+    merged = base.model_copy(deep=True)
+    incoming_data = incoming.model_dump()
+
+    for field in _LIST_FIELDS:
+        base_values = list(getattr(merged, field))
+        incoming_values = incoming_data.get(field) or []
+        combined = base_values + [
+            value for value in incoming_values if value not in base_values
+        ]
+        setattr(merged, field, combined)
+
+    for field_name, value in incoming_data.items():
+        if field_name in _LIST_FIELDS or field_name == "gaps":
+            continue
+        if value is None:
+            continue
+        if field_name == "owner_brief_on_file":
+            setattr(merged, field_name, bool(getattr(merged, field_name) or value))
+            continue
+        if field_name == "invited_builder_count":
+            current = getattr(merged, field_name)
+            setattr(merged, field_name, value if current is None else max(current, value))
+            continue
+        if field_name == "formal_tender_count":
+            current = getattr(merged, field_name)
+            setattr(merged, field_name, value if current is None else max(current, value))
+            continue
+        if field_name == "ca_months_assumed":
+            current = getattr(merged, field_name)
+            setattr(merged, field_name, value if current is None else max(current, value))
+            continue
+        setattr(merged, field_name, value)
+
+    merged.gaps = _recompute_merged_gaps(merged)
+    return merged
+
+
 def extract_mobilisation_evidence_pack(
     source_texts: list[str],
     evidence_refs: list[str] | None = None,

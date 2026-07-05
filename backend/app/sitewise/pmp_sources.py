@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
+from app.sitewise.section_contracts import (
+    document_title,
+    pmp_section_headings,
+)
+
 UserRole = Literal["owner-builder", "architect-pm", "builder", "d-and-c"]
 Archetype = Literal[
     "new-dwelling",
@@ -151,7 +156,21 @@ def required_platform_paths(
     )
 
 
-def required_section_headings(user_role: str) -> tuple[str, ...]:
+def required_section_headings(
+    user_role: str,
+    *,
+    project: object | None = None,
+    building_class: str | None = None,
+    work_type: str | None = None,
+) -> tuple[str, ...]:
+    taxonomy_kwargs = _project_taxonomy_kwargs(project)
+    if building_class is not None:
+        taxonomy_kwargs["building_class"] = building_class
+    if work_type is not None:
+        taxonomy_kwargs["work_type"] = work_type
+    if taxonomy_kwargs.get("building_class") is not None:
+        return pmp_section_headings(work_type=taxonomy_kwargs.get("work_type"))
+
     headings = ROLE_SECTION_HEADINGS.get(user_role)
     if headings is None:
         msg = f"Unsupported user_role for Create PMP: {user_role!r}"
@@ -159,7 +178,21 @@ def required_section_headings(user_role: str) -> tuple[str, ...]:
     return headings
 
 
-def document_title_for_role(user_role: str) -> str:
+def document_title_for_role(
+    user_role: str,
+    *,
+    project: object | None = None,
+    building_class: str | None = None,
+    work_type: str | None = None,
+) -> str:
+    taxonomy_kwargs = _project_taxonomy_kwargs(project)
+    if building_class is not None:
+        taxonomy_kwargs["building_class"] = building_class
+    if work_type is not None:
+        taxonomy_kwargs["work_type"] = work_type
+    if taxonomy_kwargs.get("building_class") is not None:
+        return document_title(user_role, taxonomy_kwargs.get("work_type"))
+
     title = ROLE_DOCUMENT_TITLES.get(user_role)
     if title is None:
         msg = f"Unsupported user_role for Create PMP: {user_role!r}"

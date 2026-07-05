@@ -21,7 +21,6 @@ _LEGACY_ARCHETYPES: dict[str, EffectiveTaxonomy] = {
 
 
 def effective_taxonomy(project) -> EffectiveTaxonomy:
-    """Resolve PMP 2.0 taxonomy, with legacy archetypes as test-fixture fallback."""
     building_class = getattr(project, "building_class", None)
     work_type = getattr(project, "work_type", None)
     if building_class is not None or work_type is not None:

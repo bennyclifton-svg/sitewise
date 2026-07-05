@@ -384,6 +384,42 @@ class PatchDraftRequest(BaseModel):
     content_markdown: str = Field(min_length=1)
 
 
+class ProjectDecisionOption(BaseModel):
+    value: str
+    label: str
+
+
+class ProjectDecision(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    decision_id: str
+    section: str
+    label: str
+    options: list[ProjectDecisionOption]
+    selected: str
+    source: str
+    workflow_type: str
+    evidence_conflict: bool = False
+    agent_suggestion: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProjectDecisionListResponse(BaseModel):
+    decisions: list[ProjectDecision]
+
+
+class UpdateProjectDecisionRequest(BaseModel):
+    selected: str = Field(min_length=1, max_length=128)
+
+
+class UpdateProjectDecisionResponse(BaseModel):
+    decision: ProjectDecision
+    draft: DraftArtifactResponse
+
+
 class CreatePmpResponse(BaseModel):
     status: str
     gate: OverlayStatus

@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.api import chat as chat_api
+from app.agent.turn_context import _ROLE_GUIDANCE
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.config import settings
 from app.database.chat_message import ChatMessage
@@ -234,9 +235,13 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         AsyncMock(
             return_value=SimpleNamespace(
                 id=PROJECT_ID,
+                title="Test Project 112",
                 archetype="new-dwelling",
                 user_role="builder",
                 state="NSW",
+                phase="procurement",
+                building_class=None,
+                work_type=None,
             )
         ),
     )
@@ -275,9 +280,15 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     assert '"type":"finish"' in body
     assert "[DONE]" in body
     expected_prompt = (
+        _ROLE_GUIDANCE + "\n"
+        "\n"
         "<project-context>\n"
         f"project_id: {PROJECT_ID}\n"
+        "project_title: Test Project 112\n"
         "archetype: new-dwelling\n"
+        "building_class: (not declared)\n"
+        "work_type: (not declared)\n"
+        "phase: procurement\n"
         "user_role: builder\n"
         "state: NSW\n"
         "</project-context>\n"
@@ -307,6 +318,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "provider": "openai-codex",
         "model": "gpt-5.5",
     }
+    assert (tmp_path / str(PROJECT_ID) / "AGENTS.md").exists()
     token_mint.assert_called_once()
     assert token_mint.call_args.kwargs["user_id"] == USER_ID
     assert token_mint.call_args.kwargs["project_id"] == PROJECT_ID

@@ -1,10 +1,4 @@
-"""Deterministic heading splitter for platform knowledge documents.
-
-Splits doctrine and seed markdown into addressable sections so callers can
-load a targeted slice instead of the whole document. The doctrine's heading
-structure (# preamble, ## 00-brief-pmp … ## 09-handover-dlp, # Cross-cutting
-rules with ## §-anchors) is a tested contract — see tests/sitewise.
-"""
+"""Small markdown section helpers for platform seed guides."""
 
 from __future__ import annotations
 
@@ -33,7 +27,6 @@ def slugify_heading(heading: str) -> str:
 
 
 def _frontmatter_end(lines: list[str]) -> int:
-    """Return the line index just past a leading frontmatter block, else 0."""
     if not lines or lines[0].strip() != "---":
         return 0
     for index in range(1, len(lines)):
@@ -43,18 +36,8 @@ def _frontmatter_end(lines: list[str]) -> int:
 
 
 def split_sections(text: str, *, max_level: int = 2) -> list[MarkdownSection]:
-    """Split markdown into heading-bounded sections (levels 1..max_level).
-
-    Section content includes the heading line. A level-1 section spans until
-    the next level-1 heading (so it contains its level-2 children); a level-2
-    section spans until the next heading of level 1 or 2. Headings inside
-    fenced code blocks are ignored. Section IDs are heading slugs; on a slug
-    collision the ID is qualified as "<parent-slug>/<slug>".
-    """
     lines = text.splitlines(keepends=True)
     skip_lines = _frontmatter_end(lines)
-
-    # (level, heading, char_offset) for each real heading
     headings: list[tuple[int, str, int]] = []
     offset = 0
     in_fence = False
@@ -67,14 +50,13 @@ def split_sections(text: str, *, max_level: int = 2) -> list[MarkdownSection]:
                 if match and len(match.group(1)) <= max_level:
                     headings.append((len(match.group(1)), match.group(2), offset))
         offset += len(line)
-    total = offset
 
     sections: list[MarkdownSection] = []
     seen_ids: set[str] = set()
     parent_slug: str | None = None
     parent_id: str | None = None
     for position, (level, heading, start) in enumerate(headings):
-        end = total
+        end = offset
         for next_level, _, next_start in headings[position + 1 :]:
             if next_level <= level:
                 end = next_start
@@ -88,7 +70,6 @@ def split_sections(text: str, *, max_level: int = 2) -> list[MarkdownSection]:
         if section_id in seen_ids and level > 1 and parent_slug:
             section_id = f"{parent_slug}/{slug}"
         seen_ids.add(section_id)
-
         sections.append(
             MarkdownSection(
                 section_id=section_id,
@@ -106,7 +87,6 @@ def split_sections(text: str, *, max_level: int = 2) -> list[MarkdownSection]:
 
 
 def section_by_id(sections: list[MarkdownSection], ref: str) -> MarkdownSection | None:
-    """Look up a section by exact ID, or by bare slug when unambiguous."""
     for section in sections:
         if section.section_id == ref:
             return section
@@ -124,11 +104,6 @@ def assemble_sections(
     *,
     max_chars: int | None = None,
 ) -> str | None:
-    """Concatenate the requested sections in document order.
-
-    Returns None when any requested section is missing, so callers can fall
-    back to whole-document behaviour rather than silently serving a subset.
-    """
     sections = split_sections(text)
     resolved: list[MarkdownSection] = []
     for ref in section_ids:
@@ -141,9 +116,8 @@ def assemble_sections(
     deduped: list[MarkdownSection] = []
     for section in resolved:
         if deduped and section.start < deduped[-1].end:
-            continue  # nested or duplicate span already covered
+            continue
         deduped.append(section)
-
     assembled = "".join(section.content for section in deduped).strip()
     if max_chars is not None:
         assembled = assembled[:max_chars]
@@ -158,14 +132,6 @@ CROSS_CUTTING_SECTION_ID = "cross-cutting-rules"
 
 
 def doctrine_core_content(text: str, *, max_chars: int | None = None) -> str | None:
-    """Assemble the always-loaded doctrine core.
-
-    Core = the preamble (first level-1 section: authority stack, project-lead
-    role, core principle) plus the entire Cross-cutting rules block. The ten
-    stage sections (00-brief-pmp … 09-handover-dlp) and sub-roles stay
-    on-demand. Returns None when the doctrine's heading structure is not
-    recognised, so callers can fall back to truncated whole-document loading.
-    """
     sections = split_sections(text)
     preamble = next((section for section in sections if section.level == 1), None)
     cross_cutting = section_by_id(sections, CROSS_CUTTING_SECTION_ID)

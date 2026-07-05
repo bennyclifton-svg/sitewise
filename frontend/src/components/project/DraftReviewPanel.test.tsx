@@ -42,6 +42,42 @@ describe("DraftReviewPanel", () => {
     vi.clearAllMocks();
   });
 
+  it("shows refresh provenance strips for update drafts", () => {
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          version: 3,
+          provenance_metadata: {
+            sections_changed: ["Scope & client requirements", "Risks & actions"],
+            evidence_changed: {
+              added: ["04-projects/demo/new-brief.md"],
+              removed: ["04-projects/demo/old-brief.md"],
+              superseded: ["04-projects/demo/old-brief.md"],
+              downgraded: ["Appointment & fee"],
+              conflicted: [],
+            },
+            trace: [
+              {
+                step: "evidence_sweep",
+                status: "complete",
+                message: "Swept evidence batch 1 of 1.",
+                metadata: { batch_index: 0 },
+              },
+            ],
+          },
+        })}
+        onDraftUpdated={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("What changed in v3")).toBeInTheDocument();
+    expect(screen.getByText("Scope & client requirements")).toBeInTheDocument();
+    expect(screen.getByText(/Evidence changes:/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /refresh pmp from documents/i })).toBeInTheDocument();
+  });
+
   it("saves edits and swaps to the returned draft version", async () => {
     const user = userEvent.setup();
     const updated = draft({
@@ -74,5 +110,44 @@ describe("DraftReviewPanel", () => {
     expect(api.patchDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1", "# Edited");
     expect(screen.getAllByText("v2")[0]).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Edited" })).toBeInTheDocument();
+  });
+
+  it("edits one section and leaves the other section unchanged", async () => {
+    const user = userEvent.setup();
+    const original = draft({
+      content_markdown: "# Title\n\n## First\n\nAlpha\n\n## Second\n\nBeta\n",
+    });
+    const updated = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: "# Title\n\n## First\n\nGamma\n\n## Second\n\nBeta\n",
+    });
+    vi.mocked(api.patchDraft).mockResolvedValue(updated);
+    const onDraftUpdated = vi.fn();
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={onDraftUpdated}
+      />,
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Edit section" })[0]!);
+    const editor = screen.getByRole("textbox");
+    await user.clear(editor);
+    await user.type(editor, "## First\n\nGamma\n");
+    await user.click(screen.getByRole("button", { name: /save section/i }));
+
+    await waitFor(() => {
+      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+    });
+    expect(api.patchDraft).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "draft-1",
+      expect.stringContaining("## Second\n\nBeta"),
+    );
+    expect(api.patchDraft.mock.calls[0]?.[2]).toContain("Gamma");
+    expect(api.patchDraft.mock.calls[0]?.[2]).not.toContain("Alpha");
   });
 });

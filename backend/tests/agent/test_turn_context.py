@@ -10,19 +10,30 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     prompt = build_agent_prompt(
         "Compare the tenders",
         project_id=PROJECT_ID,
+        title="Harbour House",
         archetype="renovation",
         user_role="architect-pm",
         state="NSW",
+        phase="procurement",
+        building_class="1a",
+        work_type="alterations-additions",
         history=[
             HistoryMessage(role="user", content="Any update on the quotes?"),
             HistoryMessage(role="assistant", content="Two received, one pending."),
         ],
     )
 
+    assert prompt.index("<role>") < prompt.index("<project-context>")
     assert prompt.index("<project-context>") < prompt.index("<document-access>")
     assert prompt.index("<document-access>") < prompt.index("<recent-conversation>")
     assert prompt.rstrip().endswith("Compare the tenders")
+    assert "construction management intelligence agent" in prompt
+    assert "this software repository" in prompt
+    assert "project_title: Harbour House" in prompt
     assert "archetype: renovation" in prompt
+    assert "building_class: 1a" in prompt
+    assert "work_type: alterations-additions" in prompt
+    assert "phase: procurement" in prompt
     assert "user_role: architect-pm" in prompt
     assert "state: NSW" in prompt
     assert f"project_id: {PROJECT_ID}" in prompt
@@ -36,14 +47,21 @@ def test_prompt_marks_undeclared_overlays_and_omits_empty_history() -> None:
     prompt = build_agent_prompt(
         "Hello",
         project_id=PROJECT_ID,
+        title="Harbour House",
         archetype=None,
         user_role="builder",
         state=None,
+        phase=None,
+        building_class=None,
+        work_type=None,
         history=[],
     )
 
     assert "archetype: (not declared)" in prompt
     assert "state: (not declared)" in prompt
+    assert "building_class: (not declared)" in prompt
+    assert "work_type: (not declared)" in prompt
+    assert "phase: (not declared)" in prompt
     assert "user_role: builder" in prompt
     assert "<recent-conversation>" not in prompt
 
@@ -61,9 +79,13 @@ def test_history_window_is_bounded_by_count_and_chars(
     prompt = build_agent_prompt(
         "Next",
         project_id=PROJECT_ID,
+        title="Harbour House",
         archetype="new-dwelling",
         user_role="builder",
         state="NSW",
+        phase=None,
+        building_class=None,
+        work_type=None,
         history=history,
     )
 
@@ -81,9 +103,13 @@ def test_multiline_history_messages_are_flattened() -> None:
     prompt = build_agent_prompt(
         "Next",
         project_id=PROJECT_ID,
+        title="Harbour House",
         archetype="new-dwelling",
         user_role="builder",
         state="NSW",
+        phase=None,
+        building_class=None,
+        work_type=None,
         history=[HistoryMessage(role="assistant", content="line one\n\nline two")],
     )
 

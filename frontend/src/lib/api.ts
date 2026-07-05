@@ -41,6 +41,7 @@ import type {
   ProjectSummary,
   TaxonomyCatalog,
   UpdateProjectInput,
+  UpdateProjectDecisionResponse,
   ProjectWorkspaceTree,
   WorkbookPreview,
 } from "@/lib/types/project";
@@ -559,6 +560,16 @@ export const api = {
     api.patch<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`, {
       content_markdown: contentMarkdown,
     }),
+
+  putDecision: async (
+    projectId: string,
+    decisionId: string,
+    selected: string,
+  ): Promise<UpdateProjectDecisionResponse> =>
+    api.put<UpdateProjectDecisionResponse>(
+      `/projects/${projectId}/decisions/${decisionId}`,
+      { selected },
+    ),
 
   acceptDraft: async (projectId: string, draftId: string): Promise<DraftArtifact> =>
     api.post<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}/accept`),

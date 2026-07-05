@@ -447,7 +447,6 @@ export function ProjectCockpitPage() {
           project={project}
           projects={projects}
           projectsLoading={projectsLoading}
-          platformStatus={platformStatus}
         />
       }
       repository={
@@ -478,6 +477,7 @@ export function ProjectCockpitPage() {
           onRunSortFiles={() => void runSortFiles()}
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
+          platformStatus={platformStatus}
         />
       }
       chatBar={
@@ -542,6 +542,8 @@ export function ProjectCockpitPage() {
           projectId={project.id}
           draft={activeDraft}
           workflowType={activeWorkflowType}
+          onRunUpdatePmp={() => void runUpdatePmp()}
+          isRunningUpdatePmp={isRunningWorkflow}
           onDraftUpdated={async (draft) => {
             if (draft.workflow_type === "create_cost_plan") {
               setLatestCostPlanDraft(draft);

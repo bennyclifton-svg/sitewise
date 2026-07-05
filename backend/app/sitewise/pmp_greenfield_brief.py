@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from app.sitewise.section_contracts import (
+    PMP_SECTION_HEADINGS,
+    heading_for_section_id,
+)
+from app.sitewise.taxonomy import (
+    RiskFlag,
+    complexity_option_labels,
+    work_scope_items_for,
+)
+
 # Cross-cutting markers every architect-PM greenfield draft must contain.
 ARCHITECT_PM_COMMON_MARKERS: tuple[str, ...] = (
     "what this means",
@@ -773,13 +785,211 @@ def _mobilisation_greenfield_brief(
     return "\n".join(parts)
 
 
+def _format_value(value: object) -> str:
+    if value is None:
+        return "TBC"
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, (int, float)):
+        return f"{value:g}"
+    if isinstance(value, list):
+        return ", ".join(_format_value(item) for item in value if item is not None) or "TBC"
+    if isinstance(value, dict):
+        return ", ".join(
+            f"{key}: {_format_value(item)}"
+            for key, item in value.items()
+            if item is not None
+        ) or "TBC"
+    text = str(value).strip()
+    return text or "TBC"
+
+
+def _section_refs(
+    seed_section_refs: dict[str, tuple[str, ...]] | None,
+    section_id: str,
+) -> tuple[str, ...]:
+    if not seed_section_refs:
+        return ()
+    return seed_section_refs.get(section_id, ())
+
+
+def _contract_focus_line(
+    section_id: str,
+    *,
+    work_type: str | None,
+    work_scope: tuple[str, ...],
+    refs: tuple[str, ...],
+) -> str:
+    if section_id == "snapshot":
+        return (
+            "use a compact metadata table for site, address, client, class/type/"
+            "subclass, scale, budget, timeframe, procurement route, and evidence status"
+        )
+    if section_id == "scope-client-requirements":
+        focus = (
+            "cover class/type/subclass, selected work scope, client requirements, "
+            "scale fields, budget basis, and project-specific assumptions"
+        )
+        if "fire_services" in work_scope:
+            focus += "; keep fire-services scope precise rather than generic services prose"
+        else:
+            focus += "; for residential new work, include finishes, fixtures, wet areas, and owner selections from seeds where loaded"
+        return focus
+    if section_id == "compliance-approvals":
+        focus = (
+            "cover DtS/performance pathway, NCC/authority gates, essential safety measures, "
+            "approval status, and seed-backed compliance references"
+        )
+        if "fire_services" in work_scope:
+            as_refs = ", ".join(ref for ref in refs if "as-2419" in ref or "as-2941" in ref)
+            focus += (
+                "; cite AS 2419.1 hydrant systems and AS 2941 pumpsets"
+                f" from {as_refs or 'the loaded AS standards seed sections'}"
+            )
+        return focus
+    if section_id == "programme":
+        return "cover key milestones, authority lead times, procurement gates, and staging assumptions"
+    if section_id == "cost-budget":
+        return "cover budget status, cost risks, contingency, allowances, and benchmark/seed limits"
+    if section_id == "procurement-delivery":
+        if work_type == "advisory":
+            return "cover services, deliverables, exclusions, hold points, and review outputs"
+        return "cover procurement route, consultant/builder inputs, tender/award gates, and delivery responsibilities"
+    if section_id == "risks":
+        return "show a condensed top-risk register only; full detail belongs in companion annexures"
+    if section_id == "actions-decisions":
+        return "show top open decisions/actions only with owner, status, due basis, and next action"
+    return "cover only project-specific content supported by setup inputs or loaded seeds"
+
+
+def _adaptive_greenfield_brief(
+    *,
+    archetype: str,
+    user_role: str,
+    state: str,
+    building_class: str,
+    work_type: str | None,
+    subclasses: tuple[str, ...],
+    scale: dict[str, Any],
+    complexity: dict[str, str],
+    work_scope: tuple[str, ...],
+    risk_flags: tuple[RiskFlag, ...],
+    section_weights: dict[str, float],
+    seed_section_refs: dict[str, tuple[str, ...]] | None,
+    user_provided_fields: dict[str, Any],
+    target_words: int,
+    draft_mode: str,
+) -> str:
+    work_scope_items = work_scope_items_for(work_type, work_scope)
+    complexity_labels = complexity_option_labels(
+        building_class=building_class,
+        subclasses=subclasses,
+        complexity=complexity,
+    )
+    section_lines: list[str] = []
+    for section_id in PMP_SECTION_HEADINGS:
+        weight = section_weights.get(section_id, 0.0)
+        heading = heading_for_section_id(section_id, work_type=work_type)
+        refs = _section_refs(seed_section_refs, section_id)
+        ref_note = f" Loaded seed sections: {', '.join(refs)}." if refs else ""
+        section_lines.append(
+            f"- {heading} (~{int(weight * target_words)} words): "
+            f"{_contract_focus_line(section_id, work_type=work_type, work_scope=work_scope, refs=refs)}."
+            f"{ref_note}"
+        )
+
+    setup_rows = [
+        f"- User provided project title: {_format_value(user_provided_fields.get('title'))}",
+        f"- User provided state: {_format_value(state)}",
+        f"- User provided role: {_format_value(user_role)}",
+        f"- User provided taxonomy: class={building_class}, work_type={work_type or 'TBC'}, "
+        f"subclasses={', '.join(subclasses) or 'TBC'}",
+    ]
+    for key, value in scale.items():
+        setup_rows.append(f"- User provided scale - {key}: {_format_value(value)}")
+    for label in complexity_labels.values():
+        setup_rows.append(f"- User provided complexity - {label}")
+    for key, value in user_provided_fields.items():
+        if key in {"title"} or value in (None, "", [], {}):
+            continue
+        setup_rows.append(f"- User provided {key}: {_format_value(value)}")
+
+    scope_rows = [
+        f"- {item.label}: consultants {', '.join(item.consultants) or 'TBC'}"
+        for item in work_scope_items
+    ] or ["- No work-scope items selected; list expected consultants as Assumption."]
+    risk_rows = [
+        f"- {flag.severity.upper()}: {flag.title} - {flag.description}"
+        for flag in risk_flags
+    ] or ["- No derived risk flags; keep generic risks short and project-specific."]
+
+    return "\n".join(
+        [
+            "## Adaptive taxonomy PMP content contract (MUST follow)",
+            f"Draft mode: {draft_mode}. Primary PMP target: {target_words} words inside the 2-4 page band.",
+            "Length discipline: budgets are guides. Spend up to a section budget where the project warrants it; cut generic prose before project-specific facts.",
+            "Condensed registers: top ~8 risks and top ~8 actions/decisions only. Full registers are companion artifacts/annexures.",
+            "Evidence discipline: User setup facts are **User provided**. Missing current-corpus facts are **Assumption** or **Not evidenced**. Do not write **Grounded** in platform_seeded drafts.",
+            "No fallback: if a required seed section is missing, state the gap for confirmation; do not fill it from pretrained domain content.",
+            "",
+            "### Project taxonomy",
+            f"- Building class: {building_class}",
+            f"- Work type: {work_type or 'TBC'}",
+            f"- Subclass scale summary: {', '.join(subclasses) or 'TBC'}; "
+            + (", ".join(f"{key}={_format_value(value)}" for key, value in scale.items()) or "scale TBC"),
+            f"- Legacy archetype fallback label: {archetype or 'none'}",
+            "",
+            "### User provided setup fields",
+            *setup_rows,
+            "",
+            "### Selected work-scope items",
+            *scope_rows,
+            "",
+            "### Derived risk flags",
+            *risk_rows,
+            "",
+            "### Per-section word budgets and loaded seed sections",
+            *section_lines,
+        ]
+    )
+
+
 def build_greenfield_brief(
     *,
     archetype: str,
     user_role: str,
     state: str,
     draft_mode: str = "platform_seeded",
+    building_class: str | None = None,
+    work_type: str | None = None,
+    subclasses: tuple[str, ...] = (),
+    scale: dict[str, Any] | None = None,
+    complexity: dict[str, str] | None = None,
+    work_scope: tuple[str, ...] = (),
+    risk_flags: tuple[RiskFlag, ...] = (),
+    section_weights: dict[str, float] | None = None,
+    seed_section_refs: dict[str, tuple[str, ...]] | None = None,
+    user_provided_fields: dict[str, Any] | None = None,
+    target_words: int | None = None,
 ) -> str:
+    if building_class is not None and section_weights is not None and target_words is not None:
+        return _adaptive_greenfield_brief(
+            archetype=archetype,
+            user_role=user_role,
+            state=state,
+            building_class=building_class,
+            work_type=work_type,
+            subclasses=subclasses,
+            scale=scale or {},
+            complexity=complexity or {},
+            work_scope=work_scope,
+            risk_flags=risk_flags,
+            section_weights=section_weights,
+            seed_section_refs=seed_section_refs,
+            user_provided_fields=user_provided_fields or {},
+            target_words=target_words,
+            draft_mode=draft_mode,
+        )
     evidence_grounded = draft_mode == "evidence_grounded"
     if user_role == "architect-pm":
         return _architect_pm_greenfield_brief(

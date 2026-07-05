@@ -57,4 +57,41 @@ describe("AssistantMessage", () => {
     expect(screen.getByText("Tender comparison report")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Citation 1: Quote A.pdf" })).toBeInTheDocument();
   });
+
+  it("dedupes citations with the same sourceId", () => {
+    const duplicateSourceId =
+      "reference:seed/program-scheduling-guide.md#chunk=879de2d7-809b-5cc1-bce2-1ad27e5966d8";
+
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          messageData={{
+            citations: [
+              {
+                sourceId: duplicateSourceId,
+                chunkId: duplicateSourceId,
+                documentId: "program-scheduling-guide.md",
+                title: "Program scheduling guide",
+                excerpt: "First excerpt",
+              },
+              {
+                sourceId: duplicateSourceId,
+                chunkId: duplicateSourceId,
+                documentId: "program-scheduling-guide.md",
+                title: "Program scheduling guide",
+                excerpt: "Second excerpt",
+              },
+            ],
+          }}
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: "Citation 1: Program scheduling guide" }),
+    ).toHaveLength(1);
+  });
 });

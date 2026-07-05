@@ -23,6 +23,7 @@ from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
+from app.agent.workspace_instructions import ensure_workspace_instructions
 from app.agent.workspace_paths import project_workspace_root
 from app.billing.entitlements import require_active_entitlement
 from app.billing.usage import require_turn_within_quota
@@ -277,6 +278,7 @@ async def _persist_agent_assistant_message(
 def _agent_workspace(project_id: uuid.UUID) -> str:
     path = project_workspace_root(project_id)
     path.mkdir(parents=True, exist_ok=True)
+    ensure_workspace_instructions(path)
     return str(path)
 
 
@@ -329,9 +331,13 @@ async def post_agent_stream(
     agent_prompt = build_agent_prompt(
         user_text,
         project_id=str(thread.project_id),
+        title=project.title,
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,
+        phase=project.phase,
+        building_class=project.building_class,
+        work_type=project.work_type,
         history=[
             HistoryMessage(role=message.role, content=message.content)
             for message in prior_messages

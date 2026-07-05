@@ -213,6 +213,32 @@ export type PlatformKnowledgeStatus = {
   buckets: PlatformKnowledgeBucket[];
 };
 
+export type ProjectDecisionOption = {
+  value: string;
+  label: string;
+};
+
+export type ProjectDecision = {
+  id: string;
+  project_id: string;
+  decision_id: string;
+  section: string;
+  label: string;
+  options: ProjectDecisionOption[];
+  selected: string;
+  source: string;
+  workflow_type: string;
+  evidence_conflict: boolean;
+  agent_suggestion: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UpdateProjectDecisionResponse = {
+  decision: ProjectDecision;
+  draft: DraftArtifact;
+};
+
 export type DraftArtifactSummary = {
   id: string;
   project_id: string;

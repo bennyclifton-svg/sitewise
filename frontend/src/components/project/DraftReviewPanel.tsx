@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Download, FileText, Pencil, RotateCcw, Save, Table2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Download, FileText, Pencil, RefreshCw, RotateCcw, Save, Table2 } from "lucide-react";
 
 import { CopyContentButton } from "@/components/project/CopyContentButton";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { splitMarkdownSections, spliceMarkdownSection } from "@/lib/markdown-sections";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
@@ -25,11 +26,15 @@ export function DraftReviewPanel({
   draft,
   onDraftUpdated,
   workflowType,
+  onRunUpdatePmp,
+  isRunningUpdatePmp = false,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
   onDraftUpdated: (draft: DraftArtifact) => void;
   workflowType?: string;
+  onRunUpdatePmp?: () => void;
+  isRunningUpdatePmp?: boolean;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -39,6 +44,8 @@ export function DraftReviewPanel({
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDownloadingWorkbook, setIsDownloadingWorkbook] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [sectionEditHeading, setSectionEditHeading] = useState<string | null>(null);
+  const [sectionEditorValue, setSectionEditorValue] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +56,7 @@ export function DraftReviewPanel({
         setLoadedDraft(null);
         setEditorValue("");
         setIsEditing(false);
+        setSectionEditHeading(null);
         setIsLoadingDraft(false);
         return;
       }
@@ -107,8 +115,48 @@ export function DraftReviewPanel({
   const evidence = metadataList(loadedDraft?.provenance_metadata?.evidence_refs);
   const context = metadataList(loadedDraft?.provenance_metadata?.context_refs);
   const trace = metadataTrace(loadedDraft?.provenance_metadata?.trace);
+  const sectionsChanged = metadataStringList(loadedDraft?.provenance_metadata?.sections_changed);
+  const evidenceChanged = evidenceChangedSummary(loadedDraft?.provenance_metadata?.evidence_changed);
   const workbook = workbookMetadata(loadedDraft?.provenance_metadata?.workbook);
   const isAccepted = displayDraft.status === "accepted";
+  const sections = useMemo(
+    () => (loadedDraft ? splitMarkdownSections(loadedDraft.content_markdown) : []),
+    [loadedDraft],
+  );
+
+  function startSectionEdit(heading: string) {
+    if (!loadedDraft) return;
+    const section = sections.find((item) => item.heading === heading);
+    if (!section) return;
+    setSectionEditHeading(heading);
+    setSectionEditorValue(loadedDraft.content_markdown.slice(section.start, section.end));
+    setIsEditing(false);
+    setActionError(null);
+  }
+
+  async function saveSectionEdit() {
+    if (!loadedDraft || !sectionEditHeading) return;
+    const section = sections.find((item) => item.heading === sectionEditHeading);
+    if (!section) return;
+    const nextMarkdown = spliceMarkdownSection(
+      loadedDraft.content_markdown,
+      section,
+      sectionEditorValue,
+    );
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const updated = await api.patchDraft(projectId, loadedDraft.id, nextMarkdown);
+      setLoadedDraft(updated);
+      onDraftUpdated(updated);
+      setSectionEditHeading(null);
+      setSectionEditorValue("");
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "Could not save section.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function saveEdits() {
     if (!loadedDraft) return;
@@ -166,6 +214,35 @@ export function DraftReviewPanel({
   return (
     <article className="flex w-full min-w-0 flex-col gap-4 p-4 lg:p-6">
       <section className="rounded-md border bg-background">
+        {sectionsChanged.length || evidenceChanged ? (
+          <div className="space-y-3 border-b px-4 py-3">
+            {sectionsChanged.length ? (
+              <div>
+                <h3 className="text-sm font-semibold">
+                  What changed in v{displayDraft.version}
+                </h3>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {sectionsChanged.map((section) => (
+                    <Badge key={section} variant="secondary">
+                      {section}
+                    </Badge>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {evidenceChanged ? (
+              <EvidenceChangeStrip
+                summary={evidenceChanged}
+                onOpenTrace={() => {
+                  document.getElementById("draft-workflow-trace")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }}
+              />
+            ) : null}
+          </div>
+        ) : null}
         {isLoadingDraft ? (
           <p className="p-4 text-sm text-muted-foreground" role="status">
             Loading draft content...
@@ -181,11 +258,48 @@ export function DraftReviewPanel({
             onChange={(event) => setEditorValue(event.target.value)}
             spellCheck={false}
           />
+        ) : sectionEditHeading ? (
+          <div className="p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold">Editing: {sectionEditHeading}</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSectionEditHeading(null);
+                    setSectionEditorValue("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={() => void saveSectionEdit()} disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save section"}
+                </Button>
+              </div>
+            </div>
+            <textarea
+              className="min-h-[18rem] w-full resize-y rounded-md border bg-transparent p-3 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={sectionEditorValue}
+              onChange={(event) => setSectionEditorValue(event.target.value)}
+              spellCheck={false}
+            />
+          </div>
         ) : (
           <div className="p-4">
             <MarkdownContent
               markdown={loadedDraft.content_markdown}
               version={displayDraft.version}
+              projectId={projectId}
+              projectTitle={displayDraft.title}
+              readOnly={isAccepted}
+              onDraftUpdated={(updated) => {
+                setLoadedDraft(updated);
+                onDraftUpdated(updated);
+              }}
+              onEditSection={
+                isAccepted || isEditing ? undefined : (heading) => startSectionEdit(heading)
+              }
             />
           </div>
         )}
@@ -276,6 +390,17 @@ export function DraftReviewPanel({
               {isDownloadingWorkbook ? "Downloading..." : "Download workbook"}
             </Button>
           ) : null}
+          {isPmpDraft(displayDraft.workflow_type) && onRunUpdatePmp ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRunUpdatePmp}
+              disabled={isRunningUpdatePmp || isAccepting || isEditing}
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              {isRunningUpdatePmp ? "Refreshing..." : "Refresh PMP from documents"}
+            </Button>
+          ) : null}
           <Button disabled variant="outline" size="sm">
             <RotateCcw className="size-4" aria-hidden />
             Reopen
@@ -286,7 +411,9 @@ export function DraftReviewPanel({
         ) : null}
       </header>
 
-      <WorkflowTracePanel trace={trace} />
+      <div id="draft-workflow-trace">
+        <WorkflowTracePanel trace={trace} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ReferenceList title="Seed consulted" items={seed} />
@@ -294,6 +421,72 @@ export function DraftReviewPanel({
         <ReferenceList title="Context refs" items={context} />
       </div>
     </article>
+  );
+}
+
+function isPmpDraft(workflowType: string): boolean {
+  return workflowType === "create_pmp" || workflowType === "update_pmp";
+}
+
+function metadataStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+type EvidenceChangedSummary = {
+  added: number;
+  removed: number;
+  superseded: number;
+  downgraded: number;
+  conflicted: number;
+};
+
+function evidenceChangedSummary(value: unknown): EvidenceChangedSummary | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = value as Record<string, unknown>;
+  const summary = {
+    added: metadataStringList(candidate.added).length,
+    removed: metadataStringList(candidate.removed).length,
+    superseded: metadataStringList(candidate.superseded).length,
+    downgraded: metadataStringList(candidate.downgraded).length,
+    conflicted: metadataStringList(candidate.conflicted).length,
+  };
+  if (
+    summary.added +
+      summary.removed +
+      summary.superseded +
+      summary.downgraded +
+      summary.conflicted ===
+    0
+  ) {
+    return null;
+  }
+  return summary;
+}
+
+function EvidenceChangeStrip({
+  summary,
+  onOpenTrace,
+}: {
+  summary: EvidenceChangedSummary;
+  onOpenTrace: () => void;
+}) {
+  const parts = [
+    summary.added ? `${summary.added} added` : null,
+    summary.removed ? `${summary.removed} removed` : null,
+    summary.superseded ? `${summary.superseded} superseded` : null,
+    summary.downgraded ? `${summary.downgraded} downgraded` : null,
+    summary.conflicted ? `${summary.conflicted} conflicted` : null,
+  ].filter((part): part is string => part !== null);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="font-medium">Evidence changes:</span>
+      <span className="text-muted-foreground">{parts.join(" · ")}</span>
+      <Button variant="link" size="sm" className="h-auto px-0" onClick={onOpenTrace}>
+        View sweep trace
+      </Button>
+    </div>
   );
 }
 

@@ -15,6 +15,24 @@ Label every project-specific claim without evidence as **Assumption**. Never pre
 
 ## Scaffold (all create runs; update runs preserve baseline)
 
+When the prompt includes an **Adaptive taxonomy PMP content contract**, it supersedes
+the legacy role/archetype scaffold:
+- The primary PMP is a 2-4 A4 page control document. Treat word budgets as guides;
+  deepen project-specific high-weight sections and cut generic prose first.
+- Use the universal `##` headings supplied in the prompt exactly.
+- Start with a compact snapshot metadata table.
+- Use condensed registers only: top ~8 risks and top ~8 actions/decisions in the
+  primary PMP. Preserve overflow detail as companion artifacts or annexures, not
+  long inline prose.
+- Cite specific AS/NCC references from loaded seed sections. For fire-services
+  scope, name AS 2419.1 hydrant systems and AS 2941 pumpsets when those seed
+  refs are supplied.
+- User setup facts are **User provided**. Missing current-corpus facts are
+  **Assumption** or **Not evidenced**. Do not write **Grounded** in
+  `platform_seeded` drafts.
+- Do not fill a missing required seed section from pretrained domain knowledge.
+  Mark the gap and ask for confirmation.
+
 When the prompt includes a **Greenfield content contract** (Create PMP), you must:
 - Include every bullet under each section in that contract — use tables and checklists, not single generic paragraphs
 - Use the role-specific programme sub-milestone table from the contract (builder/owner-builder drafts must NOT include "invited builders" or "builder procured" rows)
@@ -139,3 +157,28 @@ End the markdown with `## Internal audit layer` containing:
 `seed_consulted` must list seed paths (not doctrine). Include every mandatory seed path from the prompt even if you only used part of it.
 
 `context_refs` must cite doctrine and seed using the exact `ref:` values from the supplied sources.
+
+## Interactive decision blocks
+
+Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, staging strategy, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
+
+```pmp-decision
+{
+  "id": "procurement-route",
+  "section": "Procurement posture",
+  "label": "Procurement route",
+  "options": [
+    {"value": "traditional", "label": "Traditional (Lump Sum)"},
+    {"value": "design_construct", "label": "Design & Construct"}
+  ],
+  "selected": "traditional",
+  "source": "agent",
+  "rationale": "Why this option fits the current evidence."
+}
+```
+
+Rules:
+- Use kebab-case stable ids (`procurement-route`, `approval-pathway`, `contract-form`, `staging-strategy`, or the complexity dimension key with underscores replaced by hyphens).
+- Never invent option values outside the taxonomy lists supplied in the prompt.
+- Preserve user-locked decisions exactly (`source: "user"`) when the prompt lists locked selections.
+- One block per open decision; place it in the relevant `##` section.

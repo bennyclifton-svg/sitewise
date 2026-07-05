@@ -19,6 +19,7 @@ from app.database.activity_events import record_activity_events
 from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
+from app.database.project_decisions import locked_selections, sync_decisions_from_markdown
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.storage.project_files import upload_project_file
@@ -28,24 +29,40 @@ from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
 from app.schemas.projects import CreatePmpResponse, DraftArtifactResponse, WorkflowTraceEvent
 from app.sitewise.gate import format_overlay_failure, overlay_status
+from app.sitewise.archetype_bridge import effective_taxonomy
 from app.sitewise.pmp_greenfield_brief import (
     build_greenfield_brief,
     greenfield_markers_missing,
     greenfield_quality_markers,
     greenfield_structure_violations,
 )
-from app.sitewise.pmp_evidence_validation import evidence_grounded_violations, sanitize_evidence_grounded_markdown, sync_document_control_version
+from app.sitewise.pmp_evidence_validation import (
+    evidence_grounded_violations,
+    sanitize_evidence_grounded_markdown,
+    sync_document_control_version,
+    taxonomy_provenance_violations,
+)
+from app.sitewise.pmp_length import length_violations, pmp_word_count
+from app.sitewise.pmp_decisions import (
+    decision_violations,
+    format_decision_option_sets,
+    format_locked_decisions,
+    restamp_decisions,
+)
 from app.sitewise.pmp_sources import (
     document_title_for_role,
     required_platform_paths,
     required_section_headings,
     seed_consulted_includes_required,
 )
+from app.sitewise.pmp_seed_routing import load_pmp_seed_sections
+from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
 from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE = "create_pmp"
 RUNTIME_NAME = "clerk-sitewise-create-pmp"
 RUNTIME_HYBRID_NAME = "clerk-sitewise-create-pmp-hybrid"
+RUNTIME_ADAPTIVE_SCAFFOLD_NAME = "clerk-sitewise-create-pmp-adaptive-scaffold"
 HYBRID_NARRATIVE_MAX_ATTEMPTS = 3
 CREATE_PMP_PROJECT_QUERY = (
     "project management plan brief scope risks programme cost authorities mobilisation"
@@ -192,12 +209,84 @@ def _format_sources(passages: list[SourcePassage]) -> str:
     return "\n\n---\n\n".join(blocks)
 
 
-def _format_required_sections(user_role: str) -> str:
-    return "\n".join(f"- {heading}" for heading in required_section_headings(user_role))
+def _format_required_sections(user_role: str, *, project: Project | None = None) -> str:
+    return "\n".join(
+        f"- {heading}" for heading in required_section_headings(user_role, project=project)
+    )
 
 
 def _format_mandatory_seeds(paths: list[str]) -> str:
     return "\n".join(f"- {path}" for path in paths if path.startswith("seed/"))
+
+
+def _seed_section_refs_by_section(
+    passages: list[SourcePassage],
+) -> dict[str, tuple[str, ...]]:
+    refs: dict[str, list[str]] = {}
+    for passage in passages:
+        metadata = passage.chunk_metadata or {}
+        section_id = metadata.get("pmp_section")
+        section_refs = metadata.get("seed_section_refs")
+        if not isinstance(section_id, str) or not isinstance(section_refs, list):
+            continue
+        bucket = refs.setdefault(section_id, [])
+        for ref in section_refs:
+            if isinstance(ref, str) and ref not in bucket:
+                bucket.append(ref)
+    return {section: tuple(values) for section, values in refs.items()}
+
+
+def _target_words() -> int:
+    return (settings.pmp_min_words + settings.pmp_max_words) // 2
+
+
+def _format_project_taxonomy(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "Project taxonomy: legacy archetype-only project."
+    scale = ", ".join(f"{key}={value}" for key, value in context.scale.items()) or "TBC"
+    complexity = (
+        ", ".join(f"{key}={value}" for key, value in context.complexity.items())
+        or "TBC"
+    )
+    return "\n".join(
+        [
+            "Project taxonomy:",
+            f"- building_class: {context.building_class}",
+            f"- work_type: {context.work_type or 'TBC'}",
+            f"- subclasses: {', '.join(context.subclasses) or 'TBC'}",
+            f"- scale: {scale}",
+            f"- complexity: {complexity}",
+            f"- work_scope: {', '.join(context.work_scope) or 'TBC'}",
+            f"- derived_risk_flags: {', '.join(context.risk_flag_values) or 'none'}",
+        ]
+    )
+
+
+def _format_section_budgets(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "Per-section word budgets: not applicable to legacy archetype draft."
+    return "\n".join(
+        [
+            "Per-section word budgets:",
+            *[
+                f"- {section_id}: ~{int(weight * _target_words())} words"
+                for section_id, weight in context.section_weights.items()
+            ],
+        ]
+    )
+
+
+def _format_loaded_seed_sections(passages: list[SourcePassage]) -> str:
+    refs = [
+        ref
+        for values in _seed_section_refs_by_section(passages).values()
+        for ref in values
+    ]
+    if not refs:
+        return "Loaded seed sections: none routed at section level."
+    return "\n".join(["Loaded seed sections:", *[f"- {ref}" for ref in refs]])
 
 
 def normalize_pmp_markdown(markdown: str) -> str:
@@ -355,6 +444,32 @@ async def expand_project_passages_to_whole_documents(
     return merged
 
 
+def _taxonomy_metadata_values(project: Project, key: str) -> tuple[str, ...]:
+    metadata = project.project_metadata
+    if not isinstance(metadata, dict):
+        return ()
+    taxonomy = metadata.get("taxonomy")
+    values = None
+    if isinstance(taxonomy, dict):
+        values = taxonomy.get(key)
+    if values is None:
+        values = metadata.get(key)
+    if isinstance(values, str):
+        return (values,) if values.strip() else ()
+    if not isinstance(values, list):
+        return ()
+
+    result: list[str] = []
+    for item in values:
+        if isinstance(item, str) and item.strip():
+            result.append(item)
+        elif isinstance(item, dict):
+            value = item.get("value")
+            if isinstance(value, str) and value.strip():
+                result.append(value)
+    return tuple(result)
+
+
 async def retrieve_create_pmp_sources(
     session: AsyncSession,
     *,
@@ -371,6 +486,20 @@ async def retrieve_create_pmp_sources(
         mandatory_paths,
         content_chars=CREATE_PMP_PLATFORM_CONTENT_CHARS,
     )
+    if getattr(project, "building_class", None) is not None:
+        taxonomy = effective_taxonomy(project)
+        routed = await load_pmp_seed_sections(
+            session,
+            selected_paths=mandatory_paths,
+            building_class=taxonomy.building_class,
+            work_type=taxonomy.work_type,
+            subclasses=taxonomy.subclasses,
+            work_scope=_taxonomy_metadata_values(project, "work_scope"),
+            risk_flags=_taxonomy_metadata_values(project, "risk_flags"),
+            max_chars=CREATE_PMP_PLATFORM_CONTENT_CHARS,
+        )
+        platform_passages.extend(routed.passages)
+        missing_paths.extend(routed.missing_required_refs)
 
     retriever = DocumentRetriever(session)
     project_passages = await retriever.retrieve(
@@ -449,8 +578,14 @@ async def retrieve_project_evidence_delta(
     return passages
 
 
-def _role_drafting_note(*, user_role: str, draft_mode: DraftMode, state: str) -> str:
-    title = document_title_for_role(user_role)
+def _role_drafting_note(
+    *,
+    user_role: str,
+    draft_mode: DraftMode,
+    state: str,
+    project: Project | None = None,
+) -> str:
+    title = document_title_for_role(user_role, project=project)
     if draft_mode == "platform_seeded":
         evidence_note = (
             "No project evidence is available yet. Draft from the mandatory doctrine and "
@@ -480,6 +615,14 @@ def _role_drafting_note(*, user_role: str, draft_mode: DraftMode, state: str) ->
             "grounded in Sources (not Assumptions). "
             "In **Project overview**, ground owner names, site address, and dwelling "
             "type from Sources — do not label them Assumption when the evidence states them."
+        )
+
+    if draft_mode == "platform_seeded" and project_has_taxonomy(project):
+        evidence_note = (
+            "No project evidence is available yet. Draft scaffold-first from project "
+            "taxonomy, user setup fields, doctrine, and loaded seed sections only. "
+            "Keep the primary document inside the 2-4 page band. Leave evidence_refs "
+            "empty and do not write Grounded claims."
         )
 
     state_note = (
@@ -512,6 +655,7 @@ async def run_create_pmp_model(
     draft_mode: DraftMode,
     validation_feedback: str | None = None,
     chat_model: str | None = None,
+    locked_decisions: dict[str, str] | None = None,
 ) -> PmpDraftOutput:
     user_role = project.user_role or ""
     mandatory_paths = required_platform_paths(
@@ -519,6 +663,8 @@ async def run_create_pmp_model(
         user_role=user_role,
         project=project,
     )
+    taxonomy_context = pmp_taxonomy_context(project)
+    seed_section_refs = _seed_section_refs_by_section(passages)
 
     prompt_parts = [
         f"Project: {project.title}",
@@ -534,17 +680,34 @@ async def run_create_pmp_model(
             "due dates (2–4 weeks forward or relative phrasing; never past years)."
         ),
         f"Draft mode: {draft_mode}",
-        f"Required document title: {document_title_for_role(user_role)}",
+        f"Required document title: {document_title_for_role(user_role, project=project)}",
         _role_drafting_note(
             user_role=user_role,
             draft_mode=draft_mode,
             state=project.state or "NSW",
+            project=project,
         ),
         "Required PM-facing sections (use these exact ## headings):",
-        _format_required_sections(user_role),
+        _format_required_sections(user_role, project=project),
         "Mandatory seed paths (must all appear in seed_consulted):",
         _format_mandatory_seeds(mandatory_paths),
     ]
+    if taxonomy_context is not None:
+        prompt_parts.extend(
+            [
+                _format_project_taxonomy(project),
+                _format_section_budgets(project),
+                _format_loaded_seed_sections(passages),
+                format_decision_option_sets(project),
+                format_locked_decisions(locked_decisions or {}),
+                (
+                    "Taxonomy PMP rules: primary document is 2-4 A4 pages; use a compact "
+                    "snapshot metadata table; cite specific AS/NCC refs from loaded seed "
+                    "sections; keep risks and actions to top ~8 rows each; do not use "
+                    "pretrained domain content where a required seed section is missing."
+                ),
+            ]
+        )
     archetype = project.archetype or ""
     state = project.state or "NSW"
     prompt_parts.append(
@@ -553,6 +716,19 @@ async def run_create_pmp_model(
             user_role=user_role,
             state=state,
             draft_mode=draft_mode,
+            building_class=taxonomy_context.building_class if taxonomy_context else None,
+            work_type=taxonomy_context.work_type if taxonomy_context else None,
+            subclasses=taxonomy_context.subclasses if taxonomy_context else (),
+            scale=taxonomy_context.scale if taxonomy_context else None,
+            complexity=taxonomy_context.complexity if taxonomy_context else None,
+            work_scope=taxonomy_context.work_scope if taxonomy_context else (),
+            risk_flags=taxonomy_context.risk_flags if taxonomy_context else (),
+            section_weights=taxonomy_context.section_weights if taxonomy_context else None,
+            seed_section_refs=seed_section_refs,
+            user_provided_fields=(
+                taxonomy_context.user_provided_fields if taxonomy_context else None
+            ),
+            target_words=_target_words() if taxonomy_context else None,
         )
     )
     if draft_mode == "platform_seeded":
@@ -633,7 +809,12 @@ def _seed_consulted_from_passages(passages: list[SourcePassage]) -> list[str]:
         if not _is_platform_passage(passage):
             continue
         if passage.source_type == "reference":
-            seeds.append(passage.relative_path)
+            metadata = passage.chunk_metadata or {}
+            section_refs = metadata.get("seed_section_refs")
+            if isinstance(section_refs, list) and section_refs:
+                seeds.extend(str(ref) for ref in section_refs)
+            else:
+                seeds.append(passage.relative_path)
     return list(dict.fromkeys(seeds))
 
 
@@ -642,6 +823,7 @@ def _should_use_hybrid_compiler(project: Project, draft_mode: DraftMode) -> bool
         settings.pmp_hybrid_compiler
         and draft_mode == "evidence_grounded"
         and (project.user_role or "") == "architect-pm"
+        and not project_has_taxonomy(project)
     )
 
 
@@ -653,6 +835,7 @@ async def run_create_pmp_hybrid(
     chat_model: str,
     project_source_texts: list[str],
     trace: list[WorkflowTraceEvent],
+    locked_decisions: dict[str, str] | None = None,
 ) -> PmpDraftOutput:
     """Hybrid compiler path: extract → render → narrate → assemble."""
     from app.sitewise.mobilisation_evidence import extract_mobilisation_evidence_pack
@@ -735,12 +918,13 @@ async def run_create_pmp_hybrid(
         )
 
         output = PmpDraftOutput(
-            title=document_title_for_role(user_role),
+            title=document_title_for_role(user_role, project=project),
             markdown=markdown,
             seed_consulted=_seed_consulted_from_passages(passages),
             evidence_refs=evidence_refs,
             context_refs=_context_refs_from_passages(passages),
         )
+        output = _apply_locked_decisions(output, locked_decisions or {})
         try:
             validate_pmp_output(
                 output,
@@ -778,6 +962,7 @@ def validate_pmp_output(
     project: Project | None = None,
     source_texts: list[str] | None = None,
 ) -> None:
+    taxonomy_context = pmp_taxonomy_context(project) if project is not None else None
     if not output.seed_consulted:
         raise WorkflowValidationError("Create PMP output did not identify seed consulted.")
     if not output.context_refs:
@@ -803,7 +988,7 @@ def validate_pmp_output(
 
     missing_sections = [
         heading
-        for heading in required_section_headings(user_role)
+        for heading in required_section_headings(user_role, project=project)
         if not _markdown_has_section(output.markdown, heading)
     ]
     if missing_sections:
@@ -812,7 +997,7 @@ def validate_pmp_output(
             f"Create PMP output is missing required sections: {joined}"
         )
 
-    if draft_mode == "platform_seeded":
+    if draft_mode == "platform_seeded" and taxonomy_context is None:
         missing_markers = greenfield_markers_missing(
             output.markdown,
             archetype=archetype,
@@ -824,6 +1009,26 @@ def validate_pmp_output(
                 "Create PMP greenfield draft lacks required archetype/role depth markers: "
                 f"{joined}"
             )
+
+    if taxonomy_context is not None:
+        provenance_issues = taxonomy_provenance_violations(
+            output.markdown,
+            draft_mode=draft_mode,
+        )
+        if provenance_issues:
+            joined = "; ".join(provenance_issues)
+            raise WorkflowValidationError(
+                f"Create PMP taxonomy provenance issues: {joined}"
+            )
+        length_issues = length_violations(
+            output.markdown,
+            weights=taxonomy_context.section_weights,
+            min_words=settings.pmp_min_words,
+            max_words=settings.pmp_max_words,
+        )
+        if length_issues:
+            joined = "; ".join(length_issues)
+            raise WorkflowValidationError(f"Create PMP length issues: {joined}")
 
     structure_issues = greenfield_structure_violations(
         output.markdown,
@@ -847,6 +1052,19 @@ def validate_pmp_output(
             raise WorkflowValidationError(
                 f"Create PMP evidence_grounded fidelity issues: {joined}"
             )
+
+    decision_issues = decision_violations(output.markdown)
+    if decision_issues:
+        joined = "; ".join(decision_issues)
+        raise WorkflowValidationError(f"Create PMP decision block issues: {joined}")
+
+
+def _apply_locked_decisions(output: PmpDraftOutput, locked: dict[str, str]) -> PmpDraftOutput:
+    if not locked:
+        return output
+    return output.model_copy(
+        update={"markdown": restamp_decisions(output.markdown, locked)}
+    )
 
 
 PMP_WORKSPACE_FILENAME = "PMP.md"
@@ -956,6 +1174,7 @@ async def run_create_pmp_workflow(
         return CreatePmpResponse(status="blocked", gate=gate, trace=trace, message=message)
 
     trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
+    locked_decisions = await locked_selections(session, project_id=project.id)
 
     try:
         (
@@ -1066,10 +1285,53 @@ async def run_create_pmp_workflow(
         return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
 
     project_source_texts = _project_source_texts(passages, project_slug=project.slug)
+    taxonomy_context = pmp_taxonomy_context(project)
+    use_scaffold = taxonomy_context is not None and draft_mode == "platform_seeded"
     use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
-    runtime_name = RUNTIME_HYBRID_NAME if use_hybrid else RUNTIME_NAME
+    runtime_name = (
+        RUNTIME_ADAPTIVE_SCAFFOLD_NAME
+        if use_scaffold
+        else RUNTIME_HYBRID_NAME
+        if use_hybrid
+        else RUNTIME_NAME
+    )
     try:
-        if use_hybrid:
+        if use_scaffold:
+            from app.sitewise.mobilisation_evidence import MobilisationEvidencePack
+            from app.sitewise.pmp_renderer import render_pmp_scaffold
+
+            output = PmpDraftOutput(
+                title=document_title_for_role(project.user_role or "", project=project),
+                markdown=render_pmp_scaffold(
+                    project,
+                    MobilisationEvidencePack(),
+                    draft_mode,
+                    seed_section_refs=_seed_section_refs_by_section(passages),
+                ),
+                seed_consulted=_seed_consulted_from_passages(passages),
+                evidence_refs=[],
+                context_refs=_context_refs_from_passages(passages),
+            )
+            output.markdown = normalize_pmp_markdown(output.markdown)
+            output = _apply_locked_decisions(output, locked_decisions)
+            validate_pmp_output(
+                output,
+                draft_mode,
+                archetype=project.archetype or "",
+                user_role=project.user_role or "",
+                project=project,
+                source_texts=project_source_texts,
+            )
+            trace.append(
+                _trace(
+                    "scaffold",
+                    "complete",
+                    "Rendered adaptive taxonomy PMP scaffold.",
+                    word_count=pmp_word_count(output.markdown),
+                    target_words=_target_words(),
+                )
+            )
+        elif use_hybrid:
             output = await run_create_pmp_hybrid(
                 project=project,
                 passages=passages,
@@ -1077,6 +1339,7 @@ async def run_create_pmp_workflow(
                 chat_model=resolved_model,
                 project_source_texts=project_source_texts,
                 trace=trace,
+                locked_decisions=locked_decisions,
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
             output.markdown = sanitize_evidence_grounded_markdown(
@@ -1094,6 +1357,7 @@ async def run_create_pmp_workflow(
                     draft_mode=draft_mode,
                     validation_feedback=validation_feedback,
                     chat_model=resolved_model,
+                    locked_decisions=locked_decisions,
                 )
                 output.markdown = normalize_pmp_markdown(output.markdown)
                 if draft_mode == "evidence_grounded":
@@ -1102,6 +1366,7 @@ async def run_create_pmp_workflow(
                         output.evidence_refs,
                         source_texts=project_source_texts,
                     )
+                output = _apply_locked_decisions(output, locked_decisions)
                 trace.append(
                     _trace(
                         "model",
@@ -1191,10 +1456,16 @@ async def run_create_pmp_workflow(
         runtime=runtime_name,
         provenance_metadata={
             "draft_mode": draft_mode,
-            "compiler": "hybrid" if use_hybrid else "legacy",
+            "compiler": "adaptive_scaffold" if use_scaffold else "hybrid" if use_hybrid else "legacy",
             "seed_consulted": output.seed_consulted,
             "evidence_refs": output.evidence_refs,
             "context_refs": output.context_refs,
+            "word_count": pmp_word_count(output.markdown),
+            "pmp_min_words": settings.pmp_min_words,
+            "pmp_max_words": settings.pmp_max_words,
+            "section_weights": (
+                taxonomy_context.section_weights if taxonomy_context is not None else None
+            ),
             "trace": [event.model_dump() for event in trace],
             "retrieval": {
                 "project_passages": project_count,
@@ -1208,6 +1479,13 @@ async def run_create_pmp_workflow(
         project=project,
         draft=draft,
         markdown=output.markdown,
+    )
+    await sync_decisions_from_markdown(
+        session,
+        project_id=project.id,
+        markdown=output.markdown,
+        workflow_type=WORKFLOW_TYPE,
+        locked=locked_decisions,
     )
     trace.append(
         _trace(

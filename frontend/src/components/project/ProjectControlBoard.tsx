@@ -138,16 +138,8 @@ export function ProjectControlBoard({
         <RiskFlagChips flags={project.risk_flags} />
       </header>
 
-      {onProjectUpdated ? (
-        <ProjectProfileSection
-          key={project.id}
-          project={project}
-          onProjectUpdated={onProjectUpdated}
-        />
-      ) : null}
-
       <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
-        <div className="grid gap-2 p-3 md:grid-cols-3">
+        <div className="grid gap-2 p-3 md:grid-cols-4">
           {lifecycle.map((tile) => (
             <WorkflowButton
               key={tile.id}
@@ -181,18 +173,19 @@ export function ProjectControlBoard({
           sortFilesDraft={sortFilesDraft}
           sortFilesError={sortFilesError}
           isRunningSortFiles={isRunningSortFiles}
+          onProjectUpdated={onProjectUpdated}
         />
       </section>
     </div>
   );
 }
 
-function ProjectProfileSection({
+function ProjectProfilePanel({
   project,
   onProjectUpdated,
 }: {
   project: ProjectDetail;
-  onProjectUpdated: (project: ProjectDetail) => void;
+  onProjectUpdated?: (project: ProjectDetail) => void;
 }) {
   const taxonomyQuery = useTaxonomy();
   const [profile, setProfile] = useState<TaxonomyPickerValue>(() =>
@@ -203,7 +196,7 @@ function ProjectProfileSection({
   const [saved, setSaved] = useState(false);
 
   async function saveProfile() {
-    if (saving) return;
+    if (saving || !onProjectUpdated) return;
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -226,32 +219,30 @@ function ProjectProfileSection({
   }
 
   return (
-    <section className="rounded-lg border bg-card shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Settings2 className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="text-base font-semibold">Project profile</h2>
+    <div className="grid gap-4">
+      {saved ? (
+        <div className="flex justify-end">
+          <Badge variant="secondary">Saved</Badge>
         </div>
-        {saved ? <Badge variant="secondary">Saved</Badge> : null}
-      </header>
-      <div className="grid gap-4 p-4">
-        <TaxonomyPicker
-          catalog={taxonomyQuery.data}
-          value={profile}
-          onChange={setProfile}
-          disabled={saving}
-          idPrefix={`project-profile-${project.id}`}
-        />
-        {taxonomyQuery.error ? (
-          <p className="text-sm text-destructive" role="alert">
-            Project profile options could not load.
-          </p>
-        ) : null}
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
+      ) : null}
+      <TaxonomyPicker
+        catalog={taxonomyQuery.data}
+        value={profile}
+        onChange={setProfile}
+        disabled={saving || !onProjectUpdated}
+        idPrefix={`project-profile-${project.id}`}
+      />
+      {taxonomyQuery.error ? (
+        <p className="text-sm text-destructive" role="alert">
+          Project profile options could not load.
+        </p>
+      ) : null}
+      {error ? (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {onProjectUpdated ? (
         <div className="flex justify-end">
           <Button
             type="button"
@@ -266,8 +257,8 @@ function ProjectProfileSection({
             {saving ? "Saving" : "Save profile"}
           </Button>
         </div>
-      </div>
-    </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -322,6 +313,7 @@ function WorkflowDetail({
   sortFilesDraft,
   sortFilesError,
   isRunningSortFiles,
+  onProjectUpdated,
 }: {
   tile: WorkflowTile;
   project: ProjectDetail;
@@ -345,7 +337,9 @@ function WorkflowDetail({
   sortFilesDraft: DraftArtifactSummary | null;
   sortFilesError: string | null;
   isRunningSortFiles: boolean;
+  onProjectUpdated?: (project: ProjectDetail) => void;
 }) {
+  const isProjectProfile = tile.id === "project-profile";
   const isCreatePmp = tile.id === "create-pmp";
   const isCostPlan = tile.id === "cost-plan";
   const isDocumentIntake = tile.id === "document-intake";
@@ -372,7 +366,13 @@ function WorkflowDetail({
       </header>
 
       <div className="space-y-4 p-4">
-        {isCreatePmp ? (
+        {isProjectProfile ? (
+          <ProjectProfilePanel
+            key={project.id}
+            project={project}
+            onProjectUpdated={onProjectUpdated}
+          />
+        ) : isCreatePmp ? (
           <>
             <div className="grid gap-3 md:grid-cols-3">
               <ReadinessItem
@@ -705,6 +705,17 @@ function buildLifecycleTiles({
   });
 
   return [
+    {
+      id: "project-profile",
+      label: "Project Profile",
+      folder: "00-brief-pmp",
+      icon: Settings2,
+      status: project.overlay_status.ready ? "ready" : "blocked",
+      statusLabel: project.overlay_status.ready ? "Ready" : "Blocked",
+      description:
+        "Set building class, work type, and complexity so SiteWise overlays and workflow gates match this project.",
+      implemented: true,
+    },
     {
       id: "create-pmp",
       label: "Project Plan",

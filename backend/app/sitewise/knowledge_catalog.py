@@ -1,17 +1,4 @@
-"""Platform knowledge catalog: metadata-driven seed selection and section loading.
-
-One disclosure model for both runtimes. Selection metadata is the YAML
-frontmatter on the checked-in knowledge files (data/seed/*.md,
-data/skills/reference/*, docs/clerk-brief.md) — the same files the ingest
-pipeline persists to the corpus, read from the repo checkout the way
-tender.seeds.load reads data/tender/. Deterministic Python over declarative
-metadata; no LLM in seed selection.
-
-The file catalog answers "what exists and when does it apply"; the database
-answers "what is actually ingested and servable". select_required_paths must
-stay output-identical to pmp_sources/cost_plan_sources.required_platform_paths
-— guarded by tests/sitewise/test_catalog_parity.py.
-"""
+"""Frontmatter-driven platform knowledge catalog."""
 
 from __future__ import annotations
 
@@ -28,20 +15,16 @@ from app.retrieval.whole_document import (
     _document_columns,
     _platform_scope_filter,
     _row_to_passage,
-    doctrine_passage_content,
 )
 from app.sitewise.markdown_sections import (
     assemble_sections,
     list_section_ids,
     split_sections,
 )
-from ingest.frontmatter import parse_frontmatter
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-
 DOCTRINE_PATH = "docs/clerk-brief.md"
 
-# Corpus relative_path prefix -> repo directory, matching ingest corpus roots.
 _KNOWLEDGE_SOURCES: tuple[tuple[str, Path], ...] = (
     ("seed", REPO_ROOT / "data" / "seed"),
     ("skills/reference", REPO_ROOT / "data" / "skills" / "reference"),
@@ -50,7 +33,7 @@ _KNOWLEDGE_SOURCES: tuple[tuple[str, Path], ...] = (
 
 @dataclass(frozen=True)
 class CatalogEntry:
-    path: str  # corpus relative_path, e.g. "seed/new-dwelling-guide.md"
+    path: str
     title: str
     tier: str | None
     loaded_by: str | None
@@ -63,6 +46,54 @@ class CatalogEntry:
     required_by: dict[str, int]
     doctrine_anchors: tuple[str, ...]
     sections: tuple[str, ...]
+
+
+def _parse_list(value: str) -> list[str]:
+    inner = value.strip()[1:-1].strip()
+    if not inner:
+        return []
+    return [item.strip().strip("\"'") for item in inner.split(",")]
+
+
+def _parse_dict(value: str) -> dict[str, int | str]:
+    inner = value.strip()[1:-1].strip()
+    if not inner:
+        return {}
+    parsed: dict[str, int | str] = {}
+    for item in inner.split(","):
+        if ":" not in item:
+            continue
+        key, raw = item.split(":", 1)
+        text = raw.strip().strip("\"'")
+        parsed[key.strip().strip("\"'")] = int(text) if text.isdigit() else text
+    return parsed
+
+
+def parse_frontmatter(content: str) -> dict[str, object]:
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    end = None
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            end = index
+            break
+    if end is None:
+        return {}
+
+    data: dict[str, object] = {}
+    for line in lines[1:end]:
+        if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
+            continue
+        key, raw = line.split(":", 1)
+        value = raw.strip()
+        if value.startswith("[") and value.endswith("]"):
+            data[key.strip()] = _parse_list(value)
+        elif value.startswith("{") and value.endswith("}"):
+            data[key.strip()] = _parse_dict(value)
+        else:
+            data[key.strip()] = value.strip("\"'")
+    return data
 
 
 def _string_tuple(value: object) -> tuple[str, ...]:
@@ -78,7 +109,6 @@ def _optional_string_tuple(value: object) -> tuple[str, ...] | None:
 
 
 def _required_by(value: object) -> dict[str, int]:
-    """Accept the ordered-map form ({workflow: rank}) and the legacy list form."""
     if isinstance(value, dict):
         result: dict[str, int] = {}
         for key, rank in value.items():
@@ -105,9 +135,13 @@ def _entry_from_file(path: Path, corpus_path: str) -> CatalogEntry:
         topics=_string_tuple(frontmatter.get("topics")),
         summary=str(frontmatter.get("summary", "")),
         applies_to_roles=_optional_string_tuple(frontmatter.get("applies_to_roles")),
-        applies_to_archetypes=_optional_string_tuple(frontmatter.get("applies_to_archetypes")),
+        applies_to_archetypes=_optional_string_tuple(
+            frontmatter.get("applies_to_archetypes")
+        ),
         applies_to_classes=_optional_string_tuple(frontmatter.get("applies_to_classes")),
-        applies_to_work_types=_optional_string_tuple(frontmatter.get("applies_to_work_types")),
+        applies_to_work_types=_optional_string_tuple(
+            frontmatter.get("applies_to_work_types")
+        ),
         required_by=_required_by(frontmatter.get("required_by")),
         doctrine_anchors=_string_tuple(frontmatter.get("doctrine_anchors")),
         sections=tuple(section.section_id for section in sections),
@@ -124,16 +158,18 @@ def file_catalog() -> tuple[CatalogEntry, ...]:
         if not directory.exists():
             continue
         for file in sorted(directory.glob("*.md")):
-            if file.name == "README.md":
-                continue
-            entries.append(_entry_from_file(file, f"{prefix}/{file.name}"))
+            if file.name != "README.md":
+                entries.append(_entry_from_file(file, f"{prefix}/{file.name}"))
     return tuple(entries)
 
 
 def _applies(entry: CatalogEntry, *, archetype: str, user_role: str) -> bool:
     if entry.applies_to_archetypes is None and entry.applies_to_classes is not None:
         return False
-    if entry.applies_to_archetypes is not None and archetype not in entry.applies_to_archetypes:
+    if (
+        entry.applies_to_archetypes is not None
+        and archetype not in entry.applies_to_archetypes
+    ):
         return False
     if entry.applies_to_roles is not None and user_role not in entry.applies_to_roles:
         return False
@@ -141,9 +177,7 @@ def _applies(entry: CatalogEntry, *, archetype: str, user_role: str) -> bool:
 
 
 def _matches_axis(filters: tuple[str, ...] | None, value: str | None) -> bool:
-    if filters is None:
-        return True
-    if value is None:
+    if filters is None or value is None:
         return True
     return value in filters or "any" in filters or "all" in filters
 
@@ -167,7 +201,8 @@ def _role_entry(entries: tuple[CatalogEntry, ...], user_role: str) -> CatalogEnt
         (
             entry
             for entry in entries
-            if entry.tier == "role-overlay" and entry.loaded_by == f"user_role: {user_role}"
+            if entry.tier == "role-overlay"
+            and entry.loaded_by == f"user_role: {user_role}"
         ),
         None,
     )
@@ -191,11 +226,6 @@ def select_required_paths(
     building_class: str | None = None,
     work_type: str | None = None,
 ) -> list[str]:
-    """Mandatory doctrine + overlay + workflow seed paths, in load order.
-
-    Output-identical to the hand-coded lists this replaces; the parity test
-    covers every archetype x role combination for both workflows.
-    """
     entries = file_catalog()
     if building_class is not None:
         role_entry = _role_entry(entries, user_role)
@@ -206,7 +236,6 @@ def select_required_paths(
                 f"user_role={user_role!r}"
             )
             raise ValueError(msg)
-
         ranked_paths: list[tuple[int, str]] = [(0, DOCTRINE_PATH), (2, role_entry.path)]
         ranked_paths.extend(
             (entry.required_by[workflow], entry.path)
@@ -219,27 +248,23 @@ def select_required_paths(
                 user_role=user_role,
             )
         )
-        return _dedupe(
-            [
-                path
-                for _, path in sorted(
-                    ranked_paths,
-                    key=lambda item: (item[0], item[1]),
-                )
-            ]
-        )
+        return _dedupe([path for _, path in sorted(ranked_paths)])
 
     archetype_entry = next(
         (
             entry
             for entry in entries
-            if entry.tier == "archetype" and entry.loaded_by == f"archetype: {archetype}"
+            if entry.tier == "archetype"
+            and entry.loaded_by == f"archetype: {archetype}"
         ),
         None,
     )
     role_entry = _role_entry(entries, user_role)
     if archetype_entry is None or role_entry is None:
-        msg = f"Unsupported overlay combination: archetype={archetype!r}, user_role={user_role!r}"
+        msg = (
+            f"Unsupported overlay combination: archetype={archetype!r}, "
+            f"user_role={user_role!r}"
+        )
         raise ValueError(msg)
 
     workflow_entries = sorted(
@@ -251,14 +276,14 @@ def select_required_paths(
         ),
         key=lambda entry: entry.required_by[workflow],
     )
-
-    paths = [
-        DOCTRINE_PATH,
-        archetype_entry.path,
-        role_entry.path,
-        *(entry.path for entry in workflow_entries),
-    ]
-    return _dedupe(paths)
+    return _dedupe(
+        [
+            DOCTRINE_PATH,
+            archetype_entry.path,
+            role_entry.path,
+            *(entry.path for entry in workflow_entries),
+        ]
+    )
 
 
 async def ingested_platform_paths(session: AsyncSession) -> set[str]:
@@ -276,21 +301,17 @@ async def list_platform_knowledge(
     work_type: str | None = None,
     topics: list[str] | None = None,
 ) -> list[dict]:
-    """Catalog listing for agents: metadata and section IDs, never content.
-
-    Entries are filtered to the declared overlays (an archetype guide for a
-    different archetype is noise, not knowledge) and optionally by topic.
-    `ingested=False` marks entries not yet servable from the corpus.
-    """
     ingested = await ingested_platform_paths(session)
     wanted_topics = {topic.strip().lower() for topic in topics or [] if topic.strip()}
-
     listing: list[dict] = []
     for entry in file_catalog():
         if building_class is not None and user_role is not None:
             if entry.tier == "archetype":
                 continue
-            if entry.tier == "role-overlay" and entry.loaded_by != f"user_role: {user_role}":
+            if (
+                entry.tier == "role-overlay"
+                and entry.loaded_by != f"user_role: {user_role}"
+            ):
                 continue
             if not _applies_to_taxonomy(
                 entry,
@@ -300,9 +321,15 @@ async def list_platform_knowledge(
             ):
                 continue
         elif archetype is not None and user_role is not None:
-            if entry.tier == "archetype" and entry.loaded_by != f"archetype: {archetype}":
+            if (
+                entry.tier == "archetype"
+                and entry.loaded_by != f"archetype: {archetype}"
+            ):
                 continue
-            if entry.tier == "role-overlay" and entry.loaded_by != f"user_role: {user_role}":
+            if (
+                entry.tier == "role-overlay"
+                and entry.loaded_by != f"user_role: {user_role}"
+            ):
                 continue
             if not _applies(entry, archetype=archetype, user_role=user_role):
                 continue
@@ -341,18 +368,9 @@ async def load_sections(
     *,
     max_chars: int,
 ) -> LoadedKnowledge | None:
-    """Load a platform document whole (capped) or as targeted sections.
-
-    Returns None when the document is not in the corpus. When any requested
-    section ID is unknown, no content is served — the available section IDs
-    come back instead so the caller can correct itself.
-    """
     stmt = (
         select(*_document_columns(content_chars=None))
-        .where(
-            _platform_scope_filter(),
-            SourceDocument.relative_path == path,
-        )
+        .where(_platform_scope_filter(), SourceDocument.relative_path == path)
         .limit(1)
     )
     result = await session.execute(stmt)
@@ -362,32 +380,32 @@ async def load_sections(
 
     full_text = row.normalized_content or ""
     available = list_section_ids(full_text)
-
-    requested = [ref.strip() for ref in section_ids or [] if ref.strip()]
+    requested = [section.strip() for section in section_ids or [] if section.strip()]
     passage = _row_to_passage(row, max_chars=max_chars, terms=[])
     if not requested:
-        if row.source_type == "doctrine":
-            # A whole-doctrine read serves the core (disciplines), not the
-            # accidental first max_chars; stage sections load by section ID.
-            content, _ = doctrine_passage_content(full_text, max_chars=max_chars)
-        else:
-            content = full_text[:max_chars]
-        capped = passage.model_copy(update={"content": content})
-        return LoadedKnowledge(passage=capped, missing_sections=[], available_sections=available)
+        return LoadedKnowledge(
+            passage=passage.model_copy(update={"content": full_text[:max_chars]}),
+            missing_sections=[],
+            available_sections=available,
+        )
 
     assembled = assemble_sections(full_text, requested, max_chars=max_chars)
     if assembled is None:
-        missing = [ref for ref in requested if ref not in available]
         return LoadedKnowledge(
-            passage=None, missing_sections=missing, available_sections=available
+            passage=None,
+            missing_sections=[section for section in requested if section not in available],
+            available_sections=available,
         )
-
-    section_passage = passage.model_copy(
-        update={
-            "content": assembled,
-            "chunk_metadata": {"whole_document": True, "section_ids": requested},
-        }
-    )
     return LoadedKnowledge(
-        passage=section_passage, missing_sections=[], available_sections=available
+        passage=passage.model_copy(
+            update={
+                "content": assembled,
+                "chunk_metadata": {
+                    "whole_document": True,
+                    "section_ids": requested,
+                },
+            }
+        ),
+        missing_sections=[],
+        available_sections=available,
     )

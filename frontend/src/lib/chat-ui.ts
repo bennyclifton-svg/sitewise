@@ -1,6 +1,6 @@
 import type { SourceDocumentUIPart, UIMessage } from "ai";
 
-import { citationFromRecord } from "@/lib/citations";
+import { citationFromRecord, dedupeCitations } from "@/lib/citations";
 import type { ChatMessage } from "@/lib/types/chat";
 
 export type ChatErrorKind =
@@ -19,9 +19,14 @@ export function toUiMessage(message: ChatMessage): UIMessage {
 
   const citations = message.message_data?.citations;
   if (Array.isArray(citations)) {
-    for (const item of citations) {
-      const citation = citationFromRecord(item);
-      if (!citation) continue;
+    const uniqueCitations = dedupeCitations(
+      citations
+        .map((item) => citationFromRecord(item))
+        .filter((citation): citation is NonNullable<ReturnType<typeof citationFromRecord>> =>
+          citation !== null,
+        ),
+    );
+    for (const citation of uniqueCitations) {
       const sourcePart: SourceDocumentUIPart = {
         type: "source-document",
         sourceId: citation.sourceId,

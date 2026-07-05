@@ -75,6 +75,17 @@ export function citationFromSourcePart(part: SourceDocumentUIPart): Citation | n
   };
 }
 
+export function dedupeCitations(citations: Citation[]): Citation[] {
+  const seen = new Set<string>();
+  const unique: Citation[] = [];
+  for (const citation of citations) {
+    if (seen.has(citation.sourceId)) continue;
+    seen.add(citation.sourceId);
+    unique.push(citation);
+  }
+  return unique;
+}
+
 export function citationsFromMessageData(
   messageData: Record<string, unknown> | null | undefined,
 ): Citation[] {
@@ -87,7 +98,7 @@ export function citationsFromMessageData(
     const citation = citationFromRecord(item);
     if (citation) citations.push(citation);
   }
-  return citations;
+  return dedupeCitations(citations);
 }
 
 export function assistantMetaFromMessageData(

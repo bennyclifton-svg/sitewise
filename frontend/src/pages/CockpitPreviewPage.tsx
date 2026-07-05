@@ -297,7 +297,6 @@ export function CockpitPreviewPage() {
           project={previewProject}
           projects={previewProjects}
           projectsLoading={false}
-          platformStatus={platformStatus}
         />
       }
       repository={
@@ -313,6 +312,7 @@ export function CockpitPreviewPage() {
           onViewWorkbench={() => setActiveView("workbench")}
           onViewFolder={() => setActiveView("folder")}
           onUploadComplete={async () => {}}
+          platformStatus={platformStatus}
         />
       }
       chatBar={<PreviewChatBar />}

@@ -8,6 +8,7 @@ import {
   assistantMetaFromMessageData,
   citationFromSourcePart,
   citationsFromMessageData,
+  dedupeCitations,
 } from "@/lib/citations";
 import type { ArtefactEvent, ToolStatusEvent } from "@/lib/chat-events";
 import type { Citation } from "@/lib/types/citation";
@@ -31,22 +32,10 @@ function extractCitations(
     .map((part) => citationFromSourcePart(part))
     .filter((citation): citation is Citation => citation !== null);
 
-  if (fromParts.length > 0) {
-    return dedupeCitations(fromParts);
-  }
-
-  return citationsFromMessageData(messageData);
-}
-
-function dedupeCitations(citations: Citation[]): Citation[] {
-  const seen = new Set<string>();
-  const unique: Citation[] = [];
-  for (const citation of citations) {
-    if (seen.has(citation.sourceId)) continue;
-    seen.add(citation.sourceId);
-    unique.push(citation);
-  }
-  return unique;
+  return dedupeCitations([
+    ...fromParts,
+    ...citationsFromMessageData(messageData),
+  ]);
 }
 
 export function AssistantMessage({

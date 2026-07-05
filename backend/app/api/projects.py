@@ -15,6 +15,7 @@ from app.billing.entitlements import require_active_entitlement
 from app.database.activity_events import (
     delete_project_activity_runs,
     list_project_activity_runs,
+    record_activity_events,
 )
 from app.database.chats import create_thread, title_from_message
 from app.database.draft_artifacts import (
@@ -23,7 +24,9 @@ from app.database.draft_artifacts import (
     get_draft_artifact,
     get_latest_draft_artifact_summaries,
     get_latest_draft_artifact,
+    update_draft_content,
 )
+from app.database.project_decisions import list_decisions, locked_selections, upsert_decision
 from app.database.projects import (
     create_project,
     ensure_default_project_catalog,
@@ -35,6 +38,7 @@ from app.database.projects import (
 )
 from app.database.session import get_db
 from app.database.draft_artifact import DraftArtifact
+from app.database.project_decision import ProjectDecision
 from app.database.source_document import SourceDocument
 from app.database.users import ensure_user_exists
 from app.schemas.chat import ThreadResponse
@@ -48,6 +52,10 @@ from app.schemas.projects import (
     DeleteProjectActivityResponse,
     PatchDraftRequest,
     PatchProjectRequest,
+    ProjectDecisionListResponse,
+    UpdateProjectDecisionRequest,
+    UpdateProjectDecisionResponse,
+    ProjectDecision as ProjectDecisionSchema,
     UpdatePmpRequest,
     SortFilesRequest,
     SortFilesResponse,
@@ -73,6 +81,7 @@ from app.schemas.projects import (
     RiskFlag,
     StagedSplitRequest,
     WorkbookPreviewResponse,
+    WorkflowTraceEvent,
 )
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
@@ -91,6 +100,7 @@ from app.sitewise.taxonomy import (
     taxonomy_options_payload,
     validate_project_taxonomy,
 )
+from app.sitewise.pmp_decisions import extract_decisions, render_decisions_static, restamp_decisions
 from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.create_cost_plan import (
     draft_workspace_path as cost_plan_draft_workspace_path,
@@ -1306,6 +1316,176 @@ async def post_update_pmp(
     return result
 
 
+def _decision_conflict_map(markdown: str) -> dict[str, tuple[bool, str | None]]:
+    conflicts: dict[str, tuple[bool, str | None]] = {}
+    for decision in extract_decisions(markdown):
+        conflicts[decision.id] = (decision.evidence_conflict, decision.agent_suggestion)
+    return conflicts
+
+
+def _project_decision_schema(
+    row: ProjectDecision,
+    *,
+    conflict_map: dict[str, tuple[bool, str | None]] | None = None,
+) -> ProjectDecisionSchema:
+    evidence_conflict = False
+    agent_suggestion: str | None = None
+    if conflict_map and row.decision_id in conflict_map:
+        evidence_conflict, agent_suggestion = conflict_map[row.decision_id]
+    return ProjectDecisionSchema(
+        id=row.id,
+        project_id=row.project_id,
+        decision_id=row.decision_id,
+        section=row.section,
+        label=row.label,
+        options=row.options,
+        selected=row.selected,
+        source=row.source,
+        workflow_type=row.workflow_type,
+        evidence_conflict=evidence_conflict,
+        agent_suggestion=agent_suggestion,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+@router.get("/{project_id}/decisions")
+async def get_project_decisions(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectDecisionListResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    rows = await list_decisions(session, project_id=project.id)
+    latest_draft = await get_latest_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type="create_pmp",
+    )
+    conflict_map = (
+        _decision_conflict_map(latest_draft.content_markdown)
+        if latest_draft is not None
+        else {}
+    )
+    return ProjectDecisionListResponse(
+        decisions=[
+            _project_decision_schema(row, conflict_map=conflict_map) for row in rows
+        ]
+    )
+
+
+@router.put("/{project_id}/decisions/{decision_id}")
+async def put_project_decision(
+    project_id: uuid.UUID,
+    decision_id: str,
+    body: UpdateProjectDecisionRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> UpdateProjectDecisionResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    rows = await list_decisions(session, project_id=project.id)
+    existing = next((row for row in rows if row.decision_id == decision_id), None)
+    if existing is None:
+        latest_draft = await get_latest_draft_artifact(
+            session,
+            project_id=project.id,
+            workflow_type="create_pmp",
+        )
+        if latest_draft is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Decision not found",
+            )
+        embedded = next(
+            (item for item in extract_decisions(latest_draft.content_markdown) if item.id == decision_id),
+            None,
+        )
+        if embedded is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Decision not found",
+            )
+        options = [dict(option) for option in embedded.options]
+        section = embedded.section
+        label = embedded.label
+        workflow_type = latest_draft.workflow_type
+    else:
+        options = existing.options
+        section = existing.section
+        label = existing.label
+        workflow_type = existing.workflow_type
+
+    allowed = {
+        option["value"]
+        for option in options
+        if isinstance(option, dict) and isinstance(option.get("value"), str)
+    }
+    if body.selected not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Selected value is not a valid option for this decision.",
+        )
+
+    row = await upsert_decision(
+        session,
+        project_id=project.id,
+        decision_id=decision_id,
+        section=section,
+        label=label,
+        options=options,
+        selected=body.selected,
+        source="user",
+        workflow_type=workflow_type,
+    )
+    draft = await get_latest_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type=workflow_type,
+    )
+    if draft is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    locked = await locked_selections(session, project_id=project.id)
+    updated_markdown = restamp_decisions(draft.content_markdown, locked)
+    updated_draft = await update_draft_content(
+        session,
+        draft,
+        content_markdown=updated_markdown,
+    )
+    if is_pmp_workflow(updated_draft.workflow_type):
+        await sync_pmp_draft_workspace(
+            session,
+            project=project,
+            draft=updated_draft,
+            markdown=updated_markdown,
+        )
+    run_id = uuid.uuid4()
+    await record_activity_events(
+        session,
+        project_id=project.id,
+        source="decision_override",
+        run_id=run_id,
+        reference_type="draft",
+        reference_id=updated_draft.id,
+        events=[
+            WorkflowTraceEvent(
+                step="decision_override",
+                status="complete",
+                message=f"User locked decision '{decision_id}' to '{body.selected}'.",
+                metadata={"decision_id": decision_id, "selected": body.selected},
+            )
+        ],
+    )
+    conflict_map = _decision_conflict_map(updated_markdown)
+    return UpdateProjectDecisionResponse(
+        decision=_project_decision_schema(row, conflict_map=conflict_map),
+        draft=DraftArtifactResponse.model_validate(updated_draft),
+    )
+
+
 @router.patch("/{project_id}/drafts/{draft_id}")
 async def patch_project_draft(
     project_id: uuid.UUID,
@@ -1363,7 +1543,13 @@ async def post_accept_project_draft(
         )
     accepted = await accept_draft(session, draft)
     if is_pmp_workflow(accepted.workflow_type):
-        await sync_pmp_draft_workspace(session, project=project, draft=accepted)
+        static_markdown = render_decisions_static(accepted.content_markdown)
+        await sync_pmp_draft_workspace(
+            session,
+            project=project,
+            draft=accepted,
+            markdown=static_markdown,
+        )
     return DraftArtifactResponse.model_validate(accepted)
 
 

@@ -18,10 +18,16 @@ import {
   type MouseEvent,
 } from "react";
 
+import { ActivityFeed } from "@/components/project/ActivityFeed";
 import {
   IngestProgressStrip,
   type IngestUploadProgress,
 } from "@/components/project/IngestProgressStrip";
+import { NavAccordionSection } from "@/components/project/NavAccordionSection";
+import {
+  PlatformKnowledgePanel,
+  PlatformKnowledgeSummary,
+} from "@/components/project/PlatformKnowledgePanel";
 import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -32,6 +38,7 @@ import type {
   EvidencePreview,
   InboxUploadResult,
   PdfAnalyzeResult,
+  PlatformKnowledgeStatus,
   WorkspaceTreeNode,
 } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
@@ -51,6 +58,7 @@ type SplitProposal = {
 };
 
 type RepositoryPanelView = "schedule" | "tree";
+type RepositoryTreeSectionId = "activity" | "skills" | "knowledge" | "admin";
 
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
@@ -71,6 +79,7 @@ export function DocumentRepositoryPanel({
   onRunSortFiles,
   isRunningSortFiles = false,
   overlayReady = true,
+  platformStatus = null,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
@@ -86,11 +95,15 @@ export function DocumentRepositoryPanel({
   onRunSortFiles?: () => void;
   isRunningSortFiles?: boolean;
   overlayReady?: boolean;
+  platformStatus?: PlatformKnowledgeStatus | null;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
   const [activePanelView, setActivePanelView] =
     useState<RepositoryPanelView>("schedule");
+  const [openTreeSections, setOpenTreeSections] = useState<Set<RepositoryTreeSectionId>>(
+    () => new Set(["activity", "admin"]),
+  );
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<IngestUploadProgress | null>(null);
@@ -118,6 +131,15 @@ export function DocumentRepositoryPanel({
     () => evidence.filter((item) => isInboxEvidence(item)).length,
     [evidence],
   );
+
+  function toggleTreeSection(id: RepositoryTreeSectionId) {
+    setOpenTreeSections((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const isDeletingSelection = bulkDeletingIds.size > 0;
 
   function handleDragEnter(event: DragEvent<HTMLDivElement>) {
@@ -586,6 +608,36 @@ export function DocumentRepositoryPanel({
               onViewWorkbench={onViewWorkbench}
               onViewFolder={onViewFolder}
             />
+            <div className="mt-1 border-t pt-1">
+              <NavAccordionSection
+                label="Activity"
+                isOpen={openTreeSections.has("activity")}
+                onToggle={() => toggleTreeSection("activity")}
+              >
+                <ActivityFeed projectId={projectId} />
+              </NavAccordionSection>
+              <NavAccordionSection
+                label="Skills"
+                isOpen={openTreeSections.has("skills")}
+                onToggle={() => toggleTreeSection("skills")}
+              >
+                <PlatformKnowledgePanel platformStatus={platformStatus} mode="skills" />
+              </NavAccordionSection>
+              <NavAccordionSection
+                label="Knowledge"
+                isOpen={openTreeSections.has("knowledge")}
+                onToggle={() => toggleTreeSection("knowledge")}
+              >
+                <PlatformKnowledgePanel platformStatus={platformStatus} mode="knowledge" />
+              </NavAccordionSection>
+              <NavAccordionSection
+                label="Admin"
+                isOpen={openTreeSections.has("admin")}
+                onToggle={() => toggleTreeSection("admin")}
+              >
+                <PlatformKnowledgeSummary platformStatus={platformStatus} />
+              </NavAccordionSection>
+            </div>
           </div>
         ) : registerRows.length ? (
           <table className="w-full table-fixed border-collapse text-left text-[0.7rem]">

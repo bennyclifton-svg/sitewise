@@ -1024,3 +1024,57 @@ def test_create_pmp_hybrid_compiler_saves_assembled_draft() -> None:
     assert "Pending narrative generation" not in markdown
     steps = {event.step for event in result.trace}
     assert {"extract", "scaffold", "narrative", "assemble"}.issubset(steps)
+
+
+def test_validate_update_pmp_rejects_missing_locked_decision_block() -> None:
+    from app.workflows.update_pmp import validate_update_pmp_output
+    from app.workflows.create_pmp import PmpDraftOutput, WorkflowValidationError
+
+    baseline = _valid_evidence_grounded_pmp_markdown()
+    baseline_with_decision = (
+        baseline
+        + "\n\n```pmp-decision\n"
+        + '{"id": "procurement-route", "label": "Procurement route", "options": [{"value": "traditional", "label": "Traditional"}], "selected": "traditional", "source": "user"}\n'
+        + "```\n"
+    )
+    output = PmpDraftOutput(
+        title="Project Management Plan",
+        markdown=baseline,
+        seed_consulted=list(required_platform_paths(archetype="renovation", user_role="architect-pm")),
+        evidence_refs=["engagement letter"],
+        context_refs=["doctrine/core.md"],
+    )
+    try:
+        validate_update_pmp_output(
+            output,
+            baseline_markdown=baseline_with_decision,
+            archetype="renovation",
+            user_role="architect-pm",
+            has_evidence_delta=True,
+            locked_ids={"procurement-route"},
+        )
+        raise AssertionError("expected WorkflowValidationError")
+    except WorkflowValidationError as exc:
+        assert "user-locked decision blocks" in str(exc)
+
+
+def test_apply_locked_decisions_preserves_user_selection() -> None:
+    from app.sitewise.pmp_decisions import restamp_decisions
+    from app.workflows.create_pmp import PmpDraftOutput, _apply_locked_decisions
+
+    markdown = (
+        "```pmp-decision\n"
+        '{"id": "procurement-route", "label": "Procurement route", "options": [{"value": "traditional", "label": "Traditional"}, {"value": "design_construct", "label": "D&C"}], "selected": "design_construct", "source": "agent"}\n'
+        "```"
+    )
+    output = PmpDraftOutput(
+        title="PMP",
+        markdown=markdown,
+        seed_consulted=["seed/setup-and-commission-guide.md"],
+        evidence_refs=[],
+        context_refs=["doctrine/core.md"],
+    )
+    restamped = _apply_locked_decisions(output, {"procurement-route": "traditional"})
+    assert '"selected": "traditional"' in restamped.markdown
+    assert '"source": "user"' in restamped.markdown
+    assert restamp_decisions(markdown, {"procurement-route": "traditional"}) == restamped.markdown

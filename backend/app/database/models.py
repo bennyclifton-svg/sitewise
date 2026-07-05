@@ -8,6 +8,7 @@ from app.database.message_citation import MessageCitation
 from app.database.polar_customer import PolarCustomer
 from app.database.polar_subscription import PolarSubscription
 from app.database.project import Project
+from app.database.project_decision import ProjectDecision
 from app.database.source_document import SourceDocument
 from app.database.stripe_customer import StripeCustomer
 from app.database.stripe_subscription import StripeSubscription
@@ -25,6 +26,7 @@ __all__ = [
     "PolarCustomer",
     "PolarSubscription",
     "Project",
+    "ProjectDecision",
     "SourceDocument",
     "StripeCustomer",
     "StripeSubscription",

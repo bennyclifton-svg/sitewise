@@ -72,6 +72,15 @@ class RiskFlag:
     description: str
 
 
+@dataclass(frozen=True, slots=True)
+class WorkScopeItem:
+    value: str
+    label: str
+    consultants: tuple[str, ...]
+    risk_flag: str | None = None
+    complexity_points: int | None = None
+
+
 def _read_json(filename: str) -> dict[str, Any]:
     return json.loads((TAXONOMY_ROOT / filename).read_text(encoding="utf-8"))
 
@@ -211,6 +220,71 @@ def derive_risk_flags(complexity: dict[str, str], work_scope: list[str]) -> list
             seen.add(flag)
             derived.append(definitions[flag])
     return derived
+
+
+def work_scope_items_for(
+    work_type: str | None,
+    selected_values: list[str] | tuple[str, ...],
+) -> tuple[WorkScopeItem, ...]:
+    """Return selected work-scope item labels and consultant lists."""
+    selected = {value for value in selected_values if value}
+    if not work_type or not selected:
+        return ()
+    raw_work_type = _work_scope_config()["work_types"].get(work_type)
+    if not isinstance(raw_work_type, dict):
+        return ()
+    items: list[WorkScopeItem] = []
+    for category in raw_work_type.get("categories", []):
+        for raw_item in category.get("items", []):
+            value = str(raw_item.get("value", ""))
+            if value not in selected:
+                continue
+            items.append(
+                WorkScopeItem(
+                    value=value,
+                    label=str(raw_item.get("label", value)),
+                    consultants=tuple(
+                        str(consultant)
+                        for consultant in raw_item.get("consultants", [])
+                    ),
+                    risk_flag=(
+                        str(raw_item["riskFlag"])
+                        if raw_item.get("riskFlag") is not None
+                        else None
+                    ),
+                    complexity_points=(
+                        int(raw_item["complexityPoints"])
+                        if raw_item.get("complexityPoints") is not None
+                        else None
+                    ),
+                )
+            )
+    return tuple(items)
+
+
+def complexity_option_labels(
+    *,
+    building_class: str | None,
+    subclasses: tuple[str, ...],
+    complexity: dict[str, str],
+) -> dict[str, str]:
+    """Map selected complexity option values to their display labels."""
+    if not building_class:
+        return {}
+    dimensions = complexity_dimensions_for(building_class, subclasses)
+    labels: dict[str, str] = {}
+    for dimension in dimensions:
+        selected = complexity.get(dimension.key)
+        if not selected:
+            continue
+        option = next(
+            (item for item in dimension.options if item.value == selected),
+            None,
+        )
+        labels[dimension.key] = (
+            f"{dimension.label}: {option.label if option else selected}"
+        )
+    return labels
 
 
 def _risk_rule_matches(

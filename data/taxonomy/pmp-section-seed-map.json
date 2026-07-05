@@ -1,6 +1,6 @@
 {
   "sections": {
-    "project-snapshot": {
+    "snapshot": {
       "required": [
         {
           "path": "seed/setup-and-commission-guide.md",
@@ -37,7 +37,13 @@
           ],
           "when": {
             "building_class": ["residential", "mixed"],
-            "subclasses": ["apartments", "btr", "student_housing", "residential_retail", "residential_commercial"]
+            "subclasses": [
+              "apartments",
+              "btr",
+              "student_housing",
+              "residential_retail",
+              "residential_commercial"
+            ]
           }
         }
       ],
@@ -76,6 +82,15 @@
             "building_class": ["commercial", "industrial", "institution", "mixed"],
             "work_scope": ["fire_services"]
           }
+        },
+        {
+          "path": "seed/remediation-due-diligence-guide.md",
+          "section_ids": [
+            "preliminary-site-assessment-phase-1",
+            "detailed-site-investigation-phase-2",
+            "remediation-action-plans-raps"
+          ],
+          "when": {"work_type": "remediation"}
         }
       ],
       "optional": [
@@ -86,7 +101,23 @@
         }
       ]
     },
-    "cost-budget-control": {
+    "programme": {
+      "required": [
+        {
+          "path": "seed/program-scheduling-guide.md",
+          "section_ids": [
+            "construction-programming-fundamentals",
+            "milestone-planning-and-tracking"
+          ]
+        },
+        {
+          "path": "seed/remediation-due-diligence-guide.md",
+          "section_ids": ["remediation-in-the-construction-program"],
+          "when": {"work_type": "remediation"}
+        }
+      ]
+    },
+    "cost-budget": {
       "required": [
         {
           "path": "seed/cost-management-principles.md",
@@ -103,8 +134,13 @@
       "required": [
         {
           "path": "seed/procurement-quoting-guide.md",
-          "section_ids": ["5-formal-procurement-pathway-eoi-rft-tender-period-evaluation-recommendation"],
-          "when": {"building_class": "residential", "work_type": ["new", "refurb", "extend"]}
+          "section_ids": [
+            "5-formal-procurement-pathway-eoi-rft-tender-period-evaluation-recommendation"
+          ],
+          "when": {
+            "building_class": "residential",
+            "work_type": ["new", "refurb", "extend"]
+          }
         },
         {
           "path": "seed/procurement-tendering-guide.md",
@@ -114,26 +150,15 @@
             "5-tender-evaluation-and-award"
           ],
           "when": {
-            "building_class": ["commercial", "industrial", "institution", "mixed", "infrastructure"]
+            "building_class": [
+              "commercial",
+              "industrial",
+              "institution",
+              "mixed",
+              "infrastructure"
+            ]
           }
-        }
-      ]
-    },
-    "programme-milestones": {
-      "required": [
-        {
-          "path": "seed/program-scheduling-guide.md",
-          "section_ids": ["construction-programming-fundamentals", "milestone-planning-and-tracking"]
         },
-        {
-          "path": "seed/remediation-due-diligence-guide.md",
-          "section_ids": ["remediation-in-the-construction-program"],
-          "when": {"work_type": "remediation"}
-        }
-      ]
-    },
-    "services-deliverables": {
-      "required": [
         {
           "path": "seed/procurement-tendering-guide.md",
           "section_ids": [
@@ -146,19 +171,6 @@
           "path": "seed/contract-administration-guide.md",
           "section_ids": ["contract-documentation-hierarchy"],
           "when": {"work_type": "advisory"}
-        }
-      ]
-    },
-    "remediation-due-diligence": {
-      "required": [
-        {
-          "path": "seed/remediation-due-diligence-guide.md",
-          "section_ids": [
-            "preliminary-site-assessment-phase-1",
-            "detailed-site-investigation-phase-2",
-            "remediation-action-plans-raps"
-          ],
-          "when": {"work_type": "remediation"}
         }
       ]
     }

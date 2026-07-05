@@ -636,3 +636,54 @@
     word-break: break-word;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 10mm 14mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .draft-markdown {
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  .draft-markdown::before {
+    content: attr(data-project-title) " — v" attr(data-draft-version);
+    display: block;
+    margin-bottom: 0.75rem;
+    font-size: 9pt;
+    color: #444;
+  }
+
+  .draft-markdown .pmp-table-wrap {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .draft-markdown table {
+    font-size: 9pt;
+  }
+
+  .draft-markdown [data-decision-id] {
+    border: none;
+    padding: 0;
+    margin: 0.35rem 0;
+  }
+
+  .draft-markdown [data-decision-id] button,
+  .draft-markdown [data-decision-id] select {
+    display: none;
+  }
+
+  .draft-markdown .evidence-status-chip {
+    border: 1px solid #999;
+    color: black !important;
+    background: transparent !important;
+  }
+}

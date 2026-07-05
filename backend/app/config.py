@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     agent_history_message_chars: int = 1500
     openai_rate_limit_max_retries: int = 5
     pmp_hybrid_compiler: bool = True
+    pmp_min_words: int = 800
+    pmp_max_words: int = 1800
+    pmp_sweep_max_documents: int = 150
     cost_plan_hybrid_compiler: bool = True
     public_app_url: str = "http://localhost:5173"
     billing_provider: str = "none"
@@ -106,7 +109,7 @@ class Settings(BaseSettings):
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"
     agent_max_concurrent_turns: int = 4
     agent_turn_timeout_seconds: int = 180
-    agent_workspace_root: Path = _BACKEND_DIR.parent / ".tmp" / "agent-workspaces"
+    agent_workspace_root: Path = Path.home() / ".clerk" / "agent-workspaces"
 
     @field_validator("database_url")
     @classmethod
