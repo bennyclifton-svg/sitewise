@@ -155,7 +155,6 @@ export function ChatPage() {
               key={`${threadId}-${chatRevision}`}
               threadId={threadId}
               initialMessages={messages}
-              isFirstConversation={messages.length === 0}
               onConversationUpdate={() => void refreshConversation()}
               agentMode={thread?.project_id != null}
               projectId={thread?.project_id ?? null}

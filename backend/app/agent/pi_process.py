@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import uuid
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
@@ -19,6 +20,7 @@ PI_MCP_DIRECT_TOOLS = (
     "search_documents",
     "get_document",
     "list_platform_knowledge",
+    "search_platform_knowledge",
     "read_platform_knowledge",
 )
 
@@ -121,7 +123,7 @@ def resolve_subprocess_binary(binary: str) -> str:
     return binary
 
 
-def _build_argv(*, prompt: str) -> list[str]:
+def _build_argv(*, prompt_arg: str) -> list[str]:
     return [
         resolve_subprocess_binary(settings.pi_binary_path),
         "--no-tools",
@@ -135,7 +137,7 @@ def _build_argv(*, prompt: str) -> list[str]:
         "--mode",
         "json",
         "-p",
-        prompt,
+        prompt_arg,
     ]
 
 
@@ -156,6 +158,19 @@ def _write_pi_mcp_config(cwd: Path, *, mcp_url: str) -> None:
         json.dumps(config, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _write_prompt_file(workspace: Path, *, prompt: str) -> Path:
+    prompt_dir = workspace / ".pi" / "turn-prompts"
+    prompt_dir.mkdir(parents=True, exist_ok=True)
+    prompt_path = prompt_dir / f"{uuid.uuid4().hex}.md"
+    prompt_path.write_text(prompt, encoding="utf-8")
+    return prompt_path
+
+
+def _prompt_file_arg(workspace: Path, prompt_path: Path) -> str:
+    relative = prompt_path.relative_to(workspace)
+    return f"@{relative.as_posix()}"
 
 
 def _build_env(*, mcp_url: str, turn_token: str, cwd: Path) -> dict[str, str]:
@@ -227,41 +242,49 @@ async def stream_pi_turn(
 ) -> AsyncIterator[str]:
     workspace = Path(cwd)
     workspace.mkdir(parents=True, exist_ok=True)
-    argv = _build_argv(prompt=prompt)
-    env = _build_env(mcp_url=mcp_url, turn_token=turn_token, cwd=workspace)
-    stderr_tail: deque[str] = deque(maxlen=20)
+    prompt_path: Path | None = None
 
     try:
-        process = await spawn(argv=argv, env=env, cwd=str(workspace))
-    except FileNotFoundError as exc:
-        binary = argv[0]
-        raise PiTurnError(
-            f"Cannot run Pi agent binary '{binary}'. "
-            "On Windows, npm-installed `pi` is a .cmd shim — set PI_BINARY_PATH "
-            "to the full path (for example "
-            "C:\\Users\\<you>\\AppData\\Roaming\\npm\\pi.cmd), or install pi "
-            "where Python can execute it directly."
-        ) from exc
-    stderr_task = asyncio.create_task(_read_stderr(process.stderr, stderr_tail))
-    try:
+        prompt_path = _write_prompt_file(workspace, prompt=prompt)
+        argv = _build_argv(prompt_arg=_prompt_file_arg(workspace, prompt_path))
+        env = _build_env(mcp_url=mcp_url, turn_token=turn_token, cwd=workspace)
+        stderr_tail: deque[str] = deque(maxlen=20)
+
         try:
-            async with asyncio.timeout(settings.agent_turn_timeout_seconds):
-                async for chunk in _iter_pi_stdout(process.stdout):
-                    yield chunk
-                returncode = await process.wait()
-        except TimeoutError as exc:
-            await _kill_and_wait(process)
-            raise PiTurnTimeout("Pi turn timed out") from exc
-        finally:
-            await asyncio.gather(stderr_task, return_exceptions=True)
+            process = await spawn(argv=argv, env=env, cwd=str(workspace))
+        except FileNotFoundError as exc:
+            binary = argv[0]
+            raise PiTurnError(
+                f"Cannot run Pi agent binary '{binary}'. "
+                "On Windows, npm-installed `pi` is a .cmd shim - set PI_BINARY_PATH "
+                "to the full path (for example "
+                "C:\\Users\\<you>\\AppData\\Roaming\\npm\\pi.cmd), or install pi "
+                "where Python can execute it directly."
+            ) from exc
 
-        if returncode != 0:
-            tail = "\n".join(stderr_tail).strip()
-            message = f"Pi exited with code {returncode}"
-            if tail:
-                message = f"{message}: {tail}"
-            raise PiTurnError(message)
-    except Exception:
-        if not stderr_task.done():
-            stderr_task.cancel()
-        raise
+        stderr_task = asyncio.create_task(_read_stderr(process.stderr, stderr_tail))
+        try:
+            try:
+                async with asyncio.timeout(settings.agent_turn_timeout_seconds):
+                    async for chunk in _iter_pi_stdout(process.stdout):
+                        yield chunk
+                    returncode = await process.wait()
+            except TimeoutError as exc:
+                await _kill_and_wait(process)
+                raise PiTurnTimeout("Pi turn timed out") from exc
+            finally:
+                await asyncio.gather(stderr_task, return_exceptions=True)
+
+            if returncode != 0:
+                tail = "\n".join(stderr_tail).strip()
+                message = f"Pi exited with code {returncode}"
+                if tail:
+                    message = f"{message}: {tail}"
+                raise PiTurnError(message)
+        except Exception:
+            if not stderr_task.done():
+                stderr_task.cancel()
+            raise
+    finally:
+        if prompt_path is not None:
+            prompt_path.unlink(missing_ok=True)

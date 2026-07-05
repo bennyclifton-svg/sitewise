@@ -121,6 +121,44 @@ describe("ChatPanel stop control", () => {
   });
 });
 
+describe("ChatPanel submit promotion", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+    vi.mocked(api.cancelAgentTurn).mockResolvedValue(true);
+  });
+
+  it("notifies the parent when the user sends a message", async () => {
+    const user = userEvent.setup();
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    const onUserSubmit = vi.fn();
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage,
+      status: "ready",
+      error: null,
+      stop: stopMock,
+    });
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        collapsed
+        onUserSubmit={onUserSubmit}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox", { name: /message/i }), "What next?");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+
+    expect(onUserSubmit).toHaveBeenCalledOnce();
+    expect(sendMessage).toHaveBeenCalledWith({ text: "What next?" });
+  });
+});
+
 describe("ChatPanel agent model selection", () => {
   beforeEach(() => {
     window.localStorage.clear();

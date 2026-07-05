@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Save,
   Scale,
-  Settings2,
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
@@ -30,9 +29,12 @@ import {
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import {
   workflowStatusBadgeClass,
-  workflowTileClass,
   type WorkflowStatus,
 } from "@/components/project/workflow/workflowStatus";
+import {
+  buildLifecycleTiles,
+  type WorkflowTile,
+} from "@/components/project/workflow/workflowTiles";
 import type {
   DraftArtifactSummary,
   EvidencePreview,
@@ -53,17 +55,6 @@ import {
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
 
-type WorkflowTile = {
-  id: string;
-  label: string;
-  folder: string;
-  icon: LucideIcon;
-  status: WorkflowStatus;
-  statusLabel: string;
-  description: string;
-  implemented: boolean;
-};
-
 export function ProjectControlBoard({
   project,
   evidence,
@@ -76,7 +67,6 @@ export function ProjectControlBoard({
   isRunningWorkflow,
   isRunningCostPlan,
   selectedWorkflowId,
-  onSelectWorkflow,
   onRunCreatePmp,
   onRunUpdatePmp,
   onRunCreateCostPlan,
@@ -101,7 +91,6 @@ export function ProjectControlBoard({
   isRunningWorkflow: boolean;
   isRunningCostPlan: boolean;
   selectedWorkflowId: string;
-  onSelectWorkflow: (workflowId: string) => void;
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
@@ -138,23 +127,9 @@ export function ProjectControlBoard({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
-        <RiskFlagChips flags={project.risk_flags} />
-      </header>
+      <RiskFlagChips flags={project.risk_flags} />
 
       <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
-        <div className="grid gap-2 p-3 md:grid-cols-4">
-          {lifecycle.map((tile) => (
-            <WorkflowButton
-              key={tile.id}
-              tile={tile}
-              selected={selectedTile.id === tile.id}
-              onSelect={() => onSelectWorkflow(tile.id)}
-            />
-          ))}
-        </div>
-
         <WorkflowDetail
           tile={selectedTile}
           project={project}
@@ -351,7 +326,7 @@ function OverlaySelectField({
 function RiskFlagChips({ flags }: { flags: ProjectDetail["risk_flags"] }) {
   if (!flags.length) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       {flags.map((flag) => (
         <Badge
           key={flag.value}
@@ -696,28 +671,6 @@ function WorkflowDetail({
   );
 }
 
-function WorkflowButton({
-  tile,
-  selected,
-  onSelect,
-}: {
-  tile: WorkflowTile;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = tile.icon;
-  return (
-    <button
-      type="button"
-      className={workflowTileClass(selected, tile.status)}
-      onClick={onSelect}
-    >
-      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <p className="mt-3 text-[1.2rem] font-medium leading-tight">{tile.label}</p>
-    </button>
-  );
-}
-
 function ReadinessItem({
   icon: Icon,
   label,
@@ -758,84 +711,6 @@ function draftReadinessTrailing(
       {statusLabel}
     </Badge>
   );
-}
-
-function buildLifecycleTiles({
-  project,
-  latestDraft,
-  latestCostPlanDraft,
-  workflowError,
-  costPlanWorkflowError,
-  isRunningWorkflow,
-  isRunningCostPlan,
-}: {
-  project: ProjectDetail;
-  latestDraft: DraftArtifactSummary | null;
-  latestCostPlanDraft: DraftArtifactSummary | null;
-  workflowError: string | null;
-  costPlanWorkflowError: string | null;
-  isRunningWorkflow: boolean;
-  isRunningCostPlan: boolean;
-}): WorkflowTile[] {
-  const createPmpStatus = getCreatePmpStatus({
-    project,
-    latestDraft,
-    workflowError,
-    isRunningWorkflow,
-  });
-  const costPlanStatus = getCreateCostPlanStatus({
-    project,
-    latestDraft: latestCostPlanDraft,
-    workflowError: costPlanWorkflowError,
-    isRunningWorkflow: isRunningCostPlan,
-  });
-
-  return [
-    {
-      id: "project-profile",
-      label: "Project Profile",
-      folder: "00-brief-pmp",
-      icon: Settings2,
-      status: project.overlay_status.ready ? "ready" : "blocked",
-      statusLabel: project.overlay_status.ready ? "Ready" : "Blocked",
-      description:
-        "Set your role, state, building class, and work type so SiteWise overlays and workflow gates match this project.",
-      implemented: true,
-    },
-    {
-      id: "create-pmp",
-      label: "Project Plan",
-      folder: "00-brief-pmp",
-      icon: FileText,
-      status: createPmpStatus.status,
-      statusLabel: createPmpStatus.label,
-      description:
-        "Create and review the project management plan from active project evidence and SiteWise knowledge.",
-      implemented: true,
-    },
-    {
-      id: "cost-plan",
-      label: "Cost Plan",
-      folder: "01-cost",
-      icon: HandCoins,
-      status: costPlanStatus.status,
-      statusLabel: costPlanStatus.label,
-      description:
-        "Create and review the project cost plan from cost evidence, claims, and SiteWise cost doctrine.",
-      implemented: true,
-    },
-    {
-      id: "procurement",
-      label: "Tender Comparison",
-      folder: "05-procurement",
-      icon: BriefcaseBusiness,
-      status: "ready",
-      statusLabel: "Ready",
-      description:
-        "Create tender comparisons, review QA, inspect the matrix, and approve reports.",
-      implemented: true,
-    },
-  ];
 }
 
 function buildRecurringTiles({
@@ -923,40 +798,4 @@ function getDocumentIntakeStatus({
   if (inboxCount > 0) return { status: "ready", label: `${inboxCount} in inbox` };
   if (sortFilesDraft) return { status: "draft", label: `Manifest v${sortFilesDraft.version}` };
   return { status: "ready", label: "Empty" };
-}
-
-function getCreatePmpStatus({
-  project,
-  latestDraft,
-  workflowError,
-  isRunningWorkflow,
-}: {
-  project: ProjectDetail;
-  latestDraft: DraftArtifactSummary | null;
-  workflowError: string | null;
-  isRunningWorkflow: boolean;
-}): { status: WorkflowStatus; label: string } {
-  if (isRunningWorkflow) return { status: "running", label: "Running" };
-  if (workflowError) return { status: "failed", label: "Failed" };
-  if (!project.overlay_status.ready) return { status: "blocked", label: "Blocked" };
-  if (latestDraft) return { status: "draft", label: `Draft v${latestDraft.version}` };
-  return { status: "ready", label: "Ready" };
-}
-
-function getCreateCostPlanStatus({
-  project,
-  latestDraft,
-  workflowError,
-  isRunningWorkflow,
-}: {
-  project: ProjectDetail;
-  latestDraft: DraftArtifactSummary | null;
-  workflowError: string | null;
-  isRunningWorkflow: boolean;
-}): { status: WorkflowStatus; label: string } {
-  if (isRunningWorkflow) return { status: "running", label: "Running" };
-  if (workflowError) return { status: "failed", label: "Failed" };
-  if (!project.overlay_status.ready) return { status: "blocked", label: "Blocked" };
-  if (latestDraft) return { status: "draft", label: `Draft v${latestDraft.version}` };
-  return { status: "ready", label: "Ready" };
 }

@@ -1,7 +1,8 @@
 import asyncio
-import uuid
 import time
-from collections.abc import AsyncIterator
+import uuid
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi import Response
@@ -68,6 +69,17 @@ from app.retrieval.schemas import RetrievalFilters
 log = get_logger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+_PROJECT_DOCUMENT_TRACE_TOOLS = {
+    "find_document_text",
+    "search_documents",
+    "get_document",
+}
+_PLATFORM_KNOWLEDGE_TRACE_TOOLS = {
+    "list_platform_knowledge",
+    "search_platform_knowledge",
+    "read_platform_knowledge",
+}
 
 
 def require_thread_owner(
@@ -260,19 +272,91 @@ async def _persist_agent_assistant_message(
     turn_id: uuid.UUID,
     content: str,
     runtime: str,
+    source_trace: dict[str, Any] | None = None,
 ) -> None:
+    agent_data: dict[str, Any] = {
+        "runtime": runtime,
+        "turnId": str(turn_id),
+    }
+    if source_trace is not None:
+        agent_data["sourceTrace"] = source_trace
+
     await create_message(
         session,
         thread_id=thread_id,
         role="assistant",
         content=content,
-        message_data={
-            "agent": {
-                "runtime": runtime,
-                "turnId": str(turn_id),
-            }
-        },
+        message_data={"agent": agent_data},
     )
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    if value not in items:
+        items.append(value)
+
+
+def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any]:
+    tools: list[dict[str, Any]] = []
+    seen_tool_keys: set[str] = set()
+    document_tools: list[str] = []
+    knowledge_tools: list[str] = []
+    knowledge_references: list[str] = []
+
+    for event in status_events:
+        if event.get("kind") != "tool" or event.get("state") != "done":
+            continue
+        tool = event.get("tool")
+        if not isinstance(tool, str) or not tool:
+            continue
+
+        knowledge_path = event.get("knowledge_path")
+        if isinstance(knowledge_path, str) and knowledge_path:
+            _append_unique(knowledge_references, knowledge_path)
+
+        key = f"{tool}\0{knowledge_path if isinstance(knowledge_path, str) else ''}"
+        if key not in seen_tool_keys:
+            item: dict[str, Any] = {"name": tool}
+            message = event.get("message")
+            if isinstance(message, str) and message:
+                item["message"] = message
+            if isinstance(knowledge_path, str) and knowledge_path:
+                item["knowledgePath"] = knowledge_path
+            section_ids = event.get("section_ids")
+            if isinstance(section_ids, list) and section_ids:
+                item["sectionIds"] = [
+                    section_id
+                    for section_id in section_ids
+                    if isinstance(section_id, str)
+                ]
+            tools.append(item)
+            seen_tool_keys.add(key)
+
+        if tool in _PROJECT_DOCUMENT_TRACE_TOOLS:
+            _append_unique(document_tools, tool)
+        if tool in _PLATFORM_KNOWLEDGE_TRACE_TOOLS:
+            _append_unique(knowledge_tools, tool)
+
+    return {
+        "context": {"used": True, "label": "Project context"},
+        "documents": {"used": bool(document_tools), "tools": document_tools},
+        "knowledge": {
+            "used": bool(knowledge_tools),
+            "tools": knowledge_tools,
+            "references": knowledge_references,
+        },
+        "tools": tools,
+        "model": {"used": True, "label": "LLM reasoning"},
+    }
+
+
+async def _capture_status_events(
+    status: AsyncIterator[Mapping[str, Any] | str],
+    captured: list[Mapping[str, Any]],
+) -> AsyncIterator[Mapping[str, Any] | str]:
+    async for event in status:
+        if isinstance(event, Mapping):
+            captured.append(dict(event))
+        yield event
 
 
 def _agent_workspace(project_id: uuid.UUID) -> str:
@@ -338,6 +422,7 @@ async def post_agent_stream(
         phase=project.phase,
         building_class=project.building_class,
         work_type=project.work_type,
+        project_metadata=getattr(project, "project_metadata", None),
         history=[
             HistoryMessage(role=message.role, content=message.content)
             for message in prior_messages
@@ -369,6 +454,7 @@ async def post_agent_stream(
     async def event_stream() -> AsyncIterator[str]:
         stream_start = time.perf_counter()
         answer_parts: list[str] = []
+        tool_status_events: list[Mapping[str, Any]] = []
         completed = False
 
         async def agent_chunks() -> AsyncIterator[str]:
@@ -408,7 +494,8 @@ async def post_agent_stream(
                         percent=quota_state.percent,
                     )
                 async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
-                    async for event in relay_agent_turn(agent_chunks(), status=statuses):
+                    traced_statuses = _capture_status_events(statuses, tool_status_events)
+                    async for event in relay_agent_turn(agent_chunks(), status=traced_statuses):
                         yield event
         except AgentTurnAlreadyRunning:
             log.warning(
@@ -485,6 +572,7 @@ async def post_agent_stream(
                     turn_id=turn_id,
                     content=content,
                     runtime=agent_runtime,
+                    source_trace=_agent_source_trace(tool_status_events),
                 )
                 await persist_session.commit()
             elapsed_ms = int((time.perf_counter() - stream_start) * 1000)

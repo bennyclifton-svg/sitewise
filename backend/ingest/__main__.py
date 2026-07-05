@@ -5,7 +5,7 @@ from pathlib import Path
 import structlog
 
 from app.config import settings
-from ingest.pipeline import ingest_file, ingest_folder
+from ingest.pipeline import ingest_file, ingest_folder, ingest_platform_knowledge
 
 logger = structlog.get_logger(__name__)
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -36,6 +36,28 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument("--limit", type=int, default=None, help="Process at most N files")
     run_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-ingest even when content hash is unchanged",
+    )
+
+    platform_parser = subparsers.add_parser(
+        "platform",
+        help="Ingest SiteWise doctrine and shared platform reference knowledge",
+    )
+    platform_parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=None,
+        help="Override corpus root (default: settings.data_dir)",
+    )
+    platform_parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Extract, embed, and persist (default: plan-only dry run)",
+    )
+    platform_parser.add_argument("--limit", type=int, default=None, help="Process at most N files")
+    platform_parser.add_argument(
         "--force",
         action="store_true",
         help="Re-ingest even when content hash is unchanged",
@@ -90,6 +112,23 @@ def main(argv: list[str] | None = None) -> int:
             skip_if_unchanged=skip_if_unchanged,
         )
         return 0 if ok else 1
+
+    if args.command == "platform":
+        summary = ingest_platform_knowledge(
+            dry_run=dry_run,
+            data_dir=data_dir,
+            limit=args.limit,
+            skip_if_unchanged=skip_if_unchanged,
+        )
+        logger.info(
+            "ingest_summary",
+            folder=summary.folder,
+            planned=summary.planned,
+            skipped=summary.skipped,
+            by_class=summary.by_class,
+            dry_run=dry_run,
+        )
+        return 0
 
     return 1
 

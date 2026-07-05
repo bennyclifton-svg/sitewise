@@ -3,10 +3,10 @@ import { createContext, useContext } from "react";
 export const COCKPIT_LEFT_PANEL_WIDTH_KEY = "clerk.cockpit.left-panel-width";
 export const COCKPIT_REPO_PANEL_WIDTH_KEY = "clerk.cockpit.repo-panel-width";
 
-export const COCKPIT_LEFT_PANEL_DEFAULT_WIDTH = 380;
+export const COCKPIT_LEFT_PANEL_DEFAULT_WIDTH = 190;
 export const COCKPIT_REPO_PANEL_DEFAULT_WIDTH = 368;
 
-export const COCKPIT_LEFT_PANEL_MIN_WIDTH = 320;
+export const COCKPIT_LEFT_PANEL_MIN_WIDTH = 160;
 export const COCKPIT_LEFT_PANEL_MAX_WIDTH = 560;
 
 export const COCKPIT_REPO_PANEL_MIN_WIDTH = 280;

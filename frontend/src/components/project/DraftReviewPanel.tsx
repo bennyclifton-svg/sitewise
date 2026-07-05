@@ -74,14 +74,10 @@ export function DraftReviewPanel({
       setIsEditing(false);
       setIsLoadingDraft(true);
       try {
-        const data = await api.getLatestDraft(projectId, draft.workflow_type);
+        const data = await api.getProjectDraft(projectId, draft.id);
         if (!cancelled) {
-          if (data?.id === draft.id) {
-            setLoadedDraft(data);
-            setEditorValue(data.content_markdown);
-          } else {
-            setActionError("Could not load the selected draft content.");
-          }
+          setLoadedDraft(data);
+          setEditorValue(data.content_markdown);
         }
       } catch (error) {
         if (!cancelled) {
@@ -97,6 +93,11 @@ export function DraftReviewPanel({
       cancelled = true;
     };
   }, [projectId, draft]);
+
+  const sections = useMemo(
+    () => (loadedDraft ? splitMarkdownSections(loadedDraft.content_markdown) : []),
+    [loadedDraft],
+  );
 
   if (!draft) {
     return (
@@ -119,10 +120,6 @@ export function DraftReviewPanel({
   const evidenceChanged = evidenceChangedSummary(loadedDraft?.provenance_metadata?.evidence_changed);
   const workbook = workbookMetadata(loadedDraft?.provenance_metadata?.workbook);
   const isAccepted = displayDraft.status === "accepted";
-  const sections = useMemo(
-    () => (loadedDraft ? splitMarkdownSections(loadedDraft.content_markdown) : []),
-    [loadedDraft],
-  );
 
   function startSectionEdit(heading: string) {
     if (!loadedDraft) return;

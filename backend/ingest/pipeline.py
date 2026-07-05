@@ -18,6 +18,8 @@ logger = structlog.get_logger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TraceCallback = Callable[[str, str, str, dict[str, object]], None]
+_PLATFORM_DOCTRINE_PATHS = ("docs/clerk-brief.md",)
+_PLATFORM_REFERENCE_FOLDERS = ("seed", "skills/reference")
 
 
 def _emit_trace(
@@ -37,16 +39,21 @@ def _emit_trace(
     )
 
 
-def _manifest_from_file(file_path: Path, data_dir: Path) -> ManifestEntry | None:
+def _manifest_from_file(
+    file_path: Path,
+    data_dir: Path,
+    *,
+    repo_root: Path | None = None,
+) -> ManifestEntry | None:
     resolved = file_path.resolve()
     data_root = data_dir.resolve()
-    repo_root = _REPO_ROOT.resolve()
+    corpus_root = (repo_root or _REPO_ROOT).resolve()
 
     if resolved.is_relative_to(data_root):
         relative_path = resolved.relative_to(data_root).as_posix()
         project = relative_path.split("/", maxsplit=1)[0]
-    elif resolved.is_relative_to(repo_root):
-        relative_path = resolved.relative_to(repo_root).as_posix()
+    elif resolved.is_relative_to(corpus_root):
+        relative_path = resolved.relative_to(corpus_root).as_posix()
         project = relative_path.split("/", maxsplit=1)[0]
     else:
         return None
@@ -92,6 +99,61 @@ def plan_folder(
             metadata=plan.classification.document_metadata,
         )
     return plans
+
+
+def _manifest_for_corpus_file(
+    file_path: Path,
+    data_dir: Path,
+    *,
+    repo_root: Path | None = None,
+) -> ManifestEntry:
+    entry = _manifest_from_file(file_path, data_dir, repo_root=repo_root)
+    if entry is None:
+        msg = f"Platform knowledge file is outside the corpus roots: {file_path}"
+        raise ValueError(msg)
+    return entry
+
+
+def platform_knowledge_files(
+    *,
+    data_dir: Path | None = None,
+    repo_root: Path | None = None,
+) -> list[Path]:
+    """Return the SiteWise platform knowledge corpus in deterministic order."""
+    root = repo_root or _REPO_ROOT
+    data_root = data_dir or root / "data"
+    files: list[Path] = []
+    for relative_path in _PLATFORM_DOCTRINE_PATHS:
+        path = root / relative_path
+        if path.exists():
+            files.append(path)
+    for folder in _PLATFORM_REFERENCE_FOLDERS:
+        directory = data_root / folder
+        if not directory.exists():
+            continue
+        files.extend(
+            file
+            for file in sorted(directory.glob("*.md"))
+            if file.name != "README.md"
+        )
+    return files
+
+
+def plan_platform_knowledge(
+    *,
+    data_dir: Path | None = None,
+    repo_root: Path | None = None,
+    limit: int | None = None,
+) -> list[IngestPlan]:
+    root = repo_root or _REPO_ROOT
+    data_root = data_dir or root / "data"
+    files = platform_knowledge_files(data_dir=data_root, repo_root=root)
+    if limit is not None:
+        files = files[:limit]
+    return [
+        plan_entry(_manifest_for_corpus_file(file_path, data_root, repo_root=root))
+        for file_path in files
+    ]
 
 
 def ingest_plan(
@@ -248,6 +310,67 @@ def ingest_folder(
     logger.info(
         "ingest_folder_complete",
         folder=folder,
+        dry_run=False,
+        persisted=persisted,
+        skipped=skipped,
+        failed=failed,
+        by_class=summary.by_class,
+    )
+    return summary
+
+
+def ingest_platform_knowledge(
+    *,
+    dry_run: bool = True,
+    data_dir: Path | None = None,
+    repo_root: Path | None = None,
+    limit: int | None = None,
+    skip_if_unchanged: bool = True,
+) -> FolderSummary:
+    plans = plan_platform_knowledge(data_dir=data_dir, repo_root=repo_root, limit=limit)
+    persisted = 0
+    skipped = 0
+    failed = 0
+
+    if dry_run:
+        summary = FolderSummary(
+            folder="platform-knowledge",
+            discovered=len(plans),
+            planned=len(plans),
+            skipped=0,
+            by_class=Counter(plan.classification.document_class for plan in plans),
+        )
+        logger.info(
+            "ingest_platform_complete",
+            dry_run=True,
+            planned=summary.planned,
+            by_class=dict(summary.by_class),
+        )
+        return summary
+
+    for plan in plans:
+        try:
+            if ingest_plan(plan, skip_if_unchanged=skip_if_unchanged):
+                persisted += 1
+            else:
+                skipped += 1
+        except Exception as exc:
+            failed += 1
+            logger.error(
+                "ingest_platform_file_failed",
+                relative_path=plan.entry.relative_path,
+                error=str(exc),
+            )
+
+    summary = FolderSummary(
+        folder="platform-knowledge",
+        discovered=len(plans),
+        planned=persisted,
+        skipped=skipped + failed,
+        by_class=Counter(plan.classification.document_class for plan in plans),
+    )
+    logger.info(
+        "ingest_platform_complete",
         dry_run=False,
         persisted=persisted,
         skipped=skipped,

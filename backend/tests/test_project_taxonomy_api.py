@@ -240,6 +240,73 @@ def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> No
     ]
 
 
+def test_patch_project_persists_user_role_and_state(client: TestClient) -> None:
+    project = _project(user_role="architect-pm", state="NSW")
+    updated_project = _project(user_role="builder", state="VIC")
+    update_project_taxonomy = AsyncMock(return_value=updated_project)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={"user_role": "builder", "state": "VIC"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["user_role"] == "builder"
+    assert payload["state"] == "VIC"
+    update_project_taxonomy.assert_awaited_once()
+    kwargs = update_project_taxonomy.await_args.kwargs
+    assert kwargs["user_role"] == "builder"
+    assert kwargs["state"] == "VIC"
+
+
+def test_patch_project_taxonomy_satisfies_overlay_gate_without_archetype(
+    client: TestClient,
+) -> None:
+    # Walsh Renault regression: a project set up purely through the Class +
+    # Work-type picker (no legacy archetype) must gate ready so Create PMP is
+    # not blocked with "archetype: missing".
+    project = _project()
+    updated_project = _project(
+        archetype=None,
+        building_class="residential",
+        work_type="refurb",
+        project_metadata={
+            "source": "hosted-create-project",
+            "workspace_model": "sitewise-template-v1",
+            "taxonomy": {"subclasses": ["house"]},
+        },
+    )
+    update_project_taxonomy = AsyncMock(return_value=updated_project)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={
+                "building_class": "residential",
+                "work_type": "refurb",
+                "subclasses": ["house"],
+            },
+        )
+
+    assert response.status_code == 200
+    overlay = response.json()["overlay_status"]
+    assert overlay["ready"] is True
+    assert overlay["missing"] == []
+    assert overlay["invalid"] == []
+
+
 def test_patch_project_rejects_invalid_taxonomy_combo(client: TestClient) -> None:
     update_project_taxonomy = AsyncMock()
 

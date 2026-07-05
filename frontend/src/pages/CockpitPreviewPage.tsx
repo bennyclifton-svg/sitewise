@@ -1,16 +1,20 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
 import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
+import { ProjectChatPreview } from "@/components/project/ProjectChatPreview";
+import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
+import { buildLifecycleTiles } from "@/components/project/workflow/workflowTiles";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
 import { Button } from "@/components/ui/button";
+import { projectSiteAddress } from "@/lib/project-taxonomy";
 import type {
   DraftArtifact,
   EvidencePreview,
@@ -35,6 +39,7 @@ const previewProject: ProjectDetail = {
   updated_at: new Date().toISOString(),
   metadata: {
     preview: true,
+    site_address: "14 Wattle Grove, Lindfield NSW 2070",
   },
   overlay_status: {
     ready: true,
@@ -227,6 +232,24 @@ export function CockpitPreviewPage() {
   const selectedEvidence =
     previewEvidence.find((item) => item.id === selectedEvidenceId) ?? previewEvidence[0];
   const selectedFolder = findWorkspaceNode(previewWorkspaceTree, selectedWorkspacePath);
+  const lifecycleTiles = useMemo(
+    () =>
+      buildLifecycleTiles({
+        project: previewProject,
+        latestDraft: previewDraft,
+        latestCostPlanDraft: null,
+        workflowError: null,
+        costPlanWorkflowError: null,
+        isRunningWorkflow: false,
+        isRunningCostPlan: false,
+      }),
+    [],
+  );
+
+  function selectWorkflow(workflowId: string) {
+    setSelectedWorkflowId(workflowId);
+    setActiveView("workbench");
+  }
 
   function openWorkflowFromExplorer(workflowId: string) {
     setSelectedWorkflowId(workflowId);
@@ -288,17 +311,31 @@ export function CockpitPreviewPage() {
     setActiveView("folder");
   }
 
+  const { chatCollapsed } = projectChatLayoutState({
+    activeView,
+    chatPanelCollapsed: true,
+  });
+
   return (
     <ProjectShell
+      projectTitle={previewProject.title}
+      projectAddress={projectSiteAddress(previewProject)}
+      chatCollapsed={chatCollapsed}
       onShowWorkbench={() => setActiveView("workbench")}
       leftNav={
         <ProjectLeftNav
           project={previewProject}
           projects={previewProjects}
           projectsLoading={false}
-          chatPreview
+          workflows={{
+            tiles: lifecycleTiles,
+            selectedWorkflowId,
+            onSelectWorkflow: selectWorkflow,
+          }}
+          chatHistoryPreview
         />
       }
+      chatPanel={<ProjectChatPreview />}
       repository={
         <DocumentRepositoryPanel
           projectId="00000000-0000-0000-0000-000000000000"
@@ -343,7 +380,6 @@ export function CockpitPreviewPage() {
           isRunningWorkflow={false}
           isRunningCostPlan={false}
           selectedWorkflowId={selectedWorkflowId}
-          onSelectWorkflow={setSelectedWorkflowId}
           onRunCreatePmp={() => setActiveView("draft")}
           onRunUpdatePmp={() => setActiveView("draft")}
           onRunCreateCostPlan={() => setActiveView("draft")}

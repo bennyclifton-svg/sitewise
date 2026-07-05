@@ -698,6 +698,8 @@ async def patch_project(
         building_class=body.building_class,
         work_type=body.work_type,
         taxonomy=_project_taxonomy_metadata(body),
+        user_role=body.user_role,
+        state=body.state,
     )
     return _project_detail_response(
         updated,

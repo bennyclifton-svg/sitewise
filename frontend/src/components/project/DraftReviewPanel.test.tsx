@@ -10,6 +10,7 @@ vi.mock("@/lib/api", () => ({
   api: {
     acceptDraft: vi.fn(),
     downloadWorkspaceFile: vi.fn(),
+    getProjectDraft: vi.fn(),
     getLatestDraft: vi.fn(),
     patchDraft: vi.fn(),
   },
@@ -110,6 +111,36 @@ describe("DraftReviewPanel", () => {
     expect(api.patchDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1", "# Edited");
     expect(screen.getAllByText("v2")[0]).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Edited" })).toBeInTheDocument();
+  });
+
+  it("loads the selected summary draft by id", async () => {
+    const fullDraft = draft({ content_markdown: "# Loaded PMP\n\nContent" });
+    vi.mocked(api.getProjectDraft).mockResolvedValue(fullDraft);
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={{
+          id: "draft-1",
+          project_id: PROJECT_ID,
+          workflow_type: "create_pmp",
+          version: 1,
+          status: "draft",
+          title: "Project Management Plan",
+          workspace_path: "04-projects/demo/00-brief-pmp/PMP.md",
+          author_user_id: "user-1",
+          model: "gpt-4.1-mini",
+          runtime: "clerk-sitewise-create-pmp",
+          created_at: "2026-07-04T12:00:00.000Z",
+          updated_at: "2026-07-04T12:00:00.000Z",
+        }}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    expect(api.getProjectDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1");
+    expect(await screen.findByRole("heading", { name: "Loaded PMP" })).toBeInTheDocument();
+    expect(api.getLatestDraft).not.toHaveBeenCalled();
   });
 
   it("edits one section and leaves the other section unchanged", async () => {

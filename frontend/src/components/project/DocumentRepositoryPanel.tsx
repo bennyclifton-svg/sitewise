@@ -454,12 +454,6 @@ export function DocumentRepositoryPanel({
         </div>
       ) : null}
 
-      <header className="cockpit-shell-header">
-        <h2 className="text-sm font-semibold text-[var(--gr-900)]">
-          {activePanelView === "schedule" ? "Documents" : "Tree view"}
-        </h2>
-      </header>
-
       <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {activePanelView === "schedule" && selectedRows.length ? (

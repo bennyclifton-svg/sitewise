@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, ChevronDown, ChevronUp } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -12,7 +12,6 @@ import {
 
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
 import { ChatComposer } from "@/components/chat/ChatComposer";
-import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { ChatErrorBanner } from "@/components/chat/ChatErrorBanner";
 import { SourcePassagePanel } from "@/components/chat/SourcePassagePanel";
 import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
@@ -50,9 +49,12 @@ import type { ChatMessage } from "@/lib/types/chat";
 type ChatPanelProps = {
   threadId: string;
   initialMessages: ChatMessage[];
-  isFirstConversation?: boolean;
   onConversationUpdate?: () => void;
-  layout?: "page" | "rail";
+  onUserSubmit?: () => void;
+  layout?: "page" | "rail" | "main";
+  collapsed?: boolean;
+  collapsible?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
   showScopeControls?: boolean;
   crossProject?: boolean;
   onCrossProjectChange?: (value: boolean) => void;
@@ -65,9 +67,12 @@ type ChatPanelProps = {
 export function ChatPanel({
   threadId,
   initialMessages,
-  isFirstConversation = false,
   onConversationUpdate,
+  onUserSubmit,
   layout = "page",
+  collapsed = false,
+  collapsible = false,
+  onCollapsedChange,
   showScopeControls = false,
   crossProject = false,
   onCrossProjectChange,
@@ -77,6 +82,8 @@ export function ChatPanel({
   onSelectCitation,
 }: ChatPanelProps) {
   const isRail = layout === "rail";
+  const isMain = layout === "main";
+  const isEmbedded = isRail || isMain;
   const [input, setInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [internalSelectedCitation, setInternalSelectedCitation] = useState<Citation | null>(null);
@@ -104,6 +111,11 @@ export function ChatPanel({
 
   const activeCitationId =
     onSelectCitation !== undefined ? selectedCitationId : internalSelectedCitation?.sourceId ?? null;
+
+  function togglePanelCollapsed() {
+    const next = !collapsed;
+    onCollapsedChange?.(next);
+  }
 
   function handleSelectCitation(citation: Citation | null) {
     if (onSelectCitation) {
@@ -222,6 +234,7 @@ export function ChatPanel({
     const text = input.trim();
     if (!text || isBusy) return;
     setInput("");
+    onUserSubmit?.();
     await sendMessage({ text });
   }
 
@@ -234,31 +247,33 @@ export function ChatPanel({
     }
   }
 
-  const shellClass = isRail
-    ? "flex min-h-0 flex-1 flex-col gap-3"
-    : "grid min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]";
-  const chatColumnClass = isRail
-    ? "flex min-h-0 flex-1 flex-col gap-3"
-    : "flex h-[min(42rem,calc(100vh-16rem))] min-h-[28rem] min-w-0 flex-col gap-4";
-  const historyClass = isRail
-    ? "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto scroll-smooth pr-1"
+  const shellClass = collapsed
+    ? "shrink-0"
+    : isEmbedded
+      ? "flex min-h-0 flex-1 flex-col gap-3"
+      : "grid min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]";
+  const chatColumnClass = collapsed
+    ? "shrink-0"
+    : isEmbedded
+      ? "flex min-h-0 flex-1 flex-col gap-3"
+      : "flex h-[min(42rem,calc(100vh-16rem))] min-h-[28rem] min-w-0 flex-col gap-4";
+  const historyClass = isEmbedded
+    ? "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto scroll-smooth px-1"
     : "cockpit-scroll flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-md border p-4 scroll-smooth";
 
   return (
     <div className={shellClass}>
       <div className={chatColumnClass}>
-        <div className="relative min-h-0 flex-1">
-          <div
-            ref={historyRef}
-            role="log"
-            aria-label="Conversation history"
-            onScroll={updateScrollButton}
-            className={historyClass}
-          >
-            {messages.length === 0 ? (
-              <ChatEmptyState variant={isFirstConversation ? "first-time" : "thread"} />
-            ) : (
-              messages.map((message) => {
+        {!collapsed ? (
+          <div className="relative min-h-0 flex-1">
+            <div
+              ref={historyRef}
+              role="log"
+              aria-label="Conversation history"
+              onScroll={updateScrollButton}
+              className={historyClass}
+            >
+              {messages.map((message) => {
                 const text = message.parts
                   .filter((part) => part.type === "text")
                   .map((part) => part.text)
@@ -272,6 +287,7 @@ export function ChatPanel({
                       messageData={persistedMessageData.get(message.id)}
                       toolEvents={toolEventsByMessageId.get(message.id)}
                       artefacts={artefactsByMessageId.get(message.id)}
+                      agentMode={agentMode}
                       projectId={projectId}
                       selectedCitationId={activeCitationId}
                       onSelectCitation={handleSelectCitation}
@@ -280,29 +296,48 @@ export function ChatPanel({
                 }
 
                 return <UserMessage key={message.id} text={text} />;
-              })
-            )}
+              })}
 
-            {isBusy ? <StreamingIndicator message={statusMessage} /> : null}
+              {isBusy ? <StreamingIndicator message={statusMessage} /> : null}
+            </div>
+
+            {showScrollButton ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className="absolute right-3 bottom-3 shadow-md"
+                aria-label="Scroll to latest message"
+                title="Scroll to latest message"
+                onClick={scrollToBottom}
+              >
+                <ArrowDown className="size-4" aria-hidden />
+              </Button>
+            ) : null}
           </div>
-
-          {showScrollButton ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              className="absolute right-3 bottom-3 shadow-md"
-              aria-label="Scroll to latest message"
-              title="Scroll to latest message"
-              onClick={scrollToBottom}
-            >
-              <ArrowDown className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
 
         {chatError ? (
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />
+        ) : null}
+
+        {collapsible ? (
+          <div className="flex shrink-0 items-center justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={collapsed ? "Expand chat" : "Collapse chat"}
+              title={collapsed ? "Expand chat" : "Collapse chat"}
+              onClick={togglePanelCollapsed}
+            >
+              {collapsed ? (
+                <ChevronUp className="size-4" aria-hidden />
+              ) : (
+                <ChevronDown className="size-4" aria-hidden />
+              )}
+            </Button>
+          </div>
         ) : null}
 
         <ChatComposer
@@ -318,7 +353,7 @@ export function ChatPanel({
         />
       </div>
 
-      {!isRail ? (
+      {!isEmbedded ? (
         <SourcePassagePanel citation={internalSelectedCitation} />
       ) : null}
     </div>

@@ -23,7 +23,7 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
         ],
     )
 
-    assert prompt.index("<role>") < prompt.index("<project-context>")
+    assert prompt.index("<persona>") < prompt.index("<project-context>")
     assert prompt.index("<project-context>") < prompt.index("<document-access>")
     assert prompt.index("<document-access>") < prompt.index("<recent-conversation>")
     assert prompt.rstrip().endswith("Compare the tenders")
@@ -64,6 +64,35 @@ def test_prompt_marks_undeclared_overlays_and_omits_empty_history() -> None:
     assert "phase: (not declared)" in prompt
     assert "user_role: builder" in prompt
     assert "<recent-conversation>" not in prompt
+
+
+def test_prompt_treats_taxonomy_profile_as_authoritative() -> None:
+    prompt = build_agent_prompt(
+        "What do you know about the project?",
+        project_id=PROJECT_ID,
+        title="Walsh Reno",
+        archetype=None,
+        user_role="architect-pm",
+        state="NSW",
+        phase="brief-planning",
+        building_class="residential",
+        work_type="refurb",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["house"],
+                "scale": {"gfa_sqm": 200},
+            }
+        },
+        history=[],
+    )
+
+    assert "archetype: (not declared)" not in prompt
+    assert "classification_source: project_taxonomy" in prompt
+    assert "project_title: Walsh Reno" in prompt
+    assert "building_class: residential" in prompt
+    assert "work_type: refurb" in prompt
+    assert "subclasses: House (Class 1a)" in prompt
+    assert "scale: GFA sqm=200" in prompt
 
 
 def test_history_window_is_bounded_by_count_and_chars(

@@ -166,6 +166,14 @@ class FeeStage(BaseModel):
     fee_ex_gst: str
 
 
+class FactLedgerEntry(BaseModel):
+    """A reviewable project fact extracted from a source document."""
+
+    source: str
+    fact: str
+    section: str
+
+
 class MobilisationEvidencePack(BaseModel):
     """Structured facts extracted from mobilisation evidence documents."""
 
@@ -173,6 +181,9 @@ class MobilisationEvidencePack(BaseModel):
     site_address: str | None = None
     dwelling_summary: str | None = None
     site_constraints: str | None = None
+    owner_brief_objectives: list[str] = Field(default_factory=list)
+    owner_additional_contingency: str | None = None
+    owner_programme_aspirations: list[str] = Field(default_factory=list)
 
     engagement_letter_date: str | None = None
     fee_proposal_date: str | None = None
@@ -206,10 +217,17 @@ class MobilisationEvidencePack(BaseModel):
     construction_budget_ceiling: str | None = None
 
     builder_rom: str | None = None
+    builder_rom_programme: str | None = None
+    builder_rom_caveats: list[str] = Field(default_factory=list)
+    builder_conflict_disclosure: str | None = None
     heritage_advice: str | None = None
+    heritage_context: str | None = None
+    heritage_design_advice: list[str] = Field(default_factory=list)
+    heritage_approval_advice: str | None = None
 
     builder_quotes: list[str] = Field(default_factory=list)
     other_evidence: list[str] = Field(default_factory=list)
+    fact_ledger: list[FactLedgerEntry] = Field(default_factory=list)
 
     gaps: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
@@ -412,6 +430,48 @@ def _extract_builder_rom(combined_text: str) -> str | None:
     return "Builder preliminary cost advice (ROM, not a tender)."
 
 
+def _extract_builder_rom_programme(combined_text: str) -> str | None:
+    match = re.search(
+        r"\*\*Programme ROM:\*\*\s*([^\n]+)",
+        combined_text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    text = _normalize_text_fragment(match.group(1))
+    if not text:
+        return None
+    return f"Programme ROM: {text}"
+
+
+def _extract_bullets_after_marker(text: str, marker_pattern: str) -> list[str]:
+    match = re.search(
+        marker_pattern + r"\s*(?P<block>(?:\n\s*-\s*[^\n]+)+)",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return []
+    return _extract_bullet_lines(match.group("block"))
+
+
+def _extract_builder_rom_caveats(combined_text: str) -> list[str]:
+    assumptions = _extract_bullets_after_marker(combined_text, r"assuming:")
+    caveats = _extract_bullets_after_marker(
+        combined_text,
+        r"\*\*Caveats\s+we.?d\s+price\s+harder\s+at\s+tender:\*\*",
+    )
+    return _deduped_texts([*assumptions, *caveats])
+
+
+def _extract_builder_conflict_disclosure(combined_text: str) -> str | None:
+    for sentence in _sentences(combined_text):
+        lowered = sentence.lower()
+        if "not related parties" in lowered or "no prior projects" in lowered:
+            return _normalize_text_fragment(sentence)
+    return None
+
+
 def _extract_heritage_advice(combined_text: str) -> str | None:
     """Capture heritage desktop advice when supplied as evidence."""
     lowered = combined_text.lower()
@@ -421,6 +481,43 @@ def _extract_heritage_advice(combined_text: str) -> str | None:
         "Heritage desktop advice — conservation-area streetscape; "
         "DA pathway, heritage impact statement at schematic stage."
     )
+
+
+def _extract_heritage_context(combined_text: str) -> str | None:
+    context = _markdown_section(combined_text, "Context")
+    if not context:
+        return None
+    return _normalize_text_fragment(context)
+
+
+def _extract_heritage_design_advice(combined_text: str) -> list[str]:
+    return _extract_bullet_lines(_markdown_section(combined_text, "Preliminary view"))
+
+
+def _extract_heritage_approval_advice(combined_text: str) -> str | None:
+    if "heritage impact statement" not in combined_text.lower():
+        return None
+    parts: list[str] = []
+    his_sentence = next(
+        (
+            sentence
+            for sentence in _sentences(combined_text)
+            if "heritage impact statement" in sentence.lower()
+        ),
+        None,
+    )
+    if his_sentence:
+        parts.append(_normalize_text_fragment(his_sentence) or his_sentence)
+    recommendation = _markdown_section(combined_text, "Recommendation")
+    for sentence in _sentences(recommendation):
+        lowered = sentence.lower()
+        if "da pathway" in lowered or "council assessment" in lowered or "no objection" in lowered:
+            normalised = _normalize_text_fragment(sentence)
+            if normalised:
+                parts.append(normalised)
+    if not parts:
+        return None
+    return " ".join(parts)
 
 
 def _extract_site_address(source_texts: list[str]) -> str | None:
@@ -592,6 +689,61 @@ def _normalize_text_fragment(text: str | None) -> str | None:
     return cleaned.strip()
 
 
+def _sentences(text: str) -> list[str]:
+    return [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?])\s+", text)
+        if sentence.strip()
+    ]
+
+
+def _extract_bullet_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            continue
+        normalised = _normalize_text_fragment(stripped[2:])
+        if normalised:
+            lines.append(normalised)
+    return _deduped_texts(lines)
+
+
+def _deduped_texts(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        cleaned = _normalize_text_fragment(value)
+        if cleaned is None:
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(cleaned)
+    return result
+
+
+def _extract_owner_brief_objectives(combined_text: str) -> list[str]:
+    return _extract_bullet_lines(_markdown_section(combined_text, "Design objectives"))
+
+
+def _extract_owner_additional_contingency(combined_text: str) -> str | None:
+    for sentence in _sentences(combined_text):
+        lowered = sentence.lower()
+        if "additional contingency" not in lowered and "discovery during strip-out" not in lowered:
+            continue
+        amount_match = re.search(r"\$[\d,]+", sentence)
+        if amount_match:
+            return f"{amount_match.group(0)} additional contingency for discovery during strip-out."
+        return _normalize_text_fragment(sentence)
+    return None
+
+
+def _extract_owner_programme_aspirations(combined_text: str) -> list[str]:
+    return _extract_bullet_lines(_markdown_section(combined_text, "Programme aspirations"))
+
+
 def _extract_construction_budget_ceiling(combined_text: str) -> str | None:
     match = _BUDGET_CEILING_PATTERN.search(combined_text)
     if match:
@@ -653,6 +805,155 @@ def _is_engagement_or_fee_text(text: str) -> bool:
     if "scope of services" in lowered and "fee basis" in lowered:
         return True
     return "fee proposal" in lowered or "project understanding" in lowered
+
+
+def _fact_ledger_entries_for_document(text: str, label: str) -> list[FactLedgerEntry]:
+    entries: list[FactLedgerEntry] = []
+    lowered = text.lower()
+    if "letter of engagement" in lowered or "scope of services" in lowered:
+        executed = _extract_executed_date(text)
+        appointee = _extract_appointee(text)
+        if appointee or executed:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=(
+                        f"Engagement letter appoints {appointee or 'architect-PM'}; "
+                        f"executed {executed or 'date TBC'}."
+                    ),
+                    section="Architect-PM role and appointment",
+                )
+            )
+        reporting = _extract_reporting_cadence(text)
+        if reporting:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=reporting,
+                    section="Communications protocol",
+                )
+            )
+    if "fee proposal" in lowered or "project understanding" in lowered:
+        pathway = _extract_planning_pathway(text)
+        if pathway:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=f"Planning pathway: {pathway}.",
+                    section="Approvals and compliance",
+                )
+            )
+        invited, formal = _extract_builder_counts(text)
+        if invited or formal:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=(
+                        f"Procurement assumption: {invited or 'TBC'} invited builders; "
+                        f"{formal or 'TBC'} formal head-builder tender."
+                    ),
+                    section="Cost, programme and procurement posture",
+                )
+            )
+    if "owner project brief" in lowered:
+        budget = _extract_construction_budget_ceiling(text)
+        if budget:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=f"Owner brief confirms {budget} construction budget ceiling.",
+                    section="Project overview",
+                )
+            )
+        contingency = _extract_owner_additional_contingency(text)
+        if contingency:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=contingency,
+                    section="Cost, programme and procurement posture",
+                )
+            )
+        for objective in _extract_owner_brief_objectives(text):
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=f"Owner design objective: {objective}.",
+                    section="Scope and change control",
+                )
+            )
+        for aspiration in _extract_owner_programme_aspirations(text):
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=f"Programme aspiration: {aspiration}.",
+                    section="Programme and staging regime",
+                )
+            )
+    builder_rom = _extract_builder_rom(text)
+    if builder_rom:
+        entries.append(
+            FactLedgerEntry(
+                source=label,
+                fact=builder_rom,
+                section="Cost, programme and procurement posture",
+            )
+        )
+        programme = _extract_builder_rom_programme(text)
+        if programme:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=programme,
+                    section="Programme and staging regime",
+                )
+            )
+        for caveat in _extract_builder_rom_caveats(text):
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=f"Builder ROM caveat: {caveat}.",
+                    section="Risks, decisions and next actions",
+                )
+            )
+        conflict = _extract_builder_conflict_disclosure(text)
+        if conflict:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=conflict,
+                    section="Cost, programme and procurement posture",
+                )
+            )
+    heritage = _extract_heritage_advice(text)
+    if heritage:
+        context = _extract_heritage_context(text)
+        if context:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=context,
+                    section="Approvals and compliance",
+                )
+            )
+        for advice in _extract_heritage_design_advice(text):
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=f"Heritage design advice: {advice}.",
+                    section="Scope and change control",
+                )
+            )
+        approval = _extract_heritage_approval_advice(text)
+        if approval:
+            entries.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=approval,
+                    section="Approvals and compliance",
+                )
+            )
+    return entries
 
 
 def _parse_money(raw: str) -> float:
@@ -837,10 +1138,15 @@ def _detect_gaps(combined_text: str) -> list[str]:
 
 
 _LIST_FIELDS = (
+    "owner_brief_objectives",
+    "owner_programme_aspirations",
+    "builder_rom_caveats",
+    "heritage_design_advice",
     "scope_bullets",
     "fee_stages",
     "builder_quotes",
     "other_evidence",
+    "fact_ledger",
     "evidence_refs",
 )
 
@@ -944,11 +1250,24 @@ def extract_mobilisation_evidence_pack(
 
     builder_quotes: list[str] = []
     other_evidence: list[str] = []
+    fact_ledger: list[FactLedgerEntry] = []
     for text, label in zip(source_texts, labels, strict=True):
         quote_summary = extract_builder_quote_summary(text, label)
         if quote_summary is not None:
             builder_quotes.append(quote_summary)
-        elif not _is_engagement_or_fee_text(text):
+            fact_ledger.append(
+                FactLedgerEntry(
+                    source=label,
+                    fact=quote_summary,
+                    section="Cost, programme and procurement posture",
+                )
+            )
+            continue
+        document_entries = _fact_ledger_entries_for_document(text, label)
+        if document_entries:
+            fact_ledger.extend(document_entries)
+            continue
+        if not _is_engagement_or_fee_text(text):
             other_evidence.append(
                 f"{label} on file — content not matched to the mobilisation checklist; "
                 "review and file to the correct lifecycle folder."
@@ -959,6 +1278,9 @@ def extract_mobilisation_evidence_pack(
         site_address=_extract_site_address(source_texts),
         dwelling_summary=dwelling_summary,
         site_constraints=site_constraints,
+        owner_brief_objectives=_extract_owner_brief_objectives(combined),
+        owner_additional_contingency=_extract_owner_additional_contingency(combined),
+        owner_programme_aspirations=_extract_owner_programme_aspirations(combined),
         engagement_letter_date=_extract_letter_date(engagement_text),
         fee_proposal_date=_extract_fee_proposal_date(fee_text),
         engagement_executed_date=_extract_executed_date(engagement_text),
@@ -986,9 +1308,16 @@ def extract_mobilisation_evidence_pack(
         owner_brief_signed_date=_extract_owner_brief_signed_date(combined),
         construction_budget_ceiling=_extract_construction_budget_ceiling(combined),
         builder_rom=_extract_builder_rom(combined),
+        builder_rom_programme=_extract_builder_rom_programme(combined),
+        builder_rom_caveats=_extract_builder_rom_caveats(combined),
+        builder_conflict_disclosure=_extract_builder_conflict_disclosure(combined),
         heritage_advice=_extract_heritage_advice(combined),
+        heritage_context=_extract_heritage_context(combined),
+        heritage_design_advice=_extract_heritage_design_advice(combined),
+        heritage_approval_advice=_extract_heritage_approval_advice(combined),
         builder_quotes=builder_quotes,
         other_evidence=other_evidence,
+        fact_ledger=fact_ledger,
         gaps=gaps,
         evidence_refs=refs,
     )

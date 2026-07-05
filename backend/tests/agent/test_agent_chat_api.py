@@ -37,6 +37,19 @@ BODY_WITH_AGENT_MODEL = {
     "agent_model": "openai-codex:gpt-5.5",
 }
 
+BODY_WITH_PI_RUNTIME = {
+    **BODY,
+    "agent_runtime": "pi",
+    "messages": [
+        {
+            "role": "user",
+            "parts": [
+                {"type": "text", "text": "what can you tell me about the project"}
+            ],
+        }
+    ],
+}
+
 
 def _thread(
     *,
@@ -235,13 +248,19 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         AsyncMock(
             return_value=SimpleNamespace(
                 id=PROJECT_ID,
-                title="Test Project 112",
-                archetype="new-dwelling",
-                user_role="builder",
+                title="Walsh Reno",
+                archetype=None,
+                user_role="architect-pm",
                 state="NSW",
-                phase="procurement",
-                building_class=None,
-                work_type=None,
+                phase="brief-planning",
+                building_class="residential",
+                work_type="refurb",
+                project_metadata={
+                    "taxonomy": {
+                        "subclasses": ["house"],
+                        "scale": {"gfa_sqm": 200},
+                    }
+                },
             )
         ),
     )
@@ -284,12 +303,14 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "\n"
         "<project-context>\n"
         f"project_id: {PROJECT_ID}\n"
-        "project_title: Test Project 112\n"
-        "archetype: new-dwelling\n"
-        "building_class: (not declared)\n"
-        "work_type: (not declared)\n"
-        "phase: procurement\n"
-        "user_role: builder\n"
+        "project_title: Walsh Reno\n"
+        "classification_source: project_taxonomy\n"
+        "building_class: residential\n"
+        "work_type: refurb\n"
+        "subclasses: House (Class 1a)\n"
+        "scale: GFA sqm=200\n"
+        "phase: brief-planning\n"
+        "user_role: architect-pm\n"
         "state: NSW\n"
         "</project-context>\n"
         "\n"
@@ -332,6 +353,198 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     assert calls[1].kwargs["role"] == "assistant"
     assert calls[1].kwargs["content"] == "Hello there"
     assert calls[1].kwargs["message_data"]["agent"]["runtime"] == "hermes"
+    assert calls[1].kwargs["message_data"]["agent"]["sourceTrace"] == {
+        "context": {"used": True, "label": "Project context"},
+        "documents": {"used": False, "tools": []},
+        "knowledge": {"used": False, "tools": [], "references": []},
+        "tools": [],
+        "model": {"used": True, "label": "LLM reasoning"},
+    }
+
+
+def test_agent_source_trace_classifies_context_knowledge_documents_and_tools() -> None:
+    trace = chat_api._agent_source_trace(
+        [
+            {
+                "kind": "tool",
+                "tool": "list_platform_knowledge",
+                "state": "done",
+                "message": "Listed platform knowledge",
+            },
+            {
+                "kind": "tool",
+                "tool": "search_platform_knowledge",
+                "state": "done",
+                "message": "Searched platform knowledge",
+            },
+            {
+                "kind": "tool",
+                "tool": "read_platform_knowledge",
+                "state": "done",
+                "message": "Read platform knowledge",
+                "knowledge_path": "seed/nsw/residential-refurb.md",
+                "section_ids": ["brief", "budget"],
+            },
+            {
+                "kind": "tool",
+                "tool": "find_document_text",
+                "state": "done",
+                "message": "Searched ingested document text",
+            },
+            {
+                "kind": "tool",
+                "tool": "get_document",
+                "state": "error",
+                "message": "Document read failed",
+            },
+        ]
+    )
+
+    assert trace == {
+        "context": {"used": True, "label": "Project context"},
+        "documents": {"used": True, "tools": ["find_document_text"]},
+        "knowledge": {
+            "used": True,
+            "tools": [
+                "list_platform_knowledge",
+                "search_platform_knowledge",
+                "read_platform_knowledge",
+            ],
+            "references": ["seed/nsw/residential-refurb.md"],
+        },
+        "tools": [
+            {
+                "name": "list_platform_knowledge",
+                "message": "Listed platform knowledge",
+            },
+            {
+                "name": "search_platform_knowledge",
+                "message": "Searched platform knowledge",
+            },
+            {
+                "name": "read_platform_knowledge",
+                "message": "Read platform knowledge",
+                "knowledgePath": "seed/nsw/residential-refurb.md",
+                "sectionIds": ["brief", "budget"],
+            },
+            {
+                "name": "find_document_text",
+                "message": "Searched ingested document text",
+            },
+        ],
+        "model": {"used": True, "label": "LLM reasoning"},
+    }
+
+
+def test_agent_stream_pi_runtime_receives_project_context(
+    client: TestClient,
+    mock_session: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    thread = _thread(title=None)
+    assistant_session = AsyncMock()
+    seen: dict[str, str] = {}
+
+    async def fake_create_message(session, *, thread_id, role, content, message_data=None):
+        return ChatMessage(
+            id=uuid.uuid4(),
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            message_data=message_data,
+            created_at=NOW,
+        )
+
+    async def fake_stream_pi_turn(*, prompt, mcp_url, turn_token, cwd):
+        seen.update(
+            {
+                "prompt": prompt,
+                "mcp_url": mcp_url,
+                "turn_token": turn_token,
+                "cwd": cwd,
+            }
+        )
+        yield "Walsh Reno is a residential refurbishment."
+
+    token_mint = Mock(return_value="turn-token")
+
+    monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
+    monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
+    monkeypatch.setattr(settings, "pi_runtime_enabled", True)
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "require_turn_within_quota",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                used_turns=12,
+                quota=100,
+                percent=12,
+                warning=False,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        chat_api,
+        "require_project_owner",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                title="Walsh Reno",
+                archetype=None,
+                user_role="architect-pm",
+                state="NSW",
+                phase="brief-planning",
+                building_class="residential",
+                work_type="refurb",
+                project_metadata={
+                    "taxonomy": {
+                        "subclasses": ["house"],
+                        "scale": {"gfa_sqm": 200},
+                    }
+                },
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    monkeypatch.setattr(chat_api, "update_thread", AsyncMock(return_value=thread))
+    monkeypatch.setattr(
+        chat_api,
+        "create_message",
+        AsyncMock(side_effect=fake_create_message),
+    )
+    monkeypatch.setattr(chat_api, "mint_turn_token", token_mint)
+    monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
+    monkeypatch.setattr(
+        chat_api,
+        "get_session_factory",
+        lambda: _SessionFactory(assistant_session),
+    )
+
+    with client.stream("POST", "/chat/agent/stream", json=BODY_WITH_PI_RUNTIME) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "Walsh Reno is a residential refurbishment." in body
+    assert "<project-context>" in seen["prompt"]
+    assert "project_title: Walsh Reno" in seen["prompt"]
+    assert "classification_source: project_taxonomy" in seen["prompt"]
+    assert "building_class: residential" in seen["prompt"]
+    assert "work_type: refurb" in seen["prompt"]
+    assert "subclasses: House (Class 1a)" in seen["prompt"]
+    assert "scale: GFA sqm=200" in seen["prompt"]
+    assert "what can you tell me about the project" in seen["prompt"]
+    assert seen["mcp_url"] == "http://testserver/mcp"
+    assert seen["turn_token"] == "turn-token"
+    assert seen["cwd"] == str(tmp_path / str(PROJECT_ID))
+
+    calls = chat_api.create_message.await_args_list
+    assert calls[1].kwargs["content"] == "Walsh Reno is a residential refurbishment."
+    assert calls[1].kwargs["message_data"]["agent"]["runtime"] == "pi"
+    assert calls[1].kwargs["message_data"]["agent"]["sourceTrace"]["context"]["used"] is True
+    assert calls[1].kwargs["message_data"]["agent"]["sourceTrace"]["model"]["used"] is True
 
 
 def test_agent_cancel_requires_thread_owner_and_cancels(

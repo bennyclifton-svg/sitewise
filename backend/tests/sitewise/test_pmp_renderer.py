@@ -102,8 +102,9 @@ def _walsh_project() -> Project:
 
 def _walsh_pack():
     walsh_dir = REPO_ROOT / "data" / "synthetic-mobilisation-evidence" / "walsh-renovation"
-    source_texts = [p.read_text(encoding="utf-8") for p in sorted(walsh_dir.glob("[0-9]*.md"))]
-    return extract_mobilisation_evidence_pack(source_texts)
+    paths = sorted(walsh_dir.glob("[0-9]*.md"))
+    source_texts = [p.read_text(encoding="utf-8") for p in paths]
+    return extract_mobilisation_evidence_pack(source_texts, source_labels=[p.name for p in paths])
 
 
 def test_render_pmp_scaffold_walsh_has_no_fabricated_entities() -> None:
@@ -139,6 +140,41 @@ def test_render_pmp_scaffold_walsh_reporting_cadence_is_fortnightly() -> None:
     md = render_pmp_scaffold(_walsh_project(), _walsh_pack(), "evidence_grounded").lower()
     assert "fortnightly owner progress reporting" in md
     assert "owner update cadence: monthly progress reporting" not in md
+
+
+def test_render_pmp_scaffold_walsh_promotes_heritage_advice() -> None:
+    """Heritage desktop advice must become concrete PMP actions, not a generic risk word."""
+    md = render_pmp_scaffold(_walsh_project(), _walsh_pack(), "evidence_grounded").lower()
+
+    assert "contributory building in conservation area" in md
+    assert "not individually listed" in md
+    assert "front facade and roof form should be retained and repaired" in md
+    assert "set back 3 m" in md
+    assert "heritage impact statement" in md
+    assert "6" in md and "8 weeks" in md
+
+
+def test_render_pmp_scaffold_walsh_promotes_owner_brief_and_builder_rom_detail() -> None:
+    md = render_pmp_scaffold(_walsh_project(), _walsh_pack(), "evidence_grounded").lower()
+
+    assert "$85,000 additional contingency" in md
+    assert "north-facing courtyard" in md
+    assert "front parlour" in md
+    assert "early 2027" in md
+    assert "18 months" in md
+    assert "14" in md and "16 months" in md
+    assert "party wall tie-in" in md
+    assert "$25" in md and "$40k" in md
+    assert "not related parties" in md
+
+
+def test_render_pmp_scaffold_walsh_includes_fact_ledger() -> None:
+    md = render_pmp_scaffold(_walsh_project(), _walsh_pack(), "evidence_grounded").lower()
+
+    assert "- **fact ledger**" in md
+    assert "03-owner-project-brief-walsh-house.md" in md
+    assert "05-email-heritage-advisor-desktop.md" in md
+    assert "front facade and roof form" in md
 
 
 def test_render_pmp_scaffold_reuses_greenfield_due_diligence_checklist() -> None:

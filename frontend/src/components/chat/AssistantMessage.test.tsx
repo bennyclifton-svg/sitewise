@@ -94,4 +94,53 @@ describe("AssistantMessage", () => {
       screen.getAllByRole("button", { name: "Citation 1: Program scheduling guide" }),
     ).toHaveLength(1);
   });
+
+  it("renders a subtle answer trace for project context, knowledge, tools, and model reasoning", () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          messageData={{
+            agent: {
+              runtime: "pi",
+              sourceTrace: {
+                context: { used: true },
+                documents: { used: false, tools: [] },
+                knowledge: {
+                  used: true,
+                  tools: ["read_platform_knowledge"],
+                  references: ["seed/nsw/residential-refurb.md"],
+                },
+                tools: [
+                  {
+                    name: "read_platform_knowledge",
+                    knowledgePath: "seed/nsw/residential-refurb.md",
+                  },
+                ],
+                model: { used: true },
+              },
+            },
+          }}
+          toolEvents={[
+            {
+              kind: "tool",
+              tool: "read_platform_knowledge",
+              state: "done",
+              message: "Read platform knowledge",
+              knowledgePath: "seed/nsw/residential-refurb.md",
+            },
+          ]}
+          agentMode
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const trace = screen.getByLabelText("Answer trace");
+    expect(trace).toHaveTextContent("Project context");
+    expect(trace).toHaveTextContent("Clerk knowledge");
+    expect(trace).toHaveTextContent("1 tool used");
+    expect(trace).toHaveTextContent("LLM reasoning");
+  });
 });

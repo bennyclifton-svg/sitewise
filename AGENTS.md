@@ -63,6 +63,23 @@ Clerk is the canonical hosted product repo. The current direction is:
   legacy-retained until the Phase 8.5 cutover gate passes. Do not delete or
   rewrite them early.
 
+## Platform Knowledge
+
+SiteWise doctrine and seed references are shared platform knowledge. Ingest
+them once as `sitewise-platform` reference rows with
+`document_metadata.knowledge_scope = platform`; do not copy them into projects
+or store them as `project_evidence`.
+
+Pi/Hermes source strategy is binding:
+
+- For factual questions about the active project, use project evidence tools
+  (`find_document_text`, `search_documents`, `get_document`).
+- For construction-management guidance, consult platform knowledge first
+  (`list_platform_knowledge`, `search_platform_knowledge`,
+  `read_platform_knowledge`).
+- Label platform knowledge as guidance, not project evidence. General model
+  knowledge is a last resort only.
+
 ## Tender Comparison Module (TCM)
 
 The governing TCM document is

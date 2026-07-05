@@ -87,3 +87,28 @@ function cleanString(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed || null;
 }
+
+export function projectSiteAddress(project: ProjectDetail): string | undefined {
+  const metadata = project.metadata;
+  if (!metadata) return undefined;
+
+  const topLevel = metadata.site_address;
+  if (typeof topLevel === "string" && topLevel.trim()) {
+    return topLevel.trim();
+  }
+
+  const taxonomy = metadata.taxonomy;
+  if (!taxonomy || typeof taxonomy !== "object") return undefined;
+
+  const onTaxonomy = (taxonomy as Record<string, unknown>).site_address;
+  if (typeof onTaxonomy === "string" && onTaxonomy.trim()) {
+    return onTaxonomy.trim();
+  }
+
+  const scaleAddress = taxonomy.scale?.site_address;
+  if (typeof scaleAddress === "string" && scaleAddress.trim()) {
+    return scaleAddress.trim();
+  }
+
+  return undefined;
+}

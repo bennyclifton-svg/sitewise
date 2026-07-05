@@ -175,8 +175,10 @@ class PatchProjectRequest(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
+    user_role: str | None = Field(default=None, max_length=64)
+    state: str | None = Field(default=None, max_length=16)
 
-    @field_validator("building_class", "work_type")
+    @field_validator("building_class", "work_type", "user_role", "state")
     @classmethod
     def strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:

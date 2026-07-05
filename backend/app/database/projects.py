@@ -105,9 +105,13 @@ async def update_project_taxonomy(
     building_class: str | None,
     work_type: str | None,
     taxonomy: dict | None,
+    user_role: str | None = None,
+    state: str | None = None,
 ) -> Project:
     project.building_class = building_class
     project.work_type = work_type
+    project.user_role = user_role
+    project.state = state
     project_metadata = dict(project.project_metadata or {})
     if taxonomy is None:
         project_metadata.pop("taxonomy", None)
@@ -175,6 +179,8 @@ def project_overlay_summary(project: Project) -> dict:
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,
+        building_class=project.building_class,
+        work_type=project.work_type,
     ).model_dump()
 
 

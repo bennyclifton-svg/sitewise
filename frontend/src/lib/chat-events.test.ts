@@ -55,4 +55,29 @@ describe("toolStatusFromPart", () => {
       message: "Listing tender comparisons",
     });
   });
+
+  it("carries platform knowledge fields when the backend includes them", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "tool",
+        tool: "read_platform_knowledge",
+        state: "done",
+        message: "Read platform knowledge",
+        knowledge_path: "seed/nsw/residential-refurb.md",
+        section_ids: ["brief", "budget"],
+      },
+    } as MessagePart;
+
+    const event = toolStatusFromPart(part);
+
+    expect(event).toEqual({
+      kind: "tool",
+      tool: "read_platform_knowledge",
+      state: "done",
+      message: "Read platform knowledge",
+      knowledgePath: "seed/nsw/residential-refurb.md",
+      sectionIds: ["brief", "budget"],
+    });
+  });
 });

@@ -5,6 +5,9 @@ import { Link, useNavigate } from "react-router-dom";
 import type { ProjectSummary } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
+const switcherSurfaceClass =
+  "bg-[var(--bg-surface)] dark:bg-[var(--cockpit-charcoal-base)]";
+
 export function ProjectSwitcher({
   projects,
   activeProject,
@@ -30,7 +33,8 @@ export function ProjectSwitcher({
     <details ref={detailsRef} className="group relative">
       <summary
         className={cn(
-          "flex cursor-pointer list-none items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium",
+          "flex cursor-pointer list-none items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm font-medium",
+          switcherSurfaceClass,
           "[&::-webkit-details-marker]:hidden",
         )}
       >
@@ -40,7 +44,12 @@ export function ProjectSwitcher({
           aria-hidden
         />
       </summary>
-      <div className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-md border bg-background p-1 shadow-md">
+      <div
+        className={cn(
+          "absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-md border p-1 shadow-lg",
+          switcherSurfaceClass,
+        )}
+      >
         <Link
           to="/"
           className="flex w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"

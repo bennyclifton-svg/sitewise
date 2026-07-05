@@ -40,9 +40,12 @@ from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.knowledge_catalog import (
+    applicable_platform_paths,
+    catalog_entry_for_path,
     list_platform_knowledge as catalog_platform_knowledge,
     load_sections as load_platform_sections,
-    select_required_paths,
+    required_paths_by_workflow,
+    required_workflows_for_path,
 )
 from tender.router import (
     create_comparison,
@@ -91,6 +94,8 @@ TEXT_SEARCH_STOPWORDS = {
     "what",
     "with",
 }
+PLATFORM_SOURCE_TYPES = {"doctrine", "reference"}
+PLATFORM_SEARCH_MAX_RESULTS = 20
 QUOTE_STAGE_UNITS = {
     "intake": 0,
     "ingest_document": 1,
@@ -378,6 +383,101 @@ def _find_text_snippets(
         if len(snippets) >= limit:
             break
     return snippets
+
+
+def _project_overlay_gate(project) -> tuple[object, dict]:
+    status = overlay_status(
+        archetype=project.archetype,
+        user_role=project.user_role,
+        state=project.state,
+        building_class=project.building_class,
+        work_type=project.work_type,
+    )
+    gate = {
+        "archetype": project.archetype,
+        "building_class": project.building_class,
+        "work_type": project.work_type,
+        "user_role": project.user_role,
+        "state": project.state,
+        "ready": status.ready,
+        "issues": [issue.model_dump() for issue in status.issues],
+    }
+    return status, gate
+
+
+def _platform_overlay_kwargs(project) -> dict[str, str | None]:
+    return {
+        "archetype": project.archetype,
+        "user_role": project.user_role,
+        "building_class": project.building_class,
+        "work_type": project.work_type,
+    }
+
+
+def _required_platform_paths_for_project(project) -> dict[str, list[str]]:
+    return required_paths_by_workflow(**_platform_overlay_kwargs(project))
+
+
+def _applicable_platform_paths_for_project(
+    project,
+    *,
+    topics: list[str] | None = None,
+    include_required: bool = True,
+) -> set[str]:
+    return applicable_platform_paths(
+        **_platform_overlay_kwargs(project),
+        topics=topics,
+        include_required=include_required,
+    )
+
+
+def _is_platform_passage(passage) -> bool:
+    metadata = passage.document_metadata or {}
+    return (
+        metadata.get("knowledge_scope") == "platform"
+        or passage.source_type in PLATFORM_SOURCE_TYPES
+    )
+
+
+def _platform_topics(path: str, metadata: dict | None) -> list[str]:
+    entry = catalog_entry_for_path(path)
+    if entry is not None:
+        return list(entry.topics)
+    frontmatter = (metadata or {}).get("frontmatter")
+    if isinstance(frontmatter, dict):
+        topics = frontmatter.get("topics")
+        if isinstance(topics, list):
+            return [str(topic) for topic in topics]
+    return []
+
+
+def _platform_title(path: str, filename: str, metadata: dict | None) -> str:
+    entry = catalog_entry_for_path(path)
+    if entry is not None:
+        return entry.title
+    frontmatter = (metadata or {}).get("frontmatter")
+    if isinstance(frontmatter, dict) and isinstance(frontmatter.get("title"), str):
+        return str(frontmatter["title"])
+    return filename
+
+
+def _score_platform_result(
+    base_score: float,
+    *,
+    topics: list[str],
+    requested_topics: list[str] | None,
+    mandatory_for: list[str],
+    source_type: str | None,
+) -> float:
+    score = base_score
+    wanted = {topic.strip().lower() for topic in requested_topics or [] if topic.strip()}
+    if wanted and wanted.intersection(topic.lower() for topic in topics):
+        score += 0.05
+    if mandatory_for:
+        score += 0.03
+    if source_type == "doctrine":
+        score += 0.02
+    return round(score, 6)
 
 
 async def _load_project_source_document(
@@ -1081,8 +1181,8 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
                 filters=RetrievalFilters(
                     active_project=project.slug,
                     # Platform knowledge stays out of evidence search by design:
-                    # it arrives through list/read_platform_knowledge so the
-                    # evidence-beats-seed authority stack stays structural.
+                    # it arrives through platform knowledge tools so the
+                    # evidence-beats-guidance authority stack stays structural.
                     include_platform_knowledge=False,
                 ),
                 include_neighbours=False,
@@ -1129,18 +1229,7 @@ async def list_platform_knowledge(project_id: str, topics: list[str] | None = No
             done="Listed platform knowledge",
             error="Platform knowledge listing failed",
         ):
-            status = overlay_status(
-                archetype=project.archetype,
-                user_role=project.user_role,
-                state=project.state,
-            )
-            gate = {
-                "archetype": project.archetype,
-                "user_role": project.user_role,
-                "state": project.state,
-                "ready": status.ready,
-                "issues": [issue.model_dump() for issue in status.issues],
-            }
+            status, gate = _project_overlay_gate(project)
             if not status.ready:
                 return {
                     "gate": gate,
@@ -1150,21 +1239,111 @@ async def list_platform_knowledge(project_id: str, topics: list[str] | None = No
                     "required": {},
                     "available": [],
                 }
-            required = {
-                workflow: select_required_paths(
-                    workflow=workflow,
-                    archetype=project.archetype,
-                    user_role=project.user_role,
-                )
-                for workflow in ("create-pmp", "create-cost-plan")
-            }
+            required = _required_platform_paths_for_project(project)
             available = await catalog_platform_knowledge(
                 session,
                 archetype=project.archetype,
                 user_role=project.user_role,
+                building_class=project.building_class,
+                work_type=project.work_type,
                 topics=topics,
             )
         return {"gate": gate, "required": required, "available": available}
+
+
+@mcp.tool
+async def search_platform_knowledge(
+    project_id: str,
+    query: str,
+    topics: list[str] | None = None,
+    max_results: int = 8,
+) -> list[dict]:
+    """Semantically search SiteWise platform guidance applicable to this project.
+
+    Use this for construction-management guidance before falling back to
+    general model knowledge. Results are platform guidance, not active-project
+    evidence; use project document tools first for facts about the active
+    project.
+    """
+    normalized_query = query.strip()
+    if not normalized_query:
+        raise ToolError("query must not be blank")
+
+    pid = uuid.UUID(project_id)
+    result_limit = max(1, min(max_results, PLATFORM_SEARCH_MAX_RESULTS))
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        project = authorization.project
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="search_platform_knowledge",
+            running="Searching platform knowledge",
+            done="Searched platform knowledge",
+            error="Platform knowledge search failed",
+        ) as extra:
+            status, _gate = _project_overlay_gate(project)
+            if not status.ready:
+                raise ToolError(
+                    format_overlay_failure(
+                        status, workflow="Platform knowledge search"
+                    )
+                )
+
+            allowed_paths = _applicable_platform_paths_for_project(
+                project,
+                topics=topics,
+                include_required=not topics,
+            )
+            required = _required_platform_paths_for_project(project)
+            retriever = DocumentRetriever(session)
+            passages = await retriever.retrieve(
+                normalized_query,
+                filters=RetrievalFilters(
+                    project="sitewise-platform",
+                    phase="reference",
+                ),
+                limit=result_limit * 4,
+                include_neighbours=False,
+            )
+            results: list[dict] = []
+            for passage in passages:
+                if not _is_platform_passage(passage):
+                    continue
+                if passage.relative_path not in allowed_paths:
+                    continue
+                path = passage.relative_path
+                result_topics = _platform_topics(path, passage.document_metadata)
+                mandatory_for = required_workflows_for_path(required, path)
+                score = _score_platform_result(
+                    passage.score,
+                    topics=result_topics,
+                    requested_topics=topics,
+                    mandatory_for=mandatory_for,
+                    source_type=passage.source_type,
+                )
+                results.append(
+                    {
+                        "path": path,
+                        "title": _platform_title(
+                            path, passage.filename, passage.document_metadata
+                        ),
+                        "section": passage.page_or_section,
+                        "snippet": passage.content,
+                        "score": score,
+                        "topics": result_topics,
+                        "source_type": passage.source_type,
+                        "mandatory": bool(mandatory_for),
+                        "mandatory_for": mandatory_for,
+                    }
+                )
+            results.sort(key=lambda item: item["score"], reverse=True)
+            extra["result_count"] = min(len(results), result_limit)
+            return results[:result_limit]
 
 
 @mcp.tool
@@ -1173,11 +1352,12 @@ async def read_platform_knowledge(
 ) -> dict:
     """Read a platform knowledge document, whole or by targeted sections.
 
-    Use paths and section IDs from list_platform_knowledge. Reading the
-    doctrine without section_ids serves its core (authority stack and
-    cross-cutting rules); stage sections (e.g. "01-cost", "07-construction")
-    load by section ID. Cite the source path in any output that uses this
-    content, and record it as consulted knowledge, not project evidence.
+    Use paths and section IDs from list_platform_knowledge or
+    search_platform_knowledge. Reading the doctrine without section_ids serves
+    its core (authority stack and cross-cutting rules); stage sections (e.g.
+    "01-cost", "07-construction") load by section ID. Cite the source path in
+    any output that uses this content, and record it as consulted knowledge,
+    not project evidence.
     """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
@@ -1187,6 +1367,7 @@ async def read_platform_knowledge(
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
+        project = authorization.project
         async with _tool_status(
             _turn_id(authorization),
             tool="read_platform_knowledge",
@@ -1194,6 +1375,16 @@ async def read_platform_knowledge(
             done=f"Read platform knowledge: {path}",
             error="Platform knowledge read failed",
         ) as extra:
+            status, _gate = _project_overlay_gate(project)
+            if not status.ready:
+                raise ToolError(
+                    format_overlay_failure(status, workflow="Platform knowledge read")
+                )
+            if path not in _applicable_platform_paths_for_project(project):
+                raise ToolError(
+                    f"Platform document is not available for this project's overlays: {path}. "
+                    "Call list_platform_knowledge or search_platform_knowledge for applicable paths."
+                )
             loaded = await load_platform_sections(
                 session,
                 path,
@@ -1203,7 +1394,7 @@ async def read_platform_knowledge(
             if loaded is None:
                 raise ToolError(
                     f"Platform document not in the corpus: {path}. "
-                    "Check the path against list_platform_knowledge."
+                    "Call list_platform_knowledge or search_platform_knowledge for applicable paths."
                 )
             # The Hermes analog of the deterministic workflows' seed_consulted
             # audit: every knowledge read is visible on the turn's status feed.

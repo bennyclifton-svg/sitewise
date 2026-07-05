@@ -7,13 +7,17 @@ import { DocumentRepositoryPanel } from "@/components/project/DocumentRepository
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
 import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
+import { ChatRail } from "@/components/chat/ChatRail";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
+import { buildLifecycleTiles } from "@/components/project/workflow/workflowTiles";
+import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { projectSiteAddress } from "@/lib/project-taxonomy";
 import {
   projectKeys,
   reloadProjectWorkspaceTree,
@@ -96,6 +100,7 @@ export function ProjectCockpitPage() {
   const [costPlanWorkflowError, setCostPlanWorkflowError] = useState<string | null>(null);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [isRunningCostPlan, setIsRunningCostPlan] = useState(false);
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
 
   useEffect(() => {
     if (!projectId) return;
@@ -214,6 +219,11 @@ export function ProjectCockpitPage() {
     await reloadProjectWorkspaceTree(queryClient, projectId);
   }
 
+  async function refreshLatestDraft(workflowType: "create_pmp" | "create_cost_plan") {
+    if (!projectId) return null;
+    return await api.getLatestDraft(projectId, workflowType);
+  }
+
   async function refreshActivity() {
     if (!projectId) return;
     await queryClient.invalidateQueries({
@@ -229,6 +239,7 @@ export function ProjectCockpitPage() {
   }
 
   async function handleSelectThread(threadId: string) {
+    setChatPanelCollapsed(false);
     setChatLoading(true);
     setSelectedCitationId(null);
     try {
@@ -245,6 +256,7 @@ export function ProjectCockpitPage() {
   }
 
   function handleCreateThread(created: ChatThread) {
+    setChatPanelCollapsed(false);
     setThread(created);
     setMessages([]);
     setSelectedCitationId(null);
@@ -273,6 +285,12 @@ export function ProjectCockpitPage() {
 
   function handleSelectCitation(citation: Citation | null) {
     setSelectedCitationId(citation?.sourceId ?? null);
+  }
+
+  function promoteChatFromComposer() {
+    leaveTenderRoute();
+    setActiveView("workbench");
+    setChatPanelCollapsed(false);
   }
 
   async function runSortFiles() {
@@ -308,10 +326,12 @@ export function ProjectCockpitPage() {
       if (result.status === "failed" || result.status === "blocked") {
         setWorkflowError(result.message ?? "Create PMP did not complete.");
       }
-      if (result.draft) {
-        setLatestDraft(result.draft);
+      const draft = (await refreshLatestDraft("create_pmp")) ?? result.draft;
+      if (draft) {
+        setLatestDraft(draft);
         setSelectedWorkflowId("create-pmp");
-        setSelectedWorkspacePath(result.draft.workspace_path);
+        setSelectedWorkspacePath(draft.workspace_path);
+        setChatPanelCollapsed(true);
         setActiveView("draft");
       }
       await Promise.all([refreshMessages(), refreshWorkspaceTree(), refreshActivity()]);
@@ -332,10 +352,12 @@ export function ProjectCockpitPage() {
       if (result.status === "failed" || result.status === "blocked") {
         setCostPlanWorkflowError(result.message ?? "Create Cost Plan did not complete.");
       }
-      if (result.draft) {
-        setLatestCostPlanDraft(result.draft);
+      const draft = (await refreshLatestDraft("create_cost_plan")) ?? result.draft;
+      if (draft) {
+        setLatestCostPlanDraft(draft);
         setSelectedWorkflowId("cost-plan");
-        setSelectedWorkspacePath(result.draft.workspace_path);
+        setSelectedWorkspacePath(draft.workspace_path);
+        setChatPanelCollapsed(true);
         setActiveView("draft");
       }
       await Promise.all([refreshMessages(), refreshWorkspaceTree(), refreshActivity()]);
@@ -356,10 +378,12 @@ export function ProjectCockpitPage() {
       if (result.status === "failed" || result.status === "blocked") {
         setWorkflowError(result.message ?? "Update PMP did not complete.");
       }
-      if (result.draft) {
-        setLatestDraft(result.draft);
+      const draft = (await refreshLatestDraft("create_pmp")) ?? result.draft;
+      if (draft) {
+        setLatestDraft(draft);
         setSelectedWorkflowId("create-pmp");
-        setSelectedWorkspacePath(result.draft.workspace_path);
+        setSelectedWorkspacePath(draft.workspace_path);
+        setChatPanelCollapsed(true);
         setActiveView("draft");
       }
       await Promise.all([refreshMessages(), refreshWorkspaceTree(), refreshActivity()]);
@@ -384,6 +408,7 @@ export function ProjectCockpitPage() {
     setSelectedWorkflowId(workflowId);
     if (workflowId === "create-pmp" || workflowId === "cost-plan") {
       setSelectedEvidenceId(null);
+      setChatPanelCollapsed(true);
       setActiveView("draft");
       return;
     }
@@ -398,11 +423,13 @@ export function ProjectCockpitPage() {
       setSelectedWorkspacePath(normalizeWorkspacePath(item.relative_path));
       if (isPmpWorkspaceFile(item.relative_path)) {
         setSelectedWorkflowId("create-pmp");
+        setChatPanelCollapsed(true);
         setActiveView("draft");
         return;
       }
       if (isCostPlanWorkspaceFile(item.relative_path)) {
         setSelectedWorkflowId("cost-plan");
+        setChatPanelCollapsed(true);
         setActiveView("draft");
         return;
       }
@@ -410,6 +437,7 @@ export function ProjectCockpitPage() {
     if (activeView === "draft") {
       return;
     }
+    setChatPanelCollapsed(true);
     setActiveView("file");
   }
 
@@ -422,6 +450,7 @@ export function ProjectCockpitPage() {
         setSelectedWorkflowId("create-pmp");
         const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
         setSelectedEvidenceId(selectedDocument?.id ?? null);
+        setChatPanelCollapsed(true);
         setActiveView("draft");
         return;
       }
@@ -429,16 +458,19 @@ export function ProjectCockpitPage() {
         setSelectedWorkflowId("cost-plan");
         const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
         setSelectedEvidenceId(selectedDocument?.id ?? null);
+        setChatPanelCollapsed(true);
         setActiveView("draft");
         return;
       }
       const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
       if (selectedDocument) {
         setSelectedEvidenceId(selectedDocument.id);
+        setChatPanelCollapsed(true);
         setActiveView("file");
         return;
       }
     }
+    setChatPanelCollapsed(true);
     setActiveView("folder");
   }
 
@@ -483,11 +515,38 @@ export function ProjectCockpitPage() {
   const selectedEvidence =
     evidence.find((item) => item.id === selectedEvidenceId) ?? evidence[0] ?? null;
   const selectedFolder = findWorkspaceNode(workspaceTree, selectedWorkspacePath);
+  const lifecycleTiles = buildLifecycleTiles({
+    project,
+    latestDraft,
+    latestCostPlanDraft,
+    workflowError,
+    costPlanWorkflowError,
+    isRunningWorkflow,
+    isRunningCostPlan,
+  });
+
+  function selectWorkflow(workflowId: string) {
+    leaveTenderRoute();
+    setSelectedWorkflowId(workflowId);
+    setChatPanelCollapsed(true);
+    setActiveView("workbench");
+  }
+
+  const { chatCollapsed, chatFullScreen } = projectChatLayoutState({
+    activeView,
+    chatPanelCollapsed,
+    hasTenderOutlet: tenderOutlet != null,
+  });
 
   return (
     <ProjectShell
+      projectTitle={project.title}
+      projectAddress={projectSiteAddress(project)}
+      chatCollapsed={chatCollapsed}
+      chatFullScreen={chatFullScreen}
       onShowWorkbench={() => {
         leaveTenderRoute();
+        setChatPanelCollapsed(true);
         setActiveView("workbench");
       }}
       leftNav={
@@ -495,20 +554,35 @@ export function ProjectCockpitPage() {
           project={project}
           projects={projects}
           projectsLoading={projectsLoading}
-          chat={{
-            thread,
-            messages,
-            chatRevision,
-            chatLoading,
-            crossProject,
-            selectedCitationId,
-            onCrossProjectChange: setCrossProject,
-            onConversationUpdate: () => void refreshMessages(),
-            onSelectThread: (threadId) => void handleSelectThread(threadId),
-            onCreateThread: handleCreateThread,
-            onActiveThreadDeleted: () => void handleActiveThreadDeleted(),
-            onSelectCitation: handleSelectCitation,
+          workflows={{
+            tiles: lifecycleTiles,
+            selectedWorkflowId,
+            onSelectWorkflow: selectWorkflow,
           }}
+          chatHistory={{
+            projectId: project.id,
+            activeThreadId: thread?.id,
+            onSelectThread: (threadId) => void handleSelectThread(threadId),
+            onCreateSession: handleCreateThread,
+            onActiveThreadDeleted: () => void handleActiveThreadDeleted(),
+          }}
+        />
+      }
+      chatPanel={
+        <ChatRail
+          layout="main"
+          collapsed={chatCollapsed}
+          onCollapsedChange={setChatPanelCollapsed}
+          thread={thread}
+          messages={messages}
+          chatRevision={chatRevision}
+          chatLoading={chatLoading}
+          crossProject={crossProject}
+          selectedCitationId={selectedCitationId}
+          onCrossProjectChange={setCrossProject}
+          onConversationUpdate={() => void refreshMessages()}
+          onUserSubmit={promoteChatFromComposer}
+          onSelectCitation={handleSelectCitation}
         />
       }
       repository={
@@ -523,10 +597,12 @@ export function ProjectCockpitPage() {
           onOpenWorkflow={openWorkflowFromExplorer}
           onViewWorkbench={() => {
             leaveTenderRoute();
+            setChatPanelCollapsed(true);
             setActiveView("workbench");
           }}
           onViewFolder={() => {
             leaveTenderRoute();
+            setChatPanelCollapsed(true);
             setActiveView("folder");
           }}
           onUploadComplete={async () => {
@@ -558,12 +634,14 @@ export function ProjectCockpitPage() {
           isRunningWorkflow={isRunningWorkflow}
           isRunningCostPlan={isRunningCostPlan}
           selectedWorkflowId={selectedWorkflowId}
-          onSelectWorkflow={setSelectedWorkflowId}
           onRunCreatePmp={() => void runCreatePmp()}
           onRunUpdatePmp={() => void runUpdatePmp()}
           onRunCreateCostPlan={() => void runCreateCostPlan()}
           onRunSortFiles={() => void runSortFiles()}
-          onOpenDraft={() => setActiveView("draft")}
+          onOpenDraft={() => {
+            setChatPanelCollapsed(true);
+            setActiveView("draft");
+          }}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}

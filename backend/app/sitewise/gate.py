@@ -54,20 +54,49 @@ def _check_required(
     return None, None
 
 
+def _taxonomy_satisfied(
+    *,
+    archetype: str | None,
+    building_class: str | None,
+    work_type: str | None,
+) -> bool:
+    """The "what kind of project" overlay is ready when the PMP 2.0 taxonomy
+    (class + work type) is set, or a supported legacy ``archetype`` is present.
+
+    Taxonomy is authoritative; ``archetype`` is a compatibility fallback for
+    old/seeded projects that predate the class/work-type picker.
+    """
+    if _clean(building_class) is not None and _clean(work_type) is not None:
+        return True
+    return _clean(archetype) in SUPPORTED_ARCHETYPES
+
+
 def overlay_status(
     *,
     archetype: str | None,
     user_role: str | None,
     state: str | None,
+    building_class: str | None = None,
+    work_type: str | None = None,
 ) -> OverlayStatus:
     missing: list[OverlayIssue] = []
     invalid: list[OverlayIssue] = []
-    checks = [
-        ("archetype", archetype, SUPPORTED_ARCHETYPES),
+
+    if not _taxonomy_satisfied(
+        archetype=archetype,
+        building_class=building_class,
+        work_type=work_type,
+    ):
+        # Report on the taxonomy dropdowns the user can actually set, not the
+        # retired ``archetype`` bucket. Flag whichever half is unset.
+        for field, value in (("building_class", building_class), ("work_type", work_type)):
+            if _clean(value) is None:
+                missing.append(OverlayIssue(field=field, value=value, reason="missing"))
+
+    for field, value, supported in (
         ("user_role", user_role, SUPPORTED_USER_ROLES),
         ("state", state, SUPPORTED_STATES),
-    ]
-    for field, value, supported in checks:
+    ):
         missing_issue, invalid_issue = _check_required(
             field=field,
             value=value,

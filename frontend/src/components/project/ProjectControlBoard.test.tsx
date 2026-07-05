@@ -92,7 +92,6 @@ describe("ProjectControlBoard project profile", () => {
         isRunningWorkflow={false}
         isRunningCostPlan={false}
         selectedWorkflowId="project-profile"
-        onSelectWorkflow={vi.fn()}
         onRunCreatePmp={vi.fn()}
         onRunUpdatePmp={vi.fn()}
         onRunCreateCostPlan={vi.fn()}

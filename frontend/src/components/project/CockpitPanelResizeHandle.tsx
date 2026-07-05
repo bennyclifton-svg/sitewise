@@ -73,7 +73,7 @@ export function CockpitPanelResizeHandle({
       className={cn(
         "absolute top-0 z-10 hidden h-full w-2 -translate-x-1/2 cursor-col-resize touch-none lg:block",
         edge === "start" ? "left-0" : "right-0",
-        "before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border",
+        "before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-transparent",
         "hover:before:bg-brand/60 active:before:bg-brand",
         className,
       )}

@@ -29,6 +29,7 @@ _KNOWLEDGE_SOURCES: tuple[tuple[str, Path], ...] = (
     ("seed", REPO_ROOT / "data" / "seed"),
     ("skills/reference", REPO_ROOT / "data" / "skills" / "reference"),
 )
+WORKFLOWS: tuple[str, ...] = ("create-pmp", "create-cost-plan")
 
 
 @dataclass(frozen=True)
@@ -163,7 +164,12 @@ def file_catalog() -> tuple[CatalogEntry, ...]:
     return tuple(entries)
 
 
-def _applies(entry: CatalogEntry, *, archetype: str, user_role: str) -> bool:
+def _applies(
+    entry: CatalogEntry,
+    *,
+    archetype: str | None,
+    user_role: str,
+) -> bool:
     if entry.applies_to_archetypes is None and entry.applies_to_classes is not None:
         return False
     if (
@@ -216,6 +222,115 @@ def _dedupe(paths: list[str]) -> list[str]:
             seen.add(path)
             ordered.append(path)
     return ordered
+
+
+def catalog_entry_for_path(path: str) -> CatalogEntry | None:
+    return next((entry for entry in file_catalog() if entry.path == path), None)
+
+
+def _topic_match(entry: CatalogEntry, topics: list[str] | None) -> bool:
+    wanted_topics = {topic.strip().lower() for topic in topics or [] if topic.strip()}
+    if not wanted_topics:
+        return True
+    return bool(wanted_topics.intersection(topic.lower() for topic in entry.topics))
+
+
+def applicable_entries(
+    *,
+    archetype: str | None = None,
+    user_role: str | None = None,
+    building_class: str | None = None,
+    work_type: str | None = None,
+    topics: list[str] | None = None,
+) -> tuple[CatalogEntry, ...]:
+    entries: list[CatalogEntry] = []
+    for entry in file_catalog():
+        if not _topic_match(entry, topics):
+            continue
+        if building_class is not None and user_role is not None:
+            if entry.tier == "archetype":
+                continue
+            if (
+                entry.tier == "role-overlay"
+                and entry.loaded_by != f"user_role: {user_role}"
+            ):
+                continue
+            if not _applies_to_taxonomy(
+                entry,
+                building_class=building_class,
+                work_type=work_type,
+                user_role=user_role,
+            ):
+                continue
+        elif user_role is not None:
+            if (
+                entry.tier == "archetype"
+                and entry.loaded_by != f"archetype: {archetype}"
+            ):
+                continue
+            if (
+                entry.tier == "role-overlay"
+                and entry.loaded_by != f"user_role: {user_role}"
+            ):
+                continue
+            if not _applies(entry, archetype=archetype, user_role=user_role):
+                continue
+        entries.append(entry)
+    return tuple(entries)
+
+
+def required_paths_by_workflow(
+    *,
+    archetype: str | None,
+    user_role: str,
+    building_class: str | None = None,
+    work_type: str | None = None,
+    workflows: tuple[str, ...] = WORKFLOWS,
+) -> dict[str, list[str]]:
+    return {
+        workflow: select_required_paths(
+            workflow=workflow,
+            archetype=archetype,
+            user_role=user_role,
+            building_class=building_class,
+            work_type=work_type,
+        )
+        for workflow in workflows
+    }
+
+
+def required_workflows_for_path(required: dict[str, list[str]], path: str) -> list[str]:
+    return [workflow for workflow, paths in required.items() if path in paths]
+
+
+def applicable_platform_paths(
+    *,
+    archetype: str | None,
+    user_role: str,
+    building_class: str | None = None,
+    work_type: str | None = None,
+    topics: list[str] | None = None,
+    include_required: bool = True,
+) -> set[str]:
+    paths = {
+        entry.path
+        for entry in applicable_entries(
+            archetype=archetype,
+            user_role=user_role,
+            building_class=building_class,
+            work_type=work_type,
+            topics=topics,
+        )
+    }
+    if include_required:
+        for required_paths in required_paths_by_workflow(
+            archetype=archetype,
+            user_role=user_role,
+            building_class=building_class,
+            work_type=work_type,
+        ).values():
+            paths.update(required_paths)
+    return paths
 
 
 def select_required_paths(
@@ -302,41 +417,14 @@ async def list_platform_knowledge(
     topics: list[str] | None = None,
 ) -> list[dict]:
     ingested = await ingested_platform_paths(session)
-    wanted_topics = {topic.strip().lower() for topic in topics or [] if topic.strip()}
     listing: list[dict] = []
-    for entry in file_catalog():
-        if building_class is not None and user_role is not None:
-            if entry.tier == "archetype":
-                continue
-            if (
-                entry.tier == "role-overlay"
-                and entry.loaded_by != f"user_role: {user_role}"
-            ):
-                continue
-            if not _applies_to_taxonomy(
-                entry,
-                building_class=building_class,
-                work_type=work_type,
-                user_role=user_role,
-            ):
-                continue
-        elif archetype is not None and user_role is not None:
-            if (
-                entry.tier == "archetype"
-                and entry.loaded_by != f"archetype: {archetype}"
-            ):
-                continue
-            if (
-                entry.tier == "role-overlay"
-                and entry.loaded_by != f"user_role: {user_role}"
-            ):
-                continue
-            if not _applies(entry, archetype=archetype, user_role=user_role):
-                continue
-        if wanted_topics and not wanted_topics.intersection(
-            topic.lower() for topic in entry.topics
-        ):
-            continue
+    for entry in applicable_entries(
+        archetype=archetype,
+        user_role=user_role,
+        building_class=building_class,
+        work_type=work_type,
+        topics=topics,
+    ):
         listing.append(
             {
                 "path": entry.path,

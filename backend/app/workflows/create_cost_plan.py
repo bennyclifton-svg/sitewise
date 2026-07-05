@@ -872,6 +872,8 @@ async def run_create_cost_plan_workflow(
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,
+        building_class=project.building_class,
+        work_type=project.work_type,
     )
     if not gate.ready:
         message = format_overlay_failure(gate)

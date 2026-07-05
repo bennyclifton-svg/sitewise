@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 
+import { AnswerTrace } from "@/components/chat/AnswerTrace";
 import { ArtefactCard } from "@/components/chat/ArtefactCard";
 import { CitationChip } from "@/components/chat/CitationChip";
 import { InsufficientEvidenceBanner } from "@/components/chat/InsufficientEvidenceBanner";
@@ -18,6 +19,7 @@ type AssistantMessageProps = {
   messageData?: Record<string, unknown> | null;
   toolEvents?: ToolStatusEvent[];
   artefacts?: ArtefactEvent[];
+  agentMode?: boolean;
   projectId?: string | null;
   selectedCitationId: string | null;
   onSelectCitation: (citation: Citation) => void;
@@ -43,6 +45,7 @@ export function AssistantMessage({
   messageData,
   toolEvents = [],
   artefacts = [],
+  agentMode = false,
   projectId,
   selectedCitationId,
   onSelectCitation,
@@ -66,6 +69,13 @@ export function AssistantMessage({
       ) : null}
 
       <div className="space-y-2 whitespace-pre-wrap leading-relaxed">{text}</div>
+
+      <AnswerTrace
+        agentMode={agentMode}
+        messageData={messageData}
+        toolEvents={toolEvents}
+        citations={citations}
+      />
 
       {toolEvents.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">

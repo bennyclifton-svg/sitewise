@@ -30,7 +30,7 @@ def should_persist_chunks(plan: IngestPlan) -> bool:
     ingest_mode = plan.classification.ingest_mode
     if ingest_mode == "register_only":
         return False
-    if document_class in {"doctrine", "reference_guide"}:
+    if document_class in {"doctrine", "reference_guide"} and plan.entry.extension != ".md":
         return False
     return True
 

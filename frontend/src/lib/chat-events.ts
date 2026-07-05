@@ -12,6 +12,8 @@ export type ToolStatusEvent = {
   state: ToolStatusState;
   message: string;
   stage?: string;
+  knowledgePath?: string;
+  sectionIds?: string[];
   percent?: number;
   doneUnits?: number;
   totalUnits?: number;
@@ -53,6 +55,11 @@ export function toolStatusFromPart(part: MessagePart): ToolStatusEvent | null {
     state: data.state,
     message: data.message,
     stage: typeof data.stage === "string" ? data.stage : undefined,
+    knowledgePath:
+      typeof data.knowledge_path === "string" ? data.knowledge_path : undefined,
+    sectionIds: Array.isArray(data.section_ids)
+      ? data.section_ids.filter((item): item is string => typeof item === "string")
+      : undefined,
     percent: typeof data.percent === "number" ? data.percent : undefined,
     doneUnits: typeof data.doneUnits === "number" ? data.doneUnits : undefined,
     totalUnits:

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MessageSquarePlus, Pencil, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, MessageSquarePlus, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { api } from "@/lib/api";
 import type { ChatThread } from "@/lib/types/chat";
 import { cn } from "@/lib/utils";
@@ -12,13 +13,11 @@ import { cn } from "@/lib/utils";
 type ChatSessionListProps = {
   activeThreadId?: string;
   projectId?: string | null;
-  variant?: "default" | "popover";
+  variant?: "default" | "popover" | "nav";
   onSelectThread?: (threadId: string) => void;
   onCreateSession?: (thread: ChatThread) => void;
   onActiveThreadDeleted?: () => void;
 };
-
-const chatThreadQueryKey = ["chat", "threads"] as const;
 
 type ThreadRecencyGroup = "today" | "yesterday" | "previous7" | "older";
 
@@ -77,8 +76,11 @@ export function ChatSessionList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [menuThreadId, setMenuThreadId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isPopover = variant === "popover";
+  const isNav = variant === "nav";
+  const isCompactList = isPopover || isNav;
   const isEmbedded = Boolean(onSelectThread);
 
   const threadsQuery = useQuery({
@@ -176,6 +178,31 @@ export function ChatSessionList({
   const visibleError =
     error ?? (threadsQuery.isError ? "Could not load sessions." : null);
 
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuThreadId) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuContainerRef.current?.contains(event.target as Node)) {
+        setMenuThreadId(null);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuThreadId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuThreadId]);
+
   function renderThreadRow(thread: ChatThread) {
     const title = thread.title ?? "Untitled chat";
     const isEditing = editingId === thread.id;
@@ -185,17 +212,25 @@ export function ChatSessionList({
       <div
         key={thread.id}
         className={cn(
-          "grid gap-2 rounded-md border p-2",
-          thread.id === activeThreadId && "border-primary/50 bg-muted/40",
+          isNav
+            ? cn(
+                "flex items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors",
+                thread.id === activeThreadId
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
+              )
+            : "grid gap-2 rounded-md border p-2",
+          !isNav && thread.id === activeThreadId && "border-primary/50 bg-muted/40",
           isPopover && "border-transparent p-1.5",
         )}
       >
         {isEditing ? (
-          <div className="flex gap-1">
+          <div className={cn("flex gap-1", isNav && "w-full")}>
             <Input
               aria-label="Thread title"
               value={draftTitle}
               onChange={(event) => setDraftTitle(event.target.value)}
+              className={isNav ? "h-7 text-sm" : undefined}
             />
             <Button
               type="button"
@@ -223,7 +258,10 @@ export function ChatSessionList({
             {isEmbedded ? (
               <button
                 type="button"
-                className="min-w-0 flex-1 truncate text-left text-sm hover:underline"
+                className={cn(
+                  "min-w-0 flex-1 truncate text-left text-sm",
+                  isNav ? "hover:text-foreground" : "hover:underline",
+                )}
                 onClick={() => openThread(thread.id)}
               >
                 {title}
@@ -260,6 +298,55 @@ export function ChatSessionList({
                   <X className="size-3" aria-hidden />
                 </Button>
               </>
+            ) : isNav ? (
+              <div
+                ref={menuThreadId === thread.id ? menuContainerRef : undefined}
+                className="relative shrink-0"
+              >
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Actions for ${title}`}
+                  title="Actions"
+                  aria-expanded={menuThreadId === thread.id}
+                  onClick={() =>
+                    setMenuThreadId((current) => (current === thread.id ? null : thread.id))
+                  }
+                >
+                  <MoreHorizontal className="size-3" aria-hidden />
+                </Button>
+                {menuThreadId === thread.id ? (
+                  <div
+                    className="absolute top-full right-0 z-50 mt-1 min-w-[6.5rem] rounded-md border bg-popover p-1 shadow-md"
+                    role="menu"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      onClick={() => {
+                        setEditingId(thread.id);
+                        setDraftTitle(title);
+                        setMenuThreadId(null);
+                      }}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-destructive hover:bg-muted"
+                      onClick={() => {
+                        setConfirmingDeleteId(thread.id);
+                        setMenuThreadId(null);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <>
                 <Button
@@ -298,10 +385,17 @@ export function ChatSessionList({
         (group) => groupedThreads[group].length > 0,
       )
     : null;
+  const sortedThreads = useMemo(
+    () =>
+      [...threads].sort(
+        (left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at),
+      ),
+    [threads],
+  );
 
   const content = (
     <>
-      {!isPopover ? (
+      {!isCompactList ? (
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Sessions</h2>
           <Button
@@ -320,7 +414,7 @@ export function ChatSessionList({
 
       {visibleError ? <p className="text-xs text-destructive">{visibleError}</p> : null}
 
-      <div className="grid gap-2">
+      <div className={isNav ? "flex flex-col gap-0.5" : "grid gap-2"}>
         {isPopover && threadGroups
           ? threadGroups.map((group) => (
               <section key={group} className="grid gap-1">
@@ -330,7 +424,7 @@ export function ChatSessionList({
                 {groupedThreads[group].map(renderThreadRow)}
               </section>
             ))
-          : threads.map(renderThreadRow)}
+          : (isNav ? sortedThreads : threads).map(renderThreadRow)}
       </div>
     </>
   );
@@ -338,6 +432,14 @@ export function ChatSessionList({
   if (isPopover) {
     return (
       <div className="max-h-[min(24rem,calc(100vh-12rem))] overflow-y-auto" aria-label="Chat sessions">
+        {content}
+      </div>
+    );
+  }
+
+  if (isNav) {
+    return (
+      <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-2" aria-label="Chat sessions">
         {content}
       </div>
     );
