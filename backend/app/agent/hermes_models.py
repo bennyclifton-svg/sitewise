@@ -6,6 +6,11 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 
+from app.agent.agent_runtimes import (
+    AgentRuntimeOption,
+    agent_runtime_options,
+    default_agent_runtime,
+)
 from app.config import settings
 
 HERMES_DEFAULT_MODEL_ID = "__hermes_config__"
@@ -21,8 +26,10 @@ class HermesModelOption(BaseModel):
 
 class HermesModelsResponse(BaseModel):
     default_model: str
+    default_runtime: str = "hermes"
     agent_runtime_enabled: bool
     models: list[HermesModelOption] = Field(default_factory=list)
+    runtimes: list[AgentRuntimeOption] = Field(default_factory=list)
 
 
 class InvalidHermesModelError(ValueError):
@@ -74,8 +81,10 @@ def hermes_model_options() -> list[HermesModelOption]:
 def hermes_models_response() -> HermesModelsResponse:
     return HermesModelsResponse(
         default_model=HERMES_DEFAULT_MODEL_ID,
+        default_runtime=default_agent_runtime(),
         agent_runtime_enabled=settings.agent_runtime_enabled,
         models=hermes_model_options(),
+        runtimes=agent_runtime_options(),
     )
 
 

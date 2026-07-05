@@ -13,8 +13,17 @@ export type AgentModelOption = {
 
 export type AgentModelsResponse = {
   default_model: string;
+  default_runtime: string;
   agent_runtime_enabled: boolean;
   models: AgentModelOption[];
+  runtimes: AgentRuntimeOption[];
+};
+
+export type AgentRuntimeOption = {
+  id: string;
+  label: string;
+  enabled: boolean;
+  description?: string | null;
 };
 
 export function getSelectedAgentModel(): string | null {

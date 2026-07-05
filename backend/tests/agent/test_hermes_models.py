@@ -21,7 +21,9 @@ def test_hermes_models_response_includes_default_and_allowlisted_options(
     response = hermes_models_response()
 
     assert response.agent_runtime_enabled is True
+    assert response.default_runtime == "hermes"
     assert response.default_model == HERMES_DEFAULT_MODEL_ID
+    assert len(response.runtimes) == 2
     assert response.models[0].id == HERMES_DEFAULT_MODEL_ID
     assert response.models[0].is_default is True
     assert response.models[1].id == "openai-codex:gpt-5.5"

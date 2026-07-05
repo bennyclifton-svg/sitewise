@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     hermes_model_provider: str = "openai-api"
     hermes_model: str = "gpt-5.1"
     hermes_model_options: str = "openai-codex:gpt-5.5:gpt-5.5 (Codex)"
+    pi_runtime_enabled: bool = False
+    pi_binary_path: str = "pi"
+    pi_model_provider: str = "openai"
+    pi_model: str = "gpt-5.1"
     agent_platform_api_key: str | None = None
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"
     agent_max_concurrent_turns: int = 4

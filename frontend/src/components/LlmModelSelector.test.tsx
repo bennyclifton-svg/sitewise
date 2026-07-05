@@ -23,6 +23,11 @@ describe("LlmModelSelector", () => {
     vi.mocked(api.getAgentModels).mockResolvedValue({
       agent_runtime_enabled: true,
       default_model: "__hermes_config__",
+      default_runtime: "hermes",
+      runtimes: [
+        { id: "hermes", label: "Hermes", enabled: true },
+        { id: "pi", label: "Pi", enabled: false },
+      ],
       models: [
         {
           id: "__hermes_config__",

@@ -12,8 +12,14 @@ from pydantic_ai.exceptions import ModelHTTPError
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
+from app.agent.agent_runtimes import (
+    PI_RUNTIME_ID,
+    default_agent_runtime,
+    resolve_agent_runtime,
+)
 from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
 from app.agent.hermes_models import resolve_hermes_model_override
+from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
@@ -229,6 +235,7 @@ async def _persist_agent_user_message(
     *,
     thread: ChatThread,
     user_text: str,
+    runtime: str,
 ) -> None:
     if not thread.title:
         await update_thread(
@@ -241,7 +248,7 @@ async def _persist_agent_user_message(
         thread_id=thread.id,
         role="user",
         content=user_text,
-        message_data={"agent": {"runtime": "hermes"}},
+        message_data={"agent": {"runtime": runtime}},
     )
 
 
@@ -251,6 +258,7 @@ async def _persist_agent_assistant_message(
     thread_id: uuid.UUID,
     turn_id: uuid.UUID,
     content: str,
+    runtime: str,
 ) -> None:
     await create_message(
         session,
@@ -259,7 +267,7 @@ async def _persist_agent_assistant_message(
         content=content,
         message_data={
             "agent": {
-                "runtime": "hermes",
+                "runtime": runtime,
                 "turnId": str(turn_id),
             }
         },
@@ -330,8 +338,14 @@ async def post_agent_stream(
         ],
     )
     model_override = resolve_hermes_model_override(body.agent_model)
+    agent_runtime = resolve_agent_runtime(body.agent_runtime or default_agent_runtime())
 
-    await _persist_agent_user_message(session, thread=thread, user_text=user_text)
+    await _persist_agent_user_message(
+        session,
+        thread=thread,
+        user_text=user_text,
+        runtime=agent_runtime,
+    )
     await session.commit()
 
     workspace = _agent_workspace(thread.project_id)
@@ -343,6 +357,7 @@ async def post_agent_stream(
         thread_id=str(body.thread_id),
         project_id=str(thread.project_id),
         turn_id=str(turn_id),
+        agent_runtime=agent_runtime,
     )
 
     async def event_stream() -> AsyncIterator[str]:
@@ -350,16 +365,25 @@ async def post_agent_stream(
         answer_parts: list[str] = []
         completed = False
 
-        async def hermes_chunks() -> AsyncIterator[str]:
+        async def agent_chunks() -> AsyncIterator[str]:
             nonlocal completed
-            async for chunk in stream_hermes_turn(
-                prompt=agent_prompt,
-                mcp_url=settings.agent_mcp_url,
-                turn_token=turn_token,
-                cwd=workspace,
-                provider=model_override.provider if model_override else None,
-                model=model_override.model if model_override else None,
-            ):
+            if agent_runtime == PI_RUNTIME_ID:
+                stream = stream_pi_turn(
+                    prompt=agent_prompt,
+                    mcp_url=settings.agent_mcp_url,
+                    turn_token=turn_token,
+                    cwd=workspace,
+                )
+            else:
+                stream = stream_hermes_turn(
+                    prompt=agent_prompt,
+                    mcp_url=settings.agent_mcp_url,
+                    turn_token=turn_token,
+                    cwd=workspace,
+                    provider=model_override.provider if model_override else None,
+                    model=model_override.model if model_override else None,
+                )
+            async for chunk in stream:
                 answer_parts.append(chunk)
                 yield chunk
             completed = True
@@ -378,7 +402,7 @@ async def post_agent_stream(
                         percent=quota_state.percent,
                     )
                 async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
-                    async for event in relay_agent_turn(hermes_chunks(), status=statuses):
+                    async for event in relay_agent_turn(agent_chunks(), status=statuses):
                         yield event
         except AgentTurnAlreadyRunning:
             log.warning(
@@ -405,8 +429,20 @@ async def post_agent_stream(
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
+                agent_runtime=agent_runtime,
             )
             async for event in stream_error("Hermes took too long to respond. Please try again."):
+                yield event
+            return
+        except PiTurnTimeout:
+            log.warning(
+                "agent_stream_timeout",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+                agent_runtime=agent_runtime,
+            )
+            async for event in stream_error("Pi took too long to respond. Please try again."):
                 yield event
             return
         except HermesTurnError as exc:
@@ -415,9 +451,22 @@ async def post_agent_stream(
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
+                agent_runtime=agent_runtime,
                 error=str(exc),
             )
             async for event in stream_error("Hermes could not complete this turn. Please try again."):
+                yield event
+            return
+        except PiTurnError as exc:
+            log.warning(
+                "agent_stream_failed",
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+                agent_runtime=agent_runtime,
+                error=str(exc),
+            )
+            async for event in stream_error("Pi could not complete this turn. Please try again."):
                 yield event
             return
 
@@ -429,6 +478,7 @@ async def post_agent_stream(
                     thread_id=body.thread_id,
                     turn_id=turn_id,
                     content=content,
+                    runtime=agent_runtime,
                 )
                 await persist_session.commit()
             elapsed_ms = int((time.perf_counter() - stream_start) * 1000)

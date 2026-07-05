@@ -23,6 +23,11 @@ import {
   getSelectedAgentModel,
   subscribeSelectedAgentModel,
 } from "@/lib/agent-model";
+import {
+  getSelectedAgentRuntime,
+  subscribeSelectedAgentRuntime,
+} from "@/lib/agent-runtime";
+import { AgentRuntimeSelector } from "@/components/chat/AgentRuntimeSelector";
 import { getAccessToken } from "@/lib/auth";
 import {
   artefactsFromMessage,
@@ -89,6 +94,11 @@ export function ChatPanel({
     getSelectedAgentModel,
     () => null,
   );
+  const agentRuntime = useSyncExternalStore(
+    subscribeSelectedAgentRuntime,
+    getSelectedAgentRuntime,
+    () => null,
+  );
 
   const transport = useMemo(() => {
     const selectedModel = chatModel ?? getSelectedChatModel();
@@ -115,16 +125,17 @@ export function ChatPanel({
           thread_id: id,
           messages,
           ...(agentMode
-            ? agentModel
-              ? { agent_model: agentModel }
-              : {}
+            ? {
+                ...(agentModel ? { agent_model: agentModel } : {}),
+                ...(agentRuntime ? { agent_runtime: agentRuntime } : {}),
+              }
             : selectedModel
               ? { chat_model: selectedModel }
               : {}),
         },
       }),
     });
-  }, [agentMode, crossProject, chatModel, agentModel]);
+  }, [agentMode, crossProject, chatModel, agentModel, agentRuntime]);
 
   const { messages, sendMessage, status, error, stop } = useChat({
     id: threadId,
@@ -302,6 +313,10 @@ export function ChatPanel({
 
         {chatError ? (
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />
+        ) : null}
+
+        {agentMode ? (
+          <AgentRuntimeSelector className="shrink-0" />
         ) : null}
 
         <form className="flex shrink-0 gap-2" onSubmit={(event) => void handleSubmit(event)}>

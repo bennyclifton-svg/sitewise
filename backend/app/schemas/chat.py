@@ -61,6 +61,11 @@ class StreamChatRequest(BaseModel):
         max_length=256,
         validation_alias=AliasChoices("agentModel", "agent_model"),
     )
+    agent_runtime: str | None = Field(
+        default=None,
+        max_length=32,
+        validation_alias=AliasChoices("agentRuntime", "agent_runtime"),
+    )
 
     @field_validator("chat_model")
     @classmethod
@@ -98,3 +103,21 @@ class StreamChatRequest(BaseModel):
         except InvalidHermesModelError as exc:
             raise ValueError(str(exc)) from exc
         return stripped
+
+    @field_validator("agent_runtime")
+    @classmethod
+    def validate_agent_runtime(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip().lower()
+        if not stripped:
+            return None
+        from app.agent.agent_runtimes import (
+            InvalidAgentRuntimeError,
+            resolve_agent_runtime,
+        )
+
+        try:
+            return resolve_agent_runtime(stripped)
+        except InvalidAgentRuntimeError as exc:
+            raise ValueError(str(exc)) from exc
