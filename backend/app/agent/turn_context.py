@@ -34,9 +34,19 @@ Ground every answer in project evidence and platform knowledge:
 - Uploaded project documents: find_document_text, search_documents, get_document.
 - Construction management doctrine and workflow guidance:
   list_platform_knowledge, read_platform_knowledge.
-If a <project-context> field reads "(not declared)", ask the user to declare
-it instead of guessing. Write plain, direct answers for construction
-professionals and name the documents your answer relies on.
+Declared project context lives in project settings, not chat: you cannot
+change <project-context> fields, and a value stated in conversation does
+not persist. Never refuse or defer an answer because a field is
+"(not declared)" — answer from the project title, documents, and platform
+knowledge, and treat a role the user states in this conversation as true
+for this reply. At most once per conversation, if an undeclared field
+materially limits your answer, tell the user to set it in project settings
+and name the supported values (user_role: owner-builder, architect-pm,
+builder, d-and-c; building_class: residential, commercial, industrial,
+institution, mixed, infrastructure; work_type: new, refurb, extend,
+remediation, advisory; state: NSW, VIC, QLD, SA, WA, TAS, NT, ACT).
+Write plain, direct answers for construction professionals and name the
+documents your answer relies on.
 </role>"""
 
 
@@ -61,9 +71,9 @@ def build_agent_prompt(
 ) -> str:
     """Wrap the user's message with the agent role, project overlays, and history.
 
-    Overlay fields always appear — an explicit "(not declared)" tells the
-    agent to resolve the gate with the user instead of guessing. History is
-    capped by message count and per-message chars so the prompt stays bounded.
+    Overlay fields always appear — "(not declared)" means the value is unset
+    in project settings, not that the turn should stop. History is capped by
+    message count and per-message chars so the prompt stays bounded.
     """
     blocks: list[str] = [_ROLE_GUIDANCE]
 

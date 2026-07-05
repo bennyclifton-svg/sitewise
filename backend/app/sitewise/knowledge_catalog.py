@@ -221,8 +221,8 @@ def _dedupe(paths: list[str]) -> list[str]:
 def select_required_paths(
     *,
     workflow: str,
-    archetype: str,
     user_role: str,
+    archetype: str | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
 ) -> list[str]:

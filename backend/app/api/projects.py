@@ -698,6 +698,10 @@ async def patch_project(
         building_class=body.building_class,
         work_type=body.work_type,
         taxonomy=_project_taxonomy_metadata(body),
+        archetype=body.archetype,
+        user_role=body.user_role,
+        state=body.state,
+        update_overlays=bool({"archetype", "user_role", "state"} & body.model_fields_set),
     )
     return _project_detail_response(
         updated,

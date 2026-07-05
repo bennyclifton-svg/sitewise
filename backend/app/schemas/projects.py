@@ -5,7 +5,12 @@ from typing import Any
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.assistant.chat_models import InvalidChatModelError, resolve_chat_model
-from app.sitewise.gate import OverlayStatus
+from app.sitewise.gate import (
+    SUPPORTED_ARCHETYPES,
+    SUPPORTED_STATES,
+    SUPPORTED_USER_ROLES,
+    OverlayStatus,
+)
 
 
 def _validate_optional_chat_model(value: str | None) -> str | None:
@@ -175,14 +180,38 @@ class PatchProjectRequest(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
+    archetype: str | None = Field(default=None, max_length=64)
+    user_role: str | None = Field(default=None, max_length=64)
+    state: str | None = Field(default=None, max_length=16)
 
-    @field_validator("building_class", "work_type")
+    @field_validator("building_class", "work_type", "archetype", "user_role", "state")
     @classmethod
     def strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:
             return None
         stripped = value.strip()
         return stripped or None
+
+    @field_validator("archetype")
+    @classmethod
+    def validate_archetype(cls, value: str | None) -> str | None:
+        if value is not None and value not in SUPPORTED_ARCHETYPES:
+            raise ValueError(f"unsupported archetype: {value!r}")
+        return value
+
+    @field_validator("user_role")
+    @classmethod
+    def validate_user_role(cls, value: str | None) -> str | None:
+        if value is not None and value not in SUPPORTED_USER_ROLES:
+            raise ValueError(f"unsupported user_role: {value!r}")
+        return value
+
+    @field_validator("state")
+    @classmethod
+    def validate_state(cls, value: str | None) -> str | None:
+        if value is not None and value not in SUPPORTED_STATES:
+            raise ValueError(f"unsupported state: {value!r}")
+        return value
 
     @field_validator("subclasses")
     @classmethod

@@ -869,6 +869,8 @@ async def run_create_cost_plan_workflow(
     resolved_model = resolve_chat_model(chat_model)
 
     gate = overlay_status(
+        building_class=project.building_class,
+        work_type=project.work_type,
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,

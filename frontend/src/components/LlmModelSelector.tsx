@@ -33,7 +33,13 @@ function getAgentSelectionSnapshot(): string | null {
 type SelectorMode = "agent" | "legacy";
 type ModelOption = ChatModelOption | AgentModelOption;
 
-export function LlmModelSelector({ className }: { className?: string }) {
+export function LlmModelSelector({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const [mode, setMode] = useState<SelectorMode>("legacy");
   const [models, setModels] = useState<ModelOption[]>(FALLBACK_CHAT_MODELS);
   const [defaultModel, setDefaultModel] = useState(FALLBACK_DEFAULT_MODEL);
@@ -115,7 +121,12 @@ export function LlmModelSelector({ className }: { className?: string }) {
       </label>
       <select
         id="clerk-llm-model"
-        className="h-8 min-w-[9rem] max-w-[12rem] truncate rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70"
+        className={cn(
+          compact
+            ? "h-7 w-auto max-w-[7rem] truncate border-0 bg-transparent px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70"
+            : "h-8 min-w-[9rem] max-w-[12rem] truncate rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70",
+          className,
+        )}
         value={effectiveValue}
         disabled={loading}
         aria-label={label}

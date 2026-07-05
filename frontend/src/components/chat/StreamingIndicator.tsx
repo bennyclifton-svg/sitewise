@@ -6,7 +6,7 @@ export function StreamingIndicator({ message }: StreamingIndicatorProps) {
   const label = message?.trim() ? message : "Clerk is writing…";
   return (
     <div
-      className="flex items-center gap-2 text-sm text-muted-foreground"
+      className="mr-8 flex max-w-[92%] items-center gap-2 self-start text-sm text-muted-foreground"
       role="status"
       aria-live="polite"
     >

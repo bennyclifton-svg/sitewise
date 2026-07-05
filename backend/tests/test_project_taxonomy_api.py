@@ -240,6 +240,35 @@ def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> No
     ]
 
 
+def test_patch_project_overlay_gate_ready_from_taxonomy_without_archetype(
+    client: TestClient,
+) -> None:
+    project = _project(archetype=None, building_class=None, work_type=None)
+    updated_project = _project(
+        archetype=None,
+        building_class="commercial",
+        work_type="refurb",
+    )
+    update_project_taxonomy = AsyncMock(return_value=updated_project)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={"building_class": "commercial", "work_type": "refurb"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["archetype"] is None
+    assert payload["overlay_status"]["ready"] is True
+    assert payload["overlay_status"]["missing"] == []
+
+
 def test_patch_project_rejects_invalid_taxonomy_combo(client: TestClient) -> None:
     update_project_taxonomy = AsyncMock()
 
@@ -260,6 +289,56 @@ def test_patch_project_rejects_invalid_taxonomy_combo(client: TestClient) -> Non
     assert response.status_code == 422
     assert "allows only one subclass" in str(response.json()["detail"])
     update_project_taxonomy.assert_not_awaited()
+
+
+def test_patch_project_updates_overlays(client: TestClient) -> None:
+    project = _project(user_role=None, state=None, archetype=None)
+    updated_project = _project(
+        user_role="architect-pm",
+        state="VIC",
+        archetype="renovation",
+    )
+    update_project_taxonomy = AsyncMock(return_value=updated_project)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={
+                "user_role": "architect-pm",
+                "state": "VIC",
+                "archetype": "renovation",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["user_role"] == "architect-pm"
+    assert payload["state"] == "VIC"
+    assert payload["archetype"] == "renovation"
+    update_project_taxonomy.assert_awaited_once()
+    kwargs = update_project_taxonomy.await_args.kwargs
+    assert kwargs["update_overlays"] is True
+    assert kwargs["user_role"] == "architect-pm"
+    assert kwargs["state"] == "VIC"
+    assert kwargs["archetype"] == "renovation"
+
+
+def test_patch_project_rejects_invalid_user_role(client: TestClient) -> None:
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={"user_role": "project manager"},
+        )
+
+    assert response.status_code == 422
 
 
 def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> None:

@@ -1129,7 +1129,11 @@ async def list_platform_knowledge(project_id: str, topics: list[str] | None = No
             done="Listed platform knowledge",
             error="Platform knowledge listing failed",
         ):
+            building_class = getattr(project, "building_class", None)
+            work_type = getattr(project, "work_type", None)
             status = overlay_status(
+                building_class=building_class,
+                work_type=work_type,
                 archetype=project.archetype,
                 user_role=project.user_role,
                 state=project.state,
@@ -1150,19 +1154,24 @@ async def list_platform_knowledge(project_id: str, topics: list[str] | None = No
                     "required": {},
                     "available": [],
                 }
+            taxonomy_kwargs = (
+                {"building_class": building_class, "work_type": work_type}
+                if building_class is not None
+                else {"archetype": project.archetype}
+            )
             required = {
                 workflow: select_required_paths(
                     workflow=workflow,
-                    archetype=project.archetype,
                     user_role=project.user_role,
+                    **taxonomy_kwargs,
                 )
                 for workflow in ("create-pmp", "create-cost-plan")
             }
             available = await catalog_platform_knowledge(
                 session,
-                archetype=project.archetype,
                 user_role=project.user_role,
                 topics=topics,
+                **taxonomy_kwargs,
             )
         return {"gate": gate, "required": required, "available": available}
 

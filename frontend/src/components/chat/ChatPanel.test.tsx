@@ -25,6 +25,17 @@ vi.mock("ai", () => ({
 vi.mock("@/lib/api", () => ({
   api: {
     cancelAgentTurn: vi.fn(),
+    getAgentModels: vi.fn().mockResolvedValue({
+      agent_runtime_enabled: true,
+      default_model: "__hermes_config__",
+      default_runtime: "hermes",
+      runtimes: [{ id: "hermes", label: "Hermes", enabled: true }],
+      models: [{ id: "__hermes_config__", label: "Hermes default", is_default: true }],
+    }),
+    getLlmModels: vi.fn().mockResolvedValue({
+      default_model: "gpt-4.1-mini",
+      models: [{ id: "gpt-4.1-mini", label: "gpt-4.1-mini", is_default: true }],
+    }),
   },
 }));
 
@@ -164,6 +175,7 @@ describe("ChatPanel long history", () => {
         agentMode
         projectId="project-1"
         compact
+        layout="rail"
       />,
     );
 

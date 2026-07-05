@@ -54,16 +54,50 @@ def _check_required(
     return None, None
 
 
+def _taxonomy_satisfied(
+    *,
+    building_class: str | None,
+    work_type: str | None,
+    archetype: str | None,
+) -> bool:
+    if _clean(building_class) is not None and _clean(work_type) is not None:
+        return True
+    cleaned_archetype = _clean(archetype)
+    return cleaned_archetype is not None and cleaned_archetype in SUPPORTED_ARCHETYPES
+
+
+def _taxonomy_issues(
+    *,
+    building_class: str | None,
+    work_type: str | None,
+) -> list[OverlayIssue]:
+    issues: list[OverlayIssue] = []
+    for field, value in (("building_class", building_class), ("work_type", work_type)):
+        cleaned = _clean(value)
+        if cleaned is None:
+            issues.append(OverlayIssue(field=field, value=value, reason="missing"))
+        elif _is_tbc(cleaned):
+            issues.append(OverlayIssue(field=field, value=value, reason="tbc"))
+    return issues
+
+
 def overlay_status(
     *,
-    archetype: str | None,
+    building_class: str | None = None,
+    work_type: str | None = None,
+    archetype: str | None = None,
     user_role: str | None,
     state: str | None,
 ) -> OverlayStatus:
     missing: list[OverlayIssue] = []
     invalid: list[OverlayIssue] = []
+
+    if not _taxonomy_satisfied(
+        building_class=building_class, work_type=work_type, archetype=archetype
+    ):
+        missing.extend(_taxonomy_issues(building_class=building_class, work_type=work_type))
+
     checks = [
-        ("archetype", archetype, SUPPORTED_ARCHETYPES),
         ("user_role", user_role, SUPPORTED_USER_ROLES),
         ("state", state, SUPPORTED_STATES),
     ]

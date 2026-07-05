@@ -6,12 +6,12 @@ import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-rout
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
 import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
-import { ProjectChatBar } from "@/components/project/ProjectChatBar";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
+import { SourcePassagePanel } from "@/components/chat/SourcePassagePanel";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
+import type { Citation } from "@/lib/types/citation";
 import type {
   CreatePmpResponse,
   DraftArtifactSummary,
@@ -87,6 +88,7 @@ export function ProjectCockpitPage() {
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
   const [crossProject, setCrossProject] = useState(false);
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const [chatRevision, setChatRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(true);
@@ -123,6 +125,9 @@ export function ProjectCockpitPage() {
         setLatestDraft(data.latest_drafts.create_pmp ?? null);
         setLatestCostPlanDraft(data.latest_drafts.create_cost_plan ?? null);
         setSortFilesDraft(data.latest_drafts.sort_files ?? null);
+        if (!data.project.overlay_status.ready) {
+          setSelectedWorkflowId("project-profile");
+        }
         setSelectedEvidenceId((current) =>
           current && data.evidence.some((item) => item.id === current)
             ? current
@@ -225,6 +230,48 @@ export function ProjectCockpitPage() {
     const loadedMessages = await api.getThreadMessages(thread.id);
     setMessages(loadedMessages);
     setChatRevision((current) => current + 1);
+  }
+
+  async function loadThread(threadId: string) {
+    setChatLoading(true);
+    try {
+      const [loadedThread, loadedMessages] = await Promise.all([
+        api.getThread(threadId),
+        api.getThreadMessages(threadId),
+      ]);
+      setThread(loadedThread);
+      setMessages(loadedMessages);
+      setChatRevision((current) => current + 1);
+    } catch (loadError) {
+      setError(formatApiError(loadError, "Could not open project chat."));
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function activateThread(loadedThread: ChatThread, loadedMessages: ChatMessage[] = []) {
+    setThread(loadedThread);
+    setMessages(loadedMessages);
+    setChatRevision((current) => current + 1);
+  }
+
+  async function handleActiveThreadDeleted() {
+    if (!project) return;
+    setChatLoading(true);
+    try {
+      const threads = await api.listThreads();
+      const remaining = threads.filter((candidate) => candidate.project_id === project.id);
+      if (remaining.length > 0) {
+        await loadThread(remaining[0].id);
+        return;
+      }
+      const created = await api.createProjectThread(project.id);
+      activateThread(created, []);
+    } catch (loadError) {
+      setError(formatApiError(loadError, "Could not recover project chat."));
+    } finally {
+      setChatLoading(false);
+    }
   }
 
   async function runSortFiles() {
@@ -344,6 +391,7 @@ export function ProjectCockpitPage() {
 
   function selectEvidenceFromRepository(evidenceId: string) {
     leaveTenderRoute();
+    setSelectedCitation(null);
     setSelectedEvidenceId(evidenceId);
     const item = evidence.find((candidate) => candidate.id === evidenceId);
     if (item) {
@@ -367,6 +415,7 @@ export function ProjectCockpitPage() {
 
   function selectWorkspacePath(path: string) {
     leaveTenderRoute();
+    setSelectedCitation(null);
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
     if (selectedNode?.kind === "file") {
@@ -440,6 +489,7 @@ export function ProjectCockpitPage() {
     <ProjectShell
       onShowWorkbench={() => {
         leaveTenderRoute();
+        setSelectedCitation(null);
         setActiveView("workbench");
       }}
       leftNav={
@@ -447,6 +497,20 @@ export function ProjectCockpitPage() {
           project={project}
           projects={projects}
           projectsLoading={projectsLoading}
+          chat={{
+            thread,
+            messages,
+            chatRevision,
+            chatLoading,
+            crossProject,
+            selectedCitationId: selectedCitation?.sourceId ?? null,
+            onCrossProjectChange: setCrossProject,
+            onConversationUpdate: () => void refreshMessages(),
+            onSelectThread: (threadId) => void loadThread(threadId),
+            onCreateThread: (created) => activateThread(created, []),
+            onActiveThreadDeleted: () => void handleActiveThreadDeleted(),
+            onSelectCitation: setSelectedCitation,
+          }}
         />
       }
       repository={
@@ -480,21 +544,13 @@ export function ProjectCockpitPage() {
           platformStatus={platformStatus}
         />
       }
-      chatBar={
-        <ProjectChatBar
-          thread={thread}
-          messages={messages}
-          chatRevision={chatRevision}
-          chatLoading={chatLoading}
-          projectTitle={project.title}
-          crossProject={crossProject}
-          scopeLabel={`${project.title} plus SiteWise platform knowledge`}
-          onCrossProjectChange={setCrossProject}
-          onConversationUpdate={() => void refreshMessages()}
-        />
-      }
     >
-      {tenderOutlet ?? (
+      {selectedCitation ? (
+        <div className="p-4">
+          <SourcePassagePanel citation={selectedCitation} />
+        </div>
+      ) : (
+        tenderOutlet ?? (
         <>
       {activeView === "workbench" ? (
         <ProjectControlBoard
@@ -564,6 +620,7 @@ export function ProjectCockpitPage() {
         />
       ) : null}
         </>
+        )
       )}
     </ProjectShell>
   );

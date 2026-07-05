@@ -219,6 +219,27 @@ def test_create_pmp_blocks_when_overlay_gate_fails() -> None:
     assert result.draft is None
 
 
+def test_create_pmp_gate_passes_via_taxonomy_without_legacy_archetype() -> None:
+    """The gate call site must forward building_class/work_type, not just archetype.
+
+    Stays on the blocked early-return path (no unmocked DB access) by using a
+    partial taxonomy (class set, work_type missing) so the fixed and unfixed
+    call sites diverge without needing the full pipeline mocked out.
+    """
+    result = run_async(
+        run_create_pmp_workflow(
+            AsyncMock(),
+            user_id=USER_ID,
+            project=_project(archetype=None, building_class="commercial", work_type=None),
+            thread_id=None,
+        )
+    )
+
+    assert result.status == "blocked"
+    assert result.gate.ready is False
+    assert [issue.field for issue in result.gate.missing] == ["work_type"]
+
+
 def test_create_pmp_fails_when_platform_and_project_sources_missing() -> None:
     with (
         patch(

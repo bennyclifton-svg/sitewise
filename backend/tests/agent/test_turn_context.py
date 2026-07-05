@@ -63,6 +63,10 @@ def test_prompt_marks_undeclared_overlays_and_omits_empty_history() -> None:
     assert "work_type: (not declared)" in prompt
     assert "phase: (not declared)" in prompt
     assert "user_role: builder" in prompt
+    assert "Never refuse or defer an answer because a field is" in prompt
+    assert "project settings" in prompt
+    assert "building_class: residential, commercial" in prompt
+    assert "archetype:" not in prompt.split("</role>")[0]
     assert "<recent-conversation>" not in prompt
 
 

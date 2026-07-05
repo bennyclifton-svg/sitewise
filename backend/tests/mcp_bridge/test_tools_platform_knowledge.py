@@ -106,11 +106,40 @@ def test_gate_blocks_listing_when_overlays_missing(monkeypatch):
 
     data = result.data
     assert data["gate"]["ready"] is False
-    assert {issue["field"] for issue in data["gate"]["issues"]} == {"archetype", "state"}
+    assert {issue["field"] for issue in data["gate"]["issues"]} == {
+        "building_class",
+        "work_type",
+        "state",
+    }
     assert data["required"] == {}
     assert data["available"] == []
     assert "blocked" in data["message"]
     assert catalog_calls == []
+
+
+def test_listing_uses_taxonomy_without_crashing_when_no_legacy_archetype(monkeypatch):
+    session = _Session(
+        project=_project(
+            archetype=None,
+            building_class="commercial",
+            work_type="new",
+        )
+    )
+    server = _install(monkeypatch, session)
+    catalog_calls = _stub_catalog(monkeypatch, server, entries=[{"path": "x"}])
+
+    result = _call(server, "list_platform_knowledge", {"project_id": str(PROJECT_ID)})
+
+    data = result.data
+    assert data["gate"]["ready"] is True
+    assert data["available"] == [{"path": "x"}]
+    (call,) = catalog_calls
+    assert call == {
+        "building_class": "commercial",
+        "work_type": "new",
+        "user_role": "builder",
+        "topics": None,
+    }
 
 
 def test_listing_returns_required_paths_and_catalog(monkeypatch):

@@ -104,6 +104,8 @@ async def run_sort_files_workflow(
     run_id = uuid.uuid4()
 
     gate = overlay_status(
+        building_class=project.building_class,
+        work_type=project.work_type,
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,

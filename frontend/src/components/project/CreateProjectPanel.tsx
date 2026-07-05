@@ -14,14 +14,10 @@ import { compactTaxonomyValue } from "@/lib/project-taxonomy";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type { ProjectDetail } from "@/lib/types/project";
 
-const roleOptions = [
-  { value: "architect-pm", label: "Architect / PM" },
-  { value: "owner-builder", label: "Owner-builder" },
-  { value: "builder", label: "Builder" },
-  { value: "d-and-c", label: "D&C" },
-];
-
-const stateOptions = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"];
+import {
+  projectRoleOptions,
+  projectStateOptions,
+} from "@/lib/project-overlays";
 
 export function CreateProjectPanel({
   onCreated,
@@ -51,7 +47,6 @@ export function CreateProjectPanel({
       const project = await api.createProject({
         title: trimmedTitle,
         slug: slug.trim() || undefined,
-        archetype: deriveArchetype(taxonomyInput),
         ...taxonomyInput,
         user_role: userRole,
         state,
@@ -114,14 +109,14 @@ export function CreateProjectPanel({
             label="Role"
             value={userRole}
             onChange={setUserRole}
-            options={roleOptions}
+            options={projectRoleOptions}
           />
           <SelectField
             id="project-state"
             label="State"
             value={state}
             onChange={setState}
-            options={stateOptions.map((item) => ({ value: item, label: item }))}
+            options={projectStateOptions.map((item) => ({ value: item, label: item }))}
           />
         </div>
 
@@ -201,22 +196,3 @@ function slugFromTitle(value: string): string {
   return slug || "";
 }
 
-function deriveArchetype(taxonomy: TaxonomyPickerValue): string | undefined {
-  if (taxonomy.building_class === "commercial") return "small-commercial";
-  if (taxonomy.building_class !== "residential") return undefined;
-  if (taxonomy.work_type === "refurb" || taxonomy.work_type === "remediation") {
-    return "renovation";
-  }
-  if (taxonomy.work_type === "extend") return "ancillary";
-  if (taxonomy.work_type !== "new") return undefined;
-
-  const subclasses = taxonomy.subclasses ?? [];
-  const subclassValues = subclasses.map((item) =>
-    typeof item === "string" ? item : item.value,
-  );
-  return subclassValues.some((item) =>
-    ["apartments", "townhouses", "btr", "student_housing"].includes(item),
-  )
-    ? "multi-dwelling"
-    : "new-dwelling";
-}

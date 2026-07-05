@@ -105,9 +105,17 @@ async def update_project_taxonomy(
     building_class: str | None,
     work_type: str | None,
     taxonomy: dict | None,
+    archetype: str | None = None,
+    user_role: str | None = None,
+    state: str | None = None,
+    update_overlays: bool = False,
 ) -> Project:
     project.building_class = building_class
     project.work_type = work_type
+    if update_overlays:
+        project.archetype = archetype
+        project.user_role = user_role
+        project.state = state
     project_metadata = dict(project.project_metadata or {})
     if taxonomy is None:
         project_metadata.pop("taxonomy", None)
@@ -172,6 +180,8 @@ def user_owns_project(project: Project | None, user_id: uuid.UUID) -> bool:
 
 def project_overlay_summary(project: Project) -> dict:
     return overlay_status(
+        building_class=project.building_class,
+        work_type=project.work_type,
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,
