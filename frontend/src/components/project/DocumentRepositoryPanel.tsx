@@ -454,81 +454,81 @@ export function DocumentRepositoryPanel({
         </div>
       ) : null}
 
-      <header className="border-b px-4 py-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">
-              {activePanelView === "schedule" ? "Documents" : "Tree view"}
-            </h2>
-            {activePanelView === "schedule" && selectedRows.length ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {selectedRows.length} selected
-              </p>
-            ) : null}
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              {isUploading ? (
-                <span className="text-xs text-muted-foreground">
-                  {uploadProgress
-                    ? `ingesting ${uploadProgress.completed} of ${uploadProgress.total}`
-                    : "ingesting…"}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="size-3 shrink-0" aria-hidden />
-                  upload files
-                </button>
-              )}
-              {inboxCount && onRunSortFiles ? (
-                <Button
-                  type="button"
-                  className="border-amber-400/50 bg-amber-50/40 text-amber-900 hover:bg-amber-50/70 dark:border-amber-400/40 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-950/30"
-                  disabled={!overlayReady || isRunningSortFiles}
-                  onClick={onRunSortFiles}
-                >
-                  {isRunningSortFiles ? (
-                    <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Play className="size-4" aria-hidden />
-                  )}
-                  {isRunningSortFiles ? "Running" : "Sort Files"}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <div
-            className="flex shrink-0 items-center rounded-md border bg-muted/30 p-0.5"
-            role="group"
-            aria-label="Right panel view"
-          >
-            <Button
-              type="button"
-              variant={activePanelView === "schedule" ? "secondary" : "ghost"}
-              size="icon-xs"
-              aria-label="Document schedule"
-              aria-pressed={activePanelView === "schedule"}
-              title="Document schedule"
-              onClick={() => setActivePanelView("schedule")}
-            >
-              <TableProperties className="size-3.5" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              variant={activePanelView === "tree" ? "secondary" : "ghost"}
-              size="icon-xs"
-              aria-label="Tree view"
-              aria-pressed={activePanelView === "tree"}
-              title="Tree view"
-              onClick={() => setActivePanelView("tree")}
-            >
-              <FolderTree className="size-3.5" aria-hidden />
-            </Button>
-          </div>
-        </div>
+      <header className="cockpit-shell-header">
+        <h2 className="text-sm font-semibold text-[var(--gr-900)]">
+          {activePanelView === "schedule" ? "Documents" : "Tree view"}
+        </h2>
       </header>
+
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {activePanelView === "schedule" && selectedRows.length ? (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {selectedRows.length} selected
+            </span>
+          ) : null}
+          {isUploading ? (
+            <span className="truncate text-xs text-muted-foreground">
+              {uploadProgress
+                ? `ingesting ${uploadProgress.completed} of ${uploadProgress.total}`
+                : "ingesting…"}
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="size-3 shrink-0" aria-hidden />
+              upload files
+            </button>
+          )}
+          {inboxCount && onRunSortFiles ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 shrink-0 border-amber-400/50 bg-amber-50/80 px-2 text-xs text-amber-900 hover:bg-amber-100/80"
+              disabled={!overlayReady || isRunningSortFiles}
+              onClick={onRunSortFiles}
+            >
+              {isRunningSortFiles ? (
+                <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Play className="size-3.5" aria-hidden />
+              )}
+              {isRunningSortFiles ? "Running" : "Sort Files"}
+            </Button>
+          ) : null}
+        </div>
+        <div
+          className="flex shrink-0 items-center rounded-md border bg-muted/30 p-0.5"
+          role="group"
+          aria-label="Right panel view"
+        >
+          <Button
+            type="button"
+            variant={activePanelView === "schedule" ? "secondary" : "ghost"}
+            size="icon-xs"
+            aria-label="Document schedule"
+            aria-pressed={activePanelView === "schedule"}
+            title="Document schedule"
+            onClick={() => setActivePanelView("schedule")}
+          >
+            <TableProperties className="size-3.5" aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant={activePanelView === "tree" ? "secondary" : "ghost"}
+            size="icon-xs"
+            aria-label="Tree view"
+            aria-pressed={activePanelView === "tree"}
+            title="Tree view"
+            onClick={() => setActivePanelView("tree")}
+          >
+            <FolderTree className="size-3.5" aria-hidden />
+          </Button>
+        </div>
+      </div>
 
       {uploadProgress ? <IngestProgressStrip progress={uploadProgress} /> : null}
 
@@ -597,7 +597,7 @@ export function DocumentRepositoryPanel({
         );
       })}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto">
         {activePanelView === "tree" ? (
           <div className="px-3 py-3">
             <WorkspaceExplorer

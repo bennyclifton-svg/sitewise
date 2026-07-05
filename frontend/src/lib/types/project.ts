@@ -134,7 +134,6 @@ export type ProjectSummary = {
 export type CreateProjectInput = {
   title: string;
   slug?: string;
-  archetype?: string;
   building_class?: string | null;
   work_type?: string | null;
   subclasses?: ProjectSubclassSelection[];
@@ -146,7 +145,10 @@ export type CreateProjectInput = {
   phase?: string;
 };
 
-export type UpdateProjectInput = ProjectTaxonomyInput;
+export type UpdateProjectInput = ProjectTaxonomyInput & {
+  user_role?: string | null;
+  state?: string | null;
+};
 
 export type EvidencePreview = {
   id: string;

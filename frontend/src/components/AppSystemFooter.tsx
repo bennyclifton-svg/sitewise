@@ -1,7 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
-import { LlmModelSelector } from "@/components/LlmModelSelector";
 import { Button } from "@/components/ui/button";
 import { isDarkMode, toggleThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -43,7 +42,6 @@ export function AppSystemFooter({ className }: { className?: string }) {
       >
         {dark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
       </Button>
-      <LlmModelSelector className="min-w-0 flex-1" />
     </div>
   );
 }

@@ -55,14 +55,17 @@ export function AssistantMessage({
     .join("");
 
   return (
-    <article className="rounded-lg border bg-card px-4 py-3 text-sm shadow-xs">
-      <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        Clerk
-      </div>
+    <article
+      aria-label="Assistant message"
+      className="mr-8 max-w-[92%] self-start rounded-lg border border-white/6 bg-black/20 px-3 py-2 text-sm"
+    >
+      {meta && !meta.evidenceSufficient ? (
+        <div className="mb-2">
+          <InsufficientEvidenceBanner />
+        </div>
+      ) : null}
 
-      {meta && !meta.evidenceSufficient ? <InsufficientEvidenceBanner /> : null}
-
-      <div className="mt-2 space-y-2 whitespace-pre-wrap leading-relaxed">{text}</div>
+      <div className="space-y-2 whitespace-pre-wrap leading-relaxed">{text}</div>
 
       {toolEvents.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">

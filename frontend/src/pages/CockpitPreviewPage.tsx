@@ -1,4 +1,4 @@
-import { ArrowLeft, Bot, Send } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -10,7 +10,6 @@ import { ProjectLeftNav, type ProjectNavView } from "@/components/project/Projec
 import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
   DraftArtifact,
@@ -297,6 +296,7 @@ export function CockpitPreviewPage() {
           project={previewProject}
           projects={previewProjects}
           projectsLoading={false}
+          chatPreview
         />
       }
       repository={
@@ -315,7 +315,6 @@ export function CockpitPreviewPage() {
           platformStatus={platformStatus}
         />
       }
-      chatBar={<PreviewChatBar />}
     >
       <div className="border-b bg-amber-50 px-4 py-2 text-sm text-amber-900">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
@@ -429,31 +428,4 @@ function findEvidenceByPath(
 
 function normalizeWorkspacePath(path: string): string {
   return path.replaceAll("\\", "/");
-}
-
-function PreviewChatBar() {
-  return (
-    <section className="border-t bg-background" aria-label="Preview chat">
-      <header className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted">
-            <Bot className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold">Clerk</h2>
-            <p className="truncate text-xs text-muted-foreground">
-              Preview only. Real chat opens inside a backend project cockpit.
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge variant="outline">Project</Badge>
-          <Button disabled variant="secondary" size="sm">
-            <Send className="size-4" aria-hidden />
-            Backend required
-          </Button>
-        </div>
-      </header>
-    </section>
-  );
 }

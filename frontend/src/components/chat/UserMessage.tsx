@@ -4,10 +4,10 @@ type UserMessageProps = {
 
 export function UserMessage({ text }: UserMessageProps) {
   return (
-    <article className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
-      <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        You
-      </div>
+    <article
+      aria-label="Your message"
+      className="ml-8 max-w-[88%] self-end rounded-lg border border-white/8 bg-white/[0.06] px-3 py-2 text-sm"
+    >
       <p className="whitespace-pre-wrap leading-relaxed">{text}</p>
     </article>
   );

@@ -21,6 +21,7 @@ import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
   TaxonomyPicker,
@@ -45,6 +46,10 @@ import {
   compactTaxonomyValue,
   taxonomyValueFromProject,
 } from "@/lib/project-taxonomy";
+import {
+  projectRoleOptions,
+  projectStateOptions,
+} from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
 
@@ -191,9 +196,15 @@ function ProjectProfilePanel({
   const [profile, setProfile] = useState<TaxonomyPickerValue>(() =>
     taxonomyValueFromProject(project),
   );
+  const [userRole, setUserRole] = useState(project.user_role ?? "");
+  const [state, setState] = useState(project.state ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const overlayIssues = [
+    ...project.overlay_status.missing,
+    ...project.overlay_status.invalid,
+  ];
 
   async function saveProfile() {
     if (saving || !onProjectUpdated) return;
@@ -201,10 +212,11 @@ function ProjectProfilePanel({
     setError(null);
     setSaved(false);
     try {
-      const updated = await api.updateProject(
-        project.id,
-        compactTaxonomyValue(profile),
-      );
+      const updated = await api.updateProject(project.id, {
+        ...compactTaxonomyValue(profile),
+        user_role: userRole || null,
+        state: state || null,
+      });
       onProjectUpdated(updated);
       setSaved(true);
     } catch (saveError) {
@@ -220,11 +232,47 @@ function ProjectProfilePanel({
 
   return (
     <div className="grid gap-4">
+      {overlayIssues.length ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="font-medium">Project overlays are incomplete.</p>
+          <p className="mt-1 text-xs">
+            Set role, state, class, and work type here so chat, knowledge
+            tools, and workflows use the right SiteWise context.
+          </p>
+          <ul className="mt-2 space-y-1 text-xs">
+            {overlayIssues.map((issue) => (
+              <li key={`${issue.field}-${issue.reason}`}>
+                {issue.field.replace("_", " ")}: {issue.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {saved ? (
         <div className="flex justify-end">
           <Badge variant="secondary">Saved</Badge>
         </div>
       ) : null}
+      <div className="grid gap-3 md:grid-cols-2">
+        <OverlaySelectField
+          id={`project-role-${project.id}`}
+          label="Your role"
+          value={userRole}
+          onChange={setUserRole}
+          options={projectRoleOptions}
+          placeholder="Select role"
+          disabled={saving || !onProjectUpdated}
+        />
+        <OverlaySelectField
+          id={`project-state-${project.id}`}
+          label="State"
+          value={state}
+          onChange={setState}
+          options={projectStateOptions.map((item) => ({ value: item, label: item }))}
+          placeholder="Select state"
+          disabled={saving || !onProjectUpdated}
+        />
+      </div>
       <TaxonomyPicker
         catalog={taxonomyQuery.data}
         value={profile}
@@ -258,6 +306,44 @@ function ProjectProfilePanel({
           </Button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function OverlaySelectField({
+  id,
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+  disabled = false,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  placeholder: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <select
+        id={id}
+        value={value}
+        disabled={disabled}
+        className="h-9 rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -713,7 +799,7 @@ function buildLifecycleTiles({
       status: project.overlay_status.ready ? "ready" : "blocked",
       statusLabel: project.overlay_status.ready ? "Ready" : "Blocked",
       description:
-        "Set building class, work type, and complexity so SiteWise overlays and workflow gates match this project.",
+        "Set your role, state, building class, and work type so SiteWise overlays and workflow gates match this project.",
       implemented: true,
     },
     {

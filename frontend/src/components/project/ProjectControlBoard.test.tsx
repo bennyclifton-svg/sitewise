@@ -112,6 +112,7 @@ describe("ProjectControlBoard project profile", () => {
       "title",
       "Works in live environments require careful staging.",
     );
+    expect(screen.queryByLabelText(/archetype/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Other"));
     await user.type(screen.getByLabelText("Other subclass"), "Laboratory office");
@@ -123,6 +124,8 @@ describe("ProjectControlBoard project profile", () => {
         work_type: "refurb",
         subclasses: [{ value: "other", label: "Laboratory office" }],
         complexity: { operational_constraints: "live_environment" },
+        user_role: "architect-pm",
+        state: "NSW",
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);

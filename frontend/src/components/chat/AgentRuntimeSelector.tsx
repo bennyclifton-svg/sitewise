@@ -11,9 +11,10 @@ import {
 
 type AgentRuntimeSelectorProps = {
   className?: string;
+  compact?: boolean;
 };
 
-export function AgentRuntimeSelector({ className }: AgentRuntimeSelectorProps) {
+export function AgentRuntimeSelector({ className, compact = false }: AgentRuntimeSelectorProps) {
   const [runtimes, setRuntimes] = useState<AgentRuntimeOption[]>([]);
   const [defaultRuntime, setDefaultRuntime] = useState(HERMES_RUNTIME_ID);
   const [loading, setLoading] = useState(true);
@@ -58,7 +59,11 @@ export function AgentRuntimeSelector({ className }: AgentRuntimeSelectorProps) {
       </label>
       <select
         id="clerk-agent-runtime"
-        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70"
+        className={
+          compact
+            ? "h-7 w-auto max-w-[5.5rem] truncate border-0 bg-transparent px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70"
+            : "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70"
+        }
         value={effectiveValue}
         disabled={loading}
         aria-label="Agent runtime"

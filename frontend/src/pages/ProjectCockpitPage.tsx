@@ -6,7 +6,6 @@ import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-rout
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
 import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
-import { ProjectChatBar } from "@/components/project/ProjectChatBar";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
@@ -23,6 +22,7 @@ import {
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
+import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
   CreatePmpResponse,
@@ -87,6 +87,7 @@ export function ProjectCockpitPage() {
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
   const [crossProject, setCrossProject] = useState(false);
+  const [selectedCitationId, setSelectedCitationId] = useState<string | null>(null);
   const [chatRevision, setChatRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(true);
@@ -225,6 +226,53 @@ export function ProjectCockpitPage() {
     const loadedMessages = await api.getThreadMessages(thread.id);
     setMessages(loadedMessages);
     setChatRevision((current) => current + 1);
+  }
+
+  async function handleSelectThread(threadId: string) {
+    setChatLoading(true);
+    setSelectedCitationId(null);
+    try {
+      const loadedThread = await api.getThread(threadId);
+      const loadedMessages = await api.getThreadMessages(threadId);
+      setThread(loadedThread);
+      setMessages(loadedMessages);
+      setChatRevision((current) => current + 1);
+    } catch (loadError) {
+      setError(formatApiError(loadError, "Could not open that chat session."));
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function handleCreateThread(created: ChatThread) {
+    setThread(created);
+    setMessages([]);
+    setSelectedCitationId(null);
+    setChatRevision((current) => current + 1);
+  }
+
+  async function handleActiveThreadDeleted() {
+    if (!project) return;
+    setChatLoading(true);
+    setSelectedCitationId(null);
+    try {
+      const threads = await api.listThreads();
+      const existingThread = threads.find((candidate) => candidate.project_id === project.id);
+      if (existingThread) {
+        await handleSelectThread(existingThread.id);
+        return;
+      }
+      const created = await api.createProjectThread(project.id);
+      handleCreateThread(created);
+    } catch (loadError) {
+      setError(formatApiError(loadError, "Could not restore project chat."));
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function handleSelectCitation(citation: Citation | null) {
+    setSelectedCitationId(citation?.sourceId ?? null);
   }
 
   async function runSortFiles() {
@@ -447,6 +495,20 @@ export function ProjectCockpitPage() {
           project={project}
           projects={projects}
           projectsLoading={projectsLoading}
+          chat={{
+            thread,
+            messages,
+            chatRevision,
+            chatLoading,
+            crossProject,
+            selectedCitationId,
+            onCrossProjectChange: setCrossProject,
+            onConversationUpdate: () => void refreshMessages(),
+            onSelectThread: (threadId) => void handleSelectThread(threadId),
+            onCreateThread: handleCreateThread,
+            onActiveThreadDeleted: () => void handleActiveThreadDeleted(),
+            onSelectCitation: handleSelectCitation,
+          }}
         />
       }
       repository={
@@ -478,19 +540,6 @@ export function ProjectCockpitPage() {
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
           platformStatus={platformStatus}
-        />
-      }
-      chatBar={
-        <ProjectChatBar
-          thread={thread}
-          messages={messages}
-          chatRevision={chatRevision}
-          chatLoading={chatLoading}
-          projectTitle={project.title}
-          crossProject={crossProject}
-          scopeLabel={`${project.title} plus SiteWise platform knowledge`}
-          onCrossProjectChange={setCrossProject}
-          onConversationUpdate={() => void refreshMessages()}
         />
       }
     >

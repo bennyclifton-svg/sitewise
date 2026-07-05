@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { ArrowDown, CircleStop, Send } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -11,13 +11,13 @@ import {
 } from "react";
 
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
+import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { ChatErrorBanner } from "@/components/chat/ChatErrorBanner";
 import { SourcePassagePanel } from "@/components/chat/SourcePassagePanel";
 import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
 import { UserMessage } from "@/components/chat/UserMessage";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import {
   getSelectedAgentModel,
@@ -27,7 +27,6 @@ import {
   getSelectedAgentRuntime,
   subscribeSelectedAgentRuntime,
 } from "@/lib/agent-runtime";
-import { AgentRuntimeSelector } from "@/components/chat/AgentRuntimeSelector";
 import { getAccessToken } from "@/lib/auth";
 import {
   artefactsFromMessage,
@@ -53,13 +52,14 @@ type ChatPanelProps = {
   initialMessages: ChatMessage[];
   isFirstConversation?: boolean;
   onConversationUpdate?: () => void;
-  compact?: boolean;
-  scopeLabel?: string;
+  layout?: "page" | "rail";
   showScopeControls?: boolean;
   crossProject?: boolean;
   onCrossProjectChange?: (value: boolean) => void;
   agentMode?: boolean;
   projectId?: string | null;
+  selectedCitationId?: string | null;
+  onSelectCitation?: (citation: Citation | null) => void;
 };
 
 export function ChatPanel({
@@ -67,17 +67,19 @@ export function ChatPanel({
   initialMessages,
   isFirstConversation = false,
   onConversationUpdate,
-  compact = false,
-  scopeLabel,
+  layout = "page",
   showScopeControls = false,
   crossProject = false,
   onCrossProjectChange,
   agentMode = false,
   projectId,
+  selectedCitationId = null,
+  onSelectCitation,
 }: ChatPanelProps) {
+  const isRail = layout === "rail";
   const [input, setInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+  const [internalSelectedCitation, setInternalSelectedCitation] = useState<Citation | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
   const persistedMessageData = useMemo(
@@ -99,6 +101,17 @@ export function ChatPanel({
     getSelectedAgentRuntime,
     () => null,
   );
+
+  const activeCitationId =
+    onSelectCitation !== undefined ? selectedCitationId : internalSelectedCitation?.sourceId ?? null;
+
+  function handleSelectCitation(citation: Citation | null) {
+    if (onSelectCitation) {
+      onSelectCitation(citation);
+      return;
+    }
+    setInternalSelectedCitation(citation);
+  }
 
   const transport = useMemo(() => {
     const selectedModel = chatModel ?? getSelectedChatModel();
@@ -205,8 +218,7 @@ export function ChatPanel({
     };
   }, [messages]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit() {
     const text = input.trim();
     if (!text || isBusy) return;
     setInput("");
@@ -222,48 +234,26 @@ export function ChatPanel({
     }
   }
 
-  const shellClass = compact
-    ? "grid min-h-0 gap-4"
+  const shellClass = isRail
+    ? "flex min-h-0 flex-1 flex-col gap-3"
     : "grid min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]";
-  const chatColumnClass = compact
-    ? "flex h-[min(30rem,calc(100vh-10rem))] min-h-[18rem] min-w-0 flex-col gap-4"
+  const chatColumnClass = isRail
+    ? "flex min-h-0 flex-1 flex-col gap-3"
     : "flex h-[min(42rem,calc(100vh-16rem))] min-h-[28rem] min-w-0 flex-col gap-4";
+  const historyClass = isRail
+    ? "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto scroll-smooth pr-1"
+    : "cockpit-scroll flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-md border p-4 scroll-smooth";
 
   return (
     <div className={shellClass}>
       <div className={chatColumnClass}>
-        {showScopeControls ? (
-          <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs">
-            <div className="min-w-0">
-              <p className="font-medium">
-                {crossProject ? "Cross-project search" : "Project-only search"}
-              </p>
-              <p className="truncate text-muted-foreground">
-                {crossProject
-                  ? "Searches all available project evidence you can access."
-                  : scopeLabel ??
-                    "Searches this active project plus SiteWise platform knowledge."}
-              </p>
-            </div>
-            <label className="inline-flex shrink-0 items-center gap-2">
-              <input
-                type="checkbox"
-                className="size-4 rounded border-border accent-foreground"
-                checked={crossProject}
-                onChange={(event) => onCrossProjectChange?.(event.target.checked)}
-              />
-              <span>Cross-project</span>
-            </label>
-          </div>
-        ) : null}
-
         <div className="relative min-h-0 flex-1">
           <div
             ref={historyRef}
             role="log"
             aria-label="Conversation history"
             onScroll={updateScrollButton}
-            className="h-full min-h-0 space-y-3 overflow-y-auto rounded-md border p-4 scroll-smooth"
+            className={historyClass}
           >
             {messages.length === 0 ? (
               <ChatEmptyState variant={isFirstConversation ? "first-time" : "thread"} />
@@ -283,8 +273,8 @@ export function ChatPanel({
                       toolEvents={toolEventsByMessageId.get(message.id)}
                       artefacts={artefactsByMessageId.get(message.id)}
                       projectId={projectId}
-                      selectedCitationId={selectedCitation?.sourceId ?? null}
-                      onSelectCitation={setSelectedCitation}
+                      selectedCitationId={activeCitationId}
+                      onSelectCitation={handleSelectCitation}
                     />
                   );
                 }
@@ -315,32 +305,22 @@ export function ChatPanel({
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />
         ) : null}
 
-        {agentMode ? (
-          <AgentRuntimeSelector className="shrink-0" />
-        ) : null}
-
-        <form className="flex shrink-0 gap-2" onSubmit={(event) => void handleSubmit(event)}>
-          <Input
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about your project documents…"
-            disabled={isBusy}
-            aria-label="Message"
-          />
-          <Button type="submit" disabled={isBusy || input.trim() === ""}>
-            <Send className="size-4" aria-hidden />
-            {isBusy ? "Sending…" : "Send"}
-          </Button>
-          {isBusy ? (
-            <Button type="button" variant="outline" onClick={() => void handleStop()}>
-              <CircleStop className="size-4" aria-hidden />
-              Stop
-            </Button>
-          ) : null}
-        </form>
+        <ChatComposer
+          value={input}
+          onChange={setInput}
+          onSubmit={() => void handleSubmit()}
+          onStop={() => void handleStop()}
+          isBusy={isBusy}
+          agentMode={agentMode}
+          crossProject={crossProject}
+          onCrossProjectChange={onCrossProjectChange}
+          showScopeControls={showScopeControls}
+        />
       </div>
 
-      <SourcePassagePanel citation={selectedCitation} />
+      {!isRail ? (
+        <SourcePassagePanel citation={internalSelectedCitation} />
+      ) : null}
     </div>
   );
 }
