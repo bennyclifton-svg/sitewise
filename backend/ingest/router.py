@@ -2,20 +2,18 @@ from ingest.types import Classification, IngestPlan, ManifestEntry, ProjectConte
 
 
 def _extractor_for(classification: Classification, extension: str) -> str:
+    if extension == ".pdf":
+        return "pdf_odl"
     if classification.document_class == "doctrine" or classification.document_class == "reference_guide":
-        return "markdown" if extension == ".md" else "pdf_text"
+        return "markdown" if extension == ".md" else "unsupported"
     if classification.document_class == "drawing":
         if extension == ".dwg":
             return "dwg"
-        if extension == ".pdf":
-            return "pdf_drawing"
         return "register_stub"
     if extension == ".docx":
         return "docx"
     if extension == ".md":
         return "markdown"
-    if extension == ".pdf":
-        return "pdf_text"
     return "unsupported"
 
 

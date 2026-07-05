@@ -597,6 +597,19 @@ def _project_source_texts(
     ]
 
 
+def _project_source_labels(
+    passages: list[SourcePassage],
+    *,
+    project_slug: str,
+) -> list[str]:
+    """Filenames parallel to _project_source_texts, for evidence attribution."""
+    return [
+        passage.filename or passage.relative_path
+        for passage in passages
+        if _is_project_passage(passage, project_slug) and passage.content.strip()
+    ]
+
+
 def _evidence_refs_from_passages(
     passages: list[SourcePassage],
     project_slug: str,
@@ -647,7 +660,10 @@ async def run_create_pmp_hybrid(
 
     user_role = project.user_role or ""
     evidence_refs = _evidence_refs_from_passages(passages, project.slug)
-    pack = extract_mobilisation_evidence_pack(project_source_texts, evidence_refs)
+    source_labels = _project_source_labels(passages, project_slug=project.slug)
+    pack = extract_mobilisation_evidence_pack(
+        project_source_texts, evidence_refs, source_labels
+    )
     trace.append(
         _trace(
             "extract",

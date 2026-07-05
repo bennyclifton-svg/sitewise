@@ -3,10 +3,13 @@ import pytest
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
 from app.config import settings
 
+PROJECT_ID = "22222222-2222-2222-2222-222222222222"
+
 
 def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     prompt = build_agent_prompt(
         "Compare the tenders",
+        project_id=PROJECT_ID,
         archetype="renovation",
         user_role="architect-pm",
         state="NSW",
@@ -16,11 +19,15 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
         ],
     )
 
-    assert prompt.index("<project-context>") < prompt.index("<recent-conversation>")
+    assert prompt.index("<project-context>") < prompt.index("<document-access>")
+    assert prompt.index("<document-access>") < prompt.index("<recent-conversation>")
     assert prompt.rstrip().endswith("Compare the tenders")
     assert "archetype: renovation" in prompt
     assert "user_role: architect-pm" in prompt
     assert "state: NSW" in prompt
+    assert f"project_id: {PROJECT_ID}" in prompt
+    assert "find_document_text is the first choice" in prompt
+    assert "run shell commands" in prompt
     assert "user: Any update on the quotes?" in prompt
     assert "assistant: Two received, one pending." in prompt
 
@@ -28,6 +35,7 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
 def test_prompt_marks_undeclared_overlays_and_omits_empty_history() -> None:
     prompt = build_agent_prompt(
         "Hello",
+        project_id=PROJECT_ID,
         archetype=None,
         user_role="builder",
         state=None,
@@ -52,6 +60,7 @@ def test_history_window_is_bounded_by_count_and_chars(
     ]
     prompt = build_agent_prompt(
         "Next",
+        project_id=PROJECT_ID,
         archetype="new-dwelling",
         user_role="builder",
         state="NSW",
@@ -71,6 +80,7 @@ def test_history_window_is_bounded_by_count_and_chars(
 def test_multiline_history_messages_are_flattened() -> None:
     prompt = build_agent_prompt(
         "Next",
+        project_id=PROJECT_ID,
         archetype="new-dwelling",
         user_role="builder",
         state="NSW",

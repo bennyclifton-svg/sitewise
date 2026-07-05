@@ -6,6 +6,7 @@ from ingest.extractors.docx import extract_docx
 from ingest.extractors.dwg import extract_dwg
 from ingest.extractors.markdown import extract_markdown
 from ingest.extractors.pdf_drawing import extract_pdf_drawing
+from ingest.extractors.pdf_odl import extract_pdf_odl
 from ingest.extractors.pdf_text import extract_pdf_text
 from ingest.types import IngestPlan
 
@@ -15,6 +16,7 @@ _EXTRACTORS = {
     "markdown": extract_markdown,
     "docx": extract_docx,
     "pdf_text": extract_pdf_text,
+    "pdf_odl": extract_pdf_odl,
     "pdf_drawing": extract_pdf_drawing,
     "dwg": extract_dwg,
 }
@@ -41,4 +43,5 @@ def extract_document(plan: IngestPlan) -> ExtractedDocument | None:
         page_count=extracted.page_count,
         pages=extracted.pages,
         drawing_identity=extracted.drawing_identity,
+        extraction_metadata=extracted.extraction_metadata,
     )

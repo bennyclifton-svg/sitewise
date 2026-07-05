@@ -1,0 +1,43 @@
+{
+  "sections": [
+    "snapshot",
+    "scope-client-requirements",
+    "compliance-approvals",
+    "programme",
+    "cost-budget",
+    "procurement-delivery",
+    "risks",
+    "actions-decisions"
+  ],
+  "base_weights": {
+    "residential|new": {"snapshot": 0.10, "scope-client-requirements": 0.30, "compliance-approvals": 0.10, "programme": 0.12, "cost-budget": 0.12, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.06},
+    "residential|refurb": {"snapshot": 0.10, "scope-client-requirements": 0.24, "compliance-approvals": 0.13, "programme": 0.11, "cost-budget": 0.13, "procurement-delivery": 0.10, "risks": 0.13, "actions-decisions": 0.06},
+    "residential|extend": {"snapshot": 0.10, "scope-client-requirements": 0.26, "compliance-approvals": 0.12, "programme": 0.11, "cost-budget": 0.13, "procurement-delivery": 0.10, "risks": 0.12, "actions-decisions": 0.06},
+    "residential|remediation": {"snapshot": 0.10, "scope-client-requirements": 0.17, "compliance-approvals": 0.19, "programme": 0.10, "cost-budget": 0.12, "procurement-delivery": 0.10, "risks": 0.16, "actions-decisions": 0.06},
+    "residential|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.25, "compliance-approvals": 0.13, "programme": 0.08, "cost-budget": 0.10, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.14},
+    "commercial|new": {"snapshot": 0.10, "scope-client-requirements": 0.18, "compliance-approvals": 0.18, "programme": 0.12, "cost-budget": 0.12, "procurement-delivery": 0.13, "risks": 0.11, "actions-decisions": 0.06},
+    "commercial|refurb": {"snapshot": 0.10, "scope-client-requirements": 0.15, "compliance-approvals": 0.25, "programme": 0.10, "cost-budget": 0.10, "procurement-delivery": 0.12, "risks": 0.12, "actions-decisions": 0.06},
+    "commercial|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.22, "compliance-approvals": 0.16, "programme": 0.08, "cost-budget": 0.10, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.14},
+    "industrial|new": {"snapshot": 0.10, "scope-client-requirements": 0.17, "compliance-approvals": 0.18, "programme": 0.12, "cost-budget": 0.12, "procurement-delivery": 0.12, "risks": 0.13, "actions-decisions": 0.06},
+    "industrial|remediation": {"snapshot": 0.10, "scope-client-requirements": 0.13, "compliance-approvals": 0.24, "programme": 0.10, "cost-budget": 0.11, "procurement-delivery": 0.10, "risks": 0.16, "actions-decisions": 0.06},
+    "industrial|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.21, "compliance-approvals": 0.17, "programme": 0.08, "cost-budget": 0.10, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.14},
+    "institution|new": {"snapshot": 0.10, "scope-client-requirements": 0.18, "compliance-approvals": 0.20, "programme": 0.11, "cost-budget": 0.11, "procurement-delivery": 0.12, "risks": 0.12, "actions-decisions": 0.06},
+    "institution|refurb": {"snapshot": 0.10, "scope-client-requirements": 0.14, "compliance-approvals": 0.26, "programme": 0.10, "cost-budget": 0.10, "procurement-delivery": 0.11, "risks": 0.13, "actions-decisions": 0.06},
+    "institution|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.21, "compliance-approvals": 0.18, "programme": 0.08, "cost-budget": 0.09, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.14},
+    "mixed|new": {"snapshot": 0.10, "scope-client-requirements": 0.17, "compliance-approvals": 0.18, "programme": 0.12, "cost-budget": 0.12, "procurement-delivery": 0.12, "risks": 0.13, "actions-decisions": 0.06},
+    "mixed|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.22, "compliance-approvals": 0.16, "programme": 0.08, "cost-budget": 0.10, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.14},
+    "infrastructure|new": {"snapshot": 0.10, "scope-client-requirements": 0.15, "compliance-approvals": 0.20, "programme": 0.13, "cost-budget": 0.12, "procurement-delivery": 0.12, "risks": 0.12, "actions-decisions": 0.06},
+    "infrastructure|remediation": {"snapshot": 0.10, "scope-client-requirements": 0.12, "compliance-approvals": 0.23, "programme": 0.12, "cost-budget": 0.11, "procurement-delivery": 0.11, "risks": 0.15, "actions-decisions": 0.06},
+    "infrastructure|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.20, "compliance-approvals": 0.17, "programme": 0.09, "cost-budget": 0.10, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.14},
+    "default": {"snapshot": 0.10, "scope-client-requirements": 0.20, "compliance-approvals": 0.15, "programme": 0.12, "cost-budget": 0.12, "procurement-delivery": 0.12, "risks": 0.13, "actions-decisions": 0.06}
+  },
+  "modifiers": [
+    {"when": {"work_scope_any": ["fire_services"]}, "boost": {"compliance-approvals": 0.10}},
+    {"when": {"risk_flag": "live_operations"}, "boost": {"risks": 0.05}},
+    {"when": {"risk_flag": "heritage_adaptive_reuse"}, "boost": {"compliance-approvals": 0.05}},
+    {"when": {"risk_flag": "critical_infrastructure"}, "boost": {"compliance-approvals": 0.04, "risks": 0.03}},
+    {"when": {"risk_flag": "contaminated_land"}, "boost": {"compliance-approvals": 0.05, "risks": 0.04}},
+    {"when": {"work_type": "remediation"}, "boost": {"compliance-approvals": 0.08, "risks": 0.05}},
+    {"when": {"work_type": "advisory"}, "boost": {"actions-decisions": 0.04}}
+  ]
+}

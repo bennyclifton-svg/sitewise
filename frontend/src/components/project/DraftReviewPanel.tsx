@@ -286,7 +286,7 @@ export function DraftReviewPanel({
         ) : null}
       </header>
 
-      <WorkflowTracePanel trace={trace} emptyMessage="No persisted trace recorded for this draft." />
+      <WorkflowTracePanel trace={trace} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ReferenceList title="Seed consulted" items={seed} />

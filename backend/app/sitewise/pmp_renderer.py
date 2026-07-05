@@ -14,6 +14,8 @@ from app.sitewise.mobilisation_evidence import (
     MobilisationEvidencePack,
     build_evidence_map_rows,
     build_evidence_on_file_lines,
+    has_engagement_evidence,
+    has_fee_proposal_evidence,
     pack_has_gap,
 )
 from app.sitewise.pmp_greenfield_brief import (
@@ -226,19 +228,38 @@ def _render_project_overview(project: Project, pack: MobilisationEvidencePack) -
             f"Site: {pack.site_address or 'TBC'}.",
             _labeled_field("Dwelling", pack.dwelling_summary),
             _labeled_field("Site constraints", pack.site_constraints),
-            f"Mobilisation: post-engagement (engagement executed {pack.engagement_executed_date or 'TBC'}).",
+            (
+                f"Mobilisation: post-engagement (engagement executed "
+                f"{pack.engagement_executed_date or 'TBC'})."
+                if has_engagement_evidence(pack)
+                else "Mobilisation: pre-engagement — executed engagement letter not on file."
+            ),
             budget_line,
         ]
     )
 
 
 def _render_role_and_appointment(pack: MobilisationEvidencePack) -> str:
-    scope_lines = pack.scope_bullets or ["Scope per engagement letter."]
+    engaged = has_engagement_evidence(pack)
+    if pack.scope_bullets:
+        scope_lines = pack.scope_bullets
+    elif engaged:
+        scope_lines = ["Scope per engagement letter."]
+    else:
+        scope_lines = [
+            "Scope of services not evidenced — obtain and file the executed engagement letter."
+        ]
+    architect_row = (
+        "| Architect / PM (advisory) | Yes | Per executed engagement letter |"
+        if engaged
+        else "| Architect / PM (advisory) | Declared (project overlay) | "
+        "Engagement letter not on file — obtain and file |"
+    )
     role_table = "\n".join(
         [
             "| Role | Appointed | Notes |",
             "| --- | --- | --- |",
-            "| Architect / PM (advisory) | Yes | Per executed engagement letter |",
+            architect_row,
             "| Superintendent | No | Not appointed unless separately agreed |",
             "| Certifier | No | Owner to appoint |",
             "| Contract administrator | Per engagement | CA during construction; not Superintendent |",
@@ -265,7 +286,11 @@ def _render_role_and_appointment(pack: MobilisationEvidencePack) -> str:
             role_table,
             "",
             f"Appointee: {pack.appointee or 'TBC'}. Roles: {pack.roles or 'TBC'}.",
-            f"Engagement executed on file ({pack.engagement_executed_date or 'TBC'}).",
+            (
+                f"Engagement executed on file ({pack.engagement_executed_date or 'TBC'})."
+                if engaged
+                else "Engagement letter not on file — engagement status unverified."
+            ),
             "",
             "**Scope of services (engagement letter):**",
             _bullet_lines(scope_lines),
@@ -289,17 +314,31 @@ def _render_two_brief_discipline(pack: MobilisationEvidencePack) -> str:
             f"**Owner project brief (on file):** scope, budget, and programme aspirations per "
             f"signed owner brief{signed}."
         )
-    else:
+    elif has_fee_proposal_evidence(pack):
         owner_brief_line = (
             "**Owner project brief:** draft from fee proposal project understanding — "
             "**pending owner formal sign-off**."
+        )
+    else:
+        owner_brief_line = (
+            "**Owner project brief:** to be drafted with the owner — "
+            "**pending owner formal sign-off**."
+        )
+    if has_engagement_evidence(pack):
+        engagement_brief_line = (
+            "**Engagement brief (on file):** fee, scope, PMP, governance, reporting, and procurement "
+            "services per executed engagement letter and fee proposal."
+        )
+    else:
+        engagement_brief_line = (
+            "**Engagement brief:** not evidenced — executed engagement letter and fee proposal "
+            "to be obtained and filed."
         )
     return "\n".join(
         [
             "## Two-brief discipline",
             "",
-            "**Engagement brief (on file):** fee, scope, PMP, governance, reporting, and procurement "
-            "services per executed engagement letter and fee proposal.",
+            engagement_brief_line,
             owner_brief_line,
             "Extra tender round = engagement variation; material scope change = owner project brief "
             "+ decision register entry.",
@@ -336,7 +375,13 @@ def _render_governance(pack: MobilisationEvidencePack) -> str:
             "**Decision gates:**",
             gates,
             "",
-            f"Owner approval rule (engagement letter): {pack.owner_approval_rule or 'Written approval required.'}",
+            (
+                f"Owner approval rule (engagement letter): "
+                f"{pack.owner_approval_rule or 'Written approval required.'}"
+                if has_engagement_evidence(pack)
+                else "Owner approval rule: written approval required for material decisions "
+                "(to be confirmed in the engagement letter once on file)."
+            ),
             "All decisions append-only under `08-meetings-reporting/`.",
         ]
     )
@@ -365,10 +410,21 @@ def _render_communications(pack: MobilisationEvidencePack) -> str:
 
 
 def _render_fee_services(pack: MobilisationEvidencePack) -> str:
-    exclusions = pack.service_exclusions or "Per engagement letter exclusions."
+    engaged = has_engagement_evidence(pack)
+    if pack.service_exclusions:
+        exclusions = pack.service_exclusions
+    elif engaged:
+        exclusions = "Per engagement letter exclusions."
+    else:
+        exclusions = "Not evidenced — no executed engagement letter on file."
+    fee_line = (
+        f"Fixed fee {pack.fee_total_ex_gst or 'TBC'} ex GST, staged per engagement letter."
+        if engaged
+        else "Fixed fee not evidenced — no executed engagement letter on file."
+    )
     procurement_notes = _bullet_lines(
         [
-            f"Fixed fee {pack.fee_total_ex_gst or 'TBC'} ex GST, staged per engagement letter.",
+            fee_line,
             f"Disbursements: {pack.disbursements or 'TBC'}.",
             f"Invited builders: {pack.invited_builder_count or 'TBC'}; "
             f"formal head-builder tenders: {pack.formal_tender_count or 'TBC'}.",
@@ -402,7 +458,15 @@ def _render_scope_change(pack: MobilisationEvidencePack) -> str:
             "",
             _labeled_field(scope_prefix, pack.dwelling_summary),
             _labeled_field("Site / planning constraints", pack.site_constraints),
-            f"Service exclusions: {pack.service_exclusions or 'Per engagement letter.'}",
+            "Service exclusions: "
+            + (
+                pack.service_exclusions
+                or (
+                    "Per engagement letter."
+                    if has_engagement_evidence(pack)
+                    else "Not evidenced — no executed engagement letter on file."
+                )
+            ),
             "Project-scope change = owner decision + brief update; service-scope change = engagement variation.",
         ]
     )
@@ -511,9 +575,16 @@ def _render_programme(pack: MobilisationEvidencePack, user_role: str) -> str:
 
 def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
     if pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET):
-        budget_line = (
-            "Assumption: construction budget not evidenced — owner to confirm working budget ceiling."
-        )
+        if pack.builder_quotes:
+            budget_line = (
+                "Assumption: construction budget not evidenced — owner to confirm working "
+                "budget ceiling. Unverified builder pricing is on file (below) as a market "
+                "signal only; it is not an owner budget."
+            )
+        else:
+            budget_line = (
+                "Assumption: construction budget not evidenced — owner to confirm working budget ceiling."
+            )
     elif pack.construction_budget_ceiling:
         budget_line = (
             f"Construction budget confirmed — {pack.construction_budget_ceiling} working ceiling "
@@ -521,6 +592,9 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
         )
     else:
         budget_line = "Construction budget confirmed per owner project brief."
+    quote_block: list[str] = []
+    if pack.builder_quotes:
+        quote_block = ["", "**Builder pricing on file (unverified):**", _bullet_lines(pack.builder_quotes)]
     missing = ["elemental cost plan", "tender evaluation matrix"]
     if pack_has_gap(pack, GAP_MASTER_PROGRAMME):
         missing.insert(1, "master programme")
@@ -532,6 +606,7 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
             "HIA elemental / residential cost plan posture: contingency 5–10%; PC sums and "
             "owner-supplied items tracked separately.",
             budget_line,
+            *quote_block,
             "",
             "**Head-builder procurement:**",
             _bullet_lines(
@@ -572,8 +647,13 @@ def _render_consultant_coordination(pack: MobilisationEvidencePack) -> str:
         [
             "| Discipline | Appointed | Status | Notes |",
             "| --- | --- | --- | --- |",
-            f"| Architect / PM ({pack.appointee or 'Architect-PM'}) | Yes | Executed "
-            f"{pack.engagement_executed_date or 'TBC'} | Engagement letter on file |",
+            (
+                f"| Architect / PM ({pack.appointee or 'Architect-PM'}) | Yes | Executed "
+                f"{pack.engagement_executed_date or 'TBC'} | Engagement letter on file |"
+                if has_engagement_evidence(pack)
+                else f"| Architect / PM ({pack.appointee or 'Architect-PM'}) | Declared | "
+                "Assumption | Engagement letter not on file |"
+            ),
             "| Structural engineer | No | Assumption | Not yet appointed |",
             "| Hydraulic / BASIX | No | Assumption | Not yet appointed |",
             "| Surveyor | No | Assumption | Not yet appointed |",
@@ -620,9 +700,16 @@ def _render_risks_skeleton(project: Project, pack: MobilisationEvidencePack) -> 
 
 def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[str]:
     """Facts for internal audit — brief and budget precede fee/pathway when evidenced."""
+    engaged = has_engagement_evidence(pack)
     holder = pack.pi_holder or "Architect-PM"
     facts: list[str] = [
-        f"{holder} engaged as architect-PM; engagement executed {pack.engagement_executed_date or 'TBC'}.",
+        (
+            f"{holder} engaged as architect-PM; engagement executed "
+            f"{pack.engagement_executed_date or 'TBC'}."
+            if engaged
+            else "Architect-PM role declared on the project record; executed engagement "
+            "letter not on file."
+        ),
     ]
     if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF):
         signed = pack.owner_brief_signed_date or "on file"
@@ -631,12 +718,14 @@ def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[st
         facts.append(
             f"Construction budget confirmed {pack.construction_budget_ceiling} working ceiling."
         )
-    facts.extend(
-        [
-            f"Fixed fee {pack.fee_total_ex_gst or 'TBC'} ex GST on staged triggers per engagement letter.",
-            f"DA pathway: {pack.planning_pathway or 'TBC'}.",
-        ]
-    )
+    for quote in pack.builder_quotes:
+        facts.append(quote)
+    if engaged:
+        facts.append(
+            f"Fixed fee {pack.fee_total_ex_gst or 'TBC'} ex GST on staged triggers "
+            "per engagement letter."
+        )
+    facts.append(f"DA pathway: {pack.planning_pathway or 'TBC'}.")
     if pack.target_da_lodgement:
         facts.append(f"Target DA lodgement {pack.target_da_lodgement} per engagement letter.")
     return facts[:5]

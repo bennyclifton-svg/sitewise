@@ -28,15 +28,11 @@ export function ProjectLeftNav({
   projects,
   projectsLoading,
   platformStatus,
-  onSelectWorkspacePath,
-  onOpenWorkflow,
 }: {
   project: ProjectDetail;
   projects: ProjectSummary[];
   projectsLoading: boolean;
   platformStatus: PlatformKnowledgeStatus | null;
-  onSelectWorkspacePath: (path: string) => void;
-  onOpenWorkflow: (workflowId: string) => void;
 }) {
   const { onResizeLeftPanel } = useCockpitShellResize();
   const [openSections, setOpenSections] = useState<Set<NavSectionId>>(
@@ -99,11 +95,7 @@ export function ProjectLeftNav({
             isOpen={openSections.has("activity")}
             onToggle={() => toggleSection("activity")}
           >
-            <ActivityFeed
-              projectId={project.id}
-              onSelectWorkspacePath={onSelectWorkspacePath}
-              onOpenWorkflow={onOpenWorkflow}
-            />
+            <ActivityFeed projectId={project.id} />
           </NavAccordionSection>
 
           <NavAccordionSection

@@ -215,8 +215,12 @@ const previewProjects = [previewProject];
 
 export function CockpitPreviewPage() {
   const [activeView, setActiveView] = useState<ProjectNavView>("workbench");
-  const [selectedEvidenceId, setSelectedEvidenceId] = useState(previewEvidence[0].id);
-  const [selectedWorkspacePath, setSelectedWorkspacePath] = useState(previewWorkspaceTree[0].path);
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(
+    previewEvidence[0].id,
+  );
+  const [selectedWorkspacePath, setSelectedWorkspacePath] = useState(
+    previewWorkspaceTree[0].path,
+  );
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("create-pmp");
   const selectedEvidence =
     previewEvidence.find((item) => item.id === selectedEvidenceId) ?? previewEvidence[0];

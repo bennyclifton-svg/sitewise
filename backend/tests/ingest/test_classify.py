@@ -76,10 +76,21 @@ def test_classify_site_plan_as_drawing():
     assert classification.ingest_mode == "register_only"
 
 
-def test_router_selects_pdf_drawing_extractor():
+def test_router_selects_odl_for_drawing_pdf():
     entry = _entry("delivery-bankstown/09 Hydraulic/H-102 [D].pdf")
     context = infer_project_context(entry.relative_path)
     classification = classify_entry(entry)
     plan = build_ingest_plan(entry, context, classification)
-    assert plan.extractor == "pdf_drawing"
+    assert plan.extractor == "pdf_odl"
     assert plan.chunker == "register"
+
+
+def test_router_selects_odl_for_project_pdf_upload():
+    entry = _entry("04-projects/caves-beach-reno/_inbox/Kaposi.pdf")
+    context = infer_project_context(entry.relative_path)
+    classification = classify_entry(entry)
+
+    plan = build_ingest_plan(entry, context, classification)
+
+    assert plan.extractor == "pdf_odl"
+    assert plan.chunker == "prose"

@@ -127,7 +127,8 @@ def test_extract_mobilisation_evidence_pack_empty_source_texts() -> None:
 
     assert isinstance(pack, MobilisationEvidencePack)
     assert pack.owners is None
-    assert len(pack.gaps) == 5
+    assert len(pack.gaps) == 6
+    assert pack.gaps[0] == "Executed engagement letter"
     assert pack.evidence_refs == [ENGAGEMENT_REF]
 
 

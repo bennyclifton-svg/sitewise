@@ -10,6 +10,7 @@ GLOBAL_EVIDENCE_CONTRADICTIONS: tuple[str, ...] = (
     "project evidence: none",
     "project evidence — none",
     "project evidence - none",
+    "mobilisation evidence not yet indexed",
 )
 
 PROJECT_OVERVIEW_CONTRADICTIONS: tuple[str, ...] = (
@@ -650,6 +651,51 @@ def _anchor_present(anchor: str, haystack: str) -> bool:
     return False
 
 
+# Evidence-map refs that name a document type must be corroborated by the
+# corpus text — a "Grounded" claim citing a document nobody uploaded is the
+# §evidence-discipline failure this validator exists to catch.
+_EVIDENCE_MAP_REF_MARKERS: dict[str, tuple[str, ...]] = {
+    "engagement letter": ("letter of engagement", "engagement letter"),
+    "fee proposal": ("fee proposal", "project understanding"),
+    "owner project brief": ("project brief", "owner brief"),
+    "geotechnical report": ("geotech", "site classification", "soil classification", "as 2870"),
+    "certifier appointment": ("certifier",),
+    "master programme": ("master programme", "master program"),
+}
+
+_EVIDENCE_MAP_ROW_PATTERN = re.compile(
+    r"^\|\s*(?P<section>[^|]+?)\s*\|\s*(?P<status>[^|]+?)\s*\|\s*(?P<ref>[^|]+?)\s*\|\s*$",
+    re.MULTILINE,
+)
+
+
+def evidence_map_claim_violations(
+    markdown: str,
+    source_texts: list[str],
+) -> list[str]:
+    """Flag evidence-map rows whose Grounded/Partial claim cites an absent document."""
+    evidence_basis = _markdown_section(markdown, "Evidence basis and document control")
+    if not evidence_basis:
+        return []
+    corpus_lower = "\n".join(source_texts).lower()
+    violations: list[str] = []
+    for match in _EVIDENCE_MAP_ROW_PATTERN.finditer(evidence_basis):
+        status = match.group("status").strip().lower()
+        ref = match.group("ref").strip().lower()
+        if status in {"evidence status", "---", "not evidenced"}:
+            continue
+        markers = _EVIDENCE_MAP_REF_MARKERS.get(ref)
+        if markers is None:
+            continue
+        if not any(marker in corpus_lower for marker in markers):
+            violations.append(
+                f"evidence map row {match.group('section').strip()!r} claims "
+                f"{match.group('status').strip()!r} via {ref!r} but no such document "
+                "is in the indexed evidence"
+            )
+    return violations
+
+
 def evidence_grounded_violations(
     markdown: str,
     evidence_refs: list[str],
@@ -710,6 +756,9 @@ def evidence_grounded_violations(
             "Evidence basis section must include an evidence map table "
             "(| Section | Evidence status | Ref |)"
         )
+
+    if source_texts:
+        violations.extend(evidence_map_claim_violations(markdown, source_texts))
 
     facts = _audit_label_items(markdown, "Facts")
     grounded_facts = [item for item in facts if "assumption" not in item.lower()]

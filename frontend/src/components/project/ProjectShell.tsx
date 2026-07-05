@@ -98,7 +98,7 @@ export function ProjectShell({
         )}
         style={shellColumns ? { gridTemplateColumns: shellColumns } : undefined}
       >
-        <aside className="relative min-w-0 border-b bg-background lg:h-full lg:min-h-0 lg:overflow-hidden lg:border-b-0">
+        <aside className="project-left-nav relative min-w-0 overflow-hidden border-b bg-background lg:h-full lg:min-h-0 lg:border-b-0">
           <CockpitShellResizeProvider
             onResizeLeftPanel={largeLayout ? resizeLeftPanel : undefined}
           >
@@ -106,14 +106,20 @@ export function ProjectShell({
           </CockpitShellResizeProvider>
         </aside>
 
-        <main className="relative flex min-h-[48rem] min-w-0 flex-col bg-background lg:h-full lg:min-h-0 lg:max-h-full">
+        <main className="project-main-panel relative flex min-h-[48rem] min-w-0 flex-col overflow-hidden bg-background lg:h-full lg:min-h-0 lg:max-h-full">
           <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
             <button
               type="button"
-              className="hidden text-xs text-muted-foreground transition-colors hover:text-foreground lg:inline"
+              className="group relative hidden px-4 py-1.5 lg:inline"
               onClick={onShowWorkbench}
             >
-              Workbench
+              <span
+                aria-hidden
+                className="absolute inset-0 border border-border [clip-path:polygon(0.5rem_0,100%_0,calc(100%-0.5rem)_100%,0_100%)] transition-colors group-hover:border-foreground/50"
+              />
+              <span className="relative block text-[1.125rem] font-medium leading-none text-muted-foreground transition-colors group-hover:text-foreground">
+                SiteWise
+              </span>
             </button>
             <div className="ml-auto flex items-center gap-1">
               <Button
@@ -140,7 +146,7 @@ export function ProjectShell({
 
         <aside
           className={cn(
-            "relative min-w-0 border-t bg-background lg:h-full lg:min-h-0 lg:overflow-hidden lg:border-t-0",
+            "project-side-panel relative min-w-0 overflow-hidden border-t bg-background lg:h-full lg:min-h-0 lg:border-t-0",
             repoCollapsed && "cockpit-panel-collapsed max-lg:hidden",
           )}
         >

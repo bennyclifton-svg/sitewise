@@ -15,3 +15,4 @@ class ExtractedDocument:
     page_count: int | None = None
     pages: list[PageText] = field(default_factory=list)
     drawing_identity: DrawingIdentity | None = None
+    extraction_metadata: dict[str, object] = field(default_factory=dict)

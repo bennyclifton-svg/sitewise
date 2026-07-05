@@ -27,6 +27,7 @@ import type {
 import type {
   CreateCostPlanResponse,
   CreatePmpResponse,
+  DeleteProjectActivityResponse,
   SortFilesResponse,
   CreateProjectInput,
   DraftArtifact,
@@ -367,6 +368,20 @@ export const api = {
     api.get<ProjectActivityResponse>(
       `/projects/${projectId}/activity${since ? `?since=${encodeURIComponent(since)}` : ""}`,
     ),
+
+  deleteProjectActivityRuns: async (
+    projectId: string,
+    runIds: string[],
+  ): Promise<number> => {
+    const response = await apiRequest<DeleteProjectActivityResponse>(
+      `/projects/${projectId}/activity`,
+      {
+        method: "DELETE",
+        body: { run_ids: runIds },
+      },
+    );
+    return response.deleted;
+  },
 
   getWorkbookPreview: async (
     projectId: string,

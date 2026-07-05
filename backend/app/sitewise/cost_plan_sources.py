@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from app.sitewise.pmp_sources import (
-    ARCHETYPE_SEED_PATHS,
-    DOCTRINE_PATH,
-    ROLE_SEED_PATHS,
-)
+from app.sitewise.pmp_sources import DOCTRINE_PATH
 
 RESIDENTIAL_ARCHETYPES: frozenset[str] = frozenset(
     {"new-dwelling", "renovation", "multi-dwelling", "ancillary"}

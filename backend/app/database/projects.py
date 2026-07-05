@@ -67,8 +67,17 @@ async def create_project(
     user_role: str | None,
     state: str | None,
     phase: str,
+    building_class: str | None = None,
+    work_type: str | None = None,
+    taxonomy: dict | None = None,
 ) -> Project:
     project_slug = await unique_project_slug(session, user_id, slug or title)
+    project_metadata = {
+        "source": "hosted-create-project",
+        "workspace_model": "sitewise-template-v1",
+    }
+    if taxonomy is not None:
+        project_metadata["taxonomy"] = taxonomy
     project = Project(
         owner_user_id=user_id,
         slug=project_slug,
@@ -76,13 +85,12 @@ async def create_project(
         workspace_path=f"04-projects/{project_slug}",
         phase=phase,
         archetype=archetype,
+        building_class=building_class,
+        work_type=work_type,
         user_role=user_role,
         state=state,
         status="active",
-        project_metadata={
-            "source": "hosted-create-project",
-            "workspace_model": "sitewise-template-v1",
-        },
+        project_metadata=project_metadata,
     )
     session.add(project)
     await session.flush()

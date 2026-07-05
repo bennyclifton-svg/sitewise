@@ -82,7 +82,7 @@ def test_merged_metadata_parses_electrical_windows_short_name_from_title_block()
     from ingest.classify import classify_entry
 
     plan = build_ingest_plan(entry, context, classify_entry(entry))
-    assert plan.extractor == "pdf_drawing"
+    assert plan.extractor == "pdf_odl"
     extracted = ExtractedDocument(
         normalized_content=(
             "# Drawing register: E01-EL~1.PDF\n\n"
@@ -121,6 +121,30 @@ def test_merged_metadata_preserves_classification_keys() -> None:
     assert metadata.get("procurement_stage") == "evaluation"
     assert "document_number" in metadata
     assert metadata["filename"] == entry.filename
+
+
+def test_merged_metadata_does_not_title_specification_from_nested_ctmp_text() -> None:
+    entry = _entry("04-projects/kellyville-2-story/_inbox/Specification.docx")
+    context = infer_project_context(entry.relative_path)
+    from ingest.classify import classify_entry
+
+    plan = build_ingest_plan(entry, context, classify_entry(entry))
+    assert plan.classification.document_class == "specification"
+    extracted = ExtractedDocument(
+        normalized_content=(
+            "Construction Traffic Management Plan\n"
+            "Reference No. TMP-22372-FINAL\n"
+            "Revision 2\n\n"
+            "Kitchen benchtops are Caesarstone reconstituted stone."
+        )
+    )
+
+    metadata = _merged_metadata(plan, extracted)
+
+    assert metadata["title"] == "Specification"
+    assert metadata["document_number"] == ""
+    assert metadata["metadata_confidence"] == "low"
+    assert metadata["canonical_file_name"] == "Specification.docx"
 
 
 def test_merged_metadata_uses_first_page_when_no_title_block() -> None:

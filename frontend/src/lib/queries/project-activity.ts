@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { ProjectActivityResponse } from "@/lib/types/project";
@@ -20,6 +20,50 @@ export function useProjectActivity(
     refetchInterval: (query) =>
       hasRunningRun(query.state.data) ? ACTIVITY_POLL_MS : false,
     staleTime: 0,
+  });
+}
+
+export function useDeleteProjectActivityRuns(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (runIds: string[]) =>
+      api.deleteProjectActivityRuns(projectId, runIds),
+    onMutate: async (runIds) => {
+      await queryClient.cancelQueries({
+        queryKey: projectActivityKeys.root(projectId),
+      });
+      const previous = queryClient.getQueryData<ProjectActivityResponse>(
+        projectActivityKeys.root(projectId),
+      );
+      const runIdSet = new Set(runIds);
+      queryClient.setQueryData<ProjectActivityResponse>(
+        projectActivityKeys.root(projectId),
+        (current) => {
+          if (!current) return current;
+          const runs = current.runs.filter((run) => !runIdSet.has(run.run_id));
+          return {
+            ...current,
+            runs,
+            newest_created_at: runs[0]?.updated_at ?? null,
+          };
+        },
+      );
+      return { previous };
+    },
+    onError: (_error, _runIds, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData<ProjectActivityResponse>(
+          projectActivityKeys.root(projectId),
+          context.previous,
+        );
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: projectActivityKeys.root(projectId),
+      });
+    },
   });
 }
 

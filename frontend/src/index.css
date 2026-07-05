@@ -305,6 +305,128 @@
     background: var(--bg-app);
   }
 
+  .project-left-nav {
+    background: var(--background);
+  }
+
+  .dark .project-left-nav {
+    isolation: isolate;
+    color: #f8fafc;
+    border-color: rgb(255 255 255 / 0.075);
+    background-color: #050607;
+    --background: rgb(5 6 7 / 0.58);
+    --foreground: #f8fafc;
+    --card: rgb(5 6 7 / 0.54);
+    --card-foreground: #f8fafc;
+    --secondary: rgb(15 23 42 / 0.46);
+    --secondary-foreground: #e5e7eb;
+    --muted: rgb(255 255 255 / 0.055);
+    --muted-foreground: #98a2b3;
+    --accent: rgb(16 185 129 / 0.09);
+    --accent-foreground: #99f6e4;
+    --border: rgb(255 255 255 / 0.075);
+    --input: rgb(255 255 255 / 0.105);
+    --ring: rgb(34 211 238 / 0.28);
+    --primary: #67e8f9;
+    --primary-foreground: #031314;
+    --text-primary: #f8fafc;
+    --text-body: #d4dce8;
+    --text-muted: #98a2b3;
+    --text-faint: #667085;
+  }
+
+  .dark .project-left-nav::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 118% 38% at 50% -15%, rgb(34 211 238 / 0.19), transparent 62%),
+      radial-gradient(ellipse 82% 34% at 8% -12%, rgb(16 185 129 / 0.14), transparent 58%),
+      radial-gradient(ellipse 86% 36% at 96% -14%, rgb(99 102 241 / 0.13), transparent 64%),
+      linear-gradient(180deg, #0b1018 0%, #050607 46%, #020303 100%);
+  }
+
+  .dark .project-left-nav::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.86;
+    background-image:
+      radial-gradient(circle at 52% 0%, rgb(255 255 255 / 0.055), transparent 26%),
+      radial-gradient(circle at 18% 7%, rgb(16 185 129 / 0.045), transparent 25%),
+      radial-gradient(circle at 86% 4%, rgb(99 102 241 / 0.045), transparent 27%),
+      linear-gradient(180deg, rgb(0 0 0 / 0.18) 0%, rgb(0 0 0 / 0.52) 58%, rgb(0 0 0 / 0.76) 100%);
+    mask-image: linear-gradient(to bottom, black, rgb(0 0 0 / 0.92) 42%, black);
+  }
+
+  .project-left-nav > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .project-main-panel,
+  .project-side-panel {
+    background: var(--background);
+  }
+
+  .dark .project-main-panel,
+  .dark .project-side-panel {
+    isolation: isolate;
+    color: #f8fafc;
+    background-color: #050607;
+    --background: rgb(5 6 7 / 0.92);
+    --foreground: #f8fafc;
+    --card: rgb(7 9 12 / 0.84);
+    --card-foreground: #f8fafc;
+    --secondary: rgb(15 23 42 / 0.36);
+    --secondary-foreground: #e5e7eb;
+    --muted: rgb(255 255 255 / 0.045);
+    --muted-foreground: #98a2b3;
+    --accent: rgb(34 211 238 / 0.055);
+    --accent-foreground: #a5f3fc;
+    --border: rgb(255 255 255 / 0.07);
+    --input: rgb(255 255 255 / 0.095);
+    --ring: rgb(34 211 238 / 0.24);
+    --text-primary: #f8fafc;
+    --text-body: #d4dce8;
+    --text-muted: #98a2b3;
+    --text-faint: #667085;
+  }
+
+  .dark .project-main-panel::before,
+  .dark .project-side-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 88% 22% at 48% -10%, rgb(34 211 238 / 0.075), transparent 68%),
+      radial-gradient(ellipse 70% 20% at 86% -12%, rgb(99 102 241 / 0.055), transparent 70%),
+      linear-gradient(180deg, #070a0e 0%, #050607 42%, #030404 100%);
+  }
+
+  .dark .project-main-panel::after,
+  .dark .project-side-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgb(0 0 0 / 0.1) 0%, rgb(0 0 0 / 0.28) 58%, rgb(0 0 0 / 0.42) 100%);
+  }
+
+  .project-main-panel > *,
+  .project-side-panel > * {
+    position: relative;
+    z-index: 1;
+  }
+
   @media (min-width: 1024px) {
     .cockpit-shell {
       height: 100%;

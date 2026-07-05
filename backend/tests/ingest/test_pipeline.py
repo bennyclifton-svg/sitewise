@@ -75,11 +75,18 @@ def test_ingest_plan_chunks_and_embeds_reports(
     entry = _entry("procurement-blockb/06 EVALUATION/matrix.pdf", extension=".pdf")
     plan = plan_entry(entry)
     chunk = MagicMock(content="Report section")
-    mock_extract.return_value = MagicMock(normalized_content="Report content")
+    mock_extract.return_value = MagicMock(
+        normalized_content="Report content",
+        pages=[],
+        extraction_metadata={"pdf_extraction_source": "text_layer_fallback"},
+    )
     mock_chunk.return_value = [chunk]
+    events = []
 
-    assert ingest_plan(plan, skip_if_unchanged=False) is True
+    assert ingest_plan(plan, skip_if_unchanged=False, trace_callback=lambda *args: events.append(args)) is True
 
     mock_chunk.assert_called_once()
     mock_embed.assert_called_once_with(["Report section"])
     mock_persist.assert_called_once()
+    extract_event = next(event for event in events if event[0] == "extract")
+    assert extract_event[3]["pdf_extraction_source"] == "text_layer_fallback"

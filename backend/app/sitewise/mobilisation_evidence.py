@@ -77,6 +77,28 @@ GAP_CONSTRUCTION_BUDGET = "Construction budget"
 GAP_GEOTECHNICAL = "Geotechnical report"
 GAP_CERTIFIER = "Certifier appointment"
 GAP_MASTER_PROGRAMME = "Master programme on file"
+GAP_ENGAGEMENT = "Executed engagement letter"
+
+_QUOTE_SIGNAL_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bprice\s+estimate\b", re.IGNORECASE),
+    re.compile(r"\bquotation\b", re.IGNORECASE),
+    re.compile(r"\bbuilder'?s?\s+margin\b", re.IGNORECASE),
+    re.compile(r"\bschedule\s+of\s+rates\b", re.IGNORECASE),
+)
+_MONEY_PATTERN = re.compile(r"\$?\s*([\d]{1,3}(?:,\d{3})+(?:\.\d{2})?)")
+_QUOTE_EX_GST_PATTERN = re.compile(
+    r"EXC?\.?\s*GST\s*\n*\s*\$?\s*([\d]{1,3}(?:,\d{3})+(?:\.\d{2})?)",
+    re.IGNORECASE,
+)
+_QUOTE_MARGIN_PATTERN = re.compile(
+    r"(?:PLUS\s+)?(\d+(?:\.\d+)?)\s*%\s*BUILDER'?S?\s*MARGIN\s*\n*\s*\$?\s*"
+    r"([\d]{1,3}(?:,\d{3})+(?:\.\d{2})?)",
+    re.IGNORECASE,
+)
+_QUOTE_EXCLUSION_BLOCK_PATTERN = re.compile(
+    r"(?:does\s+not\s+includ|not\s+included|exclusions?)[^\n]*\n(.+)\Z",
+    re.IGNORECASE | re.DOTALL,
+)
 
 STANDARD_GAP_CHECKS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
@@ -185,6 +207,9 @@ class MobilisationEvidencePack(BaseModel):
 
     builder_rom: str | None = None
     heritage_advice: str | None = None
+
+    builder_quotes: list[str] = Field(default_factory=list)
+    other_evidence: list[str] = Field(default_factory=list)
 
     gaps: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
@@ -596,6 +621,98 @@ def _owner_brief_on_file(combined_text: str, gaps: list[str]) -> bool:
     )
 
 
+def has_engagement_evidence(pack: MobilisationEvidencePack) -> bool:
+    """True when engagement-letter content was actually found in the corpus."""
+    return any(
+        (
+            pack.engagement_letter_date,
+            pack.engagement_executed_date,
+            pack.appointee,
+            pack.roles,
+            pack.scope_bullets,
+            pack.fee_stages,
+        )
+    )
+
+
+def has_fee_proposal_evidence(pack: MobilisationEvidencePack) -> bool:
+    """True when fee-proposal content was actually found in the corpus."""
+    return any(
+        (
+            pack.fee_proposal_date,
+            pack.dwelling_summary,
+            pack.conflict_disclosure,
+        )
+    )
+
+
+def _is_engagement_or_fee_text(text: str) -> bool:
+    lowered = text.lower()
+    if "letter of engagement" in lowered:
+        return True
+    if "scope of services" in lowered and "fee basis" in lowered:
+        return True
+    return "fee proposal" in lowered or "project understanding" in lowered
+
+
+def _parse_money(raw: str) -> float:
+    return float(raw.replace(",", ""))
+
+
+def _quote_exclusion_items(text: str) -> list[str]:
+    block_match = _QUOTE_EXCLUSION_BLOCK_PATTERN.search(text)
+    if not block_match:
+        return []
+    items: list[str] = []
+    for match in _NUMBERED_LIST_ITEM.finditer(block_match.group(1)):
+        item = " ".join(match.group(1).split()).rstrip(".")
+        if item and len(item) < 80:
+            items.append(item)
+    return items
+
+
+def extract_builder_quote_summary(text: str, label: str) -> str | None:
+    """Summarise a builder price estimate / quotation deterministically.
+
+    A quote is recognised by content signals (price estimate, quotation,
+    builder margin, schedule of rates) plus a material dollar amount. The
+    summary states the headline pricing and flags exclusions as unpriced
+    latent-condition risks — market pricing signal, never an owner budget.
+    """
+    signals = sum(1 for pattern in _QUOTE_SIGNAL_PATTERNS if pattern.search(text))
+    amounts = [_parse_money(raw) for raw in _MONEY_PATTERN.findall(text)]
+    headline = max(amounts, default=0.0)
+    if signals < 1 or headline < 10_000:
+        return None
+    if signals < 2 and "stage" not in text.lower():
+        return None
+
+    parts: list[str] = []
+    ex_gst_match = _QUOTE_EX_GST_PATTERN.search(text)
+    margin_match = _QUOTE_MARGIN_PATTERN.search(text)
+    if ex_gst_match and margin_match:
+        parts.append(
+            f"${ex_gst_match.group(1)} ex GST "
+            f"(${margin_match.group(2)} incl {margin_match.group(1)}% builder margin)"
+        )
+    elif ex_gst_match:
+        parts.append(f"${ex_gst_match.group(1)} ex GST")
+    else:
+        parts.append(f"headline amount ${headline:,.2f}")
+
+    if "stage" in text.lower():
+        parts.append("staged trade breakdown")
+
+    exclusions = _quote_exclusion_items(text)
+    if exclusions:
+        shown = "; ".join(exclusions[:4])
+        parts.append(
+            f"{len(exclusions)} excluded items ({shown}, …) — unpriced latent-condition risks"
+        )
+
+    return f"Builder price estimate on file ({label}) — " + "; ".join(parts) + "."
+
+
 def pack_has_gap(pack: MobilisationEvidencePack, gap_label: str) -> bool:
     """Return True when a standard mobilisation gap remains open."""
     return gap_label in pack.gaps
@@ -633,18 +750,44 @@ def build_evidence_on_file_lines(pack: MobilisationEvidencePack) -> list[str]:
         lines.append("Principal certifier appointed.")
     if not pack_has_gap(pack, GAP_MASTER_PROGRAMME):
         lines.append("Master programme on file.")
+    lines.extend(pack.builder_quotes)
+    lines.extend(pack.other_evidence)
+    if not lines and pack.evidence_refs:
+        # Evidence exists even when nothing matched the mobilisation checklist —
+        # never report an indexed corpus as "not yet indexed".
+        lines.append(
+            f"{len(pack.evidence_refs)} evidence document(s) on file — not matched to the "
+            "mobilisation checklist; review content and file to the correct folder."
+        )
     return lines
 
 
 def build_evidence_map_rows(pack: MobilisationEvidencePack) -> list[tuple[str, str, str]]:
-    """Return (section, status, ref) tuples for the evidence map table."""
+    """Return (section, status, ref) tuples for the evidence map table.
+
+    A row may only claim Grounded/Partial when the underlying evidence was
+    actually extracted from the corpus — never from template defaults.
+    """
     brief_grounded = pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF)
     budget_grounded = not pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET)
-    project_understanding_status = "Grounded" if brief_grounded else "Partial"
-    project_understanding_ref = "owner project brief" if brief_grounded else "fee proposal"
+    engagement_grounded = has_engagement_evidence(pack)
 
-    return [
-        ("Appointment & fee", "Grounded", "engagement letter"),
+    if brief_grounded:
+        project_understanding_status, project_understanding_ref = (
+            "Grounded",
+            "owner project brief",
+        )
+    elif has_fee_proposal_evidence(pack):
+        project_understanding_status, project_understanding_ref = "Partial", "fee proposal"
+    else:
+        project_understanding_status, project_understanding_ref = "Not evidenced", "—"
+
+    rows = [
+        (
+            "Appointment & fee",
+            "Grounded" if engagement_grounded else "Not evidenced",
+            "engagement letter" if engagement_grounded else "—",
+        ),
         ("Project understanding", project_understanding_status, project_understanding_ref),
         (
             "Construction budget",
@@ -672,6 +815,15 @@ def build_evidence_map_rows(pack: MobilisationEvidencePack) -> list[tuple[str, s
             "master programme" if not pack_has_gap(pack, GAP_MASTER_PROGRAMME) else "—",
         ),
     ]
+    if pack.builder_quotes:
+        rows.append(
+            (
+                "Builder pricing",
+                "On file — unverified",
+                f"{len(pack.builder_quotes)} builder quote(s)",
+            )
+        )
+    return rows
 
 
 def _detect_gaps(combined_text: str) -> list[str]:
@@ -687,11 +839,28 @@ def _detect_gaps(combined_text: str) -> list[str]:
 def extract_mobilisation_evidence_pack(
     source_texts: list[str],
     evidence_refs: list[str] | None = None,
+    source_labels: list[str] | None = None,
 ) -> MobilisationEvidencePack:
-    """Parse engagement letter and fee proposal content into a structured evidence pack."""
+    """Parse mobilisation evidence into a structured pack.
+
+    Every evidence document is considered: engagement letters and fee
+    proposals populate the checklist fields; builder quotes are summarised as
+    unverified market pricing; anything else passes through as other evidence
+    so no indexed document is silently dropped.
+    """
     refs = list(evidence_refs or [])
     if not source_texts:
-        return MobilisationEvidencePack(gaps=[label for label, _ in STANDARD_GAP_CHECKS], evidence_refs=refs)
+        return MobilisationEvidencePack(
+            gaps=[GAP_ENGAGEMENT, *(label for label, _ in STANDARD_GAP_CHECKS)],
+            evidence_refs=refs,
+        )
+
+    labels = list(source_labels or [])
+    if len(labels) < len(source_texts):
+        labels.extend(
+            f"evidence document {index + 1}"
+            for index in range(len(labels), len(source_texts))
+        )
 
     combined = "\n\n".join(source_texts)
     engagement_text, fee_text = _split_engagement_and_fee_texts(source_texts)
@@ -703,7 +872,19 @@ def extract_mobilisation_evidence_pack(
     gaps = _detect_gaps(combined)
     owner_brief_on_file = _owner_brief_on_file(combined, gaps)
 
-    return MobilisationEvidencePack(
+    builder_quotes: list[str] = []
+    other_evidence: list[str] = []
+    for text, label in zip(source_texts, labels, strict=True):
+        quote_summary = extract_builder_quote_summary(text, label)
+        if quote_summary is not None:
+            builder_quotes.append(quote_summary)
+        elif not _is_engagement_or_fee_text(text):
+            other_evidence.append(
+                f"{label} on file — content not matched to the mobilisation checklist; "
+                "review and file to the correct lifecycle folder."
+            )
+
+    pack = MobilisationEvidencePack(
         owners=_extract_owners(source_texts, grounding),
         site_address=_extract_site_address(source_texts),
         dwelling_summary=dwelling_summary,
@@ -736,6 +917,11 @@ def extract_mobilisation_evidence_pack(
         construction_budget_ceiling=_extract_construction_budget_ceiling(combined),
         builder_rom=_extract_builder_rom(combined),
         heritage_advice=_extract_heritage_advice(combined),
+        builder_quotes=builder_quotes,
+        other_evidence=other_evidence,
         gaps=gaps,
         evidence_refs=refs,
     )
+    if not has_engagement_evidence(pack):
+        pack.gaps.insert(0, GAP_ENGAGEMENT)
+    return pack

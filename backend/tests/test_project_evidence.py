@@ -105,3 +105,21 @@ def test_evidence_preview_omits_content_when_not_requested() -> None:
     preview = _evidence_preview_from_document(document, include_content=False)
 
     assert preview.content is None
+
+
+def test_specification_preview_uses_filename_title_over_body_derived_metadata() -> None:
+    preview = _evidence_preview_from_values(
+        document_id=uuid.UUID("88888888-8888-8888-8888-888888888888"),
+        document_type="specification",
+        metadata={
+            "title": "Construction Traffic Management Plan",
+            "metadata_confidence": "medium",
+        },
+        filename="Specification.docx",
+        relative_path="04-projects/demo/_inbox/Specification.docx",
+        source_type="project_evidence",
+        document_class="specification",
+        excerpt_source="Construction Traffic Management Plan",
+    )
+
+    assert preview.title == "Specification"

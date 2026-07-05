@@ -1,0 +1,1369 @@
+{
+  "projectTypes": {
+    "metadata": {
+      "version": "2.0",
+      "lastUpdated": "2025-01-01",
+      "jurisdiction": "NSW, Australia",
+      "currency": "AUD",
+      "gstNote": "All costs and budgets EXCLUDE GST unless otherwise stated",
+      "notes": [
+        "Cost estimates based on Sydney metropolitan area",
+        "Apply location multipliers for regional/CBD adjustments",
+        "NCC 2022 requirements fully enforced from October 2024",
+        "Low/Mid-Rise Housing reforms effective February 2025"
+      ],
+      "sources": [
+        "Rawlinsons Australian Construction Handbook 2025",
+        "BMT Construction Cost Guide",
+        "NCC 2022 Energy Efficiency Requirements"
+      ]
+    },
+
+    "locationMultipliers": {
+      "description": "Apply to base cost estimates",
+      "locations": {
+        "sydney_cbd": { "multiplier": 1.20, "label": "Sydney CBD" },
+        "sydney_metro": { "multiplier": 1.00, "label": "Sydney Metropolitan (Base)" },
+        "sydney_outer": { "multiplier": 0.95, "label": "Sydney Outer" },
+        "newcastle": { "multiplier": 0.92, "label": "Newcastle" },
+        "wollongong": { "multiplier": 0.93, "label": "Wollongong" },
+        "central_coast": { "multiplier": 0.90, "label": "Central Coast" },
+        "regional_nsw": { "multiplier": 0.85, "label": "Regional NSW" },
+        "remote": { "multiplier": 1.20, "label": "Remote NSW" }
+      }
+    },
+
+    "types": [
+      {
+        "id": "due-diligence",
+        "name": "Due Diligence",
+        "icon": "search",
+        "category": "Pre-Development",
+        "description": "Assessment of existing assets for acquisition or disposal",
+        "defaultDuration": { "weeks": 4, "phases": ["Investigation", "Reporting"] },
+        "typicalBudgetRange": { "min": 30000, "max": 200000, "currency": "AUD" },
+        "exclusions": ["Land acquisition costs", "Remediation works", "Legal fees"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the asset located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.20 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.95 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "asset_type",
+            "question": "What type of asset are you assessing?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "commercial", "label": "Commercial Building", "icon": "building" },
+              { "value": "industrial", "label": "Industrial Facility", "icon": "factory" },
+              { "value": "residential", "label": "Residential Property", "icon": "home" },
+              { "value": "mixed_use", "label": "Mixed-Use Development", "icon": "layers" },
+              { "value": "retail", "label": "Retail Property", "icon": "shopping-cart" },
+              { "value": "land", "label": "Vacant Land", "icon": "map" }
+            ]
+          },
+          {
+            "id": "purpose",
+            "question": "What is the purpose of this assessment?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "acquisition", "label": "Acquisition Due Diligence" },
+              { "value": "disposal", "label": "Disposal Preparation" },
+              { "value": "refinance", "label": "Refinance Assessment" },
+              { "value": "capex", "label": "Capital Works Planning" },
+              { "value": "insurance", "label": "Insurance/Valuation" }
+            ]
+          },
+          {
+            "id": "scope",
+            "question": "Select all assessment areas required:",
+            "type": "multiple",
+            "required": true,
+            "options": [
+              { "value": "structural", "label": "Structural Assessment" },
+              { "value": "services", "label": "Building Services (HVAC, Electrical, Hydraulic)" },
+              { "value": "facade", "label": "Façade & Envelope" },
+              { "value": "hazmat", "label": "Hazardous Materials (Asbestos, Lead)" },
+              { "value": "pfas", "label": "PFAS & Emerging Contaminants" },
+              { "value": "compliance", "label": "BCA/DDA Compliance" },
+              { "value": "esd", "label": "Energy & Sustainability (NABERS/NCC)" },
+              { "value": "fire", "label": "Fire Services & Compliance" },
+              { "value": "contamination", "label": "Environmental/Contamination" },
+              { "value": "geotechnical", "label": "Geotechnical Assessment" }
+            ]
+          },
+          {
+            "id": "urgency",
+            "question": "What is the timeline?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "urgent", "label": "Urgent (2-3 weeks)", "durationMultiplier": 0.5 },
+              { "value": "standard", "label": "Standard (4-6 weeks)", "durationMultiplier": 1 },
+              { "value": "comprehensive", "label": "Comprehensive (8-12 weeks)", "durationMultiplier": 2 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "feasibility",
+        "name": "Feasibility Study",
+        "icon": "chart-bar",
+        "category": "Pre-Development",
+        "description": "Viability analysis for proposed developments",
+        "defaultDuration": { "weeks": 8, "phases": ["Analysis", "Options", "Recommendation"] },
+        "typicalBudgetRange": { "min": 60000, "max": 400000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "DA fees", "Detailed design"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the site located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.20 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.95 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "development_type",
+            "question": "What type of development are you considering?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "residential_strata", "label": "Residential - Build to Sell (Strata)" },
+              { "value": "residential_btr", "label": "Residential - Build to Rent (BTR)" },
+              { "value": "commercial", "label": "Commercial Office" },
+              { "value": "mixed_use", "label": "Mixed-Use Development" },
+              { "value": "industrial", "label": "Industrial/Logistics" },
+              { "value": "retail", "label": "Retail" },
+              { "value": "student_housing", "label": "Student Accommodation" },
+              { "value": "seniors", "label": "Seniors Living/Aged Care" }
+            ]
+          },
+          {
+            "id": "site_status",
+            "question": "What is the current site status?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "vacant", "label": "Vacant Land" },
+              { "value": "existing_building", "label": "Existing Building (Demolish)" },
+              { "value": "heritage", "label": "Heritage Building (Adaptive Reuse)" },
+              { "value": "brownfield", "label": "Brownfield/Contaminated Site" }
+            ]
+          },
+          {
+            "id": "planning_pathway",
+            "question": "What is the likely planning pathway?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "cdc", "label": "Complying Development (CDC)", "approvalMultiplier": 0.3 },
+              { "value": "low_rise_reform", "label": "Low-Rise Housing Code (Feb 2025)", "approvalMultiplier": 0.4 },
+              { "value": "mid_rise_reform", "label": "Mid-Rise Housing Code (Feb 2025)", "approvalMultiplier": 0.5 },
+              { "value": "tod_precinct", "label": "TOD Precinct (Accelerated)", "approvalMultiplier": 0.6 },
+              { "value": "standard_da", "label": "Standard DA", "approvalMultiplier": 1.0 },
+              { "value": "ssd", "label": "State Significant Development", "approvalMultiplier": 1.8 },
+              { "value": "unknown", "label": "Unknown - To Be Assessed", "approvalMultiplier": 1.0 }
+            ]
+          },
+          {
+            "id": "study_depth",
+            "question": "What level of feasibility is required?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "preliminary", "label": "Preliminary Assessment (Desktop)", "costMultiplier": 0.5 },
+              { "value": "detailed", "label": "Detailed Feasibility Study", "costMultiplier": 1.0 },
+              { "value": "investment_grade", "label": "Investment Grade Analysis", "costMultiplier": 1.5 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "house",
+        "name": "House",
+        "icon": "home",
+        "category": "Residential",
+        "description": "Single detached dwelling",
+        "defaultDuration": { "weeks": 60, "phases": ["Design", "Approvals", "Construction"] },
+        "typicalBudgetRange": { "min": 500000, "max": 5000000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "Loose furniture", "Landscaping (unless specified)"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.95 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 },
+              { "value": "coastal", "label": "Coastal (Corrosion Zone)", "locationMultiplier": 1.10 },
+              { "value": "bushfire", "label": "Bushfire Prone Area", "locationMultiplier": 1.15 }
+            ]
+          },
+          {
+            "id": "project_scope",
+            "question": "What type of house project is this?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "new_build", "label": "New Build" },
+              { "value": "knockdown_rebuild", "label": "Knockdown & Rebuild" },
+              { "value": "major_renovation", "label": "Major Renovation/Extension" },
+              { "value": "heritage_restoration", "label": "Heritage Restoration" }
+            ]
+          },
+          {
+            "id": "approval_pathway",
+            "question": "What is the approval pathway?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "cdc", "label": "Complying Development Certificate (CDC)", "approvalWeeks": 4 },
+              { "value": "standard_da", "label": "Standard DA", "approvalWeeks": 12 },
+              { "value": "complex_da", "label": "Complex DA (Heritage/Variations)", "approvalWeeks": 20 }
+            ]
+          },
+          {
+            "id": "dwelling_size",
+            "question": "What is the approximate dwelling size?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "Small (< 150m²)", "gfa": 150, "durationMultiplier": 0.7 },
+              { "value": "medium", "label": "Medium (150-250m²)", "gfa": 250, "durationMultiplier": 0.85 },
+              { "value": "large", "label": "Large (250-400m²)", "gfa": 400, "durationMultiplier": 1.0 },
+              { "value": "luxury", "label": "Luxury (400-600m²)", "gfa": 500, "durationMultiplier": 1.2 },
+              { "value": "estate", "label": "Estate (> 600m²)", "gfa": 700, "durationMultiplier": 1.4 }
+            ]
+          },
+          {
+            "id": "quality_level",
+            "question": "What quality level are you targeting?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "project", "label": "Project Home Standard", "costPerSqm": 2200, "description": "Volume builder specification" },
+              { "value": "standard", "label": "Standard Specification", "costPerSqm": 3200, "description": "Quality finishes, standard fixtures" },
+              { "value": "premium", "label": "Premium Specification", "costPerSqm": 4800, "description": "High-end finishes, quality appliances" },
+              { "value": "luxury", "label": "Luxury Specification", "costPerSqm": 7000, "description": "Architect-designed, premium throughout" },
+              { "value": "ultra", "label": "Ultra-Premium", "costPerSqm": 12000, "description": "Bespoke, world-class finishes" }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability target?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Minimum (7-Star + Whole of Home)", "costPremium": 0, "description": "Mandatory compliance - all new homes" },
+              { "value": "above_minimum", "label": "Above Minimum (8-Star NatHERS)", "costPremium": 15000 },
+              { "value": "high_performance", "label": "High Performance (9+ Star)", "costPremium": 35000 },
+              { "value": "passive_house", "label": "Passive House Certified", "costPremium": 80000 },
+              { "value": "net_zero", "label": "Net Zero Ready", "costPremium": 50000 }
+            ]
+          },
+          {
+            "id": "energy_systems",
+            "question": "Energy systems?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "all_electric", "label": "All-Electric (No Gas)", "costPremium": 5000, "recommended": true },
+              { "value": "solar_pv", "label": "Solar PV System", "costPremium": 12000 },
+              { "value": "battery", "label": "Battery Storage", "costPremium": 15000 },
+              { "value": "ev_charger", "label": "EV Charger Ready", "costPremium": 2500 },
+              { "value": "heat_pump_hw", "label": "Heat Pump Hot Water", "costPremium": 4000 }
+            ]
+          },
+          {
+            "id": "special_requirements",
+            "question": "Special requirements?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "pool", "label": "Swimming Pool", "costPremium": 80000 },
+              { "value": "basement", "label": "Basement/Undercroft", "costPremium": 150000 },
+              { "value": "lift", "label": "Residential Lift", "costPremium": 80000 },
+              { "value": "smart_home", "label": "Smart Home Automation", "costPremium": 30000 },
+              { "value": "bushfire_bal", "label": "Bushfire BAL Compliance", "costPremium": 25000 },
+              { "value": "flood_resilient", "label": "Flood Resilient Design", "costPremium": 20000 },
+              { "value": "accessible", "label": "Livable Housing Platinum", "costPremium": 15000 }
+            ]
+          },
+          {
+            "id": "construction_method",
+            "question": "Construction method?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "traditional", "label": "Traditional Construction", "durationMultiplier": 1.0 },
+              { "value": "prefab", "label": "Prefab/Panelised", "durationMultiplier": 0.8, "costMultiplier": 0.95 },
+              { "value": "modular", "label": "Modular Construction", "durationMultiplier": 0.6, "costMultiplier": 0.90 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "apartments",
+        "name": "Apartments",
+        "icon": "building",
+        "category": "Residential",
+        "description": "Multi-unit residential (build to sell)",
+        "defaultDuration": { "weeks": 156, "phases": ["Design", "DA", "CC", "Construction", "Defects"] },
+        "typicalBudgetRange": { "min": 20000000, "max": 800000000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "Marketing costs (unless specified)", "Finance costs"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.20 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.92 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "building_scale",
+            "question": "What scale of development?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "low_rise", "label": "Low Rise (1-3 storeys)", "storeys": 3, "costPerSqm": 3800, "durationMultiplier": 0.5 },
+              { "value": "low_mid_rise", "label": "Low-Mid Rise (4-6 storeys)", "storeys": 6, "costPerSqm": 4200, "durationMultiplier": 0.65 },
+              { "value": "mid_rise", "label": "Mid Rise (7-12 storeys)", "storeys": 12, "costPerSqm": 4800, "durationMultiplier": 0.8 },
+              { "value": "high_rise", "label": "High Rise (13-25 storeys)", "storeys": 25, "costPerSqm": 5500, "durationMultiplier": 1.0 },
+              { "value": "tall", "label": "Tall (26-40 storeys)", "storeys": 40, "costPerSqm": 6500, "durationMultiplier": 1.2 },
+              { "value": "super_tall", "label": "Super Tall (40+ storeys)", "storeys": 50, "costPerSqm": 7500, "durationMultiplier": 1.5 }
+            ]
+          },
+          {
+            "id": "planning_pathway",
+            "question": "Planning approval pathway?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "low_rise_reform", "label": "Low-Rise Housing Code (1-2 storeys, Feb 2025)", "approvalWeeks": 8, "description": "Fast-track for compliant designs" },
+              { "value": "mid_rise_reform", "label": "Mid-Rise Housing Code (3-6 storeys, Feb 2025)", "approvalWeeks": 12, "description": "Fast-track for infill zones" },
+              { "value": "tod_precinct", "label": "TOD Precinct (Near Transport)", "approvalWeeks": 20, "description": "Accelerated pathway" },
+              { "value": "standard_da", "label": "Standard DA", "approvalWeeks": 36 },
+              { "value": "complex_da", "label": "Complex DA (Heritage/VPA)", "approvalWeeks": 52 },
+              { "value": "ssd", "label": "State Significant Development", "approvalWeeks": 65 }
+            ]
+          },
+          {
+            "id": "unit_count",
+            "question": "Approximate number of units?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "boutique", "label": "Boutique (< 20 units)", "units": 15 },
+              { "value": "small", "label": "Small (20-50 units)", "units": 35 },
+              { "value": "medium", "label": "Medium (50-150 units)", "units": 100 },
+              { "value": "large", "label": "Large (150-300 units)", "units": 225 },
+              { "value": "major", "label": "Major (300+ units)", "units": 400 }
+            ]
+          },
+          {
+            "id": "market_position",
+            "question": "Target market position?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "affordable", "label": "Affordable Housing", "costPerSqm": 3500, "description": "Basic compliant spec" },
+              { "value": "market", "label": "Market Standard", "costPerSqm": 4500, "description": "Competitive market spec" },
+              { "value": "premium", "label": "Premium", "costPerSqm": 5800, "description": "High-quality finishes" },
+              { "value": "luxury", "label": "Luxury", "costPerSqm": 7500, "description": "Prestige finishes throughout" },
+              { "value": "ultra_luxury", "label": "Ultra Luxury", "costPerSqm": 10000, "description": "Bespoke, world-class" }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability targets?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Minimum (7-Star NatHERS + Whole of Home)", "costPremium": 0, "description": "Mandatory compliance" },
+              { "value": "above_minimum", "label": "Above Minimum (8-Star Average)", "costPremiumPerUnit": 5000 },
+              { "value": "green_star_5", "label": "5-Star Green Star", "costPremiumPerUnit": 8000 },
+              { "value": "green_star_6", "label": "6-Star Green Star", "costPremiumPerUnit": 15000 },
+              { "value": "net_zero", "label": "Net Zero Carbon Ready", "costPremiumPerUnit": 20000 }
+            ]
+          },
+          {
+            "id": "energy_infrastructure",
+            "question": "Energy infrastructure?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "all_electric", "label": "All-Electric Building (No Gas)", "costPremiumPerUnit": 2000, "recommended": true },
+              { "value": "solar_common", "label": "Solar PV (Common Areas)", "costPremium": 50000 },
+              { "value": "solar_embedded", "label": "Embedded Network with Solar", "costPremiumPerUnit": 3000 },
+              { "value": "ev_ready_all", "label": "EV Charger Ready (All Spaces)", "costPremiumPerSpace": 1500 },
+              { "value": "ev_ready_partial", "label": "EV Charger Ready (20% Spaces)", "costPremiumPerSpace": 1500 },
+              { "value": "battery", "label": "Battery Storage System", "costPremium": 80000 }
+            ]
+          },
+          {
+            "id": "basement",
+            "question": "Basement parking levels?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "none", "label": "No Basement (At-Grade)", "basementCost": 0 },
+              { "value": "single", "label": "Single Basement", "basementCostPerSqm": 1200 },
+              { "value": "double", "label": "Double Basement", "basementCostPerSqm": 1600 },
+              { "value": "triple", "label": "Triple+ Basement", "basementCostPerSqm": 2200 }
+            ]
+          },
+          {
+            "id": "amenities",
+            "question": "Resident amenities?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "pool", "label": "Swimming Pool", "costPremium": 500000 },
+              { "value": "gym", "label": "Gymnasium", "costPremium": 200000 },
+              { "value": "rooftop", "label": "Rooftop Terrace", "costPremium": 300000 },
+              { "value": "concierge", "label": "Concierge/Lobby", "costPremium": 150000 },
+              { "value": "coworking", "label": "Co-Working Space", "costPremium": 100000 },
+              { "value": "cinema", "label": "Private Cinema", "costPremium": 150000 }
+            ]
+          },
+          {
+            "id": "construction_method",
+            "question": "Construction approach?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "traditional", "label": "Traditional Construction", "durationMultiplier": 1.0 },
+              { "value": "prefab_hybrid", "label": "Prefab Hybrid (Bathrooms/Facades)", "durationMultiplier": 0.9, "costMultiplier": 0.98 },
+              { "value": "modular", "label": "Modular Construction", "durationMultiplier": 0.7, "costMultiplier": 0.95 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "apartments-btr",
+        "name": "Build to Rent (BTR)",
+        "icon": "key",
+        "category": "Residential",
+        "description": "Multi-unit residential for long-term rental",
+        "defaultDuration": { "weeks": 156, "phases": ["Design", "DA", "CC", "Construction", "Leasing"] },
+        "typicalBudgetRange": { "min": 30000000, "max": 500000000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "Operating costs", "Finance costs"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.20 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.92 }
+            ]
+          },
+          {
+            "id": "building_scale",
+            "question": "Building scale?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "mid_rise", "label": "Mid Rise (7-12 storeys)", "storeys": 12, "costPerSqm": 4600 },
+              { "value": "high_rise", "label": "High Rise (13-25 storeys)", "storeys": 25, "costPerSqm": 5200 },
+              { "value": "tall", "label": "Tall (25+ storeys)", "storeys": 35, "costPerSqm": 6000 }
+            ]
+          },
+          {
+            "id": "unit_count",
+            "question": "Approximate number of units?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "medium", "label": "Medium (100-200 units)", "units": 150 },
+              { "value": "large", "label": "Large (200-400 units)", "units": 300 },
+              { "value": "major", "label": "Major (400+ units)", "units": 500 }
+            ]
+          },
+          {
+            "id": "market_position",
+            "question": "Target market?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "affordable", "label": "Affordable BTR", "costPerSqm": 4000 },
+              { "value": "market", "label": "Market BTR", "costPerSqm": 4800 },
+              { "value": "premium", "label": "Premium BTR", "costPerSqm": 5800 }
+            ]
+          },
+          {
+            "id": "amenities",
+            "question": "BTR amenities? (Higher specification typical)",
+            "type": "multiple",
+            "required": true,
+            "options": [
+              { "value": "concierge", "label": "24/7 Concierge", "costPremium": 200000 },
+              { "value": "coworking", "label": "Co-Working/WFH Spaces", "costPremium": 150000 },
+              { "value": "gym", "label": "Gymnasium", "costPremium": 250000 },
+              { "value": "pool", "label": "Pool/Wellness", "costPremium": 600000 },
+              { "value": "rooftop", "label": "Rooftop Entertainment", "costPremium": 400000 },
+              { "value": "pet", "label": "Pet Facilities", "costPremium": 50000 },
+              { "value": "parcel", "label": "Parcel Lockers", "costPremium": 30000 }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability target?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Minimum", "costPremium": 0 },
+              { "value": "green_star_5", "label": "5-Star Green Star", "costPremiumPerUnit": 8000 },
+              { "value": "green_star_6", "label": "6-Star Green Star (Investor Grade)", "costPremiumPerUnit": 15000 },
+              { "value": "net_zero", "label": "Net Zero Carbon Ready", "costPremiumPerUnit": 20000 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "student-housing",
+        "name": "Student Accommodation",
+        "icon": "academic-cap",
+        "category": "Residential",
+        "description": "Purpose-built student accommodation (PBSA)",
+        "defaultDuration": { "weeks": 130, "phases": ["Design", "DA", "CC", "Construction"] },
+        "typicalBudgetRange": { "min": 25000000, "max": 300000000, "currency": "AUD" },
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Location relative to university?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "on_campus", "label": "On Campus", "locationMultiplier": 1.00 },
+              { "value": "adjacent", "label": "Adjacent to Campus", "locationMultiplier": 1.00 },
+              { "value": "cbd", "label": "CBD (Multi-Institution)", "locationMultiplier": 1.15 }
+            ]
+          },
+          {
+            "id": "bed_count",
+            "question": "Number of beds?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "Small (100-200 beds)", "beds": 150 },
+              { "value": "medium", "label": "Medium (200-500 beds)", "beds": 350 },
+              { "value": "large", "label": "Large (500-1000 beds)", "beds": 750 },
+              { "value": "major", "label": "Major (1000+ beds)", "beds": 1200 }
+            ]
+          },
+          {
+            "id": "room_types",
+            "question": "Room type mix?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "cluster", "label": "Predominantly Cluster (Shared Kitchen)", "costPerBed": 65000 },
+              { "value": "studio", "label": "Predominantly Studio", "costPerBed": 85000 },
+              { "value": "mixed", "label": "Mixed (Cluster + Studio)", "costPerBed": 75000 }
+            ]
+          },
+          {
+            "id": "amenities",
+            "question": "Student amenities?",
+            "type": "multiple",
+            "required": true,
+            "options": [
+              { "value": "study_spaces", "label": "Study Rooms/Library", "costPremium": 100000 },
+              { "value": "gym", "label": "Gymnasium", "costPremium": 150000 },
+              { "value": "cinema", "label": "Cinema/Entertainment", "costPremium": 80000 },
+              { "value": "laundry", "label": "Shared Laundry", "costPremium": 50000 },
+              { "value": "outdoor", "label": "Outdoor/BBQ Areas", "costPremium": 60000 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "townhouses",
+        "name": "Townhouses",
+        "icon": "home-modern",
+        "category": "Residential",
+        "description": "Attached dwellings / terraces",
+        "defaultDuration": { "weeks": 104, "phases": ["Design", "DA", "CC", "Construction", "Settlement"] },
+        "typicalBudgetRange": { "min": 3000000, "max": 50000000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "Marketing costs"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.92 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "planning_pathway",
+            "question": "Planning approval pathway?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "cdc", "label": "CDC (Dual Occupancy)", "approvalWeeks": 4 },
+              { "value": "low_rise_reform", "label": "Low-Rise Housing Code (Feb 2025)", "approvalWeeks": 8, "description": "Fast-track for compliant terraces" },
+              { "value": "standard_da", "label": "Standard DA", "approvalWeeks": 24 },
+              { "value": "complex_da", "label": "Complex DA", "approvalWeeks": 40 }
+            ]
+          },
+          {
+            "id": "dwelling_count",
+            "question": "Number of dwellings?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "dual_occ", "label": "Dual Occupancy (2)", "dwellings": 2, "durationMultiplier": 0.5 },
+              { "value": "small", "label": "Small (3-6)", "dwellings": 5, "durationMultiplier": 0.7 },
+              { "value": "medium", "label": "Medium (7-15)", "dwellings": 12, "durationMultiplier": 0.85 },
+              { "value": "large", "label": "Large (16-30)", "dwellings": 25, "durationMultiplier": 1.0 },
+              { "value": "major", "label": "Major (30+)", "dwellings": 40, "durationMultiplier": 1.2 }
+            ]
+          },
+          {
+            "id": "dwelling_size",
+            "question": "Average dwelling size?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "compact", "label": "Compact (< 120m²)", "gfa": 110, "costPerSqm": 3200 },
+              { "value": "standard", "label": "Standard (120-180m²)", "gfa": 150, "costPerSqm": 3600 },
+              { "value": "family", "label": "Family (180-250m²)", "gfa": 220, "costPerSqm": 4000 },
+              { "value": "premium", "label": "Premium (250m²+)", "gfa": 280, "costPerSqm": 4800 }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability target?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Minimum (7-Star + Whole of Home)", "costPremium": 0 },
+              { "value": "above_minimum", "label": "Above Minimum (8-Star)", "costPremiumPerDwelling": 8000 },
+              { "value": "high_performance", "label": "High Performance (9+ Star)", "costPremiumPerDwelling": 20000 }
+            ]
+          },
+          {
+            "id": "energy_infrastructure",
+            "question": "Energy infrastructure?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "all_electric", "label": "All-Electric (No Gas)", "costPremiumPerDwelling": 3000 },
+              { "value": "solar", "label": "Solar PV (Each Dwelling)", "costPremiumPerDwelling": 10000 },
+              { "value": "ev_ready", "label": "EV Charger Ready", "costPremiumPerDwelling": 2000 }
+            ]
+          },
+          {
+            "id": "construction_method",
+            "question": "Construction method?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "traditional", "label": "Traditional Construction", "durationMultiplier": 1.0 },
+              { "value": "prefab", "label": "Prefab/Panelised", "durationMultiplier": 0.8 },
+              { "value": "modular", "label": "Modular Construction", "durationMultiplier": 0.65 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "retirement-living",
+        "name": "Retirement Living",
+        "icon": "heart",
+        "category": "Residential",
+        "description": "Independent living, aged care, seniors",
+        "defaultDuration": { "weeks": 130, "phases": ["Design", "DA", "CC", "Construction"] },
+        "typicalBudgetRange": { "min": 20000000, "max": 300000000, "currency": "AUD" },
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Sydney Outer/Growth Areas", "locationMultiplier": 0.92 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 },
+              { "value": "coastal", "label": "Coastal", "locationMultiplier": 1.05 }
+            ]
+          },
+          {
+            "id": "facility_type",
+            "question": "What type of facility?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "ilu_lowrise", "label": "ILU Village (Low Rise)", "costPerUnit": 350000 },
+              { "value": "ilu_apartments", "label": "ILU Apartments", "costPerSqm": 4500 },
+              { "value": "serviced_apartments", "label": "Serviced Apartments", "costPerSqm": 5500 },
+              { "value": "aged_care", "label": "Residential Aged Care Facility", "costPerBed": 300000 },
+              { "value": "ndis_sda", "label": "NDIS Specialist Disability Accommodation (SDA)", "costPerBed": 400000 },
+              { "value": "mixed", "label": "Mixed Village (ILU + Aged Care)", "costPerSqm": 5000 }
+            ]
+          },
+          {
+            "id": "unit_count",
+            "question": "Number of units/beds?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "Small (< 50)", "units": 40 },
+              { "value": "medium", "label": "Medium (50-150)", "units": 100 },
+              { "value": "large", "label": "Large (150-300)", "units": 225 },
+              { "value": "major", "label": "Major Village (300+)", "units": 400 }
+            ]
+          },
+          {
+            "id": "amenities",
+            "question": "Community amenities?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "clubhouse", "label": "Clubhouse/Community Centre", "costPremium": 500000 },
+              { "value": "pool", "label": "Swimming Pool/Hydrotherapy", "costPremium": 400000 },
+              { "value": "bowling", "label": "Bowling Green", "costPremium": 150000 },
+              { "value": "medical", "label": "Medical Centre", "costPremium": 300000 },
+              { "value": "workshop", "label": "Workshop/Craft Rooms", "costPremium": 100000 },
+              { "value": "cinema", "label": "Cinema/Theatre", "costPremium": 150000 }
+            ]
+          },
+          {
+            "id": "accessibility",
+            "question": "Accessibility standard?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "livable_silver", "label": "Livable Housing Silver", "costPremium": 0 },
+              { "value": "livable_gold", "label": "Livable Housing Gold", "costPremiumPerUnit": 5000 },
+              { "value": "livable_platinum", "label": "Livable Housing Platinum", "costPremiumPerUnit": 12000 },
+              { "value": "sda_basic", "label": "SDA Basic", "costPremiumPerUnit": 30000 },
+              { "value": "sda_high", "label": "SDA High Physical Support", "costPremiumPerUnit": 80000 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "office",
+        "name": "Office",
+        "icon": "briefcase",
+        "category": "Commercial",
+        "description": "Commercial office building",
+        "defaultDuration": { "weeks": 182, "phases": ["Design", "DA", "CC", "Construction", "Commissioning"] },
+        "typicalBudgetRange": { "min": 30000000, "max": 1000000000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "Tenant fitout", "Finance costs"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.20 },
+              { "value": "north_sydney", "label": "North Sydney", "locationMultiplier": 1.10 },
+              { "value": "parramatta", "label": "Parramatta CBD", "locationMultiplier": 1.05 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "building_grade",
+            "question": "Target building grade?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "b_grade", "label": "B-Grade", "costPerSqm": 4200, "description": "Functional, standard services" },
+              { "value": "a_grade", "label": "A-Grade", "costPerSqm": 5500, "description": "High quality, efficient floor plates" },
+              { "value": "premium", "label": "Premium", "costPerSqm": 7000, "description": "Market-leading specification" },
+              { "value": "trophy", "label": "Trophy/Landmark", "costPerSqm": 9000, "description": "Iconic, signature building" }
+            ]
+          },
+          {
+            "id": "building_scale",
+            "question": "Building scale?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "low_rise", "label": "Low Rise (< 10 storeys)", "storeys": 8, "durationMultiplier": 0.6 },
+              { "value": "mid_rise", "label": "Mid Rise (10-20 storeys)", "storeys": 15, "durationMultiplier": 0.8 },
+              { "value": "high_rise", "label": "High Rise (20-40 storeys)", "storeys": 30, "durationMultiplier": 1.0 },
+              { "value": "super_tall", "label": "Super Tall (40+ storeys)", "storeys": 50, "durationMultiplier": 1.3 }
+            ]
+          },
+          {
+            "id": "nla",
+            "question": "Approximate NLA?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "Small (< 10,000m² NLA)", "nla": 8000 },
+              { "value": "medium", "label": "Medium (10,000-30,000m² NLA)", "nla": 20000 },
+              { "value": "large", "label": "Large (30,000-60,000m² NLA)", "nla": 45000 },
+              { "value": "major", "label": "Major (> 60,000m² NLA)", "nla": 80000 }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability targets?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Section J Minimum", "costPremium": 0 },
+              { "value": "nabers_5", "label": "5-Star NABERS Energy", "costPremiumPerSqm": 50 },
+              { "value": "nabers_5_5", "label": "5.5-Star NABERS Energy (Govt Lease)", "costPremiumPerSqm": 80 },
+              { "value": "nabers_6", "label": "6-Star NABERS Energy", "costPremiumPerSqm": 120 },
+              { "value": "green_star_5", "label": "5-Star Green Star", "costPremiumPerSqm": 80 },
+              { "value": "green_star_6", "label": "6-Star Green Star", "costPremiumPerSqm": 150 },
+              { "value": "net_zero", "label": "Net Zero Carbon", "costPremiumPerSqm": 200 }
+            ]
+          },
+          {
+            "id": "wellbeing",
+            "question": "Wellbeing certification?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "none", "label": "None", "costPremium": 0 },
+              { "value": "well_silver", "label": "WELL Silver", "costPremiumPerSqm": 50 },
+              { "value": "well_gold", "label": "WELL Gold", "costPremiumPerSqm": 100 },
+              { "value": "well_platinum", "label": "WELL Platinum", "costPremiumPerSqm": 180 }
+            ]
+          },
+          {
+            "id": "energy_infrastructure",
+            "question": "Energy infrastructure?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "all_electric", "label": "All-Electric (No Gas)", "costPremiumPerSqm": 20 },
+              { "value": "solar", "label": "Rooftop Solar PV", "costPremium": 200000 },
+              { "value": "ev_charging", "label": "EV Charging Infrastructure", "costPremiumPerSpace": 2000 },
+              { "value": "battery", "label": "Battery Storage", "costPremium": 150000 },
+              { "value": "trigeneration", "label": "Trigeneration/Cogeneration", "costPremium": 500000 }
+            ]
+          },
+          {
+            "id": "amenities",
+            "question": "Building amenities?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "eot", "label": "End of Trip (Premium)", "costPremium": 300000 },
+              { "value": "childcare", "label": "Childcare Centre", "costPremium": 800000 },
+              { "value": "retail", "label": "Ground Floor Retail", "costPremium": 200000 },
+              { "value": "roof_terrace", "label": "Rooftop Terrace", "costPremium": 400000 },
+              { "value": "conference", "label": "Conference Centre", "costPremium": 500000 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "retail",
+        "name": "Retail",
+        "icon": "shopping-bag",
+        "category": "Commercial",
+        "description": "Shops, shopping centres, showrooms",
+        "defaultDuration": { "weeks": 78, "phases": ["Design", "DA", "CC", "Construction"] },
+        "typicalBudgetRange": { "min": 5000000, "max": 500000000, "currency": "AUD" },
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.25 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "retail_type",
+            "question": "What type of retail?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "strip", "label": "Strip Retail/High Street", "costPerSqm": 3500 },
+              { "value": "neighbourhood", "label": "Neighbourhood Centre", "costPerSqm": 3200 },
+              { "value": "showroom", "label": "Large Format/Showroom", "costPerSqm": 2500 },
+              { "value": "shopping_centre", "label": "Shopping Centre/Mall", "costPerSqm": 4500 },
+              { "value": "food", "label": "Food & Beverage Precinct", "costPerSqm": 5000 }
+            ]
+          },
+          {
+            "id": "gla",
+            "question": "Approximate GLA?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "< 1,000m² GLA", "gla": 800 },
+              { "value": "medium", "label": "1,000-5,000m² GLA", "gla": 3000 },
+              { "value": "large", "label": "5,000-20,000m² GLA", "gla": 12000 },
+              { "value": "major", "label": "> 20,000m² GLA", "gla": 40000 }
+            ]
+          },
+          {
+            "id": "fitout_scope",
+            "question": "Scope of work?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "shell_only", "label": "Shell & Core Only", "costMultiplier": 0.6 },
+              { "value": "warm_shell", "label": "Warm Shell (Base Building Services)", "costMultiplier": 0.8 },
+              { "value": "turnkey", "label": "Turnkey (Including Tenant Fitout)", "costMultiplier": 1.0 }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability target?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Minimum", "costPremium": 0 },
+              { "value": "green_star_4", "label": "4-Star Green Star", "costPremiumPerSqm": 40 },
+              { "value": "green_star_5", "label": "5-Star Green Star", "costPremiumPerSqm": 80 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "industrial",
+        "name": "Industrial",
+        "icon": "factory",
+        "category": "Industrial",
+        "description": "Warehouses, factories, distribution",
+        "defaultDuration": { "weeks": 60, "phases": ["Design", "Approvals", "Construction"] },
+        "typicalBudgetRange": { "min": 8000000, "max": 300000000, "currency": "AUD" },
+        "exclusions": ["Land acquisition", "Tenant fitout", "Racking/equipment"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_west", "label": "Western Sydney", "locationMultiplier": 1.00 },
+              { "value": "sydney_south", "label": "Southern Sydney", "locationMultiplier": 1.00 },
+              { "value": "sydney_outer", "label": "Outer Sydney/Growth Areas", "locationMultiplier": 0.95 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.85 }
+            ]
+          },
+          {
+            "id": "facility_type",
+            "question": "What type of industrial facility?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "warehouse", "label": "Warehouse/Distribution", "costPerSqm": 1600 },
+              { "value": "logistics", "label": "Logistics/E-Commerce", "costPerSqm": 1900 },
+              { "value": "manufacturing", "label": "Manufacturing", "costPerSqm": 2200 },
+              { "value": "cold_storage", "label": "Cold Storage/Food Grade", "costPerSqm": 3500 },
+              { "value": "data_centre", "label": "Data Centre", "costPerSqm": 12000 },
+              { "value": "multi_unit", "label": "Multi-Unit Industrial (Strata)", "costPerSqm": 2000 }
+            ]
+          },
+          {
+            "id": "gfa",
+            "question": "Approximate GFA?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "< 5,000m²", "gfa": 4000, "durationMultiplier": 0.6 },
+              { "value": "medium", "label": "5,000-20,000m²", "gfa": 12000, "durationMultiplier": 0.8 },
+              { "value": "large", "label": "20,000-50,000m²", "gfa": 35000, "durationMultiplier": 1.0 },
+              { "value": "major", "label": "> 50,000m²", "gfa": 75000, "durationMultiplier": 1.3 }
+            ]
+          },
+          {
+            "id": "approval_pathway",
+            "question": "Approval pathway?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "cdc", "label": "Complying Development (CDC)", "approvalWeeks": 6 },
+              { "value": "standard_da", "label": "Standard DA", "approvalWeeks": 16 },
+              { "value": "ssd", "label": "State Significant Development", "approvalWeeks": 30 }
+            ]
+          },
+          {
+            "id": "clear_height",
+            "question": "Clear height requirement?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "standard", "label": "Standard (8-10m)", "costMultiplier": 1.0 },
+              { "value": "high_bay", "label": "High Bay (12-15m)", "costMultiplier": 1.10 },
+              { "value": "super_high", "label": "Super High Bay (15m+)", "costMultiplier": 1.20 }
+            ]
+          },
+          {
+            "id": "special_requirements",
+            "question": "Special requirements?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "dock_levellers", "label": "Dock Levellers", "costPremiumPerDock": 25000 },
+              { "value": "hardstand", "label": "Heavy Vehicle Hardstand", "costPremiumPerSqm": 100 },
+              { "value": "dangerous_goods", "label": "Dangerous Goods Storage", "costPremium": 150000 },
+              { "value": "crane", "label": "Overhead Crane", "costPremium": 200000 },
+              { "value": "office_high", "label": "High Office Content (>20%)", "costMultiplier": 1.15 }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability target?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "ncc_minimum", "label": "NCC 2022 Minimum", "costPremium": 0 },
+              { "value": "green_star_5", "label": "5-Star Green Star", "costPremiumPerSqm": 30 },
+              { "value": "green_star_6", "label": "6-Star Green Star", "costPremiumPerSqm": 60 },
+              { "value": "net_zero", "label": "Net Zero Ready", "costPremiumPerSqm": 80 }
+            ]
+          },
+          {
+            "id": "energy_infrastructure",
+            "question": "Energy infrastructure?",
+            "type": "multiple",
+            "required": false,
+            "options": [
+              { "value": "solar_roof", "label": "Rooftop Solar (Large Scale)", "costPremiumPerkW": 1400 },
+              { "value": "ev_charging", "label": "EV Charging Infrastructure", "costPremiumPerSpace": 2000 },
+              { "value": "battery", "label": "Battery Storage", "costPremium": 100000 }
+            ]
+          },
+          {
+            "id": "construction_method",
+            "question": "Construction method?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "traditional", "label": "Traditional Steel Frame", "durationMultiplier": 1.0 },
+              { "value": "precast", "label": "Precast Concrete Tilt-Up", "durationMultiplier": 0.85 },
+              { "value": "modular", "label": "Modular/Off-Site", "durationMultiplier": 0.7 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "fitout",
+        "name": "Fitout",
+        "icon": "paint-brush",
+        "category": "Refurbishment",
+        "description": "Interior fitout (office, retail, hospitality)",
+        "defaultDuration": { "weeks": 20, "phases": ["Design", "Documentation", "Construction"] },
+        "typicalBudgetRange": { "min": 500000, "max": 30000000, "currency": "AUD" },
+        "exclusions": ["Rent during fitout", "Loose furniture (unless specified)", "Technology/AV (unless specified)"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.15 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.90 }
+            ]
+          },
+          {
+            "id": "fitout_type",
+            "question": "What type of fitout?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "office", "label": "Commercial Office", "costPerSqm": 2500 },
+              { "value": "retail", "label": "Retail", "costPerSqm": 3000 },
+              { "value": "hospitality", "label": "Hospitality (Restaurant/Bar)", "costPerSqm": 4500 },
+              { "value": "medical", "label": "Medical/Healthcare", "costPerSqm": 4000 },
+              { "value": "education", "label": "Education", "costPerSqm": 2800 },
+              { "value": "coworking", "label": "Co-Working Space", "costPerSqm": 3200 }
+            ]
+          },
+          {
+            "id": "fitout_level",
+            "question": "Fitout quality level?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "basic", "label": "Basic/Functional", "costMultiplier": 0.6 },
+              { "value": "standard", "label": "Standard", "costMultiplier": 0.8 },
+              { "value": "premium", "label": "Premium", "costMultiplier": 1.0 },
+              { "value": "flagship", "label": "Flagship/High-End", "costMultiplier": 1.4 }
+            ]
+          },
+          {
+            "id": "nla",
+            "question": "Approximate NLA?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "< 500m²", "nla": 400, "durationMultiplier": 0.6 },
+              { "value": "medium", "label": "500-2,000m²", "nla": 1200, "durationMultiplier": 0.8 },
+              { "value": "large", "label": "2,000-5,000m²", "nla": 3500, "durationMultiplier": 1.0 },
+              { "value": "major", "label": "> 5,000m²", "nla": 7500, "durationMultiplier": 1.3 }
+            ]
+          },
+          {
+            "id": "base_building",
+            "question": "Base building condition?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "new_shell", "label": "New Building (Warm Shell)", "costMultiplier": 1.0 },
+              { "value": "existing_strip", "label": "Existing (Strip and Refit)", "costMultiplier": 1.1 },
+              { "value": "heritage", "label": "Heritage Building", "costMultiplier": 1.25 }
+            ]
+          },
+          {
+            "id": "sustainability",
+            "question": "Sustainability/wellbeing targets?",
+            "type": "single",
+            "required": false,
+            "options": [
+              { "value": "none", "label": "No Specific Target", "costPremium": 0 },
+              { "value": "green_star_interiors", "label": "Green Star Interiors", "costPremiumPerSqm": 80 },
+              { "value": "well_silver", "label": "WELL Silver", "costPremiumPerSqm": 60 },
+              { "value": "well_gold", "label": "WELL Gold", "costPremiumPerSqm": 120 }
+            ]
+          },
+          {
+            "id": "working_hours",
+            "question": "Construction constraints?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "normal", "label": "Normal Hours (Vacant Building)", "costMultiplier": 1.0 },
+              { "value": "restricted", "label": "Restricted Hours (Occupied Building)", "costMultiplier": 1.10 },
+              { "value": "after_hours", "label": "After Hours Only", "costMultiplier": 1.25 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "refurbishment",
+        "name": "Refurbishment",
+        "icon": "wrench",
+        "category": "Refurbishment",
+        "description": "Upgrade of existing buildings",
+        "defaultDuration": { "weeks": 65, "phases": ["Investigation", "Design", "Construction"] },
+        "typicalBudgetRange": { "min": 5000000, "max": 150000000, "currency": "AUD" },
+        "exclusions": ["Tenant compensation", "Relocation costs"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the project located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_cbd", "label": "Sydney CBD", "locationMultiplier": 1.20 },
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.90 }
+            ]
+          },
+          {
+            "id": "building_type",
+            "question": "Building type?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "office", "label": "Commercial Office" },
+              { "value": "retail", "label": "Retail" },
+              { "value": "industrial", "label": "Industrial" },
+              { "value": "residential", "label": "Residential" },
+              { "value": "mixed_use", "label": "Mixed-Use" }
+            ]
+          },
+          {
+            "id": "refurb_scope",
+            "question": "Scope of refurbishment?",
+            "type": "multiple",
+            "required": true,
+            "options": [
+              { "value": "facade", "label": "Façade/Envelope Upgrade", "costPremiumPerSqmFacade": 800 },
+              { "value": "services", "label": "Building Services Upgrade", "costPremiumPerSqm": 400 },
+              { "value": "lobby", "label": "Lobby & Common Areas", "costPremium": 500000 },
+              { "value": "amenities", "label": "End of Trip/Amenities", "costPremium": 300000 },
+              { "value": "structure", "label": "Structural Works", "costPremiumPerSqm": 200 },
+              { "value": "compliance", "label": "BCA/DDA Compliance Upgrade", "costPremiumPerSqm": 150 },
+              { "value": "sustainability", "label": "Sustainability Upgrade", "costPremiumPerSqm": 100 }
+            ]
+          },
+          {
+            "id": "heritage",
+            "question": "Heritage considerations?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "none", "label": "No Heritage Constraints", "costMultiplier": 1.0, "durationMultiplier": 1.0 },
+              { "value": "local", "label": "Local Heritage Listed", "costMultiplier": 1.15, "durationMultiplier": 1.2 },
+              { "value": "state", "label": "State Heritage Listed", "costMultiplier": 1.30, "durationMultiplier": 1.4 }
+            ]
+          },
+          {
+            "id": "occupancy",
+            "question": "Building occupancy during works?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "vacant", "label": "Vacant Building", "costMultiplier": 1.0, "durationMultiplier": 1.0 },
+              { "value": "partial", "label": "Partially Occupied", "costMultiplier": 1.15, "durationMultiplier": 1.2 },
+              { "value": "full", "label": "Fully Occupied (Staged)", "costMultiplier": 1.30, "durationMultiplier": 1.4 }
+            ]
+          },
+          {
+            "id": "hazmat",
+            "question": "Known hazardous materials?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "none", "label": "None/Cleared", "costPremium": 0 },
+              { "value": "minor", "label": "Minor (Isolated Asbestos)", "costPremiumPerSqm": 30 },
+              { "value": "moderate", "label": "Moderate (Multiple Materials)", "costPremiumPerSqm": 80 },
+              { "value": "significant", "label": "Significant (Full Removal Required)", "costPremiumPerSqm": 150 }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "remediation",
+        "name": "Remediation",
+        "icon": "shield-check",
+        "category": "Refurbishment",
+        "description": "Contamination, hazmat, make-good",
+        "defaultDuration": { "weeks": 40, "phases": ["Assessment", "Planning", "Remediation", "Validation"] },
+        "typicalBudgetRange": { "min": 500000, "max": 80000000, "currency": "AUD" },
+        "exclusions": ["Subsequent development costs", "Ongoing monitoring (unless specified)"],
+        "quickSetupQuestions": [
+          {
+            "id": "location",
+            "question": "Where is the site located?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "sydney_metro", "label": "Sydney Metropolitan", "locationMultiplier": 1.00 },
+              { "value": "regional_nsw", "label": "Regional NSW", "locationMultiplier": 0.90 }
+            ]
+          },
+          {
+            "id": "remediation_type",
+            "question": "What type of contamination?",
+            "type": "multiple",
+            "required": true,
+            "options": [
+              { "value": "petroleum", "label": "Petroleum Hydrocarbons", "costMultiplier": 1.0 },
+              { "value": "heavy_metals", "label": "Heavy Metals", "costMultiplier": 1.1 },
+              { "value": "solvents", "label": "Chlorinated Solvents", "costMultiplier": 1.3 },
+              { "value": "pfas", "label": "PFAS (Forever Chemicals)", "costMultiplier": 2.0, "durationMultiplier": 1.5 },
+              { "value": "asbestos_soil", "label": "Asbestos in Soil", "costMultiplier": 1.2 },
+              { "value": "groundwater", "label": "Groundwater Contamination", "costMultiplier": 1.8, "durationMultiplier": 1.5 },
+              { "value": "hazmat_building", "label": "Building Hazmat (Asbestos, Lead)", "costMultiplier": 1.0 },
+              { "value": "unknown", "label": "Unknown (Investigation Required)", "costMultiplier": 1.5 }
+            ]
+          },
+          {
+            "id": "site_area",
+            "question": "Approximate site area?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "small", "label": "Small (< 1,000m²)", "area": 800, "baseCost": 300000 },
+              { "value": "medium", "label": "Medium (1,000-5,000m²)", "area": 3000, "baseCost": 1000000 },
+              { "value": "large", "label": "Large (5,000-20,000m²)", "area": 12000, "baseCost": 5000000 },
+              { "value": "major", "label": "Major (> 20,000m²)", "area": 40000, "baseCost": 15000000 }
+            ]
+          },
+          {
+            "id": "site_classification",
+            "question": "Current site classification?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "unknown", "label": "Unknown (Investigation Required)", "durationMultiplier": 1.5 },
+              { "value": "low", "label": "Low Risk (Minor Contamination)", "durationMultiplier": 0.7 },
+              { "value": "medium", "label": "Medium Risk", "durationMultiplier": 1.0 },
+              { "value": "high", "label": "High Risk / EPA Notified", "durationMultiplier": 1.3 },
+              { "value": "significantly", "label": "Significantly Contaminated (EPA Listed)", "durationMultiplier": 1.8 }
+            ]
+          },
+          {
+            "id": "end_use",
+            "question": "Intended end use after remediation?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "residential", "label": "Residential (Most Stringent)", "cleanupMultiplier": 1.3 },
+              { "value": "childcare", "label": "Childcare/School (Most Stringent)", "cleanupMultiplier": 1.4 },
+              { "value": "commercial", "label": "Commercial/Industrial", "cleanupMultiplier": 1.0 },
+              { "value": "open_space", "label": "Open Space/Recreation", "cleanupMultiplier": 1.1 }
+            ]
+          },
+          {
+            "id": "remediation_approach",
+            "question": "Preferred remediation approach?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "dig_dump", "label": "Dig and Dump (Off-Site Disposal)", "durationMultiplier": 0.7 },
+              { "value": "on_site", "label": "On-Site Treatment", "durationMultiplier": 1.0 },
+              { "value": "in_situ", "label": "In-Situ Treatment", "durationMultiplier": 1.3 },
+              { "value": "containment", "label": "Containment/Capping", "durationMultiplier": 0.8 },
+              { "value": "to_be_determined", "label": "To Be Determined", "durationMultiplier": 1.0 }
+            ]
+          },
+          {
+            "id": "site_audit",
+            "question": "Site Auditor requirement?",
+            "type": "single",
+            "required": true,
+            "options": [
+              { "value": "required", "label": "Site Audit Required (Residential/Sensitive)", "costPremium": 80000 },
+              { "value": "voluntary", "label": "Voluntary Site Audit", "costPremium": 60000 },
+              { "value": "not_required", "label": "Not Required", "costPremium": 0 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -131,6 +131,20 @@ _PREVIEW_DUE_DILIGENCE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bpre-demolition dilapidation\b", re.I),
 ]
 
+# Builder quotes / price estimates identified by document CONTENT — filenames
+# are often just a builder's name (e.g. "Kaposi.pdf"), so content signals are
+# the reliable route to 05-procurement.
+_QUOTE_DESTINATION = "05-procurement/quotes"
+
+_PREVIEW_QUOTE_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"^\s*#\s*price\s+estimate\b", re.I | re.M),
+    re.compile(r"\bprice\s+estimate\b", re.I),
+    re.compile(r"\bbuilder'?s?\s+margin\b", re.I),
+    re.compile(r"\bquotation\b", re.I),
+    re.compile(r"\bschedule\s+of\s+rates\b", re.I),
+    re.compile(r"\btender\s+(?:price|sum|submission)\b", re.I),
+]
+
 _MANIFEST_PATTERN = re.compile(r"^intake_manifest_v\d+\.md$", re.I)
 
 
@@ -230,6 +244,9 @@ def classify_inbox_destination(
     for pattern, destination in _FILENAME_DESTINATION_PATTERNS:
         if pattern.search(stem) or pattern.search(filename):
             return destination
+
+    if _matches_any(_PREVIEW_QUOTE_PATTERNS, preview_snippet or ""):
+        return _QUOTE_DESTINATION
 
     discipline_slug = _infer_discipline_slug(stem=stem, preview_snippet=preview_snippet)
     if discipline_slug:

@@ -448,8 +448,6 @@ export function ProjectCockpitPage() {
           projects={projects}
           projectsLoading={projectsLoading}
           platformStatus={platformStatus}
-          onSelectWorkspacePath={selectWorkspacePath}
-          onOpenWorkflow={openWorkflowFromExplorer}
         />
       }
       repository={

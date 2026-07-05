@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from collections import Counter
 from collections.abc import AsyncIterator
@@ -12,7 +13,7 @@ from fastapi import HTTPException
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.agent.workspace_paths import (
@@ -28,6 +29,7 @@ from app.database.draft_artifacts import (
 )
 from app.database.session import get_session_factory
 from app.agent.status_bus import agent_turn_status_bus
+from app.database.source_document import SourceDocument
 from app.database.workspace_files import (
     get_workspace_file_by_path,
     list_workspace_files_for_project,
@@ -66,6 +68,29 @@ TENDER_DOCUMENT_KEYWORDS = (
     "inclusion",
     "builder",
 )
+TEXT_SEARCH_MAX_TERMS = 6
+TEXT_SEARCH_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "document",
+    "documents",
+    "file",
+    "files",
+    "for",
+    "from",
+    "in",
+    "is",
+    "made",
+    "of",
+    "please",
+    "read",
+    "the",
+    "to",
+    "what",
+    "with",
+}
 QUOTE_STAGE_UNITS = {
     "intake": 0,
     "ingest_document": 1,
@@ -259,6 +284,119 @@ def _draft_file_payload(draft) -> dict:
         "content": content,
         "size_bytes": len(content.encode("utf-8")),
     }
+
+
+def _source_document_payload(document: SourceDocument, *, max_chars: int | None) -> dict:
+    default_limit = settings.whole_document_content_chars
+    content_limit = max_chars if max_chars and max_chars > 0 else default_limit
+    content_limit = min(content_limit, default_limit)
+    content = document.normalized_content or ""
+    returned = content[:content_limit]
+    return {
+        "kind": "source_document",
+        "document_id": str(document.id),
+        "filename": document.filename,
+        "relative_path": document.relative_path,
+        "project": document.project,
+        "phase": document.phase,
+        "source_type": document.source_type,
+        "document_class": document.document_class,
+        "metadata": document.document_metadata or {},
+        "content": returned,
+        "content_chars": len(content),
+        "returned_chars": len(returned),
+        "content_truncated": len(content) > len(returned),
+    }
+
+
+def _text_search_terms(query: str) -> list[str]:
+    terms = [
+        term
+        for term in re.findall(r"[a-z0-9][a-z0-9_-]*", query.lower())
+        if len(term) > 1 and term not in TEXT_SEARCH_STOPWORDS
+    ]
+    return terms[:TEXT_SEARCH_MAX_TERMS]
+
+
+def _snippet_excerpt(content: str, start: int, end: int, *, context_chars: int) -> str:
+    left = max(0, start - context_chars)
+    right = min(len(content), end + context_chars)
+    while left > 0 and not content[left - 1].isspace():
+        left -= 1
+    while right < len(content) and not content[right].isspace():
+        right += 1
+    excerpt = " ".join(content[left:right].split())
+    if left > 0:
+        excerpt = "... " + excerpt
+    if right < len(content):
+        excerpt += " ..."
+    return excerpt
+
+
+def _find_text_snippets(
+    content: str,
+    *,
+    query: str,
+    terms: list[str],
+    context_chars: int,
+    limit: int = 3,
+) -> list[dict]:
+    haystack = content.lower()
+    candidates: list[tuple[int, int, str]] = []
+    phrase = query.strip().lower()
+    if phrase:
+        start = haystack.find(phrase)
+        while start >= 0 and len(candidates) < limit * 3:
+            candidates.append((start, start + len(phrase), phrase))
+            start = haystack.find(phrase, start + max(1, len(phrase)))
+
+    for term in terms:
+        start = haystack.find(term)
+        while start >= 0 and len(candidates) < limit * 6:
+            candidates.append((start, start + len(term), term))
+            start = haystack.find(term, start + max(1, len(term)))
+
+    snippets: list[dict] = []
+    seen: set[tuple[int, int]] = set()
+    for start, end, match in sorted(candidates, key=lambda item: item[0]):
+        if (start, end) in seen:
+            continue
+        seen.add((start, end))
+        snippets.append(
+            {
+                "match": content[start:end],
+                "match_term": match,
+                "start": start,
+                "excerpt": _snippet_excerpt(
+                    content,
+                    start,
+                    end,
+                    context_chars=context_chars,
+                ),
+            }
+        )
+        if len(snippets) >= limit:
+            break
+    return snippets
+
+
+async def _load_project_source_document(
+    session,
+    *,
+    project_slug: str,
+    document_id: uuid.UUID | None = None,
+    workspace_path: str | None = None,
+) -> SourceDocument | None:
+    filters = [SourceDocument.project == project_slug]
+    if document_id is not None:
+        filters.append(SourceDocument.id == document_id)
+    elif workspace_path is not None:
+        filters.append(SourceDocument.relative_path == workspace_path)
+    else:
+        return None
+
+    result = await session.execute(select(SourceDocument).where(*filters).limit(1))
+    return result.scalar_one_or_none()
 
 
 async def _comparison_jobs(
@@ -701,6 +839,165 @@ async def read_workspace_file(project_id: str, path: str) -> dict:
 
 
 @mcp.tool
+async def get_document(
+    project_id: str,
+    document_id: str | None = None,
+    workspace_path: str | None = None,
+    max_chars: int | None = None,
+) -> dict:
+    """Read an ingested source document's extracted text without OCR.
+
+    Use this after search_documents or list_selected_documents when the user asks
+    about the contents of an uploaded source file. Source PDFs/DOCX files are not
+    exposed on the agent filesystem; this returns the persisted extracted text
+    from source_documents.normalized_content.
+    """
+    if not document_id and not workspace_path:
+        raise ToolError("provide document_id or workspace_path")
+    if document_id and workspace_path:
+        raise ToolError("provide only one of document_id or workspace_path")
+
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        project = authorization.project
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="get_document",
+            running="Reading ingested document text",
+            done="Read ingested document text",
+            error="Document read failed",
+        ):
+            document = None
+            if document_id:
+                try:
+                    parsed_document_id = uuid.UUID(document_id)
+                except ValueError as exc:
+                    raise ToolError("document_id must be a UUID") from exc
+                document = await _load_project_source_document(
+                    session,
+                    project_slug=project.slug,
+                    document_id=parsed_document_id,
+                )
+            else:
+                path = _tool_workspace_path(workspace_path)
+                record = await get_workspace_file_by_path(
+                    session,
+                    project_id=pid,
+                    workspace_path=path,
+                )
+                if record is not None and record.source_document_id is not None:
+                    document = await _load_project_source_document(
+                        session,
+                        project_slug=project.slug,
+                        document_id=record.source_document_id,
+                    )
+                if document is None:
+                    document = await _load_project_source_document(
+                        session,
+                        project_slug=project.slug,
+                        workspace_path=path,
+                    )
+                if document is None and record is not None:
+                    ingest_status = getattr(record, "ingest_status", "unknown")
+                    raise ToolError(
+                        f"document text is not available; ingest_status={ingest_status}"
+                    )
+
+            if document is None:
+                raise ToolError("document not found or not ingested")
+            return _source_document_payload(document, max_chars=max_chars)
+
+
+@mcp.tool
+async def find_document_text(
+    project_id: str,
+    query: str,
+    filename_hint: str | None = None,
+    max_results: int = 5,
+    context_chars: int = 240,
+) -> list[dict]:
+    """Fast keyword lookup over ingested project document text.
+
+    Use this before semantic search, OCR, or shell/database work for simple
+    source-document questions like "what do the specs say about benchtops?".
+    It searches source_documents.normalized_content and returns small snippets.
+    """
+    terms = _text_search_terms(query)
+    if not terms:
+        raise ToolError("query must include a searchable term")
+
+    result_limit = max(1, min(max_results, 10))
+    snippet_context = max(80, min(context_chars, 800))
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        project = authorization.project
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="find_document_text",
+            running="Searching ingested document text",
+            done="Searched ingested document text",
+            error="Ingested document text search failed",
+        ):
+            content_filters = [
+                func.lower(SourceDocument.normalized_content).contains(term)
+                for term in terms
+            ]
+            filters = [SourceDocument.project == project.slug, or_(*content_filters)]
+            if filename_hint and filename_hint.strip():
+                hint = filename_hint.strip().lower()
+                filters.append(
+                    or_(
+                        func.lower(SourceDocument.filename).contains(hint),
+                        func.lower(SourceDocument.relative_path).contains(hint),
+                    )
+                )
+            stmt = (
+                select(SourceDocument)
+                .where(*filters)
+                .order_by(SourceDocument.updated_at.desc())
+                .limit(result_limit * 3)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+
+        matches: list[dict] = []
+        for document in rows:
+            snippets = _find_text_snippets(
+                document.normalized_content or "",
+                query=query,
+                terms=terms,
+                context_chars=snippet_context,
+            )
+            if not snippets:
+                continue
+            matches.append(
+                {
+                    "kind": "source_document_match",
+                    "document_id": str(document.id),
+                    "filename": document.filename,
+                    "relative_path": document.relative_path,
+                    "document_class": document.document_class,
+                    "content_chars": len(document.normalized_content or ""),
+                    "snippets": snippets,
+                }
+            )
+            if len(matches) >= result_limit:
+                break
+        return matches
+
+
+@mcp.tool
 async def write_workspace_file(project_id: str, path: str, content: str) -> dict:
     """Write a UTF-8 scratch file or create a new version of an editable artefact."""
     pid = uuid.UUID(project_id)
@@ -791,7 +1088,15 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
                 include_neighbours=False,
             )
         return [
-            {"document": p.filename, "snippet": p.content, "score": p.score}
+            {
+                "document_id": str(p.document_id),
+                "chunk_id": str(p.chunk_id),
+                "document": p.filename,
+                "relative_path": p.relative_path,
+                "page_or_section": p.page_or_section,
+                "snippet": p.content,
+                "score": p.score,
+            }
             for p in passages
         ]
 

@@ -15,6 +15,8 @@ from tests.conftest import run_async
 SECRET = "test-secret"
 USER_ID = uuid.uuid4()
 PROJECT_ID = uuid.uuid4()
+DOCUMENT_ID = uuid.uuid4()
+CHUNK_ID = uuid.uuid4()
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +52,11 @@ class _StubRetriever:
         self.calls.append({"query": query, **kwargs})
         return [
             SimpleNamespace(
+                document_id=DOCUMENT_ID,
+                chunk_id=CHUNK_ID,
                 filename="geotech-report.pdf",
+                relative_path="04-projects/test-project/_inbox/geotech-report.pdf",
+                page_or_section="p3",
                 content="Bearing capacity 150 kPa at 1.2m depth.",
                 score=0.042,
             )
@@ -106,7 +112,11 @@ def test_authorized_search_returns_mapped_passages(monkeypatch):
     data = result.data
     assert data == [
         {
+            "document_id": str(DOCUMENT_ID),
+            "chunk_id": str(CHUNK_ID),
             "document": "geotech-report.pdf",
+            "relative_path": "04-projects/test-project/_inbox/geotech-report.pdf",
+            "page_or_section": "p3",
             "snippet": "Bearing capacity 150 kPa at 1.2m depth.",
             "score": 0.042,
         }

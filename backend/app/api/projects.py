@@ -11,7 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.billing.entitlements import require_active_entitlement
-from app.database.activity_events import list_project_activity_runs
+from app.database.activity_events import (
+    delete_project_activity_runs,
+    list_project_activity_runs,
+)
 from app.database.chats import create_thread, title_from_message
 from app.database.draft_artifacts import (
     accept_draft,
@@ -29,6 +32,7 @@ from app.database.projects import (
     user_owns_project,
 )
 from app.database.session import get_db
+from app.database.draft_artifact import DraftArtifact
 from app.database.source_document import SourceDocument
 from app.database.users import ensure_user_exists
 from app.schemas.chat import ThreadResponse
@@ -38,6 +42,8 @@ from app.schemas.projects import (
     CreateProjectRequest,
     CreatePmpRequest,
     CreatePmpResponse,
+    DeleteProjectActivityRequest,
+    DeleteProjectActivityResponse,
     PatchDraftRequest,
     UpdatePmpRequest,
     SortFilesRequest,
@@ -52,6 +58,7 @@ from app.schemas.projects import (
     PlatformKnowledgeBucket,
     PlatformKnowledgeStatus,
     ProjectActivityEvent,
+    ProjectActivityReferences,
     ProjectActivityResponse,
     ProjectActivityRun,
     ProjectCockpitBootstrapResponse,
@@ -74,6 +81,7 @@ from app.database.workspace_file import WorkspaceFile
 from app.database.workspace_files import get_workspace_file_by_path, list_workspace_files_for_project
 from app.inbox.paths import is_inbox_workspace_path
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
+from app.sitewise.taxonomy import taxonomy_options_payload, validate_project_taxonomy
 from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.create_cost_plan import (
     draft_workspace_path as cost_plan_draft_workspace_path,
@@ -120,6 +128,8 @@ def _project_summary(project) -> ProjectSummary:
             "workspace_path": project.workspace_path,
             "phase": project.phase,
             "archetype": project.archetype,
+            "building_class": project.building_class,
+            "work_type": project.work_type,
             "user_role": project.user_role,
             "state": project.state,
             "status": project.status,
@@ -143,13 +153,22 @@ def _metadata_text(metadata: dict | None, key: str) -> str | None:
     return value if isinstance(value, str) and value.strip() else None
 
 
+def _filename_title(filename: str) -> str:
+    stem = filename.rsplit("/", maxsplit=1)[-1]
+    stem = stem.rsplit(".", maxsplit=1)[0]
+    return stem.replace("_", " ").replace("-", " ").strip() or filename
+
+
 def _register_title_from_fields(
     *,
     metadata: dict | None,
     document_type: str | None,
+    document_class: str,
     filename: str,
 ) -> str:
     metadata = metadata if isinstance(metadata, dict) else {}
+    if document_class == "specification":
+        return _filename_title(filename)
     return (
         _metadata_text(metadata, "title")
         or document_type
@@ -189,6 +208,7 @@ def _evidence_preview_from_values(
         title=_register_title_from_fields(
             metadata=metadata,
             document_type=document_type,
+            document_class=document_class,
             filename=filename,
         ),
         filename=filename,
@@ -445,6 +465,43 @@ def _elapsed_ms(start: float) -> int:
     return int((time.perf_counter() - start) * 1000)
 
 
+def _project_taxonomy_metadata(body: CreateProjectRequest) -> dict | None:
+    taxonomy = {
+        "subclasses": body.subclasses,
+        "scale": body.scale,
+        "complexity": body.complexity,
+        "work_scope": body.work_scope,
+    }
+    compact = {key: value for key, value in taxonomy.items() if value is not None}
+    return compact or None
+
+
+def _activity_references_from_metadata(
+    metadata: dict | None,
+) -> ProjectActivityReferences | None:
+    if not isinstance(metadata, dict):
+        return None
+
+    def string_list(key: str) -> list[str]:
+        value = metadata.get(key)
+        if not isinstance(value, list):
+            return []
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+    references = ProjectActivityReferences(
+        seed_consulted=string_list("seed_consulted"),
+        evidence_refs=string_list("evidence_refs"),
+        context_refs=string_list("context_refs"),
+    )
+    if not (
+        references.seed_consulted
+        or references.evidence_refs
+        or references.context_refs
+    ):
+        return None
+    return references
+
+
 @router.get("")
 async def get_projects(
     user: CurrentUser = Depends(get_current_user),
@@ -464,15 +521,28 @@ async def post_project(
 ) -> ProjectDetail:
     await ensure_user_exists(session, user)
     await require_active_entitlement(session, user)
+    taxonomy_errors = validate_project_taxonomy(
+        building_class=body.building_class,
+        work_type=body.work_type,
+        subclasses=body.subclasses,
+    )
+    if taxonomy_errors:
+        raise HTTPException(
+            status_code=422,
+            detail=taxonomy_errors,
+        )
     project = await create_project(
         session,
         user_id=user.id,
         title=body.title,
         slug=body.slug,
         archetype=body.archetype,
+        building_class=body.building_class,
+        work_type=body.work_type,
         user_role=body.user_role,
         state=body.state,
         phase=body.phase,
+        taxonomy=_project_taxonomy_metadata(body),
     )
     summary = _project_summary(project)
     return ProjectDetail(
@@ -480,6 +550,17 @@ async def post_project(
         metadata=project.project_metadata,
         evidence_preview=None,
     )
+
+
+@router.get("/taxonomy")
+async def get_project_taxonomy(
+    response: Response,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    await ensure_user_exists(session, user)
+    response.headers["Cache-Control"] = "private, max-age=3600"
+    return taxonomy_options_payload()
 
 
 @router.get("/{project_id}")
@@ -659,6 +740,23 @@ async def get_project_activity(
         since=since,
         limit=limit,
     )
+    draft_reference_ids = [
+        run.reference_id
+        for run in runs
+        if run.reference_type == "draft_artifact" and run.reference_id is not None
+    ]
+    references_by_draft_id: dict[uuid.UUID, ProjectActivityReferences | None] = {}
+    if draft_reference_ids:
+        draft_rows = await session.execute(
+            select(DraftArtifact.id, DraftArtifact.provenance_metadata).where(
+                DraftArtifact.project_id == project.id,
+                DraftArtifact.id.in_(draft_reference_ids),
+            )
+        )
+        references_by_draft_id = {
+            row.id: _activity_references_from_metadata(row.provenance_metadata)
+            for row in draft_rows.all()
+        }
     response_runs = [
         ProjectActivityRun(
             run_id=run.run_id,
@@ -668,6 +766,7 @@ async def get_project_activity(
             status=run.status,
             created_at=run.created_at,
             updated_at=run.updated_at,
+            references=references_by_draft_id.get(run.reference_id),
             events=[
                 ProjectActivityEvent(
                     id=event.id,
@@ -684,6 +783,22 @@ async def get_project_activity(
     ]
     newest = max((run.updated_at for run in response_runs), default=None)
     return ProjectActivityResponse(runs=response_runs, newest_created_at=newest)
+
+
+@router.delete("/{project_id}/activity")
+async def delete_project_activity(
+    project_id: uuid.UUID,
+    body: DeleteProjectActivityRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DeleteProjectActivityResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    deleted = await delete_project_activity_runs(
+        session,
+        project_id=project.id,
+        run_ids=body.run_ids,
+    )
+    return DeleteProjectActivityResponse(deleted=deleted)
 
 
 @router.get("/{project_id}/workspace-files/preview")

@@ -170,12 +170,13 @@ def _passage(
     source_type: str,
     relative_path: str,
     whole_document: bool = False,
+    content: str = "The project brief requires a project management plan.",
 ) -> SourcePassage:
     return SourcePassage(
         chunk_id=uuid.uuid4(),
         document_id=uuid.uuid4(),
         chunk_index=0,
-        content="The project brief requires a project management plan.",
+        content=content,
         project=project,
         phase="reference",
         source_type=source_type,
@@ -193,9 +194,13 @@ def _passage(
 
 
 def _project_source_texts() -> list[str]:
+    # Reads like the documents it stands for: the evidence-map claim validator
+    # requires "engagement letter" / "fee proposal" content to actually exist.
     return [
+        "Letter of engagement — architect-PM services.\n"
         "Dear Michael and Sarah Chen,\n"
-        "Re: Chen Residence, 14 Wattle Grove, Lindfield NSW 2070"
+        "Re: Chen Residence, 14 Wattle Grove, Lindfield NSW 2070\n"
+        "Fee proposal — project understanding as briefed."
     ]
 
 
@@ -362,6 +367,7 @@ def test_create_pmp_saves_evidence_grounded_draft() -> None:
                         source_type="project_evidence",
                         relative_path="greenfield-demo/brief.md",
                         whole_document=True,
+                        content=_project_source_texts()[0],
                     )
                 ]
             ),

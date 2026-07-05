@@ -75,11 +75,37 @@ Setup guides:
 - [Frontend](docs/guides/frontend-setup.md)
 - [Deployment](docs/deployment.md)
 
-Backend commands run from `backend/`:
+Backend commands run from `backend/`.
+
+For normal API development:
 
 ```bash
 uv sync
 uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+```
+
+For PDF/table extraction work, run the backend with OpenDataLoader hybrid:
+
+```powershell
+.\scripts\dev-backend-with-odl.ps1
+```
+
+That starts the OpenDataLoader hybrid server on `http://127.0.0.1:5002`, waits
+for it to become healthy, configures the Clerk backend to use it, then starts
+FastAPI on `http://127.0.0.1:8000`.
+
+To start the OpenDataLoader hybrid server manually in its own terminal:
+
+```powershell
+cd backend
+uv run python -m opendataloader_pdf.hybrid_server --port 5002
+```
+
+Then start FastAPI in another terminal:
+
+```powershell
+cd backend
 uv run uvicorn app.main:app --reload
 ```
 
@@ -104,4 +130,3 @@ See [data/README.md](data/README.md).
 The existing PydanticAI grounded-RAG chat, Polar billing, and cockpit pages are
 still live until the planned Phase 8.5 cutover. Do not delete them early; the
 Hermes plan keeps them as a safety valve until the production demo passes.
-

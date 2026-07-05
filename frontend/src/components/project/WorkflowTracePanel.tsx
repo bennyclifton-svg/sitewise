@@ -5,18 +5,14 @@ import type { WorkflowTraceEvent } from "@/lib/types/project";
 export function WorkflowTracePanel({
   trace,
   isRunning = false,
-  emptyMessage = "Workflow trace will appear here after a run.",
+  embedded = false,
 }: {
   trace: WorkflowTraceEvent[];
   isRunning?: boolean;
-  emptyMessage?: string;
+  embedded?: boolean;
 }) {
   if (!trace.length && !isRunning) {
-    return (
-      <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-        {emptyMessage}
-      </div>
-    );
+    return null;
   }
 
   const complete = !isRunning && trace.length > 0 && trace.every(isSuccessStatus);
@@ -24,11 +20,21 @@ export function WorkflowTracePanel({
 
   return (
     <section
-      className="cockpit-signature-card rounded-lg border bg-card p-4 shadow-sm"
+      className={
+        embedded
+          ? "bg-transparent py-0"
+          : "cockpit-signature-card rounded-lg border bg-card p-4 shadow-sm"
+      }
       aria-label="Workflow activity"
       aria-live="polite"
     >
-      <header className="mb-3 flex items-center gap-2 border-b pb-3">
+      <header
+        className={
+          embedded
+            ? "flex min-h-[22px] items-center gap-2 px-1 text-xs"
+            : "mb-3 flex items-center gap-2 border-b pb-3"
+        }
+      >
         {isRunning ? (
           <LoaderCircle className="size-3.5 shrink-0 animate-spin text-[var(--wf-info-text)]" aria-hidden />
         ) : complete ? (
@@ -38,7 +44,7 @@ export function WorkflowTracePanel({
         ) : (
           <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         )}
-        <span className="text-sm font-semibold">
+        <span className={embedded ? "font-medium" : "text-sm font-semibold"}>
           {isRunning ? "Clerk is working…" : complete ? "Run complete" : "Workflow trace"}
         </span>
         <span className="ml-auto text-xs text-muted-foreground">
@@ -46,26 +52,72 @@ export function WorkflowTracePanel({
         </span>
       </header>
 
-      <ol className="flex flex-col gap-1.5">
+      <ol className={embedded ? "flex flex-col gap-0" : "flex flex-col gap-1.5"}>
         {trace.map((event, index) => (
-          <li key={`${event.step}-${index}`} className="flex items-start gap-2 text-xs">
+          <li
+            key={`${event.step}-${index}`}
+            className={
+              embedded
+                ? "grid min-h-[22px] grid-cols-[0.75rem_auto_minmax(0,1fr)] items-start gap-x-2 px-1 py-0.5 text-xs leading-tight"
+                : "flex items-start gap-2 text-xs"
+            }
+            title={
+              embedded && Object.keys(event.metadata).length
+                ? formatMetadataSummary(event.metadata)
+                : undefined
+            }
+          >
             <TraceRowIcon status={event.status} />
-            <code className="cockpit-trace-tool shrink-0">{event.step}</code>
-            <span className="min-w-0 text-muted-foreground">{event.message}</span>
+            <code
+              className={
+                embedded
+                  ? "shrink-0 font-mono text-[0.65rem] text-[var(--wf-info-text)]"
+                  : "cockpit-trace-tool shrink-0"
+              }
+            >
+              {event.step}
+            </code>
+            <span
+              className={
+                embedded
+                  ? "min-w-0 whitespace-normal break-words text-muted-foreground"
+                  : "min-w-0 text-muted-foreground"
+              }
+            >
+              {event.message}
+            </span>
             {Object.keys(event.metadata).length ? (
-              <span className="ml-auto hidden shrink-0 text-[0.65rem] text-muted-foreground sm:inline">
+              <span
+                className={
+                  embedded
+                    ? "hidden"
+                    : "ml-auto hidden shrink-0 text-[0.65rem] text-muted-foreground sm:inline"
+                }
+              >
                 {formatMetadataSummary(event.metadata)}
               </span>
             ) : null}
           </li>
         ))}
         {isRunning ? (
-          <li className="flex items-center gap-2 text-xs text-foreground">
+          <li
+            className={
+              embedded
+                ? "flex min-h-[22px] items-center gap-2 px-1 text-xs text-foreground"
+                : "flex items-center gap-2 text-xs text-foreground"
+            }
+          >
             <LoaderCircle className="size-3 shrink-0 animate-spin text-[var(--wf-info-text)]" aria-hidden />
             <span>working…</span>
           </li>
         ) : complete ? (
-          <li className="flex items-center gap-2 text-xs font-medium text-[var(--wf-ok-text)]">
+          <li
+            className={
+              embedded
+                ? "flex min-h-[22px] items-center gap-2 px-1 text-xs font-medium text-[var(--wf-ok-text)]"
+                : "flex items-center gap-2 text-xs font-medium text-[var(--wf-ok-text)]"
+            }
+          >
             <Check className="size-3 shrink-0" strokeWidth={3} aria-hidden />
             <span>Draft ready for review</span>
           </li>

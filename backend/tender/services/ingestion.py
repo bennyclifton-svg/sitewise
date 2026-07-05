@@ -204,7 +204,13 @@ def _default_uploader(*, storage_key: str, content: bytes, filename: str) -> str
 
 
 def _default_extractor(pdf_bytes: bytes) -> list[PageExtract]:
-    return extract_pages(pdf_bytes, hybrid=settings.tender_odl_hybrid_enabled)
+    return extract_pages(
+        pdf_bytes,
+        hybrid=settings.tender_odl_hybrid_enabled,
+        hybrid_url=settings.tender_odl_hybrid_url,
+        hybrid_mode=settings.tender_odl_hybrid_mode,
+        hybrid_fallback=settings.tender_odl_hybrid_fallback,
+    )
 
 
 def _default_office_converter(

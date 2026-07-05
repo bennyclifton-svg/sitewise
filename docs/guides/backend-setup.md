@@ -65,6 +65,25 @@ cd backend
 uv run uvicorn app.main:app --reload
 ```
 
+PDF table extraction uses OpenDataLoader. For local development with the ODL
+hybrid backend running beside FastAPI, use the repo-level helper from
+PowerShell:
+
+```powershell
+.\scripts\dev-backend-with-odl.ps1
+```
+
+That starts `opendataloader_pdf.hybrid_server` on port `5002`, waits for its
+health check, sets the Clerk backend ODL environment variables, then starts
+uvicorn on port `8000`.
+
+To run only the ODL hybrid server manually:
+
+```powershell
+cd backend
+uv run python -m opendataloader_pdf.hybrid_server --port 5002
+```
+
 Direct file execution also works:
 
 ```bash

@@ -320,6 +320,7 @@ async def post_agent_stream(
     prior_messages = await list_messages(session, thread.id)
     agent_prompt = build_agent_prompt(
         user_text,
+        project_id=str(thread.project_id),
         archetype=project.archetype,
         user_role=project.user_role,
         state=project.state,

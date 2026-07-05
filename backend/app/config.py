@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     tender_t3_review_conf: float = 0.70
     tender_silence_ps_sim: float = 0.60
     tender_silence_review_conf: float = 0.75
+    tender_odl_hybrid_url: str | None = None
+    tender_odl_hybrid_mode: str = "full"
+    tender_odl_hybrid_fallback: bool = True
     agent_turn_token_secret: str = ""
     agent_runtime_enabled: bool = False
     hermes_binary_path: str = "hermes"

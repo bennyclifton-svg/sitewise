@@ -2,16 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
-
-if TYPE_CHECKING:
-    from app.database.project import Project
 
 
 class ActivityEvent(Base):
@@ -36,8 +33,6 @@ class ActivityEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-
-    project: Mapped["Project"] = relationship(back_populates="activity_events")
 
     __table_args__ = (
         Index("ix_activity_events_project_created_at", "project_id", "created_at"),

@@ -485,6 +485,15 @@ def pack_summary_for_narrative(pack: MobilisationEvidencePack) -> str:
             f"Construction budget confirmed: {pack.construction_budget_ceiling} working ceiling — "
             "do NOT recommend budget confirmation."
         )
+    if pack.builder_quotes:
+        lines.append(
+            "Builder quotes on file (unverified market pricing — a pricing signal, never the "
+            "owner budget; quote exclusions are latent-condition risks to carry):"
+        )
+        lines.extend(f"- {quote}" for quote in pack.builder_quotes)
+    if pack.other_evidence:
+        lines.append("Other evidence on file (unclassified — acknowledge, do not invent detail):")
+        lines.extend(f"- {item}" for item in pack.other_evidence)
     lines.append("Open gaps (address these only):")
     if pack.gaps:
         lines.extend(f"- {gap}" for gap in pack.gaps)

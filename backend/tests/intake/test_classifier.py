@@ -202,3 +202,40 @@ def test_classify_chen_authority_pack_to_planning_authorities(
         preview_snippet=preview_snippet,
     )
     assert destination == "04-planning-and-authorities"
+
+
+def test_classify_builder_quote_by_content_to_procurement() -> None:
+    """Regression: Kaposi.pdf — a builder name filename gives no signal, but the
+    content (price estimate + builder margin) must route to procurement."""
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/Kaposi.pdf",
+        filename="Kaposi.pdf",
+        project_workspace_path=PROJECT,
+        preview_snippet=(
+            "# PRICE ESTIMATE\n"
+            "|STAGE 1|SHED|EARTHWORKS|14,880.00|\n"
+            "EXC GST $182,417.00\nPLUS 10% BUILDER MARGIN $200,658.70"
+        ),
+    )
+    assert destination == "05-procurement/quotes"
+
+
+def test_fee_proposal_content_still_routes_to_consultant_not_quotes() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/HCS-doc.pdf",
+        filename="HCS-doc.pdf",
+        project_workspace_path=PROJECT,
+        preview_snippet="# Fee Proposal\nArchitect-PM services, staged fee basis.",
+    )
+    assert destination is not None
+    assert destination.startswith("02-consultant")
+
+
+def test_unrecognised_content_stays_unresolved() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/Mystery.pdf",
+        filename="Mystery.pdf",
+        project_workspace_path=PROJECT,
+        preview_snippet="Handwritten note about the neighbour's fence.",
+    )
+    assert destination is None

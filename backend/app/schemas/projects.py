@@ -29,6 +29,8 @@ class ProjectSummary(BaseModel):
     workspace_path: str
     phase: str
     archetype: str | None
+    building_class: str | None
+    work_type: str | None
     user_role: str | None
     state: str | None
     status: str
@@ -78,6 +80,12 @@ class CreateProjectRequest(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     slug: str | None = Field(default=None, min_length=1, max_length=255)
     archetype: str | None = Field(default=None, max_length=64)
+    building_class: str | None = Field(default=None, max_length=64)
+    work_type: str | None = Field(default=None, max_length=64)
+    subclasses: list[str] | None = None
+    scale: dict[str, Any] | None = None
+    complexity: dict[str, Any] | None = None
+    work_scope: list[str] | None = None
     user_role: str | None = Field(default=None, max_length=64)
     state: str | None = Field(default=None, max_length=16)
     phase: str = Field(default="brief-planning", min_length=1, max_length=64)
@@ -90,12 +98,27 @@ class CreateProjectRequest(BaseModel):
             raise ValueError("must not be blank")
         return stripped
 
-    @field_validator("slug", "archetype", "user_role", "state")
+    @field_validator(
+        "slug",
+        "archetype",
+        "building_class",
+        "work_type",
+        "user_role",
+        "state",
+    )
     @classmethod
     def strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:
             return None
         stripped = value.strip()
+        return stripped or None
+
+    @field_validator("subclasses", "work_scope")
+    @classmethod
+    def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        stripped = [item.strip() for item in value if item.strip()]
         return stripped or None
 
 
@@ -221,6 +244,12 @@ class ProjectActivityEvent(WorkflowTraceEvent):
     created_at: datetime
 
 
+class ProjectActivityReferences(BaseModel):
+    seed_consulted: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    context_refs: list[str] = Field(default_factory=list)
+
+
 class ProjectActivityRun(BaseModel):
     run_id: uuid.UUID
     source: str
@@ -229,12 +258,21 @@ class ProjectActivityRun(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    references: ProjectActivityReferences | None = None
     events: list[ProjectActivityEvent]
 
 
 class ProjectActivityResponse(BaseModel):
     runs: list[ProjectActivityRun]
     newest_created_at: datetime | None = None
+
+
+class DeleteProjectActivityRequest(BaseModel):
+    run_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+
+
+class DeleteProjectActivityResponse(BaseModel):
+    deleted: int
 
 
 class CreatePmpRequest(BaseModel):

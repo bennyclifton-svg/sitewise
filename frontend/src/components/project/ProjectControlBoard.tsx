@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,7 @@ export function ProjectControlBoard({
         <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
       </header>
 
-      <section className="cockpit-signature-card cockpit-signature-card--bracketed rounded-lg border bg-card shadow-sm">
+      <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
         <div className="grid gap-2 p-3 md:grid-cols-3">
           {lifecycle.map((tile) => (
             <WorkflowButton
@@ -132,32 +133,32 @@ export function ProjectControlBoard({
             />
           ))}
         </div>
-      </section>
 
-      <WorkflowDetail
-        tile={selectedTile}
-        project={project}
-        evidenceCount={evidence.length}
-        latestDraft={latestDraft}
-        latestCostPlanDraft={latestCostPlanDraft}
-        trace={trace}
-        costPlanTrace={costPlanTrace}
-        workflowError={workflowError}
-        costPlanWorkflowError={costPlanWorkflowError}
-        isRunningWorkflow={isRunningWorkflow}
-        isRunningCostPlan={isRunningCostPlan}
-        onRunCreatePmp={onRunCreatePmp}
-        onRunUpdatePmp={onRunUpdatePmp}
-        onRunCreateCostPlan={onRunCreateCostPlan}
-        onRunSortFiles={onRunSortFiles}
-        onOpenDraft={onOpenDraft}
-        onOpenTenderComparison={onOpenTenderComparison}
-        inboxCount={inboxCount}
-        sortFilesResult={sortFilesResult}
-        sortFilesDraft={sortFilesDraft}
-        sortFilesError={sortFilesError}
-        isRunningSortFiles={isRunningSortFiles}
-      />
+        <WorkflowDetail
+          tile={selectedTile}
+          project={project}
+          evidenceCount={evidence.length}
+          latestDraft={latestDraft}
+          latestCostPlanDraft={latestCostPlanDraft}
+          trace={trace}
+          costPlanTrace={costPlanTrace}
+          workflowError={workflowError}
+          costPlanWorkflowError={costPlanWorkflowError}
+          isRunningWorkflow={isRunningWorkflow}
+          isRunningCostPlan={isRunningCostPlan}
+          onRunCreatePmp={onRunCreatePmp}
+          onRunUpdatePmp={onRunUpdatePmp}
+          onRunCreateCostPlan={onRunCreateCostPlan}
+          onRunSortFiles={onRunSortFiles}
+          onOpenDraft={onOpenDraft}
+          onOpenTenderComparison={onOpenTenderComparison}
+          inboxCount={inboxCount}
+          sortFilesResult={sortFilesResult}
+          sortFilesDraft={sortFilesDraft}
+          sortFilesError={sortFilesError}
+          isRunningSortFiles={isRunningSortFiles}
+        />
+      </section>
     </div>
   );
 }
@@ -209,7 +210,6 @@ function WorkflowDetail({
   sortFilesError: string | null;
   isRunningSortFiles: boolean;
 }) {
-  const Icon = tile.icon;
   const isCreatePmp = tile.id === "create-pmp";
   const isCostPlan = tile.id === "cost-plan";
   const isDocumentIntake = tile.id === "document-intake";
@@ -228,25 +228,11 @@ function WorkflowDetail({
   const activeDraft = isCostPlan ? latestCostPlanDraft : latestDraft;
 
   return (
-    <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
-      <header className="border-b p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted/80">
-              <Icon className="size-5 text-muted-foreground" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="cockpit-eyebrow">{tile.folder}</p>
-              <h2 className="text-xl font-semibold tracking-tight">{tile.label}</h2>
-              <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
-                {tile.description}
-              </p>
-            </div>
-          </div>
-          <Badge variant="outline" className={workflowStatusBadgeClass(tile.status)}>
-            {tile.statusLabel}
-          </Badge>
-        </div>
+    <div className="min-w-0">
+      <header className="border-t border-b p-4">
+        <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+          {tile.description}
+        </p>
       </header>
 
       <div className="space-y-4 p-4">
@@ -268,7 +254,7 @@ function WorkflowDetail({
               <ReadinessItem
                 icon={latestDraft ? CheckCircle2 : ClipboardList}
                 label="Latest draft"
-                value={latestDraft ? `v${latestDraft.version}` : "None"}
+                trailing={draftReadinessTrailing(latestDraft, tile.status, tile.statusLabel)}
               />
             </div>
 
@@ -340,7 +326,7 @@ function WorkflowDetail({
               <ReadinessItem
                 icon={activeDraft ? CheckCircle2 : ClipboardList}
                 label="Latest draft"
-                value={activeDraft ? `v${activeDraft.version}` : "None"}
+                trailing={draftReadinessTrailing(activeDraft, tile.status, tile.statusLabel)}
               />
             </div>
 
@@ -484,7 +470,7 @@ function WorkflowDetail({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -504,14 +490,8 @@ function WorkflowButton({
       className={workflowTileClass(selected, tile.status)}
       onClick={onSelect}
     >
-      <div className="flex items-start justify-between gap-2">
-        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <Badge variant="outline" className={workflowStatusBadgeClass(tile.status)}>
-          {tile.statusLabel}
-        </Badge>
-      </div>
-      <p className="mt-3 font-medium leading-tight">{tile.label}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{tile.folder}</p>
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <p className="mt-3 text-[1.2rem] font-medium leading-tight">{tile.label}</p>
     </button>
   );
 }
@@ -520,11 +500,13 @@ function ReadinessItem({
   icon: Icon,
   label,
   value,
+  trailing,
   attention = false,
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
+  value?: string;
+  trailing?: ReactNode;
   attention?: boolean;
 }) {
   return (
@@ -533,8 +515,26 @@ function ReadinessItem({
         <Icon className={cn("size-4", attention && "text-destructive")} aria-hidden />
         {label}
       </div>
-      <p className="mt-2 font-medium">{value}</p>
+      <div className={cn("mt-2 flex items-center", trailing ? "justify-end" : "")}>
+        {trailing ?? <p className="font-medium">{value}</p>}
+      </div>
     </div>
+  );
+}
+
+function draftReadinessTrailing(
+  draft: DraftArtifactSummary | null,
+  status: WorkflowStatus,
+  statusLabel: string,
+) {
+  if (!draft) {
+    return <span className="font-medium">None</span>;
+  }
+
+  return (
+    <Badge variant="outline" className={workflowStatusBadgeClass(status)}>
+      {statusLabel}
+    </Badge>
   );
 }
 
@@ -571,7 +571,7 @@ function buildLifecycleTiles({
   return [
     {
       id: "create-pmp",
-      label: "Brief / PMP",
+      label: "Project Plan",
       folder: "00-brief-pmp",
       icon: FileText,
       status: createPmpStatus.status,
@@ -582,7 +582,7 @@ function buildLifecycleTiles({
     },
     {
       id: "cost-plan",
-      label: "Cost",
+      label: "Cost Plan",
       folder: "01-cost",
       icon: HandCoins,
       status: costPlanStatus.status,
@@ -593,7 +593,7 @@ function buildLifecycleTiles({
     },
     {
       id: "procurement",
-      label: "Procurement",
+      label: "Tender Comparison",
       folder: "05-procurement",
       icon: BriefcaseBusiness,
       status: "ready",

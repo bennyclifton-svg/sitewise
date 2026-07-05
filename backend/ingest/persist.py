@@ -42,10 +42,15 @@ def _preview_snippet(extracted: ExtractedDocument) -> str | None:
 
 def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[str, str]:
     try:
+        preview_snippet = (
+            None
+            if plan.classification.document_class == "specification"
+            else _preview_snippet(extracted)
+        )
         parsed = parse_document_metadata(
             file_name=plan.entry.filename,
             filed_path=plan.entry.relative_path,
-            preview_snippet=_preview_snippet(extracted),
+            preview_snippet=preview_snippet,
             source_path=plan.entry.relative_path,
         )
     except Exception:

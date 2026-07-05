@@ -139,6 +139,12 @@ export type ProjectActivityEvent = WorkflowTraceEvent & {
   created_at: string;
 };
 
+export type ProjectActivityReferences = {
+  seed_consulted: string[];
+  evidence_refs: string[];
+  context_refs: string[];
+};
+
 export type ProjectActivityRun = {
   run_id: string;
   source: string;
@@ -147,12 +153,17 @@ export type ProjectActivityRun = {
   status: string;
   created_at: string;
   updated_at: string;
+  references?: ProjectActivityReferences | null;
   events: ProjectActivityEvent[];
 };
 
 export type ProjectActivityResponse = {
   runs: ProjectActivityRun[];
   newest_created_at: string | null;
+};
+
+export type DeleteProjectActivityResponse = {
+  deleted: number;
 };
 
 export type CreatePmpResponse = {

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -234,15 +234,18 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
     assert "Cost_Plan_v01.draft.xlsx" in file_names
 
 
-def test_project_activity_returns_grouped_runs(client: TestClient) -> None:
+def test_project_activity_returns_grouped_runs(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
     run_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
     event_id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-    workspace_file_id = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    draft_id = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
     run = SimpleNamespace(
         run_id=run_id,
         source="document_ingest",
-        reference_type="workspace_file",
-        reference_id=workspace_file_id,
+        reference_type="draft_artifact",
+        reference_id=draft_id,
         status="complete",
         created_at=NOW,
         updated_at=NOW,
@@ -256,6 +259,18 @@ def test_project_activity_returns_grouped_runs(client: TestClient) -> None:
                 created_at=NOW,
             )
         ],
+    )
+    mock_session.execute.return_value = SimpleNamespace(
+        all=lambda: [
+            SimpleNamespace(
+                id=draft_id,
+                provenance_metadata={
+                    "seed_consulted": [" seed/setup-and-commission-guide.md "],
+                    "evidence_refs": ["project_evidence:demo/brief.pdf#chunk=1"],
+                    "context_refs": ["doctrine:docs/clerk-brief.md"],
+                },
+            )
+        ]
     )
 
     with (
@@ -272,4 +287,35 @@ def test_project_activity_returns_grouped_runs(client: TestClient) -> None:
     assert payload["runs"][0]["run_id"] == str(run_id)
     assert payload["runs"][0]["source"] == "document_ingest"
     assert payload["runs"][0]["events"][0]["metadata"] == {"filename": "quote.pdf"}
+    assert payload["runs"][0]["references"] == {
+        "seed_consulted": ["seed/setup-and-commission-guide.md"],
+        "evidence_refs": ["project_evidence:demo/brief.pdf#chunk=1"],
+        "context_refs": ["doctrine:docs/clerk-brief.md"],
+    }
     assert payload["newest_created_at"] == NOW.isoformat().replace("+00:00", "Z")
+
+
+def test_project_activity_delete_removes_selected_runs(client: TestClient) -> None:
+    run_ids = [
+        uuid.UUID("99999999-9999-9999-9999-999999999999"),
+        uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+    ]
+    delete_runs = AsyncMock(return_value=5)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.delete_project_activity_runs", new=delete_runs),
+    ):
+        response = client.request(
+            "DELETE",
+            f"/projects/{PROJECT_ID}/activity",
+            json={"run_ids": [str(run_id) for run_id in run_ids]},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 5}
+    delete_runs.assert_awaited_once_with(
+        ANY,
+        project_id=PROJECT_ID,
+        run_ids=run_ids,
+    )

@@ -1,7 +1,14 @@
 import uuid
 from types import SimpleNamespace
 
-from app.database.activity_events import activity_run_status, record_activity_events
+from sqlalchemy import select
+
+from app.database.activity_event import ActivityEvent
+from app.database.activity_events import (
+    activity_run_status,
+    delete_project_activity_runs,
+    record_activity_events,
+)
 from app.schemas.projects import WorkflowTraceEvent
 from tests.conftest import run_async
 
@@ -26,6 +33,15 @@ class BrokenSession:
     def add_all(self, rows) -> None:
         _ = rows
         raise RuntimeError("activity table unavailable")
+
+
+class FakeDeleteSession:
+    def __init__(self) -> None:
+        self.statement = None
+
+    async def execute(self, statement):
+        self.statement = statement
+        return SimpleNamespace(rowcount=3)
 
 
 def test_record_activity_events_adds_rows() -> None:
@@ -99,3 +115,27 @@ def test_activity_run_status_is_derived_from_latest_event() -> None:
     assert activity_run_status(running) == "running"
     assert activity_run_status(complete) == "complete"
     assert activity_run_status(failed) == "failed"
+
+
+def test_delete_project_activity_runs_returns_deleted_row_count() -> None:
+    session = FakeDeleteSession()
+
+    deleted = run_async(
+        delete_project_activity_runs(
+            session,
+            project_id=PROJECT_ID,
+            run_ids=[
+                RUN_ID,
+                uuid.UUID("33333333-3333-3333-3333-333333333333"),
+            ],
+        )
+    )
+
+    assert deleted == 3
+    assert session.statement is not None
+
+
+def test_activity_event_select_compiles_without_project_relationship() -> None:
+    compiled = select(ActivityEvent.run_id).compile()
+
+    assert "activity_events" in str(compiled)

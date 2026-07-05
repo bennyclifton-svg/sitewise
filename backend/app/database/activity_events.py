@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.activity_event import ActivityEvent
@@ -174,3 +174,21 @@ async def list_project_activity_runs(
         )
 
     return sorted(runs, key=lambda run: order[run.run_id])
+
+
+async def delete_project_activity_runs(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    run_ids: Sequence[uuid.UUID],
+) -> int:
+    if not run_ids:
+        return 0
+
+    result = await session.execute(
+        delete(ActivityEvent).where(
+            ActivityEvent.project_id == project_id,
+            ActivityEvent.run_id.in_(list(run_ids)),
+        )
+    )
+    return int(result.rowcount or 0)

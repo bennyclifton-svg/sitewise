@@ -118,6 +118,7 @@ def ingest_plan(
         extractor=plan.extractor,
         page_count=len(extracted.pages),
         character_count=len(extracted.normalized_content),
+        **extracted.extraction_metadata,
     )
 
     if should_persist_chunks(plan):

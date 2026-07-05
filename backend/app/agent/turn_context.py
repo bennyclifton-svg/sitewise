@@ -14,6 +14,15 @@ from dataclasses import dataclass
 from app.config import settings
 
 _NOT_DECLARED = "(not declared)"
+_DOCUMENT_ACCESS_GUIDANCE = """<document-access>
+For questions about uploaded source documents, use project document tools before OCR:
+find_document_text is the first choice for simple keyword or phrase lookups.
+search_documents finds semantic matches, and get_document reads longer ingested text.
+Do not inspect repository files, run shell commands, or query the database directly
+to answer questions about uploaded source documents.
+Only use OCR or document-conversion skills when these tools report text is unavailable,
+or when the ingested text is clearly garbled or insufficient for the user's question.
+</document-access>"""
 
 
 @dataclass(frozen=True)
@@ -25,6 +34,7 @@ class HistoryMessage:
 def build_agent_prompt(
     user_text: str,
     *,
+    project_id: str,
     archetype: str | None,
     user_role: str | None,
     state: str | None,
@@ -40,11 +50,13 @@ def build_agent_prompt(
 
     blocks.append(
         "<project-context>\n"
+        f"project_id: {project_id}\n"
         f"archetype: {archetype or _NOT_DECLARED}\n"
         f"user_role: {user_role or _NOT_DECLARED}\n"
         f"state: {state or _NOT_DECLARED}\n"
         "</project-context>"
     )
+    blocks.append(_DOCUMENT_ACCESS_GUIDANCE)
 
     window = _bounded_history(history)
     if window:
