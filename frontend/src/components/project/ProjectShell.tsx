@@ -107,37 +107,39 @@ export function ProjectShell({
         </aside>
 
         <main className="project-main-panel relative flex min-h-[48rem] min-w-0 flex-col overflow-hidden bg-background lg:h-full lg:min-h-0 lg:max-h-full">
-          <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
-            <button
-              type="button"
-              className="group relative hidden px-4 py-1.5 lg:inline"
-              onClick={onShowWorkbench}
-            >
-              <span
-                aria-hidden
-                className="absolute inset-0 border border-border [clip-path:polygon(0.5rem_0,100%_0,calc(100%-0.5rem)_100%,0_100%)] transition-colors group-hover:border-foreground/50"
-              />
-              <span className="relative block text-[1.125rem] font-medium leading-none text-muted-foreground transition-colors group-hover:text-foreground">
-                SiteWise
-              </span>
-            </button>
-            <div className="ml-auto flex items-center gap-1">
-              <Button
+          <div className="cockpit-shell-header shrink-0">
+            <div className="flex items-center gap-1">
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="hidden lg:inline-flex"
-                aria-label={
-                  repoCollapsed ? "Expand document repository" : "Collapse document repository"
-                }
-                onClick={() => setRepoCollapsed((current) => !current)}
+                className="group relative hidden px-4 py-1.5 lg:inline"
+                onClick={onShowWorkbench}
               >
-                {repoCollapsed ? (
-                  <PanelRightOpen className="size-4" aria-hidden />
-                ) : (
-                  <PanelRightClose className="size-4" aria-hidden />
-                )}
-              </Button>
+                <span
+                  aria-hidden
+                  className="absolute inset-0 border border-[var(--gr-300)] [clip-path:polygon(0.5rem_0,100%_0,calc(100%-0.5rem)_100%,0_100%)] transition-colors group-hover:border-[var(--gr-500)]"
+                />
+                <span className="relative block text-[1.125rem] font-medium leading-none text-[var(--gr-600)] transition-colors group-hover:text-[var(--gr-900)]">
+                  SiteWise
+                </span>
+              </button>
+              <div className="ml-auto flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="hidden text-[var(--gr-700)] hover:bg-black/5 hover:text-[var(--gr-900)] lg:inline-flex"
+                  aria-label={
+                    repoCollapsed ? "Expand document repository" : "Collapse document repository"
+                  }
+                  onClick={() => setRepoCollapsed((current) => !current)}
+                >
+                  {repoCollapsed ? (
+                    <PanelRightOpen className="size-4" aria-hidden />
+                  ) : (
+                    <PanelRightClose className="size-4" aria-hidden />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
