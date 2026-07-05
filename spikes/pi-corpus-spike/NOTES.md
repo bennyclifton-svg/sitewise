@@ -58,4 +58,29 @@ Locked eval runs combine `--no-tools` (no bash/read/write/edit) with the five MC
 
 ## Decision
 
-_(pending Task 6)_
+**Verdict: GO (with integration caveats)**
+
+Locked condition meets the plan gate: **7/8 correct**, **zero escape attempts**, typical latency ~17s/question (acceptable for chat).
+
+### Why GO
+
+- pi reliably drives Clerk retrieval MCP tools from ingested corpus without bash/read/write escape.
+- Locked surface produces *better* grounding on Q1 than open (correctly refuses to invent bearing capacity).
+- Same model (`gpt-5.1`) isolates harness effect: tool-locked pi stays on corpus tools; failures are grounding/MCP reliability, not re-ingest behaviour.
+
+### Caveats for integration
+
+1. **MCP adapter stability:** `locked-q3.json` hit `MCP server "clerk" not available` mid-run → hallucinated answer. Production needs reconnect/retry or turn-level error surfacing.
+2. **Windows driver:** Use `Start-Job` wrapper (documented in `run-eval.ps1`); bare `pi -p` hangs in some shells.
+3. **CLI flag:** Use `--no-tools` not `--no-builtin-tools` (pi 0.67.68).
+4. **Open condition:** Built-ins available did not cause escape in this eval, but Q1 open hallucinated — locking tools is still warranted for Q&A turns.
+
+### Next step
+
+Separate integration plan: pi runtime profile alongside `hermes_process.py` for corpus Q&A turns, reusing `turn_context.build_agent_prompt` and existing turn-token mint flow. Branch: `feature/omnigent-shell`.
+
+### Cited traces
+
+- `results/locked-q1.json` — correct refusal to invent bearing capacity
+- `results/locked-q3.json` — MCP blip + hallucination
+- `results/open-q1.json` — open condition hallucination with same retrieval tools
