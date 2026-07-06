@@ -5,7 +5,7 @@ applies_to_classes: [commercial, industrial, institution, mixed, infrastructure]
 applies_to_work_types: [new, refurb, extend, remediation, advisory]
 topics: [procurement, contracts, tendering, commercial]
 summary: "Commercial procurement and tendering guide: construct-only, D&C, managing contractor, ECI, alliances, standard forms, RFT documentation, tender-period controls, evaluation, probity, award and service-deliverable procurement."
-required_by: {create-pmp: 7}
+required_by: {create-pmp: 7, consultant-procurement: 1}
 ---
 
 # Procurement & Tendering Guide

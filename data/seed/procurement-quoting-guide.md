@@ -9,7 +9,7 @@ applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 topics: [procurement, tender, quoting]
 summary: "Residential procurement reality: informal subbie quote comparison alongside the formal EOI-RFT-evaluation-recommendation pathway, trade scope traps, weighting discipline and probity where it matters. The mandatory procurement seed for PMP drafting."
-required_by: {create-pmp: 7}
+required_by: {create-pmp: 7, consultant-procurement: 1}
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline]
 agents_anchors: [§1, §2, §8]
 ---

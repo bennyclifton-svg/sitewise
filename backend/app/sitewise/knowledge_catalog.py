@@ -29,7 +29,7 @@ _KNOWLEDGE_SOURCES: tuple[tuple[str, Path], ...] = (
     ("seed", REPO_ROOT / "data" / "seed"),
     ("skills/reference", REPO_ROOT / "data" / "skills" / "reference"),
 )
-WORKFLOWS: tuple[str, ...] = ("create-pmp", "create-cost-plan")
+WORKFLOWS: tuple[str, ...] = ("create-pmp", "create-cost-plan", "consultant-procurement")
 
 
 @dataclass(frozen=True)
