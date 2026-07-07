@@ -21,7 +21,10 @@ def test_agent_runtime_options_include_hermes_and_pi(
 
     assert HERMES_RUNTIME_ID in ids
     assert PI_RUNTIME_ID in ids
+    hermes = next(option for option in options if option.id == HERMES_RUNTIME_ID)
+    assert hermes.model == settings.hermes_model
     pi = next(option for option in options if option.id == PI_RUNTIME_ID)
+    assert pi.model == settings.pi_model
     assert pi.enabled is False
 
 

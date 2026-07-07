@@ -6,10 +6,9 @@ from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.sitewise.gate import overlay_status
 from app.workflows.create_pmp import PmpDraftOutput, markdown_section_headings
-from app.workflows.update_pmp import (
-    run_update_pmp_workflow,
-    validate_update_pmp_output,
-)
+from app.workflows import update_pmp as workflow
+from app.workflows.update_pmp import run_update_pmp_workflow, validate_update_pmp_output
+from app.schemas.projects import WorkflowTraceEvent
 from tests.conftest import run_async
 from tests.workflows.test_create_pmp import (
     _valid_evidence_grounded_pmp_markdown,
@@ -156,3 +155,44 @@ def test_update_pmp_fails_without_baseline() -> None:
         )
     assert result.status == "failed"
     assert "Create PMP first" in (result.message or "")
+
+
+def test_update_pmp_trace_persists_project_activity_without_thread() -> None:
+    session = AsyncMock()
+    trace = [
+        WorkflowTraceEvent(
+            step="validation",
+            status="passed",
+            message="Update PMP output passed validation.",
+            metadata={},
+        )
+    ]
+    run_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+
+    with (
+        patch("app.workflows.update_pmp.record_activity_events", new=AsyncMock()) as record,
+        patch("app.workflows.update_pmp.create_message", new=AsyncMock()) as create_message,
+    ):
+        run_async(
+            workflow._persist_trace_message(
+                session,
+                project_id=PROJECT_ID,
+                run_id=run_id,
+                thread_id=None,
+                content="Update PMP completed.",
+                trace=trace,
+                status="complete",
+                draft_id=BASELINE_ID,
+            )
+        )
+
+    record.assert_awaited_once_with(
+        session,
+        project_id=PROJECT_ID,
+        source=workflow.UPDATE_WORKFLOW_TYPE,
+        run_id=run_id,
+        reference_type="draft_artifact",
+        reference_id=BASELINE_ID,
+        events=trace,
+    )
+    create_message.assert_not_awaited()

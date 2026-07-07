@@ -167,7 +167,7 @@ def test_walsh_pack_captures_builder_rom_and_heritage_advice() -> None:
     assert pack.builder_rom_programme is not None
     assert "14" in pack.builder_rom_programme and "16 months" in pack.builder_rom_programme
     assert any("party wall tie-in" in caveat.lower() for caveat in pack.builder_rom_caveats)
-    assert any("$25" in caveat and "$40k" in caveat for caveat in pack.builder_rom_caveats)
+    assert any("$25" in caveat and "40k" in caveat for caveat in pack.builder_rom_caveats)
     assert pack.builder_conflict_disclosure is not None
     assert "not related parties" in pack.builder_conflict_disclosure.lower()
 

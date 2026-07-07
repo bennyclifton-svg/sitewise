@@ -178,15 +178,27 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
 
 
 def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
-    from tests.workflows.test_create_cost_plan import _valid_evidence_grounded_cost_plan_markdown
+    from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
+    from app.sitewise.cost_plan_renderer import render_cost_plan_scaffold
 
     project = harrison_clarke_cost_project()
     platform_passages = platform_passages_for_cost_plan(project)
+    evidence_refs = [
+        f"project_evidence:{project.slug}/02-consultant/architect/"
+        "01-engagement-letter-harrison-clarke-studio.md#chunk=0",
+        f"project_evidence:{project.slug}/00-brief-pmp/"
+        "03-owner-project-brief-chen-residence.md#chunk=0",
+    ]
+    legacy_markdown = render_cost_plan_scaffold(
+        project,
+        extract_cost_plan_evidence_pack(_harrison_clarke_source_texts(), evidence_refs),
+        "evidence_grounded",
+    )
     legacy_output = CostPlanDraftOutput(
         title="Project Cost Plan",
-        markdown=_valid_evidence_grounded_cost_plan_markdown(),
+        markdown=legacy_markdown,
         seed_consulted=[p.relative_path for p in platform_passages if p.source_type == "reference"],
-        evidence_refs=["project_evidence:demo/01-cost/budget.md#chunk=0"],
+        evidence_refs=evidence_refs,
         context_refs=[f"{p.source_type}:{p.relative_path}#chunk=0" for p in platform_passages],
     )
     draft = mock_cost_plan_draft(runtime=RUNTIME_NAME)

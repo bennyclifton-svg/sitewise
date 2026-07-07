@@ -16,6 +16,12 @@ from typing import Protocol
 from app.config import settings
 
 PI_MCP_DIRECT_TOOLS = (
+    "list_project_files",
+    "read_project_workbook",
+    "read_workspace_file",
+    "forecast_consultant_fees",
+    "apply_consultant_fee_forecast",
+    "draft_consultant_procurement_artifact",
     "find_document_text",
     "search_documents",
     "get_document",

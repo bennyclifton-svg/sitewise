@@ -1,0 +1,24 @@
+{
+  "period": "parametric",
+  "massing": {
+    "footprint": "fractured",
+    "aspect": [1.55, 1.9, 1.25],
+    "roof": "curved",
+    "symmetry": "radial"
+  },
+  "rhythm": {
+    "bays": 9,
+    "windowShape": "cellular",
+    "windowToWallRatio": 0.42,
+    "verticality": 0.58
+  },
+  "ornament": {
+    "motifs": ["diagrid_skin", "flowing_fins", "cellular_apertures"],
+    "density": 0.26
+  },
+  "material": {
+    "base": "#d6d4cb",
+    "roughness": 0.48,
+    "windowEmissive": "#b7f1ff"
+  }
+}

@@ -164,7 +164,7 @@ def test_render_pmp_scaffold_walsh_promotes_owner_brief_and_builder_rom_detail()
     assert "18 months" in md
     assert "14" in md and "16 months" in md
     assert "party wall tie-in" in md
-    assert "$25" in md and "$40k" in md
+    assert "$25" in md and "40k" in md
     assert "not related parties" in md
 
 

@@ -1,0 +1,24 @@
+{
+  "period": "crystal_architecture",
+  "massing": {
+    "footprint": "fractured",
+    "aspect": [1.45, 2.05, 1.4],
+    "roof": "faceted",
+    "symmetry": "radial"
+  },
+  "rhythm": {
+    "bays": 6,
+    "windowShape": "faceted",
+    "windowToWallRatio": 0.64,
+    "verticality": 0.72
+  },
+  "ornament": {
+    "motifs": ["faceted_planes", "prismatic_crown", "diagonal_mullions"],
+    "density": 0.22
+  },
+  "material": {
+    "base": "#c9d8dc",
+    "roughness": 0.36,
+    "windowEmissive": "#b9f4ff"
+  }
+}

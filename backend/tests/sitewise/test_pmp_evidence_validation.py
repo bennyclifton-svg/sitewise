@@ -185,6 +185,41 @@ def test_sanitize_evidence_grounded_markdown_repairs_project_overview() -> None:
     )
 
 
+def test_sanitize_taxonomy_snapshot_injects_engagement_status() -> None:
+    markdown = """# Project Management Plan
+
+## Project snapshot
+
+| Field | Value | Evidence status |
+| --- | --- | --- |
+| Client | Michael and Sarah Chen | Grounded |
+| Appointment and fee | Harrison Clarke Studio | Grounded |
+
+## Internal audit layer
+
+- **Facts**
+  - Fixed fee $148,500 ex GST per engagement letter.
+  - DA pathway assumed per fee proposal.
+"""
+    refs = [ENGAGEMENT_REF, FEE_REF]
+
+    cleaned = sanitize_evidence_grounded_markdown(
+        markdown,
+        refs,
+        source_texts=_project_source_texts(),
+    )
+
+    assert "engagement letter on file" in cleaned.lower()
+    assert (
+        evidence_grounded_violations(
+            cleaned,
+            refs,
+            source_texts=_project_source_texts(),
+        )
+        == []
+    )
+
+
 def test_evidence_grounded_violations_rejects_body_section_filing_contradictions() -> None:
     markdown = _valid_evidence_grounded_pmp_markdown()
     appointment = """## Architect-PM role and appointment

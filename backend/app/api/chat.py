@@ -71,11 +71,13 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 _PROJECT_DOCUMENT_TRACE_TOOLS = {
+    "draft_consultant_procurement_artifact",
     "find_document_text",
     "search_documents",
     "get_document",
 }
 _PLATFORM_KNOWLEDGE_TRACE_TOOLS = {
+    "draft_consultant_procurement_artifact",
     "list_platform_knowledge",
     "search_platform_knowledge",
     "read_platform_knowledge",
@@ -299,6 +301,7 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
     tools: list[dict[str, Any]] = []
     seen_tool_keys: set[str] = set()
     document_tools: list[str] = []
+    document_references: list[str] = []
     knowledge_tools: list[str] = []
     knowledge_references: list[str] = []
 
@@ -312,6 +315,32 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
         knowledge_path = event.get("knowledge_path")
         if isinstance(knowledge_path, str) and knowledge_path:
             _append_unique(knowledge_references, knowledge_path)
+
+        has_document_references = False
+        source_documents = event.get("source_documents")
+        if isinstance(source_documents, list):
+            for source_document in source_documents:
+                if not isinstance(source_document, Mapping):
+                    continue
+                path = source_document.get("relative_path")
+                filename = source_document.get("filename")
+                if isinstance(path, str) and path:
+                    _append_unique(document_references, path)
+                    has_document_references = True
+                elif isinstance(filename, str) and filename:
+                    _append_unique(document_references, filename)
+                    has_document_references = True
+
+        has_platform_references = False
+        platform_knowledge = event.get("platform_knowledge")
+        if isinstance(platform_knowledge, list):
+            for knowledge in platform_knowledge:
+                if not isinstance(knowledge, Mapping):
+                    continue
+                path = knowledge.get("path")
+                if isinstance(path, str) and path:
+                    _append_unique(knowledge_references, path)
+                    has_platform_references = True
 
         key = f"{tool}\0{knowledge_path if isinstance(knowledge_path, str) else ''}"
         if key not in seen_tool_keys:
@@ -328,17 +357,30 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
                     for section_id in section_ids
                     if isinstance(section_id, str)
                 ]
+            document_count = event.get("document_count")
+            if isinstance(document_count, int):
+                item["documentCount"] = document_count
+            knowledge_count = event.get("knowledge_count")
+            if isinstance(knowledge_count, int):
+                item["knowledgeCount"] = knowledge_count
+            forecast_used = event.get("forecast_used")
+            if isinstance(forecast_used, bool):
+                item["forecastUsed"] = forecast_used
             tools.append(item)
             seen_tool_keys.add(key)
 
-        if tool in _PROJECT_DOCUMENT_TRACE_TOOLS:
+        if tool in _PROJECT_DOCUMENT_TRACE_TOOLS or has_document_references:
             _append_unique(document_tools, tool)
-        if tool in _PLATFORM_KNOWLEDGE_TRACE_TOOLS:
+        if tool in _PLATFORM_KNOWLEDGE_TRACE_TOOLS or has_platform_references:
             _append_unique(knowledge_tools, tool)
+
+    documents: dict[str, Any] = {"used": bool(document_tools), "tools": document_tools}
+    if document_references:
+        documents["references"] = document_references
 
     return {
         "context": {"used": True, "label": "Project context"},
-        "documents": {"used": bool(document_tools), "tools": document_tools},
+        "documents": documents,
         "knowledge": {
             "used": bool(knowledge_tools),
             "tools": knowledge_tools,

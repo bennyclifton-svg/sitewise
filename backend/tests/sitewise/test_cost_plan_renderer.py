@@ -5,7 +5,7 @@ from app.sitewise.cost_plan_evidence_validation import cost_plan_evidence_ground
 from app.sitewise.cost_plan_renderer import render_cost_plan_scaffold
 from app.sitewise.cost_plan_sources import required_section_headings
 from tests.sitewise.test_cost_plan_evidence import FIXTURE_DIR
-from tests.sitewise.test_pmp_renderer import _harrison_clarke_project
+from tests.sitewise.test_pmp_renderer import REPO_ROOT, _harrison_clarke_project, _walsh_project
 
 
 def _read(name: str) -> str:
@@ -23,6 +23,14 @@ def _pack():
         _read("12-certifier-appointment-chen-residence.md"),
     ]
     return extract_cost_plan_evidence_pack(texts, ["ref:a", "ref:b", "ref:c", "ref:d", "ref:e", "ref:f", "ref:g"])
+
+
+def _walsh_cost_pack():
+    walsh_dir = REPO_ROOT / "data" / "synthetic-mobilisation-evidence" / "walsh-renovation"
+    paths = sorted(walsh_dir.glob("[0-9]*.md"))
+    texts = [path.read_text(encoding="utf-8") for path in paths]
+    refs = [f"ref:{path.name}" for path in paths]
+    return extract_cost_plan_evidence_pack(texts, refs)
 
 
 def test_render_cost_plan_scaffold_includes_all_sections() -> None:
@@ -52,6 +60,30 @@ def test_render_cost_plan_scaffold_surfaces_owner_brief_ceiling() -> None:
     assert "owner-held contingency" in markdown
     assert "pendant lights: $8,000 (owner-supplied" in markdown
     assert "$$" not in markdown
+
+
+def test_render_cost_plan_scaffold_walsh_surfaces_all_cost_drivers() -> None:
+    project = _walsh_project()
+    project.building_class = "residential"
+    project.work_type = "refurb"
+    markdown = render_cost_plan_scaffold(project, _walsh_cost_pack(), "evidence_grounded")
+    lowered = markdown.lower()
+
+    assert "atelier north" in lowered
+    assert "hcs architect" not in lowered
+    assert "project profile / role / state:** residential / refurb, architect-pm, nsw" in lowered
+    assert "archetype / role / state:** none" not in lowered
+    assert "$96,500" in markdown
+    assert "$980,000 ex GST** is **outside" not in markdown
+    assert "$920,000" in markdown
+    assert "$85,000" in markdown
+    assert "$880,000" in markdown and "$980,000" in markdown
+    assert "not a tender" in lowered
+    assert "live occupation" in lowered
+    assert "$25" in markdown and "40k" in lowered
+    assert "heritage impact statement" in lowered
+    assert "6-8 weeks" in lowered or "6–8 weeks" in lowered
+    assert "not related parties" in lowered
 
 
 def test_certifier_row_is_grounded_when_appointed() -> None:

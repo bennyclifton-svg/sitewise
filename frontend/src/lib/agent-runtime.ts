@@ -9,6 +9,9 @@ export type AgentRuntimeOption = {
   label: string;
   enabled: boolean;
   description?: string | null;
+  provider?: string | null;
+  model?: string | null;
+  model_label?: string | null;
 };
 
 export function getSelectedAgentRuntime(): string | null {

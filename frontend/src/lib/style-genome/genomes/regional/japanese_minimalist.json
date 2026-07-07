@@ -1,0 +1,24 @@
+{
+  "period": "japanese_minimalist",
+  "massing": {
+    "footprint": "rectangle",
+    "aspect": [2, 0.9, 1],
+    "roof": "hipped",
+    "symmetry": "bilateral"
+  },
+  "rhythm": {
+    "bays": 4,
+    "windowShape": "screen",
+    "windowToWallRatio": 0.46,
+    "verticality": 0.2
+  },
+  "ornament": {
+    "motifs": ["deep_eaves", "shoji_grid", "raised_plinth"],
+    "density": 0.18
+  },
+  "material": {
+    "base": "#c9b99d",
+    "roughness": 0.82,
+    "windowEmissive": "#ffe2a6"
+  }
+}

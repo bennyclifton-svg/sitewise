@@ -15,6 +15,9 @@ class AgentRuntimeOption(BaseModel):
     label: str
     enabled: bool = True
     description: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    model_label: str | None = None
 
 
 class InvalidAgentRuntimeError(ValueError):
@@ -28,12 +31,18 @@ def agent_runtime_options() -> list[AgentRuntimeOption]:
             label="Hermes",
             enabled=settings.agent_runtime_enabled,
             description="Default Clerk agent with MCP tool surface.",
+            provider=settings.hermes_model_provider,
+            model=settings.hermes_model,
+            model_label=f"{settings.hermes_model} ({settings.hermes_model_provider})",
         ),
         AgentRuntimeOption(
             id=PI_RUNTIME_ID,
             label="Pi",
             enabled=settings.agent_runtime_enabled and settings.pi_runtime_enabled,
             description="Pi coding agent with retrieval-only MCP tools.",
+            provider=settings.pi_model_provider,
+            model=settings.pi_model,
+            model_label=f"{settings.pi_model} ({settings.pi_model_provider})",
         ),
     ]
 

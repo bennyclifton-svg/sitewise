@@ -1,0 +1,24 @@
+{
+  "period": "victorian",
+  "massing": {
+    "footprint": "L",
+    "aspect": [1.45, 1.75, 1.1],
+    "roof": "gable",
+    "symmetry": "asymmetric"
+  },
+  "rhythm": {
+    "bays": 4,
+    "windowShape": "sash",
+    "windowToWallRatio": 0.38,
+    "verticality": 0.66
+  },
+  "ornament": {
+    "motifs": ["bay_window", "steep_gable", "bargeboard_trim"],
+    "density": 0.42
+  },
+  "material": {
+    "base": "#7e4d45",
+    "roughness": 0.76,
+    "windowEmissive": "#ffc078"
+  }
+}

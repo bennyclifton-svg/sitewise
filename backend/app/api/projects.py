@@ -22,6 +22,7 @@ from app.database.draft_artifacts import (
     accept_draft,
     create_draft_revision,
     get_draft_artifact,
+    get_latest_consultant_procurement_draft_summaries,
     get_latest_draft_artifact_summaries,
     get_latest_draft_artifact,
     update_draft_content,
@@ -102,11 +103,16 @@ from app.sitewise.taxonomy import (
 )
 from app.sitewise.pmp_decisions import extract_decisions, render_decisions_static, restamp_decisions
 from app.sitewise.workspace_tree import build_project_workspace_tree
+from app.workflows.consultant_procurement import (
+    is_consultant_procurement_workflow,
+    sync_consultant_procurement_draft_workspace,
+)
 from app.workflows.create_cost_plan import (
     draft_workspace_path as cost_plan_draft_workspace_path,
     is_cost_plan_workflow,
     run_create_cost_plan_workflow,
     sync_cost_plan_draft_workspace,
+    sync_cost_plan_revision_artifacts,
 )
 from app.workflows.create_pmp import (
     canonical_pmp_workspace_path,
@@ -366,6 +372,54 @@ async def _ensure_cost_plan_workspace_file(
 
     await sync_cost_plan_draft_workspace(session, project=project, draft=draft)
     return await list_workspace_files_for_project(session, project_id=project.id)
+
+
+async def _ensure_consultant_procurement_workspace_files(
+    session: AsyncSession,
+    *,
+    project,
+    workspace_files,
+    consultant_draft_summaries: dict[str, DraftArtifactSummary | None],
+) -> list:
+    if not consultant_draft_summaries:
+        return workspace_files
+
+    existing_paths = {record.workspace_path for record in workspace_files}
+    changed = False
+    for summary in consultant_draft_summaries.values():
+        if summary is None or summary.workspace_path in existing_paths:
+            continue
+        draft = await get_latest_draft_artifact(
+            session,
+            project_id=project.id,
+            workflow_type=summary.workflow_type,
+        )
+        if draft is None:
+            continue
+        await sync_consultant_procurement_draft_workspace(session, project=project, draft=draft)
+        changed = True
+
+    if not changed:
+        return workspace_files
+    return await list_workspace_files_for_project(session, project_id=project.id)
+
+
+def _consultant_procurement_draft_summaries(
+    draft_rows: dict[str, dict],
+) -> dict[str, DraftArtifactSummary | None]:
+    return {
+        workflow_type: DraftArtifactSummary.model_validate(row)
+        for workflow_type, row in draft_rows.items()
+    }
+
+
+def _merge_draft_summaries(
+    *summary_groups: dict[str, DraftArtifactSummary | None],
+) -> dict[str, DraftArtifactSummary | None]:
+    merged: dict[str, DraftArtifactSummary | None] = {}
+    for group in summary_groups:
+        merged.update(group)
+    return merged
 
 
 def _workspace_paths_for_tree(
@@ -754,6 +808,12 @@ async def get_project_cockpit_bootstrap(
         )
         for workflow_type in workflow_types
     }
+    consultant_draft_rows = await get_latest_consultant_procurement_draft_summaries(
+        session,
+        project_id=project.id,
+    )
+    consultant_drafts = _consultant_procurement_draft_summaries(consultant_draft_rows)
+    all_draft_summaries = _merge_draft_summaries(latest_drafts, consultant_drafts)
     timings_ms["draft_summaries"] = _elapsed_ms(step_start)
 
     step_start = time.perf_counter()
@@ -770,9 +830,15 @@ async def get_project_cockpit_bootstrap(
         workspace_files=workspace_files,
         draft_summaries=latest_drafts,
     )
+    workspace_files = await _ensure_consultant_procurement_workspace_files(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        consultant_draft_summaries=consultant_drafts,
+    )
     workspace_path_list = _workspace_paths_for_tree(
         workspace_files,
-        draft_summaries=latest_drafts,
+        draft_summaries=all_draft_summaries,
     )
     workspace_paths = set(workspace_path_list)
     workspace_tree = ProjectWorkspaceTreeResponse(
@@ -814,7 +880,7 @@ async def get_project_cockpit_bootstrap(
         evidence=evidence,
         workspace_tree=workspace_tree,
         platform_knowledge=platform_knowledge,
-        latest_drafts=latest_drafts,
+        latest_drafts=_merge_draft_summaries(latest_drafts, consultant_drafts),
         timings_ms=timings_ms,
     )
 
@@ -840,6 +906,12 @@ async def get_project_workspace_tree(
         )
         for workflow_type in ["create_pmp", "create_cost_plan", "sort_files"]
     }
+    consultant_draft_rows = await get_latest_consultant_procurement_draft_summaries(
+        session,
+        project_id=project.id,
+    )
+    consultant_drafts = _consultant_procurement_draft_summaries(consultant_draft_rows)
+    all_draft_summaries = _merge_draft_summaries(draft_summaries, consultant_drafts)
     workspace_files = await _ensure_pmp_workspace_file(
         session,
         project=project,
@@ -852,6 +924,12 @@ async def get_project_workspace_tree(
         workspace_files=workspace_files,
         draft_summaries=draft_summaries,
     )
+    workspace_files = await _ensure_consultant_procurement_workspace_files(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        consultant_draft_summaries=consultant_drafts,
+    )
     return ProjectWorkspaceTreeResponse(
         project_id=project.id,
         root_path=project.workspace_path,
@@ -859,7 +937,7 @@ async def get_project_workspace_tree(
             root_path=project.workspace_path,
             workspace_paths=_workspace_paths_for_tree(
                 workspace_files,
-                draft_summaries=draft_summaries,
+                draft_summaries=all_draft_summaries,
             ),
         ),
     )
@@ -1519,7 +1597,14 @@ async def patch_project_draft(
             markdown=body.content_markdown,
         )
     elif is_cost_plan_workflow(updated.workflow_type):
-        await sync_cost_plan_draft_workspace(
+        await sync_cost_plan_revision_artifacts(
+            session,
+            project=project,
+            draft=updated,
+            markdown=body.content_markdown,
+        )
+    elif is_consultant_procurement_workflow(updated.workflow_type):
+        await sync_consultant_procurement_draft_workspace(
             session,
             project=project,
             draft=updated,

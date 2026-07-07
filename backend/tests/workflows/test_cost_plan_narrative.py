@@ -9,7 +9,7 @@ from app.workflows.cost_plan_narrative import (
 )
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.pmp_narrative import RiskRow
-from tests.sitewise.test_cost_plan_evidence import _read
+from tests.sitewise.test_cost_plan_evidence import _read, _read_walsh
 
 
 def _full_chen_pack():
@@ -23,6 +23,10 @@ def _full_chen_pack():
         _read("12-certifier-appointment-chen-residence.md"),
     ]
     return extract_cost_plan_evidence_pack(texts, [])
+
+
+def _walsh_pack():
+    return extract_cost_plan_evidence_pack(_read_walsh(), [])
 
 
 def test_validate_cost_plan_narrative_rejects_fee_exceeding_ceiling_misread() -> None:
@@ -180,6 +184,41 @@ def test_validator_accepts_specific_risk_owners() -> None:
         ["Owner", "Architect-PM", "Structural Engineer", "Certifier", "Builder"]
     )
     # No generic owners and everything else valid — must not raise.
+    validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
+
+
+def test_validator_accepts_project_specific_budget_ceiling_when_confirming_budget() -> None:
+    pack = _walsh_pack()
+    output = CostPlanNarrativeOutput(
+        judgements=[
+            "Confirm budget control against the $920,000 owner construction ceiling.",
+            "Builder ROM is a market signal only, not a tender.",
+        ],
+        recommendations=[
+            "Confirm budget control against the $920,000 owner ceiling by 2026-07-05.",
+            "Prepare tender docs by 2026-07-05.",
+            "Record heritage impact statement allowance by 2026-07-05.",
+        ],
+        risk_rows=[
+            RiskRow(risk="A", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(risk="B", owner="Architect-PM", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(risk="C", owner="Builder", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(risk="D", owner="Certifier", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(
+                risk="E",
+                owner="Structural Engineer",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+        ],
+        next_steps=[
+            "Step one by 2026-07-05.",
+            "Step two by 2026-07-05.",
+            "Step three by 2026-07-05.",
+        ],
+    )
+
     validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
 
 

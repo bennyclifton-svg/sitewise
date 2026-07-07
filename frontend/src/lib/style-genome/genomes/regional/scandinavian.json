@@ -1,0 +1,24 @@
+{
+  "period": "scandinavian",
+  "massing": {
+    "footprint": "rectangle",
+    "aspect": [1.55, 1.25, 1],
+    "roof": "gable",
+    "symmetry": "bilateral"
+  },
+  "rhythm": {
+    "bays": 4,
+    "windowShape": "tall_rect",
+    "windowToWallRatio": 0.4,
+    "verticality": 0.48
+  },
+  "ornament": {
+    "motifs": ["timber_battens", "steep_roof", "recessed_entry"],
+    "density": 0.14
+  },
+  "material": {
+    "base": "#c8c4b7",
+    "roughness": 0.76,
+    "windowEmissive": "#ffdca8"
+  }
+}

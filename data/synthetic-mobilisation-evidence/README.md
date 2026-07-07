@@ -96,6 +96,26 @@ Drop in **numeric order** (simulate mobilisation timeline):
 4. Run **Create PMP** (or **Update PMP** if a baseline draft exists).
 5. Compare gaps, evidence map, and internal audit to the **Expected posture** above.
 
+## Pack F — Meridian Chambers commercial fit-out
+
+**Project overlays:** `commercial-fitout`, `architect-pm`, `NSW`  
+**Folder:** `meridian-chambers-fitout/`  
+**Use when:** Commercial office fit-out in occupied building; landlord–tenant scope split; SSD pathway; after-hours occupation; three builder quotes at different pricing depths.
+
+| Tranche | Files | What it tests |
+| --- | --- | --- |
+| 1 — Profiling | `01`–`05` | Tenant–landlord briefing, SSD planning advice, engagement + fee, landlord schedule + builder ROM |
+| 2 — Enrichment | `p02-00` … `p02-06` | Fire, acoustic/services, hazmat fees; signed tenant brief + budget; PMP/cost-plan update; three-builder approval |
+| 3 — Tender | `p03-00` … `p03-03` | Minimal / elemental / detailed commercial fit-out quotes |
+
+**Expected PMP posture (Tranche 1):** SSD primary; CDC not assumed. ROM not formal budget. No conflict disclosure. Fortnightly reporting. Gaps: brief sign-off, construction budget, certifier, master programme.
+
+**Expected posture (Tranche 2):** Budget **$1,450,000** from signed brief; landlord HVAC contribution **$180,000** separate; three invited builders.
+
+**Reusable prompt:** `SYNTHETIC-DATA-PACK-PROMPT.md` in this folder — copy into a new chat to generate further packs.
+
+---
+
 ## Automated tests
 
 Harrison Clarke baseline (`01` + `02`) is wired in `backend/tests/workflows/hybrid_pmp_fixtures.py`. Additional packs are for manual / future parametrized tests.

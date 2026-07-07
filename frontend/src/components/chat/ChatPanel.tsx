@@ -23,6 +23,7 @@ import {
   subscribeSelectedAgentModel,
 } from "@/lib/agent-model";
 import {
+  PI_RUNTIME_ID,
   getSelectedAgentRuntime,
   subscribeSelectedAgentRuntime,
 } from "@/lib/agent-runtime";
@@ -127,6 +128,11 @@ export function ChatPanel({
 
   const transport = useMemo(() => {
     const selectedModel = chatModel ?? getSelectedChatModel();
+    const selectedAgentRuntime = agentRuntime ?? getSelectedAgentRuntime();
+    const selectedAgentModel =
+      selectedAgentRuntime === PI_RUNTIME_ID
+        ? null
+        : agentModel ?? getSelectedAgentModel();
     const params = new URLSearchParams();
     if (crossProject) {
       params.set("cross_project", "true");
@@ -151,8 +157,8 @@ export function ChatPanel({
           messages,
           ...(agentMode
             ? {
-                ...(agentModel ? { agent_model: agentModel } : {}),
-                ...(agentRuntime ? { agent_runtime: agentRuntime } : {}),
+                ...(selectedAgentModel ? { agent_model: selectedAgentModel } : {}),
+                ...(selectedAgentRuntime ? { agent_runtime: selectedAgentRuntime } : {}),
               }
             : selectedModel
               ? { chat_model: selectedModel }

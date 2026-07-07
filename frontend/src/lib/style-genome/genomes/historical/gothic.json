@@ -1,0 +1,24 @@
+{
+  "period": "gothic",
+  "massing": {
+    "footprint": "cruciform",
+    "aspect": [1, 2.8, 1.25],
+    "roof": "spire",
+    "symmetry": "bilateral"
+  },
+  "rhythm": {
+    "bays": 5,
+    "windowShape": "lancet",
+    "windowToWallRatio": 0.25,
+    "verticality": 0.96
+  },
+  "ornament": {
+    "motifs": ["lancet_arch", "rose_window", "flying_buttress"],
+    "density": 0.3
+  },
+  "material": {
+    "base": "#817d73",
+    "roughness": 0.9,
+    "windowEmissive": "#ffb36b"
+  }
+}

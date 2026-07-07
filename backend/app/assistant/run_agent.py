@@ -12,6 +12,13 @@ logger = structlog.get_logger(__name__)
 _RETRY_AFTER_RE = re.compile(r"try again in ([0-9.]+)s", re.IGNORECASE)
 
 
+def _agent_model_id(model: str) -> str:
+    stripped = model.strip()
+    if ":" in stripped:
+        return stripped
+    return f"openai-chat:{stripped}"
+
+
 def _retry_wait_seconds(exc: ModelHTTPError, attempt: int) -> float:
     body = exc.body
     if isinstance(body, dict):
@@ -24,8 +31,8 @@ def _retry_wait_seconds(exc: ModelHTTPError, attempt: int) -> float:
 
 async def run_agent_with_retry(agent: Agent, *args, model: str | None = None, **kwargs):
     if model is not None:
-        kwargs.setdefault("model", f"openai-chat:{model}")
-    resolved_model = model or settings.openai_chat_model
+        kwargs.setdefault("model", _agent_model_id(model))
+    resolved_model = kwargs.get("model") or _agent_model_id(settings.openai_chat_model)
     last_error: ModelHTTPError | None = None
     for attempt in range(settings.openai_rate_limit_max_retries):
         try:

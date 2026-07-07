@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Save,
   Scale,
+  Settings2,
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +39,7 @@ import {
 import type {
   DraftArtifactSummary,
   EvidencePreview,
+  OverlayIssue,
   ProjectDetail,
   SortFilesResponse,
   WorkflowTraceEvent,
@@ -67,6 +69,7 @@ export function ProjectControlBoard({
   isRunningWorkflow,
   isRunningCostPlan,
   selectedWorkflowId,
+  onSelectWorkflow,
   onRunCreatePmp,
   onRunUpdatePmp,
   onRunCreateCostPlan,
@@ -91,6 +94,7 @@ export function ProjectControlBoard({
   isRunningWorkflow: boolean;
   isRunningCostPlan: boolean;
   selectedWorkflowId: string;
+  onSelectWorkflow?: (workflowId: string) => void;
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
@@ -142,6 +146,7 @@ export function ProjectControlBoard({
           costPlanWorkflowError={costPlanWorkflowError}
           isRunningWorkflow={isRunningWorkflow}
           isRunningCostPlan={isRunningCostPlan}
+          onSelectWorkflow={onSelectWorkflow}
           onRunCreatePmp={onRunCreatePmp}
           onRunUpdatePmp={onRunUpdatePmp}
           onRunCreateCostPlan={onRunCreateCostPlan}
@@ -363,6 +368,7 @@ function WorkflowDetail({
   costPlanWorkflowError,
   isRunningWorkflow,
   isRunningCostPlan,
+  onSelectWorkflow,
   onRunCreatePmp,
   onRunUpdatePmp,
   onRunCreateCostPlan,
@@ -398,6 +404,7 @@ function WorkflowDetail({
   sortFilesDraft: DraftArtifactSummary | null;
   sortFilesError: string | null;
   isRunningSortFiles: boolean;
+  onSelectWorkflow?: (workflowId: string) => void;
   onProjectUpdated?: (project: ProjectDetail) => void;
 }) {
   const isProjectProfile = tile.id === "project-profile";
@@ -462,22 +469,25 @@ function WorkflowDetail({
             ) : null}
 
             {!project.overlay_status.ready ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                <p className="font-medium">Create PMP is blocked by missing overlays.</p>
-                <ul className="mt-2 space-y-1 text-xs">
-                  {[...project.overlay_status.missing, ...project.overlay_status.invalid].map(
-                    (issue) => (
-                      <li key={`${issue.field}-${issue.reason}`}>
-                        {issue.field}: {issue.reason}
-                      </li>
-                    ),
-                  )}
-                </ul>
-              </div>
+              <OverlayGateNotice
+                workflow="Create PMP"
+                issues={[
+                  ...project.overlay_status.missing,
+                  ...project.overlay_status.invalid,
+                ]}
+                onOpenProfile={
+                  onSelectWorkflow
+                    ? () => onSelectWorkflow("project-profile")
+                    : undefined
+                }
+              />
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={onRunCreatePmp} disabled={isRunningWorkflow}>
+              <Button
+                onClick={onRunCreatePmp}
+                disabled={isRunningWorkflow || !project.overlay_status.ready}
+              >
                 {isRunningWorkflow ? (
                   <LoaderCircle className="size-4 animate-spin" aria-hidden />
                 ) : (
@@ -488,7 +498,9 @@ function WorkflowDetail({
               <Button
                 variant="outline"
                 onClick={onRunUpdatePmp}
-                disabled={isRunningWorkflow || !latestDraft}
+                disabled={
+                  isRunningWorkflow || !project.overlay_status.ready || !latestDraft
+                }
               >
                 {isRunningWorkflow ? (
                   <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -534,22 +546,25 @@ function WorkflowDetail({
             ) : null}
 
             {!project.overlay_status.ready ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                <p className="font-medium">Create Cost Plan is blocked by missing overlays.</p>
-                <ul className="mt-2 space-y-1 text-xs">
-                  {[...project.overlay_status.missing, ...project.overlay_status.invalid].map(
-                    (issue) => (
-                      <li key={`${issue.field}-${issue.reason}`}>
-                        {issue.field}: {issue.reason}
-                      </li>
-                    ),
-                  )}
-                </ul>
-              </div>
+              <OverlayGateNotice
+                workflow="Create Cost Plan"
+                issues={[
+                  ...project.overlay_status.missing,
+                  ...project.overlay_status.invalid,
+                ]}
+                onOpenProfile={
+                  onSelectWorkflow
+                    ? () => onSelectWorkflow("project-profile")
+                    : undefined
+                }
+              />
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={onRunCreateCostPlan} disabled={isRunningCostPlan}>
+              <Button
+                onClick={onRunCreateCostPlan}
+                disabled={isRunningCostPlan || !project.overlay_status.ready}
+              >
                 {isRunningCostPlan ? (
                   <LoaderCircle className="size-4 animate-spin" aria-hidden />
                 ) : (
@@ -594,18 +609,18 @@ function WorkflowDetail({
             ) : null}
 
             {!project.overlay_status.ready ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                <p className="font-medium">Sort Files is blocked by missing overlays.</p>
-                <ul className="mt-2 space-y-1 text-xs">
-                  {[...project.overlay_status.missing, ...project.overlay_status.invalid].map(
-                    (issue) => (
-                      <li key={`${issue.field}-${issue.reason}`}>
-                        {issue.field}: {issue.reason}
-                      </li>
-                    ),
-                  )}
-                </ul>
-              </div>
+              <OverlayGateNotice
+                workflow="Sort Files"
+                issues={[
+                  ...project.overlay_status.missing,
+                  ...project.overlay_status.invalid,
+                ]}
+                onOpenProfile={
+                  onSelectWorkflow
+                    ? () => onSelectWorkflow("project-profile")
+                    : undefined
+                }
+              />
             ) : null}
 
             <div className="flex flex-wrap gap-2">
@@ -692,6 +707,45 @@ function ReadinessItem({
       </div>
       <div className={cn("mt-2 flex items-center", trailing ? "justify-end" : "")}>
         {trailing ?? <p className="font-medium">{value}</p>}
+      </div>
+    </div>
+  );
+}
+
+function OverlayGateNotice({
+  workflow,
+  issues,
+  onOpenProfile,
+}: {
+  workflow: string;
+  issues: OverlayIssue[];
+  onOpenProfile?: () => void;
+}) {
+  return (
+    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-medium">{workflow} is blocked by missing overlays.</p>
+          <ul className="mt-2 space-y-1 text-xs">
+            {issues.map((issue) => (
+              <li key={`${workflow}-${issue.field}-${issue.reason}`}>
+                {issue.field}: {issue.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+        {onOpenProfile ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit border-destructive/30 bg-background text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onOpenProfile}
+          >
+            <Settings2 className="size-4" aria-hidden />
+            Set project profile
+          </Button>
+        ) : null}
       </div>
     </div>
   );

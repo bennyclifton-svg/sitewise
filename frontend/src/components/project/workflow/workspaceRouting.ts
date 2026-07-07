@@ -1,4 +1,4 @@
-import type { WorkspaceTreeNode } from "@/lib/types/project";
+import type { DraftArtifactSummary, WorkspaceTreeNode } from "@/lib/types/project";
 
 /** True when the explorer path points at a PMP draft workspace file. */
 export function isPmpWorkspaceFile(path: string): boolean {
@@ -10,6 +10,25 @@ export function isPmpWorkspaceFile(path: string): boolean {
 export function isCostPlanWorkspaceFile(path: string): boolean {
   const normalised = path.replaceAll("\\", "/");
   return /\/01-cost\/cost_plan_v\d+\.md$/i.test(normalised);
+}
+
+/** True when the explorer path points at a consultant procurement RFP draft. */
+export function isConsultantProcurementWorkspaceFile(path: string): boolean {
+  const normalised = path.replaceAll("\\", "/");
+  return /\/02-consultant\/consultant_procurement_.+_v\d+\.draft\.md$/i.test(normalised);
+}
+
+export function findDraftByWorkspacePath(
+  drafts: Record<string, DraftArtifactSummary | null>,
+  path: string,
+): DraftArtifactSummary | null {
+  const normalised = path.replaceAll("\\", "/");
+  for (const draft of Object.values(drafts)) {
+    if (draft && draft.workspace_path.replaceAll("\\", "/") === normalised) {
+      return draft;
+    }
+  }
+  return null;
 }
 
 /** Expand folders that contain files and any ancestor of the selected path. */

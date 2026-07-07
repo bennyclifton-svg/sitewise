@@ -9,7 +9,7 @@ import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { ChatRail } from "@/components/chat/ChatRail";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
-import { isCostPlanWorkspaceFile, isPmpWorkspaceFile } from "@/components/project/workflow/workspaceRouting";
+import { isCostPlanWorkspaceFile, isPmpWorkspaceFile, findDraftByWorkspacePath } from "@/components/project/workflow/workspaceRouting";
 import { buildLifecycleTiles } from "@/components/project/workflow/workflowTiles";
 import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
@@ -79,6 +79,10 @@ export function ProjectCockpitPage() {
   const [latestDraft, setLatestDraft] = useState<DraftArtifactSummary | null>(null);
   const [latestCostPlanDraft, setLatestCostPlanDraft] =
     useState<DraftArtifactSummary | null>(null);
+  const [latestDraftsMap, setLatestDraftsMap] = useState<
+    Record<string, DraftArtifactSummary | null>
+  >({});
+  const [reviewDraft, setReviewDraft] = useState<DraftArtifactSummary | null>(null);
   const [workflowResult, setWorkflowResult] = useState<CreatePmpResponse | null>(null);
   const [costPlanWorkflowResult, setCostPlanWorkflowResult] = useState<CreatePmpResponse | null>(
     null,
@@ -128,6 +132,7 @@ export function ProjectCockpitPage() {
         setPlatformStatus(data.platform_knowledge);
         setLatestDraft(data.latest_drafts.create_pmp ?? null);
         setLatestCostPlanDraft(data.latest_drafts.create_cost_plan ?? null);
+        setLatestDraftsMap(data.latest_drafts);
         setSortFilesDraft(data.latest_drafts.sort_files ?? null);
         setSelectedEvidenceId((current) =>
           current && data.evidence.some((item) => item.id === current)
@@ -238,6 +243,55 @@ export function ProjectCockpitPage() {
     setChatRevision((current) => current + 1);
   }
 
+  function refreshWorkflowSurfaces() {
+    void Promise.allSettled([
+      refreshMessages(),
+      refreshWorkspaceTree(),
+      refreshActivity(),
+    ]);
+  }
+
+  function refreshLatestDraftInBackground(
+    workflowType: "create_pmp" | "create_cost_plan",
+  ) {
+    void refreshLatestDraft(workflowType)
+      .then((draft) => {
+        if (!draft) return;
+        if (workflowType === "create_cost_plan") {
+          setLatestCostPlanDraft(draft);
+        } else {
+          setLatestDraft(draft);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  function openDraftReview(draft: DraftArtifactSummary) {
+    setReviewDraft(draft);
+    setLatestDraftsMap((current) => ({
+      ...current,
+      [draft.workflow_type]: draft,
+    }));
+    if (draft.workflow_type === "create_cost_plan") {
+      setLatestCostPlanDraft(draft);
+      setSelectedWorkflowId("cost-plan");
+    } else if (draft.workflow_type === "create_pmp") {
+      setLatestDraft(draft);
+      setSelectedWorkflowId("create-pmp");
+    }
+    setSelectedWorkspacePath(draft.workspace_path);
+    setChatPanelCollapsed(true);
+    setActiveView("draft");
+  }
+
+  function showPmpDraft(draft: DraftArtifactSummary) {
+    openDraftReview(draft);
+  }
+
+  function showCostPlanDraft(draft: DraftArtifactSummary) {
+    openDraftReview(draft);
+  }
+
   async function handleSelectThread(threadId: string) {
     setChatPanelCollapsed(false);
     setChatLoading(true);
@@ -326,15 +380,11 @@ export function ProjectCockpitPage() {
       if (result.status === "failed" || result.status === "blocked") {
         setWorkflowError(result.message ?? "Create PMP did not complete.");
       }
-      const draft = (await refreshLatestDraft("create_pmp")) ?? result.draft;
-      if (draft) {
-        setLatestDraft(draft);
-        setSelectedWorkflowId("create-pmp");
-        setSelectedWorkspacePath(draft.workspace_path);
-        setChatPanelCollapsed(true);
-        setActiveView("draft");
+      if (result.draft) {
+        showPmpDraft(result.draft);
       }
-      await Promise.all([refreshMessages(), refreshWorkspaceTree(), refreshActivity()]);
+      refreshLatestDraftInBackground("create_pmp");
+      refreshWorkflowSurfaces();
     } catch (runError) {
       setWorkflowError(formatApiError(runError, "Create PMP could not run."));
     } finally {
@@ -352,15 +402,11 @@ export function ProjectCockpitPage() {
       if (result.status === "failed" || result.status === "blocked") {
         setCostPlanWorkflowError(result.message ?? "Create Cost Plan did not complete.");
       }
-      const draft = (await refreshLatestDraft("create_cost_plan")) ?? result.draft;
-      if (draft) {
-        setLatestCostPlanDraft(draft);
-        setSelectedWorkflowId("cost-plan");
-        setSelectedWorkspacePath(draft.workspace_path);
-        setChatPanelCollapsed(true);
-        setActiveView("draft");
+      if (result.draft) {
+        showCostPlanDraft(result.draft);
       }
-      await Promise.all([refreshMessages(), refreshWorkspaceTree(), refreshActivity()]);
+      refreshLatestDraftInBackground("create_cost_plan");
+      refreshWorkflowSurfaces();
     } catch (runError) {
       setCostPlanWorkflowError(formatApiError(runError, "Create Cost Plan could not run."));
     } finally {
@@ -378,15 +424,11 @@ export function ProjectCockpitPage() {
       if (result.status === "failed" || result.status === "blocked") {
         setWorkflowError(result.message ?? "Update PMP did not complete.");
       }
-      const draft = (await refreshLatestDraft("create_pmp")) ?? result.draft;
-      if (draft) {
-        setLatestDraft(draft);
-        setSelectedWorkflowId("create-pmp");
-        setSelectedWorkspacePath(draft.workspace_path);
-        setChatPanelCollapsed(true);
-        setActiveView("draft");
+      if (result.draft) {
+        showPmpDraft(result.draft);
       }
-      await Promise.all([refreshMessages(), refreshWorkspaceTree(), refreshActivity()]);
+      refreshLatestDraftInBackground("create_pmp");
+      refreshWorkflowSurfaces();
     } catch (runError) {
       setWorkflowError(formatApiError(runError, "Update PMP could not run."));
     } finally {
@@ -446,30 +488,21 @@ export function ProjectCockpitPage() {
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
     if (selectedNode?.kind === "file") {
-      if (isPmpWorkspaceFile(selectedNode.path)) {
-        setSelectedWorkflowId("create-pmp");
-        const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
-        setSelectedEvidenceId(selectedDocument?.id ?? null);
-        setChatPanelCollapsed(true);
-        setActiveView("draft");
-        return;
-      }
-      if (isCostPlanWorkspaceFile(selectedNode.path)) {
-        setSelectedWorkflowId("cost-plan");
-        const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
-        setSelectedEvidenceId(selectedDocument?.id ?? null);
-        setChatPanelCollapsed(true);
-        setActiveView("draft");
+      const draft = findDraftByWorkspacePath(latestDraftsMap, path);
+      if (draft) {
+        openDraftReview(draft);
         return;
       }
       const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
       if (selectedDocument) {
         setSelectedEvidenceId(selectedDocument.id);
+        setReviewDraft(null);
         setChatPanelCollapsed(true);
         setActiveView("file");
         return;
       }
     }
+    setReviewDraft(null);
     setChatPanelCollapsed(true);
     setActiveView("folder");
   }
@@ -508,9 +541,11 @@ export function ProjectCockpitPage() {
   const trace = workflowResult?.trace ?? [];
   const costPlanTrace = costPlanWorkflowResult?.trace ?? [];
   const activeDraft =
-    selectedWorkflowId === "cost-plan" ? latestCostPlanDraft : latestDraft;
+    reviewDraft ??
+    (selectedWorkflowId === "cost-plan" ? latestCostPlanDraft : latestDraft);
   const activeWorkflowType =
-    selectedWorkflowId === "cost-plan" ? "create_cost_plan" : "create_pmp";
+    reviewDraft?.workflow_type ??
+    (selectedWorkflowId === "cost-plan" ? "create_cost_plan" : "create_pmp");
   const inboxCount = evidence.filter((item) => item.relative_path.includes("/_inbox/")).length;
   const selectedEvidence =
     evidence.find((item) => item.id === selectedEvidenceId) ?? evidence[0] ?? null;
@@ -634,11 +669,13 @@ export function ProjectCockpitPage() {
           isRunningWorkflow={isRunningWorkflow}
           isRunningCostPlan={isRunningCostPlan}
           selectedWorkflowId={selectedWorkflowId}
+          onSelectWorkflow={selectWorkflow}
           onRunCreatePmp={() => void runCreatePmp()}
           onRunUpdatePmp={() => void runUpdatePmp()}
           onRunCreateCostPlan={() => void runCreateCostPlan()}
           onRunSortFiles={() => void runSortFiles()}
           onOpenDraft={() => {
+            setReviewDraft(null);
             setChatPanelCollapsed(true);
             setActiveView("draft");
           }}
@@ -672,8 +709,15 @@ export function ProjectCockpitPage() {
           onRunUpdatePmp={() => void runUpdatePmp()}
           isRunningUpdatePmp={isRunningWorkflow}
           onDraftUpdated={async (draft) => {
+            setReviewDraft(draft);
+            setLatestDraftsMap((current) => ({
+              ...current,
+              [draft.workflow_type]: draft,
+            }));
             if (draft.workflow_type === "create_cost_plan") {
               setLatestCostPlanDraft(draft);
+              setSelectedWorkspacePath(draft.workspace_path);
+            } else if (draft.workflow_type.startsWith("consultant_procurement_")) {
               setSelectedWorkspacePath(draft.workspace_path);
             } else {
               setLatestDraft(draft);

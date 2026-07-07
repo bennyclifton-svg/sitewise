@@ -3,10 +3,15 @@ from pathlib import Path
 from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack, _parse_owner_supplied
 
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "data" / "synthetic-mobilisation-evidence" / "chen-residence"
+WALSH_FIXTURE_DIR = Path(__file__).resolve().parents[3] / "data" / "synthetic-mobilisation-evidence" / "walsh-renovation"
 
 
 def _read(name: str) -> str:
     return (FIXTURE_DIR / name).read_text(encoding="utf-8")
+
+
+def _read_walsh() -> list[str]:
+    return [path.read_text(encoding="utf-8") for path in sorted(WALSH_FIXTURE_DIR.glob("[0-9]*.md"))]
 
 
 def _pack_with_certifier():
@@ -39,6 +44,21 @@ def test_extract_cost_plan_pack_includes_owner_brief_budget() -> None:
     assert pack.planning_pathway_summary is not None
     assert "cdc not supported" in pack.planning_pathway_summary.lower()
     assert len(pack.owner_supplied_items) == 2
+
+
+def test_extract_cost_plan_pack_walsh_uses_owner_ceiling_not_builder_rom_as_fee() -> None:
+    pack = extract_cost_plan_evidence_pack(_read_walsh(), [])
+
+    assert pack.construction_budget_ceiling == "920,000"
+    assert pack.contingency_amount == "85,000"
+    assert pack.owner_brief_signed_date == "5 March 2026"
+    assert pack.fee_total_ex_gst == "$96,500"
+    assert pack.fee_total_ex_gst != "$980,000"
+    assert pack.mobilisation.builder_rom is not None
+    assert "$880,000" in pack.mobilisation.builder_rom
+    assert "$980,000" in pack.mobilisation.builder_rom
+    assert pack.mobilisation.heritage_advice is not None
+    assert "Construction budget" not in pack.gaps
 
 
 def test_extract_cost_plan_pack_mobilisation_only_has_no_ceiling() -> None:

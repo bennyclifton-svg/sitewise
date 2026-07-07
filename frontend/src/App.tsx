@@ -7,6 +7,7 @@ import { CockpitPreviewPage } from "@/pages/CockpitPreviewPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ProjectCockpitPage } from "@/pages/ProjectCockpitPage";
+import { StyleGenomeDemoPage } from "@/pages/StyleGenomeDemoPage";
 import { TenderCockpitPage } from "@/pages/TenderCockpitPage";
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
           }
         />
         <Route path="/cockpit-preview" element={<CockpitPreviewPage />} />
+        <Route path="/style-genome" element={<StyleGenomeDemoPage />} />
         <Route
           path="/projects/:projectId"
           element={

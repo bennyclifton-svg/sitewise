@@ -343,7 +343,7 @@ export function DraftReviewPanel({
         </div>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <MetaItem label="Saved" value={dateFormatter.format(new Date(displayDraft.created_at))} />
-          <MetaItem label="Model" value={displayDraft.model ?? "Unknown"} />
+          <MetaItem label="Model" value={draftModelLabel(displayDraft)} />
           <MetaItem label="Runtime" value={displayDraft.runtime} />
           <MetaItem label="Workflow" value={displayDraft.workflow_type} />
           <MetaItem
@@ -499,6 +499,16 @@ function emptyDraftMessage(workflowType?: string): string {
 
 function isFullDraft(draft: DraftArtifact | DraftArtifactSummary): draft is DraftArtifact {
   return "content_markdown" in draft;
+}
+
+function draftModelLabel(draft: DraftArtifact | DraftArtifactSummary): string {
+  if (isFullDraft(draft)) {
+    const label = draft.provenance_metadata?.model_label;
+    if (typeof label === "string" && label.trim()) {
+      return label;
+    }
+  }
+  return draft.model ?? "Unknown";
 }
 
 function acceptDraftLabel(workflowType: string): string {

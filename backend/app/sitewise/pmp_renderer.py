@@ -169,6 +169,16 @@ def _renovation_risk_rows(
     """
     da_target = pack.target_da_lodgement or "DA"
     conflict_status = "Partial" if pack.conflict_disclosure else "Assumption"
+    heritage_status = "Partial" if pack.heritage_advice else "Assumption"
+    heritage_action = (
+        "Prepare HIS at schematic stage; retain/repair front facade and roof form; "
+        f"allow approval timing in {da_target} programme"
+        if pack.heritage_advice
+        else f"Confirm controls and heritage impact statement scope; DA pathway, "
+        f"{da_target} lodgement target"
+    )
+    live_signal = " ".join([pack.dwelling_summary or "", *pack.builder_rom_caveats])
+    live_status = "Partial" if "live occupation" in live_signal.lower() else "Assumption"
     return (
         (
             "Latent conditions in existing footings / masonry tie-ins",
@@ -180,15 +190,14 @@ def _renovation_risk_rows(
         (
             "Heritage / conservation-area controls",
             "Architect-PM",
-            "Assumption",
-            f"Confirm controls and heritage impact statement scope; "
-            f"DA pathway, {da_target} lodgement target",
+            heritage_status,
+            heritage_action,
             "TBC",
         ),
         (
             "Live occupation — dust, noise and safety controls",
             "Owner",
-            "Assumption",
+            live_status,
             "Confirm occupation vs decant; price site protection and controls",
             "TBC",
         ),
@@ -231,6 +240,12 @@ def _table_lines_from_brief(block: str) -> str:
 
 def _bullet_lines(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items if item.strip())
+
+
+def _optional_bullet_block(label: str, items: list[str]) -> list[str]:
+    if not items:
+        return []
+    return ["", f"**{label}:**", _bullet_lines(items)]
 
 
 def _labeled_field(label: str, text: str | None) -> str:
@@ -533,6 +548,8 @@ def _render_scope_change(pack: MobilisationEvidencePack) -> str:
             "",
             _labeled_field(scope_prefix, pack.dwelling_summary),
             _labeled_field("Site / planning constraints", pack.site_constraints),
+            *_optional_bullet_block("Owner design objectives", pack.owner_brief_objectives),
+            *_optional_bullet_block("Heritage design constraints", pack.heritage_design_advice),
             "Service exclusions: "
             + (
                 pack.service_exclusions
@@ -547,6 +564,19 @@ def _render_scope_change(pack: MobilisationEvidencePack) -> str:
     )
 
 
+def _render_heritage_controls(pack: MobilisationEvidencePack) -> str:
+    if not (pack.heritage_context or pack.heritage_approval_advice or pack.heritage_design_advice):
+        return ""
+    lines = ["### Heritage / character controls"]
+    if pack.heritage_context:
+        lines.append(_labeled_field("Status", pack.heritage_context))
+    if pack.heritage_approval_advice:
+        lines.append(_labeled_field("Approval advice", pack.heritage_approval_advice))
+    if pack.heritage_design_advice:
+        lines.extend(["", "**Design controls:**", _bullet_lines(pack.heritage_design_advice)])
+    return "\n".join(lines)
+
+
 def _render_approvals(project: Project, pack: MobilisationEvidencePack) -> str:
     archetype = project.archetype or "new-dwelling"
     state = project.state or "NSW"
@@ -554,6 +584,7 @@ def _render_approvals(project: Project, pack: MobilisationEvidencePack) -> str:
         _archetype_due_diligence_checklist(archetype, state=state)
     )
     authority_table = _nsw_authority_tracker_table(state, pack)
+    heritage_controls = _render_heritage_controls(pack)
     return "\n".join(
         [
             "## Approvals and compliance",
@@ -562,6 +593,7 @@ def _render_approvals(project: Project, pack: MobilisationEvidencePack) -> str:
             "",
             f"Planning pathway (fee proposal): {pack.planning_pathway or 'TBC — confirm CDC vs DA.'}",
             "",
+            *(["", heritage_controls, ""] if heritage_controls else []),
             "### Authority tracker",
             authority_table,
             "",
@@ -585,6 +617,11 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     if state == "NSW":
         rows.append(
             "| BASIX (commitment) | Assumption | Owner / Architect-PM | Appoint assessor; align with DA |"
+        )
+    if pack.heritage_approval_advice:
+        rows.append(
+            "| Heritage impact statement | Partial | Architect-PM / heritage consultant | "
+            "Prepare at schematic stage; allow 6-8 weeks council assessment |"
         )
     certifier_status = (
         "Partial"
@@ -629,6 +666,10 @@ def _render_programme(pack: MobilisationEvidencePack, user_role: str) -> str:
         if not pack_has_gap(pack, GAP_MASTER_PROGRAMME)
         else "Assumption: activity durations TBC unless evidenced in master programme."
     )
+    programme_evidence = [
+        *[f"Owner aspiration: {item}" for item in pack.owner_programme_aspirations],
+        *([pack.builder_rom_programme] if pack.builder_rom_programme else []),
+    ]
     return "\n".join(
         [
             "## Programme and staging regime",
@@ -639,6 +680,7 @@ def _render_programme(pack: MobilisationEvidencePack, user_role: str) -> str:
             "- Stage 3: construction documentation, procurement, and delivery.",
             "",
             target_line,
+            *_optional_bullet_block("Programme evidence on file", programme_evidence),
             "",
             "### Sub-milestone table",
             submilestone_table,
@@ -668,12 +710,32 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
     else:
         budget_line = "Construction budget confirmed per owner project brief."
     quote_block: list[str] = []
+    if pack.builder_rom:
+        rom_items = [
+            pack.builder_rom,
+            *([pack.builder_rom_programme] if pack.builder_rom_programme else []),
+            *[f"ROM caveat: {item}" for item in pack.builder_rom_caveats],
+            *(
+                [f"Conflict disclosure: {pack.builder_conflict_disclosure}"]
+                if pack.builder_conflict_disclosure
+                else []
+            ),
+        ]
+        quote_block = ["", "**Builder ROM on file (market signal only):**", _bullet_lines(rom_items)]
     if pack.builder_quotes:
-        quote_block = ["", "**Builder pricing on file (unverified):**", _bullet_lines(pack.builder_quotes)]
+        quote_block.extend(
+            ["", "**Builder pricing on file (unverified):**", _bullet_lines(pack.builder_quotes)]
+        )
+    contingency_line = (
+        f"Owner-held contingency: {pack.owner_additional_contingency}"
+        if pack.owner_additional_contingency
+        else None
+    )
     missing = ["elemental cost plan", "tender evaluation matrix"]
     if pack_has_gap(pack, GAP_MASTER_PROGRAMME):
         missing.insert(1, "master programme")
     missing_line = f"Missing artefacts: {', '.join(missing)}."
+    conflict = pack.conflict_disclosure or pack.builder_conflict_disclosure or "None stated."
     return "\n".join(
         [
             "## Cost, programme and procurement posture",
@@ -681,6 +743,7 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
             "HIA elemental / residential cost plan posture: contingency 5–10%; PC sums and "
             "owner-supplied items tracked separately.",
             budget_line,
+            *([contingency_line] if contingency_line else []),
             *quote_block,
             "",
             "**Head-builder procurement:**",
@@ -688,7 +751,7 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
                 [
                     f"{pack.invited_builder_count or '2–3'} invited builders; "
                     f"{pack.formal_tender_count or '1'} formal head-builder tender assumed.",
-                    f"Conflict disclosure before tender list lock: {pack.conflict_disclosure or 'None stated.'}",
+                    f"Conflict disclosure before tender list lock: {conflict}",
                     "Evaluation criteria to be agreed before tender close.",
                     "Tender evaluation matrix under `05-procurement/`.",
                     "Single clear recommendation to owner with conflict disclosure where applicable.",
@@ -731,6 +794,12 @@ def _render_consultant_coordination(pack: MobilisationEvidencePack) -> str:
             ),
             "| Structural engineer | No | Assumption | Not yet appointed |",
             "| Hydraulic / BASIX | No | Assumption | Not yet appointed |",
+            (
+                "| Heritage consultant | Yes | Partial | Desktop advice on file; "
+                "HIS to prepare at schematic stage |"
+                if pack.heritage_advice
+                else "| Heritage consultant | No | Assumption | Appoint if heritage controls apply |"
+            ),
             "| Surveyor | No | Assumption | Not yet appointed |",
             f"| Geotechnical | {geotech_appointed} | "
             f"{'Grounded' if not pack_has_gap(pack, GAP_GEOTECHNICAL) else 'Assumption'} | "
@@ -795,6 +864,12 @@ def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[st
         facts.append(
             f"Construction budget confirmed {pack.construction_budget_ceiling} working ceiling."
         )
+    if pack.owner_additional_contingency:
+        facts.append(f"Owner contingency noted: {pack.owner_additional_contingency}")
+    if pack.builder_rom:
+        facts.append(pack.builder_rom)
+    if pack.heritage_advice:
+        facts.append(pack.heritage_advice)
     for quote in pack.builder_quotes:
         facts.append(quote)
     if engaged:
@@ -806,6 +881,15 @@ def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[st
     if pack.target_da_lodgement:
         facts.append(f"Target DA lodgement {pack.target_da_lodgement} per engagement letter.")
     return facts[:5]
+
+
+def _fact_ledger_lines(pack: MobilisationEvidencePack) -> list[str]:
+    if not pack.fact_ledger:
+        return [f"  - {NARRATIVE_PLACEHOLDER}"]
+    return [
+        f"  - {entry.source} -> {entry.section}: {entry.fact}"
+        for entry in pack.fact_ledger
+    ]
 
 
 def _render_internal_audit(pack: MobilisationEvidencePack) -> str:
@@ -833,6 +917,8 @@ def _render_internal_audit(pack: MobilisationEvidencePack) -> str:
             f"  - {NARRATIVE_PLACEHOLDER}",
             "- **Recommendations**",
             f"  - {NARRATIVE_PLACEHOLDER}",
+            "- **Fact ledger**",
+            *_fact_ledger_lines(pack),
             "- **Register rows**",
             f"  - {NARRATIVE_PLACEHOLDER}",
             "- **Workflow warnings**",

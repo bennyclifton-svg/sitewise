@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     agent_history_message_limit: int = 12
     agent_history_message_chars: int = 1500
     openai_rate_limit_max_retries: int = 5
+    pmp_model_provider: str = "openai-codex"
+    pmp_model: str = "gpt-5.5"
+    pmp_model_label: str = "gpt-5.5 (Codex)"
     pmp_hybrid_compiler: bool = True
     pmp_min_words: int = 800
     pmp_max_words: int = 1800
@@ -202,6 +205,15 @@ class Settings(BaseSettings):
     def validate_hermes_invocation_mode(cls, value: str) -> str:
         if value not in {"chat_stream", "oneshot"}:
             raise ValueError("HERMES_INVOCATION_MODE must be chat_stream or oneshot")
+        return value
+
+    @field_validator("pmp_model_provider")
+    @classmethod
+    def validate_pmp_model_provider(cls, value: str) -> str:
+        if value not in {"openai-chat", "openai-api", "openai-codex"}:
+            raise ValueError(
+                "PMP_MODEL_PROVIDER must be openai-chat, openai-api, or openai-codex"
+            )
         return value
 
     @property

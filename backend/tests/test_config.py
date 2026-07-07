@@ -31,3 +31,11 @@ def test_agent_runtime_accepts_turn_token_secret():
     )
 
     assert settings.agent_runtime_enabled is True
+
+
+def test_pmp_model_provider_is_validated():
+    with pytest.raises(ValidationError, match="PMP_MODEL_PROVIDER"):
+        Settings(
+            **_settings_kwargs(),
+            pmp_model_provider="unknown",
+        )

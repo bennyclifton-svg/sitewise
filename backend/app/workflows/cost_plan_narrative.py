@@ -57,6 +57,16 @@ _GENERIC_RISK_OWNERS: frozenset[str] = frozenset(
 )
 
 
+def _money_variants(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    cleaned = value.replace("$", "").replace(",", "").strip()
+    if not cleaned.isdigit():
+        return {value.strip()}
+    amount = int(cleaned)
+    return {str(amount), f"{amount:,}", f"${amount:,}"}
+
+
 class CostPlanNarrativeOutput(BaseModel):
     judgements: list[str] = Field(min_length=2)
     recommendations: list[str] = Field(min_length=3)
@@ -104,6 +114,16 @@ def pack_summary_for_narrative(pack: CostPlanEvidencePack) -> str:
         "Architect fee is outside the construction ceiling — not an overrun of the ceiling.",
         f"Target DA lodgement: {mob.target_da_lodgement or 'TBC'}",
         f"Conflict disclosure: {mob.conflict_disclosure or 'None stated'}",
+        f"Builder ROM: {mob.builder_rom or 'none'}",
+        f"Builder ROM programme: {mob.builder_rom_programme or 'none'}",
+        f"Builder conflict disclosure: {mob.builder_conflict_disclosure or 'none'}",
+        "Builder ROM caveats:",
+        *[f"- {item}" for item in mob.builder_rom_caveats],
+        f"Heritage advice: {mob.heritage_advice or 'none'}",
+        f"Heritage context: {mob.heritage_context or 'none'}",
+        f"Heritage approval advice: {mob.heritage_approval_advice or 'none'}",
+        "Heritage design advice:",
+        *[f"- {item}" for item in mob.heritage_design_advice],
         "Owner-supplied items:",
     ]
     if pack.owner_supplied_items:
@@ -197,7 +217,9 @@ def validate_cost_plan_narrative_output(
                 issues.append(
                     f"narrative must use owner brief ceiling, not invented budget ({phrase!r})"
                 )
-        if re.search(r"\bconfirm budget\b", combined) and "$1,850,000" not in combined and "1,850,000" not in combined:
+        if re.search(r"\bconfirm budget\b", combined) and not any(
+            variant.lower() in combined for variant in _money_variants(pack.construction_budget_ceiling)
+        ):
             issues.append(
                 "recommendations must reference the evidenced construction ceiling when discussing budget"
             )

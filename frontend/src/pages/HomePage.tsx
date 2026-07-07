@@ -4,6 +4,7 @@ import {
   CreditCard,
   FileText,
   FolderOpen,
+  Globe,
   LayoutDashboard,
   MessageCircle,
   Plus,
@@ -176,6 +177,13 @@ export function HomePage() {
             <Badge variant={backendUnavailable ? "outline" : "secondary"}>
               {backendUnavailable ? "Projects API offline" : "Backend connected"}
             </Badge>
+            <Button asChild variant="secondary">
+              {/* Static marketing page outside the SPA router — must be a full page load. */}
+              <a href="/landing.html">
+                <Globe className="size-4" aria-hidden />
+                Landing page
+              </a>
+            </Button>
             <Button asChild variant="secondary">
               <Link to="/billing">
                 <CreditCard className="size-4" aria-hidden />

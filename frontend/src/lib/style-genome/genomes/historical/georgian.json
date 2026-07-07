@@ -1,0 +1,24 @@
+{
+  "period": "georgian",
+  "massing": {
+    "footprint": "rectangle",
+    "aspect": [1.7, 1.25, 1],
+    "roof": "hipped",
+    "symmetry": "bilateral"
+  },
+  "rhythm": {
+    "bays": 5,
+    "windowShape": "sash",
+    "windowToWallRatio": 0.32,
+    "verticality": 0.38
+  },
+  "ornament": {
+    "motifs": ["fanlight_door", "dentil_cornice", "sash_panes"],
+    "density": 0.2
+  },
+  "material": {
+    "base": "#a15f47",
+    "roughness": 0.78,
+    "windowEmissive": "#ffd08a"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "period": "eco_modern",
+  "massing": {
+    "footprint": "L",
+    "aspect": [1.9, 1.25, 1.2],
+    "roof": "flat",
+    "symmetry": "asymmetric"
+  },
+  "rhythm": {
+    "bays": 5,
+    "windowShape": "ribbon",
+    "windowToWallRatio": 0.48,
+    "verticality": 0.34
+  },
+  "ornament": {
+    "motifs": ["green_roof", "solar_canopy", "timber_fins"],
+    "density": 0.24
+  },
+  "material": {
+    "base": "#a9b39a",
+    "roughness": 0.74,
+    "windowEmissive": "#ffd992"
+  }
+}

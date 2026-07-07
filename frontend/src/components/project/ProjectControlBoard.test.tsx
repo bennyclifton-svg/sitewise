@@ -129,6 +129,54 @@ describe("ProjectControlBoard project profile", () => {
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
   });
+
+  it("blocks Create Cost Plan until project profile overlays are set", async () => {
+    const user = userEvent.setup();
+    const onRunCreateCostPlan = vi.fn();
+    const onSelectWorkflow = vi.fn();
+
+    render(
+      <ProjectControlBoard
+        project={blockedProject}
+        evidence={[]}
+        latestDraft={null}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan={false}
+        selectedWorkflowId="cost-plan"
+        onSelectWorkflow={onSelectWorkflow}
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={onRunCreateCostPlan}
+        onRunSortFiles={vi.fn()}
+        onOpenDraft={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+
+    expect(
+      screen.getByText("Create Cost Plan is blocked by missing overlays."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("building_class: missing")).toBeInTheDocument();
+    expect(screen.getByText("work_type: missing")).toBeInTheDocument();
+
+    const runButton = screen.getByRole("button", { name: /create cost plan/i });
+    expect(runButton).toBeDisabled();
+    await user.click(runButton);
+    expect(onRunCreateCostPlan).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /set project profile/i }));
+    expect(onSelectWorkflow).toHaveBeenCalledWith("project-profile");
+  });
 });
 
 const project: ProjectDetail = {
@@ -164,4 +212,21 @@ const project: ProjectDetail = {
       description: "Works in live environments require careful staging.",
     },
   ],
+};
+
+const blockedProject: ProjectDetail = {
+  ...project,
+  archetype: null,
+  building_class: null,
+  work_type: null,
+  overlay_status: {
+    ready: false,
+    missing: [
+      { field: "building_class", value: null, reason: "missing" },
+      { field: "work_type", value: null, reason: "missing" },
+    ],
+    invalid: [],
+  },
+  metadata: {},
+  risk_flags: [],
 };

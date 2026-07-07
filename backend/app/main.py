@@ -35,11 +35,21 @@ async def lifespan(_app: FastAPI):
     log.info(
         "clerk_backend_started",
         chat_model=settings.openai_chat_model,
+        pmp_model=settings.pmp_model,
+        pmp_model_provider=settings.pmp_model_provider,
+        pmp_model_label=settings.pmp_model_label,
+        hermes_model=settings.hermes_model,
+        hermes_model_provider=settings.hermes_model_provider,
+        pi_model=settings.pi_model,
+        pi_model_provider=settings.pi_model_provider,
         embedding_model=settings.openai_embedding_model,
         log_level=settings.log_level,
     )
     print(
         f"Clerk backend ready | pid={os.getpid()} | chat={settings.openai_chat_model} "
+        f"| pmp={settings.pmp_model_label} "
+        f"| hermes={settings.hermes_model_provider}:{settings.hermes_model} "
+        f"| pi={settings.pi_model_provider}:{settings.pi_model} "
         f"| embeddings={settings.openai_embedding_model} "
         f"| log={settings.log_level}",
         flush=True,
@@ -98,6 +108,13 @@ async def health() -> dict[str, str]:
         "status": "ok",
         "chat_model": settings.openai_chat_model,
         "chat_provider": f"openai-chat:{settings.openai_chat_model}",
+        "pmp_model": settings.pmp_model,
+        "pmp_model_provider": settings.pmp_model_provider,
+        "pmp_model_label": settings.pmp_model_label,
+        "hermes_model": settings.hermes_model,
+        "hermes_model_provider": settings.hermes_model_provider,
+        "pi_model": settings.pi_model,
+        "pi_model_provider": settings.pi_model_provider,
         "embedding_model": settings.openai_embedding_model,
     }
 

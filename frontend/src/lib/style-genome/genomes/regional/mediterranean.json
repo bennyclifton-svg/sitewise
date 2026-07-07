@@ -1,0 +1,24 @@
+{
+  "period": "mediterranean",
+  "massing": {
+    "footprint": "L",
+    "aspect": [1.85, 1.05, 1.1],
+    "roof": "hipped",
+    "symmetry": "asymmetric"
+  },
+  "rhythm": {
+    "bays": 5,
+    "windowShape": "round_arch",
+    "windowToWallRatio": 0.3,
+    "verticality": 0.36
+  },
+  "ornament": {
+    "motifs": ["arched_loggia", "terracotta_roof", "stucco_cornice"],
+    "density": 0.25
+  },
+  "material": {
+    "base": "#e6d2b1",
+    "roughness": 0.88,
+    "windowEmissive": "#ffbe75"
+  }
+}

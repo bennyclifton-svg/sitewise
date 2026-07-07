@@ -318,6 +318,20 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "For questions about uploaded source documents, use project document tools before OCR:\n"
         "find_document_text is the first choice for simple keyword or phrase lookups.\n"
         "search_documents finds semantic matches, and get_document reads longer ingested text.\n"
+        "For generated Clerk artefacts such as cost plans, PMP drafts, and Excel workbooks,\n"
+        "use list_project_files to find the stored file. Read generated markdown drafts with\n"
+        "read_workspace_file, and read generated .xlsx workbooks with read_project_workbook.\n"
+        "For missing consultant-fee estimates, call forecast_consultant_fees before\n"
+        "answering. Only call apply_consultant_fee_forecast when the user asks to apply,\n"
+        "write, update, or save the forecast into the cost plan.\n"
+        "For consultant procurement drafting requests, call\n"
+        "draft_consultant_procurement_artifact. This includes phrases like \"draft a\n"
+        "request for fee proposal\", \"draft consultant procurement\", \"prepare an RFP for\n"
+        "the structural engineer\", \"get me a fee proposal request for the hydraulic\n"
+        "consultant\", and \"prepare scope for BASIX assessor\". Do not answer these as\n"
+        "free text only; create the artefact and then tell the user it was created.\n"
+        "Generated artefacts are not independent project evidence unless they point to an\n"
+        "ingested source_document_id.\n"
         "Do not inspect repository files, run shell commands, or query the database directly\n"
         "to answer questions about uploaded source documents.\n"
         "Only use OCR or document-conversion skills when these tools report text is unavailable,\n"
@@ -431,6 +445,58 @@ def test_agent_source_trace_classifies_context_knowledge_documents_and_tools() -
                 "name": "find_document_text",
                 "message": "Searched ingested document text",
             },
+        ],
+        "model": {"used": True, "label": "LLM reasoning"},
+    }
+
+
+def test_agent_source_trace_includes_consultant_procurement_sources() -> None:
+    trace = chat_api._agent_source_trace(
+        [
+            {
+                "kind": "tool",
+                "tool": "draft_consultant_procurement_artifact",
+                "state": "done",
+                "message": "Created consultant procurement draft",
+                "document_count": 1,
+                "knowledge_count": 1,
+                "forecast_used": True,
+                "source_documents": [
+                    {
+                        "filename": "project-brief.pdf",
+                        "relative_path": "04-projects/demo/00-brief/project-brief.pdf",
+                    }
+                ],
+                "platform_knowledge": [
+                    {
+                        "path": "seed/consultant-procurement.md",
+                        "title": "Consultant procurement guide",
+                    }
+                ],
+            }
+        ]
+    )
+
+    assert trace == {
+        "context": {"used": True, "label": "Project context"},
+        "documents": {
+            "used": True,
+            "tools": ["draft_consultant_procurement_artifact"],
+            "references": ["04-projects/demo/00-brief/project-brief.pdf"],
+        },
+        "knowledge": {
+            "used": True,
+            "tools": ["draft_consultant_procurement_artifact"],
+            "references": ["seed/consultant-procurement.md"],
+        },
+        "tools": [
+            {
+                "name": "draft_consultant_procurement_artifact",
+                "message": "Created consultant procurement draft",
+                "documentCount": 1,
+                "knowledgeCount": 1,
+                "forecastUsed": True,
+            }
         ],
         "model": {"used": True, "label": "LLM reasoning"},
     }

@@ -14,11 +14,13 @@ from app.sitewise.mobilisation_evidence import (
 )
 
 _BUDGET_CEILING_PATTERN = re.compile(
-    r"\*\*Working budget ceiling:\*\*\s*\$\s*([\d,]+)",
+    r"(?:working budget ceiling|construction budget confirmed|construction budget ceiling)"
+    r"[^$\n]{0,120}\$\s*([\d,]+)",
     re.IGNORECASE,
 )
 _CONTINGENCY_PATTERN = re.compile(
-    r"\*\*\$([\d,]+)\s+contingency\*\*.*?\(approx\.?\s*([\d.]+)%\)",
+    r"\$\s*([\d,]+)\s*(?:\*\*)?\s+(?:additional\s+)?contingency"
+    r"(?:\s*\*\*)?(?:[^\n(]*\(approx\.?\s*([\d.]+)%\))?",
     re.IGNORECASE,
 )
 _OWNER_SUPPLIED_PATTERN = re.compile(
@@ -34,6 +36,7 @@ _PROJECT_TITLE_PATTERN = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _ALLOWANCE_AMOUNT_PATTERN = re.compile(r"\$\s*([\d,]+)")
+_OPTIONAL_DOLLAR_AMOUNT_PATTERN = re.compile(r"\$?\s*([\d,]+)")
 _CERTIFIER_NAME_PATTERN = re.compile(
     r"appointed\s+([A-Z][\w&.'\- ]+?Pty Ltd)\s+as principal certifier",
     re.IGNORECASE,
@@ -154,6 +157,13 @@ def _parse_owner_supplied(raw: str) -> list[OwnerSuppliedItem]:
     return items
 
 
+def _money_amount(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    match = _OPTIONAL_DOLLAR_AMOUNT_PATTERN.search(value)
+    return match.group(1) if match else None
+
+
 def _extract_owner_brief_fields(owner_brief_text: str) -> dict[str, object]:
     if not owner_brief_text.strip():
         return {
@@ -210,6 +220,17 @@ def extract_cost_plan_evidence_pack(
     owner_brief_text, planning_text, _ = _split_document_texts(source_texts)
     owner_fields = _extract_owner_brief_fields(owner_brief_text)
     planning_summary = _extract_planning_pathway_summary(planning_text)
+    construction_budget_ceiling = (
+        _money_amount(owner_fields.get("construction_budget_ceiling"))
+        or _money_amount(mobilisation.construction_budget_ceiling)
+    )
+    contingency_amount = (
+        _money_amount(owner_fields.get("contingency_amount"))
+        or _money_amount(mobilisation.owner_additional_contingency)
+    )
+    owner_brief_signed_date = owner_fields.get("owner_brief_signed_date")
+    if owner_brief_signed_date is None:
+        owner_brief_signed_date = mobilisation.owner_brief_signed_date
 
     project_name = owner_fields.get("project_name")
     if isinstance(project_name, str) and project_name.endswith(","):
@@ -233,13 +254,13 @@ def extract_cost_plan_evidence_pack(
     return CostPlanEvidencePack(
         mobilisation=mobilisation,
         project_name=project_name if isinstance(project_name, str) else None,
-        construction_budget_ceiling=owner_fields.get("construction_budget_ceiling"),  # type: ignore[arg-type]
-        contingency_amount=owner_fields.get("contingency_amount"),  # type: ignore[arg-type]
+        construction_budget_ceiling=construction_budget_ceiling,
+        contingency_amount=contingency_amount,
         contingency_percent=owner_fields.get("contingency_percent"),  # type: ignore[arg-type]
         owner_supplied_items=owner_fields.get("owner_supplied_items") or [],  # type: ignore[arg-type]
-        owner_brief_signed_date=owner_fields.get("owner_brief_signed_date"),  # type: ignore[arg-type]
-        owner_brief_on_file=bool(owner_fields.get("owner_brief_on_file")),
-        planning_pathway_summary=planning_summary,
+        owner_brief_signed_date=owner_brief_signed_date,  # type: ignore[arg-type]
+        owner_brief_on_file=bool(owner_fields.get("owner_brief_on_file") or mobilisation.owner_brief_on_file),
+        planning_pathway_summary=planning_summary or mobilisation.planning_pathway,
         planning_memo_on_file=bool(planning_text.strip()),
         certifier_name=certifier_name,
         certifier_fee_ex_gst=certifier_fee,

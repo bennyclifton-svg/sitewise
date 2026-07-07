@@ -1,0 +1,24 @@
+{
+  "period": "neo_deco",
+  "massing": {
+    "footprint": "stepped",
+    "aspect": [1.25, 2.6, 1],
+    "roof": "ziggurat",
+    "symmetry": "bilateral"
+  },
+  "rhythm": {
+    "bays": 9,
+    "windowShape": "slot",
+    "windowToWallRatio": 0.38,
+    "verticality": 0.9
+  },
+  "ornament": {
+    "motifs": ["luminous_fluting", "stepped_crown", "chevron_spandrels"],
+    "density": 0.28
+  },
+  "material": {
+    "base": "#b7a98f",
+    "roughness": 0.54,
+    "windowEmissive": "#ffc86b"
+  }
+}

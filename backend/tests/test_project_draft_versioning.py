@@ -54,6 +54,30 @@ def _draft(*, draft_id: uuid.UUID = DRAFT_ID, version: int, content: str) -> Dra
     )
 
 
+def _cost_plan_draft(
+    *,
+    draft_id: uuid.UUID = DRAFT_ID,
+    version: int,
+    content: str,
+) -> DraftArtifact:
+    return DraftArtifact(
+        id=draft_id,
+        project_id=PROJECT_ID,
+        workflow_type="create_cost_plan",
+        version=version,
+        status="draft",
+        title="Cost Plan",
+        workspace_path="04-projects/demo/01-cost/cost_plan_v01.md",
+        author_user_id=USER_ID,
+        content_markdown=content,
+        model="gpt-4.1-mini",
+        runtime="clerk-sitewise-create-cost-plan",
+        provenance_metadata={"workbook": {"file_name": "Cost_Plan_v01.draft.xlsx"}},
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
 @pytest.fixture
 def mock_session() -> AsyncMock:
     return AsyncMock()
@@ -114,6 +138,56 @@ def test_patch_project_draft_creates_new_version(
     )
     sync_pmp.assert_awaited_once()
     assert sync_pmp.await_args.kwargs["draft"] is updated
+
+
+def test_patch_cost_plan_draft_regenerates_workbook(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
+    original = _cost_plan_draft(version=1, content="# Cost Plan\n\nOld")
+    updated = _cost_plan_draft(
+        draft_id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+        version=2,
+        content="# Cost Plan\n\nEdited",
+    )
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)),
+        patch(
+            "app.api.projects.create_draft_revision",
+            new=AsyncMock(return_value=updated),
+        ) as create_revision,
+        patch(
+            "app.api.projects.sync_cost_plan_revision_artifacts",
+            new=AsyncMock(
+                return_value={
+                    "file_name": "Cost_Plan_v02.draft.xlsx",
+                    "workspace_path": "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
+                }
+            ),
+        ) as sync_cost_plan,
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}",
+            json={"content_markdown": "# Cost Plan\n\nEdited"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["version"] == 2
+    assert payload["content_markdown"] == "# Cost Plan\n\nEdited"
+    create_revision.assert_awaited_once_with(
+        mock_session,
+        draft=original,
+        author_user_id=USER_ID,
+        content_markdown="# Cost Plan\n\nEdited",
+        edit_source="user",
+    )
+    sync_cost_plan.assert_awaited_once()
+    assert sync_cost_plan.await_args.kwargs["draft"] is updated
+    assert sync_cost_plan.await_args.kwargs["markdown"] == "# Cost Plan\n\nEdited"
 
 
 def test_patch_project_draft_rejects_source_document_id(

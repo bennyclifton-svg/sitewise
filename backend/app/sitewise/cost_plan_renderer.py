@@ -187,6 +187,30 @@ def _owner_supplied_lines(items: list[OwnerSuppliedItem]) -> list[str]:
     return lines
 
 
+def _appointee_label(pack: CostPlanEvidencePack) -> str:
+    return pack.mobilisation.appointee or "Architect-PM"
+
+
+def _builder_rom_amount(pack: CostPlanEvidencePack) -> str:
+    rom = pack.mobilisation.builder_rom
+    if not rom:
+        return "TBC"
+    for separator in (" — ", " - ", " â€” "):
+        if separator in rom:
+            return rom.split(separator, 1)[1].rstrip(".")
+    return rom.rstrip(".")
+
+
+def _project_profile_label(project: Project) -> str:
+    building_class = project.building_class
+    work_type = project.work_type
+    if building_class and work_type:
+        profile = f"{building_class} / {work_type}"
+    else:
+        profile = building_class or project.archetype or "TBC"
+    return f"{profile}, {project.user_role or 'TBC'}, {project.state or 'TBC'}"
+
+
 def _render_project_name_location(project: Project, pack: CostPlanEvidencePack) -> str:
     name = pack.project_name or project.title
     site = pack.site_address or "**Assumption: site address not yet evidenced**"
@@ -198,7 +222,7 @@ def _render_project_name_location(project: Project, pack: CostPlanEvidencePack) 
             f"**Project:** {name}",
             f"**Site:** {site}",
             f"**Owners:** {owners}",
-            f"**Archetype / role / state:** {project.archetype}, {project.user_role}, {project.state}",
+            f"**Project profile / role / state:** {_project_profile_label(project)}",
         ]
     )
 
@@ -214,6 +238,10 @@ def _render_source_evidence(pack: CostPlanEvidencePack) -> str:
         on_file.append("owner project brief (signed)")
     if pack.planning_memo_on_file:
         on_file.append("planning pathway memo")
+    if mob.builder_rom:
+        on_file.append("builder preliminary ROM cost advice")
+    if mob.heritage_advice:
+        on_file.append("heritage desktop advice")
     if not pack_has_gap(pack.mobilisation, GAP_GEOTECHNICAL):
         on_file.append("geotechnical report")
     if not pack_has_gap(pack.mobilisation, GAP_MASTER_PROGRAMME):
@@ -234,6 +262,8 @@ def _render_source_evidence(pack: CostPlanEvidencePack) -> str:
     )
     planning_ref = _ref_for_markers(refs, "planning-pathway", "planning_pathway", "09-planning")
     geotech_ref = _ref_for_markers(refs, "geotechnical", "geotech", "06-geotechnical")
+    builder_ref = _ref_for_markers(refs, "builder-preliminary", "cost-advice", "builder")
+    heritage_ref = _ref_for_markers(refs, "heritage")
 
     rows = [
         "| Section | Evidence status | Ref |",
@@ -254,8 +284,8 @@ def _render_source_evidence(pack: CostPlanEvidencePack) -> str:
         ),
         (
             "| Planning pathway | "
-            f"{'Grounded' if pack.planning_pathway_summary else 'Partial'} | "
-            f"{planning_ref if pack.planning_memo_on_file else '—'} |"
+            f"{'Grounded' if pack.planning_pathway_summary or mob.planning_pathway else 'Partial'} | "
+            f"{planning_ref if planning_ref != '—' else heritage_ref if heritage_ref != '—' else '—'} |"
         ),
         (
             "| Geotechnical / footing class | "
@@ -263,6 +293,10 @@ def _render_source_evidence(pack: CostPlanEvidencePack) -> str:
             f"{geotech_ref if not pack_has_gap(pack.mobilisation, GAP_GEOTECHNICAL) else '—'} |"
         ),
     ]
+    if mob.builder_rom:
+        rows.append(f"| Builder ROM | On file - not a tender | {builder_ref} |")
+    if mob.heritage_advice:
+        rows.append(f"| Heritage advice | Grounded | {heritage_ref} |")
     return "\n".join(
         [
             "## Source evidence used",
@@ -313,6 +347,12 @@ def _render_budget_reconciliation(pack: CostPlanEvidencePack) -> str:
         f"| Architect fixed professional fee | Engagement letter executed {executed} | "
         f"{fee} | ex GST | Locked | Adopted (outside construction ceiling) |"
     )
+    if mob.builder_rom:
+        rows.append(
+            "| Builder preliminary ROM | Builder preliminary cost advice email | "
+            f"{_builder_rom_amount(pack)} | ex GST | Market signal only - not tender | "
+            "Reconcile to owner ceiling at tender |"
+        )
     rows.append(
         "| Head construction contract | — | TBC | ex GST | Not tendered | — |"
     )
@@ -404,6 +444,7 @@ def _render_gst_basis(pack: CostPlanEvidencePack) -> str:
 def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
     mob = pack.mobilisation
     fee = _money(mob.fee_total_ex_gst)
+    fee_label = f"{_appointee_label(pack)} architect / PM fee"
     fee_subtotal = fee if fee != "TBC" else "TBC"
     contingency = _money(pack.contingency_amount) if pack.contingency_amount else "TBC"
     pct = pack.contingency_percent or "5–10"
@@ -417,7 +458,7 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
     rows = [
         "| Cost Code | Category | Cost Items | Budget | Status | Basis |",
         "| --- | --- | --- | --- | --- | --- |",
-        f"| 1 | Fees and charges | HCS architect / PM fee | {fee} | Approved | Engagement letter |",
+        f"| 1 | Fees and charges | {fee_label} | {fee} | Approved | Engagement letter |",
     ]
     for code, label in _FEE_ROWS:
         rows.append(
@@ -488,6 +529,15 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
         ]
     )
     owner_lines = _owner_supplied_lines(pack.owner_supplied_items)
+    cost_driver_lines: list[str] = []
+    if mob.builder_rom:
+        cost_driver_lines.append(f"Builder ROM market signal: {mob.builder_rom}")
+    if mob.builder_rom_caveats:
+        cost_driver_lines.append(
+            "Builder ROM caveats: " + "; ".join(mob.builder_rom_caveats[:6]) + "."
+        )
+    if mob.heritage_approval_advice:
+        cost_driver_lines.append(f"Heritage cost/programme driver: {mob.heritage_approval_advice}")
     return "\n".join(
         [
             "## Cost breakdown by category",
@@ -497,6 +547,7 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
             "Construction rows follow NSW residential taxonomy.",
             "Construction rows are an indicative benchmark split of the owner ceiling (Assumption) "
             "until head-builder tender returns a priced schedule.",
+            *cost_driver_lines,
             "",
             *rows,
             "",
@@ -557,6 +608,15 @@ def _render_allowances_contingency(pack: CostPlanEvidencePack) -> str:
         for item in pack.owner_supplied_items:
             amount = _money(item.amount_ex_gst) if item.amount_ex_gst else "TBC"
             lines.append(f"  - {item.label}: {amount} (owner-supplied; GST basis not stated)")
+    if pack.mobilisation.builder_rom:
+        lines.append(
+            f"- **Builder ROM:** {_builder_rom_amount(pack)} is a preliminary market signal only; "
+            "do not treat it as tendered or contracted pricing."
+        )
+    for caveat in pack.mobilisation.builder_rom_caveats[:6]:
+        lines.append(f"- **ROM caveat:** {caveat}.")
+    if pack.mobilisation.heritage_approval_advice:
+        lines.append(f"- **Heritage allowance driver:** {pack.mobilisation.heritage_approval_advice}")
     lines.append("- Do not use contingency to absorb unresolved scope without labelling.")
     return "\n".join(lines)
 
@@ -591,6 +651,12 @@ def _render_assumptions_exclusions(pack: CostPlanEvidencePack) -> str:
         items.append(
             "- Owner-held contingency is evidenced separately from the construction ceiling — do not double-count."
         )
+    if pack.mobilisation.builder_rom:
+        items.append("- Builder ROM is not a tender and must be checked against the tender schedule.")
+    for caveat in pack.mobilisation.builder_rom_caveats[:6]:
+        items.append(f"- Builder ROM caveat: {caveat}.")
+    if pack.mobilisation.heritage_approval_advice:
+        items.append(f"- Heritage approval/cost driver: {pack.mobilisation.heritage_approval_advice}")
     items.extend(f"- Assumption: {gap}." for gap in pack.gaps)
     return "\n".join(["## Assumptions and exclusions", "", *items])
 
@@ -659,6 +725,14 @@ def _render_authority_gates(pack: CostPlanEvidencePack) -> str:
             "| HBCF / HOW / licence | Assumption | Statutory | Verify before head contract |",
             f"| Principal certifier | {certifier_status} | Programme | {certifier_action} |",
             "| Head-builder procurement | Partial | High | Tender after DD/IFC package |",
+            *(
+                [
+                    "| Heritage impact statement | Grounded | Programme / consultant fee | "
+                    f"{pack.mobilisation.heritage_approval_advice} |"
+                ]
+                if pack.mobilisation.heritage_approval_advice
+                else []
+            ),
         ]
     )
 
@@ -678,7 +752,7 @@ def _render_internal_audit(pack: CostPlanEvidencePack) -> str:
     facts = [
         f"Owners {pack.owners or 'TBC'}; site {pack.site_address or 'TBC'}.",
         (
-            f"HCS architect-PM engaged; fee {_money(mob.fee_total_ex_gst)} ex GST; "
+            f"{_appointee_label(pack)} architect-PM engaged; fee {_money(mob.fee_total_ex_gst)} ex GST; "
             f"executed {mob.engagement_executed_date or 'TBC'}."
         ),
     ]
@@ -706,6 +780,12 @@ def _render_internal_audit(pack: CostPlanEvidencePack) -> str:
         facts.append("Principal certifier appointed.")
     if mob.target_da_lodgement:
         facts.append(f"Target DA lodgement {mob.target_da_lodgement} per engagement letter.")
+    if mob.builder_rom:
+        facts.append(mob.builder_rom)
+    if mob.builder_conflict_disclosure:
+        facts.append(mob.builder_conflict_disclosure)
+    if mob.heritage_advice:
+        facts.append(mob.heritage_advice)
 
     assumptions = [f"Assumption: {gap}." for gap in pack.gaps]
     assumptions.extend(f"Assumption: {item}" for item in _STANDING_ASSUMPTIONS)

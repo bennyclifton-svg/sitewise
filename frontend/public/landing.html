@@ -1,0 +1,711 @@
+<!doctype html>
+<!--
+  SITEFORM marketing landing page.
+  Built from docs/plans/landing/landingprg.md — Sequential Prompt Pack v3.
+
+  Status:
+    Prompt 0 — master design brief (tokens + rules)
+    Prompt 1 — scaffold & global styles (this file + landing-assets/landing.css)
+    Prompt 1.5A — SITEFORM DISPLAY svg glyph library (landing-assets/, proof sheet)
+    Prompt 2 — header / navigation (this file + landing-nav.js)
+    Prompt 3 — hero band with 3D building (this file + landing-hero.js)
+    Prompt 4 — partners / integrations strip (this file + landing-partners.js)
+    Prompt 5 — platform overview (this file + landing.css)
+    Prompt 6 — capabilities index (this file + landing.css)
+    Prompt 7 — results / stat cards (this file + landing.css)
+
+  Sections #testimonials..footer are empty placeholders until Prompts 8-10.
+  Design tokens are the Prompt 0 contract — no other hex values allowed.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="SITEFORM — design management, planning and procurement for construction teams. One platform from concept to contract."
+    />
+    <title>SITEFORM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Zen Dots is scaffolding only: interim display fallback for section
+         headings until SITEFORM DISPLAY build path B replaces it. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=IBM+Plex+Mono:wght@400;700&family=Space+Mono:wght@400;700&family=Zen+Dots&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="landing-assets/landing.css" />
+  </head>
+  <body>
+    <div class="page-sheet">
+      <div class="frame">
+      <header class="site-header">
+        <span class="site-header__corner-cut" aria-hidden="true"></span>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a class="site-logo" href="#hero">
+            <svg
+              class="site-logo__glyph"
+              width="36"
+              height="36"
+              viewBox="0 0 36 36"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <!-- Notched square — 45° cut at top-right echoes sheet-frame corner language. -->
+              <path fill="#F96416" d="M0 0h36v32L32 36H0V0z" />
+              <path
+                fill="#111111"
+                d="M22 8c-3.8 0-6.8 2.4-6.8 5.6 0 2.2 1.2 3.8 4.2 5.1 2.6 1.1 3.4 2 3.4 3.4 0 1.6-1.4 2.8-3.4 2.8-1.8 0-3.2-.8-4.2-2.2l-2.4 2c1.4 1.8 3.6 2.8 6.2 2.8 4 0 7-2.4 7-5.8 0-2.6-1.4-4.2-4.6-5.5-2.4-1-3.2-1.8-3.2-3.2 0-1.4 1.2-2.4 2.8-2.4 1.4 0 2.6.6 3.4 1.6l2.2-1.8C26.4 9.2 24.4 8 22 8z"
+              />
+            </svg>
+            <span class="site-logo__wordmark" data-display-text="SITEWISE"></span>
+          </a>
+
+          <ul class="site-nav__links">
+            <li><a href="#platform">Product</a></li>
+            <li><a href="#capabilities">Capabilities</a></li>
+            <li><a href="#results">Results</a></li>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="#insights">Insights</a></li>
+          </ul>
+
+          <a class="site-nav__platform" href="#platform">
+            <span class="site-nav__platform-mark" aria-hidden="true">∷</span>
+            Our Platform
+          </a>
+
+          <a class="btn site-nav__cta" href="#hero">Book a Demo</a>
+
+          <button
+            type="button"
+            class="icon-cell site-nav__toggle"
+            aria-expanded="false"
+            aria-controls="mobile-menu"
+            aria-label="Open menu"
+          >
+            <span class="site-nav__burger" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+        </nav>
+
+        <div
+          id="mobile-menu"
+          class="mobile-menu"
+          hidden
+          aria-hidden="true"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site menu"
+        >
+          <div class="mobile-menu__bar">
+            <button
+              type="button"
+              class="icon-cell mobile-menu__close"
+              aria-label="Close menu"
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
+          </div>
+          <ul class="mobile-menu__links">
+            <li>
+              <a href="#platform">
+                <span class="marker mobile-menu__marker" aria-hidden="true"></span>
+                <span class="mobile-menu__label" data-display-text="Product" data-tracking="40"></span>
+              </a>
+            </li>
+            <li>
+              <a href="#capabilities">
+                <span class="marker mobile-menu__marker" aria-hidden="true"></span>
+                <span class="mobile-menu__label" data-display-text="Capabilities" data-tracking="40"></span>
+              </a>
+            </li>
+            <li>
+              <a href="#results">
+                <span class="marker mobile-menu__marker" aria-hidden="true"></span>
+                <span class="mobile-menu__label" data-display-text="Results" data-tracking="40"></span>
+              </a>
+            </li>
+            <li>
+              <a href="#faq">
+                <span class="marker mobile-menu__marker" aria-hidden="true"></span>
+                <span class="mobile-menu__label" data-display-text="FAQ" data-tracking="40"></span>
+              </a>
+            </li>
+            <li>
+              <a href="#insights">
+                <span class="marker mobile-menu__marker" aria-hidden="true"></span>
+                <span class="mobile-menu__label" data-display-text="Insights" data-tracking="40"></span>
+              </a>
+            </li>
+            <li>
+              <a href="#platform">
+                <span class="marker mobile-menu__marker" aria-hidden="true"></span>
+                <span class="mobile-menu__label" data-display-text="Our Platform" data-tracking="40"></span>
+              </a>
+            </li>
+          </ul>
+          <div class="mobile-menu__cta-row">
+            <a class="btn mobile-menu__cta" href="#hero">Book a Demo</a>
+          </div>
+        </div>
+      </header>
+
+      <section id="hero" class="grid-4 hero" aria-label="Hero">
+        <!-- Edge furniture -->
+        <div class="hero__edge hero__edge--left">
+          <span class="icon-cell hero__register" aria-hidden="true">✕</span>
+        </div>
+        <div class="hero__edge hero__edge--right" aria-label="Social links">
+          <a class="icon-cell hero__social" href="#" aria-label="Radio">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </a>
+          <a class="icon-cell hero__social" href="#" aria-label="X">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M17.3 4h3.1l-6.8 7.7L21 20h-5.9l-4.6-5.9L4.8 20H1.7l7.3-8.3L3 4h6l4.2 5.5L17.3 4zm-1.1 14.3h1.7L7.9 5.6H6.1l10.1 12.7z" />
+            </svg>
+          </a>
+          <a class="icon-cell hero__social" href="#" aria-label="LinkedIn">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6.5 8.5a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5zM4.75 20h3.5V9.5h-3.5V20zM13.25 9.5c-1.9 0-3.15 1.04-3.65 1.92V9.5H6.1v10.5h3.5v-5.9c0-1.47.28-2.9 2.1-2.9 1.8 0 1.82 1.68 1.82 2.99V20h3.5v-6.6c0-3.28-.7-5.75-4.77-5.75z" />
+            </svg>
+          </a>
+          <a class="icon-cell hero__social" href="#" aria-label="YouTube">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M21.6 7.2a2.5 2.5 0 0 0-1.76-1.77C17.9 5 12 5 12 5s-5.9 0-7.84.43A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.76 1.77C6.1 19 12 19 12 19s5.9 0 7.84-.43a2.5 2.5 0 0 0 1.76-1.77A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8zM10 15.5v-7l6 3.5-6 3.5z" />
+            </svg>
+          </a>
+          <a class="icon-cell hero__social" href="#" aria-label="RSS">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M5 5a14 14 0 0 1 14 14" />
+              <path d="M5 11a8 8 0 0 1 8 8" />
+              <circle cx="6" cy="18" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </a>
+        </div>
+
+        <!-- Orange markers — loose left/right pairs -->
+        <span class="marker marker--abs hero__marker hero__marker--marquee-l" aria-hidden="true"></span>
+        <span class="marker marker--abs hero__marker hero__marker--marquee-r" aria-hidden="true"></span>
+        <span class="marker marker--abs hero__marker hero__marker--label-r" aria-hidden="true"></span>
+
+        <!-- Marquee — grid rules pass behind the letters -->
+        <div class="hero__marquee-band">
+          <div class="hero__marquee-track" aria-hidden="true">
+            <div class="hero__marquee-run"></div>
+            <div class="hero__marquee-run"></div>
+          </div>
+          <h1 class="sr-only">Building Tomorrow</h1>
+        </div>
+
+        <!-- Label row -->
+        <div class="hero__label-row">
+          <span class="marker" aria-hidden="true"></span>
+          <span class="hero__label-text label">Building&nbsp;&nbsp;&nbsp;&nbsp;Tomorrow</span>
+        </div>
+
+        <!-- Content row -->
+        <div class="hero__copy">
+          <p class="hero__body">
+            Design management, planning and procurement for construction teams —
+            one platform from concept to contract.
+          </p>
+          <a class="btn hero__cta" href="#hero">Book a Demo</a>
+        </div>
+
+        <div class="hero__stage">
+          <canvas id="hero-building-canvas" aria-hidden="true"></canvas>
+          <!-- WebGL fallback — isometric clay massing, single orange accent -->
+          <svg
+            class="hero__building-fallback"
+            viewBox="0 0 420 360"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <!-- Art deco stepped massing — geometry from art_deco.json footprint -->
+            <polygon fill="#F2F2EF" points="55,300 365,300 365,210 55,210" />
+            <polygon fill="#E4E4E0" points="365,210 395,195 395,285 365,300" />
+            <polygon fill="#F2F2EF" points="95,210 325,210 325,140 95,140" />
+            <polygon fill="#E4E4E0" points="325,140 350,128 350,198 325,210" />
+            <polygon fill="#F2F2EF" points="135,140 285,140 285,88 135,88" />
+            <polygon fill="#E4E4E0" points="285,88 305,78 305,130 285,140" />
+            <polygon fill="#E9E9E6" points="155,88 265,88 265,72 155,72" />
+            <polygon fill="#E9E9E6" points="170,72 250,72 250,58 170,58" />
+            <polygon fill="#E9E9E6" points="185,58 235,58 235,46 185,46" />
+            <rect fill="#F96416" x="198" y="268" width="24" height="32" rx="1" />
+            <rect fill="#0C0C0C" x="202" y="274" width="16" height="22" />
+            <ellipse cx="210" cy="348" rx="120" ry="8" fill="#ABABA6" opacity="0.25" />
+          </svg>
+        </div>
+
+        <div class="hero__detail">
+          <div class="hero__detail-thumb brackets">
+            <canvas id="hero-detail-canvas" aria-hidden="true"></canvas>
+            <svg
+              class="hero__detail-fallback"
+              viewBox="0 0 120 120"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect fill="#F2F2EF" x="38" y="78" width="44" height="14" />
+              <rect fill="#F2F2EF" x="46" y="38" width="28" height="44" />
+              <rect fill="#F2F2EF" x="42" y="28" width="36" height="12" />
+              <rect fill="#F2F2EF" x="62" y="44" width="28" height="10" />
+            </svg>
+          </div>
+          <div class="hero__partners-controls">
+            <span class="label hero__partners-label">Works with:</span>
+            <div class="hero__partners-arrows">
+              <button
+                type="button"
+                class="icon-cell hero__partners-prev"
+                aria-label="Previous integrations"
+                aria-controls="partners-track"
+              >
+                <span aria-hidden="true">‹</span>
+              </button>
+              <button
+                type="button"
+                class="icon-cell hero__partners-next"
+                aria-label="Next integrations"
+                aria-controls="partners-track"
+              >
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="partners" class="partners" aria-label="Integrations">
+        <div class="partners__viewport">
+          <ul id="partners-track" class="partners__track" role="list">
+            <li class="partners__cell">
+              <span class="partners__wordmark">Revit</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark">AutoCAD</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark">IFC / BIM</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark">MS Project</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark partners__wordmark--long">Primavera P6</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark">Excel</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark">SharePoint</span>
+            </li>
+            <li class="partners__cell">
+              <span class="partners__wordmark">Xero</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="platform" class="platform" aria-label="Platform">
+        <div class="platform__label-row">
+          <span class="label">// THE PLATFORM</span>
+        </div>
+
+        <div class="platform__title-band">
+          <h2
+            class="platform__title"
+            data-display-text="ONE MODEL OF THE JOB"
+            data-tracking="28"
+          ></h2>
+        </div>
+
+        <div class="platform__modules cells">
+          <article class="platform__panel">
+            <div class="platform__panel-head">
+              <span class="marker" aria-hidden="true"></span>
+              <span class="label platform__num">01</span>
+            </div>
+            <h3
+              class="platform__panel-title"
+              data-display-text="DESIGN MANAGEMENT"
+              data-tracking="18"
+            ></h3>
+            <p class="platform__panel-desc">
+              Drawing registers, revisions, RFIs, approvals in one controlled thread.
+            </p>
+            <div class="platform__plate brackets" aria-hidden="true">
+              <div class="platform__plate-inner">
+                <div class="platform__mock platform__mock--register">
+                  <div class="platform__mock-row platform__mock-row--head">
+                    <span>REF</span>
+                    <span>REV</span>
+                    <span>STATUS</span>
+                  </div>
+                  <div class="platform__mock-row">
+                    <span>A-101</span>
+                    <span>C</span>
+                    <span class="platform__mock-status">APPROVED</span>
+                  </div>
+                  <div class="platform__mock-row">
+                    <span>S-204</span>
+                    <span>B</span>
+                    <span class="platform__mock-dim">IN REVIEW</span>
+                  </div>
+                  <div class="platform__mock-row">
+                    <span>M-012</span>
+                    <span>A</span>
+                    <span class="platform__mock-accent">RFI OPEN</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="platform__panel">
+            <div class="platform__panel-head">
+              <span class="marker" aria-hidden="true"></span>
+              <span class="label platform__num">02</span>
+            </div>
+            <h3
+              class="platform__panel-title"
+              data-display-text="PLANNING"
+              data-tracking="18"
+            ></h3>
+            <p class="platform__panel-desc">
+              Programmes linked to design status; see slippage before it costs you.
+            </p>
+            <div class="platform__plate brackets" aria-hidden="true">
+              <div class="platform__plate-inner">
+                <div class="platform__mock platform__mock--gantt">
+                  <div class="platform__mock-gantt-row">
+                    <span class="platform__mock-gantt-label">DD SET</span>
+                    <div class="platform__mock-gantt-track">
+                      <span class="platform__mock-bar" style="width: 68%"></span>
+                    </div>
+                  </div>
+                  <div class="platform__mock-gantt-row">
+                    <span class="platform__mock-gantt-label">TENDER</span>
+                    <div class="platform__mock-gantt-track">
+                      <span
+                        class="platform__mock-bar platform__mock-accent"
+                        style="width: 42%"
+                      ></span>
+                    </div>
+                  </div>
+                  <div class="platform__mock-gantt-row">
+                    <span class="platform__mock-gantt-label">MOBILISE</span>
+                    <div class="platform__mock-gantt-track">
+                      <span class="platform__mock-bar" style="width: 28%"></span>
+                    </div>
+                  </div>
+                  <div class="platform__mock-gantt-row">
+                    <span class="platform__mock-gantt-label">HANDOVER</span>
+                    <div class="platform__mock-gantt-track">
+                      <span class="platform__mock-bar platform__mock-bar--ghost" style="width: 12%"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="platform__panel">
+            <div class="platform__panel-head">
+              <span class="marker" aria-hidden="true"></span>
+              <span class="label platform__num">03</span>
+            </div>
+            <h3
+              class="platform__panel-title"
+              data-display-text="PROCUREMENT"
+              data-tracking="18"
+            ></h3>
+            <p class="platform__panel-desc">
+              Packages, tenders and lead times tracked against the programme.
+            </p>
+            <div class="platform__plate brackets" aria-hidden="true">
+              <div class="platform__plate-inner">
+                <div class="platform__mock platform__mock--procurement">
+                  <div class="platform__mock-row platform__mock-row--head">
+                    <span>PKG</span>
+                    <span>LEAD</span>
+                    <span>STATUS</span>
+                  </div>
+                  <div class="platform__mock-row">
+                    <span>STRUCT</span>
+                    <span>12w</span>
+                    <span class="platform__mock-dim">ORDERED</span>
+                  </div>
+                  <div class="platform__mock-row">
+                    <span>MECH</span>
+                    <span>8w</span>
+                    <span class="platform__mock-chip platform__mock-accent">TENDER</span>
+                  </div>
+                  <div class="platform__mock-row">
+                    <span>JOINERY</span>
+                    <span>6w</span>
+                    <span class="platform__mock-dim">DRAFT</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="platform__footer">
+          <a class="btn platform__cta" href="#hero">Book a Demo</a>
+          <a class="btn btn--ghost platform__cta-ghost" href="#pricing">See Pricing</a>
+        </div>
+      </section>
+
+      <section id="capabilities" class="capabilities" aria-label="Capabilities">
+        <div class="capabilities__label-row">
+          <span class="label">// CAPABILITIES</span>
+        </div>
+
+        <div class="capabilities__title-band">
+          <h2
+            class="capabilities__title"
+            data-display-text="EVERYTHING BETWEEN THE DRAWINGS AND THE KEYS"
+            data-tracking="22"
+          ></h2>
+        </div>
+
+        <div class="capabilities__grid cells" role="list">
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">01</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Drawing & document control"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Central register for drawings, specs and issue history.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">02</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Revision tracking & transmittals"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Every issue logged, transmitted and acknowledged.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">03</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="RFI & approval workflows"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Structured requests routed with a full audit trail.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">04</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Programme & milestone planning"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Master programme with dependencies and critical path.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">05</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Design-to-programme linking"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Drawing status drives programme float and slippage.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">06</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Package & tender management"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Package scopes, tender lists and return tracking.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">07</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Lead-time & delivery tracking"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Procurement dates tied to site readiness windows.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">08</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Budget & commitment reporting"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Commitments and variations against approved budget.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">09</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Site diaries & progress records"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Daily site records linked to programme progress.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="capabilities__row" role="listitem" tabindex="0">
+            <span class="label capabilities__num">10</span>
+            <div class="capabilities__body">
+              <h3
+                class="capabilities__name"
+                data-display-text="Handover & O&M documentation"
+                data-tracking="12"
+              ></h3>
+              <p class="capabilities__desc">Defect lists, manuals and asset handover packs.</p>
+            </div>
+            <span class="capabilities__chevron" aria-hidden="true">›</span>
+          </article>
+        </div>
+      </section>
+
+      <section id="results" class="results" aria-label="Results">
+        <div class="results__label-row">
+          <span class="label">// RESULTS</span>
+        </div>
+
+        <div class="results__title-band">
+          <h2
+            class="results__title"
+            data-display-text="MEASURED ON REAL JOBS"
+            data-tracking="28"
+          ></h2>
+        </div>
+
+        <div class="results__grid cells">
+          <article class="results__cell">
+            <p class="results__stat">
+              <span class="results__value">
+                <span data-display-text="38" data-tracking="10"></span>
+              </span>
+              <span class="results__unit">%</span>
+            </p>
+            <p class="results__caption">faster drawing approvals</p>
+          </article>
+
+          <article class="results__cell">
+            <p class="results__stat">
+              <span class="results__value">
+                <span data-display-text="2" data-tracking="8"></span>
+                <span class="results__decimal" aria-hidden="true">.</span>
+                <span data-display-text="1" data-tracking="8"></span>
+              </span>
+              <span class="results__unit">x</span>
+            </p>
+            <p class="results__caption">more tenders returned per package</p>
+          </article>
+
+          <article class="results__cell">
+            <p class="results__stat">
+              <span class="results__value">
+                <span data-display-text="-" data-tracking="6"></span>
+                <span data-display-text="19" data-tracking="10"></span>
+              </span>
+              <span class="results__unit">d</span>
+            </p>
+            <p class="results__caption">average procurement lead-time recovered</p>
+          </article>
+
+          <article class="results__cell">
+            <p class="results__stat">
+              <span class="results__value">
+                <span data-display-text="100" data-tracking="10"></span>
+              </span>
+              <span class="results__unit">%</span>
+            </p>
+            <p class="results__caption">audit trail on every revision</p>
+          </article>
+        </div>
+
+        <blockquote class="results__quote">
+          <p class="results__quote-text">
+            &ldquo;Rolled out across 14 live projects in 6 weeks.&rdquo;
+            <span class="results__quote-attribution">&mdash; MERIDIAN BUILD GROUP</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section id="testimonials" aria-label="Testimonials">
+        <div class="placeholder">
+          <span class="label">// #testimonials &mdash; built in Prompt 8</span>
+        </div>
+      </section>
+
+      <section id="faq" aria-label="FAQ">
+        <div class="placeholder">
+          <span class="label">// #faq &mdash; built in Prompt 9</span>
+        </div>
+      </section>
+
+      <section id="insights" aria-label="Insights">
+        <div class="placeholder">
+          <span class="label">// #insights &mdash; built in Prompt 10</span>
+        </div>
+      </section>
+
+      <footer>
+        <div class="placeholder">
+          <span class="label">// footer &mdash; built in Prompt 10</span>
+        </div>
+      </footer>
+      </div>
+    </div>
+    <script src="landing-assets/siteform-display.js"></script>
+    <script src="landing-assets/landing-nav.js"></script>
+    <script src="landing-assets/landing-genome-builder.js"></script>
+    <script src="landing-assets/landing-hero.js"></script>
+    <script src="landing-assets/landing-partners.js"></script>
+  </body>
+</html>

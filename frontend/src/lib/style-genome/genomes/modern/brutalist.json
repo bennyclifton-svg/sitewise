@@ -1,0 +1,24 @@
+{
+  "period": "brutalist",
+  "massing": {
+    "footprint": "stepped",
+    "aspect": [1.75, 1.55, 1.25],
+    "roof": "flat",
+    "symmetry": "asymmetric"
+  },
+  "rhythm": {
+    "bays": 5,
+    "windowShape": "slot",
+    "windowToWallRatio": 0.22,
+    "verticality": 0.45
+  },
+  "ornament": {
+    "motifs": ["exposed_grid", "deep_window_reveals", "monolith_stair_core"],
+    "density": 0.16
+  },
+  "material": {
+    "base": "#77746b",
+    "roughness": 0.96,
+    "windowEmissive": "#ffb15c"
+  }
+}

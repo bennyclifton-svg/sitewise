@@ -1,0 +1,241 @@
+<!doctype html>
+<!--
+  SITEFORM DISPLAY — type proof sheet (Prompt 1.5 deliverable).
+  Put this beside the reference screenshot: the marquee sample below must
+  match its weight, width and blocky-outside/rounded-inside tension.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SITEFORM DISPLAY — Type Proof</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #E9E9E6;
+        --panel: #EFEFEC;
+        --ink: #111111;
+        --ink-dim: #5A5A56;
+        --line: #ABABA6;
+        --orange: #F96416;
+        --white-3d: #F2F2EF;
+        --black: #0C0C0C;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Space Mono", ui-monospace, monospace;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      [data-display-text] svg,
+      .glyph-stage svg {
+        height: 1em;
+        width: auto;
+        display: block;
+      }
+
+      .sheet {
+        max-width: 1440px;
+        margin: 0 auto;
+        border: 1px solid var(--line);
+        min-height: 100vh;
+      }
+
+      .sheet > * + * {
+        border-top: 1px solid var(--line);
+      }
+
+      .band {
+        padding: 20px 24px;
+      }
+
+      .label {
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .marker {
+        width: 10px;
+        height: 10px;
+        background: var(--orange);
+        flex: none;
+      }
+
+      .spec-table {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 32px;
+        margin-top: 10px;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+      }
+
+      .marquee-proof {
+        overflow-x: auto;
+        padding: 48px 24px 56px;
+      }
+
+      .marquee-proof [data-display-text] {
+        font-size: clamp(90px, 15vw, 220px);
+        color: var(--ink);
+      }
+
+      .sample [data-display-text] {
+        color: var(--ink);
+      }
+
+      .sample-lg {
+        font-size: 84px;
+      }
+
+      .sample-md {
+        font-size: 42px;
+        margin-top: 24px;
+        overflow-x: auto;
+      }
+
+      .glyph-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 1px;
+        background: var(--line);
+        border-top: 0;
+      }
+
+      .glyph-cell {
+        background: var(--panel);
+        padding: 18px 14px 12px;
+      }
+
+      .glyph-stage {
+        font-size: 108px;
+        height: 108px;
+        display: flex;
+        align-items: flex-start;
+        color: var(--ink);
+        /* 1000-unit design grid: hairlines every 250 units + cap/baseline rules */
+        background-image:
+          linear-gradient(var(--line), var(--line)),
+          linear-gradient(var(--line), var(--line)),
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(25% - 1px),
+            var(--line) calc(25% - 1px),
+            var(--line) 25%
+          );
+        background-repeat: no-repeat;
+        background-size: 100% 1px, 100% 1px, 100% 100%;
+        background-position: 0 0, 0 100%, 0 0;
+      }
+
+      .glyph-cell figcaption {
+        margin-top: 10px;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+        display: flex;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <header class="band">
+        <p class="label"><span class="marker" aria-hidden="true"></span> Siteform Display / Type Proof / Build Path A (SVG Glyph Library)</p>
+        <div class="spec-table" aria-label="Design parameters">
+          <span>Grid 1000u</span>
+          <span>Cap 1000u / no descenders</span>
+          <span>Stroke 210u monolinear</span>
+          <span>Outer R 50u</span>
+          <span>Counter R 92&ndash;250u</span>
+          <span>Stencil gap 80u</span>
+          <span>Track 70u</span>
+          <span>A&ndash;Z 0&ndash;9 - &amp;</span>
+        </div>
+      </header>
+
+      <section class="marquee-proof" aria-label="Marquee-scale comparison sample">
+        <div data-display-text="BUILDING TOMORROW"></div>
+      </section>
+
+      <section class="band sample" aria-label="Wordmark sample">
+        <p class="label">Wordmark</p>
+        <div class="sample-lg" data-display-text="SITEFORM" style="margin-top: 16px"></div>
+        <div class="sample-md" data-display-text="0123456789 - &amp;"></div>
+      </section>
+
+      <section aria-label="Character set">
+        <div class="band">
+          <p class="label">Character set on design grid &mdash; rules at cap, baseline and 250u intervals</p>
+        </div>
+        <div class="glyph-grid" id="glyph-grid"></div>
+      </section>
+    </div>
+
+    <script src="./siteform-display.js"></script>
+    <script>
+      SiteformDisplay.renderAll();
+
+      var grid = document.getElementById("glyph-grid");
+      var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-&".split("");
+      chars.forEach(function (ch) {
+        var cell = document.createElement("figure");
+        cell.className = "glyph-cell";
+        var stage = document.createElement("div");
+        stage.className = "glyph-stage";
+        SiteformDisplay.renderDisplayText(stage, ch);
+        var cap = document.createElement("figcaption");
+        var adv = SiteformDisplay.GLYPHS[ch].w + SiteformDisplay.TRACK;
+        cap.innerHTML = "<span>" + (ch === "&" ? "&amp;" : ch) + "</span><span>adv " + adv + "u</span>";
+        cell.appendChild(stage);
+        cell.appendChild(cap);
+        grid.appendChild(cell);
+      });
+
+      // Pad the last row with empty cells so the shared-hairline grid stays ruled.
+      var cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+      var remainder = chars.length % cols;
+      for (var i = 0; remainder && i < cols - remainder; i++) {
+        var filler = document.createElement("div");
+        filler.className = "glyph-cell";
+        filler.setAttribute("aria-hidden", "true");
+        grid.appendChild(filler);
+      }
+    </script>
+  </body>
+</html>

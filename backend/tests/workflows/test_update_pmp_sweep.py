@@ -373,7 +373,12 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
     sweep_mock.assert_awaited_once()
     delta_mock.assert_not_awaited()
     assert response.status == "complete"
+    assert create_draft_mock.await_args.kwargs["model"] == "openai-chat:gpt-5.5"
     provenance = create_draft_mock.await_args.kwargs["provenance_metadata"]
+    assert provenance["model_label"] == "gpt-5.5 (Codex)"
+    assert provenance["model_provider"] == "openai-codex"
+    assert provenance["model_execution_provider"] == "openai-chat"
+    assert provenance["model_execution_id"] == "openai-chat:gpt-5.5"
     assert "sections_changed" in provenance
     assert "evidence_changed" in provenance
     assert provenance["active_corpus_documents"] == 0

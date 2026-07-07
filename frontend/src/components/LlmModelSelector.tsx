@@ -9,6 +9,12 @@ import {
   type AgentModelOption,
 } from "@/lib/agent-model";
 import {
+  HERMES_RUNTIME_ID,
+  PI_RUNTIME_ID,
+  getSelectedAgentRuntime,
+  subscribeSelectedAgentRuntime,
+} from "@/lib/agent-runtime";
+import {
   FALLBACK_CHAT_MODELS,
   FALLBACK_DEFAULT_MODEL,
   getSelectedChatModel,
@@ -30,6 +36,10 @@ function getAgentSelectionSnapshot(): string | null {
   return getSelectedAgentModel();
 }
 
+function getAgentRuntimeSnapshot(): string | null {
+  return getSelectedAgentRuntime();
+}
+
 type SelectorMode = "agent" | "legacy";
 type ModelOption = ChatModelOption | AgentModelOption;
 
@@ -43,6 +53,10 @@ export function LlmModelSelector({
   const [mode, setMode] = useState<SelectorMode>("legacy");
   const [models, setModels] = useState<ModelOption[]>(FALLBACK_CHAT_MODELS);
   const [defaultModel, setDefaultModel] = useState(FALLBACK_DEFAULT_MODEL);
+  const [defaultRuntime, setDefaultRuntime] = useState(HERMES_RUNTIME_ID);
+  const [runtimes, setRuntimes] = useState<
+    { id: string; model?: string | null; model_label?: string | null }[]
+  >([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const selectedLegacyModel = useSyncExternalStore(
@@ -53,6 +67,11 @@ export function LlmModelSelector({
   const selectedAgentModel = useSyncExternalStore(
     subscribeSelectedAgentModel,
     getAgentSelectionSnapshot,
+    getSelectionServerSnapshot,
+  );
+  const selectedAgentRuntime = useSyncExternalStore(
+    subscribeSelectedAgentRuntime,
+    getAgentRuntimeSnapshot,
     getSelectionServerSnapshot,
   );
 
@@ -67,6 +86,8 @@ export function LlmModelSelector({
           setMode("agent");
           setModels(agentResponse.models);
           setDefaultModel(agentResponse.default_model);
+          setDefaultRuntime(agentResponse.default_runtime ?? HERMES_RUNTIME_ID);
+          setRuntimes(agentResponse.runtimes ?? []);
           setLoadError(null);
           return;
         }
@@ -74,6 +95,7 @@ export function LlmModelSelector({
         const response = await api.getLlmModels();
         if (cancelled) return;
         setMode("legacy");
+        setRuntimes([]);
         if (response.models.length > 0) {
           setModels(response.models);
           setDefaultModel(response.default_model);
@@ -82,6 +104,7 @@ export function LlmModelSelector({
       } catch (error: unknown) {
         if (cancelled) return;
         setMode("legacy");
+        setRuntimes([]);
         setModels(FALLBACK_CHAT_MODELS);
         setDefaultModel(FALLBACK_DEFAULT_MODEL);
         setLoadError(
@@ -102,17 +125,29 @@ export function LlmModelSelector({
     };
   }, []);
 
-  const selectedModel =
-    mode === "agent" ? selectedAgentModel : selectedLegacyModel;
-  const effectiveValue = selectedModel ?? defaultModel;
+  const effectiveAgentRuntime = selectedAgentRuntime ?? defaultRuntime;
+  const piRuntime = runtimes.find((runtime) => runtime.id === PI_RUNTIME_ID);
+  const isPiMode = mode === "agent" && effectiveAgentRuntime === PI_RUNTIME_ID;
+  const selectedModel = mode === "agent" ? selectedAgentModel : selectedLegacyModel;
+  const piModelOption: AgentModelOption = {
+    id: "__pi_config__",
+    label: piRuntime?.model_label ?? piRuntime?.model ?? "Pi configured model",
+    is_default: true,
+    provider: null,
+    model: piRuntime?.model ?? null,
+  };
+  const displayModels = isPiMode ? [piModelOption] : models;
+  const effectiveValue = isPiMode ? piModelOption.id : selectedModel ?? defaultModel;
   const title = loadError
     ? `${loadError} Using fallback model list.`
     : loading
       ? "Loading LLM models..."
-      : mode === "agent"
+      : isPiMode
+        ? "Pi uses its own configured model"
+        : mode === "agent"
         ? "Hermes model for agent chat"
         : "LLM model for legacy chat and workflows";
-  const label = mode === "agent" ? "Hermes model" : "LLM model";
+  const label = isPiMode ? "Pi model" : mode === "agent" ? "Hermes model" : "LLM model";
 
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
@@ -128,10 +163,11 @@ export function LlmModelSelector({
           className,
         )}
         value={effectiveValue}
-        disabled={loading}
+        disabled={loading || isPiMode}
         aria-label={label}
         title={title}
         onChange={(event) => {
+          if (isPiMode) return;
           const next = event.target.value;
           if (mode === "agent") {
             setSelectedAgentModel(
@@ -146,7 +182,7 @@ export function LlmModelSelector({
           setSelectedChatModel(next);
         }}
       >
-        {models.map((model) => (
+        {displayModels.map((model) => (
           <option key={model.id} value={model.id}>
             {model.label}
           </option>

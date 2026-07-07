@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.assistant.chat_models import InvalidChatModelError, resolve_chat_model
+from app.assistant.pmp_models import InvalidPmpModelError, resolve_pmp_model
 from app.sitewise.gate import OverlayStatus
 
 
@@ -17,6 +18,18 @@ def _validate_optional_chat_model(value: str | None) -> str | None:
     try:
         return resolve_chat_model(stripped)
     except InvalidChatModelError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def _validate_optional_pmp_model(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    try:
+        return resolve_pmp_model(stripped).configured_id
+    except InvalidPmpModelError as exc:
         raise ValueError(str(exc)) from exc
 
 
@@ -365,7 +378,7 @@ class CreatePmpRequest(BaseModel):
     @field_validator("chat_model")
     @classmethod
     def validate_chat_model(cls, value: str | None) -> str | None:
-        return _validate_optional_chat_model(value)
+        return _validate_optional_pmp_model(value)
 
 
 class UpdatePmpRequest(BaseModel):
@@ -379,7 +392,7 @@ class UpdatePmpRequest(BaseModel):
     @field_validator("chat_model")
     @classmethod
     def validate_chat_model(cls, value: str | None) -> str | None:
-        return _validate_optional_chat_model(value)
+        return _validate_optional_pmp_model(value)
 
 
 class PatchDraftRequest(BaseModel):

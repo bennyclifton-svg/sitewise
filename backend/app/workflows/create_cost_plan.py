@@ -343,6 +343,7 @@ async def retrieve_create_cost_plan_sources(
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
         user_role=project.user_role or "",
+        project=project,
     )
     (
         (platform_passages, missing_paths),
@@ -432,6 +433,7 @@ async def run_create_cost_plan_model(
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
         user_role=user_role,
+        project=project,
     )
 
     prompt_parts = [
@@ -507,12 +509,71 @@ def _project_source_texts(
     ]
 
 
+def _money_variants(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    cleaned = value.replace("$", "").replace(",", "").strip()
+    if not cleaned.isdigit():
+        return {value.strip()}
+    amount = int(cleaned)
+    return {str(amount), f"{amount:,}", f"${amount:,}"}
+
+
+def _contains_money(markdown: str, value: str | None) -> bool:
+    return any(variant in markdown for variant in _money_variants(value))
+
+
+def _required_evidence_fact_issues(
+    markdown: str,
+    *,
+    source_texts: list[str] | None,
+    evidence_refs: list[str],
+) -> list[str]:
+    if not source_texts:
+        return []
+
+    from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
+
+    pack = extract_cost_plan_evidence_pack(source_texts, evidence_refs)
+    issues: list[str] = []
+    if pack.construction_budget_ceiling and not _contains_money(
+        markdown,
+        pack.construction_budget_ceiling,
+    ):
+        issues.append(
+            "evidenced construction budget is missing from cost plan "
+            f"({_money_variants(pack.construction_budget_ceiling)})"
+        )
+    if pack.fee_total_ex_gst and not _contains_money(markdown, pack.fee_total_ex_gst):
+        issues.append(
+            "evidenced architect/PM fee is missing from cost plan "
+            f"({_money_variants(pack.fee_total_ex_gst)})"
+        )
+    if pack.contingency_amount and not _contains_money(markdown, pack.contingency_amount):
+        issues.append(
+            "evidenced owner contingency is missing from cost plan "
+            f"({_money_variants(pack.contingency_amount)})"
+        )
+
+    lower = markdown.lower()
+    if pack.mobilisation.builder_rom:
+        if "not a tender" not in lower:
+            issues.append("builder ROM must be labelled as not a tender")
+        for amount in ("880,000", "980,000"):
+            if amount in pack.mobilisation.builder_rom and amount not in markdown:
+                issues.append(f"builder ROM amount {amount} is missing from cost plan")
+    if pack.mobilisation.heritage_advice and "heritage" not in lower:
+        issues.append("heritage advice is missing from cost plan")
+    return issues
+
+
 def validate_cost_plan_output(
     output: CostPlanDraftOutput,
     draft_mode: DraftMode,
     *,
     archetype: str,
     user_role: str,
+    project: Project | None = None,
     source_texts: list[str] | None = None,
 ) -> None:
     if not output.seed_consulted:
@@ -530,6 +591,7 @@ def validate_cost_plan_output(
         output.seed_consulted,
         archetype=archetype,
         user_role=user_role,
+        project=project,
     )
     if missing_seeds:
         joined = ", ".join(missing_seeds)
@@ -573,6 +635,17 @@ def validate_cost_plan_output(
         )
 
     if draft_mode == "evidence_grounded":
+        required_fact_issues = _required_evidence_fact_issues(
+            output.markdown,
+            source_texts=source_texts,
+            evidence_refs=output.evidence_refs,
+        )
+        if required_fact_issues:
+            joined = "; ".join(required_fact_issues)
+            raise WorkflowValidationError(
+                f"Create Cost Plan evidence_grounded required evidence issues: {joined}"
+            )
+
         evidence_issues = cost_plan_evidence_grounded_violations(
             output.markdown,
             output.evidence_refs,
@@ -653,6 +726,37 @@ async def sync_cost_plan_draft_workspace(
         draft=draft,
         markdown=markdown or draft.content_markdown,
     )
+
+
+async def sync_cost_plan_revision_artifacts(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft: DraftArtifact,
+    markdown: str | None = None,
+    provenance_updates: dict | None = None,
+) -> dict:
+    content = markdown or draft.content_markdown
+    await sync_cost_plan_draft_workspace(
+        session,
+        project=project,
+        draft=draft,
+        markdown=content,
+    )
+    workbook_metadata = await save_cost_plan_workbook_artifact(
+        session,
+        project=project,
+        draft=draft,
+        markdown=content,
+    )
+    draft.provenance_metadata = {
+        **(draft.provenance_metadata or {}),
+        **(provenance_updates or {}),
+        "workbook": workbook_metadata,
+    }
+    await session.flush()
+    await session.refresh(draft)
+    return workbook_metadata
 
 
 async def save_cost_plan_workbook_artifact(
@@ -835,6 +939,7 @@ async def run_create_cost_plan_hybrid(
                 draft_mode,
                 archetype=project.archetype or "",
                 user_role=user_role,
+                project=project,
                 source_texts=project_source_texts,
             )
             return output
@@ -950,6 +1055,7 @@ async def run_create_cost_plan_workflow(
                 required_platform_paths(
                     archetype=project.archetype or "",
                     user_role=project.user_role or "",
+                    project=project,
                 )
             ),
         )
@@ -1020,6 +1126,7 @@ async def run_create_cost_plan_workflow(
                         draft_mode,
                         archetype=project.archetype or "",
                         user_role=project.user_role or "",
+                        project=project,
                         source_texts=project_source_texts,
                     )
                     break

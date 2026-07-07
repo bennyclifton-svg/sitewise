@@ -25,6 +25,7 @@ from app.agent.workspace_paths import (
 from app.database.draft_artifacts import (
     create_draft_revision,
     get_draft_artifact,
+    get_latest_draft_artifact,
     get_latest_draft_artifact_by_workspace_path,
 )
 from app.database.session import get_session_factory
@@ -38,6 +39,10 @@ from app.config import settings
 from app.mcp_bridge.auth import ToolAuthError, authorize_project_access_with_claims
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
+from app.sitewise.cost_plan_consultant_forecast import (
+    forecast_consultant_fees_for_markdown,
+)
+from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.knowledge_catalog import (
     applicable_platform_paths,
@@ -46,6 +51,14 @@ from app.sitewise.knowledge_catalog import (
     load_sections as load_platform_sections,
     required_paths_by_workflow,
     required_workflows_for_path,
+)
+from app.storage.project_files import download_project_file
+from app.workflows.create_cost_plan import (
+    WORKFLOW_TYPE as CREATE_COST_PLAN_WORKFLOW_TYPE,
+    sync_cost_plan_revision_artifacts,
+)
+from app.workflows.consultant_procurement import (
+    draft_consultant_procurement_artifact as run_consultant_procurement_artifact,
 )
 from tender.router import (
     create_comparison,
@@ -224,6 +237,72 @@ def _candidate_documents(records) -> list[dict]:
             item["workspace_path"].lower(),
         ),
     )
+
+
+def _is_xlsx_workspace_file(record) -> bool:
+    filename = (getattr(record, "filename", "") or "").lower()
+    path = (getattr(record, "workspace_path", "") or "").lower()
+    return filename.endswith(".xlsx") or path.endswith(".xlsx")
+
+
+def _project_file_summary(record) -> dict:
+    path = record.workspace_path.replace("\\", "/")
+    source_document_id = (
+        str(record.source_document_id) if record.source_document_id else None
+    )
+    if source_document_id:
+        read_with = "get_document"
+    elif _is_xlsx_workspace_file(record):
+        read_with = "read_project_workbook"
+    else:
+        read_with = "read_workspace_file"
+    return {
+        "kind": "project_file",
+        "workspace_path": path,
+        "filename": record.filename,
+        "size_bytes": record.size_bytes,
+        "ingest_status": record.ingest_status,
+        "source_document_id": source_document_id,
+        "read_with": read_with,
+    }
+
+
+def _path_matches_prefix(path: str, prefix: str) -> bool:
+    clean_path = path.replace("\\", "/").rstrip("/")
+    clean_prefix = prefix.replace("\\", "/").rstrip("/")
+    return clean_path == clean_prefix or clean_path.startswith(clean_prefix + "/")
+
+
+def _cost_plan_markdown_path(path: str | None) -> str | None:
+    if path is None or not path.strip():
+        return None
+    workspace_path = _tool_workspace_path(path)
+    match = re.search(r"(^|/)Cost_Plan_v(\d+)\.draft\.xlsx$", workspace_path)
+    if not match:
+        return workspace_path
+    folder = workspace_path.rsplit("/", maxsplit=1)[0]
+    return f"{folder}/cost_plan_v{match.group(2)}.md"
+
+
+async def _load_cost_plan_draft(session, *, project_id: uuid.UUID, path: str | None):
+    workspace_path = _cost_plan_markdown_path(path)
+    if workspace_path is not None:
+        draft = await get_latest_draft_artifact_by_workspace_path(
+            session,
+            project_id=project_id,
+            workspace_path=workspace_path,
+        )
+    else:
+        draft = await get_latest_draft_artifact(
+            session,
+            project_id=project_id,
+            workflow_type=CREATE_COST_PLAN_WORKFLOW_TYPE,
+        )
+    if draft is None:
+        raise ToolError("cost plan draft not found")
+    if draft.workflow_type != CREATE_COST_PLAN_WORKFLOW_TYPE:
+        raise ToolError("draft is not a cost plan")
+    return draft
 
 
 def _turn_id(authorization) -> str | None:
@@ -601,6 +680,56 @@ async def _publish_report_artefact(
     )
 
 
+async def _publish_draft_artefact(
+    turn_id: str | None,
+    *,
+    draft,
+    project_id: uuid.UUID,
+) -> None:
+    await agent_turn_status_bus.publish(
+        turn_id,
+        kind="artefact",
+        message=draft.title,
+        title=draft.title,
+        workflowType=draft.workflow_type,
+        draftId=str(draft.id),
+        projectId=str(project_id),
+    )
+
+
+def _consultant_procurement_status_metadata(source_trace: dict) -> dict:
+    project_documents = source_trace.get("project_documents")
+    platform_knowledge = source_trace.get("platform_knowledge")
+    forecast = source_trace.get("forecast")
+    documents = project_documents if isinstance(project_documents, list) else []
+    knowledge = platform_knowledge if isinstance(platform_knowledge, list) else []
+    forecast_payload = forecast if isinstance(forecast, dict) else {}
+    return {
+        "document_count": len(documents),
+        "knowledge_count": len(knowledge),
+        "forecast_used": bool(forecast_payload.get("used")),
+        "source_documents": [
+            {
+                "document_id": item.get("document_id"),
+                "filename": item.get("filename"),
+                "relative_path": item.get("relative_path"),
+                "role": item.get("role"),
+            }
+            for item in documents
+            if isinstance(item, dict)
+        ],
+        "platform_knowledge": [
+            {
+                "path": item.get("path"),
+                "title": item.get("title"),
+                "section": item.get("section"),
+            }
+            for item in knowledge
+            if isinstance(item, dict)
+        ],
+    }
+
+
 @asynccontextmanager
 async def _tool_status(
     turn_id: str | None,
@@ -853,6 +982,293 @@ async def list_selected_documents(project_id: str) -> list[dict]:
         ):
             records = await list_workspace_files_for_project(session, project_id=pid)
         return _candidate_documents(records)
+
+
+@mcp.tool
+async def list_project_files(
+    project_id: str,
+    query: str | None = None,
+    path_prefix: str | None = None,
+    max_results: int = 50,
+) -> list[dict]:
+    """List stored Clerk project files, including generated drafts and workbooks.
+
+    Use this when the user names a file or artefact that may not be an ingested
+    source document. Generated files are project artefacts; they are not
+    independent evidence unless their source_document_id points to an ingested
+    document.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="list_project_files",
+            running="Listing project files",
+            done="Listed project files",
+            error="Project file listing failed",
+        ):
+            records = await list_workspace_files_for_project(session, project_id=pid)
+
+    query_text = query.strip().lower() if query and query.strip() else None
+    prefix = _tool_workspace_path(path_prefix) if path_prefix and path_prefix.strip() else None
+    if prefix == ".":
+        prefix = None
+    result_limit = max(1, min(max_results, 200))
+    matches: list[dict] = []
+    for record in records:
+        path = record.workspace_path.replace("\\", "/")
+        if prefix and not _path_matches_prefix(path, prefix):
+            continue
+        if query_text:
+            haystack = f"{path} {record.filename}".lower()
+            if query_text not in haystack:
+                continue
+        matches.append(_project_file_summary(record))
+        if len(matches) >= result_limit:
+            break
+    return matches
+
+
+@mcp.tool
+async def read_project_workbook(
+    project_id: str,
+    path: str,
+    max_rows: int = 80,
+) -> dict:
+    """Read an Excel workbook stored in Clerk project files as sheet rows.
+
+    This is for generated or uploaded .xlsx project artefacts. It previews cell
+    values; it does not make the workbook an ingested source document.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="read_project_workbook",
+            running="Reading project workbook",
+            done="Read project workbook",
+            error="Project workbook read failed",
+        ):
+            workspace_path = _tool_workspace_path(path)
+            record = await get_workspace_file_by_path(
+                session,
+                project_id=pid,
+                workspace_path=workspace_path,
+            )
+            if record is None:
+                raise ToolError("project workbook not found")
+            if not _is_xlsx_workspace_file(record):
+                raise ToolError("project file is not an Excel workbook")
+            content = await asyncio.to_thread(
+                download_project_file,
+                storage_key=record.storage_key,
+            )
+            preview = workbook_preview_from_bytes(content)
+
+    row_limit = max(1, min(max_rows, 200))
+    return {
+        "kind": "workbook_preview",
+        "filename": record.filename,
+        "workspace_path": record.workspace_path.replace("\\", "/"),
+        "ingest_status": record.ingest_status,
+        "source_document_id": (
+            str(record.source_document_id) if record.source_document_id else None
+        ),
+        "artifact_role": "generated_artifact"
+        if record.ingest_status == "generated" and record.source_document_id is None
+        else "project_file",
+        "sheets": [
+            {
+                "name": sheet.name,
+                "column_count": sheet.column_count,
+                "row_count": len(sheet.rows),
+                "rows_truncated": len(sheet.rows) > row_limit,
+                "rows": sheet.rows[:row_limit],
+            }
+            for sheet in preview.sheets
+        ],
+        "warnings": preview.warnings,
+    }
+
+
+@mcp.tool
+async def forecast_consultant_fees(
+    project_id: str,
+    cost_plan_path: str | None = None,
+) -> dict:
+    """Preview deterministic consultant fee allowances for the current cost plan."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="forecast_consultant_fees",
+            running="Forecasting consultant fees",
+            done="Forecasted consultant fees",
+            error="Consultant fee forecast failed",
+        ):
+            draft = await _load_cost_plan_draft(
+                session,
+                project_id=pid,
+                path=cost_plan_path,
+            )
+            forecast = forecast_consultant_fees_for_markdown(
+                draft.content_markdown,
+                source_path=draft.workspace_path,
+            )
+
+    return {
+        "kind": "consultant_fee_forecast",
+        "draft_id": str(draft.id),
+        "version": draft.version,
+        "workspace_path": draft.workspace_path,
+        **forecast.to_payload(),
+    }
+
+
+@mcp.tool
+async def apply_consultant_fee_forecast(
+    project_id: str,
+    cost_plan_path: str | None = None,
+) -> dict:
+    """Create a new cost-plan draft with consultant forecast rows applied."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="apply_consultant_fee_forecast",
+            running="Applying consultant fee forecast",
+            done="Applied consultant fee forecast",
+            error="Consultant fee forecast apply failed",
+        ):
+            draft = await _load_cost_plan_draft(
+                session,
+                project_id=pid,
+                path=cost_plan_path,
+            )
+            forecast = forecast_consultant_fees_for_markdown(
+                draft.content_markdown,
+                source_path=draft.workspace_path,
+            )
+            updated = await create_draft_revision(
+                session,
+                draft=draft,
+                author_user_id=authorization.claims.user_id,
+                content_markdown=forecast.updated_markdown,
+                edit_source="agent_consultant_fee_forecast",
+            )
+            workbook_metadata = await sync_cost_plan_revision_artifacts(
+                session,
+                project=authorization.project,
+                draft=updated,
+                markdown=forecast.updated_markdown,
+                provenance_updates={
+                    "consultant_fee_forecast": forecast.to_payload(),
+                },
+            )
+            await session.commit()
+
+    return {
+        "kind": "consultant_fee_forecast_applied",
+        "source_draft_id": str(draft.id),
+        "draft_id": str(updated.id),
+        "version": updated.version,
+        "workspace_path": updated.workspace_path,
+        "workbook": workbook_metadata,
+        "forecast": forecast.to_payload(),
+    }
+
+
+@mcp.tool
+async def draft_consultant_procurement_artifact(
+    project_id: str,
+    discipline: str,
+    max_pages: int = 1,
+    instructions: str | None = None,
+) -> dict:
+    """Create a saved request-for-fee-proposal draft for a consultant discipline.
+
+    Use this for natural-language requests such as "draft a request for fee
+    proposal", "draft consultant procurement", "prepare an RFP for the
+    structural engineer", or "prepare scope for BASIX assessor". The output is
+    always a client-issued request for fee proposal, not a consultant-issued fee
+    proposal.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        turn_id = _turn_id(authorization)
+        async with _tool_status(
+            turn_id,
+            tool="draft_consultant_procurement_artifact",
+            running=f"Drafting request for fee proposal: {discipline}",
+            done="Created consultant procurement draft",
+            error="Consultant procurement draft failed",
+        ) as extra:
+            result = await run_consultant_procurement_artifact(
+                session,
+                project=authorization.project,
+                user_id=authorization.claims.user_id,
+                discipline=discipline,
+                max_pages=max_pages,
+                instructions=instructions,
+            )
+            extra.update(
+                _consultant_procurement_status_metadata(result.source_trace)
+            )
+            extra["workflowType"] = result.draft.workflow_type
+            extra["draftId"] = str(result.draft.id)
+            extra["projectId"] = str(pid)
+            extra["workspace_path"] = result.draft.workspace_path
+
+    await _publish_draft_artefact(
+        turn_id,
+        draft=result.draft,
+        project_id=pid,
+    )
+    return {
+        "kind": "artefact",
+        "title": result.draft.title,
+        "discipline": result.discipline,
+        "workflow_type": result.draft.workflow_type,
+        "workflowType": result.draft.workflow_type,
+        "draft_id": str(result.draft.id),
+        "draftId": str(result.draft.id),
+        "version": result.draft.version,
+        "workspace_path": result.draft.workspace_path,
+        "project_id": str(pid),
+        "projectId": str(pid),
+        "source_trace": result.source_trace,
+        "message": "Consultant procurement artefact has been created.",
+    }
 
 
 @mcp.tool

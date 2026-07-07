@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,6 +24,7 @@ from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
+WALSH_FIXTURE_DIR = Path(__file__).resolve().parents[3] / "data" / "synthetic-mobilisation-evidence" / "walsh-renovation"
 
 
 def _project(**overrides) -> Project:
@@ -52,6 +54,10 @@ def _valid_seed_consulted() -> list[str]:
         "seed/cost-management-principles.md",
         "skills/reference/nsw-residential-cost-breakdown-reference.md",
     ]
+
+
+def _walsh_source_texts() -> list[str]:
+    return [path.read_text(encoding="utf-8") for path in sorted(WALSH_FIXTURE_DIR.glob("[0-9]*.md"))]
 
 
 def _cost_breakdown_section() -> str:
@@ -476,6 +482,28 @@ def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
     )
 
 
+def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figures() -> None:
+    output = CostPlanDraftOutput(
+        title="Project Cost Plan",
+        markdown=_valid_evidence_grounded_cost_plan_markdown(),
+        seed_consulted=_valid_seed_consulted(),
+        evidence_refs=[
+            "project_evidence:walsh-reno/00-brief-pmp/03-owner-project-brief-walsh-house.md#chunk=1",
+            "project_evidence:walsh-reno/02-consultant/architect/02-fee-proposal-atelier-north.md#chunk=1",
+        ],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+
+    with pytest.raises(WorkflowValidationError, match="evidenced"):
+        validate_cost_plan_output(
+            output,
+            "evidence_grounded",
+            archetype="renovation",
+            user_role="architect-pm",
+            source_texts=_walsh_source_texts(),
+        )
+
+
 def test_claim_first_violations_detects_collapsed_construction() -> None:
     collapsed = _valid_cost_plan_markdown().replace(
         _cost_breakdown_section(),
@@ -567,6 +595,56 @@ def test_retrieve_create_cost_plan_sources_platform_seeded_when_no_project_evide
     assert draft_mode == "platform_seeded"
     assert missing == []
     assert passages == [platform_passage]
+
+
+def test_retrieve_create_cost_plan_sources_uses_taxonomy_when_archetype_empty() -> None:
+    platform_passage = _passage(
+        project="seed",
+        source_type="reference",
+        relative_path="seed/cost-management-principles.md",
+    )
+    loaded_paths: list[str] = []
+
+    async def _load_platform_documents(_session, paths, *, content_chars):
+        loaded_paths.extend(paths)
+        return [platform_passage], []
+
+    with (
+        patch(
+            "app.workflows.create_cost_plan.load_platform_documents_by_paths",
+            new=AsyncMock(side_effect=_load_platform_documents),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.list_cost_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        passages, project_count, _, draft_mode, missing = run_async(
+            retrieve_create_cost_plan_sources(
+                AsyncMock(),
+                project=_project(
+                    archetype="",
+                    building_class="residential",
+                    work_type="refurb",
+                ),
+            )
+        )
+
+    assert project_count == 0
+    assert draft_mode == "platform_seeded"
+    assert missing == []
+    assert passages == [platform_passage]
+    assert "seed/cost-management-principles.md" in loaded_paths
+    assert "seed/role-architect-pm.md" in loaded_paths
+    assert "skills/reference/nsw-residential-cost-breakdown-reference.md" in loaded_paths
 
 
 def test_retrieve_create_cost_plan_sources_supplements_with_semantic_search() -> None:

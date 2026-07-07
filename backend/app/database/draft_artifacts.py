@@ -133,6 +133,41 @@ async def get_latest_draft_artifact_summaries(
     return summaries
 
 
+async def get_latest_consultant_procurement_draft_summaries(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    prefix: str = "consultant_procurement_",
+) -> dict[str, dict]:
+    result = await session.execute(
+        select(
+            DraftArtifact.id,
+            DraftArtifact.project_id,
+            DraftArtifact.workflow_type,
+            DraftArtifact.version,
+            DraftArtifact.status,
+            DraftArtifact.title,
+            DraftArtifact.workspace_path,
+            DraftArtifact.author_user_id,
+            DraftArtifact.model,
+            DraftArtifact.runtime,
+            DraftArtifact.created_at,
+            DraftArtifact.updated_at,
+        )
+        .where(
+            DraftArtifact.project_id == project_id,
+            DraftArtifact.workflow_type.like(f"{prefix}%"),
+        )
+        .order_by(DraftArtifact.workflow_type.asc(), DraftArtifact.version.desc())
+    )
+    summaries: dict[str, dict] = {}
+    for row in result.mappings().all():
+        workflow_type = row["workflow_type"]
+        if workflow_type not in summaries:
+            summaries[workflow_type] = dict(row)
+    return summaries
+
+
 async def get_draft_artifact(
     session: AsyncSession,
     draft_id: uuid.UUID,

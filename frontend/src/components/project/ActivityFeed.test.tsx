@@ -81,6 +81,42 @@ describe("ActivityFeed", () => {
     expect(screen.getByText("doctrine:docs/clerk-brief.md")).toBeInTheDocument();
   });
 
+  it("labels PMP update activity", () => {
+    vi.mocked(useProjectActivity).mockReturnValue({
+      data: {
+        newest_created_at: "2026-07-04T02:00:00.000Z",
+        runs: [
+          {
+            run_id: "run-1",
+            source: "update_pmp",
+            reference_type: "draft_artifact",
+            reference_id: "draft-1",
+            status: "complete",
+            created_at: "2026-07-04T01:59:00.000Z",
+            updated_at: "2026-07-04T02:00:00.000Z",
+            references: null,
+            events: [
+              {
+                id: "event-1",
+                step: "draft_save",
+                status: "complete",
+                message: "Saved Update PMP as a new versioned draft artefact.",
+                metadata: {},
+                created_at: "2026-07-04T02:00:00.000Z",
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useProjectActivity>);
+
+    render(<ActivityFeed projectId={PROJECT_ID} />);
+
+    expect(screen.getByText(/PMP update/)).toBeInTheDocument();
+  });
+
   it("does not expand or collapse rows during modifier selection", async () => {
     vi.mocked(useProjectActivity).mockReturnValue({
       data: {

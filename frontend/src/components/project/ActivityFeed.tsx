@@ -476,6 +476,7 @@ function sourceTitle(source: string): string {
     document_ingest: "Doc ingest",
     sort_files: "Sort",
     tender: "Tender",
+    update_pmp: "PMP update",
   };
   return labels[source] ?? source.replaceAll("_", " ");
 }

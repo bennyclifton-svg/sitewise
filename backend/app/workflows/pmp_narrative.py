@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, field_validator
 from pydantic_ai import Agent
 
-from app.assistant.chat_models import resolve_chat_model
+from app.assistant.pmp_models import resolve_pmp_model
 from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
 from app.database.project import Project
@@ -454,7 +454,7 @@ def _load_agent_instructions() -> str:
 
 
 pmp_narrative_agent = Agent(
-    f"openai-chat:{settings.openai_chat_model}",
+    f"openai-chat:{settings.pmp_model}",
     output_type=PmpNarrativeOutput,
     instructions=_load_agent_instructions(),
     defer_model_check=True,
@@ -666,7 +666,7 @@ async def run_pmp_narrative_model(
         run_date=run_date,
         validation_feedback=validation_feedback,
     )
-    resolved_model = resolve_chat_model(chat_model)
+    resolved_model = chat_model.strip() if chat_model else resolve_pmp_model().execution_id
     result = await run_agent_with_retry(pmp_narrative_agent, prompt, model=resolved_model)
     output = complete_pack_driven_narrative_requirements(
         result.output,

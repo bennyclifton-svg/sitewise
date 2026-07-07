@@ -1,0 +1,24 @@
+{
+  "period": "megacity",
+  "massing": {
+    "footprint": "stepped",
+    "aspect": [1.6, 2.9, 1.35],
+    "roof": "flat",
+    "symmetry": "asymmetric"
+  },
+  "rhythm": {
+    "bays": 10,
+    "windowShape": "cellular",
+    "windowToWallRatio": 0.52,
+    "verticality": 0.72
+  },
+  "ornament": {
+    "motifs": ["podium_stacks", "sky_bridges", "mega_frame"],
+    "density": 0.24
+  },
+  "material": {
+    "base": "#9aa1a4",
+    "roughness": 0.58,
+    "windowEmissive": "#9edcff"
+  }
+}

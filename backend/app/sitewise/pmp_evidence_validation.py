@@ -65,6 +65,18 @@ ENGAGEMENT_STATUS_MARKERS: tuple[str, ...] = (
     "on file",
 )
 
+APPOINTMENT_STATUS_SECTION_HEADINGS: tuple[str, ...] = (
+    "Evidence basis and document control",
+    "Project overview",
+    "Project snapshot",
+    "Architect-PM role and appointment",
+)
+
+APPOINTMENT_STATUS_INSERT_HEADINGS: tuple[str, ...] = (
+    "Evidence basis and document control",
+    "Project snapshot",
+)
+
 EVIDENCE_MAP_MARKERS: tuple[str, ...] = (
     "| section |",
     "| evidence status |",
@@ -82,6 +94,7 @@ EVIDENCE_SANITIZE_SECTION_HEADINGS: tuple[str, ...] = (
 )
 
 _VERSION_PATTERN = re.compile(r"\bVersion v\d+\b", re.IGNORECASE)
+_ACCEPTED_DATE_PATTERN = re.compile(r"\bDate:\s*(\d{1,2}/\d{1,2}/\d{4})\b", re.IGNORECASE)
 
 _STREET_ADDRESS_PATTERN = re.compile(
     r"\d+\s+[A-Za-z][\w\s\-']{2,48}"
@@ -470,6 +483,49 @@ def _inject_project_overview_grounding(section: str, source_texts: list[str]) ->
     return f"{body}{chr(10).join(additions)}\n"
 
 
+def _appointment_status_scope(markdown: str) -> str:
+    parts = [
+        _markdown_section(markdown, heading)
+        for heading in APPOINTMENT_STATUS_SECTION_HEADINGS
+    ]
+    parts.append(_audit_subsection(markdown, "facts"))
+    return "\n".join(part for part in parts if part)
+
+
+def _engagement_status_line(source_texts: list[str] | None) -> str:
+    combined = "\n".join(source_texts or [])
+    accepted = combined.split("ACCEPTED:", 1)
+    search_text = accepted[1] if len(accepted) > 1 else combined
+    match = _ACCEPTED_DATE_PATTERN.search(search_text)
+    if match:
+        return f"- Engagement letter on file; appointment executed {match.group(1)}."
+    return "- Engagement letter on file; appointment status grounded from project evidence."
+
+
+def _inject_engagement_appointment_status(
+    markdown: str,
+    evidence_refs: list[str],
+    source_texts: list[str] | None,
+) -> str:
+    if not evidence_refs_include_engagement_letter(evidence_refs):
+        return markdown
+    if _contains_any(_appointment_status_scope(markdown), ENGAGEMENT_STATUS_MARKERS):
+        return markdown
+
+    line = _engagement_status_line(source_texts)
+    if line.lower() in markdown.lower():
+        return markdown
+
+    for heading in APPOINTMENT_STATUS_INSERT_HEADINGS:
+        section = _markdown_section(markdown, heading)
+        if not section:
+            continue
+        body = section.rstrip()
+        replacement = f"{body}\n{line}\n" if body else f"{line}\n"
+        return _replace_markdown_section(markdown, heading, replacement)
+    return markdown
+
+
 def _repair_geotech_workflow_bullet(line: str) -> str | None:
     lower = line.lower()
     if not line.strip().startswith(("-", "*")):
@@ -626,6 +682,11 @@ def sanitize_evidence_grounded_markdown(
         if cleaned_overview != overview:
             updated = _replace_markdown_section(updated, "Project overview", cleaned_overview)
 
+    updated = _inject_engagement_appointment_status(
+        updated,
+        evidence_refs,
+        source_texts,
+    )
     updated = _repair_planning_pathway_submilestone(updated)
     updated = _repair_reactive_soil_risk_row(updated, evidence_refs, source_texts)
     updated = _collapse_duplicate_periods(updated)
@@ -734,11 +795,7 @@ def evidence_grounded_violations(
                 )
 
     if evidence_refs_include_engagement_letter(evidence_refs):
-        appointment_scope = "\n".join(
-            part
-            for part in (evidence_basis, project_overview, _audit_subsection(markdown, "facts"))
-            if part
-        )
+        appointment_scope = _appointment_status_scope(markdown)
         if not _contains_any(appointment_scope, ENGAGEMENT_STATUS_MARKERS):
             violations.append(
                 "engagement letter in evidence_refs but draft lacks grounded appointment "

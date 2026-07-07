@@ -1,0 +1,24 @@
+{
+  "period": "bauhaus",
+  "massing": {
+    "footprint": "rectangle",
+    "aspect": [2.1, 1.1, 1],
+    "roof": "flat",
+    "symmetry": "asymmetric"
+  },
+  "rhythm": {
+    "bays": 3,
+    "windowShape": "ribbon",
+    "windowToWallRatio": 0.56,
+    "verticality": 0.18
+  },
+  "ornament": {
+    "motifs": ["ribbon_glazing", "corner_window", "flat_roof_slab"],
+    "density": 0.08
+  },
+  "material": {
+    "base": "#f1efe7",
+    "roughness": 0.56,
+    "windowEmissive": "#ffe0a3"
+  }
+}

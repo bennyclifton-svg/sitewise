@@ -380,6 +380,20 @@ def _extract_fee_total(text: str) -> str | None:
     return None
 
 
+def _extract_professional_fee_total(engagement_text: str, fee_text: str) -> str | None:
+    search_blocks = (
+        _markdown_section(engagement_text, "Fee basis"),
+        _markdown_section(fee_text, "Fee"),
+        fee_text,
+        engagement_text,
+    )
+    for block in search_blocks:
+        fee = _extract_fee_total(block)
+        if fee is not None:
+            return fee
+    return None
+
+
 def _extract_fee_stages(engagement_text: str) -> list[FeeStage]:
     fee_basis = _markdown_section(engagement_text, "Fee basis")
     stages: list[FeeStage] = []
@@ -498,16 +512,16 @@ def _extract_heritage_approval_advice(combined_text: str) -> str | None:
     if "heritage impact statement" not in combined_text.lower():
         return None
     parts: list[str] = []
-    his_sentence = next(
+    his_advice = next(
         (
-            sentence
-            for sentence in _sentences(combined_text)
-            if "heritage impact statement" in sentence.lower()
+            advice
+            for advice in _extract_heritage_design_advice(combined_text)
+            if "heritage impact statement" in advice.lower()
         ),
         None,
     )
-    if his_sentence:
-        parts.append(_normalize_text_fragment(his_sentence) or his_sentence)
+    if his_advice:
+        parts.append(his_advice)
     recommendation = _markdown_section(combined_text, "Recommendation")
     for sentence in _sentences(recommendation):
         lowered = sentence.lower()
@@ -1124,6 +1138,10 @@ def build_evidence_map_rows(pack: MobilisationEvidencePack) -> list[tuple[str, s
                 f"{len(pack.builder_quotes)} builder quote(s)",
             )
         )
+    if pack.builder_rom:
+        rows.append(("Builder ROM", "On file - not a tender", "builder cost advice"))
+    if pack.heritage_advice:
+        rows.append(("Heritage advice", "Grounded", "heritage desktop advice"))
     return rows
 
 
@@ -1290,7 +1308,7 @@ def extract_mobilisation_evidence_pack(
         service_exclusions=_extract_service_exclusions(engagement_text),
         disbursements=_extract_disbursements(engagement_text),
         owner_approval_rule=_extract_owner_approval_rule(engagement_text),
-        fee_total_ex_gst=_extract_fee_total(combined),
+        fee_total_ex_gst=_extract_professional_fee_total(engagement_text, fee_text),
         fee_stages=_extract_fee_stages(engagement_text),
         reporting_cadence=_extract_reporting_cadence(engagement_text),
         target_da_lodgement=_extract_target_da_lodgement(engagement_text),

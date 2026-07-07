@@ -1,0 +1,24 @@
+{
+  "period": "classical",
+  "massing": {
+    "footprint": "rectangle",
+    "aspect": [2.4, 1.15, 1],
+    "roof": "gable",
+    "symmetry": "bilateral"
+  },
+  "rhythm": {
+    "bays": 7,
+    "windowShape": "sash",
+    "windowToWallRatio": 0.24,
+    "verticality": 0.25
+  },
+  "ornament": {
+    "motifs": ["pediment", "fluted_columns", "entablature"],
+    "density": 0.34
+  },
+  "material": {
+    "base": "#d8d0bd",
+    "roughness": 0.84,
+    "windowEmissive": "#f6b46a"
+  }
+}

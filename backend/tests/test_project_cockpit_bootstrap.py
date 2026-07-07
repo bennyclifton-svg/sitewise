@@ -1,4 +1,5 @@
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import ANY, AsyncMock, patch
@@ -73,6 +74,23 @@ def _draft_summary() -> dict:
     }
 
 
+@contextmanager
+def _consultant_procurement_bootstrap_patches():
+    with (
+        patch(
+            "app.api.projects.get_latest_consultant_procurement_draft_summaries",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.api.projects._ensure_consultant_procurement_workspace_files",
+            new=AsyncMock(
+                side_effect=lambda _session, *, project, workspace_files, consultant_draft_summaries: workspace_files
+            ),
+        ),
+    ):
+        yield
+
+
 def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
     client: TestClient,
 ) -> None:
@@ -118,6 +136,7 @@ def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ),
+        _consultant_procurement_bootstrap_patches(),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -170,6 +189,7 @@ def test_cockpit_bootstrap_includes_canonical_pmp_path_for_legacy_draft(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ),
+        _consultant_procurement_bootstrap_patches(),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -223,6 +243,7 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ),
+        _consultant_procurement_bootstrap_patches(),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -232,6 +253,78 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
     file_names = [child["name"] for child in cost_node["children"] if child["kind"] == "file"]
     assert "cost_plan_v01.md" in file_names
     assert "Cost_Plan_v01.draft.xlsx" in file_names
+
+
+def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
+    client: TestClient,
+) -> None:
+    consultant_draft_id = uuid.UUID("55555555-5555-5555-5555-555555555555")
+    consultant_draft = {
+        "id": consultant_draft_id,
+        "project_id": PROJECT_ID,
+        "workflow_type": "consultant_procurement_structural_engineer",
+        "version": 1,
+        "status": "draft",
+        "title": "Request for Fee Proposal - Structural engineer",
+        "workspace_path": (
+            "04-projects/demo/02-consultant/"
+            "consultant_procurement_structural_engineer_v01.draft.md"
+        ),
+        "author_user_id": USER_ID,
+        "model": None,
+        "runtime": "clerk-consultant-procurement",
+        "created_at": NOW,
+        "updated_at": NOW,
+    }
+
+    with (
+        patch("app.api.projects.ensure_user_exists", new=AsyncMock()),
+        patch("app.api.projects.ensure_default_project_catalog", new=AsyncMock()),
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.list_projects", new=AsyncMock(return_value=[_project()])),
+        patch(
+            "app.api.projects.list_workspace_files_for_project",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch("app.api.projects._list_project_evidence_previews", new=AsyncMock(return_value=[])),
+        patch(
+            "app.api.projects._platform_knowledge_status",
+            new=AsyncMock(return_value=PlatformKnowledgeStatus(available=False, buckets=[])),
+        ),
+        patch(
+            "app.api.projects.get_latest_draft_artifact_summaries",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.api.projects.get_latest_consultant_procurement_draft_summaries",
+            new=AsyncMock(
+                return_value={"consultant_procurement_structural_engineer": consultant_draft}
+            ),
+        ),
+        patch(
+            "app.api.projects._ensure_pmp_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+        patch(
+            "app.api.projects._ensure_cost_plan_workspace_file",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
+        ),
+        patch(
+            "app.api.projects._ensure_consultant_procurement_workspace_files",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, consultant_draft_summaries: workspace_files),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["latest_drafts"]["consultant_procurement_structural_engineer"]["id"] == str(
+        consultant_draft_id
+    )
+    tree = payload["workspace_tree"]["tree"]
+    consultant_node = next(node for node in tree if node["name"] == "02-consultant")
+    file_names = [child["name"] for child in consultant_node["children"] if child["kind"] == "file"]
+    assert "consultant_procurement_structural_engineer_v01.draft.md" in file_names
 
 
 def test_project_activity_returns_grouped_runs(

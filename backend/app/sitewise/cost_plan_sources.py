@@ -32,7 +32,27 @@ COST_PLAN_SECTIONS: tuple[str, ...] = (
 COST_PLAN_DOCUMENT_TITLE = "Project Cost Plan"
 
 
-def required_platform_paths(*, archetype: str, user_role: str) -> list[str]:
+def _project_taxonomy_kwargs(project: object | None) -> dict[str, str | None]:
+    if project is None or getattr(project, "building_class", None) is None:
+        return {}
+
+    from app.sitewise.archetype_bridge import effective_taxonomy
+
+    taxonomy = effective_taxonomy(project)
+    return {
+        "building_class": taxonomy.building_class,
+        "work_type": taxonomy.work_type,
+    }
+
+
+def required_platform_paths(
+    *,
+    archetype: str,
+    user_role: str,
+    project: object | None = None,
+    building_class: str | None = None,
+    work_type: str | None = None,
+) -> list[str]:
     """Return mandatory doctrine, overlay, and cost-plan seeds.
 
     Delegates to the platform knowledge catalog (seed frontmatter is the
@@ -41,8 +61,16 @@ def required_platform_paths(*, archetype: str, user_role: str) -> list[str]:
     """
     from app.sitewise.knowledge_catalog import select_required_paths
 
+    taxonomy_kwargs = _project_taxonomy_kwargs(project)
+    if building_class is not None:
+        taxonomy_kwargs["building_class"] = building_class
+    if work_type is not None:
+        taxonomy_kwargs["work_type"] = work_type
     return select_required_paths(
-        workflow="create-cost-plan", archetype=archetype, user_role=user_role
+        workflow="create-cost-plan",
+        archetype=archetype,
+        user_role=user_role,
+        **taxonomy_kwargs,
     )
 
 
@@ -59,11 +87,20 @@ def seed_consulted_includes_required(
     *,
     archetype: str,
     user_role: str,
+    project: object | None = None,
+    building_class: str | None = None,
+    work_type: str | None = None,
 ) -> list[str]:
     """Return mandatory seed paths missing from the model's seed_consulted list."""
     required = [
         path
-        for path in required_platform_paths(archetype=archetype, user_role=user_role)
+        for path in required_platform_paths(
+            archetype=archetype,
+            user_role=user_role,
+            project=project,
+            building_class=building_class,
+            work_type=work_type,
+        )
         if path != DOCTRINE_PATH
     ]
     normalized = {entry.strip().lower() for entry in seed_consulted}

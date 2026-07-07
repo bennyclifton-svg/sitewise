@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from app.config import Settings
 from app.sitewise.pmp_evidence_validation import (
     evidence_grounded_violations,
@@ -29,6 +30,14 @@ from tests.workflows.hybrid_pmp_fixtures import (
     mock_draft_artifact,
     platform_passages_for_project,
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_locked_create_pmp_decisions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.workflows.create_pmp.locked_selections",
+        AsyncMock(return_value={}),
+    )
 
 
 def _harrison_clarke_source_texts() -> list[str]:
