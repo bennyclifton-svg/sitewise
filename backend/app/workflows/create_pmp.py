@@ -46,15 +46,10 @@ from app.sitewise.pmp_evidence_validation import (
     taxonomy_provenance_violations,
 )
 from app.sitewise.pmp_coverage import (
-    corpus_coverage_violations,
+    backfill_corpus_coverage,
     format_corpus_coverage_requirements,
 )
-from app.sitewise.pmp_length import (
-    condense_primary_markdown_to_word_band,
-    length_violations,
-    pmp_word_count,
-    within_final_length_tolerance,
-)
+from app.sitewise.pmp_length import length_violations, pmp_word_count
 from app.sitewise.pmp_decisions import (
     decision_violations,
     format_decision_option_sets,
@@ -661,16 +656,23 @@ def _role_drafting_note(
     return "\n".join([evidence_note, state_note, role_note])
 
 
-async def run_create_pmp_model(
+def build_create_pmp_prompt(
     *,
     project: Project,
     passages: list[SourcePassage],
     draft_mode: DraftMode,
+    run_date: date,
     validation_feedback: str | None = None,
-    chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
-) -> PmpDraftOutput:
+) -> str:
+    """Assemble the Create PMP prompt with cache-friendly ordering.
+
+    Static platform knowledge leads, stable per-project framing follows, and
+    per-run volatile content (locked decisions, run date, coverage list,
+    project evidence, retry feedback) trails — so OpenAI prefix caching hits
+    the heavy static prefix across runs and retries.
+    """
     user_role = project.user_role or ""
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
@@ -679,8 +681,13 @@ async def run_create_pmp_model(
     )
     taxonomy_context = pmp_taxonomy_context(project)
     seed_section_refs = _seed_section_refs_by_section(passages)
+    platform_passages = [passage for passage in passages if _is_platform_passage(passage)]
+    evidence_passages = [
+        passage for passage in passages if not _is_platform_passage(passage)
+    ]
 
     prompt_parts = [
+        "Sources (platform doctrine and seed):\n" + _format_sources(platform_passages),
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
         (
@@ -688,10 +695,6 @@ async def run_create_pmp_model(
             f"archetype={project.archetype}, "
             f"user_role={project.user_role}, "
             f"state={project.state}"
-        ),
-        (
-            f"Mobilisation run date: {date.today().isoformat()} — use for register "
-            "due dates (2–4 weeks forward or relative phrasing; never past years)."
         ),
         f"Draft mode: {draft_mode}",
         f"Required document title: {document_title_for_role(user_role, project=project)}",
@@ -713,24 +716,11 @@ async def run_create_pmp_model(
                 _format_section_budgets(project),
                 _format_loaded_seed_sections(passages),
                 format_decision_option_sets(project),
-                format_locked_decisions(locked_decisions or {}),
                 (
                     "Taxonomy PMP rules: primary document is 2-4 A4 pages; use a compact "
                     "snapshot metadata table; cite specific AS/NCC refs from loaded seed "
                     "sections; keep risks and actions to top ~8 rows each; do not use "
                     "pretrained domain content where a required seed section is missing."
-                ),
-            ]
-        )
-    if coverage_requirements:
-        prompt_parts.extend(
-            [
-                "Mandatory current-corpus coverage (hard validation gate):",
-                coverage_requirements,
-                (
-                    "Do not collapse these into generic prose. Carry the dates, values, "
-                    "quantities, scope items, and constraints into the relevant sections, "
-                    "and include every active project document path in evidence_refs."
                 ),
             ]
         )
@@ -767,15 +757,35 @@ async def run_create_pmp_model(
             "Required depth markers (each term MUST appear at least once in the markdown body, "
             f"case-insensitive): {marker_list}"
         )
-    prompt_parts.extend(
-        [
-            (
-                "Use the source refs exactly when filling evidence_refs/context_refs. "
-                "Populate context_refs with doctrine and seed refs you used."
-            ),
-            f"Sources:\n{_format_sources(passages)}",
-        ]
+    prompt_parts.append(
+        "Use the source refs exactly when filling evidence_refs/context_refs. "
+        "Populate context_refs with doctrine and seed refs you used."
     )
+
+    # Volatile tail: everything below changes per run; keep it after the
+    # cacheable prefix above.
+    if taxonomy_context is not None:
+        prompt_parts.append(format_locked_decisions(locked_decisions or {}))
+    prompt_parts.append(
+        f"Mobilisation run date: {run_date.isoformat()} — use for register "
+        "due dates (2–4 weeks forward or relative phrasing; never past years)."
+    )
+    if coverage_requirements:
+        prompt_parts.extend(
+            [
+                "Mandatory current-corpus coverage (carry each item into the relevant section):",
+                coverage_requirements,
+                (
+                    "Do not collapse these into generic prose. Carry the dates, values, "
+                    "quantities, scope items, and constraints into the relevant sections, "
+                    "and include every active project document path in evidence_refs."
+                ),
+            ]
+        )
+    if evidence_passages:
+        prompt_parts.append(
+            "Sources (project evidence):\n" + _format_sources(evidence_passages)
+        )
     if validation_feedback:
         prompt_parts.append(
             "REVISION REQUIRED — your previous draft failed validation:\n"
@@ -783,7 +793,28 @@ async def run_create_pmp_model(
             "Regenerate the full draft fixing every issue. Ensure all required depth markers "
             "appear in the markdown body."
         )
-    prompt = "\n\n".join(prompt_parts)
+    return "\n\n".join(prompt_parts)
+
+
+async def run_create_pmp_model(
+    *,
+    project: Project,
+    passages: list[SourcePassage],
+    draft_mode: DraftMode,
+    validation_feedback: str | None = None,
+    chat_model: str | None = None,
+    locked_decisions: dict[str, str] | None = None,
+    coverage_requirements: str | None = None,
+) -> PmpDraftOutput:
+    prompt = build_create_pmp_prompt(
+        project=project,
+        passages=passages,
+        draft_mode=draft_mode,
+        run_date=date.today(),
+        validation_feedback=validation_feedback,
+        locked_decisions=locked_decisions,
+        coverage_requirements=coverage_requirements,
+    )
     resolved_model = chat_model.strip() if chat_model else resolve_pmp_model().execution_id
     result = await run_agent_with_retry(create_pmp_agent, prompt, model=resolved_model)
     return result.output
@@ -988,9 +1019,6 @@ def validate_pmp_output(
     user_role: str,
     project: Project | None = None,
     source_texts: list[str] | None = None,
-    source_labels: list[str] | None = None,
-    required_evidence_refs: list[str] | None = None,
-    allow_length_overrun: bool = False,
 ) -> None:
     taxonomy_context = pmp_taxonomy_context(project) if project is not None else None
     if not output.seed_consulted:
@@ -1050,16 +1078,6 @@ def validate_pmp_output(
             raise WorkflowValidationError(
                 f"Create PMP taxonomy provenance issues: {joined}"
             )
-        length_issues = length_violations(
-            output.markdown,
-            weights=taxonomy_context.section_weights,
-            min_words=settings.pmp_min_words,
-            max_words=settings.pmp_max_words,
-        )
-        if length_issues:
-            if not allow_length_overrun:
-                joined = "; ".join(length_issues)
-                raise WorkflowValidationError(f"Create PMP length issues: {joined}")
 
     structure_issues = greenfield_structure_violations(
         output.markdown,
@@ -1083,19 +1101,6 @@ def validate_pmp_output(
             raise WorkflowValidationError(
                 f"Create PMP evidence_grounded fidelity issues: {joined}"
             )
-        if required_evidence_refs and source_texts:
-            coverage_issues = corpus_coverage_violations(
-                output.markdown,
-                output_evidence_refs=output.evidence_refs,
-                required_evidence_refs=required_evidence_refs,
-                source_texts=source_texts,
-                source_labels=source_labels,
-            )
-            if coverage_issues:
-                joined = "; ".join(coverage_issues)
-                raise WorkflowValidationError(
-                    f"Create PMP current-corpus coverage issues: {joined}"
-                )
 
     decision_issues = decision_violations(output.markdown)
     if decision_issues:
@@ -1109,68 +1114,6 @@ def _apply_locked_decisions(output: PmpDraftOutput, locked: dict[str, str]) -> P
     return output.model_copy(
         update={"markdown": restamp_decisions(output.markdown, locked)}
     )
-
-
-def _repair_create_pmp_length_failure(
-    output: PmpDraftOutput,
-    exc: WorkflowValidationError,
-    *,
-    draft_mode: DraftMode,
-    archetype: str,
-    user_role: str,
-    project: Project,
-    source_texts: list[str] | None,
-    source_labels: list[str] | None,
-    required_evidence_refs: list[str] | None,
-) -> tuple[PmpDraftOutput, bool] | None:
-    if not str(exc).startswith("Create PMP length issues:"):
-        return None
-    taxonomy_context = pmp_taxonomy_context(project)
-    if taxonomy_context is None:
-        return None
-    condensed = condense_primary_markdown_to_word_band(
-        output.markdown,
-        weights=taxonomy_context.section_weights,
-        min_words=settings.pmp_min_words,
-        max_words=settings.pmp_max_words,
-    )
-    repaired = (
-        output
-        if condensed == output.markdown
-        else output.model_copy(update={"markdown": normalize_pmp_markdown(condensed)})
-    )
-    try:
-        validate_pmp_output(
-            repaired,
-            draft_mode,
-            archetype=archetype,
-            user_role=user_role,
-            project=project,
-            source_texts=source_texts,
-            source_labels=source_labels,
-            required_evidence_refs=required_evidence_refs,
-        )
-        return repaired, False
-    except WorkflowValidationError as final_exc:
-        if not str(final_exc).startswith("Create PMP length issues:"):
-            raise
-        if not within_final_length_tolerance(
-            repaired.markdown,
-            max_words=settings.pmp_max_words,
-        ):
-            raise
-        validate_pmp_output(
-            repaired,
-            draft_mode,
-            archetype=archetype,
-            user_role=user_role,
-            project=project,
-            source_texts=source_texts,
-            source_labels=source_labels,
-            required_evidence_refs=required_evidence_refs,
-            allow_length_overrun=True,
-        )
-        return repaired, True
 
 
 PMP_WORKSPACE_FILENAME = "PMP.md"
@@ -1474,8 +1417,6 @@ async def run_create_pmp_workflow(
                 user_role=project.user_role or "",
                 project=project,
                 source_texts=project_source_texts,
-                source_labels=project_source_labels,
-                required_evidence_refs=coverage_required_evidence_refs,
             )
             trace.append(
                 _trace(
@@ -1542,8 +1483,6 @@ async def run_create_pmp_workflow(
                         user_role=project.user_role or "",
                         project=project,
                         source_texts=project_source_texts,
-                        source_labels=project_source_labels,
-                        required_evidence_refs=coverage_required_evidence_refs,
                     )
                     break
                 except WorkflowValidationError as exc:
@@ -1557,35 +1496,6 @@ async def run_create_pmp_workflow(
                             )
                         )
                         continue
-                    repaired = _repair_create_pmp_length_failure(
-                        output,
-                        exc,
-                        draft_mode=draft_mode,
-                        archetype=project.archetype or "",
-                        user_role=project.user_role or "",
-                        project=project,
-                        source_texts=project_source_texts,
-                        source_labels=project_source_labels,
-                        required_evidence_refs=coverage_required_evidence_refs,
-                    )
-                    if repaired is not None:
-                        output, length_overrun_allowed = repaired
-                        trace.append(
-                            _trace(
-                                "validation",
-                                "warning" if length_overrun_allowed else "repaired",
-                                (
-                                    "Accepted PMP with a small final length overrun "
-                                    "after deterministic compaction."
-                                    if length_overrun_allowed
-                                    else "Condensed primary PMP after final length retry."
-                                ),
-                                word_count=pmp_word_count(output.markdown),
-                                max_words=settings.pmp_max_words,
-                                length_overrun_allowed=length_overrun_allowed,
-                            )
-                        )
-                        break
                     raise
     except WorkflowValidationError as exc:
         message = str(exc)
@@ -1632,6 +1542,53 @@ async def run_create_pmp_workflow(
             draft_mode=draft_mode,
         )
     )
+
+    if coverage_required_evidence_refs:
+        coverage_backfill = backfill_corpus_coverage(
+            output.markdown,
+            output_evidence_refs=output.evidence_refs,
+            required_evidence_refs=coverage_required_evidence_refs,
+            source_texts=project_source_texts,
+            source_labels=project_source_labels,
+        )
+        if coverage_backfill.backfilled_facts or coverage_backfill.added_evidence_refs:
+            output.markdown = coverage_backfill.markdown
+            output.evidence_refs = list(coverage_backfill.evidence_refs)
+            trace.append(
+                _trace(
+                    "coverage",
+                    "advisory",
+                    (
+                        "Coverage advisory (not enforced): backfilled "
+                        f"{len(coverage_backfill.backfilled_facts)} evidence fact(s) "
+                        "into the Evidence coverage register and merged "
+                        f"{len(coverage_backfill.added_evidence_refs)} missing evidence ref(s)."
+                    ),
+                    backfilled_facts=[
+                        f"{req.source}: {req.fact}"
+                        for req in coverage_backfill.backfilled_facts
+                    ],
+                    added_evidence_refs=list(coverage_backfill.added_evidence_refs),
+                )
+            )
+
+    if taxonomy_context is not None:
+        length_advisories = length_violations(
+            output.markdown,
+            weights=taxonomy_context.section_weights,
+            min_words=settings.pmp_min_words,
+            max_words=settings.pmp_max_words,
+        )
+        if length_advisories:
+            trace.append(
+                _trace(
+                    "length",
+                    "advisory",
+                    "Length advisory (not enforced): " + "; ".join(length_advisories),
+                    word_count=pmp_word_count(output.markdown),
+                    max_words=settings.pmp_max_words,
+                )
+            )
 
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     output.markdown = sync_document_control_version(output.markdown, existing_version)

@@ -2,12 +2,12 @@
   "period": "mediterranean",
   "massing": {
     "footprint": "L",
-    "aspect": [1.85, 1.05, 1.1],
+    "aspect": [1.05, 0.91, 1.05],
     "roof": "hipped",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 5,
+    "bays": 4,
     "windowShape": "round_arch",
     "windowToWallRatio": 0.3,
     "verticality": 0.36
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#e6d2b1",
-    "roughness": 0.88,
+    "roughness": 0.45,
     "windowEmissive": "#ffbe75"
   }
 }

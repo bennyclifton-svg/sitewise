@@ -2,12 +2,12 @@
   "period": "scandinavian",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [1.55, 1.25, 1],
+    "aspect": [1.05, 0.91, 1],
     "roof": "gable",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 4,
+    "bays": 3,
     "windowShape": "tall_rect",
     "windowToWallRatio": 0.4,
     "verticality": 0.48
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#c8c4b7",
-    "roughness": 0.76,
+    "roughness": 0.4,
     "windowEmissive": "#ffdca8"
   }
 }

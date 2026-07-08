@@ -1,4 +1,4 @@
-"""Length validation for the primary 2-4 page PMP view."""
+"""Length measurement and advisory feedback for the primary 2-4 page PMP view."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ _WORD_RE = re.compile(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*")
 _FENCE_RE = re.compile(r"^\s*(```|~~~)\s*([A-Za-z0-9_-]*)")
 _LINK_RE = re.compile(r"!?\[([^\]]+)\]\([^)]+\)")
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
-FINAL_LENGTH_TOLERANCE = 1.15
 
 
 def pmp_word_count(markdown: str) -> int:
@@ -60,48 +59,6 @@ def length_violations(
             f"{heading} is {section_words} words, budget ~{target} - condense."
         )
     return violations
-
-
-def within_final_length_tolerance(markdown: str, *, max_words: int) -> bool:
-    """Return true for a small final overrun after the model retry loop."""
-    return pmp_word_count(markdown) <= int(max_words * FINAL_LENGTH_TOLERANCE)
-
-
-def condense_primary_markdown_to_word_band(
-    markdown: str,
-    *,
-    weights: dict[str, float],
-    min_words: int,
-    max_words: int,
-) -> str:
-    """Deterministically compact an overlong primary PMP without changing annexures."""
-    hard_max = int(max_words * 1.05)
-    if pmp_word_count(markdown) <= hard_max:
-        return markdown
-
-    target_sections = _oversized_section_ids(markdown, weights, max_words)
-    if not target_sections:
-        target_sections = {section for section in weights if section != "snapshot"}
-
-    passes = [
-        (target_sections, 14, 18),
-        (target_sections, 10, 14),
-        (set(weights), 10, 14),
-        (set(weights), 8, 11),
-    ]
-    compacted = markdown
-    for sections, table_words, line_words in passes:
-        compacted = _condense_sections(
-            compacted,
-            target_sections=sections,
-            table_cell_words=table_words,
-            line_words=line_words,
-        )
-        if pmp_word_count(compacted) <= hard_max:
-            return compacted
-        if pmp_word_count(compacted) < min_words:
-            return compacted
-    return compacted
 
 
 def _primary_markdown(markdown: str) -> str:
@@ -194,102 +151,6 @@ def _count_words(markdown: str) -> int:
 def _section_word_counts(markdown: str) -> list[tuple[str, int]]:
     sections = [section for section in split_sections(_primary_markdown(markdown)) if section.level == 2]
     return [(section.heading, _count_words(section.content)) for section in sections]
-
-
-def _oversized_section_ids(
-    markdown: str,
-    weights: dict[str, float],
-    max_words: int,
-) -> set[str]:
-    oversized: set[str] = set()
-    for heading, section_words in _section_word_counts(markdown):
-        section_id = _section_id_for_heading_any(heading)
-        if section_id is None or section_id not in weights:
-            continue
-        limit = int(weights[section_id] * max_words * 1.5)
-        if section_words > limit:
-            oversized.add(section_id)
-    return oversized
-
-
-def _condense_sections(
-    markdown: str,
-    *,
-    target_sections: set[str],
-    table_cell_words: int,
-    line_words: int,
-) -> str:
-    lines = markdown.splitlines()
-    output: list[str] = []
-    current_section: str | None = None
-    in_fence = False
-    for line in lines:
-        fence = _FENCE_RE.match(line)
-        if fence:
-            in_fence = not in_fence
-            output.append(line)
-            continue
-
-        if not in_fence and line.startswith("## "):
-            current_section = _section_id_for_heading_any(line[3:].strip())
-            output.append(line)
-            continue
-
-        if in_fence or current_section not in target_sections:
-            output.append(line)
-            continue
-
-        if _is_table_separator(line):
-            output.append(line)
-        elif _is_table_row(line):
-            output.append(_condense_table_row(line, table_cell_words))
-        else:
-            output.append(_condense_markdown_line(line, line_words))
-    return "\n".join(output)
-
-
-def _is_table_row(line: str) -> bool:
-    return line.lstrip().startswith("|") and line.rstrip().endswith("|")
-
-
-def _is_table_separator(line: str) -> bool:
-    stripped = line.strip()
-    if not _is_table_row(stripped):
-        return False
-    cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-    return all(cell and set(cell) <= {"-", ":"} for cell in cells)
-
-
-def _condense_table_row(line: str, word_limit: int) -> str:
-    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-    compacted = [_truncate_text(cell, word_limit) for cell in cells]
-    return "| " + " | ".join(compacted) + " |"
-
-
-def _condense_markdown_line(line: str, word_limit: int) -> str:
-    if not line.strip() or line.lstrip().startswith("#"):
-        return line
-    match = re.match(r"^(\s*(?:[-*+]|\d+[.)])\s+)(.+)$", line)
-    if match:
-        return match.group(1) + _truncate_text(match.group(2), word_limit)
-    return _truncate_text(line, word_limit)
-
-
-def _truncate_text(text: str, word_limit: int) -> str:
-    if len(_WORD_RE.findall(text)) <= word_limit:
-        return text
-    kept: list[str] = []
-    words = 0
-    for token in text.split():
-        token_words = len(_WORD_RE.findall(token))
-        if token_words and words + token_words > word_limit:
-            break
-        kept.append(token)
-        words += token_words
-    compacted = " ".join(kept).rstrip(" ,;:-")
-    if compacted.endswith((".", "!", "?", ")")):
-        return compacted
-    return compacted + "."
 
 
 def _highest_weighted_section(weights: dict[str, float]) -> str:

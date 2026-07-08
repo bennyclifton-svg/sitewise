@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, FilePlus2, FileSearch, LoaderCircle } from "lucide-react";
+import { AlertCircle, ArrowRight, FileSearch, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -6,16 +6,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import type { EvidencePreview } from "@/lib/types/project";
 import type { TenderComparison } from "@/lib/types/tender";
 
 import { formatTenderDate, formatTenderMoney, formatTenderStage } from "./format";
-import { TenderIntakePanel } from "./TenderIntakePanel";
+import { TenderQuoteSelectionPanel } from "./TenderQuoteSelectionPanel";
 
-export function ComparisonList({ projectId }: { projectId: string }) {
+export function ComparisonList({
+  projectId,
+  selectedEvidence,
+}: {
+  projectId: string;
+  selectedEvidence: EvidencePreview[];
+}) {
   const [comparisons, setComparisons] = useState<TenderComparison[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isIntakeOpen, setIsIntakeOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +78,10 @@ export function ComparisonList({ projectId }: { projectId: string }) {
   if (!comparisons.length) {
     return (
       <div className="space-y-4">
-        <TenderIntakePanel projectId={projectId} />
+        <TenderQuoteSelectionPanel
+          projectId={projectId}
+          selectedEvidence={selectedEvidence}
+        />
         <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed bg-card p-6 text-center">
           <div className="max-w-sm">
             <FileSearch className="mx-auto size-8 text-muted-foreground" aria-hidden />
@@ -85,22 +94,14 @@ export function ComparisonList({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-4">
-      {isIntakeOpen ? (
-        <TenderIntakePanel projectId={projectId} onCancel={() => setIsIntakeOpen(false)} />
-      ) : null}
+      <TenderQuoteSelectionPanel
+        projectId={projectId}
+        selectedEvidence={selectedEvidence}
+      />
 
       <section className="rounded-md border bg-card shadow-sm">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <p className="cockpit-zone-title">Comparisons</p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setIsIntakeOpen(true)}
-          >
-            <FilePlus2 className="size-4" aria-hidden />
-            New comparison
-          </Button>
         </header>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[52rem] table-fixed text-left text-sm">

@@ -12,18 +12,19 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ProjectContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     context_version: int = 1
-    state: Literal["NSW", "VIC", "QLD"]
-    region: Literal["metro", "regional"]
-    build_type: Literal["new_build", "renovation", "addition"]
+    context_source: Literal["manual", "repository_selection"] = "manual"
+    state: Literal["NSW", "VIC", "QLD"] | None = None
+    region: Literal["metro", "regional"] | None = None
+    build_type: Literal["new_build", "renovation", "addition"] | None = None
     dwelling_class: Literal["class_1a"] = "class_1a"
-    storeys: int
+    storeys: int | None = None
     floor_area_m2: float | None = None
     site_area_m2: float | None = None
     soil_class: Literal["A", "S", "M", "H1", "H2", "E", "P", "unknown"] = "unknown"
@@ -34,7 +35,7 @@ class ProjectContext(BaseModel):
     heritage_overlay: bool | None = None
     existing_dwelling_era: str | None = None
     demolition_required: bool | None = None
-    spec_level: Literal["builder_base", "mid", "high", "architectural"]
+    spec_level: Literal["builder_base", "mid", "high", "architectural"] | None = None
     target_budget_cents: int | None = None
     notes: str | None = None
 
@@ -43,10 +44,39 @@ class ProjectContext(BaseModel):
     def normalize_target_budget(cls, value: object) -> int | None:
         return currency_to_cents(value)
 
+    @model_validator(mode="after")
+    def require_manual_context_fields(self) -> "ProjectContext":
+        if self.context_source != "manual":
+            return self
+        missing = [
+            field
+            for field in ("state", "region", "build_type", "storeys", "spec_level")
+            if getattr(self, field) is None
+        ]
+        if missing:
+            joined = ", ".join(missing)
+            raise ValueError(f"manual project context missing required fields: {joined}")
+        return self
+
 
 class ComparisonCreate(BaseModel):
     project_id: uuid.UUID
     context: ProjectContext
+
+
+class ComparisonFromProjectFilesCreate(BaseModel):
+    project_id: uuid.UUID
+    workspace_paths: list[str] = Field(min_length=2, max_length=5)
+
+    @field_validator("workspace_paths")
+    @classmethod
+    def normalize_workspace_paths(cls, value: list[str]) -> list[str]:
+        paths = [path.strip() for path in value]
+        if any(not path for path in paths):
+            raise ValueError("workspace_paths cannot contain blank values")
+        if len(set(paths)) != len(paths):
+            raise ValueError("workspace_paths must be unique")
+        return paths
 
 
 class ComparisonContextPatch(BaseModel):

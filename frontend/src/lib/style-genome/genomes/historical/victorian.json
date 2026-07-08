@@ -2,12 +2,12 @@
   "period": "victorian",
   "massing": {
     "footprint": "L",
-    "aspect": [1.45, 1.75, 1.1],
+    "aspect": [1, 0.94, 1.05],
     "roof": "gable",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 4,
+    "bays": 3,
     "windowShape": "sash",
     "windowToWallRatio": 0.38,
     "verticality": 0.66
@@ -17,8 +17,8 @@
     "density": 0.42
   },
   "material": {
-    "base": "#7e4d45",
-    "roughness": 0.76,
+    "base": "#96655c",
+    "roughness": 0.4,
     "windowEmissive": "#ffc078"
   }
 }

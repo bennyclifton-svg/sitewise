@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
@@ -52,7 +52,10 @@ const EMPTY_WORKSPACE_TREE: WorkspaceTreeNode[] = [];
  * Context handed to nested cockpit routes (e.g. the tender comparison views)
  * that render inside the project shell's middle panel.
  */
-export type ProjectCockpitOutletContext = { project: ProjectDetail | null };
+export type ProjectCockpitOutletContext = {
+  project: ProjectDetail | null;
+  selectedRepositoryEvidence?: EvidencePreview[];
+};
 
 export function ProjectCockpitPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -93,6 +96,9 @@ export function ProjectCockpitPage() {
   const [isRunningSortFiles, setIsRunningSortFiles] = useState(false);
   const [activeView, setActiveView] = useState<ProjectNavView>("workbench");
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+  const [selectedRepositoryEvidenceIds, setSelectedRepositoryEvidenceIds] = useState<
+    Set<string>
+  >(() => new Set<string>());
   const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
   const [crossProject, setCrossProject] = useState(false);
   const [selectedCitationId, setSelectedCitationId] = useState<string | null>(null);
@@ -170,6 +176,14 @@ export function ProjectCockpitPage() {
         ? current
         : evidence[0]?.id ?? null,
     );
+  }, [evidence]);
+
+  useEffect(() => {
+    const evidenceIds = new Set(evidence.map((item) => item.id));
+    setSelectedRepositoryEvidenceIds((current) => {
+      const next = new Set([...current].filter((id) => evidenceIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
   }, [evidence]);
 
   useEffect(() => {
@@ -445,6 +459,10 @@ export function ProjectCockpitPage() {
     }
   }
 
+  function isTenderRouteActive() {
+    return Boolean(projectId && location.pathname.startsWith(`/projects/${projectId}/tender`));
+  }
+
   function openWorkflowFromExplorer(workflowId: string) {
     leaveTenderRoute();
     setSelectedWorkflowId(workflowId);
@@ -458,11 +476,17 @@ export function ProjectCockpitPage() {
   }
 
   function selectEvidenceFromRepository(evidenceId: string) {
-    leaveTenderRoute();
+    const keepTenderRoute = isTenderRouteActive();
+    if (!keepTenderRoute) {
+      leaveTenderRoute();
+    }
     setSelectedEvidenceId(evidenceId);
     const item = evidence.find((candidate) => candidate.id === evidenceId);
     if (item) {
       setSelectedWorkspacePath(normalizeWorkspacePath(item.relative_path));
+      if (keepTenderRoute) {
+        return;
+      }
       if (isPmpWorkspaceFile(item.relative_path)) {
         setSelectedWorkflowId("create-pmp");
         setChatPanelCollapsed(true);
@@ -484,7 +508,10 @@ export function ProjectCockpitPage() {
   }
 
   function selectWorkspacePath(path: string) {
-    leaveTenderRoute();
+    const keepTenderRoute = isTenderRouteActive();
+    if (!keepTenderRoute) {
+      leaveTenderRoute();
+    }
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
     if (selectedNode?.kind === "file") {
@@ -496,6 +523,9 @@ export function ProjectCockpitPage() {
       const selectedDocument = findEvidenceByPath(evidence, selectedNode.path);
       if (selectedDocument) {
         setSelectedEvidenceId(selectedDocument.id);
+        if (keepTenderRoute) {
+          return;
+        }
         setReviewDraft(null);
         setChatPanelCollapsed(true);
         setActiveView("file");
@@ -509,7 +539,14 @@ export function ProjectCockpitPage() {
 
   // When a nested tender route is active, its element renders in the middle
   // panel; otherwise we fall back to the state-driven cockpit views below.
-  const tenderOutlet = useOutlet({ project } satisfies ProjectCockpitOutletContext);
+  const selectedRepositoryEvidence = useMemo(
+    () => evidence.filter((item) => selectedRepositoryEvidenceIds.has(item.id)),
+    [evidence, selectedRepositoryEvidenceIds],
+  );
+  const tenderOutlet = useOutlet({
+    project,
+    selectedRepositoryEvidence,
+  } satisfies ProjectCockpitOutletContext);
 
   if (!projectId) return null;
 
@@ -625,9 +662,11 @@ export function ProjectCockpitPage() {
           projectId={project.id}
           evidence={evidence}
           selectedEvidenceId={selectedEvidence?.id ?? null}
+          selectedEvidenceIds={selectedRepositoryEvidenceIds}
           workspaceTree={workspaceTree}
           selectedWorkspacePath={selectedWorkspacePath}
           onSelectEvidence={selectEvidenceFromRepository}
+          onSelectedEvidenceIdsChange={setSelectedRepositoryEvidenceIds}
           onSelectWorkspacePath={selectWorkspacePath}
           onOpenWorkflow={openWorkflowFromExplorer}
           onViewWorkbench={() => {

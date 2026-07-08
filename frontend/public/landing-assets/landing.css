@@ -1,6 +1,8 @@
 /* SITEFORM landing — global scaffold (Prompt 1).
    Tokens and utilities only; section content arrives in Prompts 2-10. */
 
+/* Aeonik @font-face lives in aeonik-font.css (embedded, loaded before this file). */
+
 /* ==== TOKENS (Prompt 0 — the only colors on this site) ================= */
 :root {
   --bg: #E4E4E4;      /* light warm grey page canvas */
@@ -16,7 +18,7 @@
 
   --font-mono: "Space Mono", "IBM Plex Mono", ui-monospace, monospace;
   --font-display: "Zen Dots", var(--font-mono); /* interim fallback until 1.5B */
-  --font-marquee: "Fredoka", system-ui, sans-serif;
+  --font-marquee: "Aeonik", system-ui, sans-serif;
 }
 
 /* ==== RESET ============================================================ */
@@ -648,13 +650,14 @@ body.nav-open {
 
 .hero__marquee-run {
   flex: none;
-  font-family: var(--font-marquee);
+  font-family: "Aeonik", sans-serif;
   font-weight: 700;
+  font-synthesis: none;
   font-size: clamp(72px, 16vw, 200px);
   line-height: 0.92;
   padding-right: 0.35em;
   color: var(--ink);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -729,6 +732,12 @@ body.nav-open {
   width: 100%;
   height: 100%;
   pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.hero__stage canvas.hero__stage-canvas--dragging {
+  cursor: grabbing;
 }
 
 .hero__building-fallback {

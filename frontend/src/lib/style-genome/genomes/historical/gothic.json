@@ -2,12 +2,12 @@
   "period": "gothic",
   "massing": {
     "footprint": "cruciform",
-    "aspect": [1, 2.8, 1.25],
+    "aspect": [1, 0.89, 1],
     "roof": "spire",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 5,
+    "bays": 4,
     "windowShape": "lancet",
     "windowToWallRatio": 0.25,
     "verticality": 0.96
@@ -17,8 +17,8 @@
     "density": 0.3
   },
   "material": {
-    "base": "#817d73",
-    "roughness": 0.9,
+    "base": "#a39e93",
+    "roughness": 0.4,
     "windowEmissive": "#ffb36b"
   }
 }

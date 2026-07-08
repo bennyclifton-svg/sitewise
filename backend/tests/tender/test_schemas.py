@@ -41,6 +41,22 @@ def test_project_context_version_defaults_to_1() -> None:
     assert context.context_version == 1
 
 
+def test_project_context_allows_repository_selection_without_manual_fields() -> None:
+    context = ProjectContext.model_validate(
+        {
+            "context_version": 1,
+            "context_source": "repository_selection",
+        }
+    )
+
+    assert context.context_source == "repository_selection"
+    assert context.state is None
+    assert context.region is None
+    assert context.build_type is None
+    assert context.storeys is None
+    assert context.spec_level is None
+
+
 def test_project_context_rejects_bad_soil_class() -> None:
     with pytest.raises(ValidationError):
         ProjectContext.model_validate(_context_payload(soil_class="Z9"))

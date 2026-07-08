@@ -2,12 +2,12 @@
   "period": "parametric",
   "massing": {
     "footprint": "fractured",
-    "aspect": [1.55, 1.9, 1.25],
+    "aspect": [1, 0.95, 1.05],
     "roof": "curved",
     "symmetry": "radial"
   },
   "rhythm": {
-    "bays": 9,
+    "bays": 5,
     "windowShape": "cellular",
     "windowToWallRatio": 0.42,
     "verticality": 0.58
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#d6d4cb",
-    "roughness": 0.48,
+    "roughness": 0.32,
     "windowEmissive": "#b7f1ff"
   }
 }

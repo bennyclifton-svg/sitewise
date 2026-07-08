@@ -2,12 +2,12 @@
   "period": "megacity",
   "massing": {
     "footprint": "stepped",
-    "aspect": [1.6, 2.9, 1.35],
+    "aspect": [1.05, 0.95, 1.05],
     "roof": "flat",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 10,
+    "bays": 5,
     "windowShape": "cellular",
     "windowToWallRatio": 0.52,
     "verticality": 0.72
@@ -17,8 +17,8 @@
     "density": 0.24
   },
   "material": {
-    "base": "#9aa1a4",
-    "roughness": 0.58,
+    "base": "#b0b6b9",
+    "roughness": 0.35,
     "windowEmissive": "#9edcff"
   }
 }

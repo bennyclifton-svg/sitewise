@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "cap": 1000,
+    "source": "veris-reference.png",
+    "mode": "raster+derived",
+    "derived": [
+      "a",
+      "l",
+      "n",
+      "o",
+      "t"
+    ]
+  },
+  "glyphs": {
+    "v": {
+      "width": 609.04,
+      "height": 736.7,
+      "offsetX": 0.0,
+      "offsetY": 260.64,
+      "drawWidth": 609.04,
+      "drawHeight": 736.7
+    },
+    "e": {
+      "width": 537.23,
+      "height": 750.0,
+      "offsetX": 0.0,
+      "offsetY": 250.0,
+      "drawWidth": 537.23,
+      "drawHeight": 750.0
+    },
+    "r": {
+      "width": 430.85,
+      "height": 739.36,
+      "offsetX": 0.0,
+      "offsetY": 257.98,
+      "drawWidth": 430.85,
+      "drawHeight": 739.36
+    },
+    "i": {
+      "width": 236.7,
+      "height": 1000.0,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "drawWidth": 236.7,
+      "drawHeight": 1000.0
+    },
+    "s": {
+      "width": 518.62,
+      "height": 747.34,
+      "offsetX": 0.0,
+      "offsetY": 252.66,
+      "drawWidth": 518.62,
+      "drawHeight": 747.34
+    },
+    "l": {
+      "width": 177.53,
+      "height": 555.85,
+      "offsetX": 0.0,
+      "offsetY": 444.15,
+      "drawWidth": 194.15,
+      "drawHeight": 555.85
+    },
+    "o": {
+      "width": 537.23,
+      "height": 750.0,
+      "offsetX": 0.0,
+      "offsetY": 250.0,
+      "drawWidth": 537.23,
+      "drawHeight": 750.0
+    },
+    "t": {
+      "width": 224.87,
+      "height": 640.96,
+      "offsetX": 0.0,
+      "offsetY": 359.04,
+      "drawWidth": 194.15,
+      "drawHeight": 640.96
+    },
+    "n": {
+      "width": 581.65,
+      "height": 739.36,
+      "offsetX": 0.0,
+      "offsetY": 260.64,
+      "drawWidth": 718.09,
+      "drawHeight": 739.36
+    },
+    "a": {
+      "width": 564.09,
+      "height": 750.0,
+      "offsetX": 0.0,
+      "offsetY": 250.0,
+      "drawWidth": 686.17,
+      "drawHeight": 750.0
+    }
+  }
+}

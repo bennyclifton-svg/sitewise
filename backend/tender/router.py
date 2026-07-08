@@ -23,11 +23,13 @@ from tender.schemas import (
     ComparisonContextPatch,
     ComparisonCreate,
     ComparisonDetail,
+    ComparisonFromProjectFilesCreate,
     ComparisonListResponse,
     DocumentUploadResponse,
     JobView,
     MatrixResponse,
     ProjectFileDocumentAttach,
+    ProjectContext,
     QAQueueResponse,
     QAResolveRequest,
     QAResolveResponse,
@@ -279,6 +281,54 @@ async def post_comparison(
         context=body.context.model_dump(),
         created_by=user.id,
     )
+
+
+@router.post(
+    "/comparisons/from-project-files",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ComparisonDetail,
+)
+async def post_comparison_from_project_files(
+    body: ComparisonFromProjectFilesCreate,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> TenderComparison:
+    await ensure_user_exists(session, user)
+    await require_active_entitlement(session, user)
+    await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
+
+    comparison = await create_comparison(
+        session,
+        project_id=body.project_id,
+        context=ProjectContext(context_source="repository_selection").model_dump(),
+        created_by=user.id,
+    )
+
+    quotes: list[TenderQuote] = []
+    for index, workspace_path in enumerate(body.workspace_paths, start=1):
+        quote = await create_quote(
+            session,
+            comparison_id=comparison.id,
+            body=QuoteCreate(builder_name=f"Quote {index}"),
+        )
+        set_committed_value(quote, "comparison", comparison)
+        document = await store_project_file_quote_document(
+            session,
+            quote=quote,
+            workspace_path=workspace_path,
+        )
+        set_committed_value(quote, "documents", [document])
+        await jobs.enqueue(
+            session,
+            kind="ingest_document",
+            comparison_id=quote.comparison_id,
+            quote_id=quote.id,
+            payload={"document_id": str(document.id)},
+        )
+        quotes.append(quote)
+
+    set_committed_value(comparison, "quotes", quotes)
+    return comparison
 
 
 @router.get("/comparisons", response_model=ComparisonListResponse)

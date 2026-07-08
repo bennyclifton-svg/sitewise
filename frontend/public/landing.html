@@ -8,7 +8,7 @@
     Prompt 1 — scaffold & global styles (this file + landing-assets/landing.css)
     Prompt 1.5A — SITEFORM DISPLAY svg glyph library (landing-assets/, proof sheet)
     Prompt 2 — header / navigation (this file + landing-nav.js)
-    Prompt 3 — hero band with 3D building (this file + landing-hero.js)
+    Prompt 3 — hero band with tower house GLB (this file + landing-hero.js)
     Prompt 4 — partners / integrations strip (this file + landing-partners.js)
     Prompt 5 — platform overview (this file + landing.css)
     Prompt 6 — capabilities index (this file + landing.css)
@@ -31,10 +31,11 @@
     <!-- Zen Dots is scaffolding only: interim display fallback for section
          headings until SITEFORM DISPLAY build path B replaces it. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=IBM+Plex+Mono:wght@400;700&family=Space+Mono:wght@400;700&family=Zen+Dots&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Space+Mono:wght@400;700&family=Zen+Dots&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="landing-assets/landing.css" />
+    <link rel="stylesheet" href="landing-assets/aeonik-font.css?v=1" />
+    <link rel="stylesheet" href="landing-assets/landing.css?v=aeonik1" />
   </head>
   <body>
     <div class="page-sheet">
@@ -702,10 +703,17 @@
       </footer>
       </div>
     </div>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
     <script src="landing-assets/siteform-display.js"></script>
     <script src="landing-assets/landing-nav.js"></script>
-    <script src="landing-assets/landing-genome-builder.js"></script>
-    <script src="landing-assets/landing-hero.js"></script>
+    <script type="module" src="landing-assets/landing-hero.js"></script>
     <script src="landing-assets/landing-partners.js"></script>
   </body>
 </html>

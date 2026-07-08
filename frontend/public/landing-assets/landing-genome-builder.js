@@ -9,6 +9,12 @@
   var DEG = Math.PI / 180;
   var LANDING_SEED = 42;
 
+  /* Buildings are capped to this cube edge so they always fit the hero panel. */
+  var CUBE_EDGE = 3.4;
+  /* Rounded "plastic toy" corner treatment shared by all massing volumes. */
+  var CORNER_RADIUS_RATIO = 0.16;
+  var MAX_CORNER_RADIUS = 0.42;
+
   function mulberry32(seed) {
     return function () {
       var t = (seed += 0x6d2b79f5);
@@ -40,22 +46,62 @@
     var familyScale = 1 + (rng() - 0.5) * 0.08;
     var heightBias = genome.rhythm.verticality * 0.35;
     return {
-      width: 3.2 * aspect[0] * familyScale,
-      height: 3.1 * aspect[1] * (0.9 + heightBias) * familyScale,
-      depth: 2.9 * aspect[2] * (0.96 + rng() * 0.08),
+      width: Math.min(CUBE_EDGE, 3.2 * aspect[0] * familyScale),
+      height: Math.min(CUBE_EDGE, 3.1 * aspect[1] * (0.9 + heightBias) * familyScale),
+      depth: Math.min(CUBE_EDGE, 2.9 * aspect[2] * (0.96 + rng() * 0.08)),
     };
   }
 
   function getFloorCount(genome, dimensions) {
     return clamp(
-      Math.round(2 + dimensions.height / 1.7 + genome.rhythm.verticality * 2),
+      Math.round(1 + dimensions.height / 1.3 + genome.rhythm.verticality),
       2,
-      10
+      5
     );
   }
 
+  /*
+   * Minkowski-style rounded box: clamp each vertex of a segmented box to an
+   * inner box and push it back out along the corner normal — smooth plastic edges.
+   */
+  function roundedBoxGeometry(THREE, width, height, depth, radius, segments) {
+    var r = Math.max(0.001, Math.min(radius, width / 2, height / 2, depth / 2));
+    var geo = new THREE.BoxGeometry(width, height, depth, segments, segments, segments);
+    var position = geo.getAttribute("position");
+    var normal = geo.getAttribute("normal");
+    var innerX = width / 2 - r;
+    var innerY = height / 2 - r;
+    var innerZ = depth / 2 - r;
+
+    for (var i = 0; i < position.count; i += 1) {
+      var px = position.getX(i);
+      var py = position.getY(i);
+      var pz = position.getZ(i);
+      var cx = clamp(px, -innerX, innerX);
+      var cy = clamp(py, -innerY, innerY);
+      var cz = clamp(pz, -innerZ, innerZ);
+      var dx = px - cx;
+      var dy = py - cy;
+      var dz = pz - cz;
+      var length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (length > 1e-6) {
+        var nx = dx / length;
+        var ny = dy / length;
+        var nz = dz / length;
+        position.setXYZ(i, cx + nx * r, cy + ny * r, cz + nz * r);
+        normal.setXYZ(i, nx, ny, nz);
+      }
+    }
+
+    return geo;
+  }
+
   function boxGeometry(THREE, width, height, depth, x, y, z, rotation) {
-    var geo = new THREE.BoxGeometry(width, height, depth);
+    var radius = Math.min(
+      MAX_CORNER_RADIUS,
+      Math.min(width, Math.min(height, depth)) * CORNER_RADIUS_RATIO
+    );
+    var geo = roundedBoxGeometry(THREE, width, height, depth, radius, 4);
     if (x || y || z || rotation) {
       var matrix = new THREE.Matrix4();
       matrix.compose(
@@ -75,7 +121,14 @@
       shape.lineTo(points[i][0], points[i][1]);
     }
     shape.closePath();
-    var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
+    var bevel = Math.min(0.07, depth * 0.35);
+    var geo = new THREE.ExtrudeGeometry(shape, {
+      depth: depth,
+      bevelEnabled: true,
+      bevelThickness: bevel,
+      bevelSize: bevel,
+      bevelSegments: 2,
+    });
     geo.translate(0, 0, -depth / 2);
     geo.computeVertexNormals();
     return geo;
@@ -104,7 +157,7 @@
       pts.push([0.35, -0.5], [-0.35, -0.5]);
       return centeredExtrudedShape(THREE, pts, 0.08);
     }
-    return new THREE.BoxGeometry(1, 1, 1);
+    return roundedBoxGeometry(THREE, 1, 1, 1, 0.16, 2);
   }
 
   function createMassingParts(THREE, genome, dims) {
@@ -227,7 +280,7 @@
   function facadeInstance(x, y, z, width, height, rotY) {
     return {
       position: new THREE.Vector3(x, y, z),
-      scale: new THREE.Vector3(width, height, 0.05),
+      scale: new THREE.Vector3(width, height, 0.14),
       rotation: new THREE.Euler(0, rotY || 0, 0),
     };
   }
@@ -241,8 +294,8 @@
     var bays = clamp(Math.round(genome.rhythm.bays + (rng() - 0.5) * 1.2), 2, 11);
     var floorGap = h / (floors + 0.7);
     var bayGap = w / (bays + 1);
-    var windowHeight = floorGap * lerp(0.34, 0.76, genome.rhythm.verticality);
-    var windowWidth = bayGap * lerp(0.28, 0.7, genome.rhythm.windowToWallRatio);
+    var windowHeight = floorGap * lerp(0.42, 0.72, genome.rhythm.verticality);
+    var windowWidth = bayGap * lerp(0.4, 0.78, genome.rhythm.windowToWallRatio);
 
     for (var floor = 0; floor < floors; floor += 1) {
       var y = floorGap * (floor + 0.82);
@@ -417,6 +470,7 @@
 
   root.LandingGenomeBuilder = {
     buildFromGenome: buildFromGenome,
+    roundedBoxGeometry: roundedBoxGeometry,
     LANDING_SEED: LANDING_SEED,
   };
 })(typeof window !== "undefined" ? window : globalThis);

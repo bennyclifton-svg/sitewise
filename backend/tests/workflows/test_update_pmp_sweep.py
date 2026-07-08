@@ -384,6 +384,169 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
     assert provenance["active_corpus_documents"] == 0
 
 
+def test_build_update_pmp_prompt_puts_static_knowledge_first_and_volatile_last() -> None:
+    from datetime import date
+
+    from app.workflows.update_pmp import build_update_pmp_prompt
+    from tests.workflows.test_create_pmp import _passage
+
+    platform_passage = _passage(
+        project="seed",
+        source_type="reference",
+        relative_path="seed/commercial-construction-guide.md",
+        whole_document=True,
+        content="Seed guidance content for commercial construction.",
+    )
+    delta_passage = _passage(
+        project="taxonomy-project",
+        source_type="project_evidence",
+        relative_path="04-projects/taxonomy-project/_inbox/tenant-brief.md",
+        whole_document=True,
+        content="Tenant brief evidence content.",
+    )
+    prompt = build_update_pmp_prompt(
+        project=_taxonomy_project(),
+        baseline=_baseline_draft(),
+        delta_passages=[delta_passage],
+        platform_passages=[platform_passage],
+        run_date=date(2026, 7, 8),
+        validation_feedback="Fix the missing risk register.",
+        coverage_requirements="- tenant-brief.md\n  - programme date: 1 November 2026",
+    )
+
+    platform_index = prompt.index("Seed guidance content for commercial construction.")
+    title_index = prompt.index("Residential House")
+    date_index = prompt.index("2026-07-08")
+    baseline_index = prompt.index("Baseline revision: v1")
+    coverage_index = prompt.index("Mandatory current-corpus coverage")
+    evidence_index = prompt.index("Tenant brief evidence content.")
+    feedback_index = prompt.index("Fix the missing risk register.")
+
+    assert platform_index < title_index
+    assert title_index < date_index
+    assert date_index < baseline_index < coverage_index < evidence_index < feedback_index
+
+
+def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
+    project = _taxonomy_project()
+    baseline = _baseline_draft()
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+    created_draft = DraftArtifact(
+        id=uuid.uuid4(),
+        project_id=PROJECT_ID,
+        workflow_type="create_pmp",
+        version=2,
+        status="draft",
+        title="Project Management Plan",
+        workspace_path=baseline.workspace_path,
+        author_user_id=USER_ID,
+        content_markdown=baseline.content_markdown,
+        model="gpt-4o-mini",
+        runtime="clerk-sitewise-update-pmp",
+        provenance_metadata={},
+        created_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+    )
+
+    active_passage = SimpleNamespace(
+        content=(
+            "This tenant requirements brief lists functional requirements.\n"
+            "Target possession for fit-out: 1 November 2026.\n"
+            "Fit-out includes 42 workstations."
+        ),
+        filename="tenant-brief.md",
+        relative_path="04-projects/taxonomy-project/_inbox/tenant-brief.md",
+    )
+    sweep_ref = (
+        "project_evidence:04-projects/taxonomy-project/_inbox/tenant-brief.md#chunk=1"
+    )
+    sweep_result = SimpleNamespace(
+        passages=(active_passage,),
+        merged_pack=SimpleNamespace(evidence_refs=[sweep_ref]),
+        evidence_refs=(sweep_ref,),
+        listing=SimpleNamespace(
+            documents=(active_passage,),
+            total_indexed=1,
+            skipped_superseded=0,
+            skipped_revision_duplicate=0,
+            capped=False,
+        ),
+        trace_events=(),
+    )
+    run_model = AsyncMock(
+        return_value=PmpDraftOutput(
+            title="Project Management Plan",
+            markdown=baseline.content_markdown,
+            seed_consulted=_valid_seed_consulted()
+            + ["seed/new-dwelling-guide.md", "seed/role-architect-pm.md"],
+            evidence_refs=[],
+            context_refs=["doctrine:docs/clerk-brief.md"],
+        )
+    )
+
+    with (
+        patch(
+            "app.workflows.update_pmp.overlay_status",
+            return_value=overlay_status(
+                archetype="new-dwelling",
+                user_role="architect-pm",
+                state="NSW",
+            ),
+        ),
+        patch(
+            "app.workflows.update_pmp.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.update_pmp.get_latest_draft_artifact",
+            new=AsyncMock(return_value=baseline),
+        ),
+        patch(
+            "app.workflows.update_pmp.retrieve_create_pmp_sources",
+            new=AsyncMock(return_value=([], 0, 2, "platform_seeded", [])),
+        ),
+        patch(
+            "app.workflows.update_pmp.sweep_current_pmp_corpus",
+            new=AsyncMock(return_value=sweep_result),
+        ),
+        patch("app.workflows.update_pmp.run_update_pmp_model", new=run_model),
+        patch(
+            "app.workflows.update_pmp.validate_update_pmp_output",
+            return_value=None,
+        ),
+        patch(
+            "app.workflows.update_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=created_draft),
+        ) as create_draft_mock,
+        patch("app.workflows.create_pmp.sync_pmp_draft_workspace", new=AsyncMock()),
+        patch("app.workflows.update_pmp.sync_decisions_from_markdown", new=AsyncMock()),
+        patch("app.workflows.update_pmp._persist_trace_message", new=AsyncMock()),
+        patch(
+            "app.workflows.create_pmp._next_version_hint",
+            new=AsyncMock(return_value=2),
+        ),
+    ):
+        response = run_async(
+            run_update_pmp_workflow(
+                session,
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+            )
+        )
+
+    assert response.status == "complete"
+    assert run_model.await_count == 1
+    advisory = next(event for event in response.trace if event.step == "coverage")
+    assert advisory.status == "advisory"
+    saved_markdown = create_draft_mock.await_args.kwargs["content_markdown"]
+    assert "Evidence coverage register" in saved_markdown
+    assert "1 November 2026" in saved_markdown
+    assert "42 workstations" in saved_markdown
+
+
 @pytest.mark.anyio
 async def test_sweep_respects_config_cap(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "pmp_sweep_max_documents", 5)

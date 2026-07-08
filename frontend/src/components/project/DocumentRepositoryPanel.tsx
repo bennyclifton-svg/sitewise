@@ -59,6 +59,7 @@ type SplitProposal = {
 
 type RepositoryPanelView = "schedule" | "tree";
 type RepositoryTreeSectionId = "activity" | "skills" | "knowledge" | "admin";
+type SelectionUpdater = Set<string> | ((current: Set<string>) => Set<string>);
 
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
@@ -68,9 +69,11 @@ export function DocumentRepositoryPanel({
   projectId,
   evidence,
   selectedEvidenceId,
+  selectedEvidenceIds,
   workspaceTree,
   selectedWorkspacePath,
   onSelectEvidence,
+  onSelectedEvidenceIdsChange,
   onSelectWorkspacePath,
   onOpenWorkflow,
   onViewWorkbench,
@@ -84,9 +87,11 @@ export function DocumentRepositoryPanel({
   projectId: string;
   evidence: EvidencePreview[];
   selectedEvidenceId: string | null;
+  selectedEvidenceIds?: Set<string>;
   workspaceTree: WorkspaceTreeNode[];
   selectedWorkspacePath: string | null;
   onSelectEvidence: (evidenceId: string) => void;
+  onSelectedEvidenceIdsChange?: (evidenceIds: Set<string>) => void;
   onSelectWorkspacePath: (path: string) => void;
   onOpenWorkflow: (tileId: string) => void;
   onViewWorkbench: () => void;
@@ -110,7 +115,7 @@ export function DocumentRepositoryPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [splitProposals, setSplitProposals] = useState<SplitProposal[]>([]);
   const [resolvingStagingId, setResolvingStagingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(
     () => new Set<string>(),
   );
   const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
@@ -123,6 +128,7 @@ export function DocumentRepositoryPanel({
     () => new Set(registerRows.map((row) => row.id)),
     [registerRows],
   );
+  const selectedIds = selectedEvidenceIds ?? internalSelectedIds;
   const selectedRows = useMemo(
     () => registerRows.filter((row) => selectedIds.has(row.id)),
     [registerRows, selectedIds],
@@ -141,6 +147,17 @@ export function DocumentRepositoryPanel({
     });
   }
   const isDeletingSelection = bulkDeletingIds.size > 0;
+
+  function setSelectedIds(updater: SelectionUpdater) {
+    const current = new Set(selectedIds);
+    const updated = typeof updater === "function" ? updater(current) : updater;
+    const next = new Set([...updated].filter((id) => registerRowIds.has(id)));
+    if (onSelectedEvidenceIdsChange) {
+      onSelectedEvidenceIdsChange(next);
+    } else {
+      setInternalSelectedIds(next);
+    }
+  }
 
   function handleDragEnter(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();

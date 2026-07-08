@@ -2,12 +2,12 @@
   "period": "eco_modern",
   "massing": {
     "footprint": "L",
-    "aspect": [1.9, 1.25, 1.2],
+    "aspect": [1.05, 0.95, 1.05],
     "roof": "flat",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 5,
+    "bays": 4,
     "windowShape": "ribbon",
     "windowToWallRatio": 0.48,
     "verticality": 0.34
@@ -17,8 +17,8 @@
     "density": 0.24
   },
   "material": {
-    "base": "#a9b39a",
-    "roughness": 0.74,
+    "base": "#b7bfa9",
+    "roughness": 0.4,
     "windowEmissive": "#ffd992"
   }
 }

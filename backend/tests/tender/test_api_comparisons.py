@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
 
@@ -88,6 +89,167 @@ def test_create_comparison_preloads_empty_quotes() -> None:
     from tests.conftest import run_async
 
     run_async(_run())
+
+
+def test_create_comparison_from_project_files_creates_quotes_documents_and_jobs(
+    client: TestClient,
+) -> None:
+    comparison = _comparison(id=COMPARISON_ID, context=_repository_context())
+    quotes = [
+        _quote(id=uuid.UUID("44444444-4444-4444-4444-444444444441"), name="Quote 1"),
+        _quote(id=uuid.UUID("44444444-4444-4444-4444-444444444442"), name="Quote 2"),
+        _quote(id=uuid.UUID("44444444-4444-4444-4444-444444444443"), name="Quote 3"),
+    ]
+    documents = [
+        _document(
+            id=uuid.UUID("55555555-5555-5555-5555-555555555551"),
+            quote_id=quotes[0].id,
+        ),
+        _document(
+            id=uuid.UUID("55555555-5555-5555-5555-555555555552"),
+            quote_id=quotes[1].id,
+        ),
+        _document(
+            id=uuid.UUID("55555555-5555-5555-5555-555555555553"),
+            quote_id=quotes[2].id,
+        ),
+    ]
+    created_quotes: list = []
+
+    async def create_quote_side_effect(*args, **kwargs):
+        quote = quotes[len(created_quotes)]
+        created_quotes.append(quote)
+        return quote
+
+    documents_by_quote_id = {
+        document.quote_id: document for document in documents
+    }
+
+    async def store_document_side_effect(*args, **kwargs):
+        return documents_by_quote_id[kwargs["quote"].id]
+
+    enqueue = AsyncMock(side_effect=lambda *args, **kwargs: _job("ingest_document"))
+
+    with (
+        patch("tender.router.ensure_user_exists", new=AsyncMock()),
+        patch("tender.router.get_project", new=AsyncMock(return_value=_project())),
+        patch("tender.router.create_comparison", new=AsyncMock(return_value=comparison)),
+        patch("tender.router.create_quote", new=AsyncMock(side_effect=create_quote_side_effect)),
+        patch(
+            "tender.router.store_project_file_quote_document",
+            new=AsyncMock(side_effect=store_document_side_effect),
+        ),
+        patch("tender.router.jobs.enqueue", new=enqueue),
+    ):
+        response = client.post(
+            "/api/tender/comparisons/from-project-files",
+            json={
+                "project_id": str(PROJECT_ID),
+                "workspace_paths": [
+                    "quotes/nexus.pdf",
+                    "quotes/kaposi.pdf",
+                    "quotes/enmore.pdf",
+                ],
+            },
+        )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["id"] == str(COMPARISON_ID)
+    assert payload["context"]["context_source"] == "repository_selection"
+    assert [quote["builder_name"] for quote in payload["quotes"]] == [
+        "Quote 1",
+        "Quote 2",
+        "Quote 3",
+    ]
+    assert len(payload["quotes"]) == 3
+    assert enqueue.await_count == 3
+    assert [
+        call.kwargs["payload"] for call in enqueue.await_args_list
+    ] == [
+        {"document_id": str(documents[0].id)},
+        {"document_id": str(documents[1].id)},
+        {"document_id": str(documents[2].id)},
+    ]
+
+
+@pytest.mark.parametrize(
+    "workspace_paths",
+    [
+        ["quotes/one.pdf"],
+        [
+            "quotes/one.pdf",
+            "quotes/two.pdf",
+            "quotes/three.pdf",
+            "quotes/four.pdf",
+            "quotes/five.pdf",
+            "quotes/six.pdf",
+        ],
+        ["quotes/one.pdf", "quotes/one.pdf"],
+    ],
+)
+def test_create_comparison_from_project_files_validates_selection_count_and_uniqueness(
+    client: TestClient,
+    workspace_paths: list[str],
+) -> None:
+    response = client.post(
+        "/api/tender/comparisons/from-project-files",
+        json={"project_id": str(PROJECT_ID), "workspace_paths": workspace_paths},
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_comparison_from_project_files_rejects_missing_project_file(
+    client: TestClient,
+) -> None:
+    comparison = _comparison(id=COMPARISON_ID, context=_repository_context())
+
+    with (
+        patch("tender.router.ensure_user_exists", new=AsyncMock()),
+        patch("tender.router.get_project", new=AsyncMock(return_value=_project())),
+        patch("tender.router.create_comparison", new=AsyncMock(return_value=comparison)),
+        patch("tender.router.create_quote", new=AsyncMock(return_value=_quote())),
+        patch(
+            "tender.router.store_project_file_quote_document",
+            new=AsyncMock(
+                side_effect=HTTPException(
+                    status_code=404,
+                    detail="Project file not found",
+                )
+            ),
+        ),
+        patch("tender.router.jobs.enqueue", new=AsyncMock()) as enqueue,
+    ):
+        response = client.post(
+            "/api/tender/comparisons/from-project-files",
+            json={
+                "project_id": str(PROJECT_ID),
+                "workspace_paths": ["quotes/missing.pdf", "quotes/kaposi.pdf"],
+            },
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Project file not found"
+    enqueue.assert_not_awaited()
+
+
+def test_create_comparison_from_project_files_rejects_other_users_project(
+    client: TestClient,
+) -> None:
+    other_project = _project()
+    other_project.owner_user_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
+
+    with patch("tender.router.get_project", new=AsyncMock(return_value=other_project)):
+        response = client.post(
+            "/api/tender/comparisons/from-project-files",
+            json={
+                "project_id": str(PROJECT_ID),
+                "workspace_paths": ["quotes/nexus.pdf", "quotes/kaposi.pdf"],
+            },
+        )
+
+    assert response.status_code == 403
 
 
 def test_list_comparisons_returns_project_scoped_rows(client: TestClient) -> None:
@@ -335,14 +497,14 @@ def _project() -> Project:
     )
 
 
-def _comparison(*, id: uuid.UUID = COMPARISON_ID):
+def _comparison(*, id: uuid.UUID = COMPARISON_ID, context: dict | None = None):
     from tender.models import TenderComparison
 
     return TenderComparison(
         id=id,
         project_id=PROJECT_ID,
         status="intake",
-        context=_context(),
+        context=context or _context(),
         created_by=USER_ID,
         created_at=NOW,
         updated_at=NOW,
@@ -356,13 +518,13 @@ async def _refresh_comparison(comparison) -> None:
     comparison.updated_at = NOW
 
 
-def _quote():
+def _quote(*, id: uuid.UUID = QUOTE_ID, name: str = "A Homes"):
     from tender.models import TenderQuote
 
     return TenderQuote(
-        id=QUOTE_ID,
+        id=id,
         comparison_id=COMPARISON_ID,
-        builder_name="A Homes",
+        builder_name=name,
         builder_abn=None,
         quote_ref=None,
         quote_date=None,
@@ -376,12 +538,12 @@ def _quote():
     )
 
 
-def _document():
+def _document(*, id: uuid.UUID = DOCUMENT_ID, quote_id: uuid.UUID = QUOTE_ID):
     from tender.models import TenderDocument
 
     return TenderDocument(
-        id=DOCUMENT_ID,
-        quote_id=QUOTE_ID,
+        id=id,
+        quote_id=quote_id,
         storage_path="tender/comparisons/333/quotes/444/quote.pdf",
         original_filename="quote.pdf",
         mime_type="application/pdf",
@@ -420,4 +582,11 @@ def _context() -> dict:
         "slope_class": "flat",
         "bal_rating": "none",
         "spec_level": "mid",
+    }
+
+
+def _repository_context() -> dict:
+    return {
+        "context_version": 1,
+        "context_source": "repository_selection",
     }

@@ -2,12 +2,12 @@
   "period": "floating_terraces",
   "massing": {
     "footprint": "stepped",
-    "aspect": [1.9, 1.7, 1.55],
+    "aspect": [1.05, 0.96, 1.1],
     "roof": "flat",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 5,
+    "bays": 4,
     "windowShape": "ribbon",
     "windowToWallRatio": 0.44,
     "verticality": 0.5
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#c3c7be",
-    "roughness": 0.66,
+    "roughness": 0.38,
     "windowEmissive": "#f7d28b"
   }
 }

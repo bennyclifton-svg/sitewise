@@ -408,7 +408,12 @@ def _year(value: Any) -> int | None:
 
 
 def _context_region_tags(context: ProjectContext) -> set[str]:
-    return {context.state, f"{context.state}:{context.region}"}
+    tags: set[str] = set()
+    if context.state:
+        tags.add(context.state)
+    if context.state and context.region:
+        tags.add(f"{context.state}:{context.region}")
+    return tags
 
 
 def _tags_match(rule_tags: Sequence[str], context_tags: set[str]) -> bool:

@@ -1,13 +1,20 @@
 /*
  * SITEFORM landing — hero band (Prompt 3).
- * Marquee, Three.js clay building, detail thumbnail, edge furniture.
+ * Marquee, textured tower house GLB with shutter animation, detail thumbnail.
  */
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
 (function () {
   "use strict";
 
   var CLAY = 0xf2f2ef;
   var ORANGE = 0xf96416;
   var BLACK = 0x0c0c0c;
+  var INK_DIM = 0x5a5a56;
+  var LINE = 0xABABA6;
+
+  var MODEL_URL = "landing-assets/models/tower-house.glb";
 
   var hero;
   var stageCanvas;
@@ -16,26 +23,8 @@
   var detailState = null;
   var rafId = 0;
   var heroVisible = true;
-  var pointer = { x: 0, y: 0 };
   var reducedMotion =
     window.SiteformDisplay && window.SiteformDisplay.prefersReducedMotion();
-
-  function loadThree(callback) {
-    if (window.THREE) {
-      callback(window.THREE);
-      return;
-    }
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js";
-    s.async = true;
-    s.onload = function () {
-      callback(window.THREE);
-    };
-    s.onerror = function () {
-      callback(null);
-    };
-    document.head.appendChild(s);
-  }
 
   function webglSupported() {
     try {
@@ -63,132 +52,179 @@
     }
   }
 
-  function clayMaterial(THREE, roughness) {
+  function clayMaterial(roughness, color) {
     return new THREE.MeshStandardMaterial({
-      color: CLAY,
-      roughness: typeof roughness === "number" ? roughness : 0.9,
+      color: typeof color === "number" ? color : CLAY,
+      roughness: typeof roughness === "number" ? roughness : 0.92,
       metalness: 0,
     });
   }
 
-  function windowRecessMaterial(THREE) {
-    return new THREE.MeshStandardMaterial({
-      color: BLACK,
-      roughness: 0.95,
-      metalness: 0,
+  var clayPalette = {
+    Clay_Base: clayMaterial(0.92, CLAY),
+    Clay_Panel: clayMaterial(0.94, 0xefefec),
+    Clay_Ground: clayMaterial(0.96, 0xe9e9e6),
+    Clay_Line: clayMaterial(0.88, LINE),
+    Clay_InkDim: clayMaterial(0.9, INK_DIM),
+    Clay_Orange: clayMaterial(0.78, ORANGE),
+    Clay_Black: clayMaterial(0.85, BLACK),
+  };
+
+  function prepareModel(root) {
+    root.traverse(function (node) {
+      if (!node.isMesh) return;
+
+      node.castShadow = true;
+      node.receiveShadow = false;
     });
   }
 
-  function addOrangePortal(THREE, group, dims, animParts) {
-    var portalH = dims.height * 0.2;
-    var portalW = dims.width * 0.11;
-    var portalY = dims.height * 0.1;
-    var faceZ = dims.depth / 2 + 0.05;
-
-    var portalFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(portalW, portalH, 0.12),
-      new THREE.MeshStandardMaterial({
-        color: ORANGE,
-        emissive: ORANGE,
-        emissiveIntensity: 0.35,
-        roughness: 0.75,
-        metalness: 0,
-      })
-    );
-    portalFrame.position.set(0, portalY, faceZ);
-    portalFrame.userData.floorIndex = 0;
-    group.add(portalFrame);
-    animParts.push(portalFrame);
-
-    var portalFace = new THREE.Mesh(
-      new THREE.BoxGeometry(portalW * 0.62, portalH * 0.72, 0.06),
-      new THREE.MeshStandardMaterial({
-        color: BLACK,
-        roughness: 0.95,
-        metalness: 0,
-      })
-    );
-    portalFace.position.set(0, portalY, faceZ + 0.06);
-    portalFace.userData.floorIndex = 0;
-    group.add(portalFace);
-    animParts.push(portalFace);
-
-    var glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(portalW * 1.6, portalH * 1.15),
-      new THREE.MeshBasicMaterial({
-        color: ORANGE,
-        transparent: true,
-        opacity: 0.12,
-        depthWrite: false,
-      })
-    );
-    glow.position.set(0, portalY, faceZ - 0.02);
-    glow.userData.floorIndex = 0;
-    group.add(glow);
-    animParts.push(glow);
-
-    if (!reducedMotion) {
-      portalFrame.position.y = -2;
-      portalFace.position.y = -2;
-      glow.position.y = -2;
-    }
-    portalFrame.userData.targetY = portalY;
-    portalFace.userData.targetY = portalY;
-    glow.userData.targetY = portalY;
-  }
-
-  function loadHeroGenome(callback) {
-    fetch("landing-assets/genomes/art_deco.json")
-      .then(function (res) {
-        if (!res.ok) throw new Error("genome fetch failed");
-        return res.json();
-      })
-      .then(callback)
-      .catch(function () {
-        callback({
-          period: "art_deco",
-          massing: {
-            footprint: "stepped",
-            aspect: [1.2, 2.35, 1],
-            roof: "ziggurat",
-            symmetry: "bilateral",
-          },
-          rhythm: {
-            bays: 7,
-            windowShape: "slot",
-            windowToWallRatio: 0.34,
-            verticality: 0.86,
-          },
-          ornament: {
-            motifs: ["fluting", "sunburst_crown", "setbacks"],
-            density: 0.32,
-          },
-          material: { base: "#c7bfae", roughness: 0.68, windowEmissive: "#ffbf69" },
-        });
-      });
-  }
-
-  function createBuilding(THREE, genome) {
-    if (!window.LandingGenomeBuilder) {
-      return { group: new THREE.Group(), animParts: [] };
+  function startModelAnimations(model, animations) {
+    if (!animations || !animations.length || reducedMotion) {
+      return null;
     }
 
-    var clay = clayMaterial(THREE, genome.material.roughness);
-    var built = window.LandingGenomeBuilder.buildFromGenome(
-      THREE,
-      genome,
-      { clay: clay, window: windowRecessMaterial(THREE) },
-      { reducedMotion: reducedMotion, targetHeight: 3.6, baseY: -0.35 }
-    );
+    var mixer = new THREE.AnimationMixer(model);
+    for (var i = 0; i < animations.length; i++) {
+      var action = mixer.clipAction(animations[i]);
+      action.setLoop(THREE.LoopRepeat);
+      action.play();
+    }
 
-    addOrangePortal(THREE, built.group, built.dimensions, built.animParts);
-
-    return { group: built.group, floors: built.animParts };
+    return mixer;
   }
 
-  function createJointBlock(THREE) {
+  function createModelSpinner(canvas, group, options) {
+    var rotY = options.baseRotY || 0;
+    var rotX = 0;
+    var velY = 0;
+    var velX = 0;
+    var dragging = false;
+    var pointerId = null;
+    var lastX = 0;
+    var lastY = 0;
+    var lastTime = 0;
+    var dragClass = "hero__stage-canvas--dragging";
+
+    var DRAG_SENS = 0.0055;
+    var FLICK_SCALE = 14;
+    var FRICTION = 0.93;
+    var MIN_VEL = 0.00008;
+    var MAX_TILT = 0.32;
+
+    function applyRotation() {
+      group.rotation.y = rotY;
+      group.rotation.x = Math.max(-MAX_TILT, Math.min(MAX_TILT, rotX));
+    }
+
+    function onPointerDown(e) {
+      if (e.button !== 0) return;
+
+      dragging = true;
+      pointerId = e.pointerId;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = performance.now();
+      velY = 0;
+      velX = 0;
+      canvas.setPointerCapture(e.pointerId);
+      canvas.classList.add(dragClass);
+    }
+
+    function onPointerMove(e) {
+      if (!dragging || e.pointerId !== pointerId) return;
+
+      var now = performance.now();
+      var dt = Math.max(now - lastTime, 1);
+      var dx = e.clientX - lastX;
+      var dy = e.clientY - lastY;
+
+      rotY += dx * DRAG_SENS;
+      rotX += dy * DRAG_SENS * 0.45;
+      velY = (dx / dt) * DRAG_SENS * FLICK_SCALE;
+      velX = (dy / dt) * DRAG_SENS * 0.45 * FLICK_SCALE;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = now;
+      applyRotation();
+    }
+
+    function endDrag(e) {
+      if (!dragging) return;
+      if (e && e.pointerId !== pointerId) return;
+
+      dragging = false;
+      pointerId = null;
+      canvas.classList.remove(dragClass);
+
+      if (e && typeof canvas.releasePointerCapture === "function") {
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch (err) {
+          /* pointer may already be released */
+        }
+      }
+    }
+
+    function update() {
+      if (dragging) return;
+      if (Math.abs(velY) < MIN_VEL && Math.abs(velX) < MIN_VEL) return;
+
+      rotY += velY;
+      rotX += velX;
+      velY *= FRICTION;
+      velX *= FRICTION;
+      applyRotation();
+    }
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+    canvas.addEventListener("lostpointercapture", endDrag);
+
+    applyRotation();
+
+    return { update: update };
+  }
+
+  function normalizeModel(model, targetHeight) {
+    var box = new THREE.Box3().setFromObject(model);
+    var size = box.getSize(new THREE.Vector3());
+    var center = box.getCenter(new THREE.Vector3());
+    var maxDim = Math.max(size.x, size.y, size.z);
+    var scale = targetHeight / maxDim;
+
+    model.scale.setScalar(scale);
+    model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+
+    box.setFromObject(model);
+    model.userData.groundY = box.min.y;
+  }
+
+  function loadHeroModel() {
+    return new Promise(function (resolve, reject) {
+      var loader = new GLTFLoader();
+      loader.load(
+        MODEL_URL,
+        function (gltf) {
+          var model = gltf.scene;
+          prepareModel(model);
+          normalizeModel(model, 3.2);
+          resolve({
+            model: model,
+            animations: gltf.animations || [],
+          });
+        },
+        undefined,
+        reject
+      );
+    });
+  }
+
+  function createJointBlock() {
     var group = new THREE.Group();
-    var clay = clayMaterial(THREE);
+    var clay = clayMaterial(0.4);
 
     var base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.7), clay);
     base.position.y = 0.11;
@@ -209,7 +245,7 @@
     return group;
   }
 
-  function setupScene(THREE, canvas, options) {
+  function setupScene(canvas, options) {
     var w = canvas.clientWidth || 300;
     var h = canvas.clientHeight || 300;
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -222,6 +258,7 @@
     renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
     renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(
@@ -240,15 +277,14 @@
     var hemi = new THREE.HemisphereLight(0xffffff, 0xd8d8d4, 0.85);
     scene.add(hemi);
 
-    var key = new THREE.DirectionalLight(0xffffff, 0.55);
+    var key = new THREE.DirectionalLight(0xffffff, 0.85);
     key.position.set(4, 8, 6);
     scene.add(key);
 
-    var fill = new THREE.DirectionalLight(0xffffff, 0.25);
+    var fill = new THREE.DirectionalLight(0xffffff, 0.4);
     fill.position.set(-5, 3, -2);
     scene.add(fill);
 
-    /* Contact shadow — soft ground read */
     if (options.ground) {
       var ground = new THREE.Mesh(
         new THREE.PlaneGeometry(6, 6),
@@ -265,49 +301,45 @@
       key.shadow.mapSize.height = 512;
     }
 
-    return { THREE: THREE, renderer: renderer, scene: scene, camera: camera, w: w, h: h };
+    return { renderer: renderer, scene: scene, camera: camera, w: w, h: h };
   }
 
-  function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
-  }
-
-  function initBuilding(THREE, genome) {
+  function initBuilding(model, animations) {
     stageCanvas = document.getElementById("hero-building-canvas");
     if (!stageCanvas) return null;
 
-    var state = setupScene(THREE, stageCanvas, {
-      fov: 30,
-      camX: 3.6,
-      camY: 2.4,
-      camZ: 5.2,
+    var state = setupScene(stageCanvas, {
+      fov: 28,
+      camX: 4.2,
+      camY: 2.6,
+      camZ: 5.8,
       ground: true,
     });
 
-    var built = createBuilding(THREE, genome);
-    state.scene.add(built.group);
-    state.group = built.group;
-    state.floors = built.floors;
-    state.assemblyStart = reducedMotion ? null : performance.now();
-    state.assemblyDuration = 2000;
-    state.rotationSpeed = (Math.PI * 2) / 45000;
-    state.baseRotY = reducedMotion ? 0.55 : 0;
+    state.scene.add(model);
+    state.group = model;
+    state.baseRotY = 0.48;
+    state.mixer = startModelAnimations(model, animations);
+    state.clock = new THREE.Clock();
+    state.spinner = createModelSpinner(stageCanvas, model, {
+      baseRotY: state.baseRotY,
+    });
 
     return state;
   }
 
-  function initDetail(THREE) {
+  function initDetail() {
     detailCanvas = document.getElementById("hero-detail-canvas");
     if (!detailCanvas) return null;
 
-    var state = setupScene(THREE, detailCanvas, {
+    var state = setupScene(detailCanvas, {
       fov: 28,
       camX: 1.4,
       camY: 1.1,
       camZ: 1.8,
     });
 
-    var joint = createJointBlock(THREE);
+    var joint = createJointBlock();
     state.scene.add(joint);
     state.group = joint;
     state.rotationSpeed = 0;
@@ -344,36 +376,18 @@
 
     if (buildingState) {
       var bs = buildingState;
-      bs.group.rotation.y =
-        bs.baseRotY +
-        (reducedMotion ? 0 : now * bs.rotationSpeed) +
-        pointer.x * 0.12;
-      bs.group.rotation.x = pointer.y * 0.04;
-
-      if (bs.assemblyStart !== null) {
-        var elapsed = now - bs.assemblyStart;
-        var progress = Math.min(elapsed / bs.assemblyDuration, 1);
-        for (var i = 0; i < bs.floors.length; i++) {
-          var mesh = bs.floors[i];
-          var floorDelay = (mesh.userData.floorIndex || 0) * 0.08;
-          var localT = Math.max(
-            0,
-            Math.min(1, (progress - floorDelay) / (1 - floorDelay * 0.5))
-          );
-          var eased = easeOutCubic(localT);
-          var startY = mesh.userData.startY != null ? mesh.userData.startY : -2;
-          mesh.position.y =
-            startY + (mesh.userData.targetY - startY) * eased;
-        }
-        if (progress >= 1) bs.assemblyStart = null;
+      if (bs.mixer && bs.clock) {
+        bs.mixer.update(bs.clock.getDelta());
       }
-
+      if (bs.spinner) {
+        bs.spinner.update();
+      }
       bs.renderer.render(bs.scene, bs.camera);
     }
 
     if (detailState) {
-      detailState.group.rotation.y = 0.6 + pointer.x * 0.08;
-      detailState.group.rotation.x = -0.25 + pointer.y * 0.05;
+      detailState.group.rotation.y = 0.6;
+      detailState.group.rotation.x = -0.25;
       detailState.renderer.render(detailState.scene, detailState.camera);
     }
 
@@ -383,13 +397,6 @@
   function onResize() {
     resizeCanvas(buildingState, stageCanvas);
     resizeCanvas(detailState, detailCanvas);
-  }
-
-  function onPointerMove(e) {
-    var rect = hero ? hero.getBoundingClientRect() : null;
-    if (!rect) return;
-    pointer.x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-    pointer.y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
   }
 
   function observeVisibility() {
@@ -412,32 +419,19 @@
       return;
     }
 
-    loadThree(function (THREE) {
-      if (!THREE) {
-        showSvgFallback();
-        return;
-      }
-
-      loadHeroGenome(function (genome) {
-        buildingState = initBuilding(THREE, genome);
-        detailState = initDetail(THREE);
-
-        if (buildingState && buildingState.floors) {
-          for (var i = 0; i < buildingState.floors.length; i++) {
-            buildingState.floors[i].userData.startY =
-              buildingState.floors[i].position.y;
-          }
-        }
+    loadHeroModel()
+      .then(function (payload) {
+        buildingState = initBuilding(payload.model, payload.animations);
+        detailState = initDetail();
 
         onResize();
         window.addEventListener("resize", onResize);
-        if (!reducedMotion) {
-          hero.addEventListener("pointermove", onPointerMove);
-        }
         observeVisibility();
         rafId = requestAnimationFrame(tick);
+      })
+      .catch(function () {
+        showSvgFallback();
       });
-    });
   }
 
   if (document.readyState === "loading") {

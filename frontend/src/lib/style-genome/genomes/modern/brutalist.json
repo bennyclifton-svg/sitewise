@@ -2,12 +2,12 @@
   "period": "brutalist",
   "massing": {
     "footprint": "stepped",
-    "aspect": [1.75, 1.55, 1.25],
+    "aspect": [1.05, 0.98, 1.05],
     "roof": "flat",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 5,
+    "bays": 4,
     "windowShape": "slot",
     "windowToWallRatio": 0.22,
     "verticality": 0.45
@@ -17,8 +17,8 @@
     "density": 0.16
   },
   "material": {
-    "base": "#77746b",
-    "roughness": 0.96,
+    "base": "#98948a",
+    "roughness": 0.5,
     "windowEmissive": "#ffb15c"
   }
 }

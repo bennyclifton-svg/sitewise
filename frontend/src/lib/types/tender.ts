@@ -1,10 +1,11 @@
 export type TenderProjectContext = {
   context_version: number;
-  state: "NSW" | "VIC" | "QLD";
-  region: "metro" | "regional";
-  build_type: "new_build" | "renovation" | "addition";
+  context_source: "manual" | "repository_selection";
+  state: "NSW" | "VIC" | "QLD" | null;
+  region: "metro" | "regional" | null;
+  build_type: "new_build" | "renovation" | "addition" | null;
   dwelling_class: "class_1a";
-  storeys: number;
+  storeys: number | null;
   floor_area_m2: number | null;
   site_area_m2: number | null;
   soil_class: "A" | "S" | "M" | "H1" | "H2" | "E" | "P" | "unknown";
@@ -15,7 +16,7 @@ export type TenderProjectContext = {
   heritage_overlay: boolean | null;
   existing_dwelling_era: string | null;
   demolition_required: boolean | null;
-  spec_level: "builder_base" | "mid" | "high" | "architectural";
+  spec_level: "builder_base" | "mid" | "high" | "architectural" | null;
   target_budget_cents: number | null;
   notes: string | null;
 };
@@ -63,6 +64,11 @@ export type TenderComparison = {
 export type TenderComparisonCreate = {
   project_id: string;
   context: TenderProjectContext;
+};
+
+export type TenderComparisonFromProjectFilesCreate = {
+  project_id: string;
+  workspace_paths: string[];
 };
 
 export type TenderComparisonListResponse = {

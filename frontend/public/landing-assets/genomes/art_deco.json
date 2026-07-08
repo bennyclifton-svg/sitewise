@@ -2,12 +2,12 @@
   "period": "art_deco",
   "massing": {
     "footprint": "stepped",
-    "aspect": [1.2, 2.35, 1],
+    "aspect": [1.05, 0.9, 1],
     "roof": "ziggurat",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 7,
+    "bays": 4,
     "windowShape": "slot",
     "windowToWallRatio": 0.34,
     "verticality": 0.86
@@ -17,8 +17,8 @@
     "density": 0.32
   },
   "material": {
-    "base": "#c7bfae",
-    "roughness": 0.68,
+    "base": "#d9d3c6",
+    "roughness": 0.35,
     "windowEmissive": "#ffbf69"
   }
 }

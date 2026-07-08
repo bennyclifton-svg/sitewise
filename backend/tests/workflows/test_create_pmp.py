@@ -701,7 +701,284 @@ Procurement responsibilities remain Assumption pending appointment and tender re
     assert "Engagement letter on file" in saved_markdown
 
 
-def test_create_pmp_repairs_final_length_failure_before_save() -> None:
+def _taxonomy_project() -> Project:
+    return _project(
+        archetype=None,
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={"taxonomy": {"subclasses": ["office"]}},
+    )
+
+
+def _active_corpus_sweep_result() -> SimpleNamespace:
+    active_passage = _passage(
+        project="greenfield-demo",
+        source_type="project_evidence",
+        relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
+        whole_document=True,
+        content="Tenant brief with current corpus facts.",
+    )
+    return SimpleNamespace(
+        passages=(active_passage,),
+        listing=SimpleNamespace(documents=(active_passage,)),
+        trace_events=(),
+    )
+
+
+def test_create_pmp_retries_structural_failure_with_validation_feedback() -> None:
+    bad_markdown = _valid_pmp_markdown()
+    good_markdown = "# Project Management Plan\n\n## Actions and decisions\n\ngood draft"
+    bad_output = PmpDraftOutput(
+        title="Project Management Plan",
+        markdown=bad_markdown,
+        seed_consulted=_valid_seed_consulted(),
+        evidence_refs=[],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+    good_output = bad_output.model_copy(update={"markdown": good_markdown})
+    validation_message = (
+        "Create PMP output is missing required sections: Actions and decisions"
+    )
+
+    def validate_side_effect(candidate: PmpDraftOutput, *args, **kwargs) -> None:
+        if candidate.markdown != normalize_pmp_markdown(good_markdown):
+            raise WorkflowValidationError(validation_message)
+
+    run_model = AsyncMock(side_effect=[bad_output, good_output])
+    mocks = _pmp_workflow_mocks(
+        _active_corpus_sweep_result(),
+        run_model,
+        validate_side_effect,
+    )
+    with mocks[0], mocks[1], mocks[2], mocks[3], mocks[4], mocks[5]:
+        result = run_async(
+            run_create_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=_taxonomy_project(),
+                thread_id=None,
+            )
+        )
+
+    assert run_model.await_count == 2
+    assert run_model.await_args_list[1].kwargs["validation_feedback"] == validation_message
+    assert result.status == "complete"
+
+
+def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
+    platform_passage = _passage(
+        project="seed",
+        source_type="reference",
+        relative_path="seed/setup-and-commission-guide.md",
+        whole_document=True,
+    )
+    draft = AsyncMock()
+    draft.id = uuid.uuid4()
+    draft.project_id = PROJECT_ID
+    draft.workflow_type = "create_pmp"
+    draft.version = 1
+    draft.status = "draft"
+    draft.title = "Project Management Plan"
+    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
+    draft.author_user_id = USER_ID
+    draft.content_markdown = "saved markdown"
+    draft.model = "openai-chat:gpt-5.5"
+    draft.runtime = "clerk-sitewise-create-pmp"
+    draft.provenance_metadata = {}
+    draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
+    draft.updated_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
+    return (
+        patch(
+            "app.workflows.create_pmp.retrieve_create_pmp_sources",
+            new=AsyncMock(return_value=([platform_passage], 0, 1, "platform_seeded", [])),
+        ),
+        patch(
+            "app.workflows.create_pmp.sweep_current_pmp_corpus",
+            new=AsyncMock(return_value=sweep_result),
+        ),
+        patch("app.workflows.create_pmp.run_create_pmp_model", new=run_model_mock),
+        patch("app.workflows.create_pmp.validate_pmp_output", side_effect=validate_side_effect),
+        patch("app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)),
+        patch("app.workflows.create_pmp.create_draft_artifact", new=AsyncMock(return_value=draft)),
+    )
+
+
+def test_validate_pmp_output_treats_length_as_advisory() -> None:
+    project = _taxonomy_project()
+    sections = required_section_headings("architect-pm", project=project)
+    body = "\n\n".join(
+        f"## {heading}\n\nAssumption content for {heading}."
+        for heading in sections
+    )
+    output = PmpDraftOutput(
+        title="PMP",
+        markdown=f"# Project Management Plan\n\n{body}",
+        seed_consulted=_valid_seed_consulted()
+        + list(
+            required_platform_paths(
+                archetype="renovation",
+                user_role="architect-pm",
+                project=project,
+            )
+        ),
+        evidence_refs=[],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+    with (
+        patch(
+            "app.workflows.create_pmp.taxonomy_provenance_violations",
+            return_value=[],
+        ),
+        patch(
+            "app.workflows.create_pmp.greenfield_structure_violations",
+            return_value=[],
+        ),
+        patch(
+            "app.workflows.create_pmp.length_violations",
+            return_value=[
+                "Draft is 2464 words, maximum 1800 (5% tolerance 1890) "
+                "- condense by about 664 words."
+            ],
+        ),
+    ):
+        validate_pmp_output(
+            output,
+            "platform_seeded",
+            archetype="renovation",
+            user_role="architect-pm",
+            project=project,
+        )
+
+
+def test_create_pmp_over_length_draft_completes_with_length_advisory() -> None:
+    over_markdown = _valid_pmp_markdown() + "\n\n" + " ".join(["filler"] * 2200)
+    output = PmpDraftOutput(
+        title="Project Management Plan",
+        markdown=over_markdown,
+        seed_consulted=_valid_seed_consulted(),
+        evidence_refs=[],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+    run_model = AsyncMock(return_value=output)
+    mocks = _pmp_workflow_mocks(
+        _active_corpus_sweep_result(),
+        run_model,
+        lambda *args, **kwargs: None,
+    )
+    with mocks[0], mocks[1], mocks[2], mocks[3], mocks[4], mocks[5]:
+        result = run_async(
+            run_create_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=_taxonomy_project(),
+                thread_id=None,
+            )
+        )
+
+    assert result.status == "complete"
+    assert run_model.await_count == 1
+    advisory = next(event for event in result.trace if event.step == "length")
+    assert advisory.status == "advisory"
+    assert advisory.metadata["word_count"] > 1800
+
+
+def _prompt_platform_passage() -> SourcePassage:
+    return _passage(
+        project="seed",
+        source_type="reference",
+        relative_path="seed/commercial-construction-guide.md",
+        whole_document=True,
+        content="Seed guidance content for commercial construction.",
+    )
+
+
+def test_build_create_pmp_prompt_puts_static_knowledge_first_and_volatile_last() -> None:
+    from datetime import date
+
+    from app.workflows.create_pmp import build_create_pmp_prompt
+
+    platform_passage = _prompt_platform_passage()
+    evidence_passage = _passage(
+        project="greenfield-demo",
+        source_type="project_evidence",
+        relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
+        whole_document=True,
+        content="Tenant brief evidence content.",
+    )
+    prompt = build_create_pmp_prompt(
+        project=_taxonomy_project(),
+        passages=[evidence_passage, platform_passage],
+        draft_mode="evidence_grounded",
+        run_date=date(2026, 7, 8),
+        validation_feedback="Fix the missing risk register.",
+        coverage_requirements="- tenant-brief.md\n  - programme date: 1 November 2026",
+    )
+
+    platform_index = prompt.index("Seed guidance content for commercial construction.")
+    title_index = prompt.index("Greenfield Demo")
+    date_index = prompt.index("2026-07-08")
+    coverage_index = prompt.index("Mandatory current-corpus coverage")
+    evidence_index = prompt.index("Tenant brief evidence content.")
+    feedback_index = prompt.index("Fix the missing risk register.")
+
+    assert platform_index < title_index
+    assert title_index < date_index
+    assert date_index < coverage_index < evidence_index < feedback_index
+
+
+def test_build_create_pmp_prompt_shares_prefix_across_volatile_changes() -> None:
+    import os
+    from datetime import date
+
+    from app.workflows.create_pmp import build_create_pmp_prompt
+
+    platform_passage = _prompt_platform_passage()
+
+    def _prompt(run_date: date, evidence_content: str, feedback: str | None) -> str:
+        evidence_passage = _passage(
+            project="greenfield-demo",
+            source_type="project_evidence",
+            relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
+            whole_document=True,
+            content=evidence_content,
+        )
+        return build_create_pmp_prompt(
+            project=_taxonomy_project(),
+            passages=[evidence_passage, platform_passage],
+            draft_mode="evidence_grounded",
+            run_date=run_date,
+            validation_feedback=feedback,
+            coverage_requirements=f"- tenant-brief.md\n  - fact: {evidence_content}",
+        )
+
+    first = _prompt(date(2026, 7, 8), "Possession 1 November 2026.", None)
+    second = _prompt(date(2026, 7, 9), "Possession moved to 1 December 2026.", "Fix X.")
+
+    common = os.path.commonprefix([first, second])
+    assert "Seed guidance content for commercial construction." in common
+    assert "Required PM-facing sections" in common
+
+
+def _coverage_sweep_result() -> SimpleNamespace:
+    active_passage = _passage(
+        project="greenfield-demo",
+        source_type="project_evidence",
+        relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
+        whole_document=True,
+        content=(
+            "This tenant requirements brief lists functional requirements.\n"
+            "Target possession for fit-out: 1 November 2026.\n"
+            "Fit-out includes 42 workstations."
+        ),
+    )
+    return SimpleNamespace(
+        passages=(active_passage,),
+        listing=SimpleNamespace(documents=(active_passage,)),
+        trace_events=(),
+    )
+
+
+def test_create_pmp_coverage_misses_backfill_without_retry() -> None:
     output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=_valid_pmp_markdown(),
@@ -709,190 +986,37 @@ def test_create_pmp_repairs_final_length_failure_before_save() -> None:
         evidence_refs=[],
         context_refs=["doctrine:docs/clerk-brief.md"],
     )
-    draft = AsyncMock()
-    draft.id = uuid.uuid4()
-    draft.project_id = PROJECT_ID
-    draft.workflow_type = "create_pmp"
-    draft.version = 1
-    draft.status = "draft"
-    draft.title = output.title
-    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
-    draft.author_user_id = USER_ID
-    draft.content_markdown = "condensed markdown"
-    draft.model = "openai-chat:gpt-5.5"
-    draft.runtime = "clerk-sitewise-create-pmp"
-    draft.provenance_metadata = {}
-    draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
-    draft.updated_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
-    platform_passage = _passage(
-        project="seed",
-        source_type="reference",
-        relative_path="seed/setup-and-commission-guide.md",
-        whole_document=True,
+    run_model = AsyncMock(return_value=output)
+    sweep_result = _coverage_sweep_result()
+    mocks = _pmp_workflow_mocks(
+        sweep_result,
+        run_model,
+        lambda *args, **kwargs: None,
     )
-    active_passage = _passage(
-        project="greenfield-demo",
-        source_type="project_evidence",
-        relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
-        whole_document=True,
-        content="Tenant brief with current corpus facts.",
-    )
-    sweep_result = SimpleNamespace(
-        passages=(active_passage,),
-        listing=SimpleNamespace(documents=(active_passage,)),
-        trace_events=(),
-    )
-    validate_calls = 0
-
-    def validate_side_effect(candidate: PmpDraftOutput, *args, **kwargs) -> None:
-        nonlocal validate_calls
-        validate_calls += 1
-        if validate_calls <= 3:
-            raise WorkflowValidationError(
-                "Create PMP length issues: Draft is 2001 words, maximum 1800 "
-                "(5% tolerance 1890) - condense by about 201 words."
-            )
-        assert candidate.markdown == "condensed markdown"
-
-    with (
-        patch(
-            "app.workflows.create_pmp.retrieve_create_pmp_sources",
-            new=AsyncMock(return_value=([platform_passage], 0, 1, "platform_seeded", [])),
-        ),
-        patch(
-            "app.workflows.create_pmp.sweep_current_pmp_corpus",
-            new=AsyncMock(return_value=sweep_result),
-        ),
-        patch(
-            "app.workflows.create_pmp.run_create_pmp_model",
-            new=AsyncMock(return_value=output),
-        ) as run_model,
-        patch(
-            "app.workflows.create_pmp.condense_primary_markdown_to_word_band",
-            return_value="condensed markdown",
-        ) as condense,
-        patch("app.workflows.create_pmp.validate_pmp_output", side_effect=validate_side_effect),
-        patch("app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)),
-        patch("app.workflows.create_pmp.create_draft_artifact", new=AsyncMock(return_value=draft)),
-    ):
+    with mocks[0], mocks[1], mocks[2], mocks[3], mocks[4], mocks[5] as create_draft:
         result = run_async(
             run_create_pmp_workflow(
                 AsyncMock(),
                 user_id=USER_ID,
-                project=_project(
-                    archetype=None,
-                    building_class="commercial",
-                    work_type="refurb",
-                    project_metadata={"taxonomy": {"subclasses": ["office"]}},
-                ),
+                project=_taxonomy_project(),
                 thread_id=None,
             )
         )
 
     assert result.status == "complete"
-    assert run_model.await_count == 3
-    condense.assert_called_once()
-    assert any(event.status == "repaired" for event in result.trace)
-
-
-def test_create_pmp_allows_small_final_length_overrun_with_warning() -> None:
-    slightly_over_markdown = (
-        "# Project Management Plan\n\n## Actions and decisions\n\n"
-        + " ".join(["action"] * 1950)
+    assert run_model.await_count == 1
+    advisory = next(event for event in result.trace if event.step == "coverage")
+    assert advisory.status == "advisory"
+    saved_markdown = create_draft.await_args.kwargs["content_markdown"]
+    assert "Evidence coverage register" in saved_markdown
+    assert "1 November 2026" in saved_markdown
+    assert "42 workstations" in saved_markdown
+    sweep_ref = (
+        f"project_evidence:{sweep_result.passages[0].relative_path}"
+        f"#chunk={sweep_result.passages[0].chunk_id}"
     )
-    output = PmpDraftOutput(
-        title="Project Management Plan",
-        markdown=slightly_over_markdown,
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
-    draft = AsyncMock()
-    draft.id = uuid.uuid4()
-    draft.project_id = PROJECT_ID
-    draft.workflow_type = "create_pmp"
-    draft.version = 1
-    draft.status = "draft"
-    draft.title = output.title
-    draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
-    draft.author_user_id = USER_ID
-    draft.content_markdown = output.markdown
-    draft.model = "openai-chat:gpt-5.5"
-    draft.runtime = "clerk-sitewise-create-pmp"
-    draft.provenance_metadata = {}
-    draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
-    draft.updated_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
-    platform_passage = _passage(
-        project="seed",
-        source_type="reference",
-        relative_path="seed/setup-and-commission-guide.md",
-        whole_document=True,
-    )
-    active_passage = _passage(
-        project="greenfield-demo",
-        source_type="project_evidence",
-        relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
-        whole_document=True,
-        content="Tenant brief with current corpus facts.",
-    )
-    sweep_result = SimpleNamespace(
-        passages=(active_passage,),
-        listing=SimpleNamespace(documents=(active_passage,)),
-        trace_events=(),
-    )
-
-    def validate_side_effect(
-        candidate: PmpDraftOutput,
-        *args,
-        allow_length_overrun: bool = False,
-        **kwargs,
-    ) -> None:
-        if allow_length_overrun:
-            assert candidate.markdown == slightly_over_markdown
-            return
-        raise WorkflowValidationError(
-            "Create PMP length issues: Draft is 1955 words, maximum 1800 "
-            "(5% tolerance 1890) - condense by about 155 words."
-        )
-
-    with (
-        patch(
-            "app.workflows.create_pmp.retrieve_create_pmp_sources",
-            new=AsyncMock(return_value=([platform_passage], 0, 1, "platform_seeded", [])),
-        ),
-        patch(
-            "app.workflows.create_pmp.sweep_current_pmp_corpus",
-            new=AsyncMock(return_value=sweep_result),
-        ),
-        patch(
-            "app.workflows.create_pmp.run_create_pmp_model",
-            new=AsyncMock(return_value=output),
-        ),
-        patch(
-            "app.workflows.create_pmp.condense_primary_markdown_to_word_band",
-            return_value=slightly_over_markdown,
-        ),
-        patch("app.workflows.create_pmp.validate_pmp_output", side_effect=validate_side_effect),
-        patch("app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)),
-        patch("app.workflows.create_pmp.create_draft_artifact", new=AsyncMock(return_value=draft)),
-    ):
-        result = run_async(
-            run_create_pmp_workflow(
-                AsyncMock(),
-                user_id=USER_ID,
-                project=_project(
-                    archetype=None,
-                    building_class="commercial",
-                    work_type="refurb",
-                    project_metadata={"taxonomy": {"subclasses": ["office"]}},
-                ),
-                thread_id=None,
-            )
-        )
-
-    assert result.status == "complete"
-    warning = next(event for event in result.trace if event.status == "warning")
-    assert warning.metadata["length_overrun_allowed"] is True
+    provenance = create_draft.await_args.kwargs["provenance_metadata"]
+    assert sweep_ref in provenance["evidence_refs"]
 
 
 def test_validate_pmp_output_allows_empty_evidence_refs_for_platform_seeded() -> None:

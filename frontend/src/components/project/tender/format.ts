@@ -32,7 +32,8 @@ export function formatTenderDate(value: string | null | undefined): string {
   return dateFormatter.format(new Date(value));
 }
 
-export function formatTenderStage(value: string): string {
+export function formatTenderStage(value: string | null | undefined): string {
+  if (!value) return "Not stated";
   return value
     .split("_")
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))

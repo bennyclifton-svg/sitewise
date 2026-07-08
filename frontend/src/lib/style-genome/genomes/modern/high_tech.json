@@ -2,12 +2,12 @@
   "period": "high_tech",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [1.45, 2.25, 1],
+    "aspect": [1, 0.95, 1],
     "roof": "flat",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 6,
+    "bays": 4,
     "windowShape": "ribbon",
     "windowToWallRatio": 0.58,
     "verticality": 0.62
@@ -17,8 +17,8 @@
     "density": 0.24
   },
   "material": {
-    "base": "#bfc6c8",
-    "roughness": 0.42,
+    "base": "#c8ced0",
+    "roughness": 0.32,
     "windowEmissive": "#9edcff"
   }
 }

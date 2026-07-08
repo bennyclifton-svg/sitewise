@@ -2,12 +2,12 @@
   "period": "classical",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [2.4, 1.15, 1],
+    "aspect": [1.05, 0.98, 1],
     "roof": "gable",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 7,
+    "bays": 5,
     "windowShape": "sash",
     "windowToWallRatio": 0.24,
     "verticality": 0.25
@@ -17,8 +17,8 @@
     "density": 0.34
   },
   "material": {
-    "base": "#d8d0bd",
-    "roughness": 0.84,
+    "base": "#e3ddd0",
+    "roughness": 0.42,
     "windowEmissive": "#f6b46a"
   }
 }

@@ -34,14 +34,14 @@ const fieldClass =
 const multiSelectClass =
   "min-h-24 w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-const states: TenderProjectContext["state"][] = ["NSW", "VIC", "QLD"];
-const regions: TenderProjectContext["region"][] = ["metro", "regional"];
-const buildTypes: TenderProjectContext["build_type"][] = [
+const states: NonNullable<TenderProjectContext["state"]>[] = ["NSW", "VIC", "QLD"];
+const regions: NonNullable<TenderProjectContext["region"]>[] = ["metro", "regional"];
+const buildTypes: NonNullable<TenderProjectContext["build_type"]>[] = [
   "new_build",
   "renovation",
   "addition",
 ];
-const soilClasses: TenderProjectContext["soil_class"][] = [
+const soilClasses: NonNullable<TenderProjectContext["soil_class"]>[] = [
   "unknown",
   "A",
   "S",
@@ -51,13 +51,13 @@ const soilClasses: TenderProjectContext["soil_class"][] = [
   "E",
   "P",
 ];
-const slopeClasses: TenderProjectContext["slope_class"][] = [
+const slopeClasses: NonNullable<TenderProjectContext["slope_class"]>[] = [
   "unknown",
   "flat",
   "moderate",
   "steep",
 ];
-const balRatings: TenderProjectContext["bal_rating"][] = [
+const balRatings: NonNullable<TenderProjectContext["bal_rating"]>[] = [
   "unknown",
   "none",
   "12.5",
@@ -66,7 +66,7 @@ const balRatings: TenderProjectContext["bal_rating"][] = [
   "40",
   "FZ",
 ];
-const specLevels: TenderProjectContext["spec_level"][] = [
+const specLevels: NonNullable<TenderProjectContext["spec_level"]>[] = [
   "builder_base",
   "mid",
   "high",
@@ -93,19 +93,20 @@ export function TenderIntakePanel({
   onCancel?: () => void;
 }) {
   const navigate = useNavigate();
-  const [state, setState] = useState<TenderProjectContext["state"]>("NSW");
-  const [region, setRegion] = useState<TenderProjectContext["region"]>("metro");
+  const [state, setState] = useState<NonNullable<TenderProjectContext["state"]>>("NSW");
+  const [region, setRegion] =
+    useState<NonNullable<TenderProjectContext["region"]>>("metro");
   const [buildType, setBuildType] =
-    useState<TenderProjectContext["build_type"]>("new_build");
+    useState<NonNullable<TenderProjectContext["build_type"]>>("new_build");
   const [storeys, setStoreys] = useState("1");
   const [floorArea, setFloorArea] = useState("");
   const [siteArea, setSiteArea] = useState("");
   const [soilClass, setSoilClass] =
-    useState<TenderProjectContext["soil_class"]>("unknown");
+    useState<NonNullable<TenderProjectContext["soil_class"]>>("unknown");
   const [slopeClass, setSlopeClass] =
-    useState<TenderProjectContext["slope_class"]>("unknown");
+    useState<NonNullable<TenderProjectContext["slope_class"]>>("unknown");
   const [balRating, setBalRating] =
-    useState<TenderProjectContext["bal_rating"]>("unknown");
+    useState<NonNullable<TenderProjectContext["bal_rating"]>>("unknown");
   const [windRating, setWindRating] = useState("");
   const [floodOverlay, setFloodOverlay] = useState<BoolSelect>("unknown");
   const [heritageOverlay, setHeritageOverlay] = useState<BoolSelect>("unknown");
@@ -113,7 +114,7 @@ export function TenderIntakePanel({
   const [demolitionRequired, setDemolitionRequired] =
     useState<BoolSelect>("unknown");
   const [specLevel, setSpecLevel] =
-    useState<TenderProjectContext["spec_level"]>("mid");
+    useState<NonNullable<TenderProjectContext["spec_level"]>>("mid");
   const [targetBudget, setTargetBudget] = useState("");
   const [notes, setNotes] = useState("");
   const [quotes, setQuotes] = useState<QuoteDraft[]>(() => [
@@ -203,6 +204,7 @@ export function TenderIntakePanel({
   function buildContext(): TenderProjectContext {
     return {
       context_version: 1,
+      context_source: "manual",
       state,
       region,
       build_type: buildType,

@@ -80,6 +80,21 @@ def test_evaluate_rules_filters_by_region_and_build_type_tags() -> None:
     assert [rule.rule_code for rule in fired] == ["STATE", "STATE_REGION", "BUILD"]
 
 
+def test_repository_selection_context_does_not_fake_rule_matches() -> None:
+    rules = [
+        _rule("STATE", predicate={"field": "state", "eq": "NSW"}, region_tags=("NSW",)),
+        _rule("BUILD", predicate={"field": "build_type", "eq": "new_build"}, build_type_tags=("new_build",)),
+        _rule("STOREYS", predicate={"field": "storeys", "gte": 2}),
+    ]
+
+    fired = evaluate_rules(
+        rules,
+        ProjectContext.model_validate({"context_source": "repository_selection"}),
+    )
+
+    assert fired == []
+
+
 def test_appendix_a_example_rules_fire_verbatim() -> None:
     rules = [
         _rule(

@@ -118,6 +118,28 @@ def test_validate_update_pmp_output_rejects_evidence_contradictions() -> None:
         raise AssertionError("Expected validation to fail for evidence contradictions")
 
 
+def test_validate_update_pmp_output_accepts_valid_output_without_coverage_refs() -> None:
+    baseline = _valid_evidence_grounded_pmp_markdown()
+    full_seeds = _valid_seed_consulted() + ["seed/new-dwelling-guide.md"]
+    output = PmpDraftOutput(
+        title="Project Management Plan",
+        markdown=baseline,
+        seed_consulted=full_seeds,
+        evidence_refs=[
+            "project_evidence:test/02-consultant/architect/"
+            "01-engagement-letter-harrison-clarke-studio.md#chunk=abc",
+        ],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+    validate_update_pmp_output(
+        output,
+        baseline_markdown=baseline,
+        archetype="new-dwelling",
+        user_role="architect-pm",
+        has_evidence_delta=True,
+    )
+
+
 def test_markdown_section_headings_extracts_custom_sections() -> None:
     markdown = "## Project overview\n\n## Custom client section\n\nBody\n"
     assert markdown_section_headings(markdown) == [

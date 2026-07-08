@@ -2,12 +2,12 @@
   "period": "australian_coastal",
   "massing": {
     "footprint": "stepped",
-    "aspect": [2.25, 0.95, 1.3],
+    "aspect": [1.05, 0.92, 1.1],
     "roof": "shed",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 4,
+    "bays": 3,
     "windowShape": "ribbon",
     "windowToWallRatio": 0.5,
     "verticality": 0.22
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#d9d2c3",
-    "roughness": 0.72,
+    "roughness": 0.4,
     "windowEmissive": "#ffd08a"
   }
 }

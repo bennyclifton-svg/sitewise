@@ -2,7 +2,7 @@
   "period": "bauhaus",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [2.1, 1.1, 1],
+    "aspect": [1.05, 0.97, 1],
     "roof": "flat",
     "symmetry": "asymmetric"
   },
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#f1efe7",
-    "roughness": 0.56,
+    "roughness": 0.35,
     "windowEmissive": "#ffe0a3"
   }
 }

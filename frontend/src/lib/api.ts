@@ -11,6 +11,7 @@ import type {
 import type {
   TenderComparison,
   TenderComparisonCreate,
+  TenderComparisonFromProjectFilesCreate,
   TenderComparisonListResponse,
   TenderDocumentUploadResponse,
   TenderJob,
@@ -267,6 +268,11 @@ export const api = {
     input: TenderComparisonCreate,
   ): Promise<TenderComparison> =>
     api.post<TenderComparison>("/api/tender/comparisons", input),
+
+  createTenderComparisonFromProjectFiles: async (
+    input: TenderComparisonFromProjectFilesCreate,
+  ): Promise<TenderComparison> =>
+    api.post<TenderComparison>("/api/tender/comparisons/from-project-files", input),
 
   createTenderQuote: async (
     comparisonId: string,

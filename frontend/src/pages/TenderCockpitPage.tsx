@@ -21,7 +21,8 @@ export function TenderCockpitPage() {
     comparisonId?: string;
   }>();
   const location = useLocation();
-  const { project } = useOutletContext<ProjectCockpitOutletContext>();
+  const { project, selectedRepositoryEvidence = [] } =
+    useOutletContext<ProjectCockpitOutletContext>();
 
   if (!projectId) return <Navigate to="/" replace />;
   if (!project) return null;
@@ -37,7 +38,12 @@ export function TenderCockpitPage() {
       comparisonId={comparisonId ?? null}
       title={viewTitle(view)}
     >
-      {view === "list" ? <ComparisonList projectId={projectId} /> : null}
+      {view === "list" ? (
+        <ComparisonList
+          projectId={projectId}
+          selectedEvidence={selectedRepositoryEvidence}
+        />
+      ) : null}
       {view === "overview" && comparisonId ? (
         <ComparisonOverview projectId={projectId} comparisonId={comparisonId} />
       ) : null}

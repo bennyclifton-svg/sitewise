@@ -2,12 +2,12 @@
   "period": "georgian",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [1.7, 1.25, 1],
+    "aspect": [1.05, 0.97, 1],
     "roof": "hipped",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 5,
+    "bays": 4,
     "windowShape": "sash",
     "windowToWallRatio": 0.32,
     "verticality": 0.38
@@ -17,8 +17,8 @@
     "density": 0.2
   },
   "material": {
-    "base": "#a15f47",
-    "roughness": 0.78,
+    "base": "#b47a63",
+    "roughness": 0.4,
     "windowEmissive": "#ffd08a"
   }
 }

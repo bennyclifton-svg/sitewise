@@ -1,0 +1,117 @@
+<!doctype html>
+<!--
+  VERIS — glyph proof (v e r i s traced + a l n o t derived).
+  Must be served over HTTP (not file://):
+    http://localhost:8765/landing-assets/veris-spec.html
+  Regenerate:
+    python frontend/public/landing-assets/trace_veris.py
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VERIS — Glyph Proof</title>
+    <style>
+      :root { --bg: #fff; --line: #e4e4e4; --dim: #888; --red: #e54545; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: ui-monospace, monospace; font-size: 12px; background: var(--bg); color: #111; }
+      .sheet { max-width: 1200px; margin: 0 auto; border: 1px solid var(--line); }
+      .band { padding: 20px 24px; border-bottom: 1px solid var(--line); }
+      .label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
+      .note { color: var(--dim); line-height: 1.6; max-width: 72ch; }
+      .warn { color: #a33; margin-top: 8px; }
+      .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: end; }
+      .compare img, .veris-line svg { width: 100%; max-width: 520px; height: auto; display: block; }
+      .caption { margin-top: 8px; color: var(--dim); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .glyph-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+      .glyph-cell { border: 1px solid var(--line); padding: 12px; min-width: 88px; text-align: center; }
+      .glyph-cell img { height: 72px; width: auto; display: block; margin: 0 auto; }
+      .glyph-cell .veris-line svg { max-width: 80px; margin: 0 auto; }
+      .status { margin-top: 10px; font-size: 11px; color: var(--dim); }
+      .status.ok { color: #1a7f37; }
+      .status.err { color: #a33; }
+      .derived-sample { font-size: clamp(48px, 10vw, 120px); line-height: 1; }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <header class="band">
+        <p class="label">Veris / 10 glyphs</p>
+        <p class="note">
+          <strong>v e r i s</strong> traced from reference PNG.
+          <strong>a l n o t</strong> derived from those parts.
+          Open via <code>http://localhost:8765/landing-assets/veris-spec.html</code> (not <code>file://</code>).
+        </p>
+        <p id="load-status" class="status">Loading glyph data…</p>
+      </header>
+
+      <section class="band">
+        <p class="label">Derived letters (static PNG — always visible)</p>
+        <div class="glyph-row" id="static-derived">
+          <div class="glyph-cell"><img src="./glyphs/a.png" alt="a" /><p class="caption">a</p></div>
+          <div class="glyph-cell"><img src="./glyphs/l.png" alt="l" /><p class="caption">l</p></div>
+          <div class="glyph-cell"><img src="./glyphs/n.png" alt="n" /><p class="caption">n</p></div>
+          <div class="glyph-cell"><img src="./glyphs/o.png" alt="o" /><p class="caption">o</p></div>
+          <div class="glyph-cell"><img src="./glyphs/t.png" alt="t" /><p class="caption">t</p></div>
+        </div>
+        <div class="derived-sample veris-line" data-veris-text="alnot" style="margin-top:24px;color:var(--red)"></div>
+        <p class="caption">alnot (composed via VerisDisplay)</p>
+      </section>
+
+      <section class="band">
+        <p class="label">Reference vs rendered (v e r i s)</p>
+        <div class="compare">
+          <div>
+            <img src="./veris-reference.png" alt="Reference veris wordmark" />
+            <p class="caption">Reference PNG</p>
+          </div>
+          <div class="veris-line" data-veris-text="veris"></div>
+          <p class="caption">Rendered</p>
+        </div>
+      </section>
+
+      <section class="band">
+        <p class="label">Word sample</p>
+        <div class="derived-sample veris-line" data-veris-text="veris total"></div>
+        <p class="caption">veris total</p>
+      </section>
+
+      <section class="band">
+        <p class="label">All 10 glyphs (traced + derived)</p>
+        <div class="glyph-row" id="glyph-row"></div>
+      </section>
+    </div>
+
+    <script src="./veris-glyphs.data.js?v=4"></script>
+    <script src="./veris-display.js?v=4"></script>
+    <script>
+      (function () {
+        var status = document.getElementById("load-status");
+        var count = Object.keys(window.VerisGlyphData || {}).length;
+        if (count >= 10) {
+          status.textContent = "Loaded " + count + " glyphs (v e r i s + a l n o t).";
+          status.className = "status ok";
+        } else {
+          status.textContent = "Only " + count + " glyphs loaded — run: python derive_veris-glyphs.py";
+          status.className = "status err";
+        }
+
+        VerisDisplay.renderAll();
+
+        "verisalnot".split("").forEach(function (ch) {
+          var cell = document.createElement("div");
+          cell.className = "glyph-cell";
+          var stage = document.createElement("div");
+          stage.className = "veris-line";
+          VerisDisplay.renderDisplayText(stage, ch);
+          var cap = document.createElement("p");
+          cap.className = "caption";
+          cap.textContent = ch;
+          cell.appendChild(stage);
+          cell.appendChild(cap);
+          document.getElementById("glyph-row").appendChild(cell);
+        });
+      })();
+    </script>
+  </body>
+</html>

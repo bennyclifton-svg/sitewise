@@ -2,12 +2,12 @@
   "period": "vertical_forest",
   "massing": {
     "footprint": "stepped",
-    "aspect": [1.35, 2.25, 1.15],
+    "aspect": [1, 0.94, 1.05],
     "roof": "flat",
     "symmetry": "asymmetric"
   },
   "rhythm": {
-    "bays": 6,
+    "bays": 4,
     "windowShape": "tall_rect",
     "windowToWallRatio": 0.36,
     "verticality": 0.68
@@ -17,8 +17,8 @@
     "density": 0.34
   },
   "material": {
-    "base": "#9aa58f",
-    "roughness": 0.8,
+    "base": "#adb7a1",
+    "roughness": 0.42,
     "windowEmissive": "#ffd27d"
   }
 }

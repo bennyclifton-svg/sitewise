@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from app.sitewise.pmp_coverage import (
+    COVERAGE_REGISTER_HEADING,
+    backfill_corpus_coverage,
     build_corpus_coverage_requirements,
     corpus_coverage_violations,
 )
@@ -45,9 +47,7 @@ def test_meridian_coverage_requirements_capture_dates_values_and_scope() -> None
     assert "$180k-$240k" in requirement_text
 
 
-def test_meridian_coverage_rejects_missing_files_and_scope_facts() -> None:
-    texts, labels, refs = _meridian_files()
-    markdown = """
+_SPARSE_MARKDOWN = """
 ## Project snapshot
 
 Evidence on file: planning advice, engagement letter, fee proposal.
@@ -61,8 +61,12 @@ The scope includes a commercial office fit-out with a legal library and partner 
 SSD is the primary pathway.
 """
 
+
+def test_meridian_coverage_rejects_missing_files_and_scope_facts() -> None:
+    texts, labels, refs = _meridian_files()
+
     violations = corpus_coverage_violations(
-        markdown,
+        _SPARSE_MARKDOWN,
         output_evidence_refs=refs[:3],
         required_evidence_refs=refs,
         source_texts=texts,
@@ -79,9 +83,7 @@ SSD is the primary pathway.
     assert "22-26 weeks" in joined
 
 
-def test_meridian_coverage_accepts_compact_fact_carriage() -> None:
-    texts, labels, refs = _meridian_files()
-    markdown = """
+_COMPLETE_MARKDOWN = """
 ## Project snapshot
 
 Evidence on file: all five Meridian current-corpus files.
@@ -124,10 +126,81 @@ Core drilling 7am to 5pm. Acoustic partitions, landlord approval of slab penetra
 and Apex is not a related party to Form & Function.
 """
 
+
+def test_meridian_coverage_accepts_compact_fact_carriage() -> None:
+    texts, labels, refs = _meridian_files()
+
     assert corpus_coverage_violations(
-        markdown,
+        _COMPLETE_MARKDOWN,
         output_evidence_refs=refs,
         required_evidence_refs=refs,
         source_texts=texts,
         source_labels=labels,
     ) == []
+
+
+def test_backfill_appends_register_and_clears_all_violations() -> None:
+    texts, labels, refs = _meridian_files()
+
+    result = backfill_corpus_coverage(
+        _SPARSE_MARKDOWN,
+        output_evidence_refs=refs[:3],
+        required_evidence_refs=refs,
+        source_texts=texts,
+        source_labels=labels,
+    )
+
+    assert f"## {COVERAGE_REGISTER_HEADING}" in result.markdown
+    assert "42 workstations" in result.markdown
+    assert result.backfilled_facts
+    assert list(result.evidence_refs)[:3] == refs[:3]
+    assert set(refs) <= set(result.evidence_refs)
+    assert set(result.added_evidence_refs) == set(refs[3:])
+    assert corpus_coverage_violations(
+        result.markdown,
+        output_evidence_refs=result.evidence_refs,
+        required_evidence_refs=refs,
+        source_texts=texts,
+        source_labels=labels,
+    ) == []
+
+
+def test_backfill_leaves_complete_draft_unchanged() -> None:
+    texts, labels, refs = _meridian_files()
+    markdown = _COMPLETE_MARKDOWN
+
+    result = backfill_corpus_coverage(
+        markdown,
+        output_evidence_refs=refs,
+        required_evidence_refs=refs,
+        source_texts=texts,
+        source_labels=labels,
+    )
+
+    assert result.markdown == markdown
+    assert not result.backfilled_facts
+    assert not result.added_evidence_refs
+    assert list(result.evidence_refs) == refs
+
+
+def test_backfill_is_idempotent() -> None:
+    texts, labels, refs = _meridian_files()
+
+    first = backfill_corpus_coverage(
+        _SPARSE_MARKDOWN,
+        output_evidence_refs=refs[:3],
+        required_evidence_refs=refs,
+        source_texts=texts,
+        source_labels=labels,
+    )
+    second = backfill_corpus_coverage(
+        first.markdown,
+        output_evidence_refs=first.evidence_refs,
+        required_evidence_refs=refs,
+        source_texts=texts,
+        source_labels=labels,
+    )
+
+    assert second.markdown == first.markdown
+    assert second.markdown.count(f"## {COVERAGE_REGISTER_HEADING}") == 1
+    assert not second.added_evidence_refs

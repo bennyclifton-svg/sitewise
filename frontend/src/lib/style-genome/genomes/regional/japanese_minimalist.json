@@ -2,12 +2,12 @@
   "period": "japanese_minimalist",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [2, 0.9, 1],
+    "aspect": [1.05, 0.9, 1],
     "roof": "hipped",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 4,
+    "bays": 3,
     "windowShape": "screen",
     "windowToWallRatio": 0.46,
     "verticality": 0.2
@@ -17,8 +17,8 @@
     "density": 0.18
   },
   "material": {
-    "base": "#c9b99d",
-    "roughness": 0.82,
+    "base": "#d6cab4",
+    "roughness": 0.42,
     "windowEmissive": "#ffe2a6"
   }
 }

@@ -48,6 +48,12 @@ const DRAW_CALL_BUDGET = 8;
 const TRIANGLE_BUDGET = 6000;
 const DEG = Math.PI / 180;
 
+// Buildings must fit the hero panel: every silhouette is capped to this cube edge.
+const CUBE_EDGE = 3.4;
+// Rounded "plastic toy" corner treatment shared by all massing volumes.
+const CORNER_RADIUS_RATIO = 0.16;
+const MAX_CORNER_RADIUS = 0.42;
+
 export function buildFromGenome(genome: StyleGenome, seed: number, options: BuildOptions = {}): THREE.Group {
   const rng = mulberry32(hashSeed(`${genome.period}:${seed}`));
   const group = new THREE.Group();
@@ -122,9 +128,9 @@ function createDimensions(genome: StyleGenome, rng: Rng): Dimensions {
   const familyScale = 1 + (rng() - 0.5) * 0.08;
   const heightBias = genome.rhythm.verticality * 0.35;
   return {
-    width: 3.2 * aspectX * familyScale,
-    height: 3.1 * aspectY * (0.9 + heightBias) * familyScale,
-    depth: 2.9 * aspectZ * (0.96 + rng() * 0.08),
+    width: Math.min(CUBE_EDGE, 3.2 * aspectX * familyScale),
+    height: Math.min(CUBE_EDGE, 3.1 * aspectY * (0.9 + heightBias) * familyScale),
+    depth: Math.min(CUBE_EDGE, 2.9 * aspectZ * (0.96 + rng() * 0.08)),
   };
 }
 
@@ -284,8 +290,8 @@ function createRoofGeometries(genome: StyleGenome, dimensions: Dimensions, rng: 
 }
 
 function getFloorCount(genome: StyleGenome, dimensions: Dimensions): number {
-  const raw = Math.round(2 + dimensions.height / 1.7 + genome.rhythm.verticality * 2);
-  return clamp(raw, 2, 10);
+  const raw = Math.round(1 + dimensions.height / 1.3 + genome.rhythm.verticality);
+  return clamp(raw, 2, 5);
 }
 
 function createWindowInstances(
@@ -301,8 +307,8 @@ function createWindowInstances(
   const bays = clamp(Math.round(genome.rhythm.bays + (rng() - 0.5) * 1.2), 2, 11);
   const floorGap = height / (floors + 0.7);
   const bayGap = width / (bays + 1);
-  const windowHeight = floorGap * lerp(0.34, 0.76, genome.rhythm.verticality);
-  const windowWidth = bayGap * lerp(0.28, 0.7, genome.rhythm.windowToWallRatio);
+  const windowHeight = floorGap * lerp(0.42, 0.72, genome.rhythm.verticality);
+  const windowWidth = bayGap * lerp(0.4, 0.78, genome.rhythm.windowToWallRatio);
 
   if (genome.rhythm.windowShape === "ribbon") {
     for (let floor = 0; floor < floors; floor += 1) {
@@ -342,7 +348,7 @@ function createWindowInstances(
 function facadeInstance(x: number, y: number, z: number, width: number, height: number, rotationY: number): InstanceSpec {
   return {
     position: new THREE.Vector3(x, y, z),
-    scale: new THREE.Vector3(width, height, 0.05),
+    scale: new THREE.Vector3(width, height, 0.14),
     rotation: new THREE.Euler(0, rotationY, 0),
   };
 }
@@ -798,7 +804,7 @@ function createWindowGeometry(shape: StyleGenome["rhythm"]["windowShape"]): THRE
   if (shape === "faceted") {
     return centeredExtrudedShape([[-0.4, -0.42], [0.26, -0.5], [0.42, 0.18], [-0.12, 0.5], [-0.38, 0.14]], 0.08);
   }
-  return new THREE.BoxGeometry(1, 1, 1);
+  return roundedBoxGeometry(1, 1, 1, 0.16, 2);
 }
 
 function centeredExtrudedShape(points: [number, number][], depth: number): THREE.BufferGeometry {
@@ -808,7 +814,14 @@ function centeredExtrudedShape(points: [number, number][], depth: number): THREE
     shape.lineTo(point[0], point[1]);
   }
   shape.closePath();
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  const bevel = Math.min(0.07, depth * 0.35);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel,
+    bevelSegments: 2,
+  });
   geometry.translate(0, 0, -depth / 2);
   geometry.computeVertexNormals();
   return geometry;
@@ -823,10 +836,45 @@ function boxGeometry(
   z: number,
   rotation = new THREE.Euler(),
 ): THREE.BufferGeometry {
-  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const radius = Math.min(MAX_CORNER_RADIUS, Math.min(width, height, depth) * CORNER_RADIUS_RATIO);
+  const geometry = roundedBoxGeometry(width, height, depth, radius, 4);
   const matrix = new THREE.Matrix4();
   matrix.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(rotation), new THREE.Vector3(1, 1, 1));
   geometry.applyMatrix4(matrix);
+  return geometry;
+}
+
+// Minkowski-style rounded box: clamp each vertex of a segmented box to an inner
+// box and push it back out along the corner normal, giving smooth plastic edges.
+function roundedBoxGeometry(width: number, height: number, depth: number, radius: number, segments: number): THREE.BufferGeometry {
+  const r = Math.max(0.001, Math.min(radius, width / 2, height / 2, depth / 2));
+  const geometry = new THREE.BoxGeometry(width, height, depth, segments, segments, segments);
+  const position = geometry.getAttribute("position");
+  const normal = geometry.getAttribute("normal");
+  const innerX = width / 2 - r;
+  const innerY = height / 2 - r;
+  const innerZ = depth / 2 - r;
+
+  for (let index = 0; index < position.count; index += 1) {
+    const px = position.getX(index);
+    const py = position.getY(index);
+    const pz = position.getZ(index);
+    const cx = clamp(px, -innerX, innerX);
+    const cy = clamp(py, -innerY, innerY);
+    const cz = clamp(pz, -innerZ, innerZ);
+    const dx = px - cx;
+    const dy = py - cy;
+    const dz = pz - cz;
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (length > 1e-6) {
+      const nx = dx / length;
+      const ny = dy / length;
+      const nz = dz / length;
+      position.setXYZ(index, cx + nx * r, cy + ny * r, cz + nz * r);
+      normal.setXYZ(index, nx, ny, nz);
+    }
+  }
+
   return geometry;
 }
 
@@ -875,7 +923,10 @@ function mergeGeometries(geometries: THREE.BufferGeometry[]): THREE.BufferGeomet
 
   for (const source of geometries) {
     const geometry = source.index ? source.toNonIndexed() : source;
-    geometry.computeVertexNormals();
+    // Rounded massing carries analytic smooth normals — recomputing would flatten them.
+    if (!geometry.getAttribute("normal")) {
+      geometry.computeVertexNormals();
+    }
     const position = geometry.getAttribute("position");
     const normal = geometry.getAttribute("normal");
 

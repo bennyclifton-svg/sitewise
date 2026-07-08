@@ -2,12 +2,12 @@
   "period": "international_style",
   "massing": {
     "footprint": "rectangle",
-    "aspect": [1.65, 2.15, 1],
+    "aspect": [1.05, 1, 1],
     "roof": "flat",
     "symmetry": "bilateral"
   },
   "rhythm": {
-    "bays": 8,
+    "bays": 4,
     "windowShape": "ribbon",
     "windowToWallRatio": 0.62,
     "verticality": 0.28
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#dfe3e4",
-    "roughness": 0.5,
+    "roughness": 0.35,
     "windowEmissive": "#d7f0ff"
   }
 }

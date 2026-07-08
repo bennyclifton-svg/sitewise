@@ -214,7 +214,7 @@ export function ComparisonOverview({
             <Metric label="Region" value={comparison.context.region} />
             <Metric label="Build" value={formatTenderStage(comparison.context.build_type)} />
             <Metric label="Spec" value={formatTenderStage(comparison.context.spec_level)} />
-            <Metric label="Storeys" value={String(comparison.context.storeys)} />
+            <Metric label="Storeys" value={comparison.context.storeys} />
             <Metric label="Budget" value={formatTenderMoney(comparison.context.target_budget_cents)} />
           </dl>
         </section>
@@ -267,12 +267,22 @@ export function ComparisonOverview({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+}) {
+  const displayValue = value === null || value === undefined || value === ""
+    ? "Not stated"
+    : String(value);
+
   return (
     <div className="min-w-0 rounded-md border bg-background px-3 py-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 truncate font-medium" title={value}>
-        {value}
+      <dd className="mt-1 truncate font-medium" title={displayValue}>
+        {displayValue}
       </dd>
     </div>
   );

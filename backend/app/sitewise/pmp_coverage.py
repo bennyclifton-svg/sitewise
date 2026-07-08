@@ -15,6 +15,104 @@ class CoverageRequirement:
     alternatives: tuple[tuple[str, ...], ...]
 
 
+COVERAGE_REGISTER_HEADING = "Evidence coverage register"
+
+
+@dataclass(frozen=True, slots=True)
+class CoverageBackfillResult:
+    markdown: str
+    evidence_refs: tuple[str, ...]
+    backfilled_facts: tuple[CoverageRequirement, ...]
+    added_evidence_refs: tuple[str, ...]
+
+
+def backfill_corpus_coverage(
+    markdown: str,
+    *,
+    output_evidence_refs: Sequence[str],
+    required_evidence_refs: Sequence[str],
+    source_texts: Sequence[str],
+    source_labels: Sequence[str] | None = None,
+) -> CoverageBackfillResult:
+    """Guarantee corpus coverage by construction instead of validation.
+
+    Merges any missing required evidence refs into the output refs and appends
+    facts the draft did not carry inline as rows in a deterministic
+    "Evidence coverage register" section. Re-running on already-backfilled
+    markdown regenerates an identical register (idempotent).
+    """
+    evidence_refs = [str(ref) for ref in output_evidence_refs]
+    seen_paths = {_normalise_ref_path(ref) for ref in evidence_refs}
+    added_refs: list[str] = []
+    for ref in required_evidence_refs:
+        path = _normalise_ref_path(ref)
+        if path and path not in seen_paths:
+            evidence_refs.append(str(ref))
+            added_refs.append(str(ref))
+            seen_paths.add(path)
+
+    has_register = _has_coverage_register(markdown)
+    base = _strip_coverage_register(markdown) if has_register else markdown
+    body = _normalise_text(base)
+    missing = [
+        requirement
+        for requirement in build_corpus_coverage_requirements(source_texts, source_labels)
+        if not _requirement_present(body, requirement)
+    ]
+    if missing:
+        new_markdown = base.rstrip() + "\n\n" + _render_coverage_register(missing) + "\n"
+    elif has_register:
+        new_markdown = base.rstrip() + "\n"
+    else:
+        new_markdown = markdown
+    return CoverageBackfillResult(
+        markdown=new_markdown,
+        evidence_refs=tuple(evidence_refs),
+        backfilled_facts=tuple(missing),
+        added_evidence_refs=tuple(added_refs),
+    )
+
+
+def _has_coverage_register(markdown: str) -> bool:
+    target = COVERAGE_REGISTER_HEADING.lower()
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## ") and stripped[3:].strip().lower() == target:
+            return True
+    return False
+
+
+def _strip_coverage_register(markdown: str) -> str:
+    target = COVERAGE_REGISTER_HEADING.lower()
+    kept: list[str] = []
+    skipping = False
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            skipping = stripped[3:].strip().lower() == target
+        if not skipping:
+            kept.append(line)
+    return "\n".join(kept)
+
+
+def _render_coverage_register(requirements: Sequence[CoverageRequirement]) -> str:
+    lines = [
+        f"## {COVERAGE_REGISTER_HEADING}",
+        "",
+        "Critical evidence facts carried from active project documents that are "
+        "not woven into the narrative above.",
+        "",
+        "| Source | Category | Fact |",
+        "| --- | --- | --- |",
+    ]
+    for requirement in requirements:
+        source = requirement.source.replace("|", "/")
+        category = requirement.category.replace("|", "/")
+        fact = requirement.fact.replace("|", "/")
+        lines.append(f"| {source} | {category} | {fact} |")
+    return "\n".join(lines)
+
+
 def format_corpus_coverage_requirements(
     source_texts: Sequence[str],
     source_labels: Sequence[str] | None = None,

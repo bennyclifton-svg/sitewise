@@ -2,12 +2,12 @@
   "period": "crystal_architecture",
   "massing": {
     "footprint": "fractured",
-    "aspect": [1.45, 2.05, 1.4],
+    "aspect": [1, 0.92, 1.1],
     "roof": "faceted",
     "symmetry": "radial"
   },
   "rhythm": {
-    "bays": 6,
+    "bays": 4,
     "windowShape": "faceted",
     "windowToWallRatio": 0.64,
     "verticality": 0.72
@@ -18,7 +18,7 @@
   },
   "material": {
     "base": "#c9d8dc",
-    "roughness": 0.36,
+    "roughness": 0.28,
     "windowEmissive": "#b9f4ff"
   }
 }
