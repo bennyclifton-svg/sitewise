@@ -2,12 +2,16 @@ import { FilePlus2, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import {
+  DecisionControl,
+  type EmbeddedDecision,
+} from "@/components/project/DecisionControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { EvidencePreview } from "@/lib/types/project";
+import type { EvidencePreview, ProjectDecision } from "@/lib/types/project";
 import type { TenderProjectContext, TenderQuoteCreate } from "@/lib/types/tender";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +30,10 @@ type QuoteDraft = {
 };
 
 type BoolSelect = "unknown" | "yes" | "no";
+
+type SharedTenderDecision = EmbeddedDecision & {
+  tenderContractType: QuoteDraft["contractType"] | null;
+};
 
 let quoteDraftId = 0;
 
@@ -123,7 +131,9 @@ export function TenderIntakePanel({
     newQuoteDraft(),
   ]);
   const [projectDocuments, setProjectDocuments] = useState<EvidencePreview[]>([]);
+  const [sharedDecisions, setSharedDecisions] = useState<SharedTenderDecision[]>([]);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [decisionsError, setDecisionsError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -149,6 +159,44 @@ export function TenderIntakePanel({
     }
 
     void loadDocuments();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDecisions() {
+      setDecisionsError(null);
+      try {
+        const decisions = sharedTenderIntakeDecisions(await api.listDecisions(projectId));
+        if (cancelled) return;
+        setSharedDecisions(decisions);
+        const contractType = decisions.find(
+          (decision) => decision.id === "contract-form",
+        )?.tenderContractType;
+        if (contractType) {
+          setQuotes((current) =>
+            current.map((quote) =>
+              quote.contractType === "unknown"
+                ? { ...quote, contractType }
+                : quote,
+            ),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDecisionsError(
+            error instanceof ApiError
+              ? error.message
+              : "Could not load project decisions.",
+          );
+        }
+      }
+    }
+
+    void loadDecisions();
     return () => {
       cancelled = true;
     };
@@ -283,6 +331,24 @@ export function TenderIntakePanel({
                 Class 1 residential comparison settings.
               </p>
             </div>
+
+            {decisionsError ? (
+              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {decisionsError}
+              </p>
+            ) : null}
+
+            {sharedDecisions.length ? (
+              <div className="space-y-3">
+                {sharedDecisions.map((decision) => (
+                  <DecisionControl
+                    key={decision.id}
+                    projectId={projectId}
+                    decision={decision}
+                  />
+                ))}
+              </div>
+            ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <SelectField
@@ -676,6 +742,41 @@ function BoolField({
       onChange={onChange}
     />
   );
+}
+
+function sharedTenderIntakeDecisions(
+  decisions: ProjectDecision[],
+): SharedTenderDecision[] {
+  return decisions.flatMap((decision) => {
+    if (decision.decision_id !== "contract-form") return [];
+    return [
+      {
+        id: decision.decision_id,
+        section: decision.section,
+        label: decision.label,
+        options: decision.options,
+        selected: decision.selected,
+        source: decision.source,
+        evidence_conflict: decision.evidence_conflict,
+        agent_suggestion: decision.agent_suggestion ?? undefined,
+        tenderContractType: contractTypeFromDecision(decision.selected),
+      },
+    ];
+  });
+}
+
+function contractTypeFromDecision(
+  selected: string,
+): QuoteDraft["contractType"] | null {
+  if (
+    selected === "hia" ||
+    selected === "mba" ||
+    selected === "custom" ||
+    selected === "cost_plus"
+  ) {
+    return selected;
+  }
+  return null;
 }
 
 function newQuoteDraft(): QuoteDraft {

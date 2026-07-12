@@ -236,6 +236,10 @@ export type ProjectDecision = {
   updated_at: string;
 };
 
+export type ProjectDecisionListResponse = {
+  decisions: ProjectDecision[];
+};
+
 export type UpdateProjectDecisionResponse = {
   decision: ProjectDecision;
   draft: DraftArtifact;

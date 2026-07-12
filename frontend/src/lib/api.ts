@@ -39,6 +39,8 @@ import type {
   ProjectActivityResponse,
   ProjectCockpitBootstrap,
   ProjectDetail,
+  ProjectDecision,
+  ProjectDecisionListResponse,
   ProjectSummary,
   TaxonomyCatalog,
   UpdateProjectInput,
@@ -566,6 +568,13 @@ export const api = {
     api.patch<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`, {
       content_markdown: contentMarkdown,
     }),
+
+  listDecisions: async (projectId: string): Promise<ProjectDecision[]> => {
+    const response = await api.get<ProjectDecisionListResponse>(
+      `/projects/${projectId}/decisions`,
+    );
+    return response.decisions;
+  },
 
   putDecision: async (
     projectId: string,
