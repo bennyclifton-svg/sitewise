@@ -38,13 +38,15 @@ def test_required_decision_ids_stay_within_sparse_band() -> None:
     assert "flooring-finish" in required
 
 
-def test_format_decision_option_sets_lists_required_ids() -> None:
+def test_format_includes_cost_only_when_requested() -> None:
     project = SimpleNamespace(
         archetype="new-dwelling",
         building_class="residential",
         work_type="new",
         project_metadata={},
     )
-    text = format_decision_option_sets(project)
-    assert "Required decision ids for this project" in text
-    assert "flooring-finish" in text
+    without = decision_option_sets_for_project(project, include_cost_only=False)
+    with_cost = decision_option_sets_for_project(project, include_cost_only=True)
+    assert "contingency-band" not in without
+    assert "contingency-band" in with_cost
+    assert with_cost["contingency-band"].get("cost_only") is True

@@ -120,6 +120,11 @@ def test_put_project_decision_rewrites_draft_markdown(
     row.selected = "design_construct"
     row.source = "user"
 
+    async def latest_draft(session, *, project_id, workflow_type):  # noqa: ANN001
+        if workflow_type == "create_pmp":
+            return draft
+        return None
+
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
@@ -127,7 +132,7 @@ def test_put_project_decision_rewrites_draft_markdown(
         patch("app.api.projects.upsert_decision", new=AsyncMock(return_value=row)) as upsert,
         patch(
             "app.api.projects.get_latest_draft_artifact",
-            new=AsyncMock(return_value=draft),
+            new=AsyncMock(side_effect=latest_draft),
         ),
         patch(
             "app.api.projects.locked_selections",
@@ -138,6 +143,7 @@ def test_put_project_decision_rewrites_draft_markdown(
             new=AsyncMock(return_value=updated),
         ) as update_content,
         patch("app.api.projects.sync_pmp_draft_workspace", new=AsyncMock()),
+        patch("app.api.projects.sync_cost_plan_draft_workspace", new=AsyncMock()),
         patch("app.api.projects.record_activity_events", new=AsyncMock()),
     ):
         response = client.put(
@@ -154,6 +160,75 @@ def test_put_project_decision_rewrites_draft_markdown(
     rewritten = update_content.await_args.kwargs["content_markdown"]
     assert '"selected": "design_construct"' in rewritten
     assert '"source": "user"' in rewritten
+
+
+def test_put_project_decision_restamps_cost_plan_and_pmp(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
+    pmp_draft = _draft(f"# PMP\n\n{DECISION_BLOCK}")
+    cost_draft = DraftArtifact(
+        id=uuid.UUID("55555555-5555-5555-5555-555555555555"),
+        project_id=PROJECT_ID,
+        workflow_type="create_cost_plan",
+        version=1,
+        status="draft",
+        title="Cost Plan",
+        workspace_path="04-projects/demo/01-cost/cost-plan.md",
+        author_user_id=USER_ID,
+        content_markdown=f"# Cost\n\n{DECISION_BLOCK}",
+        model="gpt-4.1-mini",
+        runtime="clerk-sitewise-create-cost-plan",
+        provenance_metadata={},
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    row = _decision_row()
+    row.selected = "design_construct"
+    row.source = "user"
+    updates: list[str] = []
+
+    async def latest_draft(session, *, project_id, workflow_type):  # noqa: ANN001
+        if workflow_type == "create_pmp":
+            return pmp_draft
+        if workflow_type == "create_cost_plan":
+            return cost_draft
+        return None
+
+    async def update_content(session, draft, *, content_markdown):  # noqa: ANN001
+        updates.append(draft.workflow_type)
+        draft.content_markdown = content_markdown
+        return draft
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.list_decisions", new=AsyncMock(return_value=[row])),
+        patch("app.api.projects.upsert_decision", new=AsyncMock(return_value=row)),
+        patch(
+            "app.api.projects.get_latest_draft_artifact",
+            new=AsyncMock(side_effect=latest_draft),
+        ),
+        patch(
+            "app.api.projects.locked_selections",
+            new=AsyncMock(return_value={"procurement-route": "design_construct"}),
+        ),
+        patch("app.api.projects.update_draft_content", new=AsyncMock(side_effect=update_content)),
+        patch("app.api.projects.sync_pmp_draft_workspace", new=AsyncMock()) as sync_pmp,
+        patch("app.api.projects.sync_cost_plan_draft_workspace", new=AsyncMock()) as sync_cost,
+        patch("app.api.projects.record_activity_events", new=AsyncMock()),
+    ):
+        response = client.put(
+            f"/projects/{PROJECT_ID}/decisions/procurement-route",
+            json={"selected": "design_construct"},
+        )
+
+    assert response.status_code == 200
+    assert updates == ["create_pmp", "create_cost_plan"]
+    sync_pmp.assert_awaited_once()
+    sync_cost.assert_awaited_once()
+    assert '"selected": "design_construct"' in pmp_draft.content_markdown
+    assert '"selected": "design_construct"' in cost_draft.content_markdown
 
 
 def test_put_project_decision_rejects_invalid_option(client: TestClient) -> None:

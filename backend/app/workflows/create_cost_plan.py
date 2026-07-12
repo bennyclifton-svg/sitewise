@@ -17,6 +17,7 @@ from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
+from app.database.project_decisions import locked_selections, sync_decisions_from_markdown
 from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
@@ -30,6 +31,11 @@ from app.sitewise.cost_plan_brief import (
     greenfield_markers_missing,
     greenfield_quality_markers,
     greenfield_structure_violations,
+)
+from app.sitewise.pmp_decisions import (
+    format_decision_option_sets,
+    format_locked_decisions,
+    restamp_decisions,
 )
 from app.sitewise.cost_plan_evidence_validation import (
     cost_plan_evidence_grounded_violations,
@@ -428,6 +434,7 @@ async def run_create_cost_plan_model(
     draft_mode: DraftMode,
     validation_feedback: str | None = None,
     chat_model: str | None = None,
+    locked_decisions: dict[str, str] | None = None,
 ) -> CostPlanDraftOutput:
     user_role = project.user_role or ""
     mandatory_paths = required_platform_paths(
@@ -459,6 +466,13 @@ async def run_create_cost_plan_model(
         _format_required_sections(user_role),
         "Mandatory seed paths (must all appear in seed_consulted):",
         _format_mandatory_seeds(mandatory_paths),
+        format_decision_option_sets(project, include_cost_only=True),
+        format_locked_decisions(locked_decisions or {}),
+        (
+            "Emit interactive ```pmp-decision``` blocks for required shared and cost-only "
+            "decision ids. Always pre-select one option. Preserve user-locked decisions "
+            "with source=user."
+        ),
         build_greenfield_brief(
             archetype=project.archetype or "",
             user_role=user_role,
@@ -1082,6 +1096,7 @@ async def run_create_cost_plan_workflow(
     project_source_texts = _project_source_texts(passages, project_slug=project.slug)
     use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
     runtime_name = RUNTIME_HYBRID_NAME if use_hybrid else RUNTIME_NAME
+    locked_decisions = await locked_selections(session, project_id=project.id)
     try:
         if use_hybrid:
             output = await run_create_cost_plan_hybrid(
@@ -1093,6 +1108,7 @@ async def run_create_cost_plan_workflow(
                 trace=trace,
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
+            output.markdown = restamp_decisions(output.markdown, locked_decisions)
         else:
             validation_feedback: str | None = None
             max_attempts = 3
@@ -1103,8 +1119,10 @@ async def run_create_cost_plan_workflow(
                     draft_mode=draft_mode,
                     validation_feedback=validation_feedback,
                     chat_model=resolved_model,
+                    locked_decisions=locked_decisions,
                 )
                 output.markdown = normalize_pmp_markdown(output.markdown)
+                output.markdown = restamp_decisions(output.markdown, locked_decisions)
                 if draft_mode == "evidence_grounded":
                     output.markdown = ensure_evidence_grounded_cost_plan_scaffold(
                         output.markdown,
@@ -1191,6 +1209,12 @@ async def run_create_cost_plan_workflow(
         model=resolved_model,
         runtime=runtime_name,
         provenance_metadata=provenance_metadata,
+    )
+    await sync_decisions_from_markdown(
+        session,
+        project_id=project.id,
+        markdown=output.markdown,
+        workflow_type=WORKFLOW_TYPE,
     )
     await sync_cost_plan_draft_workspace(
         session,

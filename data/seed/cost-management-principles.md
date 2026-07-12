@@ -908,3 +908,49 @@ Common pitfalls:
 - Not tracking the DLP expiry date, missing the contractual deadline for notifying defects to the contractor
 - Failing to account for the cash flow impact of retention — 5% withheld over the life of the project represents a significant amount that affects the client's cash requirements
 - Not recognising that under some Security of Payment legislation, retention can be the subject of a payment claim by the contractor if not released in accordance with the contract
+
+---
+
+## Decision catalog (HITL)
+
+Cost-plan-only assumptions. Shared brief/finishes decisions live in finishes and archetype
+seeds; these ids are emitted in cost plan drafts and do not need to appear in the PMP.
+
+```decision-catalog
+- id: contingency-band
+  section: Budget assumptions
+  label: Contingency band
+  cost_only: true
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
+    classes: [residential, commercial]
+  options:
+    - { value: low_3_5, label: 3–5% (well-defined brief) }
+    - { value: mid_5_10, label: 5–10% (typical residential) }
+    - { value: high_10_15, label: 10–15% (sparse brief / early stage) }
+  default_hint: mid_5_10
+- id: pc-ps-treatment
+  section: Budget assumptions
+  label: PC / PS sum treatment
+  cost_only: true
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling]
+    classes: [residential]
+  options:
+    - { value: included_allowances, label: Included as provisional allowances }
+    - { value: owner_supply, label: Owner-supply / exclude from builder sum }
+    - { value: separate_schedule, label: Separate PC/PS schedule }
+  default_hint: included_allowances
+- id: inclusions-baseline
+  section: Budget assumptions
+  label: Inclusions baseline
+  cost_only: true
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+    classes: [residential]
+  options:
+    - { value: builder_basic, label: Builder basic inclusions }
+    - { value: mid_spec, label: Mid-spec turnkey }
+    - { value: high_spec, label: High-spec / custom }
+  default_hint: mid_spec
+```

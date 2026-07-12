@@ -1454,6 +1454,84 @@ async def get_project_decisions(
     )
 
 
+_DECISION_DRAFT_WORKFLOWS: tuple[str, ...] = ("create_pmp", "create_cost_plan")
+
+
+async def _find_embedded_decision(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    decision_id: str,
+):
+    for workflow_type in _DECISION_DRAFT_WORKFLOWS:
+        draft = await get_latest_draft_artifact(
+            session,
+            project_id=project_id,
+            workflow_type=workflow_type,
+        )
+        if draft is None:
+            continue
+        embedded = next(
+            (
+                item
+                for item in extract_decisions(draft.content_markdown)
+                if item.id == decision_id
+            ),
+            None,
+        )
+        if embedded is not None:
+            return draft, embedded
+    return None, None
+
+
+async def _restamp_shared_decision_drafts(
+    session: AsyncSession,
+    *,
+    project,
+    decision_id: str,
+    locked: dict[str, str],
+    preferred_workflow_type: str,
+):
+    """Restamp every latest draft that embeds this decision (hard sync)."""
+    primary = None
+    primary_markdown = None
+    for workflow_type in _DECISION_DRAFT_WORKFLOWS:
+        draft = await get_latest_draft_artifact(
+            session,
+            project_id=project.id,
+            workflow_type=workflow_type,
+        )
+        if draft is None:
+            continue
+        present_ids = {item.id for item in extract_decisions(draft.content_markdown)}
+        if decision_id not in present_ids:
+            continue
+        updated_markdown = restamp_decisions(draft.content_markdown, locked)
+        updated_draft = await update_draft_content(
+            session,
+            draft,
+            content_markdown=updated_markdown,
+        )
+        if is_pmp_workflow(updated_draft.workflow_type):
+            await sync_pmp_draft_workspace(
+                session,
+                project=project,
+                draft=updated_draft,
+                markdown=updated_markdown,
+            )
+        elif is_cost_plan_workflow(updated_draft.workflow_type):
+            await sync_cost_plan_draft_workspace(
+                session,
+                project=project,
+                draft=updated_draft,
+                markdown=updated_markdown,
+            )
+        if primary is None or workflow_type == preferred_workflow_type:
+            primary = updated_draft
+            primary_markdown = updated_markdown
+    return primary, primary_markdown
+
+
 @router.put("/{project_id}/decisions/{decision_id}")
 async def put_project_decision(
     project_id: uuid.UUID,
@@ -1467,21 +1545,12 @@ async def put_project_decision(
     rows = await list_decisions(session, project_id=project.id)
     existing = next((row for row in rows if row.decision_id == decision_id), None)
     if existing is None:
-        latest_draft = await get_latest_draft_artifact(
+        latest_draft, embedded = await _find_embedded_decision(
             session,
             project_id=project.id,
-            workflow_type="create_pmp",
+            decision_id=decision_id,
         )
-        if latest_draft is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Decision not found",
-            )
-        embedded = next(
-            (item for item in extract_decisions(latest_draft.content_markdown) if item.id == decision_id),
-            None,
-        )
-        if embedded is None:
+        if latest_draft is None or embedded is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Decision not found",
@@ -1518,29 +1587,18 @@ async def put_project_decision(
         source="user",
         workflow_type=workflow_type,
     )
-    draft = await get_latest_draft_artifact(
+    locked = await locked_selections(session, project_id=project.id)
+    updated_draft, updated_markdown = await _restamp_shared_decision_drafts(
         session,
-        project_id=project.id,
-        workflow_type=workflow_type,
+        project=project,
+        decision_id=decision_id,
+        locked=locked,
+        preferred_workflow_type=workflow_type,
     )
-    if draft is None:
+    if updated_draft is None or updated_markdown is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found",
-        )
-    locked = await locked_selections(session, project_id=project.id)
-    updated_markdown = restamp_decisions(draft.content_markdown, locked)
-    updated_draft = await update_draft_content(
-        session,
-        draft,
-        content_markdown=updated_markdown,
-    )
-    if is_pmp_workflow(updated_draft.workflow_type):
-        await sync_pmp_draft_workspace(
-            session,
-            project=project,
-            draft=updated_draft,
-            markdown=updated_markdown,
         )
     run_id = uuid.uuid4()
     await record_activity_events(
