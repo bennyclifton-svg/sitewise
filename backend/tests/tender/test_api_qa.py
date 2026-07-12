@@ -83,6 +83,20 @@ def test_qa_queue_statement_orders_by_priority_impact_then_confidence() -> None:
     assert priority_pos < impact_pos < confidence_pos
 
 
+def test_qa_queue_statement_excludes_multi_candidate_mapping_adjudications() -> None:
+    compiled = str(
+        qa.review_queue_statement(COMPARISON_ID).compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+
+    assert (
+        "coalesce(jsonb_array_length(tender_mappings.adjudication -> 'candidates'), 0) < 2"
+        in compiled
+    )
+
+
 def test_resolve_endpoint_checks_owner_and_resolves_item(client: TestClient) -> None:
     resolved = qa.QAResolveResult(
         id=ITEM_ID,

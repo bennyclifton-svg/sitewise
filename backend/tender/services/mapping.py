@@ -394,7 +394,7 @@ async def t2_map_item(
         prompt_version=T2_PROMPT_VERSION,
         model_key="tender_model_adjudicate_small",
     )
-    adjudication = _adjudication_payload(response, candidates)
+    adjudication = _adjudication_payload(response, candidates, ordered_cells)
     if response.choice == "none_of_these":
         return MappingDecision(
             tier="t2_small_llm",
@@ -530,12 +530,18 @@ def _validated_allocations(
 
 
 def _adjudication_payload(
-    response: LLMAdjudicationResponse, candidates: Sequence[CellCandidate]
+    response: LLMAdjudicationResponse,
+    candidates: Sequence[CellCandidate],
+    candidate_cells: Sequence[TaxonomyCellSummary] = (),
 ) -> dict[str, Any]:
-    return {
+    cells_by_code = {cell.code: cell for cell in candidate_cells}
+    payload = {
         "candidates": [
             {
                 "cell_code": candidate.cell_code,
+                "name": cells_by_code[candidate.cell_code].name
+                if candidate.cell_code in cells_by_code
+                else None,
                 "similarity": candidate.similarity,
                 "via": candidate.via,
             }
@@ -546,6 +552,19 @@ def _adjudication_payload(
         "request_id": response.request_id,
         "rationale": response.rationale,
     }
+    selected = {"cell_code": response.choice}
+    selected_cell = cells_by_code.get(response.choice)
+    if selected_cell is not None:
+        selected["name"] = selected_cell.name
+    payload["choice"] = selected
+    return payload
+
+
+def has_multi_candidate_adjudication(adjudication: Any) -> bool:
+    if not isinstance(adjudication, dict):
+        return False
+    candidates = adjudication.get("candidates")
+    return isinstance(candidates, list) and len(candidates) >= 2
 
 
 def _line_item_payload(item: LineItemMappingInput) -> dict[str, Any]:

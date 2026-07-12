@@ -7,8 +7,16 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tender.models import TaxonomyCell, TenderCellStatus, TenderFlag
-from tender.schemas import MatrixCell, MatrixGroup, MatrixQuoteCell, MatrixResponse
+from tender.models import TaxonomyCell, TenderCellStatus, TenderFlag, TenderLineItem, TenderMapping, TenderQuote
+from tender.schemas import (
+    MatrixCell,
+    MatrixGroup,
+    MatrixMappingCandidate,
+    MatrixMappingChoice,
+    MatrixQuoteCell,
+    MatrixResponse,
+)
+from tender.services.mapping import has_multi_candidate_adjudication
 
 
 async def build_matrix(
@@ -56,11 +64,71 @@ async def build_matrix(
             flags=flags_by_cell.get((quote_id, row.cell_code), []),
         )
 
+    mapping_result = await session.execute(
+        select(
+            TenderMapping.id.label("mapping_id"),
+            TenderQuote.id.label("quote_id"),
+            TenderMapping.cell_code.label("selected_cell_code"),
+            TenderMapping.qa_state,
+            TenderMapping.adjudication,
+        )
+        .join(TenderLineItem, TenderLineItem.id == TenderMapping.line_item_id)
+        .join(TenderQuote, TenderQuote.id == TenderLineItem.quote_id)
+        .where(TenderQuote.comparison_id == comparison_id)
+    )
+    cells_by_code: dict[str, MatrixCell] = {
+        cell.code: cell for group_cells in groups.values() for cell in group_cells.values()
+    }
+    for row in mapping_result.all():
+        if not has_multi_candidate_adjudication(row.adjudication):
+            continue
+        cell = cells_by_code.get(row.selected_cell_code)
+        if cell is None:
+            continue
+        quote_id = str(row.quote_id)
+        quote_cell = cell.quotes.get(quote_id)
+        if quote_cell is None:
+            continue
+        quote_cell.mapping_choices.append(
+            _mapping_choice_from_adjudication(
+                mapping_id=row.mapping_id,
+                selected_cell_code=row.selected_cell_code,
+                qa_state=row.qa_state,
+                adjudication=row.adjudication,
+            )
+        )
+
     return MatrixResponse(
         comparison_id=comparison_id,
         groups=[
             MatrixGroup(name=group_name, cells=list(cells.values()))
             for group_name, cells in groups.items()
+        ],
+    )
+
+
+def _mapping_choice_from_adjudication(
+    *,
+    mapping_id: uuid.UUID,
+    selected_cell_code: str,
+    qa_state: str,
+    adjudication: dict[str, Any],
+) -> MatrixMappingChoice:
+    return MatrixMappingChoice(
+        mapping_id=mapping_id,
+        selected_cell_code=selected_cell_code,
+        locked=qa_state == "corrected",
+        candidates=[
+            MatrixMappingCandidate(
+                cell_code=str(candidate["cell_code"]),
+                name=candidate.get("name") if isinstance(candidate.get("name"), str) else None,
+                similarity=float(candidate["similarity"])
+                if isinstance(candidate.get("similarity"), int | float)
+                else None,
+                via=candidate.get("via") if isinstance(candidate.get("via"), str) else None,
+            )
+            for candidate in adjudication.get("candidates", [])
+            if isinstance(candidate, dict) and isinstance(candidate.get("cell_code"), str)
         ],
     )
 

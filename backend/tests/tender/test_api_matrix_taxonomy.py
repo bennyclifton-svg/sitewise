@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,7 +20,9 @@ from tender.schemas import (
     TaxonomyCellView,
     TaxonomySearchResult,
 )
+from tender.services import matrix
 from tender.services import taxonomy
+from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 COMPARISON_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -79,6 +83,60 @@ def test_matrix_endpoint_returns_grouped_cells(client: TestClient) -> None:
     assert payload["groups"][0]["cells"][0]["quotes"][str(QUOTE_ID)]["status"] == "pc"
 
 
+def test_build_matrix_includes_multi_candidate_mapping_choices() -> None:
+    mapping_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+    session = FakeMatrixSession(
+        status_rows=[
+            FakeRow(
+                quote_id=QUOTE_ID,
+                cell_code="03.05",
+                status="included",
+                amount_cents=500_000,
+                cell_name="Retaining walls",
+                group_name="Site works",
+                sort_order=1,
+            )
+        ],
+        flag_rows=[],
+        mapping_rows=[
+            FakeRow(
+                mapping_id=mapping_id,
+                quote_id=QUOTE_ID,
+                selected_cell_code="03.05",
+                qa_state="needs_review",
+                adjudication={
+                    "choice": {"cell_code": "03.05", "name": "Retaining walls"},
+                    "candidates": [
+                        {
+                            "cell_code": "03.05",
+                            "name": "Retaining walls",
+                            "similarity": 0.78,
+                            "via": "retaining",
+                        },
+                        {
+                            "cell_code": "03.01",
+                            "name": "Site costs",
+                            "similarity": 0.72,
+                            "via": "site costs",
+                        },
+                    ],
+                },
+            )
+        ],
+    )
+
+    response = run_async(matrix.build_matrix(session, comparison_id=COMPARISON_ID))
+
+    quote_cell = response.groups[0].cells[0].quotes[str(QUOTE_ID)]
+    assert quote_cell.mapping_choices[0].mapping_id == mapping_id
+    assert quote_cell.mapping_choices[0].selected_cell_code == "03.05"
+    assert quote_cell.mapping_choices[0].locked is False
+    assert [candidate.cell_code for candidate in quote_cell.mapping_choices[0].candidates] == [
+        "03.05",
+        "03.01",
+    ]
+
+
 def test_taxonomy_endpoints_return_cells_and_search_results(client: TestClient) -> None:
     cell = TaxonomyCellView(
         code="03.05",
@@ -120,3 +178,37 @@ def test_taxonomy_search_statement_uses_trigram_similarity() -> None:
     assert "similarity" in compiled
     assert "taxonomy_synonyms.phrase_norm" in compiled
     assert "ORDER BY similarity DESC" in compiled
+
+
+@dataclass(frozen=True)
+class FakeRow:
+    def __init__(self, **values: Any) -> None:
+        object.__setattr__(self, "_values", values)
+        for key, value in values.items():
+            object.__setattr__(self, key, value)
+
+
+class FakeMatrixSession:
+    def __init__(
+        self,
+        *,
+        status_rows: list[FakeRow],
+        flag_rows: list[FakeRow],
+        mapping_rows: list[FakeRow],
+    ) -> None:
+        self.results = [
+            FakeResult(status_rows),
+            FakeResult(flag_rows),
+            FakeResult(mapping_rows),
+        ]
+
+    async def execute(self, statement: Any) -> "FakeResult":
+        return self.results.pop(0)
+
+
+class FakeResult:
+    def __init__(self, rows: list[FakeRow]) -> None:
+        self.rows = rows
+
+    def all(self) -> list[FakeRow]:
+        return self.rows

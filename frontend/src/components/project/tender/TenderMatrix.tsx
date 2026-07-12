@@ -1,5 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertCircle, LoaderCircle } from "lucide-react";
+import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import { ApiError } from "@/lib/http";
 import type {
   TenderComparison,
   TenderMatrixCell,
+  TenderMatrixMappingChoice,
   TenderMatrixResponse,
   TenderQuote,
 } from "@/lib/types/tender";
@@ -72,6 +74,15 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
     estimateSize: (index) => (rows[index]?.kind === "group" ? 36 : 56),
     overscan: 8,
   });
+
+  async function resolveMappingChoice(mappingId: string, cellCode: string) {
+    await api.resolveTenderQaItem(mappingId, {
+      action: "correct",
+      corrected_value: { cell_code: cellCode },
+      reason: "Inline matrix mapping override",
+    });
+    setMatrix((current) => updateMatrixChoice(current, mappingId, cellCode));
+  }
 
   if (isLoading) {
     return (
@@ -142,7 +153,11 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
                         {row.groupName}
                       </div>
                     ) : (
-                      <MatrixCellRow row={row} quotes={quotes} />
+                      <MatrixCellRow
+                        row={row}
+                        quotes={quotes}
+                        onMappingChoiceChange={resolveMappingChoice}
+                      />
                     )}
                   </div>
                 );
@@ -158,9 +173,11 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
 function MatrixCellRow({
   row,
   quotes,
+  onMappingChoiceChange,
 }: {
   row: Extract<MatrixRow, { kind: "cell" }>;
   quotes: MatrixQuote[];
+  onMappingChoiceChange: (mappingId: string, cellCode: string) => Promise<void>;
 }) {
   return (
     <div
@@ -194,6 +211,15 @@ function MatrixCellRow({
                 <p className="mt-1 font-mono text-xs tabular-nums">
                   {formatTenderMoney(cell.amount_cents)}
                 </p>
+                {(cell.mapping_choices ?? []).map((choice) => (
+                  <MappingChoiceControl
+                    key={choice.mapping_id}
+                    choice={choice}
+                    quoteName={quote.builderName}
+                    cellName={row.cell.name}
+                    onChange={onMappingChoiceChange}
+                  />
+                ))}
                 {cell.flags.length ? (
                   <p className="mt-1 truncate text-xs text-destructive" title={cell.flags.join("; ")}>
                     {cell.flags.length} flag{cell.flags.length === 1 ? "" : "s"}
@@ -206,6 +232,59 @@ function MatrixCellRow({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function MappingChoiceControl({
+  choice,
+  quoteName,
+  cellName,
+  onChange,
+}: {
+  choice: TenderMatrixMappingChoice;
+  quoteName: string;
+  cellName: string;
+  onChange: (mappingId: string, cellCode: string) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState(choice.selected_cell_code);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextCellCode = event.target.value;
+    setSelected(nextCellCode);
+    setIsSaving(true);
+    setError(null);
+    try {
+      await onChange(choice.mapping_id, nextCellCode);
+    } catch {
+      setSelected(choice.selected_cell_code);
+      setError("Could not save");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <select
+        aria-label={`Mapping choice for ${quoteName} ${cellName}`}
+        className="w-full rounded-md border bg-background px-2 py-1 text-xs"
+        value={selected}
+        disabled={choice.locked || isSaving}
+        onChange={handleChange}
+      >
+        {choice.candidates.map((candidate) => (
+          <option key={candidate.cell_code} value={candidate.cell_code}>
+            {candidate.name ?? candidate.cell_code}
+          </option>
+        ))}
+      </select>
+      {choice.locked ? (
+        <p className="mt-1 text-[0.68rem] text-muted-foreground">Locked</p>
+      ) : null}
+      {error ? <p className="mt-1 text-[0.68rem] text-destructive">{error}</p> : null}
     </div>
   );
 }
@@ -230,6 +309,36 @@ function MatrixLegend() {
       ))}
     </div>
   );
+}
+
+function updateMatrixChoice(
+  matrix: TenderMatrixResponse | null,
+  mappingId: string,
+  selectedCellCode: string,
+): TenderMatrixResponse | null {
+  if (!matrix) return matrix;
+  return {
+    ...matrix,
+    groups: matrix.groups.map((group) => ({
+      ...group,
+      cells: group.cells.map((cell) => ({
+        ...cell,
+        quotes: Object.fromEntries(
+          Object.entries(cell.quotes).map(([quoteId, quoteCell]) => [
+            quoteId,
+            {
+              ...quoteCell,
+              mapping_choices: (quoteCell.mapping_choices ?? []).map((choice) =>
+                choice.mapping_id === mappingId
+                  ? { ...choice, selected_cell_code: selectedCellCode, locked: true }
+                  : choice,
+              ),
+            },
+          ]),
+        ),
+      })),
+    })),
+  };
 }
 
 type MatrixQuote = {

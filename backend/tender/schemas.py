@@ -205,10 +205,25 @@ class QAResolveResponse(BaseModel):
     qa_state: str | None = None
 
 
+class MatrixMappingCandidate(BaseModel):
+    cell_code: str
+    name: str | None = None
+    similarity: float | None = None
+    via: str | None = None
+
+
+class MatrixMappingChoice(BaseModel):
+    mapping_id: uuid.UUID
+    selected_cell_code: str
+    candidates: list[MatrixMappingCandidate] = Field(default_factory=list)
+    locked: bool = False
+
+
 class MatrixQuoteCell(BaseModel):
     status: str
     amount_cents: int | None = None
     flags: list[str] = Field(default_factory=list)
+    mapping_choices: list[MatrixMappingChoice] = Field(default_factory=list)
 
 
 class MatrixCell(BaseModel):

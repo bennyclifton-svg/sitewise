@@ -46,6 +46,53 @@ def test_t2_adjudication_uses_stable_candidate_choices() -> None:
     assert decision.adjudication["request_id"] == "req-t2"
 
 
+def test_t2_adjudication_payload_includes_selected_choice_and_candidate_names() -> None:
+    llm = FakeAdjudicator(
+        LLMAdjudicationResponse(
+            choice="03.05",
+            confidence=0.86,
+            rationale="retaining scope",
+            model="gpt-small-test",
+            prompt_version=mapping.T2_PROMPT_VERSION,
+        )
+    )
+
+    decision = run_async(
+        mapping.t2_map_item(
+            _item("Retaining wall allowance"),
+            candidates=[
+                mapping.CellCandidate("03.05", 0.78, "retaining"),
+                mapping.CellCandidate("03.01", 0.72, "site costs"),
+            ],
+            candidate_cells=[
+                mapping.TaxonomyCellSummary("03.01", "Site costs", "Site works", 1),
+                mapping.TaxonomyCellSummary("03.05", "Retaining walls", "Walls", 2),
+            ],
+            context=_context(),
+            llm_client=llm,
+        )
+    )
+
+    assert decision.adjudication["choice"] == {
+        "cell_code": "03.05",
+        "name": "Retaining walls",
+    }
+    assert decision.adjudication["candidates"] == [
+        {
+            "cell_code": "03.05",
+            "name": "Retaining walls",
+            "similarity": 0.78,
+            "via": "retaining",
+        },
+        {
+            "cell_code": "03.01",
+            "name": "Site costs",
+            "similarity": 0.72,
+            "via": "site costs",
+        },
+    ]
+
+
 def test_t2_low_confidence_marks_review_without_t3_escalation() -> None:
     llm = FakeAdjudicator(
         LLMAdjudicationResponse(

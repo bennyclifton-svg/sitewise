@@ -153,6 +153,21 @@ export type TenderMatrixQuoteCell = {
   status: string;
   amount_cents: number | null;
   flags: string[];
+  mapping_choices: TenderMatrixMappingChoice[];
+};
+
+export type TenderMatrixMappingCandidate = {
+  cell_code: string;
+  name: string | null;
+  similarity: number | null;
+  via: string | null;
+};
+
+export type TenderMatrixMappingChoice = {
+  mapping_id: string;
+  selected_cell_code: string;
+  candidates: TenderMatrixMappingCandidate[];
+  locked: boolean;
 };
 
 export type TenderMatrixCell = {

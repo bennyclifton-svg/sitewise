@@ -73,6 +73,11 @@ def review_queue_statement(comparison_id: uuid.UUID):
         .where(
             TenderQuote.comparison_id == comparison_id,
             TenderMapping.qa_state == "needs_review",
+            func.coalesce(
+                func.jsonb_array_length(TenderMapping.adjudication.op("->")("candidates")),
+                0,
+            )
+            < 2,
         )
     )
     flags = select(
