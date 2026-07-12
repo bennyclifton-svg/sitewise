@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterator
 
 import yaml
@@ -146,6 +147,28 @@ def extract_decision_catalogs(markdown: str) -> list[SeedDecisionSpec]:
 
 def load_decision_catalogs_from_seed_text(markdown: str) -> list[SeedDecisionSpec]:
     return extract_decision_catalogs(markdown)
+
+
+def seed_directory() -> Path:
+    return Path(__file__).resolve().parents[3] / "data" / "seed"
+
+
+def load_all_seed_decision_catalogs(
+    seed_dir: Path | None = None,
+) -> list[SeedDecisionSpec]:
+    directory = seed_dir or seed_directory()
+    if not directory.is_dir():
+        return []
+    specs: list[SeedDecisionSpec] = []
+    seen: set[str] = set()
+    for path in sorted(directory.glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        for spec in extract_decision_catalogs(text):
+            if spec.id in seen:
+                continue
+            seen.add(spec.id)
+            specs.append(spec)
+    return specs
 
 
 def filter_decisions_for_project(

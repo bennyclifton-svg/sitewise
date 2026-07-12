@@ -7,11 +7,25 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterator
 
+from app.sitewise.archetype_bridge import effective_taxonomy
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context
+from app.sitewise.seed_decision_catalog import (
+    filter_decisions_for_project,
+    load_all_seed_decision_catalogs,
+)
 from app.sitewise.taxonomy import complexity_dimensions_for
 
 _FENCE_RE = re.compile(r"^(```|~~~)([^\s]*)")
 _REQUIRED_KEYS = frozenset({"id", "label", "options", "selected"})
+
+# Core + seed brief/finishes decisions for a sparse residential brief.
+SPARSE_BRIEF_DECISION_BAND = 15
+
+_TAXONOMY_TO_ARCHETYPE: dict[tuple[str | None, str | None], str] = {
+    ("residential", "new"): "new-dwelling",
+    ("residential", "refurb"): "renovation",
+    ("residential", "extend"): "ancillary",
+}
 
 PMP_CORE_DECISIONS: dict[str, dict[str, Any]] = {
     "approval-pathway": {
@@ -274,13 +288,95 @@ def render_decisions_static(markdown: str) -> str:
     return "".join(pieces)
 
 
-def decision_option_sets_for_project(project: object | None) -> dict[str, dict[str, Any]]:
+def _project_archetype(project: object | None) -> str | None:
+    if project is None:
+        return None
+    archetype = getattr(project, "archetype", None)
+    if isinstance(archetype, str) and archetype.strip():
+        return archetype.strip()
+    taxonomy = effective_taxonomy(project)
+    if taxonomy.building_class == "residential" and taxonomy.subclasses:
+        if "townhouses" in taxonomy.subclasses or "apartments" in taxonomy.subclasses:
+            return "multi-dwelling"
+    return _TAXONOMY_TO_ARCHETYPE.get((taxonomy.building_class, taxonomy.work_type))
+
+
+def _seed_option_sets_for_project(
+    project: object | None,
+    *,
+    include_cost_only: bool = False,
+    existing_ids: set[str] | None = None,
+    band: int = SPARSE_BRIEF_DECISION_BAND,
+) -> dict[str, dict[str, Any]]:
+    taken = set(existing_ids or ())
+    base_count = len(taken)
+    archetype = _project_archetype(project)
+    taxonomy = effective_taxonomy(project) if project is not None else None
+    building_class = taxonomy.building_class if taxonomy is not None else None
+    work_type = taxonomy.work_type if taxonomy is not None else None
+    if archetype is None and building_class is None:
+        return {}
+    filtered = filter_decisions_for_project(
+        load_all_seed_decision_catalogs(),
+        archetype=archetype,
+        building_class=building_class,
+        work_type=work_type,
+        include_cost_only=include_cost_only,
+    )
+    sets: dict[str, dict[str, Any]] = {}
+    non_cost_added = 0
+    for spec in filtered:
+        if spec.id in taken or spec.id in sets:
+            continue
+        if spec.cost_only and not include_cost_only:
+            continue
+        if not spec.cost_only and base_count + non_cost_added >= band:
+            continue
+        sets[spec.id] = {
+            "label": spec.label,
+            "section": spec.section,
+            "options": [dict(option) for option in spec.options],
+            "default_hint": spec.default_hint,
+            "cost_only": spec.cost_only,
+            "from_seed": True,
+        }
+        if not spec.cost_only:
+            non_cost_added += 1
+    return sets
+
+
+def decision_option_sets_for_project(
+    project: object | None,
+    *,
+    include_cost_only: bool = False,
+) -> dict[str, dict[str, Any]]:
     sets = {key: dict(value) for key, value in PMP_CORE_DECISIONS.items()}
+    seed_sets = _seed_option_sets_for_project(
+        project,
+        include_cost_only=include_cost_only,
+        existing_ids=set(sets),
+    )
+    for decision_id, spec in seed_sets.items():
+        if not include_cost_only and spec.get("cost_only"):
+            continue
+        payload = {
+            "label": spec["label"],
+            "section": spec["section"],
+            "options": spec["options"],
+            "from_seed": True,
+        }
+        if spec.get("default_hint"):
+            payload["default_hint"] = spec["default_hint"]
+        if spec.get("cost_only"):
+            payload["cost_only"] = True
+        sets[decision_id] = payload
     context = pmp_taxonomy_context(project) if project is not None else None
     if context is None:
         return sets
     for dimension in complexity_dimensions_for(context.building_class, context.subclasses):
         decision_id = _kebab_case(dimension.key)
+        if decision_id in sets:
+            continue
         sets[decision_id] = {
             "label": dimension.label,
             "section": "Project snapshot",
@@ -292,13 +388,53 @@ def decision_option_sets_for_project(project: object | None) -> dict[str, dict[s
     return sets
 
 
-def format_decision_option_sets(project: object | None) -> str:
+def required_decision_ids_for_project(
+    project: object | None,
+    *,
+    include_cost_only: bool = False,
+) -> list[str]:
+    """Stable ordered ids the agent should emit for a sparse brief."""
+    sets = decision_option_sets_for_project(
+        project, include_cost_only=include_cost_only
+    )
+    ordered = list(PMP_CORE_DECISIONS)
+    for decision_id, spec in sets.items():
+        if decision_id in PMP_CORE_DECISIONS:
+            continue
+        if not spec.get("from_seed"):
+            continue
+        if spec.get("cost_only") and not include_cost_only:
+            continue
+        ordered.append(decision_id)
+    return ordered[:SPARSE_BRIEF_DECISION_BAND]
+
+
+def format_decision_option_sets(
+    project: object | None,
+    *,
+    include_cost_only: bool = False,
+) -> str:
     lines = ["Available decision option sets (use only these values in pmp-decision blocks):"]
-    for decision_id, spec in sorted(decision_option_sets_for_project(project).items()):
+    for decision_id, spec in sorted(
+        decision_option_sets_for_project(
+            project, include_cost_only=include_cost_only
+        ).items()
+    ):
         options = ", ".join(
             f"{option['value']}={option['label']}" for option in spec["options"]
         )
-        lines.append(f"- {decision_id} ({spec['label']}): {options}")
+        hint = spec.get("default_hint")
+        suffix = f"; default_hint={hint}" if hint else ""
+        lines.append(f"- {decision_id} ({spec['label']}): {options}{suffix}")
+    required = required_decision_ids_for_project(
+        project, include_cost_only=include_cost_only
+    )
+    if required:
+        lines.append(
+            "Required decision ids for this project (emit a pmp-decision block for each, "
+            "always pre-selecting one option): "
+            + ", ".join(required)
+        )
     return "\n".join(lines)
 
 
