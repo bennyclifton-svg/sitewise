@@ -173,6 +173,41 @@ class DocumentUploadResponse(BaseModel):
     job: JobView
 
 
+class ProgressMilestone(BaseModel):
+    key: Literal["ingest", "extract", "map", "analyse", "review", "report"]
+    label: str
+    state: Literal["pending", "running", "done", "failed", "attention"]
+    detail: str | None = None
+
+
+class ProgressDocument(BaseModel):
+    filename: str
+    ingest_status: str
+
+
+class ProgressQuote(BaseModel):
+    quote_id: uuid.UUID
+    builder_name: str
+    stage: str
+    stated_total_cents: int | None = None
+    documents: list[ProgressDocument] = Field(default_factory=list)
+
+
+class ComparisonProgressResponse(BaseModel):
+    comparison_id: uuid.UUID
+    status: str
+    percent: int
+    is_processing: bool
+    qa_pending: int
+    milestones: list[ProgressMilestone] = Field(default_factory=list)
+    quotes: list[ProgressQuote] = Field(default_factory=list)
+
+
+class ProcessComparisonResponse(BaseModel):
+    queued: list[JobView] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class QAReviewItem(BaseModel):
     id: uuid.UUID
     entity_type: Literal[
@@ -203,6 +238,13 @@ class QAResolveResponse(BaseModel):
     entity_type: str
     action: str
     qa_state: str | None = None
+
+
+class QAAcceptAllResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    accepted: int
+    skipped_documents: int
 
 
 class MatrixMappingCandidate(BaseModel):

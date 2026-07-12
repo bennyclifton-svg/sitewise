@@ -68,3 +68,20 @@ export function tenderStatusTone(status: string): string {
   if (status === "not_required") return "text-muted-foreground bg-muted";
   return "text-[var(--info-text)] bg-[var(--info-bg)]";
 }
+
+/** Background tint applied to the whole matrix cell so status reads at a glance. */
+export function tenderStatusCellTint(status: string): string {
+  if (status === "included") return "bg-[var(--ok-bg)]";
+  if (status === "pc" || status === "ps") return "bg-[var(--warn-bg)]";
+  if (status === "excluded_explicit") return "bg-[var(--alert-bg)]";
+  if (status === "not_required") return "bg-muted/50";
+  return "bg-[var(--info-bg)]";
+}
+
+export function tenderStatusTextTone(status: string): string {
+  if (status === "included") return "text-[var(--ok-text)]";
+  if (status === "pc" || status === "ps") return "text-[var(--warn-text)]";
+  if (status === "excluded_explicit") return "text-[var(--alert-text)]";
+  if (status === "not_required") return "text-muted-foreground";
+  return "text-[var(--info-text)]";
+}

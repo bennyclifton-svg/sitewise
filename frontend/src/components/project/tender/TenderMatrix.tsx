@@ -1,34 +1,63 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AlertCircle, LoaderCircle } from "lucide-react";
-import type { ChangeEvent } from "react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  CheckCheck,
+  CircleHelp,
+  Flag,
+  LoaderCircle,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import type { ChangeEvent } from "react";
 import type {
   TenderComparison,
   TenderMatrixCell,
   TenderMatrixMappingChoice,
   TenderMatrixResponse,
+  TenderQaItem,
   TenderQuote,
 } from "@/lib/types/tender";
 import { cn } from "@/lib/utils";
 
 import {
   formatTenderMoney,
+  formatTenderPercent,
   formatTenderStatus,
+  tenderStatusCellTint,
   tenderStatusGlyph,
-  tenderStatusTone,
+  tenderStatusTextTone,
 } from "./format";
 
 type MatrixRow =
   | { kind: "group"; id: string; groupName: string }
   | { kind: "cell"; id: string; groupName: string; cell: TenderMatrixCell };
 
-export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
+type ActiveCell = { quoteId: string; cellCode: string };
+
+const GROUP_ROW_PX = 32;
+const CELL_ROW_PX = 36;
+
+export function TenderMatrix({
+  projectId,
+  comparisonId,
+}: {
+  projectId: string;
+  comparisonId: string;
+}) {
   const [matrix, setMatrix] = useState<TenderMatrixResponse | null>(null);
   const [comparison, setComparison] = useState<TenderComparison | null>(null);
+  const [qaItems, setQaItems] = useState<TenderQaItem[]>([]);
+  const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [qaNote, setQaNote] = useState<string | null>(null);
+  const [qaError, setQaError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -40,13 +69,15 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
       setIsLoading(true);
       setError(null);
       try {
-        const [matrixData, comparisonData] = await Promise.all([
+        const [matrixData, comparisonData, queue] = await Promise.all([
           api.getTenderMatrix(comparisonId),
           api.getTenderComparison(comparisonId),
+          api.getTenderQaQueue(comparisonId),
         ]);
         if (cancelled) return;
         setMatrix(matrixData);
         setComparison(comparisonData);
+        setQaItems(queue.items);
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -68,12 +99,102 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
 
   const rows = useMemo(() => flattenRows(matrix), [matrix]);
   const quotes = useMemo(() => quoteColumns(matrix, comparison?.quotes ?? []), [comparison, matrix]);
+  const qaByCell = useMemo(() => groupQaByCell(qaItems), [qaItems]);
+  const cellNames = useMemo(() => cellNameIndex(matrix), [matrix]);
+  const anchoredCount = useMemo(
+    () => [...qaByCell.values()].reduce((sum, items) => sum + items.length, 0),
+    [qaByCell],
+  );
+  const lowestTotal = useMemo(() => {
+    const totals = quotes
+      .map((quote) => quote.totalCents)
+      .filter((total): total is number => typeof total === "number");
+    return totals.length > 1 ? Math.min(...totals) : null;
+  }, [quotes]);
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => (rows[index]?.kind === "group" ? 36 : 56),
-    overscan: 8,
+    estimateSize: (index) =>
+      rows[index]?.kind === "group" ? GROUP_ROW_PX : CELL_ROW_PX,
+    overscan: 12,
   });
+
+  const qaPath = `/projects/${projectId}/tender/${comparisonId}/qa`;
+  const reportPath = `/projects/${projectId}/tender/${comparisonId}/report`;
+  const activeKey = activeCell ? cellKey(activeCell.quoteId, activeCell.cellCode) : null;
+  const activeItems = activeKey ? qaByCell.get(activeKey) ?? [] : [];
+  const activeQuote = activeCell
+    ? quotes.find((quote) => quote.id === activeCell.quoteId)
+    : null;
+
+  async function reloadQueue(): Promise<TenderQaItem[]> {
+    const queue = await api.getTenderQaQueue(comparisonId);
+    setQaItems(queue.items);
+    return queue.items;
+  }
+
+  async function acceptAll() {
+    setResolving("all");
+    setQaError(null);
+    setQaNote(null);
+    try {
+      const result = await api.acceptAllTenderQa(comparisonId);
+      await reloadQueue();
+      setActiveCell(null);
+      const accepted = `Accepted ${result.accepted} recommendation${result.accepted === 1 ? "" : "s"}.`;
+      setQaNote(
+        result.skipped_documents > 0
+          ? `${accepted} ${result.skipped_documents} document${result.skipped_documents === 1 ? "" : "s"} still need classification in the QA console.`
+          : accepted,
+      );
+    } catch (acceptError) {
+      setQaError(
+        acceptError instanceof ApiError
+          ? acceptError.message
+          : "Could not accept recommendations.",
+      );
+    } finally {
+      setResolving(null);
+    }
+  }
+
+  async function acceptItem(item: TenderQaItem) {
+    setResolving(item.id);
+    setQaError(null);
+    setQaNote(null);
+    try {
+      await api.resolveTenderQaItem(item.id, {
+        action: "accept",
+        corrected_value: null,
+        reason: null,
+      });
+      const remaining = await reloadQueue();
+      if (
+        activeKey &&
+        !remaining.some((candidate) => qaItemKey(candidate) === activeKey)
+      ) {
+        setActiveCell(null);
+      }
+    } catch (resolveError) {
+      setQaError(
+        resolveError instanceof ApiError
+          ? resolveError.message
+          : "Could not resolve QA item.",
+      );
+    } finally {
+      setResolving(null);
+    }
+  }
+
+  function toggleCell(next: ActiveCell) {
+    setQaError(null);
+    setActiveCell((current) =>
+      current && current.quoteId === next.quoteId && current.cellCode === next.cellCode
+        ? null
+        : next,
+    );
+  }
 
   async function resolveMappingChoice(mappingId: string, cellCode: string) {
     await api.resolveTenderQaItem(mappingId, {
@@ -112,24 +233,168 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
         <div>
           <p className="cockpit-zone-title">Comparison matrix</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {rows.filter((row) => row.kind === "cell").length} cells across {quotes.length} quotes
+            {rows.filter((row) => row.kind === "cell").length} line items across {quotes.length} quotes
           </p>
         </div>
         <MatrixLegend />
       </header>
 
+      {qaItems.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-[var(--warn-bg)] px-4 py-2">
+          <p className="flex items-center gap-1.5 text-sm text-[var(--warn-text)]">
+            <CircleHelp className="size-4 shrink-0" aria-hidden />
+            {qaItems.length} question{qaItems.length === 1 ? "" : "s"} from the analysis
+            {anchoredCount > 0
+              ? ` ? ${anchoredCount} marked on cells below`
+              : ""}
+            {qaItems.length - anchoredCount > 0
+              ? `, ${qaItems.length - anchoredCount} in the QA console`
+              : ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={resolving !== null}
+              onClick={() => void acceptAll()}
+            >
+              {resolving === "all" ? (
+                <LoaderCircle className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <CheckCheck className="size-4" aria-hidden />
+              )}
+              Accept all recommendations
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to={qaPath}>QA console</Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-[var(--ok-bg)] px-4 py-2">
+          <p className="flex items-center gap-1.5 text-sm text-[var(--ok-text)]">
+            <Check className="size-4 shrink-0" aria-hidden />
+            All findings reviewed ? ready to build the report.
+          </p>
+          <Button asChild size="sm">
+            <Link to={reportPath}>
+              Continue to report
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {qaNote ? (
+        <p className="border-b bg-muted px-4 py-2 text-sm text-muted-foreground">{qaNote}</p>
+      ) : null}
+      {qaError ? (
+        <p className="border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+          {qaError}
+        </p>
+      ) : null}
+
+      {activeCell && (activeItems.length > 0 || (activeQuote && ((matrix?.groups.flatMap((g) => g.cells).find((c) => c.code === activeCell.cellCode)?.quotes[activeCell.quoteId]?.mapping_choices?.length ?? 0) > 0))) ? (
+        <div className="border-b bg-background px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-medium">
+              {cellNames.get(activeCell.cellCode) ?? activeCell.cellCode}
+              <span className="ml-2 font-mono text-xs text-muted-foreground">
+                {activeCell.cellCode}
+              </span>
+              {activeQuote ? (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {activeQuote.builderName}
+                </span>
+              ) : null}
+            </p>
+            <button
+              type="button"
+              className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close questions"
+              onClick={() => setActiveCell(null)}
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </div>
+          {activeCell
+            ? (() => {
+                const activeMatrixCell = matrix?.groups
+                  .flatMap((group) => group.cells)
+                  .find((cell) => cell.code === activeCell.cellCode);
+                const choices =
+                  activeMatrixCell?.quotes[activeCell.quoteId]?.mapping_choices ?? [];
+                if (!choices.length || !activeQuote) return null;
+                return (
+                  <div className="mt-2 space-y-2">
+                    {choices.map((choice) => (
+                      <MappingChoiceControl
+                        key={choice.mapping_id}
+                        choice={choice}
+                        quoteName={activeQuote.builderName}
+                        cellName={activeMatrixCell?.name ?? activeCell.cellCode}
+                        onChange={resolveMappingChoice}
+                      />
+                    ))}
+                  </div>
+                );
+              })()
+            : null}
+          <ul className="mt-2 space-y-1.5">
+            {activeItems.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm">{qaQuestion(item)}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Impact {formatTenderMoney(item.report_impact_cents)} ? Confidence{" "}
+                    {formatTenderPercent(item.confidence)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="secondary"
+                    disabled={resolving !== null}
+                    onClick={() => void acceptItem(item)}
+                  >
+                    {resolving === item.id ? (
+                      <LoaderCircle className="size-3 animate-spin" aria-hidden />
+                    ) : (
+                      <Check className="size-3" aria-hidden />
+                    )}
+                    Accept
+                  </Button>
+                  <Button asChild size="xs" variant="ghost">
+                    <Link to={qaPath}>Edit in console</Link>
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto">
         <div className="min-w-[54rem]">
           <div
             className="grid border-b bg-background text-xs font-medium text-muted-foreground"
-            style={{ gridTemplateColumns: `17rem repeat(${quotes.length}, minmax(11rem, 1fr))` }}
+            style={{ gridTemplateColumns: gridColumns(quotes.length) }}
           >
-            <div className="px-3 py-2">Cell</div>
+            <div className="px-3 py-2">Line item</div>
             {quotes.map((quote) => (
-              <div key={quote.id} className="border-l px-3 py-2">
-                <span className="block truncate">{quote.builderName}</span>
+              <div key={quote.id} className="border-l px-2 py-2">
+                <span className="block truncate" title={quote.builderName}>
+                  {quote.builderName}
+                </span>
                 <span className="block font-mono text-[0.68rem] font-normal tabular-nums">
                   {formatTenderMoney(quote.totalCents)}
+                  {lowestTotal !== null && quote.totalCents === lowestTotal ? (
+                    <span className="ml-1.5 font-sans text-[var(--ok-text)]">Lowest</span>
+                  ) : null}
                 </span>
               </div>
             ))}
@@ -149,14 +414,16 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
                     style={{ transform: `translateY(${virtualRow.start}px)` }}
                   >
                     {row.kind === "group" ? (
-                      <div className="border-b bg-muted/70 px-3 py-2 text-xs font-semibold">
+                      <div className="flex h-8 items-center border-b bg-muted/70 px-3 text-xs font-semibold">
                         {row.groupName}
                       </div>
                     ) : (
                       <MatrixCellRow
                         row={row}
                         quotes={quotes}
-                        onMappingChoiceChange={resolveMappingChoice}
+                        qaByCell={qaByCell}
+                        activeCell={activeCell}
+                        onToggleCell={toggleCell}
                       />
                     )}
                   </div>
@@ -173,68 +440,129 @@ export function TenderMatrix({ comparisonId }: { comparisonId: string }) {
 function MatrixCellRow({
   row,
   quotes,
-  onMappingChoiceChange,
+  qaByCell,
+  activeCell,
+  onToggleCell,
 }: {
   row: Extract<MatrixRow, { kind: "cell" }>;
   quotes: MatrixQuote[];
-  onMappingChoiceChange: (mappingId: string, cellCode: string) => Promise<void>;
+  qaByCell: Map<string, TenderQaItem[]>;
+  activeCell: ActiveCell | null;
+  onToggleCell: (cell: ActiveCell) => void;
 }) {
   return (
     <div
-      className="grid min-h-14 border-b bg-card text-sm"
-      style={{ gridTemplateColumns: `17rem repeat(${quotes.length}, minmax(11rem, 1fr))` }}
+      className="grid h-9 border-b bg-card text-sm"
+      style={{ gridTemplateColumns: gridColumns(quotes.length) }}
     >
-      <div className="min-w-0 px-3 py-2">
-        <p className="truncate font-medium">{row.cell.name}</p>
-        <p className="mt-0.5 font-mono text-xs text-muted-foreground">{row.cell.code}</p>
+      <div className="flex min-w-0 items-center gap-2 px-3">
+        <span className="w-10 shrink-0 font-mono text-[0.68rem] text-muted-foreground">
+          {row.cell.code}
+        </span>
+        <span className="truncate font-medium" title={row.cell.name}>
+          {row.cell.name}
+        </span>
       </div>
       {quotes.map((quote) => {
         const cell = row.cell.quotes[quote.id];
-        return (
-          <div key={quote.id} className="min-w-0 border-l px-3 py-2">
-            {cell ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "grid size-6 place-items-center rounded-sm font-semibold",
-                      tenderStatusTone(cell.status),
-                    )}
-                    title={formatTenderStatus(cell.status)}
-                  >
-                    {tenderStatusGlyph(cell.status)}
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {formatTenderStatus(cell.status)}
-                  </span>
-                </div>
-                <p className="mt-1 font-mono text-xs tabular-nums">
-                  {formatTenderMoney(cell.amount_cents)}
-                </p>
-                {(cell.mapping_choices ?? []).map((choice) => (
-                  <MappingChoiceControl
-                    key={choice.mapping_id}
-                    choice={choice}
-                    quoteName={quote.builderName}
-                    cellName={row.cell.name}
-                    onChange={onMappingChoiceChange}
-                  />
-                ))}
-                {cell.flags.length ? (
-                  <p className="mt-1 truncate text-xs text-destructive" title={cell.flags.join("; ")}>
-                    {cell.flags.length} flag{cell.flags.length === 1 ? "" : "s"}
-                  </p>
+        if (!cell) {
+          return (
+            <div
+              key={quote.id}
+              className="flex items-center border-l px-2 text-xs text-muted-foreground"
+            >
+              &ndash;
+            </div>
+          );
+        }
+        const questions = qaByCell.get(cellKey(quote.id, row.cell.code)) ?? [];
+        const mappingChoices = cell.mapping_choices ?? [];
+        const isActive =
+          activeCell?.quoteId === quote.id && activeCell?.cellCode === row.cell.code;
+        const statusLabel = formatTenderStatus(cell.status);
+        const content = (
+          <>
+            <span
+              className={cn(
+                "w-4 shrink-0 text-center font-semibold",
+                tenderStatusTextTone(cell.status),
+              )}
+              aria-hidden
+            >
+              {tenderStatusGlyph(cell.status)}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-right font-mono text-xs tabular-nums">
+              {cell.amount_cents !== null && cell.amount_cents !== undefined
+                ? formatTenderMoney(cell.amount_cents)
+                : "?"}
+            </span>
+            {cell.flags.length ? (
+              <span
+                className="flex shrink-0 items-center text-[var(--alert-text)]"
+                title={cell.flags.join("; ")}
+              >
+                <Flag className="size-3" aria-hidden />
+                {cell.flags.length > 1 ? (
+                  <span className="ml-0.5 text-[0.65rem] tabular-nums">{cell.flags.length}</span>
                 ) : null}
-              </>
-            ) : (
-              <span className="text-xs text-muted-foreground">No row</span>
+              </span>
+            ) : null}
+            {questions.length ? (
+              <span
+                className="grid size-4 shrink-0 place-items-center rounded-full bg-[var(--warn-text)] text-[0.65rem] font-bold text-background"
+                aria-hidden
+              >
+                {questions.length}
+              </span>
+            ) : null}
+            {mappingChoices.length ? (
+              <span
+                className="grid size-4 shrink-0 place-items-center rounded-full bg-primary text-[0.65rem] font-bold text-primary-foreground"
+                title="Mapping choices"
+                aria-hidden
+              >
+                {mappingChoices.length}
+              </span>
+            ) : null}
+          </>
+        );
+
+        if (questions.length || mappingChoices.length) {
+          return (
+            <button
+              key={quote.id}
+              type="button"
+              className={cn(
+                "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95 dark:hover:brightness-110",
+                tenderStatusCellTint(cell.status),
+                isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
+              )}
+              title={statusLabel}
+              aria-label={`${statusLabel} ? ${questions.length} question${questions.length === 1 ? "" : "s"} for ${row.cell.name}, ${quote.builderName}`}
+              onClick={() => onToggleCell({ quoteId: quote.id, cellCode: row.cell.code })}
+            >
+              {content}
+            </button>
+          );
+        }
+
+        return (
+          <div
+            key={quote.id}
+            className={cn(
+              "flex items-center gap-1.5 border-l px-2",
+              tenderStatusCellTint(cell.status),
             )}
+            title={statusLabel}
+          >
+            {content}
           </div>
         );
       })}
     </div>
   );
 }
+
 
 function MappingChoiceControl({
   choice,
@@ -267,16 +595,21 @@ function MappingChoiceControl({
   }
 
   return (
-    <div className="mt-2">
+    <div>
       <select
         aria-label={`Mapping choice for ${quoteName} ${cellName}`}
-        className="w-full rounded-md border bg-background px-2 py-1 text-xs"
+        className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
         value={selected}
         disabled={choice.locked || isSaving}
         onChange={handleChange}
       >
         {choice.candidates.map((candidate) => (
-          <option key={candidate.cell_code} value={candidate.cell_code}>
+          <option
+            key={candidate.cell_code}
+            value={candidate.cell_code}
+            className="bg-white text-neutral-900"
+            style={{ color: "#111111", backgroundColor: "#ffffff" }}
+          >
             {candidate.name ?? candidate.cell_code}
           </option>
         ))}
@@ -285,28 +618,6 @@ function MappingChoiceControl({
         <p className="mt-1 text-[0.68rem] text-muted-foreground">Locked</p>
       ) : null}
       {error ? <p className="mt-1 text-[0.68rem] text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function MatrixLegend() {
-  const entries = [
-    ["included", "Included"],
-    ["pc", "Allowance"],
-    ["excluded_explicit", "Excluded"],
-    ["silent_ambiguous", "Not itemised"],
-    ["not_required", "Not required"],
-  ];
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {entries.map(([status, label]) => (
-        <Badge key={status} variant="outline" className="gap-1.5">
-          <span className={cn("grid size-4 place-items-center rounded-sm", tenderStatusTone(status))}>
-            {tenderStatusGlyph(status)}
-          </span>
-          {label}
-        </Badge>
-      ))}
     </div>
   );
 }
@@ -341,11 +652,106 @@ function updateMatrixChoice(
   };
 }
 
+function MatrixLegend() {
+  const entries = [
+    ["included", "Included"],
+    ["pc", "Allowance"],
+    ["excluded_explicit", "Excluded"],
+    ["silent_ambiguous", "Not itemised"],
+    ["not_required", "Not required"],
+  ] as const;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {entries.map(([status, label]) => (
+        <span
+          key={status}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-medium",
+            tenderStatusCellTint(status),
+            tenderStatusTextTone(status),
+          )}
+        >
+          <span aria-hidden>{tenderStatusGlyph(status)}</span>
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 type MatrixQuote = {
   id: string;
   builderName: string;
   totalCents: number | null;
 };
+
+function gridColumns(quoteCount: number): string {
+  return `16rem repeat(${quoteCount}, minmax(9.5rem, 1fr))`;
+}
+
+function cellKey(quoteId: string, cellCode: string): string {
+  return `${quoteId}:${cellCode}`;
+}
+
+function qaItemKey(item: TenderQaItem): string | null {
+  const quoteId = readString(item.payload.quote_id);
+  const cellCode = readString(item.payload.cell_code);
+  if (!quoteId || !cellCode) return null;
+  return cellKey(quoteId, cellCode);
+}
+
+function groupQaByCell(items: TenderQaItem[]): Map<string, TenderQaItem[]> {
+  const map = new Map<string, TenderQaItem[]>();
+  for (const item of items) {
+    const key = qaItemKey(item);
+    if (!key) continue;
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(item);
+    } else {
+      map.set(key, [item]);
+    }
+  }
+  return map;
+}
+
+function cellNameIndex(matrix: TenderMatrixResponse | null): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const group of matrix?.groups ?? []) {
+    for (const cell of group.cells) map.set(cell.code, cell.name);
+  }
+  return map;
+}
+
+function qaQuestion(item: TenderQaItem): string {
+  const payload = item.payload;
+  if (item.entity_type === "cell_status") {
+    const status = readString(payload.status);
+    const amount = readNumber(payload.amount_cents);
+    const statusLabel = status ? formatTenderStatus(status) : "this reading";
+    return amount !== null
+      ? `Read as ${statusLabel} at ${formatTenderMoney(amount)} ? is this correctly allocated?`
+      : `Read as ${statusLabel} ? is this correctly allocated?`;
+  }
+  if (item.entity_type === "mapping") {
+    const description = readString(payload.description_raw);
+    return description
+      ? `"${description}" was mapped to this line item ? is that where it belongs?`
+      : "Confirm this line item mapping.";
+  }
+  if (item.entity_type === "flag") {
+    return readString(payload.headline) ?? "Review this flag.";
+  }
+  return readString(payload.filename) ?? "Review this document classification.";
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
 function flattenRows(matrix: TenderMatrixResponse | null): MatrixRow[] {
   if (!matrix) return [];

@@ -331,10 +331,18 @@
     });
   }
 
-  /* Renders text as one inline SVG of SITEFORM DISPLAY glyph runs.
-   * The real text is mirrored in a visually-hidden element for a11y/SEO.
-   * Size via CSS: the emitted svg is height:1em-friendly (see page CSS). */
+  /* Renders display copy as plain text for the Oxanium face.
+   * SVG glyph path retained in this file for font-spec.html / build path A. */
   function renderDisplayText(el, text, opts) {
+    opts = opts || {};
+    if (opts.svg) {
+      return renderDisplayTextSvg(el, text, opts);
+    }
+    el.textContent = text == null ? "" : String(text);
+    return el;
+  }
+
+  function renderDisplayTextSvg(el, text, opts) {
     opts = opts || {};
     var tracking = typeof opts.tracking === "number" ? opts.tracking : TRACK;
     var chars = String(text).toUpperCase().split("");
@@ -381,6 +389,7 @@
     SPACE_ADV: SPACE_ADV,
     GLYPHS: GLYPHS,
     renderDisplayText: renderDisplayText,
+    renderDisplayTextSvg: renderDisplayTextSvg,
     renderAll: renderAll,
     prefersReducedMotion: prefersReducedMotion
   };

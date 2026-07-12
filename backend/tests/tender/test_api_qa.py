@@ -178,6 +178,56 @@ def test_report_guard_rejects_pending_review_items() -> None:
         run_async(qa.assert_no_pending_review(session, comparison_id=COMPARISON_ID))
 
 
+def test_accept_all_endpoint_checks_owner_and_returns_counts(client: TestClient) -> None:
+    result = qa.QAAcceptAllResult(accepted=7, skipped_documents=2)
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch("tender.router.require_active_entitlement", new=AsyncMock()),
+        patch("tender.router.qa.accept_all_pending", new=AsyncMock(return_value=result)),
+    ):
+        response = client.post(
+            f"/api/tender/comparisons/{COMPARISON_ID}/qa/accept-all"
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"accepted": 7, "skipped_documents": 2}
+
+
+def test_accept_all_confirms_items_and_skips_documents() -> None:
+    session = FakeAcceptAllSession()
+
+    result = run_async(
+        qa.accept_all_pending(
+            session,
+            comparison_id=COMPARISON_ID,
+            reviewer_id=USER_ID,
+        )
+    )
+
+    assert result.accepted == 1
+    assert result.skipped_documents == 1
+    assert session.cell_status.qa_state == "confirmed"
+    assert session.cell_status.reviewed_by == USER_ID
+    correction = _only_added(session, TenderCorrection)
+    assert correction.reason == "Bulk accept from matrix review"
+
+
+def test_mapping_review_item_payload_includes_quote_id() -> None:
+    session = FakeQASession(mapping=True)
+    row = {
+        "item_id": session.mapping.id,
+        "entity_type": "mapping",
+        "report_impact_cents": 500_000,
+        "confidence": 0.58,
+    }
+
+    item = run_async(qa._review_item_from_row(session, row))
+
+    assert item.payload["quote_id"] == str(session.line_item.quote_id)
+    assert item.payload["cell_code"] == "03.01"
+
+
 class FakeQASession:
     def __init__(self, *, cell_status: bool = False, mapping: bool = False) -> None:
         self.cell_status = TenderCellStatus(
@@ -240,6 +290,66 @@ class FakePendingReviewSession:
 
     async def execute(self, statement: Any) -> "FakeScalarResult":
         return FakeScalarResult(self.has_pending)
+
+
+class FakeAcceptAllSession:
+    def __init__(self) -> None:
+        self.cell_status = TenderCellStatus(
+            id=ITEM_ID,
+            comparison_id=COMPARISON_ID,
+            quote_id=uuid.uuid4(),
+            cell_code="18.01",
+            status="silent_ambiguous",
+            amount_cents=250_000,
+            bundled_into_cell=None,
+            evidence={},
+            confidence=0.61,
+            qa_state="needs_review",
+        )
+        self.document_id = uuid.uuid4()
+        self.added: list[Any] = []
+
+    async def execute(self, statement: Any) -> "FakeMappingsResult":
+        return FakeMappingsResult(
+            [
+                {
+                    "item_id": self.cell_status.id,
+                    "entity_type": "cell_status",
+                    "report_impact_cents": 250_000,
+                    "confidence": 0.61,
+                },
+                {
+                    "item_id": self.document_id,
+                    "entity_type": "document_classification",
+                    "report_impact_cents": 0,
+                    "confidence": None,
+                },
+            ]
+        )
+
+    async def get(self, model: type, ident: uuid.UUID) -> object | None:
+        if model is TenderCellStatus and ident == self.cell_status.id:
+            return self.cell_status
+        return None
+
+    def add(self, obj: object) -> None:
+        self.added.append(obj)
+
+    async def flush(self) -> None:
+        for obj in self.added:
+            if getattr(obj, "id", None) is None:
+                obj.id = uuid.uuid4()
+
+
+class FakeMappingsResult:
+    def __init__(self, rows: list[dict]) -> None:
+        self.rows = rows
+
+    def mappings(self) -> "FakeMappingsResult":
+        return self
+
+    def all(self) -> list[dict]:
+        return self.rows
 
 
 class FakeResult:

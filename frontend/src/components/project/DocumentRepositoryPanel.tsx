@@ -10,6 +10,7 @@ import {
   Upload,
 } from "lucide-react";
 import {
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -32,6 +33,7 @@ import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { IngestBatchEstimator, type IngestBatchSnapshot } from "@/lib/ingest-progress";
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
 import { useDeleteEvidence } from "@/lib/queries/project-data";
 import type {
@@ -61,8 +63,42 @@ type RepositoryPanelView = "schedule" | "tree";
 type RepositoryTreeSectionId = "activity" | "skills" | "knowledge" | "admin";
 type SelectionUpdater = Set<string> | ((current: Set<string>) => Set<string>);
 
+type PendingUploadStage = "queued" | "uploading" | "ingesting";
+
+type PendingUpload = {
+  id: string;
+  filename: string;
+  stage: PendingUploadStage;
+  uploadPercent: number | null;
+};
+
+type IngestQueueItem =
+  | { kind: "file"; uid: string; file: File }
+  | { kind: "staged"; uid: string; stagingId: string; filename: string };
+
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
+}
+
+function pendingUploadId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
+
+function pendingStageLabel(pending: PendingUpload): string {
+  switch (pending.stage) {
+    case "queued":
+      return "Queued";
+    case "uploading":
+      return pending.uploadPercent !== null &&
+        pending.uploadPercent > 0 &&
+        pending.uploadPercent < 100
+        ? `Uploading ${pending.uploadPercent}%`
+        : "Uploading…";
+    case "ingesting":
+      return "Ingesting…";
+  }
 }
 
 export function DocumentRepositoryPanel({
@@ -112,7 +148,9 @@ export function DocumentRepositoryPanel({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<IngestUploadProgress | null>(null);
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const estimatorRef = useRef<IngestBatchEstimator | null>(null);
   const [splitProposals, setSplitProposals] = useState<SplitProposal[]>([]);
   const [resolvingStagingId, setResolvingStagingId] = useState<string | null>(null);
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(
@@ -137,6 +175,24 @@ export function DocumentRepositoryPanel({
     () => evidence.filter((item) => isInboxEvidence(item)).length,
     [evidence],
   );
+
+  const getBatchSnapshot = useCallback(
+    (): IngestBatchSnapshot =>
+      estimatorRef.current?.snapshot() ?? { fraction: 0, etaSeconds: null },
+    [],
+  );
+
+  function patchPendingUpload(id: string, patch: Partial<PendingUpload>) {
+    setPendingUploads((current) =>
+      current.map((pending) =>
+        pending.id === id ? { ...pending, ...patch } : pending,
+      ),
+    );
+  }
+
+  function removePendingUpload(id: string) {
+    setPendingUploads((current) => current.filter((pending) => pending.id !== id));
+  }
 
   function toggleTreeSection(id: RepositoryTreeSectionId) {
     setOpenTreeSections((current) => {
@@ -354,69 +410,138 @@ export function DocumentRepositoryPanel({
     }
     if (!accepted.length) return;
 
-    // PDFs are analyzed first: drawing sets become split proposals the user
-    // confirms; everything else ingests immediately as before.
-    const toIngest: File[] = accepted.filter((file) => !isPdfFile(file));
-    const analyzeErrors: string[] = [];
-    for (const pdf of accepted.filter(isPdfFile)) {
-      try {
-        const analysis = await api.analyzePdf(projectId, pdf);
-        if (analysis.is_drawing_set) {
-          setSplitProposals((current) => [
-            ...current,
-            { sourceFile: pdf, analysis },
-          ]);
-        } else {
-          toIngest.push(pdf);
-        }
-      } catch (error) {
-        analyzeErrors.push(`${pdf.name}: ${formatUploadError(error)}`);
-      }
-    }
-    if (analyzeErrors.length) {
-      setUploadError(analyzeErrors.join("; "));
-    }
-    if (!toIngest.length) return;
-
+    // Every accepted file is acknowledged in the register immediately as a
+    // placeholder row; the batch estimator drives the progress bar and ETA.
+    const entries = accepted.map((file) => ({ uid: pendingUploadId(), file }));
+    const estimator = new IngestBatchEstimator(
+      entries.map((entry) => ({ id: entry.uid, sizeBytes: entry.file.size })),
+    );
+    estimatorRef.current = estimator;
+    setPendingUploads(
+      entries.map((entry) => ({
+        id: entry.uid,
+        filename: entry.file.name,
+        stage: "queued",
+        uploadPercent: null,
+      })),
+    );
     setIsUploading(true);
-    setUploadProgress({
-      total: toIngest.length,
-      completed: 0,
-      currentFilename: toIngest[0]?.name ?? null,
-      failedCount: 0,
-    });
 
+    let total = entries.length;
+    let completed = 0;
+    let failedCount = 0;
+    const setStrip = (
+      currentFilename: string | null,
+      stage: IngestUploadProgress["stage"],
+    ) =>
+      setUploadProgress({ total, completed, currentFilename, stage, failedCount });
+    setStrip(entries[0]?.file.name ?? null, null);
+
+    const queue: IngestQueueItem[] = [];
     const failedResults: InboxUploadResult[] = [];
     const uploadErrors: string[] = [];
+    const analyzeErrors: string[] = [];
 
     try {
-      for (let index = 0; index < toIngest.length; index += 1) {
-        const file = toIngest[index];
-        setUploadProgress({
-          total: toIngest.length,
-          completed: index,
-          currentFilename: file.name,
-          failedCount: failedResults.length,
-        });
-
+      // Phase 1 — analyzing a PDF uploads its bytes to staging, so this is the
+      // real upload for PDFs. Drawing sets divert to split proposals; other
+      // PDFs are ingested from staging later without a second upload.
+      for (const entry of entries) {
+        if (!isPdfFile(entry.file)) {
+          queue.push({ kind: "file", uid: entry.uid, file: entry.file });
+          continue;
+        }
+        patchPendingUpload(entry.uid, { stage: "uploading" });
+        setStrip(entry.file.name, "uploading");
         try {
-          const results = await api.uploadInboxFiles(projectId, [file]);
+          const analysis = await api.analyzePdf(projectId, entry.file, (loaded, size) => {
+            estimator.uploadProgress(entry.uid, loaded);
+            patchPendingUpload(entry.uid, {
+              uploadPercent: size > 0 ? Math.round((loaded / size) * 100) : null,
+            });
+          });
+          if (analysis.is_drawing_set) {
+            estimator.removeFile(entry.uid);
+            removePendingUpload(entry.uid);
+            total -= 1;
+            setSplitProposals((current) => [
+              ...current,
+              { sourceFile: entry.file, analysis },
+            ]);
+          } else {
+            estimator.uploadProgress(entry.uid, entry.file.size);
+            patchPendingUpload(entry.uid, { stage: "queued", uploadPercent: null });
+            queue.push({
+              kind: "staged",
+              uid: entry.uid,
+              stagingId: analysis.staging_id,
+              filename: entry.file.name,
+            });
+          }
+        } catch (error) {
+          estimator.removeFile(entry.uid);
+          removePendingUpload(entry.uid);
+          total -= 1;
+          analyzeErrors.push(`${entry.file.name}: ${formatUploadError(error)}`);
+        }
+      }
+      if (analyzeErrors.length) {
+        setUploadError(analyzeErrors.join("; "));
+      }
+
+      // Phase 2 — ingest one file at a time so each register row settles in
+      // order and the estimator can learn real upload/ingest rates.
+      for (const item of queue) {
+        const filename = item.kind === "file" ? item.file.name : item.filename;
+        try {
+          let results: InboxUploadResult[];
+          if (item.kind === "staged") {
+            patchPendingUpload(item.uid, { stage: "ingesting" });
+            estimator.startIngest(item.uid);
+            setStrip(filename, "ingesting");
+            results = await api.commitStagedPdf(projectId, item.stagingId, filename);
+          } else {
+            patchPendingUpload(item.uid, { stage: "uploading" });
+            setStrip(filename, "uploading");
+            let ingestStarted = false;
+            results = await api.uploadInboxFiles(
+              projectId,
+              [item.file],
+              undefined,
+              (loaded, size) => {
+                estimator.uploadProgress(item.uid, loaded);
+                if (loaded >= size && !ingestStarted) {
+                  ingestStarted = true;
+                  estimator.startIngest(item.uid);
+                  patchPendingUpload(item.uid, {
+                    stage: "ingesting",
+                    uploadPercent: null,
+                  });
+                  setStrip(filename, "ingesting");
+                } else if (!ingestStarted) {
+                  patchPendingUpload(item.uid, {
+                    uploadPercent: size > 0 ? Math.round((loaded / size) * 100) : null,
+                  });
+                }
+              },
+            );
+          }
           const outcome = results[0];
           if (outcome?.ingest_status === "failed") {
             failedResults.push(outcome);
+            failedCount += 1;
           }
+          estimator.finishFile(item.uid);
           await onUploadComplete();
         } catch (error) {
-          uploadErrors.push(`${file.name}: ${formatUploadError(error)}`);
+          uploadErrors.push(`${filename}: ${formatUploadError(error)}`);
+          estimator.finishFile(item.uid);
+          failedCount += 1;
+        } finally {
+          removePendingUpload(item.uid);
+          completed += 1;
+          setStrip(null, null);
         }
-
-        setUploadProgress({
-          total: toIngest.length,
-          completed: index + 1,
-          currentFilename:
-            index + 1 < toIngest.length ? toIngest[index + 1].name : null,
-          failedCount: failedResults.length,
-        });
       }
 
       if (failedResults.length) {
@@ -431,10 +556,14 @@ export function DocumentRepositoryPanel({
         );
       }
 
-      await sleep(COMPLETION_MESSAGE_MS);
+      if (total > 0) {
+        await sleep(COMPLETION_MESSAGE_MS);
+      }
     } finally {
       setIsUploading(false);
       setUploadProgress(null);
+      setPendingUploads([]);
+      estimatorRef.current = null;
     }
   }
 
@@ -480,9 +609,7 @@ export function DocumentRepositoryPanel({
           ) : null}
           {isUploading ? (
             <span className="truncate text-xs text-muted-foreground">
-              {uploadProgress
-                ? `ingesting ${uploadProgress.completed} of ${uploadProgress.total}`
-                : "ingesting…"}
+              processing files…
             </span>
           ) : (
             <button
@@ -541,7 +668,9 @@ export function DocumentRepositoryPanel({
         </div>
       </div>
 
-      {uploadProgress ? <IngestProgressStrip progress={uploadProgress} /> : null}
+      {uploadProgress ? (
+        <IngestProgressStrip progress={uploadProgress} getSnapshot={getBatchSnapshot} />
+      ) : null}
 
       {uploadError ? (
         <div
@@ -650,7 +779,7 @@ export function DocumentRepositoryPanel({
               </NavAccordionSection>
             </div>
           </div>
-        ) : registerRows.length ? (
+        ) : registerRows.length || pendingUploads.length ? (
           <table className="w-full table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
               <col className="w-[2.75rem]" />
@@ -762,6 +891,34 @@ export function DocumentRepositoryPanel({
                   </tr>
                 );
               })}
+              {pendingUploads.map((pending) => (
+                <tr
+                  key={pending.id}
+                  className="animate-in fade-in border-b border-l-2 border-l-amber-400/70 bg-amber-50/25 duration-300 dark:bg-amber-950/10"
+                >
+                  <td className="px-1 py-2">
+                    <span className="cockpit-skeleton block h-2.5 w-7" aria-hidden />
+                  </td>
+                  <td
+                    className="max-w-0 truncate px-2 py-2 font-medium text-muted-foreground"
+                    title={pending.filename}
+                  >
+                    {pending.filename}
+                  </td>
+                  <td className="px-1 py-2">
+                    <span className="cockpit-skeleton block h-2.5 w-4" aria-hidden />
+                  </td>
+                  <td className="truncate px-1.5 py-2 font-medium text-amber-800/90 dark:text-amber-200/90">
+                    {pendingStageLabel(pending)}
+                  </td>
+                  <td className="px-0.5 py-1.5 text-center">
+                    <Loader2
+                      className="mx-auto size-3.5 animate-spin text-muted-foreground/40 motion-reduce:animate-none"
+                      aria-hidden
+                    />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         ) : (

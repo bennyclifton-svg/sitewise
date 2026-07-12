@@ -70,6 +70,7 @@ class PmpDecision:
     rationale: str | None = None
     evidence_conflict: bool = False
     agent_suggestion: str | None = None
+    evidenced: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,6 +170,12 @@ def _decision_from_payload(payload: dict[str, Any]) -> PmpDecision | None:
     section = payload.get("section")
     agent_suggestion = payload.get("agent_suggestion")
     evidence_conflict = payload.get("evidence_conflict")
+    evidenced_raw = payload.get("evidenced")
+    evidenced: bool | None
+    if isinstance(evidenced_raw, bool):
+        evidenced = evidenced_raw
+    else:
+        evidenced = None
     return PmpDecision(
         id=decision_id.strip(),
         section=str(section).strip() if isinstance(section, str) else "",
@@ -183,6 +190,7 @@ def _decision_from_payload(payload: dict[str, Any]) -> PmpDecision | None:
             if isinstance(agent_suggestion, str) and agent_suggestion.strip()
             else None
         ),
+        evidenced=evidenced,
     )
 
 
@@ -434,6 +442,12 @@ def format_decision_option_sets(
             "Required decision ids for this project (emit a pmp-decision block for each, "
             "always pre-selecting one option): "
             + ", ".join(required)
+        )
+        lines.append(
+            "For each block set evidenced=true when Sources ground the selection; "
+            "evidenced=false only for silent Sources / default_hint placeholders. "
+            "Map named products to the closest option (Caesarstone/reconstituted stone "
+            "→ engineered_stone)."
         )
     return "\n".join(lines)
 

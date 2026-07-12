@@ -41,6 +41,12 @@ class QAResolveResult:
     qa_state: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class QAAcceptAllResult:
+    accepted: int
+    skipped_documents: int
+
+
 def review_queue_statement(comparison_id: uuid.UUID):
     cell_statuses = select(
         TenderCellStatus.id.label("item_id"),
@@ -206,6 +212,36 @@ async def resolve_qa_item(
     raise QAItemNotFoundError(f"unknown QA item: {item_id}")
 
 
+async def accept_all_pending(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    reviewer_id: uuid.UUID,
+) -> QAAcceptAllResult:
+    result = await session.execute(review_queue_statement(comparison_id))
+    rows = result.mappings().all()
+    accepted = 0
+    skipped_documents = 0
+    for row in rows:
+        # Accepting a document leaves doc_type unset, so it would stay in the
+        # queue forever; unclassified documents must be resolved individually.
+        if row["entity_type"] == "document_classification":
+            skipped_documents += 1
+            continue
+        await resolve_qa_item(
+            session,
+            item_id=row["item_id"],
+            reviewer_id=reviewer_id,
+            request=QAResolveRequest(
+                action="accept",
+                corrected_value=None,
+                reason="Bulk accept from matrix review",
+            ),
+        )
+        accepted += 1
+    return QAAcceptAllResult(accepted=accepted, skipped_documents=skipped_documents)
+
+
 async def assert_no_pending_review(
     session: AsyncSession,
     *,
@@ -235,6 +271,7 @@ async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem
         line_item = await session.get(TenderLineItem, entity.line_item_id)
         payload = {
             "line_item_id": str(entity.line_item_id),
+            "quote_id": str(line_item.quote_id),
             "cell_code": entity.cell_code,
             "tier": entity.tier,
             "description_raw": line_item.description_raw,

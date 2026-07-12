@@ -104,6 +104,29 @@ def test_worker_registers_report_assembly_handler() -> None:
     assert worker.HANDLERS["assemble_report_draft"] is report.assemble_report_draft
 
 
+def test_approve_report_endpoint_maps_weasyprint_unavailable(
+    client: TestClient,
+) -> None:
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch("tender.router.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "tender.router.report.approve_report",
+            new=AsyncMock(
+                side_effect=report.WeasyPrintUnavailable(
+                    "WeasyPrint native dependencies are unavailable"
+                )
+            ),
+        ),
+    ):
+        response = client.post(
+            f"/api/tender/comparisons/{COMPARISON_ID}/report/approve"
+        )
+
+    assert response.status_code == 503
+    assert "WeasyPrint" in response.json()["detail"]
+
+
 def _lifecycle(
     *,
     status: str,

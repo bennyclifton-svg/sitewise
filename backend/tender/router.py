@@ -25,11 +25,14 @@ from tender.schemas import (
     ComparisonDetail,
     ComparisonFromProjectFilesCreate,
     ComparisonListResponse,
+    ComparisonProgressResponse,
     DocumentUploadResponse,
     JobView,
     MatrixResponse,
+    ProcessComparisonResponse,
     ProjectFileDocumentAttach,
     ProjectContext,
+    QAAcceptAllResponse,
     QAQueueResponse,
     QAResolveRequest,
     QAResolveResponse,
@@ -40,7 +43,7 @@ from tender.schemas import (
     TaxonomyListResponse,
     TaxonomySearchResponse,
 )
-from tender.services import jobs, matrix, qa, report, taxonomy
+from tender.services import jobs, matrix, progress, qa, report, taxonomy
 
 router = APIRouter(prefix="/api/tender", tags=["tender"])
 
@@ -356,6 +359,49 @@ async def get_comparison(
     )
 
 
+@router.get(
+    "/comparisons/{comparison_id}/progress",
+    response_model=ComparisonProgressResponse,
+)
+async def get_comparison_progress(
+    comparison_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ComparisonProgressResponse:
+    comparison = await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await progress.comparison_progress(
+        session,
+        comparison_id=comparison_id,
+        comparison_status=comparison.status,
+    )
+
+
+@router.post(
+    "/comparisons/{comparison_id}/process",
+    response_model=ProcessComparisonResponse,
+)
+async def post_comparison_process(
+    comparison_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcessComparisonResponse:
+    await require_active_entitlement(session, user)
+    comparison = await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    result = await progress.process_comparison(session, comparison_id=comparison.id)
+    if result.queued:
+        comparison.status = "processing"
+        await session.flush()
+    return result
+
+
 @router.patch("/comparisons/{comparison_id}/context", response_model=ComparisonDetail)
 async def patch_comparison_context(
     comparison_id: uuid.UUID,
@@ -616,6 +662,28 @@ async def post_qa_item_resolve(
 
 
 @router.post(
+    "/comparisons/{comparison_id}/qa/accept-all",
+    response_model=QAAcceptAllResponse,
+)
+async def post_qa_accept_all(
+    comparison_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> qa.QAAcceptAllResult:
+    await require_active_entitlement(session, user)
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await qa.accept_all_pending(
+        session,
+        comparison_id=comparison_id,
+        reviewer_id=user.id,
+    )
+
+
+@router.post(
     "/comparisons/{comparison_id}/report/build",
     response_model=ReportLifecycleResponse,
 )
@@ -641,6 +709,11 @@ async def post_report_build(
             status_code=status.HTTP_409_CONFLICT,
             detail="Comparison has QA items still needing review",
         ) from exc
+    except report.WeasyPrintUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(
@@ -658,11 +731,17 @@ async def post_report_approve(
         comparison_id=comparison_id,
         user_id=user.id,
     )
-    return await report.approve_report(
-        session,
-        comparison_id=comparison_id,
-        user_id=user.id,
-    )
+    try:
+        return await report.approve_report(
+            session,
+            comparison_id=comparison_id,
+            user_id=user.id,
+        )
+    except report.WeasyPrintUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(

@@ -1,6 +1,5 @@
 import {
   Bot,
-  BriefcaseBusiness,
   CheckCircle2,
   ClipboardList,
   FileText,
@@ -17,7 +16,7 @@ import {
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -425,6 +424,12 @@ function WorkflowDetail({
   const activeError = isCostPlan ? costPlanWorkflowError : workflowError;
   const activeDraft = isCostPlan ? latestCostPlanDraft : latestDraft;
 
+  // Tender Comparison opens its own route; skip the intermediate gate panel.
+  useEffect(() => {
+    if (!isProcurement) return;
+    onOpenTenderComparison();
+  }, [isProcurement, onOpenTenderComparison]);
+
   return (
     <div className="min-w-0">
       <header className="border-t border-b p-4">
@@ -647,33 +652,10 @@ function WorkflowDetail({
             <WorkflowTracePanel trace={activeTrace} isRunning={activeRunning} />
           </>
         ) : isProcurement ? (
-          <>
-            <div className="grid gap-3 md:grid-cols-3">
-              <ReadinessItem
-                icon={BriefcaseBusiness}
-                label="Workflow"
-                value="Tender comparison"
-              />
-              <ReadinessItem
-                icon={FileText}
-                label="Evidence"
-                value={`${evidenceCount} indexed`}
-                attention={evidenceCount === 0}
-              />
-              <ReadinessItem
-                icon={ClipboardList}
-                label="QA"
-                value="Review gated"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={onOpenTenderComparison}>
-                <Play className="size-4" aria-hidden />
-                Run Tender Comparison
-              </Button>
-            </div>
-          </>
+          <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            <LoaderCircle className="mr-2 size-4 animate-spin" aria-hidden />
+            Opening tender comparison
+          </div>
         ) : (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             {tile.implemented

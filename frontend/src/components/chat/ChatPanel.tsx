@@ -4,6 +4,7 @@ import { ArrowDown, ChevronDown, ChevronUp } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -46,6 +47,7 @@ import {
 import { env } from "@/lib/env";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage } from "@/lib/types/chat";
+import { cn } from "@/lib/utils";
 
 type ChatPanelProps = {
   threadId: string;
@@ -203,20 +205,48 @@ export function ChatPanel({
     setShowScrollButton(distanceFromBottom > 32);
   }, []);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const history = historyRef.current;
     if (!history) return;
-    history.scrollTop = history.scrollHeight;
+    if (behavior === "smooth" && typeof history.scrollTo === "function") {
+      history.scrollTo({ top: history.scrollHeight, behavior: "smooth" });
+    } else {
+      // Direct assignment jumps without animating through prior messages.
+      history.scrollTop = history.scrollHeight;
+    }
     setShowScrollButton(false);
   }, []);
 
   useEffect(() => {
+    if (collapsed) return;
     if (isBusy || !showScrollButton) {
-      scrollToBottom();
+      scrollToBottom("auto");
       return;
     }
     updateScrollButton();
-  }, [isBusy, messages, scrollToBottom, showScrollButton, updateScrollButton]);
+  }, [
+    collapsed,
+    isBusy,
+    messages,
+    scrollToBottom,
+    showScrollButton,
+    updateScrollButton,
+  ]);
+
+  const wasCollapsedRef = useRef(collapsed);
+
+  // History stays mounted while collapsed; still pin to latest on expand in
+  // case layout height changed while the panel was hidden.
+  useLayoutEffect(() => {
+    const justExpanded = wasCollapsedRef.current && !collapsed;
+    wasCollapsedRef.current = collapsed;
+    if (!justExpanded) return;
+    scrollToBottom("auto");
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom("auto");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [collapsed, scrollToBottom]);
 
   const { artefactsByMessageId, toolEventsByMessageId } = useMemo(() => {
     const nextTools = new Map<string, ToolStatusEvent[]>();
@@ -264,14 +294,16 @@ export function ChatPanel({
       ? "flex min-h-0 flex-1 flex-col gap-3"
       : "flex h-[min(42rem,calc(100vh-16rem))] min-h-[28rem] min-w-0 flex-col gap-4";
   const historyClass = isEmbedded
-    ? "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto scroll-smooth px-1"
-    : "cockpit-scroll flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-md border p-4 scroll-smooth";
+    ? "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto px-1"
+    : "cockpit-scroll flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-md border p-4";
 
   return (
     <div className={shellClass}>
       <div className={chatColumnClass}>
-        {!collapsed ? (
-          <div className="relative min-h-0 flex-1">
+        <div
+          className={cn("relative min-h-0 flex-1", collapsed && "hidden")}
+          aria-hidden={collapsed || undefined}
+        >
             <div
               ref={historyRef}
               role="log"
@@ -307,7 +339,7 @@ export function ChatPanel({
               {isBusy ? <StreamingIndicator message={statusMessage} /> : null}
             </div>
 
-            {showScrollButton ? (
+            {showScrollButton && !collapsed ? (
               <Button
                 type="button"
                 size="icon"
@@ -315,13 +347,12 @@ export function ChatPanel({
                 className="absolute right-3 bottom-3 shadow-md"
                 aria-label="Scroll to latest message"
                 title="Scroll to latest message"
-                onClick={scrollToBottom}
+                onClick={() => scrollToBottom("smooth")}
               >
                 <ArrowDown className="size-4" aria-hidden />
               </Button>
             ) : null}
           </div>
-        ) : null}
 
         {chatError ? (
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />

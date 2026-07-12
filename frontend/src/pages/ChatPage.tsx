@@ -26,7 +26,6 @@ export function ChatPage() {
   const [loadErrorKind, setLoadErrorKind] = useState<"auth" | "forbidden" | "not-found" | "generic">(
     "generic",
   );
-  const [chatRevision, setChatRevision] = useState(0);
 
   useEffect(() => {
     if (!threadId) return;
@@ -93,8 +92,8 @@ export function ChatPage() {
         api.getThreadMessages(threadId),
       ]);
       setThread(threadData);
+      // Keep ChatPanel mounted; remounting resets scroll through full history.
       setMessages(messageData);
-      setChatRevision((current) => current + 1);
     } catch {
       // Best-effort refresh after streaming completes.
     }
@@ -152,7 +151,7 @@ export function ChatPage() {
             <LoadErrorState kind={loadErrorKind} message={loadError} />
           ) : threadId ? (
             <ChatPanel
-              key={`${threadId}-${chatRevision}`}
+              key={threadId}
               threadId={threadId}
               initialMessages={messages}
               onConversationUpdate={() => void refreshConversation()}

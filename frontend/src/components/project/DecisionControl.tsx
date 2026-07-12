@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import type { DraftArtifact, ProjectDecisionOption } from "@/lib/types/project";
+import { cn } from "@/lib/utils";
 
 export type EmbeddedDecision = {
   id: string;
@@ -16,7 +17,20 @@ export type EmbeddedDecision = {
   rationale?: string;
   evidence_conflict?: boolean;
   agent_suggestion?: string;
+  /** True when Sources ground the selection; false for AI default/assumption. */
+  evidenced?: boolean;
 };
+
+const UNEVIDENCED_RATIONALE_RE =
+  /\b(?:not evidenced|placeholder|selected default|working assumption|default_hint)\b/i;
+
+export function selectionIsEvidenced(decision: EmbeddedDecision, source: string): boolean {
+  if (source === "user") return true;
+  if (typeof decision.evidenced === "boolean") return decision.evidenced;
+  const rationale = decision.rationale?.trim() ?? "";
+  if (!rationale) return false;
+  return !UNEVIDENCED_RATIONALE_RE.test(rationale);
+}
 
 export function DecisionControl({
   projectId,
@@ -35,7 +49,9 @@ export function DecisionControl({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const useSelect = decision.options.length > 4;
+  const evidenced = selectionIsEvidenced(decision, source);
+  const badgeLabel =
+    source === "user" ? "Your selection" : evidenced ? "From evidence" : "AI selection";
 
   async function commit(nextValue: string) {
     if (readOnly || nextValue === selected) return;
@@ -63,6 +79,7 @@ export function DecisionControl({
     <div
       className="my-4 rounded-md border bg-background p-4"
       data-decision-id={decision.id}
+      data-evidenced={evidenced ? "true" : "false"}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -71,8 +88,13 @@ export function DecisionControl({
             <p className="mt-1 text-xs text-muted-foreground">{decision.rationale}</p>
           ) : null}
         </div>
-        <Badge variant={source === "user" ? "default" : "secondary"}>
-          {source === "user" ? "Your selection" : "AI selection"}
+        <Badge
+          variant={source === "user" || evidenced ? "default" : "secondary"}
+          className={cn(
+            !evidenced && source !== "user" && "bg-[var(--decision-assumed)] text-white",
+          )}
+        >
+          {badgeLabel}
         </Badge>
       </div>
 
@@ -86,38 +108,31 @@ export function DecisionControl({
         </p>
       ) : null}
 
-      {useSelect ? (
-        <label className="mt-3 block text-sm">
-          <span className="sr-only">{decision.label}</span>
-          <select
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            value={selected}
-            disabled={readOnly || isSaving}
-            onChange={(event) => void commit(event.target.value)}
-          >
-            {decision.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {decision.options.map((option) => (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {decision.options.map((option) => {
+          const isSelected = selected === option.value;
+          return (
             <Button
               key={option.value}
               type="button"
               size="sm"
-              variant={selected === option.value ? "default" : "outline"}
+              variant={isSelected ? "default" : "outline"}
               disabled={readOnly || isSaving}
+              className={cn(
+                isSelected &&
+                  evidenced &&
+                  "border-transparent bg-[var(--decision-evidenced)] text-white hover:bg-[var(--decision-evidenced-hover)]",
+                isSelected &&
+                  !evidenced &&
+                  "border-transparent bg-[var(--decision-assumed)] text-white hover:bg-[var(--decision-assumed-hover)]",
+              )}
               onClick={() => void commit(option.value)}
             >
               {option.label}
             </Button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
     </div>
@@ -165,6 +180,7 @@ export function parseEmbeddedDecision(raw: string): EmbeddedDecision | null {
       evidence_conflict: Boolean(payload.evidence_conflict),
       agent_suggestion:
         typeof payload.agent_suggestion === "string" ? payload.agent_suggestion : undefined,
+      evidenced: typeof payload.evidenced === "boolean" ? payload.evidenced : undefined,
     };
   } catch {
     return null;

@@ -103,6 +103,56 @@ export type TenderDocumentUploadResponse = {
   job: TenderJob;
 };
 
+export type TenderMilestoneKey =
+  | "ingest"
+  | "extract"
+  | "map"
+  | "analyse"
+  | "review"
+  | "report";
+
+export type TenderMilestoneState =
+  | "pending"
+  | "running"
+  | "done"
+  | "failed"
+  | "attention";
+
+export type TenderProgressMilestone = {
+  key: TenderMilestoneKey;
+  label: string;
+  state: TenderMilestoneState;
+  detail: string | null;
+};
+
+export type TenderProgressDocument = {
+  filename: string;
+  ingest_status: string;
+};
+
+export type TenderProgressQuote = {
+  quote_id: string;
+  builder_name: string;
+  stage: string;
+  stated_total_cents: number | null;
+  documents: TenderProgressDocument[];
+};
+
+export type TenderComparisonProgress = {
+  comparison_id: string;
+  status: string;
+  percent: number;
+  is_processing: boolean;
+  qa_pending: number;
+  milestones: TenderProgressMilestone[];
+  quotes: TenderProgressQuote[];
+};
+
+export type TenderProcessComparisonResponse = {
+  queued: TenderJob[];
+  notes: string[];
+};
+
 export type TenderQaEntityType =
   | "cell_status"
   | "mapping"
@@ -134,6 +184,11 @@ export type TenderQaResolveResponse = {
   entity_type: string;
   action: string;
   qa_state: string | null;
+};
+
+export type TenderQaAcceptAllResponse = {
+  accepted: number;
+  skipped_documents: number;
 };
 
 export type TenderTaxonomyCell = {

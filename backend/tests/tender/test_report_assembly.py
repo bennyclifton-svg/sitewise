@@ -106,6 +106,40 @@ def test_weasyprint_renderer_produces_nonzero_pdf_when_native_libs_available() -
     assert len(pdf) > 100
 
 
+def test_draft_assembly_allows_missing_pdf_when_weasyprint_unavailable() -> None:
+    language = report.load_report_language_yaml(_language_path())
+
+    def boom(_html: str) -> bytes:
+        raise report.WeasyPrintUnavailable("GTK missing")
+
+    artifacts = report.assemble_report_artifacts(
+        _report_data(),
+        language=language,
+        draft=True,
+        pdf_renderer=boom,
+        require_pdf=False,
+    )
+
+    assert "DRAFT" in artifacts.html
+    assert artifacts.markdown.startswith("#")
+    assert artifacts.pdf_bytes == b""
+
+
+def test_assembly_still_requires_pdf_by_default() -> None:
+    language = report.load_report_language_yaml(_language_path())
+
+    def boom(_html: str) -> bytes:
+        raise report.WeasyPrintUnavailable("GTK missing")
+
+    with pytest.raises(report.WeasyPrintUnavailable, match="GTK missing"):
+        report.assemble_report_artifacts(
+            _report_data(),
+            language=language,
+            draft=False,
+            pdf_renderer=boom,
+        )
+
+
 def _report_data(
     *,
     pc_amount_cents: int = 200_000,

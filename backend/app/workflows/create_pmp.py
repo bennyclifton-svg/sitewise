@@ -717,6 +717,13 @@ def build_create_pmp_prompt(
                 _format_loaded_seed_sections(passages),
                 format_decision_option_sets(project),
                 (
+                    "Decision grounding: for every required decision id, search Sources "
+                    "before using default_hint. If evidence nominates a matching product "
+                    "or system (e.g. Caesarstone/reconstituted stone → engineered_stone), "
+                    "select that option with evidenced=true and cite it in rationale. "
+                    "Use evidenced=false and placeholder language only when Sources are silent."
+                ),
+                (
                     "Taxonomy PMP rules: primary document is 2-4 A4 pages; use a compact "
                     "snapshot metadata table; cite specific AS/NCC refs from loaded seed "
                     "sections; keep risks and actions to top ~8 rows each; do not use "

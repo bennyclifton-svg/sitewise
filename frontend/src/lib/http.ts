@@ -31,14 +31,26 @@ export type HttpRequestOptions = {
   signal?: AbortSignal;
 };
 
-async function parseJsonBody(response: Response): Promise<unknown> {
-  const text = await response.text();
+function parseJsonText(text: string): unknown {
   if (!text) return undefined;
   try {
     return JSON.parse(text) as unknown;
   } catch {
     return text;
   }
+}
+
+async function parseJsonBody(response: Response): Promise<unknown> {
+  return parseJsonText(await response.text());
+}
+
+function errorDetail(payload: unknown, status: number): string {
+  return typeof payload === "object" &&
+    payload !== null &&
+    "detail" in payload &&
+    typeof (payload as { detail: unknown }).detail === "string"
+    ? (payload as { detail: string }).detail
+    : `Request failed with status ${status}`;
 }
 
 export async function httpRequest<T>(
@@ -70,15 +82,7 @@ export async function httpRequest<T>(
     const payload = await parseJsonBody(response);
 
     if (!response.ok) {
-      const detail =
-        typeof payload === "object" &&
-        payload !== null &&
-        "detail" in payload &&
-        typeof (payload as { detail: unknown }).detail === "string"
-          ? (payload as { detail: string }).detail
-          : `Request failed with status ${response.status}`;
-
-      throw new ApiError(detail, {
+      throw new ApiError(errorDetail(payload, response.status), {
         kind: "http",
         status: response.status,
         body: payload,
@@ -110,4 +114,78 @@ export async function httpRequest<T>(
     clearTimeout(timeoutId);
     signal?.removeEventListener("abort", onExternalAbort);
   }
+}
+
+export type UploadProgressHandler = (loadedBytes: number, totalBytes: number) => void;
+
+/**
+ * Multipart upload via XMLHttpRequest: fetch cannot observe request-body
+ * progress, so uploads that want a byte-level progress callback go through
+ * here. Error semantics match httpRequest.
+ */
+export function httpUploadRequest<T>(
+  url: string,
+  options: {
+    method?: string;
+    headers?: Record<string, string>;
+    body: FormData;
+    timeoutMs?: number;
+    onUploadProgress?: UploadProgressHandler;
+  },
+): Promise<T> {
+  const {
+    method = "POST",
+    headers = {},
+    body,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    onUploadProgress,
+  } = options;
+
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.timeout = timeoutMs;
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+
+    if (onUploadProgress) {
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          onUploadProgress(event.loaded, event.total);
+        }
+      });
+    }
+
+    xhr.addEventListener("load", () => {
+      const payload = parseJsonText(xhr.responseText);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload as T);
+        return;
+      }
+      reject(
+        new ApiError(errorDetail(payload, xhr.status), {
+          kind: "http",
+          status: xhr.status,
+          body: payload,
+        }),
+      );
+    });
+    xhr.addEventListener("timeout", () => {
+      reject(new ApiError("Request timed out.", { kind: "timeout" }));
+    });
+    xhr.addEventListener("abort", () => {
+      reject(new ApiError("Request was cancelled.", { kind: "network" }));
+    });
+    xhr.addEventListener("error", () => {
+      reject(
+        new ApiError(
+          "Could not reach the server. Check your connection or CORS settings.",
+          { kind: "network" },
+        ),
+      );
+    });
+
+    xhr.send(body);
+  });
 }

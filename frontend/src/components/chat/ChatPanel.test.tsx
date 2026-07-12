@@ -217,6 +217,108 @@ describe("ChatPanel agent model selection", () => {
   });
 });
 
+describe("ChatPanel collapse control", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+    vi.mocked(api.cancelAgentTurn).mockResolvedValue(true);
+  });
+
+  it("shows an expand control while the panel is collapsed", async () => {
+    const onCollapsedChange = vi.fn();
+    mockUseChat();
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+        collapsed
+        collapsible
+        onCollapsedChange={onCollapsedChange}
+      />,
+    );
+
+    const expand = screen.getByRole("button", { name: /expand chat/i });
+    expect(expand).toBeInTheDocument();
+    expect(
+      screen.getByRole("log", { name: /conversation history/i, hidden: true }).parentElement,
+    ).toHaveClass("hidden");
+
+    await userEvent.click(expand);
+    expect(onCollapsedChange).toHaveBeenCalledWith(false);
+  });
+
+  it("shows a collapse control while the panel is expanded", async () => {
+    const onCollapsedChange = vi.fn();
+    mockUseChat();
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+        collapsible
+        onCollapsedChange={onCollapsedChange}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /collapse chat/i }));
+    expect(onCollapsedChange).toHaveBeenCalledWith(true);
+  });
+
+  it("scrolls to the latest message when the panel expands", async () => {
+    const messages = Array.from({ length: 12 }, (_, index) => ({
+      id: `assistant-${index}`,
+      role: "assistant",
+      parts: [{ type: "text", text: `History item ${index}` }],
+    }));
+    mockUseChat({ messages });
+
+    const panelProps = {
+      threadId: "thread-1",
+      initialMessages: [] as [],
+      agentMode: true,
+      projectId: "project-1",
+      layout: "main" as const,
+      collapsible: true,
+    };
+
+    const { rerender } = render(<ChatPanel {...panelProps} collapsed />);
+
+    const history = screen.getByRole("log", {
+      name: /conversation history/i,
+      hidden: true,
+    });
+    expect(history.parentElement).toHaveClass("hidden");
+
+    Object.defineProperty(history, "clientHeight", {
+      configurable: true,
+      value: 120,
+    });
+    Object.defineProperty(history, "scrollHeight", {
+      configurable: true,
+      value: 900,
+    });
+    Object.defineProperty(history, "scrollTop", {
+      configurable: true,
+      value: 0,
+      writable: true,
+    });
+
+    rerender(<ChatPanel {...panelProps} collapsed={false} />);
+
+    await waitFor(() => {
+      expect(history.parentElement).not.toHaveClass("hidden");
+      expect(history.scrollTop).toBe(900);
+    });
+  });
+});
+
 describe("ChatPanel long history", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -247,6 +349,7 @@ describe("ChatPanel long history", () => {
       name: /conversation history/i,
     });
     expect(history).toHaveClass("overflow-y-auto");
+    expect(history).not.toHaveClass("scroll-smooth");
     expect(screen.getByRole("textbox", { name: /message/i })).toBeInTheDocument();
 
     Object.defineProperty(history, "clientHeight", {

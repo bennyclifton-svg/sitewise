@@ -2,7 +2,12 @@ import { getAccessToken } from "@/lib/auth";
 import type { AgentModelsResponse } from "@/lib/agent-model";
 import { workflowChatModelPayload, type ChatModelsResponse } from "@/lib/chat-model";
 import { env } from "@/lib/env";
-import { ApiError, httpRequest } from "@/lib/http";
+import {
+  ApiError,
+  httpRequest,
+  httpUploadRequest,
+  type UploadProgressHandler,
+} from "@/lib/http";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
   BillingPlansResponse,
@@ -13,9 +18,12 @@ import type {
   TenderComparisonCreate,
   TenderComparisonFromProjectFilesCreate,
   TenderComparisonListResponse,
+  TenderComparisonProgress,
   TenderDocumentUploadResponse,
   TenderJob,
   TenderMatrixResponse,
+  TenderProcessComparisonResponse,
+  TenderQaAcceptAllResponse,
   TenderQaQueueResponse,
   TenderQaResolveRequest,
   TenderQaResolveResponse,
@@ -153,6 +161,7 @@ async function apiFormRequest<T>(
   path: string,
   formData: FormData,
   timeoutMs = WORKFLOW_TIMEOUT_MS,
+  onUploadProgress?: UploadProgressHandler,
 ): Promise<T> {
   const token = await getAccessToken();
   if (!token) {
@@ -161,7 +170,7 @@ async function apiFormRequest<T>(
 
   const base = env.apiBaseUrl.replace(/\/$/, "");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return httpRequest<T>(`${base}${normalizedPath}`, {
+  return httpUploadRequest<T>(`${base}${normalizedPath}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -169,6 +178,7 @@ async function apiFormRequest<T>(
     },
     body: formData,
     timeoutMs,
+    onUploadProgress,
   });
 }
 
@@ -266,6 +276,20 @@ export const api = {
   getTenderComparison: async (comparisonId: string): Promise<TenderComparison> =>
     api.get<TenderComparison>(`/api/tender/comparisons/${comparisonId}`),
 
+  getTenderComparisonProgress: async (
+    comparisonId: string,
+  ): Promise<TenderComparisonProgress> =>
+    api.get<TenderComparisonProgress>(
+      `/api/tender/comparisons/${comparisonId}/progress`,
+    ),
+
+  processTenderComparison: async (
+    comparisonId: string,
+  ): Promise<TenderProcessComparisonResponse> =>
+    api.post<TenderProcessComparisonResponse>(
+      `/api/tender/comparisons/${comparisonId}/process`,
+    ),
+
   createTenderComparison: async (
     input: TenderComparisonCreate,
   ): Promise<TenderComparison> =>
@@ -331,6 +355,13 @@ export const api = {
     body: TenderQaResolveRequest,
   ): Promise<TenderQaResolveResponse> =>
     api.post<TenderQaResolveResponse>(`/api/tender/qa/items/${itemId}/resolve`, body),
+
+  acceptAllTenderQa: async (
+    comparisonId: string,
+  ): Promise<TenderQaAcceptAllResponse> =>
+    api.post<TenderQaAcceptAllResponse>(
+      `/api/tender/comparisons/${comparisonId}/qa/accept-all`,
+    ),
 
   getTenderTaxonomy: async (): Promise<TenderTaxonomyCell[]> => {
     const response = await api.get<{ cells: TenderTaxonomyCell[] }>(
@@ -446,12 +477,15 @@ export const api = {
   analyzePdf: async (
     projectId: string,
     file: File,
+    onUploadProgress?: UploadProgressHandler,
   ): Promise<PdfAnalyzeResult> => {
     const formData = new FormData();
     formData.append("file", file);
     return apiFormRequest<PdfAnalyzeResult>(
       `/projects/${projectId}/inbox/analyze`,
       formData,
+      undefined,
+      onUploadProgress,
     );
   },
 
@@ -606,6 +640,7 @@ export const api = {
     projectId: string,
     files: File[],
     relativePath?: string,
+    onUploadProgress?: UploadProgressHandler,
   ): Promise<InboxUploadResult[]> => {
     const formData = new FormData();
     for (const file of files) {
@@ -615,23 +650,12 @@ export const api = {
       formData.append("relative_path", relativePath);
     }
 
-    const token = await getAccessToken();
-    if (!token) {
-      throw new ApiError("Not signed in.", { kind: "http", status: 401 });
-    }
-
-    const base = env.apiBaseUrl.replace(/\/$/, "");
-    const url = `${base}/projects/${projectId}/inbox/upload`;
-
-    const response = await httpRequest<{ files: InboxUploadResult[] }>(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-      timeoutMs: WORKFLOW_TIMEOUT_MS,
-    });
+    const response = await apiFormRequest<{ files: InboxUploadResult[] }>(
+      `/projects/${projectId}/inbox/upload`,
+      formData,
+      WORKFLOW_TIMEOUT_MS,
+      onUploadProgress,
+    );
 
     return response.files;
   },

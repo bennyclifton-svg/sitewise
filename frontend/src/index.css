@@ -80,6 +80,12 @@
   --brand-border: var(--blaze-200);
   --brand-ring: oklch(0.55 0.12 52 / 0.3);
 
+  /* DecisionControl selected states: evidenced (blaze) vs AI assumption (blue) */
+  --decision-evidenced: var(--blaze-600);
+  --decision-evidenced-hover: var(--blaze-700);
+  --decision-assumed: oklch(0.52 0.12 250);
+  --decision-assumed-hover: oklch(0.44 0.12 250);
+
   --ok-text: var(--blaze-700);
   --ok-bg: var(--blaze-50);
   --ok-border: var(--blaze-200);
@@ -164,6 +170,11 @@
   --brand-border: oklch(0.63 0.11 52.5 / 0.32);
   --brand-ring: oklch(0.72 0.09 53 / 0.4);
 
+  --decision-evidenced: var(--blaze-500);
+  --decision-evidenced-hover: var(--blaze-400);
+  --decision-assumed: oklch(0.62 0.12 250);
+  --decision-assumed-hover: oklch(0.7 0.1 250);
+
   --ok-text: var(--blaze-300);
   --ok-bg: oklch(0.63 0.11 52.5 / 0.14);
   --ok-border: oklch(0.63 0.11 52.5 / 0.3);
@@ -245,6 +256,17 @@
     line-height: 1.5;
     color: var(--text-body);
   }
+
+  /* Native <select> popups often force a light surface on Windows while
+     inheriting dark-theme text — force readable option colours. */
+  select {
+    color: var(--foreground);
+  }
+
+  select option {
+    color: #111111;
+    background-color: #ffffff;
+  }
 }
 
 @keyframes wf-pulse {
@@ -257,7 +279,45 @@
   }
 }
 
+@keyframes cockpit-skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @layer components {
+  /* Placeholder bars for register rows that are still uploading/ingesting.
+     A soft gradient sweeps across the bar; static under reduced motion. */
+  .cockpit-skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--muted-foreground) 14%, transparent);
+  }
+
+  .cockpit-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--foreground) 10%, transparent),
+      transparent
+    );
+    animation: cockpit-skeleton-sweep 1.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cockpit-skeleton::after {
+      animation: none;
+    }
+  }
+
   /* SiteWise eyebrow labels — mono, tracked, uppercase */
   .cockpit-eyebrow {
     font-family: var(--font-mono);

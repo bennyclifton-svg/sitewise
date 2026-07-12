@@ -153,6 +153,8 @@ async def build_report_draft(
         language=language,
         previous_markdown=previous_markdown,
         draft=True,
+        # Local Windows often lacks GTK; still ship HTML + markdown draft.
+        require_pdf=False,
     )
     draft = await create_draft_artifact(
         session,
@@ -303,6 +305,7 @@ def assemble_report_artifacts(
     draft: bool,
     previous_markdown: str | None = None,
     pdf_renderer: Callable[[str], bytes] | None = None,
+    require_pdf: bool = True,
 ) -> ReportArtifacts:
     narratives = default_narratives(language)
     narratives.update(extract_narratives(previous_markdown or ""))
@@ -310,7 +313,13 @@ def assemble_report_artifacts(
     markdown = render_draft_markdown(view, language=language, narratives=narratives)
     html = render_report_html(view, language=language, narratives=narratives, draft=draft)
     renderer = pdf_renderer or render_pdf_bytes
-    return ReportArtifacts(markdown=markdown, html=html, pdf_bytes=renderer(html))
+    try:
+        pdf_bytes = renderer(html)
+    except WeasyPrintUnavailable:
+        if require_pdf:
+            raise
+        pdf_bytes = b""
+    return ReportArtifacts(markdown=markdown, html=html, pdf_bytes=pdf_bytes)
 
 
 def render_pdf_bytes(html: str) -> bytes:
@@ -705,17 +714,19 @@ async def _store_artifacts(
     version: int,
     artifacts: ReportArtifacts,
     final: bool,
-) -> tuple[str, str]:
+) -> tuple[str, str | None]:
     suffix = "final" if final else "draft"
     base = f"{project.id}/tender/reports/{comparison_id}/v{version:02d}"
     html_path = f"{base}/{suffix}.html"
-    pdf_path = f"{base}/{suffix}.pdf"
     await asyncio.to_thread(
         upload_project_file,
         storage_key=html_path,
         content=artifacts.html.encode("utf-8"),
         filename=f"{suffix}.html",
     )
+    if not artifacts.pdf_bytes:
+        return html_path, None
+    pdf_path = f"{base}/{suffix}.pdf"
     await asyncio.to_thread(
         upload_project_file,
         storage_key=pdf_path,

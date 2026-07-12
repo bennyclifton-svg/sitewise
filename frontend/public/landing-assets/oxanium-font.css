@@ -1,0 +1,10 @@
+/* Oxanium — self-hosted for the hero marquee (SIL Open Font License).
+   Source: https://github.com/google/fonts/tree/main/ofl/oxanium */
+
+@font-face {
+  font-family: "Oxanium";
+  src: url("./fonts/oxanium/Oxanium-Variable.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}

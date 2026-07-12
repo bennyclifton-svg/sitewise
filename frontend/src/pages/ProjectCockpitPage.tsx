@@ -253,8 +253,8 @@ export function ProjectCockpitPage() {
   async function refreshMessages() {
     if (!thread) return;
     const loadedMessages = await api.getThreadMessages(thread.id);
+    // Keep ChatPanel mounted; remounting resets scroll through full history.
     setMessages(loadedMessages);
-    setChatRevision((current) => current + 1);
   }
 
   function refreshWorkflowSurfaces() {
@@ -361,6 +361,14 @@ export function ProjectCockpitPage() {
     setChatPanelCollapsed(false);
   }
 
+  function handleChatCollapsedChange(collapsed: boolean) {
+    if (!collapsed) {
+      leaveTenderRoute();
+      setActiveView("workbench");
+    }
+    setChatPanelCollapsed(collapsed);
+  }
+
   async function runSortFiles() {
     if (!project) return;
     setIsRunningSortFiles(true);
@@ -464,6 +472,12 @@ export function ProjectCockpitPage() {
   }
 
   function openWorkflowFromExplorer(workflowId: string) {
+    if (workflowId === "procurement") {
+      setSelectedWorkflowId(workflowId);
+      setChatPanelCollapsed(true);
+      navigate(`/projects/${project.id}/tender`);
+      return;
+    }
     leaveTenderRoute();
     setSelectedWorkflowId(workflowId);
     if (workflowId === "create-pmp" || workflowId === "cost-plan") {
@@ -598,6 +612,12 @@ export function ProjectCockpitPage() {
   });
 
   function selectWorkflow(workflowId: string) {
+    if (workflowId === "procurement") {
+      setSelectedWorkflowId(workflowId);
+      setChatPanelCollapsed(true);
+      navigate(`/projects/${project.id}/tender`);
+      return;
+    }
     leaveTenderRoute();
     setSelectedWorkflowId(workflowId);
     setChatPanelCollapsed(true);
@@ -644,7 +664,7 @@ export function ProjectCockpitPage() {
         <ChatRail
           layout="main"
           collapsed={chatCollapsed}
-          onCollapsedChange={setChatPanelCollapsed}
+          onCollapsedChange={handleChatCollapsedChange}
           thread={thread}
           messages={messages}
           chatRevision={chatRevision}

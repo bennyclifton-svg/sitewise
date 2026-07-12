@@ -470,8 +470,9 @@ async def run_create_cost_plan_model(
         format_locked_decisions(locked_decisions or {}),
         (
             "Emit interactive ```pmp-decision``` blocks for required shared and cost-only "
-            "decision ids. Always pre-select one option. Preserve user-locked decisions "
-            "with source=user."
+            "decision ids. Always pre-select one option. Set evidenced=true when Sources "
+            "ground the selection; evidenced=false only for silent Sources / default_hint. "
+            "Preserve user-locked decisions with source=user."
         ),
         build_greenfield_brief(
             archetype=project.archetype or "",

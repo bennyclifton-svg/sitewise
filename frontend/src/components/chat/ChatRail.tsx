@@ -60,7 +60,7 @@ export function ChatRail({
             onUserSubmit={onUserSubmit}
             layout={layout === "main" ? "main" : "rail"}
             collapsed={collapsed}
-            collapsible={layout === "main" && !collapsed}
+            collapsible={layout === "main"}
             onCollapsedChange={onCollapsedChange}
             agentMode
             projectId={thread.project_id}

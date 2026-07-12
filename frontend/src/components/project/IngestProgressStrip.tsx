@@ -1,82 +1,99 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { formatEtaSeconds, type IngestBatchSnapshot } from "@/lib/ingest-progress";
+
+export type IngestUploadStage = "uploading" | "ingesting";
+
 export type IngestUploadProgress = {
   total: number;
   completed: number;
   currentFilename: string | null;
+  stage: IngestUploadStage | null;
   failedCount: number;
 };
 
-const PHASE_BUILDERS = [
-  (filename: string) => `Uploading ${filename}`,
-  (filename: string) => `Extracting content from ${filename}`,
-  (filename: string) => `Indexing ${filename}`,
-] as const;
+const SNAPSHOT_TICK_MS = 500;
 
-const PHASE_CYCLE_MS = 2_200;
-
-type PhaseState = {
-  filename: string | null;
-  index: number;
-};
-
-function progressMessage(progress: IngestUploadProgress, phaseIndex: number): string {
-  const { total, completed, currentFilename, failedCount } = progress;
+function stageMessage(progress: IngestUploadProgress): string {
+  const { total, completed, currentFilename, stage, failedCount } = progress;
 
   if (completed >= total) {
-    const failedSuffix =
-      failedCount > 0
-        ? ` · ${failedCount} failed`
-        : "";
+    const failedSuffix = failedCount > 0 ? ` · ${failedCount} failed` : "";
     return `Finished ingesting ${total} document${total === 1 ? "" : "s"}${failedSuffix}.`;
   }
-
   if (!currentFilename) {
     return `Preparing ${total} document${total === 1 ? "" : "s"}…`;
   }
-
-  const currentNumber = completed + 1;
-  const phase = PHASE_BUILDERS[phaseIndex % PHASE_BUILDERS.length](currentFilename);
-  return `${phase} (${currentNumber} of ${total})…`;
+  return stage === "ingesting"
+    ? `Ingesting ${currentFilename}`
+    : `Uploading ${currentFilename}`;
 }
 
-export function IngestProgressStrip({ progress }: { progress: IngestUploadProgress }) {
-  const [phaseState, setPhaseState] = useState<PhaseState>({
-    filename: null,
-    index: 0,
-  });
+export function IngestProgressStrip({
+  progress,
+  getSnapshot,
+}: {
+  progress: IngestUploadProgress;
+  getSnapshot?: () => IngestBatchSnapshot;
+}) {
   const isActive = progress.completed < progress.total;
-  const phaseIndex =
-    phaseState.filename === progress.currentFilename ? phaseState.index : 0;
+  // The estimator lives outside React; a timer bumps this counter so the
+  // snapshot below is re-read while the batch is active.
+  const [, setTick] = useState(0);
 
   useEffect(() => {
-    if (!isActive || !progress.currentFilename) return;
+    if (!getSnapshot || !isActive) return;
     const timer = window.setInterval(() => {
-      setPhaseState((current) => {
-        if (current.filename !== progress.currentFilename) {
-          return { filename: progress.currentFilename, index: 1 };
-        }
-        return {
-          filename: current.filename,
-          index: (current.index + 1) % PHASE_BUILDERS.length,
-        };
-      });
-    }, PHASE_CYCLE_MS);
+      setTick((current) => current + 1);
+    }, SNAPSHOT_TICK_MS);
     return () => window.clearInterval(timer);
-  }, [isActive, progress.currentFilename]);
+  }, [getSnapshot, isActive]);
+
+  const snapshot: IngestBatchSnapshot | null = getSnapshot ? getSnapshot() : null;
+
+  const percent = isActive
+    ? Math.round((snapshot?.fraction ?? 0) * 100)
+    : 100;
+  const eta = isActive ? formatEtaSeconds(snapshot?.etaSeconds ?? null) : null;
 
   return (
     <div
-      className="mx-3 mt-3 flex items-center gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
+      className="mx-3 mt-3 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
       role="status"
       aria-live="polite"
       aria-atomic="true"
     >
-      {isActive ? (
-        <Loader2 className="size-3 shrink-0 animate-spin text-primary/70" aria-hidden />
+      <div className="flex items-center gap-2">
+        {isActive ? (
+          <Loader2
+            className="size-3 shrink-0 animate-spin text-primary/70 motion-reduce:animate-none"
+            aria-hidden
+          />
+        ) : null}
+        <span className="min-w-0 flex-1 truncate">{stageMessage(progress)}</span>
+        {isActive ? (
+          <span className="shrink-0 tabular-nums text-[0.65rem] text-muted-foreground/80">
+            {progress.completed + 1} of {progress.total}
+            {eta ? ` · ${eta}` : ""}
+          </span>
+        ) : null}
+      </div>
+      {getSnapshot || !isActive ? (
+        <div
+          className="mt-2 h-0.5 overflow-hidden rounded-full bg-primary/15"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          aria-label="Batch ingest progress"
+        >
+          <div
+            className="h-full rounded-full bg-primary/70 transition-[width] duration-500 ease-out"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
       ) : null}
-      <span className="min-w-0 truncate">{progressMessage(progress, phaseIndex)}</span>
     </div>
   );
 }

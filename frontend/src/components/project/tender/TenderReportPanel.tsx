@@ -1,7 +1,7 @@
 import { AlertCircle, Check, ExternalLink, FileText, LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
+import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -87,94 +87,86 @@ export function TenderReportPanel({
     }
   }
 
-  const htmlSrc = report?.html_path ? browserArtifactSrc(report.html_path) : null;
   const pdfHref = report?.pdf_path ? browserArtifactSrc(report.pdf_path) : null;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <section className="rounded-md border bg-card shadow-sm">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          <div>
-            <p className="cockpit-zone-title">Report preview</p>
+    <section className="rounded-md border bg-card shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+        <div>
+          <p className="cockpit-zone-title">Report preview</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Build regenerates structured tables; narrative edits stay in the draft.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {report ? <Badge variant="outline">v{report.version}</Badge> : null}
+          {report ? <Badge variant="secondary">{report.status}</Badge> : null}
+        </div>
+      </header>
+
+      {error ? (
+        <p className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <AlertCircle className="size-4" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2 border-b px-4 py-3">
+        <Button type="button" onClick={() => void buildReport()} disabled={isBuilding || isApproving}>
+          {isBuilding ? (
+            <LoaderCircle className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <RefreshCw className="size-4" aria-hidden />
+          )}
+          {draft ? "Rebuild draft" : "Build draft"}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void approveReport()}
+          disabled={isApproving || isBuilding || !draft}
+        >
+          {isApproving ? (
+            <LoaderCircle className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Check className="size-4" aria-hidden />
+          )}
+          Approve
+        </Button>
+        {pdfHref ? (
+          <Button asChild variant="outline">
+            <a href={pdfHref} target="_blank" rel="noreferrer">
+              <ExternalLink className="size-4" aria-hidden />
+              Frozen PDF
+            </a>
+          </Button>
+        ) : null}
+      </div>
+
+      {draft?.content_markdown ? (
+        <div className="min-w-0 p-4 lg:p-6">
+          <MarkdownContent
+            markdown={draft.content_markdown}
+            version={draft.version}
+            projectId={projectId}
+            projectTitle={draft.title}
+            readOnly
+          />
+        </div>
+      ) : (
+        <div className="flex min-h-[30rem] items-center justify-center p-6 text-center">
+          <div className="max-w-sm">
+            <FileText className="mx-auto size-8 text-muted-foreground" aria-hidden />
+            <p className="mt-3 text-sm font-medium">
+              {isLoadingDraft ? "Loading report draft" : "No report draft yet"}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Build regenerates structured tables; narrative edits stay in the draft.
+              Build the report to generate draft content.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {report ? <Badge variant="outline">v{report.version}</Badge> : null}
-            {report ? <Badge variant="secondary">{report.status}</Badge> : null}
-          </div>
-        </header>
-
-        {error ? (
-          <p className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            <AlertCircle className="size-4" aria-hidden />
-            {error}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2 border-b px-4 py-3">
-          <Button type="button" onClick={() => void buildReport()} disabled={isBuilding || isApproving}>
-            {isBuilding ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <RefreshCw className="size-4" aria-hidden />
-            )}
-            {draft ? "Rebuild draft" : "Build draft"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void approveReport()}
-            disabled={isApproving || isBuilding || !draft}
-          >
-            {isApproving ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Check className="size-4" aria-hidden />
-            )}
-            Approve
-          </Button>
-          {pdfHref ? (
-            <Button asChild variant="outline">
-              <a href={pdfHref} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-4" aria-hidden />
-                Frozen PDF
-              </a>
-            </Button>
-          ) : null}
         </div>
-
-        {htmlSrc ? (
-          <iframe
-            title="Tender report HTML preview"
-            src={htmlSrc}
-            className="h-[48rem] w-full bg-white"
-          />
-        ) : (
-          <div className="flex min-h-[30rem] items-center justify-center p-6 text-center">
-            <div className="max-w-sm">
-              <FileText className="mx-auto size-8 text-muted-foreground" aria-hidden />
-              <p className="mt-3 text-sm font-medium">
-                {isLoadingDraft ? "Loading report draft" : "No HTML preview yet"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Build the report to generate an HTML artifact and draft content.
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <aside className="min-w-0 rounded-md border bg-card shadow-sm">
-        <DraftReviewPanel
-          projectId={projectId}
-          draft={draft}
-          workflowType="tender_report"
-          onDraftUpdated={setDraft}
-        />
-      </aside>
-    </div>
+      )}
+    </section>
   );
 }
 

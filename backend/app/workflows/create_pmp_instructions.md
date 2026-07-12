@@ -160,7 +160,7 @@ End the markdown with `## Internal audit layer` containing:
 
 ## Interactive decision blocks
 
-Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, staging strategy, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
+Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, staging strategy, finishes/brief decisions, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
 
 ```pmp-decision
 {
@@ -173,6 +173,7 @@ Where the draft chooses among taxonomy-defined options (procurement route, contr
   ],
   "selected": "traditional",
   "source": "agent",
+  "evidenced": true,
   "rationale": "Why this option fits the current evidence."
 }
 ```
@@ -182,3 +183,7 @@ Rules:
 - Never invent option values outside the taxonomy lists supplied in the prompt.
 - Preserve user-locked decisions exactly (`source: "user"`) when the prompt lists locked selections.
 - One block per open decision; place it in the relevant `##` section.
+- Always set `evidenced` (boolean). `true` when project Sources nominate or clearly imply the selected option; `false` only when Sources are silent and you are using `default_hint` or another working assumption.
+- Prefer evidence over `default_hint`. If a specification, schedule, quote, or brief names a product/system that maps to an option, select that option, set `evidenced: true`, and cite the concrete nomination in `rationale` (do not call it a placeholder).
+- Finishes mapping examples: Caesarstone / Smartstone / reconstituted stone / quartz / engineered stone → `kitchen-benchtop` `engineered_stone`; polyurethane or veneer joinery → `kitchen-joinery-grade` `custom_pu`; Monier / concrete roof tiles → `roofing-system` `concrete_tile`.
+- Only use "not evidenced" / "placeholder" / "selected default" language when `evidenced` is false.

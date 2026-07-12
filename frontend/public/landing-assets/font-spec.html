@@ -209,6 +209,15 @@
 
     <script src="./siteform-display.js"></script>
     <script>
+      SiteformDisplay.renderAll = function (scope) {
+        var nodes = (scope || document).querySelectorAll("[data-display-text]");
+        for (var i = 0; i < nodes.length; i++) {
+          var el = nodes[i];
+          var text = el.getAttribute("data-display-text") || el.textContent.trim();
+          var trackingAttr = el.getAttribute("data-tracking");
+          SiteformDisplay.renderDisplayTextSvg(el, text, trackingAttr ? { tracking: Number(trackingAttr) } : {});
+        }
+      };
       SiteformDisplay.renderAll();
 
       var grid = document.getElementById("glyph-grid");
@@ -218,7 +227,7 @@
         cell.className = "glyph-cell";
         var stage = document.createElement("div");
         stage.className = "glyph-stage";
-        SiteformDisplay.renderDisplayText(stage, ch);
+        SiteformDisplay.renderDisplayTextSvg(stage, ch);
         var cap = document.createElement("figcaption");
         var adv = SiteformDisplay.GLYPHS[ch].w + SiteformDisplay.TRACK;
         cap.innerHTML = "<span>" + (ch === "&" ? "&amp;" : ch) + "</span><span>adv " + adv + "u</span>";

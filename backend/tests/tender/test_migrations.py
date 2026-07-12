@@ -7,6 +7,7 @@ run it only against a database where the tender tables carry no data you
 want to keep.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -26,6 +27,9 @@ MIGRATION_CHAIN = [
     "014_chat_threads_hermes_session",
     "015_tender_telemetry_events",
     "016_stripe_billing",
+    "017_project_activity_events",
+    "018_project_taxonomy",
+    "019_project_decisions",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -37,7 +41,7 @@ TENDER_REVISIONS = [
     "013_tender_analysis_results",
     "015_tender_telemetry_events",
 ]
-HEAD_REVISION = "016_stripe_billing"
+HEAD_REVISION = "019_project_decisions"
 
 
 def _alembic_config() -> Config:
@@ -78,6 +82,13 @@ def test_every_tender_migration_has_real_downgrade() -> None:
 @pytest.mark.integration
 def test_tender_migrations_roundtrip_against_database() -> None:
     """upgrade head → downgrade to pre-tender → upgrade head, then spot-check schema."""
+    if os.environ.get("TENDER_MIGRATION_ROUNDTRIP") != "1":
+        pytest.skip(
+            "DESTRUCTIVE: drops and recreates every tender table (data and seeds "
+            "included) on settings.database_url. Set TENDER_MIGRATION_ROUNDTRIP=1 "
+            "against a disposable database to run it."
+        )
+
     import sqlalchemy as sa
     from alembic import command
 

@@ -49,7 +49,7 @@ export function TenderCockpitPage() {
       ) : null}
       {view === "qa" && comparisonId ? <QaConsole comparisonId={comparisonId} /> : null}
       {view === "matrix" && comparisonId ? (
-        <TenderMatrix comparisonId={comparisonId} />
+        <TenderMatrix projectId={projectId} comparisonId={comparisonId} />
       ) : null}
       {view === "report" && comparisonId ? (
         <TenderReportPanel projectId={projectId} comparisonId={comparisonId} />
