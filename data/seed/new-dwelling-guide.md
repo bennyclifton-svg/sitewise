@@ -254,3 +254,60 @@ When `archetype: new-dwelling` is declared:
 - `trade-interfaces-coordination-guide.md` — residential trade sequencing, hold points, and common failure modes (task-loaded)
 - `program-scheduling-guide.md` — residential cycle-time benchmarks (task-loaded)
 - `../02-skills/atomic/seed-targeted-read.md` — the gate that loads this seed
+
+---
+
+## Decision catalog (HITL)
+
+Brief/scope decisions typical of a sparse new-dwelling brief. Finishes detail lives in
+`finishes-residential.md`; these cover dwelling configuration and services posture.
+
+```decision-catalog
+- id: dwelling-storeys
+  section: Brief and scope
+  label: Dwelling storeys
+  applies_to:
+    archetypes: [new-dwelling]
+    classes: [residential]
+  options:
+    - { value: single_storey, label: Single storey }
+    - { value: two_storey, label: Two storey }
+    - { value: split_level, label: Split level }
+  default_hint: single_storey
+- id: garage-type
+  section: Brief and scope
+  label: Garage / car parking
+  applies_to:
+    archetypes: [new-dwelling]
+    classes: [residential]
+  options:
+    - { value: none, label: No garage (on-street / carport later) }
+    - { value: single_garage, label: Single garage }
+    - { value: double_garage, label: Double garage }
+    - { value: carport, label: Carport }
+  default_hint: double_garage
+- id: hot-water-system
+  section: Brief and scope
+  label: Hot water system
+  applies_to:
+    archetypes: [new-dwelling, renovation]
+    classes: [residential]
+  options:
+    - { value: instantaneous_gas, label: Instantaneous gas }
+    - { value: storage_electric, label: Electric storage }
+    - { value: heat_pump, label: Heat pump }
+    - { value: solar_boosted, label: Solar-boosted }
+  default_hint: heat_pump
+- id: heating-cooling
+  section: Brief and scope
+  label: Heating and cooling
+  applies_to:
+    archetypes: [new-dwelling, renovation]
+    classes: [residential]
+  options:
+    - { value: split_system, label: Split-system air conditioning }
+    - { value: ducted_reverse_cycle, label: Ducted reverse-cycle }
+    - { value: multi_split, label: Multi-split }
+    - { value: none_specified, label: Not yet specified }
+  default_hint: split_system
+```

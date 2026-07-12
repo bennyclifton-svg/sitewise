@@ -109,3 +109,22 @@ def test_load_from_seed_text_matches_extract() -> None:
     specs = load_decision_catalogs_from_seed_text(SAMPLE_SEED)
     assert isinstance(specs[0], SeedDecisionSpec)
     assert len(specs) == 2
+
+
+def test_real_seeds_provide_sparse_brief_catalog() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    seed_dir = repo_root / "data" / "seed"
+    specs: list[SeedDecisionSpec] = []
+    for name in ("finishes-residential.md", "new-dwelling-guide.md"):
+        specs.extend(extract_decision_catalogs((seed_dir / name).read_text(encoding="utf-8")))
+    filtered = filter_decisions_for_project(
+        specs,
+        archetype="new-dwelling",
+        building_class="residential",
+    )
+    ids = {spec.id for spec in filtered}
+    assert len(ids) >= 8
+    assert "flooring-finish" in ids
+    assert "kitchen-benchtop" in ids
+    assert "dwelling-storeys" in ids
+    assert "external-cladding" in ids

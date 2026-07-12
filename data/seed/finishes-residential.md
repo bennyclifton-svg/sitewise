@@ -325,3 +325,110 @@ Only viable if specified at the design stage — cannot be retrofitted to a stan
 - **Tile selection for wet areas over in-slab heating:** Not all tiles or adhesives are suitable for heated substrates. Confirm system compatibility before specifying.
 - **Acoustic requirements (multi-dwelling):** Party wall and party floor acoustic performance requirements (NCC Specification 43) are not covered in this seed — flag for multi-dwelling projects and refer to an acoustic engineer.
 - **External timber decking:** Timber species selection for external decking (durability class, treatability, slip resistance) is not covered in detail. Refer to AS 1604 and manufacturer specifications.
+
+---
+
+## Decision catalog (HITL)
+
+Curated brief/finishes decisions for sparse residential briefs. Runtime loads these via
+`decision-catalog` fences; the agent pre-selects and the user may override.
+
+```decision-catalog
+- id: flooring-finish
+  section: Brief and scope
+  label: Primary flooring finish
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+    classes: [residential]
+  options:
+    - { value: engineered, label: Engineered timber }
+    - { value: solid_timber, label: Solid hardwood }
+    - { value: tile, label: Ceramic / porcelain tile }
+    - { value: lvp, label: Luxury vinyl plank (LVP) }
+    - { value: carpet, label: Carpet }
+    - { value: polished_concrete, label: Polished concrete }
+  default_hint: engineered
+- id: external-cladding
+  section: Brief and scope
+  label: Primary external cladding
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+    classes: [residential]
+  options:
+    - { value: brick_veneer, label: Brick veneer }
+    - { value: rendered_masonry, label: Rendered masonry / texture coat }
+    - { value: fibre_cement, label: Fibre cement sheet / weatherboard }
+    - { value: timber_cladding, label: Timber cladding }
+    - { value: mixed, label: Mixed cladding }
+  default_hint: brick_veneer
+- id: roofing-system
+  section: Brief and scope
+  label: Roofing system
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+    classes: [residential]
+  options:
+    - { value: concrete_tile, label: Concrete tile }
+    - { value: terracotta_tile, label: Terracotta tile }
+    - { value: metal_sheet, label: Metal sheet (Colorbond / Zincalume) }
+    - { value: membrane_flat, label: Flat / low-pitch membrane }
+  default_hint: metal_sheet
+- id: kitchen-benchtop
+  section: Brief and scope
+  label: Kitchen benchtop
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling]
+    classes: [residential]
+  options:
+    - { value: laminate, label: Laminate }
+    - { value: engineered_stone, label: Engineered stone / quartz }
+    - { value: natural_stone, label: Natural stone }
+    - { value: solid_surface, label: Solid surface }
+    - { value: timber, label: Timber }
+  default_hint: engineered_stone
+- id: kitchen-joinery-grade
+  section: Brief and scope
+  label: Kitchen joinery grade
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling]
+    classes: [residential]
+  options:
+    - { value: flat_pack, label: Flat-pack / modular }
+    - { value: semi_custom, label: Semi-custom melamine }
+    - { value: custom_pu, label: Custom polyurethane / veneer }
+  default_hint: semi_custom
+- id: wet-area-finish
+  section: Brief and scope
+  label: Wet-area floor and wall finish
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling]
+    classes: [residential]
+  options:
+    - { value: ceramic_tile, label: Ceramic / porcelain tile }
+    - { value: mosaic_tile, label: Mosaic tile (floors / niches) }
+    - { value: vinyl_sheet, label: Sheet vinyl }
+  default_hint: ceramic_tile
+- id: window-frame
+  section: Brief and scope
+  label: Window and external door frames
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+    classes: [residential]
+  options:
+    - { value: aluminium_standard, label: Standard aluminium }
+    - { value: aluminium_thermal, label: Thermally broken aluminium }
+    - { value: timber, label: Timber }
+    - { value: uPVC, label: uPVC }
+  default_hint: aluminium_standard
+- id: glazing-type
+  section: Brief and scope
+  label: Glazing performance
+  applies_to:
+    archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+    classes: [residential]
+  options:
+    - { value: single_clear, label: Single glazing (clear) }
+    - { value: igu_standard, label: Double glazing (IGU) }
+    - { value: igu_lowe, label: Double glazing with Low-E }
+  default_hint: igu_standard
+```
