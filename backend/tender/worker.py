@@ -82,12 +82,17 @@ async def run_once(session_factory, worker_id: str) -> bool:
         job_kind = job.kind
         comparison_id = job.comparison_id
         started = time.perf_counter()
+        usage = telemetry.begin_stage_usage()
         try:
             await handler(session, job)
         except Exception:
             error_text = traceback.format_exc()
             duration_ms = int((time.perf_counter() - started) * 1000)
             await session.rollback()
+            failed_meta = dict(usage.metadata)
+            failed_meta["error"] = (
+                error_text.splitlines()[-1] if error_text else ""
+            )
             await telemetry.record_stage_timing(
                 session,
                 comparison_id=comparison_id,
@@ -95,10 +100,16 @@ async def run_once(session_factory, worker_id: str) -> bool:
                 stage=job_kind,
                 duration_ms=duration_ms,
                 status="failed",
-                metadata={"error": error_text.splitlines()[-1] if error_text else ""},
+                llm_calls=usage.llm_calls,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                cache_hits=usage.cache_hits,
+                metadata=failed_meta,
             )
             await jobs.fail(session, job, error_text)
             return True
+        finally:
+            telemetry.end_stage_usage()
 
         duration_ms = int((time.perf_counter() - started) * 1000)
         await telemetry.record_stage_timing(
@@ -108,6 +119,11 @@ async def run_once(session_factory, worker_id: str) -> bool:
             stage=job_kind,
             duration_ms=duration_ms,
             status="done",
+            llm_calls=usage.llm_calls,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_hits=usage.cache_hits,
+            metadata=usage.metadata or None,
         )
         await jobs.complete(session, job)
         await continuations.after_job_complete(

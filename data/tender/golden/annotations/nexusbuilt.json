@@ -1,0 +1,316 @@
+{
+  "document": {
+    "id": "nexusbuilt",
+    "source": "real",
+    "difficulty": "hard",
+    "doc_type": "builder_quote",
+    "state": "NSW",
+    "build_type": "renovation",
+    "anonymised": false
+  },
+  "ground_truth": {
+    "line_items": [
+      {
+        "description_raw": "Site Labourer",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "01.07", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Engineering Fees",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "01.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Carpenter and labourer to demo as per plans",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Labourer to demo brick work and internal component's",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Bin Hire mixed waste",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "01.12", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Bin bricks only",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "01.12", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Removal of garage doors and dispose",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Timber frame Perimeter Barrier - Kordon",
+        "page": 3,
+        "item_status": "included",
+        "mappings": [{ "cell": "04.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Carpentry labour - Frame",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Framing timber, hardware, Brace strapping etc.",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Frame - 2400 Build on site materials,T2 90 X 45 , Timber, Skirt & Arcs",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Cement Tiles - Battens & Fixing, Insulation",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Cement roof tiles Supply",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Sarking Supply & fit",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "External Windows and sliding door install",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "08.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "External Windows and Sliding door frame as per plans and BASIX report",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "08.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Electrical as per plans v2",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Plumbing rough in and fit off as per plans, hot cold and sewer rough in and fit off for 2x bathrooms 2x Laundry 2x kitchens HWH",
+        "page": 4,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Lock Up Carpentry labour",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Axon cladding and SS fixings",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "07.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "hardies wall wrap Roll",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "07.05", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Supply R2.5 Wall batts",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Fit R2.5 wall batts",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "R2.5 x 580 Insulation Ceiling batts Batts",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Fit R2.5 Ceiling batts",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Supply & fit plasterboard to ceiling's to new bathrooms, new entry. Square set",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "12.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Supply & fit plasterboard to new Bedrooms and bathroom Wet Area Walls",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "12.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Waterproofing as per plans",
+        "page": 5,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Labour to lay Wall Tiles",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Labour to lay Floor Tiles",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Cement screed to falls",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Construct base inc Falls for bathrooms and laundry",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.07", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Feature wall labour",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Feature wall tile allowance of 10m2",
+        "page": 6,
+        "item_status": "pc",
+        "mappings": [{ "cell": "15.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Fixing Carpentry Labour",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Builder's Std Door Jamb x 4",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Redicoat 2040 plain Door x 4",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Solidcore 2040 front Door allowance $250 inc gst x 1",
+        "page": 6,
+        "item_status": "pc",
+        "mappings": [{ "cell": "08.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Passage Sets PC $45 Inc gst x 4",
+        "page": 6,
+        "item_status": "pc",
+        "mappings": [{ "cell": "13.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "67 x 18 pine Architraves",
+        "page": 6,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "67 x 18 pine Skirting",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Bifold door storage room",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Internal Door - Sliding, Cavity Unit, Skirts & Arcs, Pull Latch",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Kitchens and laundry-see spec list for inclusions",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.01", "fraction": 0.7 }, { "cell": "15.11", "fraction": 0.3 }]
+      },
+      {
+        "description_raw": "Semi-Framed Shower Screen x 2 off",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "6mm Mirror Supply & Fit x 2 off",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.10", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Carport Roofing",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "19.07", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Carport carpentry and materials-Treated pine",
+        "page": 7,
+        "item_status": "included",
+        "mappings": [{ "cell": "19.07", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "40mm Engineered Stone - Caesarstone Midday",
+        "page": 9,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Splashback: 20mm Engineered Stone",
+        "page": 9,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.03", "fraction": 1.0 }]
+      }
+    ],
+    "cell_status": []
+  }
+}

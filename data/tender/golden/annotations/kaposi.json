@@ -1,0 +1,331 @@
+{
+  "document": {
+    "id": "kaposi",
+    "source": "real",
+    "difficulty": "medium",
+    "doc_type": "builder_quote",
+    "state": "NSW",
+    "build_type": "renovation",
+    "anonymised": false
+  },
+  "ground_truth": {
+    "line_items": [
+      {
+        "description_raw": "EARTHWORKS",
+        "page": 1,
+        "amount_cents": 1488000,
+        "item_status": "included",
+        "mappings": [{ "cell": "03.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "SITE SETOUT",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "01.05", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "FOOTINGS",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "04.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "FLOOR FRAMING + WIND/DOOR INSTALL",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "WALL FRAMING + ROOF FRAMING",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 0.5 }, { "cell": "05.02", "fraction": 0.5 }]
+      },
+      {
+        "description_raw": "ROOFING",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "CLADDING",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "07.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "DEMO + RUBBINSH REMOVAL",
+        "page": 1,
+        "amount_cents": 815000,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE FRONT ENTRY",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE ALL WINDOWS/DOORS",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE BRICK WALLS",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE KITCHEN",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE INTERNAL WALLS",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE CARPET",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "REMOVE OLD ENTRY CONCRETE",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "BUILD NEW ROOF INSTALL 2 STRUTTING BEAMS",
+        "page": 1,
+        "amount_cents": 620000,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "ROOF + EAVES + GUTTER",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "CONCRETE AND PATTERN FOR FLOORING",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "04.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "FRONT DOOR INSTALL",
+        "page": 1,
+        "amount_cents": 871000,
+        "item_status": "included",
+        "mappings": [{ "cell": "08.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "INSTALL WINDOWS AND DOOR",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "08.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "BRICK UP ROLLER DOOR, REUSE OLD BRICKS",
+        "page": 1,
+        "amount_cents": 150000,
+        "item_status": "included",
+        "mappings": [{ "cell": "07.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "BUILD INTERNEL WALLS",
+        "page": 1,
+        "amount_cents": 650000,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "ELECTRICAN ROUGH IN",
+        "page": 1,
+        "amount_cents": 397500,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "PLUMBING ROUGH IN",
+        "page": 1,
+        "amount_cents": 400000,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "INSULLATION",
+        "page": 1,
+        "amount_cents": 100000,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "GYPROCKING/VILLA + AND SETTING",
+        "page": 1,
+        "amount_cents": 320000,
+        "item_status": "included",
+        "mappings": [{ "cell": "12.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "AIRCON PRO SUM",
+        "page": 1,
+        "amount_cents": 400000,
+        "item_status": "ps",
+        "mappings": [{ "cell": "10.09", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "CUTOUT CONRETE FOR PLUMBING",
+        "page": 1,
+        "amount_cents": 100000,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "WATERPROOFING",
+        "page": 1,
+        "amount_cents": 200000,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "TILING",
+        "page": 2,
+        "amount_cents": 1181000,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.01", "fraction": 0.5 }, { "cell": "15.02", "fraction": 0.5 }]
+      },
+      {
+        "description_raw": "PLUMBING FIT OFF",
+        "page": 2,
+        "amount_cents": 400000,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "ELECTRICAN FITOFF",
+        "page": 2,
+        "amount_cents": 397500,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "VANITY AND BATHROOM HARDWARE",
+        "page": 2,
+        "amount_cents": 1040700,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "FRAMLESS GLASS (FULL INCLOSED???)",
+        "page": 2,
+        "amount_cents": 150000,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "KITCHEN AND LAUNDRY 1",
+        "page": 2,
+        "amount_cents": 1600000,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.01", "fraction": 0.6 }, { "cell": "15.11", "fraction": 0.4 }]
+      },
+      {
+        "description_raw": "KITCHEN AND LAUNDRY 2",
+        "page": 2,
+        "amount_cents": 1600000,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.01", "fraction": 0.6 }, { "cell": "15.11", "fraction": 0.4 }]
+      },
+      {
+        "description_raw": "CARPET $60M2",
+        "page": 2,
+        "amount_cents": 276000,
+        "item_status": "included",
+        "mappings": [{ "cell": "17.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "PAINTING",
+        "page": 2,
+        "amount_cents": 1000000,
+        "item_status": "included",
+        "mappings": [{ "cell": "16.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "STONE BENCH TOPS FOR BOTH KITCHENS",
+        "page": 2,
+        "amount_cents": 1200000,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "INTERNAL DOORS, JAMBS AND ARKS",
+        "page": 2,
+        "amount_cents": 900000,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "WARDROBE",
+        "page": 2,
+        "amount_cents": 540000,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "FLOOR, LAYING & SKIRTING",
+        "page": 2,
+        "amount_cents": 965000,
+        "item_status": "included",
+        "mappings": [{ "cell": "17.03", "fraction": 0.6 }, { "cell": "13.03", "fraction": 0.4 }]
+      },
+      {
+        "description_raw": "BUILDING CARPORT NO CEILING",
+        "page": 2,
+        "amount_cents": 480000,
+        "item_status": "included",
+        "mappings": [{ "cell": "19.07", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "LANDSCAPING",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "19.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "OUTDOOR LIGHTING",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "18.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Asbestos removal",
+        "page": 2,
+        "item_status": "excluded",
+        "mappings": [{ "cell": "02.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Termite damage",
+        "page": 2,
+        "item_status": "excluded",
+        "mappings": [{ "cell": "04.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Restumping",
+        "page": 2,
+        "item_status": "excluded",
+        "mappings": [{ "cell": "04.04", "fraction": 1.0 }]
+      }
+    ],
+    "cell_status": []
+  }
+}

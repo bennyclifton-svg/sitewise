@@ -1,0 +1,348 @@
+{
+  "document": {
+    "id": "enmore",
+    "source": "real",
+    "difficulty": "medium",
+    "doc_type": "builder_quote",
+    "state": "NSW",
+    "build_type": "renovation",
+    "anonymised": false
+  },
+  "ground_truth": {
+    "line_items": [
+      {
+        "description_raw": "Demolition external",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Remove garden area near front door",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Remove brick work as on DA plan and roof",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Remove windows as per DA plan",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Remove garage doors x2",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Demolition internal",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "remove all floor coverings throughout as per plan",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "remove all floor and wall tiled surfaces including wet areas",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "remove all skirting boards and architraves and doors",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "remove all plaster board walls and ceiling",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "strip out all wet areas",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "strip out kitchen",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "strip all electrical cabling",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.05", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "remove walls as per plan",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "02.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install axon cladding openings (garage, front entrances, rear door)",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "07.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install concrete slab 150mm thick with 16mm dowel bars chemset into existing slab front court yard",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "04.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install new windows and doors as per DA plan",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "08.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install roof tile to front court yard",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install roof construction front court yard pitched 140mm x 45mm lvls",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install new eaves as required",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "06.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install new timber stud wall 90mm x35mm",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install wall insulation barrier",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "painting of new work only",
+        "page": 1,
+        "item_status": "included",
+        "mappings": [{ "cell": "16.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "build new shed as per DA plan TBA",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "19.07", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install new walls 90mm x 35mm t2 as per plan",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "05.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install all new electrical TBA with downlights and new meter box",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install all pc items standard",
+        "page": 2,
+        "item_status": "pc",
+        "mappings": [{ "cell": "22.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install all wardrobes standard with mirrors",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "waterproof all wet areas with 2 coats under bedding",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "min 30mm tile bedding throughout all wet areas",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "tiling throughout all wet areas with smart floor waste",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "bathroom room and laundry all walls to be tiled floor to ceiling",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install all new plaster board walls and ceiling with 90mm cornices",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "12.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install all new architraves half splad",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install solid doors to all rooms new arear only",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "13.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "painting complete internal with a 3-coat Haymes system",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "16.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "supply and install shower screens",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "15.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install new kitchen and laundry cabinet bench top appliance's and vanities",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.01", "fraction": 0.6 }, { "cell": "15.11", "fraction": 0.4 }]
+      },
+      {
+        "description_raw": "install kitchen tiled splash back 600mm high with 3 cut outs for power",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "14.03", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "install ducted air con to all living and bedrooms as per DA plan",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.09", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "wall and ceiling batts r 2.5",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "11.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "36 downlights and switches",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "3 x photoelectric smoke alarms",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.08", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "28 x power points standard",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.06", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Oven and cooktop circuit x 2",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "exhaust fan x 2",
+        "page": 2,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.16", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Kitchen joinery",
+        "page": 2,
+        "amount_cents": 4500000,
+        "item_status": "pc",
+        "mappings": [{ "cell": "14.01", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "All Floor and wall tiles",
+        "page": 2,
+        "amount_cents": 500000,
+        "item_status": "pc",
+        "mappings": [{ "cell": "15.01", "fraction": 0.5 }, { "cell": "15.02", "fraction": 0.5 }]
+      },
+      {
+        "description_raw": "New electricals",
+        "page": 2,
+        "amount_cents": 970000,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.04", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Kitchen appliances",
+        "page": 2,
+        "amount_cents": 350000,
+        "item_status": "pc",
+        "mappings": [{ "cell": "18.05", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Floor covers",
+        "page": 2,
+        "amount_cents": 800000,
+        "item_status": "pc",
+        "mappings": [{ "cell": "17.02", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Laundry joinery",
+        "page": 2,
+        "amount_cents": 800000,
+        "item_status": "pc",
+        "mappings": [{ "cell": "15.11", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Supply & Installation of (1) Daikin FDYAN160AV1/RZA160CV1 - Standard Inverter Reverse Cycle Ducted Air Conditioning System",
+        "page": 3,
+        "amount_cents": 1338000,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.09", "fraction": 1.0 }]
+      },
+      {
+        "description_raw": "Supply & Installation of (1) Daikin Cora FTXV71UVMA/RXV71UVMA 7.1 kW Reverse Cycle Split Air Conditioning System",
+        "page": 3,
+        "amount_cents": 350000,
+        "item_status": "included",
+        "mappings": [{ "cell": "10.09", "fraction": 1.0 }]
+      }
+    ],
+    "cell_status": []
+  }
+}

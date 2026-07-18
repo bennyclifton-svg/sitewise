@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from app.config import settings
 from tender.llm.client import LLMExtractionResponse, TenderLLMClient
@@ -53,6 +53,30 @@ async def extract_line_items(
     confidence_threshold: float | None = None,
     reconciliation_tolerance: float | None = None,
 ) -> ExtractionResult:
+    schema = ExtractionStructuredOutput.model_json_schema()
+    llm_response = await llm_client.extract(pages, schema, context)
+    return materialize_extraction(
+        llm_response.data,
+        stated_total_cents=stated_total_cents,
+        confidence_threshold=confidence_threshold,
+        reconciliation_tolerance=reconciliation_tolerance,
+        model=llm_response.model,
+        prompt_version=llm_response.prompt_version,
+        request_id=llm_response.request_id,
+    )
+
+
+def materialize_extraction(
+    data: dict[str, Any],
+    *,
+    stated_total_cents: int | None = None,
+    confidence_threshold: float | None = None,
+    reconciliation_tolerance: float | None = None,
+    model: str = "cache",
+    prompt_version: str = "0.1.0",
+    request_id: str | None = None,
+) -> ExtractionResult:
+    """Reconcile + gate a structured extract payload (LLM or cache hit)."""
     threshold = (
         settings.tender_extraction_confidence_threshold
         if confidence_threshold is None
@@ -63,8 +87,12 @@ async def extract_line_items(
         if reconciliation_tolerance is None
         else reconciliation_tolerance
     )
-    schema = ExtractionStructuredOutput.model_json_schema()
-    llm_response = await llm_client.extract(pages, schema, context)
+    llm_response = LLMExtractionResponse(
+        data=data,
+        model=model,
+        prompt_version=prompt_version,
+        request_id=request_id,
+    )
     structured = ExtractionStructuredOutput.model_validate(llm_response.data)
     quote_total = (
         structured.quote_total_cents

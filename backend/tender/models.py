@@ -694,6 +694,42 @@ class TenderJob(Base):
     )
 
 
+class TenderExtractCache(Base):
+    """Project-scoped raw extract cache keyed by content hash + extractor version."""
+
+    __tablename__ = "tender_extract_cache"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    extractor_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    model: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "content_hash",
+            "extractor_version",
+            name="uq_tender_extract_cache_project_hash_version",
+        ),
+        Index("ix_tender_extract_cache_project_hash", "project_id", "content_hash"),
+    )
+
+
 class TenderTelemetryEvent(Base):
     __tablename__ = "tender_telemetry_events"
 

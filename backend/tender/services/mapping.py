@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -25,12 +27,15 @@ from tender.models import (
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
 from tender.services.context import context_for_quote
+from tender.services.telemetry import note_openai_response, record_mapping_tier
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "llm" / "prompts"
 T2_PROMPT_VERSION = "0.1.0"
 T3_PROMPT_VERSION = "0.1.0"
 T2_PROMPT_PATH = PROMPT_DIR / f"map_items_t2_v{T2_PROMPT_VERSION}.md"
 T3_PROMPT_PATH = PROMPT_DIR / f"map_items_t3_v{T3_PROMPT_VERSION}.md"
+
+SessionFactory = Callable[[], Any]
 
 
 @dataclass(frozen=True)
@@ -73,6 +78,20 @@ class MappingDecision:
     qa_state: str
     adjudication: dict[str, Any]
     escalate_to_t3: bool = False
+
+
+@dataclass(frozen=True)
+class FreeTierResult:
+    decision: MappingDecision | None = None
+    t1_candidates: tuple[CellCandidate, ...] = ()
+    candidate_cells: tuple[TaxonomyCellSummary, ...] = ()
+
+
+@dataclass(frozen=True)
+class T2BatchItem:
+    item: LineItemMappingInput
+    candidates: tuple[CellCandidate, ...]
+    candidate_cells: tuple[TaxonomyCellSummary, ...]
 
 
 @dataclass(frozen=True)
@@ -135,6 +154,7 @@ class OpenAIFrontierMappingClient:
             },
             temperature=0,
         )
+        note_openai_response(response)
         data = json.loads(_response_text(response))
         return FrontierMappingResponse(
             allocations=tuple(
@@ -159,16 +179,21 @@ async def map_items(
     *,
     llm_client: TenderLLMClient | None = None,
     frontier_client: FrontierMappingClient | None = None,
+    session_factory: SessionFactory | None = None,
+    concurrency: int | None = None,
 ) -> None:
     if job.quote_id is None:
         raise ValueError("map_items job requires quote_id")
     llm_client = llm_client or _default_llm_client()
     context = await _context_for_quote(session, job.quote_id)
+    active_cells = await load_active_cell_summaries(session)
+
     result = await session.execute(
         select(TenderLineItem)
         .where(TenderLineItem.quote_id == job.quote_id)
         .order_by(TenderLineItem.created_at)
     )
+    prepared: list[tuple[uuid.UUID, LineItemMappingInput]] = []
     for line_item in result.scalars():
         existing = await _existing_mappings(session, line_item.id)
         if has_protected_mapping(existing):
@@ -176,18 +201,177 @@ async def map_items(
         await session.execute(
             delete(TenderMapping).where(TenderMapping.line_item_id == line_item.id)
         )
-        decision = await map_line_item_cascade(
-            session,
-            _line_item_from_model(line_item),
+        prepared.append((line_item.id, _line_item_from_model(line_item)))
+
+    if prepared:
+        await session.flush()
+        decisions = await map_prepared_line_items(
+            prepared,
             context=context,
             llm_client=llm_client,
             frontier_client=frontier_client,
+            session_factory=session_factory,
+            concurrency=concurrency,
+            active_cells=active_cells,
         )
-        _add_mapping_rows(session, line_item.id, decision)
+        for line_item_id, decision in decisions:
+            _add_mapping_rows(session, line_item_id, decision)
         await session.flush()
+
     quote = await session.get(TenderQuote, job.quote_id)
     if quote is not None:
         quote.stage = "run_expectations"
+
+
+async def map_prepared_line_items(
+    prepared: Sequence[tuple[uuid.UUID, LineItemMappingInput]],
+    *,
+    context: ProjectContext,
+    llm_client: TenderLLMClient,
+    frontier_client: FrontierMappingClient | None = None,
+    session_factory: SessionFactory | None = None,
+    concurrency: int | None = None,
+    active_cells: Sequence[TaxonomyCellSummary],
+) -> list[tuple[uuid.UUID, MappingDecision]]:
+    """Map line items: parallel free tiers → batch T2 → parallel scoped T3."""
+
+    limit = max(
+        1,
+        concurrency if concurrency is not None else settings.tender_map_concurrency,
+    )
+    factory = session_factory or _default_session_factory()
+    semaphore = asyncio.Semaphore(limit)
+
+    async def resolve_one(
+        line_item_id: uuid.UUID, item: LineItemMappingInput
+    ) -> tuple[uuid.UUID, LineItemMappingInput, FreeTierResult]:
+        async with semaphore:
+            async with factory() as item_session:
+                free = await resolve_free_tier(item_session, item)
+                return line_item_id, item, free
+
+    free_results = await asyncio.gather(
+        *(resolve_one(line_item_id, item) for line_item_id, item in prepared)
+    )
+
+    decisions: dict[uuid.UUID, MappingDecision] = {}
+    pending_t2: list[tuple[uuid.UUID, T2BatchItem]] = []
+    pending_t3: list[tuple[uuid.UUID, LineItemMappingInput, tuple[CellCandidate, ...]]] = []
+
+    for line_item_id, item, free in free_results:
+        if free.decision is not None:
+            decisions[line_item_id] = free.decision
+            continue
+        if free.t1_candidates:
+            pending_t2.append(
+                (
+                    line_item_id,
+                    T2BatchItem(
+                        item=item,
+                        candidates=free.t1_candidates,
+                        candidate_cells=free.candidate_cells,
+                    ),
+                )
+            )
+            continue
+        pending_t3.append((line_item_id, item, ()))
+
+    if pending_t2:
+        batch_items = [item for _, item in pending_t2]
+        t2_decisions = await t2_map_items_batch(
+            batch_items,
+            context=context,
+            llm_client=llm_client,
+        )
+        for (line_item_id, batch_item), decision in zip(
+            pending_t2, t2_decisions, strict=True
+        ):
+            if decision.escalate_to_t3:
+                pending_t3.append(
+                    (line_item_id, batch_item.item, batch_item.candidates)
+                )
+            else:
+                decisions[line_item_id] = decision
+                record_mapping_tier(decision.tier, duration_ms=0)
+
+    if pending_t3:
+        async def map_t3(
+            line_item_id: uuid.UUID,
+            item: LineItemMappingInput,
+            t1_candidates: tuple[CellCandidate, ...],
+        ) -> tuple[uuid.UUID, MappingDecision]:
+            started = time.perf_counter()
+            async with semaphore:
+                scoped = scope_cells_for_t3(
+                    active_cells, t1_candidates=t1_candidates
+                )
+                decision = await t3_map_item(
+                    item,
+                    active_cells=scoped,
+                    context=context,
+                    frontier_client=frontier_client,
+                )
+                _note_mapping_tier(decision.tier, started)
+                return line_item_id, decision
+
+        t3_results = await asyncio.gather(
+            *(
+                map_t3(line_item_id, item, candidates)
+                for line_item_id, item, candidates in pending_t3
+            )
+        )
+        for line_item_id, decision in t3_results:
+            decisions[line_item_id] = decision
+
+    return [
+        (line_item_id, decisions[line_item_id])
+        for line_item_id, _item in prepared
+        if line_item_id in decisions
+    ]
+
+
+async def resolve_free_tier(
+    session: AsyncSession,
+    item: LineItemMappingInput,
+    *,
+    t0_func: Callable[[AsyncSession, str], Awaitable[list[CellCandidate]]] | None = None,
+    t1_func: Callable[
+        [AsyncSession, list[float], int], Awaitable[list[CellCandidate]]
+    ]
+    | None = None,
+    cell_loader: Callable[
+        [AsyncSession, list[str]], Awaitable[list[TaxonomyCellSummary]]
+    ]
+    | None = None,
+) -> FreeTierResult:
+    t0_func = t0_func or t0_match
+    t1_func = t1_func or t1_candidates
+    cell_loader = cell_loader or load_cell_summaries
+    started = time.perf_counter()
+
+    t0_candidates = await t0_func(session, normalize_phrase(item.description_raw))
+    if t0_candidates:
+        decision = _candidate_decision("t0_exact", t0_candidates[0])
+        _note_mapping_tier(decision.tier, started)
+        return FreeTierResult(decision=decision)
+
+    t1 = await t1_func(session, item.embedding or [], 5) if item.embedding else []
+    accepted = accept_t1_candidate(t1)
+    if accepted is not None:
+        decision = _candidate_decision("t1_embedding", accepted)
+        _note_mapping_tier(decision.tier, started)
+        return FreeTierResult(decision=decision)
+
+    if not t1:
+        return FreeTierResult()
+
+    candidate_cells = await cell_loader(
+        session, [candidate.cell_code for candidate in t1]
+    )
+    return FreeTierResult(
+        t1_candidates=tuple(t1),
+        candidate_cells=tuple(candidate_cells),
+    )
 
 
 async def map_line_item_cascade(
@@ -213,41 +397,62 @@ async def map_line_item_cascade(
     ]
     | None = None,
 ) -> MappingDecision:
-    t0_func = t0_func or t0_match
-    t1_func = t1_func or t1_candidates
     t2_func = t2_func or t2_map_item
     t3_func = t3_func or t3_map_item
-    cell_loader = cell_loader or load_cell_summaries
     active_cell_loader = active_cell_loader or load_active_cell_summaries
+    started = time.perf_counter()
 
-    t0_candidates = await t0_func(session, normalize_phrase(item.description_raw))
-    if t0_candidates:
-        return _candidate_decision("t0_exact", t0_candidates[0])
+    free = await resolve_free_tier(
+        session,
+        item,
+        t0_func=t0_func,
+        t1_func=t1_func,
+        cell_loader=cell_loader,
+    )
+    if free.decision is not None:
+        return free.decision
 
-    t1 = await t1_func(session, item.embedding or [], 5) if item.embedding else []
-    accepted = accept_t1_candidate(t1)
-    if accepted is not None:
-        return _candidate_decision("t1_embedding", accepted)
-
-    if t1:
-        candidate_cells = await cell_loader(session, [candidate.cell_code for candidate in t1])
+    t1_candidates = free.t1_candidates
+    if t1_candidates:
         t2_decision = await t2_func(
             item=item,
-            candidates=t1,
-            candidate_cells=candidate_cells,
+            candidates=list(t1_candidates),
+            candidate_cells=list(free.candidate_cells),
             context=context,
             llm_client=llm_client,
         )
         if not t2_decision.escalate_to_t3:
+            _note_mapping_tier(t2_decision.tier, started)
             return t2_decision
 
     active_cells = await active_cell_loader(session)
-    return await t3_func(
+    scoped_cells = scope_cells_for_t3(active_cells, t1_candidates=t1_candidates)
+    t3_decision = await t3_func(
         item=item,
-        active_cells=active_cells,
+        active_cells=scoped_cells,
         context=context,
         frontier_client=frontier_client,
     )
+    _note_mapping_tier(t3_decision.tier, started)
+    return t3_decision
+
+
+def taxonomy_group(cell_code: str) -> str:
+    return cell_code.split(".", 1)[0]
+
+
+def scope_cells_for_t3(
+    active_cells: Sequence[TaxonomyCellSummary],
+    *,
+    t1_candidates: Sequence[CellCandidate],
+) -> list[TaxonomyCellSummary]:
+    if not t1_candidates:
+        return list(active_cells)
+    groups = {taxonomy_group(candidate.cell_code) for candidate in t1_candidates}
+    scoped = [
+        cell for cell in active_cells if taxonomy_group(cell.code) in groups
+    ]
+    return scoped or list(active_cells)
 
 
 def has_protected_mapping(mappings: Sequence[Any]) -> bool:
@@ -370,30 +575,163 @@ async def t2_map_item(
     context: ProjectContext,
     llm_client: TenderLLMClient,
 ) -> MappingDecision:
-    cells_by_code = {cell.code: cell for cell in candidate_cells}
-    ordered_cells = [cells_by_code[candidate.cell_code] for candidate in candidates]
-    choices = [candidate.cell_code for candidate in candidates] + ["none_of_these"]
+    ordered_cells = _ordered_candidate_cells(candidates, candidate_cells)
+    choices = _t2_choices(candidates)
     response = await llm_client.adjudicate(
         _prompt_text(T2_PROMPT_PATH),
         choices,
-        {
-            "line_item": _line_item_payload(item),
-            "candidate_cells": [
-                {
-                    "code": cell.code,
-                    "name": cell.name,
-                    "description": cell.description,
-                    "similarity": candidates[index].similarity,
-                    "via": candidates[index].via,
-                }
-                for index, cell in enumerate(ordered_cells)
-            ],
-            "taxonomy_block": _taxonomy_block(ordered_cells, include_description=True),
-        },
+        _t2_evidence(item, candidates, ordered_cells),
         context,
         prompt_version=T2_PROMPT_VERSION,
         model_key="tender_model_adjudicate_small",
     )
+    return _decision_from_t2_response(response, candidates, ordered_cells)
+
+
+async def t2_map_items_batch(
+    items: Sequence[T2BatchItem],
+    *,
+    context: ProjectContext,
+    llm_client: TenderLLMClient,
+) -> list[MappingDecision]:
+    if not items:
+        return []
+
+    batch_size = max(1, settings.tender_map_t2_batch_size)
+    decisions: list[MappingDecision] = []
+    for offset in range(0, len(items), batch_size):
+        chunk = list(items[offset : offset + batch_size])
+        decisions.extend(
+            await _t2_map_items_batch_chunk(
+                chunk, context=context, llm_client=llm_client
+            )
+        )
+    return decisions
+
+
+async def _t2_map_items_batch_chunk(
+    items: Sequence[T2BatchItem],
+    *,
+    context: ProjectContext,
+    llm_client: TenderLLMClient,
+) -> list[MappingDecision]:
+    prepared = [
+        (
+            item,
+            item.candidates,
+            _ordered_candidate_cells(item.candidates, item.candidate_cells),
+        )
+        for item in items
+    ]
+    choice_union: list[str] = []
+    seen_choices: set[str] = set()
+    for _item, candidates, _cells in prepared:
+        for choice in _t2_choices(candidates):
+            if choice not in seen_choices:
+                seen_choices.add(choice)
+                choice_union.append(choice)
+
+    evidence_items = [
+        {
+            **_t2_evidence(item.item, candidates, ordered_cells),
+            "allowed_choices": _t2_choices(candidates),
+        }
+        for item, candidates, ordered_cells in prepared
+    ]
+
+    adjudicate_many = getattr(llm_client, "adjudicate_many", None)
+    if adjudicate_many is not None:
+        responses = await adjudicate_many(
+            _prompt_text(T2_PROMPT_PATH),
+            choice_union,
+            evidence_items,
+            context,
+            prompt_version=T2_PROMPT_VERSION,
+            model_key="tender_model_adjudicate_small",
+        )
+    else:
+        responses = [
+            await llm_client.adjudicate(
+                _prompt_text(T2_PROMPT_PATH),
+                _t2_choices(candidates),
+                evidence,
+                context,
+                prompt_version=T2_PROMPT_VERSION,
+                model_key="tender_model_adjudicate_small",
+            )
+            for (_item, candidates, _cells), evidence in zip(
+                prepared, evidence_items, strict=True
+            )
+        ]
+
+    if len(responses) != len(prepared):
+        raise ValueError(
+            f"T2 batch returned {len(responses)} decisions for {len(prepared)} items"
+        )
+
+    decisions: list[MappingDecision] = []
+    for response, (_item, candidates, ordered_cells) in zip(
+        responses, prepared, strict=True
+    ):
+        allowed = set(_t2_choices(candidates))
+        if response.choice not in allowed:
+            adjudication = _adjudication_payload(response, candidates, ordered_cells)
+            adjudication["error"] = "choice_outside_item_candidates"
+            decisions.append(
+                MappingDecision(
+                    tier="t2_small_llm",
+                    allocations=(),
+                    confidence=response.confidence,
+                    qa_state="needs_review",
+                    adjudication=adjudication,
+                    escalate_to_t3=True,
+                )
+            )
+            continue
+        decisions.append(
+            _decision_from_t2_response(response, candidates, ordered_cells)
+        )
+    return decisions
+
+
+def _t2_choices(candidates: Sequence[CellCandidate]) -> list[str]:
+    return [candidate.cell_code for candidate in candidates] + ["none_of_these"]
+
+
+def _ordered_candidate_cells(
+    candidates: Sequence[CellCandidate],
+    candidate_cells: Sequence[TaxonomyCellSummary],
+) -> list[TaxonomyCellSummary]:
+    cells_by_code = {cell.code: cell for cell in candidate_cells}
+    return [cells_by_code[candidate.cell_code] for candidate in candidates]
+
+
+def _t2_evidence(
+    item: LineItemMappingInput,
+    candidates: Sequence[CellCandidate],
+    ordered_cells: Sequence[TaxonomyCellSummary],
+) -> dict[str, Any]:
+    return {
+        "line_item": _line_item_payload(item),
+        "candidate_cells": [
+            {
+                "code": cell.code,
+                "name": cell.name,
+                "description": cell.description,
+                "similarity": candidates[index].similarity,
+                "via": candidates[index].via,
+            }
+            for index, cell in enumerate(ordered_cells)
+        ],
+        "taxonomy_block": _taxonomy_block(ordered_cells, include_description=True),
+    }
+
+
+def _decision_from_t2_response(
+    response: LLMAdjudicationResponse,
+    candidates: Sequence[CellCandidate],
+    ordered_cells: Sequence[TaxonomyCellSummary],
+) -> MappingDecision:
     adjudication = _adjudication_payload(response, candidates, ordered_cells)
     if response.choice == "none_of_these":
         return MappingDecision(
@@ -721,3 +1059,16 @@ def _default_llm_client() -> TenderLLMClient:
     from tender.llm.openai_client import AsyncOpenAITenderClient
 
     return AsyncOpenAITenderClient()
+
+
+def _default_session_factory() -> SessionFactory:
+    from app.database.session import get_session_factory
+
+    return get_session_factory()
+
+
+def _note_mapping_tier(tier: str, started: float) -> None:
+    record_mapping_tier(
+        tier,
+        duration_ms=int((time.perf_counter() - started) * 1000),
+    )

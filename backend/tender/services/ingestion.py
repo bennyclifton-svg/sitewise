@@ -14,7 +14,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from tender.models import TenderDocument, TenderJob, TenderPage, TenderQuote
+from tender.models import (
+    TenderComparison,
+    TenderDocument,
+    TenderJob,
+    TenderPage,
+    TenderQuote,
+)
 from tender.services import jobs
 from tender.services.pdf import PageExtract, extract_pages, render_page_png
 
@@ -67,6 +73,9 @@ async def ingest_document(
         await session.flush()
         return
 
+    if await _reuse_project_pages(session, job, document):
+        return
+
     source_bytes = await asyncio.to_thread(downloader, storage_key=document.storage_path)
     if _is_pdf(document):
         pdf_bytes = source_bytes
@@ -102,6 +111,11 @@ async def ingest_document(
             )
         )
 
+    # Commit each page as it lands. The worker rolls the session back when a
+    # handler raises, so flushed-but-uncommitted pages would be lost and the
+    # retry would restart from page one — re-uploading a whole document into
+    # the same failure window. Committing here is what makes the
+    # ``_existing_page_numbers`` resume path above reachable.
     for page in prepared_pages:
         image_path = _page_storage_key(job, document, page.page_no)
         uploaded_path = await asyncio.to_thread(
@@ -119,7 +133,7 @@ async def ingest_document(
                 ocr_confidence=None,
             )
         )
-        await session.flush()
+        await session.commit()
 
     document.page_count = len(extracted_pages)
     document.ocr_applied = False
@@ -152,6 +166,96 @@ async def _duplicate_document_id(
             TenderDocument.content_hash == document.content_hash,
             TenderDocument.id != document.id,
             TenderDocument.ingest_status == "ingested",
+        )
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
+async def _reuse_project_pages(
+    session: AsyncSession,
+    job: TenderJob,
+    document: TenderDocument,
+) -> bool:
+    """Clone pages from a prior ingested doc with the same project content hash.
+
+    Skips ODL + PNG re-render on warm re-compare. Returns True when reuse applied.
+    """
+    if not document.content_hash:
+        return False
+
+    comparison = await session.get(TenderComparison, job.comparison_id)
+    if comparison is None:
+        return False
+
+    prior_id = await _prior_ingested_document_id(
+        session,
+        project_id=comparison.project_id,
+        content_hash=document.content_hash,
+        exclude_id=document.id,
+    )
+    if prior_id is None:
+        return False
+
+    prior = await session.get(TenderDocument, prior_id)
+    if prior is None:
+        return False
+
+    pages_result = await session.execute(
+        select(TenderPage)
+        .where(TenderPage.document_id == prior.id)
+        .order_by(TenderPage.page_no)
+    )
+    prior_pages = list(pages_result.scalars().all())
+    if not prior_pages:
+        return False
+
+    for page in prior_pages:
+        session.add(
+            TenderPage(
+                document_id=document.id,
+                page_no=page.page_no,
+                image_path=page.image_path,
+                text_content=page.text_content,
+                ocr_confidence=page.ocr_confidence,
+            )
+        )
+
+    document.page_count = prior.page_count or len(prior_pages)
+    document.ocr_applied = prior.ocr_applied
+    document.ingest_status = "ingested"
+
+    quote = await session.get(TenderQuote, document.quote_id)
+    if quote is not None:
+        quote.stage = "classify_document"
+
+    await jobs.enqueue(
+        session,
+        kind="classify_document",
+        comparison_id=job.comparison_id,
+        quote_id=document.quote_id,
+        payload={"document_id": str(document.id)},
+    )
+    await session.flush()
+    return True
+
+
+async def _prior_ingested_document_id(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    content_hash: str,
+    exclude_id: uuid.UUID,
+) -> uuid.UUID | None:
+    result = await session.execute(
+        select(TenderDocument.id)
+        .join(TenderQuote, TenderDocument.quote_id == TenderQuote.id)
+        .join(TenderComparison, TenderQuote.comparison_id == TenderComparison.id)
+        .where(
+            TenderComparison.project_id == project_id,
+            TenderDocument.content_hash == content_hash,
+            TenderDocument.ingest_status == "ingested",
+            TenderDocument.id != exclude_id,
         )
         .limit(1)
     )

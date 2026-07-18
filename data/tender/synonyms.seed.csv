@@ -23,6 +23,8 @@ cell_code,phrase,source
 01.02,plan preparations,seed_expanded
 01.02,working drawing,seed_expanded
 01.02,working drawings,seed
+01.03,Engineering Fee,seed_expanded
+01.03,Engineering Fees,seed
 01.03,engineering design,seed
 01.03,engineering designs,seed_expanded
 01.03,engineers detail,seed_expanded
@@ -42,6 +44,8 @@ cell_code,phrase,source
 01.04,soil reports,seed_expanded
 01.04,soil test,seed
 01.04,soil tests,seed_expanded
+01.05,SITE SETOUT,seed
+01.05,SITE SETOUTs,seed_expanded
 01.05,contour survey,seed
 01.05,identification survey,seed
 01.05,peg out,seed
@@ -61,6 +65,8 @@ cell_code,phrase,source
 01.06,energy reports,seed_expanded
 01.06,thermal performance assessment,seed
 01.06,thermal performance assessments,seed_expanded
+01.07,Site Labourer,seed
+01.07,Site Labourers,seed_expanded
 01.07,builders preliminarie,seed_expanded
 01.07,builders preliminaries,seed
 01.07,preliminarie,seed_expanded
@@ -96,6 +102,9 @@ cell_code,phrase,source
 01.11,safety signage,seed
 01.11,safety signages,seed_expanded
 01.11,site safety,seed
+01.12,Bin Hire mixed waste,seed
+01.12,Bin Hire mixed wastes,seed_expanded
+01.12,Bin bricks only,seed
 01.12,rubbish removal,seed
 01.12,rubbish removals,seed_expanded
 01.12,site cleanup,seed_expanded
@@ -134,11 +143,71 @@ cell_code,phrase,source
 02.01,house demolitions,seed_expanded
 02.01,knock down,seed
 02.01,knock downs,seed_expanded
+02.02,Carpenter & labourer to demo as per plan,seed_expanded
+02.02,Carpenter & labourer to demo as per plans,seed_expanded
+02.02,Carpenter and labourer to demo as per plan,seed_expanded
+02.02,Carpenter and labourer to demo as per plans,seed
+02.02,DEMO + RUBBINSH REMOVAL,seed
+02.02,DEMO + RUBBINSH REMOVALs,seed_expanded
+02.02,Demolition external,seed
+02.02,Demolition externals,seed_expanded
+02.02,Demolition internal,seed
+02.02,Demolition internals,seed_expanded
+02.02,Labourer to demo brick work & internal component's,seed_expanded
+02.02,Labourer to demo brick work and internal component's,seed
+02.02,REMOVE ALL WINDOWS/DOORS,seed
+02.02,REMOVE BRICK WALLS,seed
+02.02,REMOVE BRICK WALLSs,seed_expanded
+02.02,REMOVE CARPET,seed
+02.02,REMOVE CARPETs,seed_expanded
+02.02,REMOVE FRONT ENTRY,seed
+02.02,REMOVE FRONT ENTRYs,seed_expanded
+02.02,REMOVE INTERNAL WALLS,seed
+02.02,REMOVE INTERNAL WALLSs,seed_expanded
+02.02,REMOVE KITCHEN,seed
+02.02,REMOVE KITCHENs,seed_expanded
+02.02,REMOVE OLD ENTRY CONCRETE,seed
+02.02,REMOVE OLD ENTRY CONCRETEs,seed_expanded
+02.02,Removal of garage doors & dispose,seed_expanded
+02.02,Removal of garage doors & disposes,seed_expanded
+02.02,Removal of garage doors and dispose,seed
+02.02,Removal of garage doors and disposes,seed_expanded
+02.02,Remove brick work as on DA plan & roof,seed_expanded
+02.02,Remove brick work as on DA plan & roofs,seed_expanded
+02.02,Remove brick work as on DA plan and roof,seed
+02.02,Remove brick work as on DA plan and roofs,seed_expanded
+02.02,Remove garage doors x2,seed
+02.02,Remove windows as per DA plan,seed
+02.02,Remove windows as per DA plans,seed_expanded
 02.02,internal strip out,seed
 02.02,partial demolition,seed
 02.02,partial demolitions,seed_expanded
+02.02,remove all floor & wall tiled surfaces including wet area,seed_expanded
+02.02,remove all floor & wall tiled surfaces including wet areas,seed_expanded
+02.02,remove all floor and wall tiled surfaces including wet area,seed_expanded
+02.02,remove all floor and wall tiled surfaces including wet areas,seed
+02.02,remove all floor coverings throughout as per plan,seed
+02.02,remove all floor coverings throughout as per plans,seed_expanded
+02.02,remove all gyprock walls & ceiling,seed_expanded
+02.02,remove all gyprock walls & ceilings,seed_expanded
+02.02,remove all gyprock walls and ceiling,seed_expanded
+02.02,remove all gyprock walls and ceilings,seed_expanded
+02.02,remove all plaster board walls & ceiling,seed_expanded
+02.02,remove all plaster board walls & ceilings,seed_expanded
+02.02,remove all plaster board walls and ceiling,seed
+02.02,remove all plaster board walls and ceilings,seed_expanded
+02.02,remove all skirting boards & architraves & door,seed_expanded
+02.02,remove all skirting boards & architraves & doors,seed_expanded
+02.02,remove all skirting boards and architraves and door,seed_expanded
+02.02,remove all skirting boards and architraves and doors,seed
 02.02,remove existing kitchen,seed
 02.02,remove existing kitchens,seed_expanded
+02.02,remove walls as per plan,seed
+02.02,remove walls as per plans,seed_expanded
+02.02,strip out all wet area,seed_expanded
+02.02,strip out all wet areas,seed
+02.02,strip out kitchen,seed
+02.02,strip out kitchens,seed_expanded
 02.02,strip out work,seed_expanded
 02.02,strip out works,seed
 02.03,ACM removal,seed
@@ -164,6 +233,10 @@ cell_code,phrase,source
 02.05,disconnect services,seed
 02.05,service abolishment,seed
 02.05,service abolishments,seed_expanded
+02.05,strip all electrical cabling,seed
+02.05,strip all electrical cablings,seed_expanded
+02.06,Remove garden area near front door,seed
+02.06,Remove garden area near front doors,seed_expanded
 02.06,clear & grub,seed
 02.06,clear & grubs,seed_expanded
 02.06,clear and grub,seed_expanded
@@ -209,6 +282,8 @@ cell_code,phrase,source
 03.02,pile foundations,seed
 03.02,screw pile,seed_expanded
 03.02,screw piles,seed
+03.03,EARTHWORKS,seed
+03.03,EARTHWORKSs,seed_expanded
 03.03,bench site,seed
 03.03,bench sites,seed_expanded
 03.03,bulk earthwork,seed_expanded
@@ -286,6 +361,10 @@ cell_code,phrase,source
 03.12,shorings,seed_expanded
 03.12,soil anchor,seed_expanded
 03.12,soil anchors,seed
+04.01,CONCRETE AND PATTERN FOR FLOORING,seed
+04.01,CONCRETE AND PATTERN FOR FLOORINGs,seed_expanded
+04.01,FOOTINGS,seed
+04.01,FOOTINGSs,seed_expanded
 04.01,concrete slab,seed
 04.01,concrete slabs,seed_expanded
 04.01,concrete work,seed_expanded
@@ -298,6 +377,10 @@ cell_code,phrase,source
 04.01,raft slabs,seed_expanded
 04.01,slab on ground,seed
 04.01,slab on grounds,seed_expanded
+04.01,supply & install concrete slab 150mm thick with 16mm dowel bars chemset into existing slab front court yard,seed_expanded
+04.01,supply & install concrete slab 150mm thick with 16mm dowel bars chemset into existing slab front court yards,seed_expanded
+04.01,supply and install concrete slab 150mm thick with 16mm dowel bars chemset into existing slab front court yard,seed
+04.01,supply and install concrete slab 150mm thick with 16mm dowel bars chemset into existing slab front court yards,seed_expanded
 04.01,waffle slab,seed
 04.01,waffle slabs,seed_expanded
 04.02,H class slab,seed
@@ -312,6 +395,8 @@ cell_code,phrase,source
 04.03,pod slabs,seed_expanded
 04.03,waffle pod,seed_expanded
 04.03,waffle pods,seed
+04.04,Restumping,seed
+04.04,Restumpings,seed_expanded
 04.04,bearers & joist,seed_expanded
 04.04,bearers & joists,seed
 04.04,bearers and joist,seed_expanded
@@ -326,6 +411,12 @@ cell_code,phrase,source
 04.05,suspended concrete floors,seed_expanded
 04.05,suspended slab,seed
 04.05,suspended slabs,seed_expanded
+04.06,Termite damage,seed
+04.06,Termite damages,seed_expanded
+04.06,Timber frame Perimeter Barrier   Kordon,seed_expanded
+04.06,Timber frame Perimeter Barrier - Kordon,seed
+04.06,Timber frame Perimeter Barrier - Kordons,seed_expanded
+04.06,Timber frame Perimeter Barrier Kordons,seed_expanded
 04.06,ant capping,seed
 04.06,ant cappings,seed_expanded
 04.06,part A treatment,seed
@@ -348,18 +439,49 @@ cell_code,phrase,source
 04.08,split level slabs,seed_expanded
 04.08,stepped footing,seed
 04.08,stepped footings,seed_expanded
+05.01,BUILD INTERNEL WALLS,seed
+05.01,BUILD INTERNEL WALLSs,seed_expanded
+05.01,Carpentry labour   Frame,seed_expanded
+05.01,Carpentry labour - Frame,seed
+05.01,Carpentry labour - Frames,seed_expanded
+05.01,Carpentry labour Frames,seed_expanded
+05.01,"Frame   2400 Build on site materials,T2 90 X 45 , Timber, Skirt & Arcs",seed_expanded
+05.01,"Frame   2400 Build on site materials,T2 90 X 45 , Timber, Skirt and Arcs",seed_expanded
+05.01,"Frame - 2400 Build on site materials,T2 90 X 45 , Timber, Skirt & Arc",seed_expanded
+05.01,"Frame - 2400 Build on site materials,T2 90 X 45 , Timber, Skirt & Arcs",seed
+05.01,"Frame - 2400 Build on site materials,T2 90 X 45 , Timber, Skirt and Arc",seed_expanded
+05.01,"Frame - 2400 Build on site materials,T2 90 X 45 , Timber, Skirt and Arcs",seed_expanded
+05.01,"Frame 2400 Build on site materials,T2 90 X 45 , Timber, Skirt & Arc",seed_expanded
+05.01,"Frame 2400 Build on site materials,T2 90 X 45 , Timber, Skirt and Arc",seed_expanded
+05.01,"Framing timber, hardware, Brace strapping etc.",seed
+05.01,Lock Up Carpentry labour,seed
+05.01,Lock Up Carpentry labours,seed_expanded
+05.01,WALL FRAMING + ROOF FRAMING,seed
+05.01,WALL FRAMING + ROOF FRAMINGs,seed_expanded
 05.01,frame & truss,seed
 05.01,frame and truss,seed_expanded
+05.01,install new walls 90mm x 35mm t2 as per plan,seed
+05.01,install new walls 90mm x 35mm t2 as per plans,seed_expanded
 05.01,steel framing,seed
 05.01,steel framings,seed_expanded
+05.01,supply & install new timber stud wall 90mm x35mm,seed_expanded
+05.01,supply and install new timber stud wall 90mm x35mm,seed
 05.01,timber framing,seed
 05.01,timber framings,seed_expanded
 05.01,wall frame,seed_expanded
 05.01,wall frames,seed
+05.02,BUILD NEW ROOF INSTALL 2 STRUTTING BEAMS,seed
+05.02,BUILD NEW ROOF INSTALL 2 STRUTTING BEAMSs,seed_expanded
+05.02,WALL FRAMING + ROOF FRAMING,seed
+05.02,WALL FRAMING + ROOF FRAMINGs,seed_expanded
 05.02,roof framing,seed
 05.02,roof framings,seed_expanded
 05.02,roof trusse,seed_expanded
 05.02,roof trusses,seed
+05.02,supply & install roof construction front court yard pitched 140mm x 45mm lvl,seed_expanded
+05.02,supply & install roof construction front court yard pitched 140mm x 45mm lvls,seed_expanded
+05.02,supply and install roof construction front court yard pitched 140mm x 45mm lvl,seed_expanded
+05.02,supply and install roof construction front court yard pitched 140mm x 45mm lvls,seed
 05.02,truss package,seed
 05.02,truss packages,seed_expanded
 05.03,portal frame,seed
@@ -384,44 +506,121 @@ cell_code,phrase,source
 05.05,tie down upgrades,seed_expanded
 05.05,wind rating upgrade,seed
 05.05,wind rating upgrades,seed_expanded
+05.06,FLOOR FRAMING + WIND/DOOR INSTALL,seed
+05.06,FLOOR FRAMING + WIND/DOOR INSTALLs,seed_expanded
 05.06,first floor system,seed
 05.06,first floor systems,seed_expanded
 05.06,floor sheeting upstair,seed_expanded
 05.06,floor sheeting upstairs,seed
 05.06,upper floor joist,seed_expanded
 05.06,upper floor joists,seed
+06.01,"Cement Tiles   Battens & Fixing, Insulation",seed_expanded
+06.01,"Cement Tiles   Battens and Fixing, Insulation",seed_expanded
+06.01,"Cement Tiles - Battens & Fixing, Insulation",seed
+06.01,"Cement Tiles - Battens & Fixing, Insulations",seed_expanded
+06.01,"Cement Tiles - Battens and Fixing, Insulation",seed_expanded
+06.01,"Cement Tiles - Battens and Fixing, Insulations",seed_expanded
+06.01,"Cement Tiles Battens & Fixing, Insulations",seed_expanded
+06.01,"Cement Tiles Battens and Fixing, Insulations",seed_expanded
+06.01,Cement roof tiles Supply,seed
+06.01,ROOFING,seed
+06.01,ROOFINGs,seed_expanded
 06.01,concrete tile,seed_expanded
 06.01,concrete tiles,seed
 06.01,roof tile,seed_expanded
 06.01,roof tiles,seed
+06.01,"supply & install Cement Tiles   Battens & Fixing, Insulation",seed_expanded
+06.01,"supply & install Cement Tiles   Battens and Fixing, Insulation",seed_expanded
+06.01,"supply & install Cement Tiles - Battens & Fixing, Insulation",seed_expanded
+06.01,"supply & install Cement Tiles - Battens & Fixing, Insulations",seed_expanded
+06.01,"supply & install Cement Tiles - Battens and Fixing, Insulation",seed_expanded
+06.01,"supply & install Cement Tiles - Battens and Fixing, Insulations",seed_expanded
+06.01,"supply & install Cement Tiles Battens & Fixing, Insulations",seed_expanded
+06.01,"supply & install Cement Tiles Battens and Fixing, Insulations",seed_expanded
+06.01,supply & install Cement roof tiles Supply,seed_expanded
+06.01,supply & install ROOFING,seed_expanded
+06.01,supply & install ROOFINGs,seed_expanded
 06.01,supply & install concrete tile,seed_expanded
 06.01,supply & install concrete tiles,seed_expanded
 06.01,supply & install roof tile,seed_expanded
+06.01,supply & install roof tile to front court yard,seed_expanded
+06.01,supply & install roof tile to front court yards,seed_expanded
 06.01,supply & install roof tiles,seed_expanded
+06.01,supply & install supply & install roof tile to front court yard,seed_expanded
+06.01,supply & install supply & install roof tile to front court yards,seed_expanded
+06.01,supply & install supply and install roof tile to front court yard,seed_expanded
+06.01,supply & install supply and install roof tile to front court yards,seed_expanded
 06.01,supply & install terracotta tile,seed_expanded
 06.01,supply & install terracotta tiles,seed_expanded
 06.01,supply & install tiled roof,seed_expanded
 06.01,supply & install tiled roofs,seed_expanded
+06.01,"supply & lay Cement Tiles   Battens & Fixing, Insulation",seed_expanded
+06.01,"supply & lay Cement Tiles   Battens and Fixing, Insulation",seed_expanded
+06.01,"supply & lay Cement Tiles - Battens & Fixing, Insulation",seed_expanded
+06.01,"supply & lay Cement Tiles - Battens & Fixing, Insulations",seed_expanded
+06.01,"supply & lay Cement Tiles - Battens and Fixing, Insulation",seed_expanded
+06.01,"supply & lay Cement Tiles - Battens and Fixing, Insulations",seed_expanded
+06.01,"supply & lay Cement Tiles Battens & Fixing, Insulations",seed_expanded
+06.01,"supply & lay Cement Tiles Battens and Fixing, Insulations",seed_expanded
+06.01,supply & lay Cement roof tiles Supply,seed_expanded
+06.01,supply & lay ROOFING,seed_expanded
+06.01,supply & lay ROOFINGs,seed_expanded
 06.01,supply & lay concrete tile,seed_expanded
 06.01,supply & lay concrete tiles,seed_expanded
 06.01,supply & lay roof tile,seed_expanded
 06.01,supply & lay roof tiles,seed_expanded
+06.01,supply & lay supply & install roof tile to front court yard,seed_expanded
+06.01,supply & lay supply & install roof tile to front court yards,seed_expanded
+06.01,supply & lay supply and install roof tile to front court yard,seed_expanded
+06.01,supply & lay supply and install roof tile to front court yards,seed_expanded
 06.01,supply & lay terracotta tile,seed_expanded
 06.01,supply & lay terracotta tiles,seed_expanded
 06.01,supply & lay tiled roof,seed_expanded
 06.01,supply & lay tiled roofs,seed_expanded
+06.01,"supply and fix Cement Tiles   Battens & Fixing, Insulation",seed_expanded
+06.01,"supply and fix Cement Tiles   Battens and Fixing, Insulation",seed_expanded
+06.01,"supply and fix Cement Tiles - Battens & Fixing, Insulation",seed_expanded
+06.01,"supply and fix Cement Tiles - Battens & Fixing, Insulations",seed_expanded
+06.01,"supply and fix Cement Tiles - Battens and Fixing, Insulation",seed_expanded
+06.01,"supply and fix Cement Tiles - Battens and Fixing, Insulations",seed_expanded
+06.01,"supply and fix Cement Tiles Battens & Fixing, Insulations",seed_expanded
+06.01,"supply and fix Cement Tiles Battens and Fixing, Insulations",seed_expanded
+06.01,supply and fix Cement roof tiles Supply,seed_expanded
+06.01,supply and fix ROOFING,seed_expanded
+06.01,supply and fix ROOFINGs,seed_expanded
 06.01,supply and fix concrete tile,seed_expanded
 06.01,supply and fix concrete tiles,seed_expanded
 06.01,supply and fix roof tile,seed_expanded
 06.01,supply and fix roof tiles,seed_expanded
+06.01,supply and fix supply & install roof tile to front court yard,seed_expanded
+06.01,supply and fix supply & install roof tile to front court yards,seed_expanded
+06.01,supply and fix supply and install roof tile to front court yard,seed_expanded
+06.01,supply and fix supply and install roof tile to front court yards,seed_expanded
 06.01,supply and fix terracotta tile,seed_expanded
 06.01,supply and fix terracotta tiles,seed_expanded
 06.01,supply and fix tiled roof,seed_expanded
 06.01,supply and fix tiled roofs,seed_expanded
+06.01,"supply and install Cement Tiles   Battens & Fixing, Insulation",seed_expanded
+06.01,"supply and install Cement Tiles   Battens and Fixing, Insulation",seed_expanded
+06.01,"supply and install Cement Tiles - Battens & Fixing, Insulation",seed_expanded
+06.01,"supply and install Cement Tiles - Battens & Fixing, Insulations",seed_expanded
+06.01,"supply and install Cement Tiles - Battens and Fixing, Insulation",seed_expanded
+06.01,"supply and install Cement Tiles - Battens and Fixing, Insulations",seed_expanded
+06.01,"supply and install Cement Tiles Battens & Fixing, Insulations",seed_expanded
+06.01,"supply and install Cement Tiles Battens and Fixing, Insulations",seed_expanded
+06.01,supply and install Cement roof tiles Supply,seed_expanded
+06.01,supply and install ROOFING,seed_expanded
+06.01,supply and install ROOFINGs,seed_expanded
 06.01,supply and install concrete tile,seed_expanded
 06.01,supply and install concrete tiles,seed_expanded
 06.01,supply and install roof tile,seed_expanded
+06.01,supply and install roof tile to front court yard,seed
+06.01,supply and install roof tile to front court yards,seed_expanded
 06.01,supply and install roof tiles,seed_expanded
+06.01,supply and install supply & install roof tile to front court yard,seed_expanded
+06.01,supply and install supply & install roof tile to front court yards,seed_expanded
+06.01,supply and install supply and install roof tile to front court yard,seed_expanded
+06.01,supply and install supply and install roof tile to front court yards,seed_expanded
 06.01,supply and install terracotta tile,seed_expanded
 06.01,supply and install terracotta tiles,seed_expanded
 06.01,supply and install tiled roof,seed_expanded
@@ -470,6 +669,8 @@ cell_code,phrase,source
 06.02,supply and install metal roofings,seed_expanded
 06.02,supply and install steel roof sheeting,seed_expanded
 06.02,supply and install steel roof sheetings,seed_expanded
+06.03,Sarking Supply & fit,seed
+06.03,Sarking Supply and fit,seed_expanded
 06.03,anticon blanket,seed
 06.03,anticon blankets,seed_expanded
 06.03,foil sarking,seed
@@ -478,6 +679,8 @@ cell_code,phrase,source
 06.03,roof insulation blankets,seed_expanded
 06.03,sarking,seed
 06.03,sarkings,seed_expanded
+06.04,ROOF + EAVES + GUTTER,seed
+06.04,ROOF + EAVES + GUTTERs,seed_expanded
 06.04,eaves gutter,seed
 06.04,eaves gutters,seed_expanded
 06.04,fascia,seed
@@ -488,6 +691,10 @@ cell_code,phrase,source
 06.04,fascias,seed_expanded
 06.04,guttering,seed
 06.04,gutterings,seed_expanded
+06.04,supply & install new eaves as required,seed_expanded
+06.04,supply & install new eaves as requireds,seed_expanded
+06.04,supply and install new eaves as required,seed
+06.04,supply and install new eaves as requireds,seed_expanded
 06.05,down pipe,seed_expanded
 06.05,down pipes,seed
 06.05,downpipe,seed_expanded
@@ -515,6 +722,8 @@ cell_code,phrase,source
 06.09,gutter guards,seed_expanded
 06.09,leaf guard,seed
 06.09,leaf guards,seed_expanded
+07.01,"BRICK UP ROLLER DOOR, REUSE OLD BRICKS",seed
+07.01,"BRICK UP ROLLER DOOR, REUSE OLD BRICKSs",seed_expanded
 07.01,brick veneer,seed
 07.01,brick veneers,seed_expanded
 07.01,bricks & bricklaying,seed
@@ -535,6 +744,12 @@ cell_code,phrase,source
 07.02,renders,seed_expanded
 07.02,texture coating,seed
 07.02,texture coatings,seed_expanded
+07.03,Axon cladding & SS fixing,seed_expanded
+07.03,Axon cladding & SS fixings,seed_expanded
+07.03,Axon cladding and SS fixing,seed_expanded
+07.03,Axon cladding and SS fixings,seed
+07.03,CLADDING,seed
+07.03,CLADDINGs,seed_expanded
 07.03,FC sheet,seed
 07.03,FC sheets,seed_expanded
 07.03,Hardie cladding,seed
@@ -543,16 +758,31 @@ cell_code,phrase,source
 07.03,blueboards,seed_expanded
 07.03,fibre cement cladding,seed
 07.03,fibre cement claddings,seed_expanded
+07.03,supply & install Axon cladding & SS fixing,seed_expanded
+07.03,supply & install Axon cladding & SS fixings,seed_expanded
+07.03,supply & install Axon cladding and SS fixing,seed_expanded
+07.03,supply & install Axon cladding and SS fixings,seed_expanded
+07.03,supply & install CLADDING,seed_expanded
+07.03,supply & install CLADDINGs,seed_expanded
 07.03,supply & install FC sheet,seed_expanded
 07.03,supply & install FC sheets,seed_expanded
 07.03,supply & install Hardie cladding,seed_expanded
 07.03,supply & install Hardie claddings,seed_expanded
+07.03,"supply & install axon cladding openings (garage, front entrances, rear door)",seed_expanded
 07.03,supply & install blueboard,seed_expanded
 07.03,supply & install blueboards,seed_expanded
 07.03,supply & install fibre cement cladding,seed_expanded
 07.03,supply & install fibre cement claddings,seed_expanded
+07.03,"supply & install supply & install axon cladding openings (garage, front entrances, rear door)",seed_expanded
+07.03,"supply & install supply and install axon cladding openings (garage, front entrances, rear door)",seed_expanded
 07.03,supply & install weatherboard,seed_expanded
 07.03,supply & install weatherboards,seed_expanded
+07.03,supply & lay Axon cladding & SS fixing,seed_expanded
+07.03,supply & lay Axon cladding & SS fixings,seed_expanded
+07.03,supply & lay Axon cladding and SS fixing,seed_expanded
+07.03,supply & lay Axon cladding and SS fixings,seed_expanded
+07.03,supply & lay CLADDING,seed_expanded
+07.03,supply & lay CLADDINGs,seed_expanded
 07.03,supply & lay FC sheet,seed_expanded
 07.03,supply & lay FC sheets,seed_expanded
 07.03,supply & lay Hardie cladding,seed_expanded
@@ -561,8 +791,16 @@ cell_code,phrase,source
 07.03,supply & lay blueboards,seed_expanded
 07.03,supply & lay fibre cement cladding,seed_expanded
 07.03,supply & lay fibre cement claddings,seed_expanded
+07.03,"supply & lay supply & install axon cladding openings (garage, front entrances, rear door)",seed_expanded
+07.03,"supply & lay supply and install axon cladding openings (garage, front entrances, rear door)",seed_expanded
 07.03,supply & lay weatherboard,seed_expanded
 07.03,supply & lay weatherboards,seed_expanded
+07.03,supply and fix Axon cladding & SS fixing,seed_expanded
+07.03,supply and fix Axon cladding & SS fixings,seed_expanded
+07.03,supply and fix Axon cladding and SS fixing,seed_expanded
+07.03,supply and fix Axon cladding and SS fixings,seed_expanded
+07.03,supply and fix CLADDING,seed_expanded
+07.03,supply and fix CLADDINGs,seed_expanded
 07.03,supply and fix FC sheet,seed_expanded
 07.03,supply and fix FC sheets,seed_expanded
 07.03,supply and fix Hardie cladding,seed_expanded
@@ -571,16 +809,27 @@ cell_code,phrase,source
 07.03,supply and fix blueboards,seed_expanded
 07.03,supply and fix fibre cement cladding,seed_expanded
 07.03,supply and fix fibre cement claddings,seed_expanded
+07.03,"supply and fix supply & install axon cladding openings (garage, front entrances, rear door)",seed_expanded
+07.03,"supply and fix supply and install axon cladding openings (garage, front entrances, rear door)",seed_expanded
 07.03,supply and fix weatherboard,seed_expanded
 07.03,supply and fix weatherboards,seed_expanded
+07.03,supply and install Axon cladding & SS fixing,seed_expanded
+07.03,supply and install Axon cladding & SS fixings,seed_expanded
+07.03,supply and install Axon cladding and SS fixing,seed_expanded
+07.03,supply and install Axon cladding and SS fixings,seed_expanded
+07.03,supply and install CLADDING,seed_expanded
+07.03,supply and install CLADDINGs,seed_expanded
 07.03,supply and install FC sheet,seed_expanded
 07.03,supply and install FC sheets,seed_expanded
 07.03,supply and install Hardie cladding,seed_expanded
 07.03,supply and install Hardie claddings,seed_expanded
+07.03,"supply and install axon cladding openings (garage, front entrances, rear door)",seed
 07.03,supply and install blueboard,seed_expanded
 07.03,supply and install blueboards,seed_expanded
 07.03,supply and install fibre cement cladding,seed_expanded
 07.03,supply and install fibre cement claddings,seed_expanded
+07.03,"supply and install supply & install axon cladding openings (garage, front entrances, rear door)",seed_expanded
+07.03,"supply and install supply and install axon cladding openings (garage, front entrances, rear door)",seed_expanded
 07.03,supply and install weatherboard,seed_expanded
 07.03,supply and install weatherboards,seed_expanded
 07.03,weatherboard,seed
@@ -597,6 +846,8 @@ cell_code,phrase,source
 07.05,breather membranes,seed_expanded
 07.05,building wrap,seed
 07.05,building wraps,seed_expanded
+07.05,hardies wall wrap Roll,seed
+07.05,hardies wall wrap Rolls,seed_expanded
 07.05,wall wrap,seed
 07.05,wall wraps,seed_expanded
 07.06,articulation joint,seed_expanded
@@ -605,10 +856,24 @@ cell_code,phrase,source
 07.06,brick sills,seed
 07.06,brickwork extra,seed_expanded
 07.06,brickwork extras,seed
+08.01,External Windows & Sliding door frame as per plans & BASIX report,seed_expanded
+08.01,External Windows & Sliding door frame as per plans & BASIX reports,seed_expanded
+08.01,External Windows & sliding door install,seed_expanded
+08.01,External Windows & sliding door installs,seed_expanded
+08.01,External Windows and Sliding door frame as per plans and BASIX report,seed
+08.01,External Windows and Sliding door frame as per plans and BASIX reports,seed_expanded
+08.01,External Windows and sliding door install,seed
+08.01,External Windows and sliding door installs,seed_expanded
+08.01,INSTALL WINDOWS AND DOOR,seed
+08.01,INSTALL WINDOWS AND DOORs,seed_expanded
 08.01,aluminium window,seed_expanded
 08.01,aluminium windows,seed
 08.01,powdercoated window,seed_expanded
 08.01,powdercoated windows,seed
+08.01,supply & install new windows & doors as per DA plan,seed_expanded
+08.01,supply & install new windows & doors as per DA plans,seed_expanded
+08.01,supply and install new windows and doors as per DA plan,seed
+08.01,supply and install new windows and doors as per DA plans,seed_expanded
 08.01,window package,seed
 08.01,window packages,seed_expanded
 08.01,windows & glazing,seed
@@ -631,6 +896,9 @@ cell_code,phrase,source
 08.03,bushfire screens,seed
 08.03,ember screen,seed_expanded
 08.03,ember screens,seed
+08.04,FRONT DOOR INSTALL,seed
+08.04,FRONT DOOR INSTALLs,seed_expanded
+08.04,Solidcore 2040 front Door allowance $250 inc gst x 1,seed
 08.04,door furniture entry,seed
 08.04,entry door,seed
 08.04,entry doors,seed_expanded
@@ -676,6 +944,18 @@ cell_code,phrase,source
 09.03,keyed alikes,seed_expanded
 09.03,lockup hardware,seed
 09.03,lockup hardwares,seed_expanded
+10.01,CUTOUT CONRETE FOR PLUMBING,seed
+10.01,CUTOUT CONRETE FOR PLUMBINGs,seed_expanded
+10.01,PLUMBING FIT OFF,seed
+10.01,PLUMBING ROUGH IN,seed
+10.01,"Plumbing rough in & fit off as per plans, hot cold & sewer rough in & fit off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
+10.01,"Plumbing rough in & fit-off as per plans, hot cold & sewer rough in & fit-off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
+10.01,"Plumbing rough in and fit off as per plans, hot cold and sewer rough in and fit off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed
+10.01,"Plumbing rough in and fit-off as per plans, hot cold and sewer rough in and fit-off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
+10.01,"Plumbing rough-in & fit off as per plans, hot cold & sewer rough-in & fit off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
+10.01,"Plumbing rough-in & fit-off as per plans, hot cold & sewer rough-in & fit-off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
+10.01,"Plumbing rough-in and fit off as per plans, hot cold and sewer rough-in and fit off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
+10.01,"Plumbing rough-in and fit-off as per plans, hot cold and sewer rough-in and fit-off for 2x bathrooms 2x Laundry 2x kitchens HWH",seed_expanded
 10.01,hydraulic service,seed_expanded
 10.01,hydraulic services,seed
 10.01,plumbing,seed
@@ -710,12 +990,24 @@ cell_code,phrase,source
 10.03,water tank & pumps,seed_expanded
 10.03,water tank and pump,seed_expanded
 10.03,water tank and pumps,seed_expanded
+10.04,ELECTRICAN FITOFF,seed
+10.04,ELECTRICAN FITOFFs,seed_expanded
+10.04,ELECTRICAN ROUGH IN,seed
+10.04,Electrical as per plans v2,seed
+10.04,New electrical,seed_expanded
+10.04,New electricals,seed
+10.04,Oven & cooktop circuit x 2,seed_expanded
+10.04,Oven and cooktop circuit x 2,seed
 10.04,electrical,seed
 10.04,electrical rough in,seed_expanded
 10.04,electrical rough-in,seed
 10.04,electrical work,seed_expanded
 10.04,electrical works,seed
 10.04,electricals,seed_expanded
+10.04,install all new electrical TBA with down lights & new meter box,seed_expanded
+10.04,install all new electrical TBA with down lights and new meter box,seed_expanded
+10.04,install all new electrical TBA with downlights & new meter box,seed_expanded
+10.04,install all new electrical TBA with downlights and new meter box,seed
 10.04,sparky,seed
 10.05,RCD,seed_expanded
 10.05,RCDs,seed
@@ -724,6 +1016,18 @@ cell_code,phrase,source
 10.05,safety switches,seed
 10.05,switchboard,seed
 10.05,switchboards,seed_expanded
+10.06,28 x power points standard,seed
+10.06,28 x power points standards,seed_expanded
+10.06,28 x powerpoints standard,seed_expanded
+10.06,28 x powerpoints standards,seed_expanded
+10.06,36 down lights & switche,seed_expanded
+10.06,36 down lights & switches,seed_expanded
+10.06,36 down lights and switche,seed_expanded
+10.06,36 down lights and switches,seed_expanded
+10.06,36 downlights & switche,seed_expanded
+10.06,36 downlights & switches,seed_expanded
+10.06,36 downlights and switche,seed_expanded
+10.06,36 downlights and switches,seed
 10.06,GPO,seed_expanded
 10.06,GPOs,seed
 10.06,double power point,seed
@@ -739,6 +1043,8 @@ cell_code,phrase,source
 10.07,cat6,seed
 10.07,data point,seed_expanded
 10.07,data points,seed
+10.08,3 x photoelectric smoke alarm,seed_expanded
+10.08,3 x photoelectric smoke alarms,seed
 10.08,interconnected alarm,seed_expanded
 10.08,interconnected alarms,seed
 10.08,smoke alarm,seed_expanded
@@ -749,6 +1055,19 @@ cell_code,phrase,source
 10.09,A/Cs,seed_expanded
 10.09,AC unit,seed
 10.09,AC units,seed_expanded
+10.09,AIRCON PRO SUM,seed
+10.09,Supply & Installation of (1) Daikin Cora FTXV71UVMA/RXV71UVMA 7.1 kW Reverse Cycle Split Air Conditioning System,seed
+10.09,Supply & Installation of (1) Daikin Cora FTXV71UVMA/RXV71UVMA 7.1 kW Reverse Cycle Split Air Conditioning Systems,seed_expanded
+10.09,Supply & Installation of (1) Daikin FDYAN160AV1/RZA160CV1   Standard Inverter Reverse Cycle Ducted Air Conditioning System,seed_expanded
+10.09,Supply & Installation of (1) Daikin FDYAN160AV1/RZA160CV1 - Standard Inverter Reverse Cycle Ducted Air Conditioning System,seed
+10.09,Supply & Installation of (1) Daikin FDYAN160AV1/RZA160CV1 - Standard Inverter Reverse Cycle Ducted Air Conditioning Systems,seed_expanded
+10.09,Supply & Installation of (1) Daikin FDYAN160AV1/RZA160CV1 Standard Inverter Reverse Cycle Ducted Air Conditioning Systems,seed_expanded
+10.09,Supply and Installation of (1) Daikin Cora FTXV71UVMA/RXV71UVMA 7.1 kW Reverse Cycle Split Air Conditioning System,seed_expanded
+10.09,Supply and Installation of (1) Daikin Cora FTXV71UVMA/RXV71UVMA 7.1 kW Reverse Cycle Split Air Conditioning Systems,seed_expanded
+10.09,Supply and Installation of (1) Daikin FDYAN160AV1/RZA160CV1   Standard Inverter Reverse Cycle Ducted Air Conditioning System,seed_expanded
+10.09,Supply and Installation of (1) Daikin FDYAN160AV1/RZA160CV1 - Standard Inverter Reverse Cycle Ducted Air Conditioning System,seed_expanded
+10.09,Supply and Installation of (1) Daikin FDYAN160AV1/RZA160CV1 - Standard Inverter Reverse Cycle Ducted Air Conditioning Systems,seed_expanded
+10.09,Supply and Installation of (1) Daikin FDYAN160AV1/RZA160CV1 Standard Inverter Reverse Cycle Ducted Air Conditioning Systems,seed_expanded
 10.09,air conditioning,seed
 10.09,air conditionings,seed_expanded
 10.09,airconditioning,seed_expanded
@@ -757,6 +1076,14 @@ cell_code,phrase,source
 10.09,ducted air cons,seed_expanded
 10.09,ducted aircon,seed
 10.09,ducted aircons,seed_expanded
+10.09,install ducted air con to all living & bedrooms as per DA plan,seed_expanded
+10.09,install ducted air con to all living & bedrooms as per DA plans,seed_expanded
+10.09,install ducted air con to all living and bedrooms as per DA plan,seed
+10.09,install ducted air con to all living and bedrooms as per DA plans,seed_expanded
+10.09,install ducted aircon to all living & bedrooms as per DA plan,seed_expanded
+10.09,install ducted aircon to all living & bedrooms as per DA plans,seed_expanded
+10.09,install ducted aircon to all living and bedrooms as per DA plan,seed_expanded
+10.09,install ducted aircon to all living and bedrooms as per DA plans,seed_expanded
 10.09,reverse cycle,seed
 10.09,reverse cycles,seed_expanded
 10.09,split system,seed
@@ -800,56 +1127,137 @@ cell_code,phrase,source
 10.16,bathroom exhaust,seed
 10.16,bathroom exhausts,seed_expanded
 10.16,exhaust fan,seed_expanded
+10.16,exhaust fan x 2,seed
 10.16,exhaust fans,seed
 10.16,range hood ducting,seed_expanded
 10.16,range hood ductings,seed_expanded
 10.16,rangehood ducting,seed
 10.16,rangehood ductings,seed_expanded
+11.01,Fit R2.5 Ceiling batt,seed_expanded
+11.01,Fit R2.5 Ceiling batts,seed
+11.01,INSULLATION,seed
+11.01,INSULLATIONs,seed_expanded
+11.01,R2.5 x 580 Insulation Ceiling batts Batt,seed_expanded
+11.01,R2.5 x 580 Insulation Ceiling batts Batts,seed
 11.01,R4.0 batt,seed_expanded
 11.01,R4.0 batts,seed
 11.01,ceiling batt,seed_expanded
 11.01,ceiling batts,seed
 11.01,ceiling insulation,seed
 11.01,ceiling insulations,seed_expanded
+11.01,supply & install Fit R2.5 Ceiling batt,seed_expanded
+11.01,supply & install Fit R2.5 Ceiling batts,seed_expanded
+11.01,supply & install INSULLATION,seed_expanded
+11.01,supply & install INSULLATIONs,seed_expanded
+11.01,supply & install R2.5 x 580 Insulation Ceiling batts Batt,seed_expanded
+11.01,supply & install R2.5 x 580 Insulation Ceiling batts Batts,seed_expanded
 11.01,supply & install R4.0 batt,seed_expanded
 11.01,supply & install R4.0 batts,seed_expanded
 11.01,supply & install ceiling batt,seed_expanded
 11.01,supply & install ceiling batts,seed_expanded
 11.01,supply & install ceiling insulation,seed_expanded
 11.01,supply & install ceiling insulations,seed_expanded
+11.01,supply & install wall & ceiling batts r 2.5,seed_expanded
+11.01,supply & install wall and ceiling batts r 2.5,seed_expanded
+11.01,supply & lay Fit R2.5 Ceiling batt,seed_expanded
+11.01,supply & lay Fit R2.5 Ceiling batts,seed_expanded
+11.01,supply & lay INSULLATION,seed_expanded
+11.01,supply & lay INSULLATIONs,seed_expanded
+11.01,supply & lay R2.5 x 580 Insulation Ceiling batts Batt,seed_expanded
+11.01,supply & lay R2.5 x 580 Insulation Ceiling batts Batts,seed_expanded
 11.01,supply & lay R4.0 batt,seed_expanded
 11.01,supply & lay R4.0 batts,seed_expanded
 11.01,supply & lay ceiling batt,seed_expanded
 11.01,supply & lay ceiling batts,seed_expanded
 11.01,supply & lay ceiling insulation,seed_expanded
 11.01,supply & lay ceiling insulations,seed_expanded
+11.01,supply & lay wall & ceiling batts r 2.5,seed_expanded
+11.01,supply & lay wall and ceiling batts r 2.5,seed_expanded
+11.01,supply and fix Fit R2.5 Ceiling batt,seed_expanded
+11.01,supply and fix Fit R2.5 Ceiling batts,seed_expanded
+11.01,supply and fix INSULLATION,seed_expanded
+11.01,supply and fix INSULLATIONs,seed_expanded
+11.01,supply and fix R2.5 x 580 Insulation Ceiling batts Batt,seed_expanded
+11.01,supply and fix R2.5 x 580 Insulation Ceiling batts Batts,seed_expanded
 11.01,supply and fix R4.0 batt,seed_expanded
 11.01,supply and fix R4.0 batts,seed_expanded
 11.01,supply and fix ceiling batt,seed_expanded
 11.01,supply and fix ceiling batts,seed_expanded
 11.01,supply and fix ceiling insulation,seed_expanded
 11.01,supply and fix ceiling insulations,seed_expanded
+11.01,supply and fix wall & ceiling batts r 2.5,seed_expanded
+11.01,supply and fix wall and ceiling batts r 2.5,seed_expanded
+11.01,supply and install Fit R2.5 Ceiling batt,seed_expanded
+11.01,supply and install Fit R2.5 Ceiling batts,seed_expanded
+11.01,supply and install INSULLATION,seed_expanded
+11.01,supply and install INSULLATIONs,seed_expanded
+11.01,supply and install R2.5 x 580 Insulation Ceiling batts Batt,seed_expanded
+11.01,supply and install R2.5 x 580 Insulation Ceiling batts Batts,seed_expanded
 11.01,supply and install R4.0 batt,seed_expanded
 11.01,supply and install R4.0 batts,seed_expanded
 11.01,supply and install ceiling batt,seed_expanded
 11.01,supply and install ceiling batts,seed_expanded
 11.01,supply and install ceiling insulation,seed_expanded
 11.01,supply and install ceiling insulations,seed_expanded
+11.01,supply and install wall & ceiling batts r 2.5,seed_expanded
+11.01,supply and install wall and ceiling batts r 2.5,seed_expanded
+11.01,wall & ceiling batts r 2.5,seed_expanded
+11.01,wall and ceiling batts r 2.5,seed
+11.02,Fit R2.5 wall batt,seed_expanded
+11.02,Fit R2.5 wall batts,seed
+11.02,Supply R2.5 Wall batt,seed_expanded
+11.02,Supply R2.5 Wall batts,seed
+11.02,supply & install Fit R2.5 wall batt,seed_expanded
+11.02,supply & install Fit R2.5 wall batts,seed_expanded
+11.02,supply & install Supply R2.5 Wall batt,seed_expanded
+11.02,supply & install Supply R2.5 Wall batts,seed_expanded
+11.02,supply & install supply & install wall insulation barrier,seed_expanded
+11.02,supply & install supply & install wall insulation barriers,seed_expanded
+11.02,supply & install supply and install wall insulation barrier,seed_expanded
+11.02,supply & install supply and install wall insulation barriers,seed_expanded
 11.02,supply & install wall batt,seed_expanded
 11.02,supply & install wall batts,seed_expanded
 11.02,supply & install wall insulation,seed_expanded
+11.02,supply & install wall insulation barrier,seed_expanded
+11.02,supply & install wall insulation barriers,seed_expanded
 11.02,supply & install wall insulations,seed_expanded
+11.02,supply & lay Fit R2.5 wall batt,seed_expanded
+11.02,supply & lay Fit R2.5 wall batts,seed_expanded
+11.02,supply & lay Supply R2.5 Wall batt,seed_expanded
+11.02,supply & lay Supply R2.5 Wall batts,seed_expanded
+11.02,supply & lay supply & install wall insulation barrier,seed_expanded
+11.02,supply & lay supply & install wall insulation barriers,seed_expanded
+11.02,supply & lay supply and install wall insulation barrier,seed_expanded
+11.02,supply & lay supply and install wall insulation barriers,seed_expanded
 11.02,supply & lay wall batt,seed_expanded
 11.02,supply & lay wall batts,seed_expanded
 11.02,supply & lay wall insulation,seed_expanded
 11.02,supply & lay wall insulations,seed_expanded
+11.02,supply and fix Fit R2.5 wall batt,seed_expanded
+11.02,supply and fix Fit R2.5 wall batts,seed_expanded
+11.02,supply and fix Supply R2.5 Wall batt,seed_expanded
+11.02,supply and fix Supply R2.5 Wall batts,seed_expanded
+11.02,supply and fix supply & install wall insulation barrier,seed_expanded
+11.02,supply and fix supply & install wall insulation barriers,seed_expanded
+11.02,supply and fix supply and install wall insulation barrier,seed_expanded
+11.02,supply and fix supply and install wall insulation barriers,seed_expanded
 11.02,supply and fix wall batt,seed_expanded
 11.02,supply and fix wall batts,seed_expanded
 11.02,supply and fix wall insulation,seed_expanded
 11.02,supply and fix wall insulations,seed_expanded
+11.02,supply and install Fit R2.5 wall batt,seed_expanded
+11.02,supply and install Fit R2.5 wall batts,seed_expanded
+11.02,supply and install Supply R2.5 Wall batt,seed_expanded
+11.02,supply and install Supply R2.5 Wall batts,seed_expanded
+11.02,supply and install supply & install wall insulation barrier,seed_expanded
+11.02,supply and install supply & install wall insulation barriers,seed_expanded
+11.02,supply and install supply and install wall insulation barrier,seed_expanded
+11.02,supply and install supply and install wall insulation barriers,seed_expanded
 11.02,supply and install wall batt,seed_expanded
 11.02,supply and install wall batts,seed_expanded
 11.02,supply and install wall insulation,seed_expanded
+11.02,supply and install wall insulation barrier,seed
+11.02,supply and install wall insulation barriers,seed_expanded
 11.02,supply and install wall insulations,seed_expanded
 11.02,wall batt,seed_expanded
 11.02,wall batts,seed
@@ -881,8 +1289,26 @@ cell_code,phrase,source
 11.07,draught sealings,seed_expanded
 11.07,weather seal,seed_expanded
 11.07,weather seals,seed
+12.01,GYPROCKING/VILLA + AND SETTING,seed
+12.01,GYPROCKING/VILLA + AND SETTINGs,seed_expanded
+12.01,"Supply & fit plasterboard to ceiling's to new bathrooms, new entry. Square set",seed
+12.01,Supply & fit plasterboard to new Bedrooms & bathroom Wet Area Wall,seed_expanded
+12.01,Supply & fit plasterboard to new Bedrooms & bathroom Wet Area Walls,seed_expanded
+12.01,Supply & fit plasterboard to new Bedrooms and bathroom Wet Area Wall,seed_expanded
+12.01,Supply & fit plasterboard to new Bedrooms and bathroom Wet Area Walls,seed
+12.01,"Supply and fit plasterboard to ceiling's to new bathrooms, new entry. Square set",seed_expanded
+12.01,Supply and fit plasterboard to new Bedrooms and bathroom Wet Area Wall,seed_expanded
+12.01,Supply and fit plasterboard to new Bedrooms and bathroom Wet Area Walls,seed_expanded
 12.01,gyprock,seed
 12.01,gyprocks,seed_expanded
+12.01,install all new gyprock walls & ceiling with 90mm cornice,seed_expanded
+12.01,install all new gyprock walls & ceiling with 90mm cornices,seed_expanded
+12.01,install all new gyprock walls and ceiling with 90mm cornice,seed_expanded
+12.01,install all new gyprock walls and ceiling with 90mm cornices,seed_expanded
+12.01,install all new plaster board walls & ceiling with 90mm cornice,seed_expanded
+12.01,install all new plaster board walls & ceiling with 90mm cornices,seed_expanded
+12.01,install all new plaster board walls and ceiling with 90mm cornice,seed_expanded
+12.01,install all new plaster board walls and ceiling with 90mm cornices,seed
 12.01,internal lining,seed_expanded
 12.01,internal linings,seed
 12.01,plaster board,seed_expanded
@@ -922,14 +1348,32 @@ cell_code,phrase,source
 12.06,wainscotings,seed_expanded
 12.06,wall panelling,seed
 12.06,wall panellings,seed_expanded
+13.01,Bifold door storage room,seed
+13.01,Bifold door storage rooms,seed_expanded
+13.01,Builder's Std Door Jamb x 4,seed
+13.01,Fixing Carpentry Labour,seed
+13.01,Fixing Carpentry Labours,seed_expanded
+13.01,"INTERNAL DOORS, JAMBS AND ARKS",seed
+13.01,"INTERNAL DOORS, JAMBS AND ARKSs",seed_expanded
+13.01,"Internal Door   Sliding, Cavity Unit, Skirts & Arcs, Pull Latch",seed_expanded
+13.01,"Internal Door   Sliding, Cavity Unit, Skirts and Arcs, Pull Latch",seed_expanded
+13.01,"Internal Door - Sliding, Cavity Unit, Skirts & Arcs, Pull Latch",seed
+13.01,"Internal Door - Sliding, Cavity Unit, Skirts & Arcs, Pull Latchs",seed_expanded
+13.01,"Internal Door - Sliding, Cavity Unit, Skirts and Arcs, Pull Latch",seed_expanded
+13.01,"Internal Door - Sliding, Cavity Unit, Skirts and Arcs, Pull Latchs",seed_expanded
+13.01,"Internal Door Sliding, Cavity Unit, Skirts & Arcs, Pull Latchs",seed_expanded
+13.01,"Internal Door Sliding, Cavity Unit, Skirts and Arcs, Pull Latchs",seed_expanded
+13.01,Redicoat 2040 plain Door x 4,seed
 13.01,cavity slider,seed_expanded
 13.01,cavity sliders,seed
 13.01,flush panel door,seed_expanded
 13.01,flush panel doors,seed
+13.01,install solid doors to all rooms new arear only,seed
 13.01,internal door,seed_expanded
 13.01,internal doors,seed
 13.01,profiled door,seed_expanded
 13.01,profiled doors,seed
+13.02,Passage Sets PC $45 Inc gst x 4,seed
 13.02,door handle,seed_expanded
 13.02,door handles,seed
 13.02,door hardware,seed
@@ -938,6 +1382,10 @@ cell_code,phrase,source
 13.02,passage sets,seed
 13.02,privacy set,seed_expanded
 13.02,privacy sets,seed
+13.03,67 x 18 pine Architrave,seed_expanded
+13.03,67 x 18 pine Architraves,seed
+13.03,67 x 18 pine Skirting,seed
+13.03,67 x 18 pine Skirtings,seed_expanded
 13.03,67mm skirting,seed
 13.03,67mm skirtings,seed_expanded
 13.03,architrave,seed_expanded
@@ -948,10 +1396,18 @@ cell_code,phrase,source
 13.03,skirting and architrave,seed_expanded
 13.03,skirting and architraves,seed_expanded
 13.03,skirtings,seed_expanded
+13.03,supply & install all new architraves half splad,seed_expanded
+13.03,supply & install all new architraves half splads,seed_expanded
+13.03,supply and install all new architraves half splad,seed
+13.03,supply and install all new architraves half splads,seed_expanded
+13.04,WARDROBE,seed
+13.04,WARDROBEs,seed_expanded
 13.04,built in robe,seed_expanded
 13.04,built in robes,seed_expanded
 13.04,built-in robe,seed_expanded
 13.04,built-in robes,seed
+13.04,install all wardrobes standard with mirror,seed_expanded
+13.04,install all wardrobes standard with mirrors,seed
 13.04,robe door,seed_expanded
 13.04,robe doors,seed
 13.04,robe shelving,seed
@@ -984,6 +1440,24 @@ cell_code,phrase,source
 13.08,mudroom joinery,seed
 13.08,study nook,seed
 13.08,study nooks,seed_expanded
+14.01,KITCHEN AND LAUNDRY 1,seed
+14.01,KITCHEN AND LAUNDRY 2,seed
+14.01,Kitchens & laundry see spec list for inclusion,seed_expanded
+14.01,Kitchens & laundry see spec list for inclusions,seed_expanded
+14.01,Kitchens & laundry-see spec list for inclusion,seed_expanded
+14.01,Kitchens & laundry-see spec list for inclusions,seed_expanded
+14.01,Kitchens and laundry see spec list for inclusion,seed_expanded
+14.01,Kitchens and laundry see spec list for inclusions,seed_expanded
+14.01,Kitchens and laundry-see spec list for inclusion,seed_expanded
+14.01,Kitchens and laundry-see spec list for inclusions,seed
+14.01,install new kitchen & laundry cabinet bench top appliance's & vanitie,seed_expanded
+14.01,install new kitchen & laundry cabinet bench top appliance's & vanities,seed_expanded
+14.01,install new kitchen & laundry cabinet benchtop appliance's & vanitie,seed_expanded
+14.01,install new kitchen & laundry cabinet benchtop appliance's & vanities,seed_expanded
+14.01,install new kitchen and laundry cabinet bench top appliance's and vanitie,seed_expanded
+14.01,install new kitchen and laundry cabinet bench top appliance's and vanities,seed
+14.01,install new kitchen and laundry cabinet benchtop appliance's and vanitie,seed_expanded
+14.01,install new kitchen and laundry cabinet benchtop appliance's and vanities,seed_expanded
 14.01,kitchen cabinetry,seed
 14.01,kitchen complete,seed
 14.01,kitchen completes,seed_expanded
@@ -994,8 +1468,12 @@ cell_code,phrase,source
 14.01,kitchen packages,seed_expanded
 14.02,20mm stone,seed
 14.02,20mm stones,seed_expanded
+14.02,40mm Engineered Stone   Caesarstone Midday,seed_expanded
+14.02,40mm Engineered Stone - Caesarstone Midday,seed
 14.02,40mm stone,seed
 14.02,40mm stones,seed_expanded
+14.02,STONE BENCH TOPS FOR BOTH KITCHENS,seed
+14.02,STONE BENCH TOPS FOR BOTH KITCHENSs,seed_expanded
 14.02,bench top,seed_expanded
 14.02,bench tops,seed_expanded
 14.02,benchtop,seed
@@ -1014,8 +1492,12 @@ cell_code,phrase,source
 14.02,stone benchtops,seed_expanded
 14.02,supply & install 20mm stone,seed_expanded
 14.02,supply & install 20mm stones,seed_expanded
+14.02,supply & install 40mm Engineered Stone   Caesarstone Midday,seed_expanded
+14.02,supply & install 40mm Engineered Stone - Caesarstone Midday,seed_expanded
 14.02,supply & install 40mm stone,seed_expanded
 14.02,supply & install 40mm stones,seed_expanded
+14.02,supply & install STONE BENCH TOPS FOR BOTH KITCHENS,seed_expanded
+14.02,supply & install STONE BENCH TOPS FOR BOTH KITCHENSs,seed_expanded
 14.02,supply & install bench top,seed_expanded
 14.02,supply & install bench tops,seed_expanded
 14.02,supply & install benchtop,seed_expanded
@@ -1034,8 +1516,12 @@ cell_code,phrase,source
 14.02,supply & install stone benchtops,seed_expanded
 14.02,supply & lay 20mm stone,seed_expanded
 14.02,supply & lay 20mm stones,seed_expanded
+14.02,supply & lay 40mm Engineered Stone   Caesarstone Midday,seed_expanded
+14.02,supply & lay 40mm Engineered Stone - Caesarstone Midday,seed_expanded
 14.02,supply & lay 40mm stone,seed_expanded
 14.02,supply & lay 40mm stones,seed_expanded
+14.02,supply & lay STONE BENCH TOPS FOR BOTH KITCHENS,seed_expanded
+14.02,supply & lay STONE BENCH TOPS FOR BOTH KITCHENSs,seed_expanded
 14.02,supply & lay bench top,seed_expanded
 14.02,supply & lay bench tops,seed_expanded
 14.02,supply & lay benchtop,seed_expanded
@@ -1054,8 +1540,12 @@ cell_code,phrase,source
 14.02,supply & lay stone benchtops,seed_expanded
 14.02,supply and fix 20mm stone,seed_expanded
 14.02,supply and fix 20mm stones,seed_expanded
+14.02,supply and fix 40mm Engineered Stone   Caesarstone Midday,seed_expanded
+14.02,supply and fix 40mm Engineered Stone - Caesarstone Midday,seed_expanded
 14.02,supply and fix 40mm stone,seed_expanded
 14.02,supply and fix 40mm stones,seed_expanded
+14.02,supply and fix STONE BENCH TOPS FOR BOTH KITCHENS,seed_expanded
+14.02,supply and fix STONE BENCH TOPS FOR BOTH KITCHENSs,seed_expanded
 14.02,supply and fix bench top,seed_expanded
 14.02,supply and fix bench tops,seed_expanded
 14.02,supply and fix benchtop,seed_expanded
@@ -1074,8 +1564,12 @@ cell_code,phrase,source
 14.02,supply and fix stone benchtops,seed_expanded
 14.02,supply and install 20mm stone,seed_expanded
 14.02,supply and install 20mm stones,seed_expanded
+14.02,supply and install 40mm Engineered Stone   Caesarstone Midday,seed_expanded
+14.02,supply and install 40mm Engineered Stone - Caesarstone Midday,seed_expanded
 14.02,supply and install 40mm stone,seed_expanded
 14.02,supply and install 40mm stones,seed_expanded
+14.02,supply and install STONE BENCH TOPS FOR BOTH KITCHENS,seed_expanded
+14.02,supply and install STONE BENCH TOPS FOR BOTH KITCHENSs,seed_expanded
 14.02,supply and install bench top,seed_expanded
 14.02,supply and install bench tops,seed_expanded
 14.02,supply and install benchtop,seed_expanded
@@ -1092,18 +1586,30 @@ cell_code,phrase,source
 14.02,supply and install stone bench tops,seed_expanded
 14.02,supply and install stone benchtop,seed_expanded
 14.02,supply and install stone benchtops,seed_expanded
+14.03,Splashback: 20mm Engineered Stone,seed
+14.03,Splashback: 20mm Engineered Stones,seed_expanded
 14.03,glass splash back,seed_expanded
 14.03,glass splash backs,seed_expanded
 14.03,glass splashback,seed
 14.03,glass splashbacks,seed_expanded
+14.03,install kitchen tiled splash back 600mm high with 3 cut outs for power,seed
+14.03,install kitchen tiled splash back 600mm high with 3 cut outs for powers,seed_expanded
+14.03,install kitchen tiled splashback 600mm high with 3 cut outs for power,seed_expanded
+14.03,install kitchen tiled splashback 600mm high with 3 cut outs for powers,seed_expanded
 14.03,splash back,seed_expanded
 14.03,splash backs,seed_expanded
 14.03,splashback,seed
 14.03,splashbacks,seed_expanded
+14.03,supply & install Splashback: 20mm Engineered Stone,seed_expanded
+14.03,supply & install Splashback: 20mm Engineered Stones,seed_expanded
 14.03,supply & install glass splash back,seed_expanded
 14.03,supply & install glass splash backs,seed_expanded
 14.03,supply & install glass splashback,seed_expanded
 14.03,supply & install glass splashbacks,seed_expanded
+14.03,supply & install install kitchen tiled splash back 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply & install install kitchen tiled splash back 600mm high with 3 cut outs for powers,seed_expanded
+14.03,supply & install install kitchen tiled splashback 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply & install install kitchen tiled splashback 600mm high with 3 cut outs for powers,seed_expanded
 14.03,supply & install splash back,seed_expanded
 14.03,supply & install splash backs,seed_expanded
 14.03,supply & install splashback,seed_expanded
@@ -1116,10 +1622,16 @@ cell_code,phrase,source
 14.03,supply & install window splash backs,seed_expanded
 14.03,supply & install window splashback,seed_expanded
 14.03,supply & install window splashbacks,seed_expanded
+14.03,supply & lay Splashback: 20mm Engineered Stone,seed_expanded
+14.03,supply & lay Splashback: 20mm Engineered Stones,seed_expanded
 14.03,supply & lay glass splash back,seed_expanded
 14.03,supply & lay glass splash backs,seed_expanded
 14.03,supply & lay glass splashback,seed_expanded
 14.03,supply & lay glass splashbacks,seed_expanded
+14.03,supply & lay install kitchen tiled splash back 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply & lay install kitchen tiled splash back 600mm high with 3 cut outs for powers,seed_expanded
+14.03,supply & lay install kitchen tiled splashback 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply & lay install kitchen tiled splashback 600mm high with 3 cut outs for powers,seed_expanded
 14.03,supply & lay splash back,seed_expanded
 14.03,supply & lay splash backs,seed_expanded
 14.03,supply & lay splashback,seed_expanded
@@ -1132,10 +1644,16 @@ cell_code,phrase,source
 14.03,supply & lay window splash backs,seed_expanded
 14.03,supply & lay window splashback,seed_expanded
 14.03,supply & lay window splashbacks,seed_expanded
+14.03,supply and fix Splashback: 20mm Engineered Stone,seed_expanded
+14.03,supply and fix Splashback: 20mm Engineered Stones,seed_expanded
 14.03,supply and fix glass splash back,seed_expanded
 14.03,supply and fix glass splash backs,seed_expanded
 14.03,supply and fix glass splashback,seed_expanded
 14.03,supply and fix glass splashbacks,seed_expanded
+14.03,supply and fix install kitchen tiled splash back 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply and fix install kitchen tiled splash back 600mm high with 3 cut outs for powers,seed_expanded
+14.03,supply and fix install kitchen tiled splashback 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply and fix install kitchen tiled splashback 600mm high with 3 cut outs for powers,seed_expanded
 14.03,supply and fix splash back,seed_expanded
 14.03,supply and fix splash backs,seed_expanded
 14.03,supply and fix splashback,seed_expanded
@@ -1148,10 +1666,16 @@ cell_code,phrase,source
 14.03,supply and fix window splash backs,seed_expanded
 14.03,supply and fix window splashback,seed_expanded
 14.03,supply and fix window splashbacks,seed_expanded
+14.03,supply and install Splashback: 20mm Engineered Stone,seed_expanded
+14.03,supply and install Splashback: 20mm Engineered Stones,seed_expanded
 14.03,supply and install glass splash back,seed_expanded
 14.03,supply and install glass splash backs,seed_expanded
 14.03,supply and install glass splashback,seed_expanded
 14.03,supply and install glass splashbacks,seed_expanded
+14.03,supply and install install kitchen tiled splash back 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply and install install kitchen tiled splash back 600mm high with 3 cut outs for powers,seed_expanded
+14.03,supply and install install kitchen tiled splashback 600mm high with 3 cut outs for power,seed_expanded
+14.03,supply and install install kitchen tiled splashback 600mm high with 3 cut outs for powers,seed_expanded
 14.03,supply and install splash back,seed_expanded
 14.03,supply and install splash backs,seed_expanded
 14.03,supply and install splashback,seed_expanded
@@ -1196,10 +1720,40 @@ cell_code,phrase,source
 14.07,drawer runners,seed
 14.07,soft close hardware,seed
 14.07,soft close hardwares,seed_expanded
+15.01,All Floor & wall tile,seed_expanded
+15.01,All Floor & wall tiles,seed_expanded
+15.01,All Floor and wall tile,seed_expanded
+15.01,All Floor and wall tiles,seed
+15.01,Feature wall labour,seed
+15.01,Feature wall labours,seed_expanded
+15.01,Feature wall tile allowance of 10m2,seed
+15.01,Labour to lay Wall Tile,seed_expanded
+15.01,Labour to lay Wall Tiles,seed
+15.01,TILING,seed
+15.01,TILINGs,seed_expanded
+15.01,bathroom room & laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,bathroom room & laundry all walls to be tiled floor to ceilings,seed_expanded
+15.01,bathroom room and laundry all walls to be tiled floor to ceiling,seed
+15.01,bathroom room and laundry all walls to be tiled floor to ceilings,seed_expanded
 15.01,bathroom wall tile,seed_expanded
 15.01,bathroom wall tiles,seed
 15.01,full height tiling,seed
 15.01,full height tilings,seed_expanded
+15.01,supply & install All Floor & wall tile,seed_expanded
+15.01,supply & install All Floor & wall tiles,seed_expanded
+15.01,supply & install All Floor and wall tile,seed_expanded
+15.01,supply & install All Floor and wall tiles,seed_expanded
+15.01,supply & install Feature wall labour,seed_expanded
+15.01,supply & install Feature wall labours,seed_expanded
+15.01,supply & install Feature wall tile allowance of 10m2,seed_expanded
+15.01,supply & install Labour to lay Wall Tile,seed_expanded
+15.01,supply & install Labour to lay Wall Tiles,seed_expanded
+15.01,supply & install TILING,seed_expanded
+15.01,supply & install TILINGs,seed_expanded
+15.01,supply & install bathroom room & laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply & install bathroom room & laundry all walls to be tiled floor to ceilings,seed_expanded
+15.01,supply & install bathroom room and laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply & install bathroom room and laundry all walls to be tiled floor to ceilings,seed_expanded
 15.01,supply & install bathroom wall tile,seed_expanded
 15.01,supply & install bathroom wall tiles,seed_expanded
 15.01,supply & install full height tiling,seed_expanded
@@ -1208,6 +1762,21 @@ cell_code,phrase,source
 15.01,supply & install tiling to wet areas,seed_expanded
 15.01,supply & install wall tiling,seed_expanded
 15.01,supply & install wall tilings,seed_expanded
+15.01,supply & lay All Floor & wall tile,seed_expanded
+15.01,supply & lay All Floor & wall tiles,seed_expanded
+15.01,supply & lay All Floor and wall tile,seed_expanded
+15.01,supply & lay All Floor and wall tiles,seed_expanded
+15.01,supply & lay Feature wall labour,seed_expanded
+15.01,supply & lay Feature wall labours,seed_expanded
+15.01,supply & lay Feature wall tile allowance of 10m2,seed_expanded
+15.01,supply & lay Labour to lay Wall Tile,seed_expanded
+15.01,supply & lay Labour to lay Wall Tiles,seed_expanded
+15.01,supply & lay TILING,seed_expanded
+15.01,supply & lay TILINGs,seed_expanded
+15.01,supply & lay bathroom room & laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply & lay bathroom room & laundry all walls to be tiled floor to ceilings,seed_expanded
+15.01,supply & lay bathroom room and laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply & lay bathroom room and laundry all walls to be tiled floor to ceilings,seed_expanded
 15.01,supply & lay bathroom wall tile,seed_expanded
 15.01,supply & lay bathroom wall tiles,seed_expanded
 15.01,supply & lay full height tiling,seed_expanded
@@ -1216,6 +1785,21 @@ cell_code,phrase,source
 15.01,supply & lay tiling to wet areas,seed_expanded
 15.01,supply & lay wall tiling,seed_expanded
 15.01,supply & lay wall tilings,seed_expanded
+15.01,supply and fix All Floor & wall tile,seed_expanded
+15.01,supply and fix All Floor & wall tiles,seed_expanded
+15.01,supply and fix All Floor and wall tile,seed_expanded
+15.01,supply and fix All Floor and wall tiles,seed_expanded
+15.01,supply and fix Feature wall labour,seed_expanded
+15.01,supply and fix Feature wall labours,seed_expanded
+15.01,supply and fix Feature wall tile allowance of 10m2,seed_expanded
+15.01,supply and fix Labour to lay Wall Tile,seed_expanded
+15.01,supply and fix Labour to lay Wall Tiles,seed_expanded
+15.01,supply and fix TILING,seed_expanded
+15.01,supply and fix TILINGs,seed_expanded
+15.01,supply and fix bathroom room & laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply and fix bathroom room & laundry all walls to be tiled floor to ceilings,seed_expanded
+15.01,supply and fix bathroom room and laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply and fix bathroom room and laundry all walls to be tiled floor to ceilings,seed_expanded
 15.01,supply and fix bathroom wall tile,seed_expanded
 15.01,supply and fix bathroom wall tiles,seed_expanded
 15.01,supply and fix full height tiling,seed_expanded
@@ -1224,6 +1808,21 @@ cell_code,phrase,source
 15.01,supply and fix tiling to wet areas,seed_expanded
 15.01,supply and fix wall tiling,seed_expanded
 15.01,supply and fix wall tilings,seed_expanded
+15.01,supply and install All Floor & wall tile,seed_expanded
+15.01,supply and install All Floor & wall tiles,seed_expanded
+15.01,supply and install All Floor and wall tile,seed_expanded
+15.01,supply and install All Floor and wall tiles,seed_expanded
+15.01,supply and install Feature wall labour,seed_expanded
+15.01,supply and install Feature wall labours,seed_expanded
+15.01,supply and install Feature wall tile allowance of 10m2,seed_expanded
+15.01,supply and install Labour to lay Wall Tile,seed_expanded
+15.01,supply and install Labour to lay Wall Tiles,seed_expanded
+15.01,supply and install TILING,seed_expanded
+15.01,supply and install TILINGs,seed_expanded
+15.01,supply and install bathroom room & laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply and install bathroom room & laundry all walls to be tiled floor to ceilings,seed_expanded
+15.01,supply and install bathroom room and laundry all walls to be tiled floor to ceiling,seed_expanded
+15.01,supply and install bathroom room and laundry all walls to be tiled floor to ceilings,seed_expanded
 15.01,supply and install bathroom wall tile,seed_expanded
 15.01,supply and install bathroom wall tiles,seed_expanded
 15.01,supply and install full height tiling,seed_expanded
@@ -1236,32 +1835,108 @@ cell_code,phrase,source
 15.01,tiling to wet areas,seed
 15.01,wall tiling,seed
 15.01,wall tilings,seed_expanded
+15.02,All Floor & wall tile,seed_expanded
+15.02,All Floor & wall tiles,seed_expanded
+15.02,All Floor and wall tile,seed_expanded
+15.02,All Floor and wall tiles,seed
+15.02,Cement screed to fall,seed_expanded
+15.02,Cement screed to falls,seed
+15.02,Labour to lay Floor Tile,seed_expanded
+15.02,Labour to lay Floor Tiles,seed
+15.02,TILING,seed
+15.02,TILINGs,seed_expanded
 15.02,bathroom floor tile,seed_expanded
 15.02,bathroom floor tiles,seed
 15.02,floor tiling wet area,seed_expanded
 15.02,floor tiling wet areas,seed
+15.02,min 30mm tile bedding throughout all wet area,seed_expanded
+15.02,min 30mm tile bedding throughout all wet areas,seed
+15.02,supply & install All Floor & wall tile,seed_expanded
+15.02,supply & install All Floor & wall tiles,seed_expanded
+15.02,supply & install All Floor and wall tile,seed_expanded
+15.02,supply & install All Floor and wall tiles,seed_expanded
+15.02,supply & install Cement screed to fall,seed_expanded
+15.02,supply & install Cement screed to falls,seed_expanded
+15.02,supply & install Labour to lay Floor Tile,seed_expanded
+15.02,supply & install Labour to lay Floor Tiles,seed_expanded
+15.02,supply & install TILING,seed_expanded
+15.02,supply & install TILINGs,seed_expanded
 15.02,supply & install bathroom floor tile,seed_expanded
 15.02,supply & install bathroom floor tiles,seed_expanded
 15.02,supply & install floor tiling wet area,seed_expanded
 15.02,supply & install floor tiling wet areas,seed_expanded
+15.02,supply & install min 30mm tile bedding throughout all wet area,seed_expanded
+15.02,supply & install min 30mm tile bedding throughout all wet areas,seed_expanded
+15.02,supply & install tiling throughout all wet areas with smart floor waste,seed_expanded
+15.02,supply & install tiling throughout all wet areas with smart floor wastes,seed_expanded
+15.02,supply & lay All Floor & wall tile,seed_expanded
+15.02,supply & lay All Floor & wall tiles,seed_expanded
+15.02,supply & lay All Floor and wall tile,seed_expanded
+15.02,supply & lay All Floor and wall tiles,seed_expanded
+15.02,supply & lay Cement screed to fall,seed_expanded
+15.02,supply & lay Cement screed to falls,seed_expanded
+15.02,supply & lay Labour to lay Floor Tile,seed_expanded
+15.02,supply & lay Labour to lay Floor Tiles,seed_expanded
+15.02,supply & lay TILING,seed_expanded
+15.02,supply & lay TILINGs,seed_expanded
 15.02,supply & lay bathroom floor tile,seed_expanded
 15.02,supply & lay bathroom floor tiles,seed_expanded
 15.02,supply & lay floor tiling wet area,seed_expanded
 15.02,supply & lay floor tiling wet areas,seed_expanded
+15.02,supply & lay min 30mm tile bedding throughout all wet area,seed_expanded
+15.02,supply & lay min 30mm tile bedding throughout all wet areas,seed_expanded
+15.02,supply & lay tiling throughout all wet areas with smart floor waste,seed_expanded
+15.02,supply & lay tiling throughout all wet areas with smart floor wastes,seed_expanded
+15.02,supply and fix All Floor & wall tile,seed_expanded
+15.02,supply and fix All Floor & wall tiles,seed_expanded
+15.02,supply and fix All Floor and wall tile,seed_expanded
+15.02,supply and fix All Floor and wall tiles,seed_expanded
+15.02,supply and fix Cement screed to fall,seed_expanded
+15.02,supply and fix Cement screed to falls,seed_expanded
+15.02,supply and fix Labour to lay Floor Tile,seed_expanded
+15.02,supply and fix Labour to lay Floor Tiles,seed_expanded
+15.02,supply and fix TILING,seed_expanded
+15.02,supply and fix TILINGs,seed_expanded
 15.02,supply and fix bathroom floor tile,seed_expanded
 15.02,supply and fix bathroom floor tiles,seed_expanded
 15.02,supply and fix floor tiling wet area,seed_expanded
 15.02,supply and fix floor tiling wet areas,seed_expanded
+15.02,supply and fix min 30mm tile bedding throughout all wet area,seed_expanded
+15.02,supply and fix min 30mm tile bedding throughout all wet areas,seed_expanded
+15.02,supply and fix tiling throughout all wet areas with smart floor waste,seed_expanded
+15.02,supply and fix tiling throughout all wet areas with smart floor wastes,seed_expanded
+15.02,supply and install All Floor & wall tile,seed_expanded
+15.02,supply and install All Floor & wall tiles,seed_expanded
+15.02,supply and install All Floor and wall tile,seed_expanded
+15.02,supply and install All Floor and wall tiles,seed_expanded
+15.02,supply and install Cement screed to fall,seed_expanded
+15.02,supply and install Cement screed to falls,seed_expanded
+15.02,supply and install Labour to lay Floor Tile,seed_expanded
+15.02,supply and install Labour to lay Floor Tiles,seed_expanded
+15.02,supply and install TILING,seed_expanded
+15.02,supply and install TILINGs,seed_expanded
 15.02,supply and install bathroom floor tile,seed_expanded
 15.02,supply and install bathroom floor tiles,seed_expanded
 15.02,supply and install floor tiling wet area,seed_expanded
 15.02,supply and install floor tiling wet areas,seed_expanded
+15.02,supply and install min 30mm tile bedding throughout all wet area,seed_expanded
+15.02,supply and install min 30mm tile bedding throughout all wet areas,seed_expanded
+15.02,supply and install tiling throughout all wet areas with smart floor waste,seed_expanded
+15.02,supply and install tiling throughout all wet areas with smart floor wastes,seed_expanded
+15.02,tiling throughout all wet areas with smart floor waste,seed
+15.02,tiling throughout all wet areas with smart floor wastes,seed_expanded
+15.03,Waterproofing as per plan,seed_expanded
+15.03,Waterproofing as per plans,seed
+15.03,waterproof all wet areas with 2 coats under bedding,seed
+15.03,waterproof all wet areas with 2 coats under beddings,seed_expanded
 15.03,waterproof membrane,seed
 15.03,waterproof membranes,seed_expanded
 15.03,waterproofing,seed
 15.03,waterproofings,seed_expanded
 15.03,wet seal,seed
 15.03,wet seals,seed_expanded
+15.04,VANITY AND BATHROOM HARDWARE,seed
+15.04,VANITY AND BATHROOM HARDWAREs,seed_expanded
 15.04,vanitie,seed_expanded
 15.04,vanities,seed
 15.04,vanity,seed
@@ -1274,6 +1949,9 @@ cell_code,phrase,source
 15.05,bathtubs,seed_expanded
 15.05,freestanding bath,seed
 15.05,freestanding baths,seed_expanded
+15.06,FRAMLESS GLASS (FULL INCLOSED???),seed
+15.06,Semi Framed Shower Screen x 2 off,seed_expanded
+15.06,Semi-Framed Shower Screen x 2 off,seed
 15.06,frameless screen,seed
 15.06,frameless screens,seed_expanded
 15.06,semi frameless screen,seed_expanded
@@ -1282,6 +1960,12 @@ cell_code,phrase,source
 15.06,semi-frameless screens,seed_expanded
 15.06,shower screen,seed
 15.06,shower screens,seed_expanded
+15.06,supply & install shower screen,seed_expanded
+15.06,supply & install shower screens,seed_expanded
+15.06,supply and install shower screen,seed_expanded
+15.06,supply and install shower screens,seed
+15.07,Construct base inc Falls for bathrooms & laundry,seed_expanded
+15.07,Construct base inc Falls for bathrooms and laundry,seed
 15.07,hob,seed
 15.07,shower base,seed
 15.07,shower bases,seed_expanded
@@ -1305,12 +1989,15 @@ cell_code,phrase,source
 15.09,shower rails,seed_expanded
 15.09,towel rail,seed_expanded
 15.09,towel rails,seed
+15.10,6mm Mirror Supply & Fit x 2 off,seed
+15.10,6mm Mirror Supply and Fit x 2 off,seed_expanded
 15.10,mirror,seed
 15.10,mirror cabinet,seed
 15.10,mirror cabinets,seed_expanded
 15.10,mirrors,seed_expanded
 15.10,shaving cabinet,seed
 15.10,shaving cabinets,seed_expanded
+15.11,Laundry joinery,seed
 15.11,laundry cabinet,seed
 15.11,laundry cabinets,seed_expanded
 15.11,laundry trough,seed
@@ -1318,14 +2005,21 @@ cell_code,phrase,source
 15.11,laundry tub,seed
 16.01,3 coat paint system,seed
 16.01,3 coat paint systems,seed_expanded
+16.01,PAINTING,seed
+16.01,PAINTINGs,seed_expanded
 16.01,internal painting,seed
 16.01,internal paintings,seed_expanded
 16.01,paint to walls & ceiling,seed_expanded
 16.01,paint to walls & ceilings,seed
 16.01,paint to walls and ceiling,seed_expanded
 16.01,paint to walls and ceilings,seed_expanded
+16.01,painting complete internal with a 3 coat Haymes system,seed_expanded
+16.01,painting complete internal with a 3 coat Haymes systems,seed_expanded
+16.01,painting complete internal with a 3-coat Haymes system,seed
+16.01,painting complete internal with a 3-coat Haymes systems,seed_expanded
 16.01,painting internal,seed
 16.01,painting internals,seed_expanded
+16.01,painting of new work only,seed
 16.02,exterior paint,seed
 16.02,exterior paints,seed_expanded
 16.02,external painting,seed
@@ -1380,42 +2074,65 @@ cell_code,phrase,source
 17.01,supply and install tiling to livings,seed_expanded
 17.01,tiling to living,seed
 17.01,tiling to livings,seed_expanded
+17.02,CARPET $60M2,seed
+17.02,Floor cover,seed_expanded
+17.02,Floor covers,seed
 17.02,carpet,seed
 17.02,carpet & underlay,seed
 17.02,carpet and underlay,seed_expanded
 17.02,carpet to bedroom,seed_expanded
 17.02,carpet to bedrooms,seed
 17.02,carpets,seed_expanded
+17.02,supply & install CARPET $60M2,seed_expanded
+17.02,supply & install Floor cover,seed_expanded
+17.02,supply & install Floor covers,seed_expanded
 17.02,supply & install carpet,seed_expanded
 17.02,supply & install carpet & underlay,seed_expanded
 17.02,supply & install carpet and underlay,seed_expanded
 17.02,supply & install carpet to bedroom,seed_expanded
 17.02,supply & install carpet to bedrooms,seed_expanded
 17.02,supply & install carpets,seed_expanded
+17.02,supply & lay CARPET $60M2,seed_expanded
+17.02,supply & lay Floor cover,seed_expanded
+17.02,supply & lay Floor covers,seed_expanded
 17.02,supply & lay carpet,seed_expanded
 17.02,supply & lay carpet & underlay,seed_expanded
 17.02,supply & lay carpet and underlay,seed_expanded
 17.02,supply & lay carpet to bedroom,seed_expanded
 17.02,supply & lay carpet to bedrooms,seed_expanded
 17.02,supply & lay carpets,seed_expanded
+17.02,supply and fix CARPET $60M2,seed_expanded
+17.02,supply and fix Floor cover,seed_expanded
+17.02,supply and fix Floor covers,seed_expanded
 17.02,supply and fix carpet,seed_expanded
 17.02,supply and fix carpet & underlay,seed_expanded
 17.02,supply and fix carpet and underlay,seed_expanded
 17.02,supply and fix carpet to bedroom,seed_expanded
 17.02,supply and fix carpet to bedrooms,seed_expanded
 17.02,supply and fix carpets,seed_expanded
+17.02,supply and install CARPET $60M2,seed_expanded
+17.02,supply and install Floor cover,seed_expanded
+17.02,supply and install Floor covers,seed_expanded
 17.02,supply and install carpet,seed_expanded
 17.02,supply and install carpet & underlay,seed_expanded
 17.02,supply and install carpet and underlay,seed_expanded
 17.02,supply and install carpet to bedroom,seed_expanded
 17.02,supply and install carpet to bedrooms,seed_expanded
 17.02,supply and install carpets,seed_expanded
+17.03,"FLOOR, LAYING & SKIRTING",seed
+17.03,"FLOOR, LAYING & SKIRTINGs",seed_expanded
+17.03,"FLOOR, LAYING and SKIRTING",seed_expanded
+17.03,"FLOOR, LAYING and SKIRTINGs",seed_expanded
 17.03,engineered timber,seed
 17.03,engineered timbers,seed_expanded
 17.03,floating timber floor,seed
 17.03,floating timber floors,seed_expanded
 17.03,hardwood flooring,seed
 17.03,hardwood floorings,seed_expanded
+17.03,"supply & install FLOOR, LAYING & SKIRTING",seed_expanded
+17.03,"supply & install FLOOR, LAYING & SKIRTINGs",seed_expanded
+17.03,"supply & install FLOOR, LAYING and SKIRTING",seed_expanded
+17.03,"supply & install FLOOR, LAYING and SKIRTINGs",seed_expanded
 17.03,supply & install engineered timber,seed_expanded
 17.03,supply & install engineered timbers,seed_expanded
 17.03,supply & install floating timber floor,seed_expanded
@@ -1424,6 +2141,10 @@ cell_code,phrase,source
 17.03,supply & install hardwood floorings,seed_expanded
 17.03,supply & install timber flooring,seed_expanded
 17.03,supply & install timber floorings,seed_expanded
+17.03,"supply & lay FLOOR, LAYING & SKIRTING",seed_expanded
+17.03,"supply & lay FLOOR, LAYING & SKIRTINGs",seed_expanded
+17.03,"supply & lay FLOOR, LAYING and SKIRTING",seed_expanded
+17.03,"supply & lay FLOOR, LAYING and SKIRTINGs",seed_expanded
 17.03,supply & lay engineered timber,seed_expanded
 17.03,supply & lay engineered timbers,seed_expanded
 17.03,supply & lay floating timber floor,seed_expanded
@@ -1432,6 +2153,10 @@ cell_code,phrase,source
 17.03,supply & lay hardwood floorings,seed_expanded
 17.03,supply & lay timber flooring,seed_expanded
 17.03,supply & lay timber floorings,seed_expanded
+17.03,"supply and fix FLOOR, LAYING & SKIRTING",seed_expanded
+17.03,"supply and fix FLOOR, LAYING & SKIRTINGs",seed_expanded
+17.03,"supply and fix FLOOR, LAYING and SKIRTING",seed_expanded
+17.03,"supply and fix FLOOR, LAYING and SKIRTINGs",seed_expanded
 17.03,supply and fix engineered timber,seed_expanded
 17.03,supply and fix engineered timbers,seed_expanded
 17.03,supply and fix floating timber floor,seed_expanded
@@ -1440,6 +2165,10 @@ cell_code,phrase,source
 17.03,supply and fix hardwood floorings,seed_expanded
 17.03,supply and fix timber flooring,seed_expanded
 17.03,supply and fix timber floorings,seed_expanded
+17.03,"supply and install FLOOR, LAYING & SKIRTING",seed_expanded
+17.03,"supply and install FLOOR, LAYING & SKIRTINGs",seed_expanded
+17.03,"supply and install FLOOR, LAYING and SKIRTING",seed_expanded
+17.03,"supply and install FLOOR, LAYING and SKIRTINGs",seed_expanded
 17.03,supply and install engineered timber,seed_expanded
 17.03,supply and install engineered timbers,seed_expanded
 17.03,supply and install floating timber floor,seed_expanded
@@ -1539,6 +2268,8 @@ cell_code,phrase,source
 18.06,LED down lights,seed_expanded
 18.06,LED downlight,seed_expanded
 18.06,LED downlights,seed
+18.06,OUTDOOR LIGHTING,seed
+18.06,OUTDOOR LIGHTINGs,seed_expanded
 18.06,light fitting,seed_expanded
 18.06,light fittings,seed
 18.06,lighting allowance,seed
@@ -1548,6 +2279,8 @@ cell_code,phrase,source
 18.06,supply & install LED down lights,seed_expanded
 18.06,supply & install LED downlight,seed_expanded
 18.06,supply & install LED downlights,seed_expanded
+18.06,supply & install OUTDOOR LIGHTING,seed_expanded
+18.06,supply & install OUTDOOR LIGHTINGs,seed_expanded
 18.06,supply & install light fitting,seed_expanded
 18.06,supply & install light fittings,seed_expanded
 18.06,supply & install lighting allowance,seed_expanded
@@ -1557,6 +2290,8 @@ cell_code,phrase,source
 18.06,supply & lay LED down lights,seed_expanded
 18.06,supply & lay LED downlight,seed_expanded
 18.06,supply & lay LED downlights,seed_expanded
+18.06,supply & lay OUTDOOR LIGHTING,seed_expanded
+18.06,supply & lay OUTDOOR LIGHTINGs,seed_expanded
 18.06,supply & lay light fitting,seed_expanded
 18.06,supply & lay light fittings,seed_expanded
 18.06,supply & lay lighting allowance,seed_expanded
@@ -1566,6 +2301,8 @@ cell_code,phrase,source
 18.06,supply and fix LED down lights,seed_expanded
 18.06,supply and fix LED downlight,seed_expanded
 18.06,supply and fix LED downlights,seed_expanded
+18.06,supply and fix OUTDOOR LIGHTING,seed_expanded
+18.06,supply and fix OUTDOOR LIGHTINGs,seed_expanded
 18.06,supply and fix light fitting,seed_expanded
 18.06,supply and fix light fittings,seed_expanded
 18.06,supply and fix lighting allowance,seed_expanded
@@ -1575,6 +2312,8 @@ cell_code,phrase,source
 18.06,supply and install LED down lights,seed_expanded
 18.06,supply and install LED downlight,seed_expanded
 18.06,supply and install LED downlights,seed_expanded
+18.06,supply and install OUTDOOR LIGHTING,seed_expanded
+18.06,supply and install OUTDOOR LIGHTINGs,seed_expanded
 18.06,supply and install light fitting,seed_expanded
 18.06,supply and install light fittings,seed_expanded
 18.06,supply and install lighting allowance,seed_expanded
@@ -1664,6 +2403,19 @@ cell_code,phrase,source
 19.06,merbau deckings,seed_expanded
 19.06,timber deck,seed
 19.06,timber decks,seed_expanded
+19.07,BUILDING CARPORT NO CEILING,seed
+19.07,BUILDING CARPORT NO CEILINGs,seed_expanded
+19.07,Carport Roofing,seed
+19.07,Carport Roofings,seed_expanded
+19.07,Carport carpentry & materials Treated pine,seed_expanded
+19.07,Carport carpentry & materials Treated pines,seed_expanded
+19.07,Carport carpentry & materials-Treated pine,seed_expanded
+19.07,Carport carpentry & materials-Treated pines,seed_expanded
+19.07,Carport carpentry and materials Treated pine,seed_expanded
+19.07,Carport carpentry and materials Treated pines,seed_expanded
+19.07,Carport carpentry and materials-Treated pine,seed
+19.07,Carport carpentry and materials-Treated pines,seed_expanded
+19.07,build new shed as per DA plan TBA,seed
 19.07,gazebo,seed
 19.07,gazebos,seed_expanded
 19.07,insulated patio roof,seed
@@ -1790,6 +2542,8 @@ cell_code,phrase,source
 22.02,provisional sums,seed
 22.03,PC item,seed_expanded
 22.03,PC items,seed
+22.03,install all pc items standard,seed
+22.03,install all pc items standards,seed_expanded
 22.03,prime cost item,seed_expanded
 22.03,prime cost items,seed
 22.03,prime cost schedule,seed

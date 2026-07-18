@@ -21,8 +21,9 @@ from tender.schemas import (
     ProgressDocument,
     ProgressMilestone,
     ProgressQuote,
+    StageTimingView,
 )
-from tender.services import jobs, qa
+from tender.services import jobs, qa, telemetry
 
 INGEST_KINDS = frozenset({"ingest_document"})
 EXTRACT_KINDS = frozenset({"classify_document", "extract_line_items", "embed_items"})
@@ -235,6 +236,21 @@ async def comparison_progress(
         )
 
     is_processing = any(milestone.state == "running" for milestone in milestones)
+    stage_timings = [
+        StageTimingView(
+            stage=row.stage,
+            duration_ms=row.duration_ms,
+            status=row.status,
+            llm_calls=row.llm_calls,
+            input_tokens=row.input_tokens,
+            output_tokens=row.output_tokens,
+            cache_hits=row.cache_hits,
+            metadata=row.metadata or {},
+        )
+        for row in await telemetry.list_stage_timings(
+            session, comparison_id=comparison_id
+        )
+    ]
 
     return ComparisonProgressResponse(
         comparison_id=comparison_id,
@@ -253,6 +269,7 @@ async def comparison_progress(
             )
             for quote in quotes
         ],
+        stage_timings=stage_timings,
     )
 
 

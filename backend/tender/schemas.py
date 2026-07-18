@@ -193,6 +193,17 @@ class ProgressQuote(BaseModel):
     documents: list[ProgressDocument] = Field(default_factory=list)
 
 
+class StageTimingView(BaseModel):
+    stage: str
+    duration_ms: int
+    status: str
+    llm_calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_hits: int = 0
+    metadata: dict = Field(default_factory=dict)
+
+
 class ComparisonProgressResponse(BaseModel):
     comparison_id: uuid.UUID
     status: str
@@ -201,6 +212,7 @@ class ComparisonProgressResponse(BaseModel):
     qa_pending: int
     milestones: list[ProgressMilestone] = Field(default_factory=list)
     quotes: list[ProgressQuote] = Field(default_factory=list)
+    stage_timings: list[StageTimingView] = Field(default_factory=list)
 
 
 class ProcessComparisonResponse(BaseModel):

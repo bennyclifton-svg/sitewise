@@ -8,11 +8,18 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tender.llm.client import TenderLLMClient
-from tender.models import TenderDocument, TenderFlag, TenderLineItem, TenderPage, TenderQuote
+from tender.models import (
+    TenderComparison,
+    TenderDocument,
+    TenderFlag,
+    TenderLineItem,
+    TenderPage,
+    TenderQuote,
+)
 from tender.schemas import TenderDocumentPage
-from tender.services import jobs
+from tender.services import extract_cache, jobs, telemetry
 from tender.services.context import context_for_quote
-from tender.services.extraction import extract_line_items
+from tender.services.extraction import extract_line_items, materialize_extraction
 
 
 async def extract_line_items_job(
@@ -28,15 +35,52 @@ async def extract_line_items_job(
         raise ValueError(f"extract_line_items: document {document_id} not found")
 
     quote = await session.get(TenderQuote, document.quote_id)
-    context = await context_for_quote(session, document.quote_id)
-    pages = await _document_pages(session, document.id)
+    comparison = await session.get(TenderComparison, job.comparison_id)
+    stated_total = quote.stated_total_cents if quote is not None else None
 
-    result = await extract_line_items(
-        pages=pages,
-        context=context,
-        llm_client=llm_client,
-        stated_total_cents=quote.stated_total_cents if quote is not None else None,
-    )
+    result = None
+    if (
+        document.content_hash
+        and comparison is not None
+    ):
+        cached = await extract_cache.get_cached_extract(
+            session,
+            project_id=comparison.project_id,
+            content_hash=document.content_hash,
+        )
+        if cached is not None:
+            result = materialize_extraction(
+                cached.payload,
+                stated_total_cents=stated_total,
+                model=cached.model or "cache",
+                prompt_version=cached.extractor_version,
+            )
+            usage = telemetry.current_stage_usage()
+            if usage is not None:
+                usage.cache_hits += 1
+                usage.merge_metadata({"extract_cache": "hit"})
+
+    if result is None:
+        context = await context_for_quote(session, document.quote_id)
+        pages = await _document_pages(session, document.id)
+        result = await extract_line_items(
+            pages=pages,
+            context=context,
+            llm_client=llm_client,
+            stated_total_cents=stated_total,
+        )
+        if document.content_hash and comparison is not None:
+            await extract_cache.put_cached_extract(
+                session,
+                project_id=comparison.project_id,
+                content_hash=document.content_hash,
+                extractor_version=extract_cache.EXTRACTOR_VERSION,
+                payload=result.llm.data,
+                model=result.llm.model,
+            )
+            usage = telemetry.current_stage_usage()
+            if usage is not None:
+                usage.merge_metadata({"extract_cache": "miss"})
 
     await session.execute(
         delete(TenderLineItem).where(TenderLineItem.document_id == document.id)

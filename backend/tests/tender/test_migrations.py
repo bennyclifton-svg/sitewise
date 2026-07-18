@@ -30,6 +30,7 @@ MIGRATION_CHAIN = [
     "017_project_activity_events",
     "018_project_taxonomy",
     "019_project_decisions",
+    "020_tender_extract_cache",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -40,8 +41,9 @@ TENDER_REVISIONS = [
     "012_tender_mapping_support",
     "013_tender_analysis_results",
     "015_tender_telemetry_events",
+    "020_tender_extract_cache",
 ]
-HEAD_REVISION = "019_project_decisions"
+HEAD_REVISION = "020_tender_extract_cache"
 
 
 def _alembic_config() -> Config:

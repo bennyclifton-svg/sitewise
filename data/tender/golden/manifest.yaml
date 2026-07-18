@@ -1,5 +1,6 @@
 # Golden evaluation set manifest (PRD §14)
 # Payload PDFs are gitignored per repo convention; annotations are committed.
+# Flagship speed-fixture PDFs live under backend/tests/tender/fixtures/.
 meta:
   version: 1
   targets: { real_documents_min: 30, synthetic_max_share_for_gates: 0.5 }
@@ -28,4 +29,31 @@ annotation_schema:
       - cell: code
         status: enum
         amount_cents: int?
-documents: []   # append entries as golden docs are acquired and annotated
+documents:
+  - id: enmore
+    source: real
+    difficulty: medium
+    doc_type: builder_quote
+    state: NSW
+    build_type: renovation
+    anonymised: false
+    annotation: annotations/enmore.json
+    fixture_pdf: backend/tests/tender/fixtures/Enmore.pdf
+  - id: kaposi
+    source: real
+    difficulty: medium
+    doc_type: builder_quote
+    state: NSW
+    build_type: renovation
+    anonymised: false
+    annotation: annotations/kaposi.json
+    fixture_pdf: backend/tests/tender/fixtures/Kaposi.pdf
+  - id: nexusbuilt
+    source: real
+    difficulty: hard
+    doc_type: builder_quote
+    state: NSW
+    build_type: renovation
+    anonymised: false
+    annotation: annotations/nexusbuilt.json
+    fixture_pdf: backend/tests/tender/fixtures/NexusBuilt.pdf

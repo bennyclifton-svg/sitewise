@@ -15,6 +15,7 @@ from app.config import settings
 from tender.models import TaxonomySynonym, TenderJob, TenderLineItem, TenderQuote
 from tender.seeds.load import normalize_phrase
 from tender.services import jobs
+from tender.services.telemetry import note_openai_response
 
 MAX_EMBED_BATCH_SIZE = 256
 
@@ -41,6 +42,7 @@ class OpenAIEmbeddingClient:
             input=texts,
             dimensions=settings.tender_embedding_dimensions,
         )
+        note_openai_response(response)
         return [list(item.embedding) for item in response.data]
 
 

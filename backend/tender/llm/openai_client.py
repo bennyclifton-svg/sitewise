@@ -11,6 +11,7 @@ from app.config import settings
 from tender.llm.client import LLMAdjudicationResponse, LLMExtractionResponse
 from tender.llm.schema import openai_strict_json_schema
 from tender.schemas import ProjectContext, TenderDocumentPage
+from tender.services.telemetry import note_openai_response
 
 PROMPT_VERSION = "0.1.0"
 PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "extract_line_items_v0.1.0.md"
@@ -49,6 +50,7 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
+        note_openai_response(response)
         return LLMExtractionResponse(
             data=json.loads(_response_text(response)),
             model=self.model,
@@ -84,6 +86,7 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
+        note_openai_response(response)
         data = json.loads(_response_text(response))
         choice = str(data["choice"])
         if choice not in choices:
@@ -136,6 +139,7 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
+        note_openai_response(response)
         data = json.loads(_response_text(response))
         decisions = data.get("decisions")
         if not isinstance(decisions, list):

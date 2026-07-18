@@ -71,6 +71,11 @@ def test_run_once_dispatches_by_kind_and_completes(mock_session: AsyncMock) -> N
             stage="ingest_document",
             duration_ms=ANY,
             status="done",
+            llm_calls=0,
+            input_tokens=0,
+            output_tokens=0,
+            cache_hits=0,
+            metadata=None,
         )
         mock_complete.assert_awaited_once_with(mock_session, job)
 

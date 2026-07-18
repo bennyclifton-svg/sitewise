@@ -82,6 +82,9 @@ class _Session:
     async def flush(self) -> None:
         return None
 
+    async def commit(self) -> None:
+        return None
+
 
 class _StubLLM:
     async def adjudicate(
