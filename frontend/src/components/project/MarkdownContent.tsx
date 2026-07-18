@@ -303,4 +303,6 @@ export function MarkdownContent({
   );
 }
 
+// Pure formatting contracts are exported for focused rendering tests.
+// eslint-disable-next-line react-refresh/only-export-components
 export { EVIDENCE_STATUSES, evidenceBadgeVariant };

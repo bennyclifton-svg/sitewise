@@ -340,7 +340,6 @@ describe("ChatPanel long history", () => {
         initialMessages={[]}
         agentMode
         projectId="project-1"
-        compact
         layout="rail"
       />,
     );

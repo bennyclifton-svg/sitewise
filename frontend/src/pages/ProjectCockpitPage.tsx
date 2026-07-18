@@ -475,7 +475,7 @@ export function ProjectCockpitPage() {
     if (workflowId === "procurement") {
       setSelectedWorkflowId(workflowId);
       setChatPanelCollapsed(true);
-      navigate(`/projects/${project.id}/tender`);
+      navigate(`/projects/${projectId}/tender`);
       return;
     }
     leaveTenderRoute();
@@ -615,7 +615,7 @@ export function ProjectCockpitPage() {
     if (workflowId === "procurement") {
       setSelectedWorkflowId(workflowId);
       setChatPanelCollapsed(true);
-      navigate(`/projects/${project.id}/tender`);
+      navigate(`/projects/${projectId}/tender`);
       return;
     }
     leaveTenderRoute();

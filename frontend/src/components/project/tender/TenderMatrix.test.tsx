@@ -21,6 +21,7 @@ vi.mock("@/lib/api", () => ({
   api: {
     getTenderMatrix: vi.fn(),
     getTenderComparison: vi.fn(),
+    getTenderQaQueue: vi.fn(),
     resolveTenderQaItem: vi.fn(),
   },
 }));
@@ -30,6 +31,7 @@ describe("TenderMatrix", () => {
     vi.clearAllMocks();
     vi.mocked(api.getTenderMatrix).mockResolvedValue(matrix);
     vi.mocked(api.getTenderComparison).mockResolvedValue(comparison);
+    vi.mocked(api.getTenderQaQueue).mockResolvedValue({ items: [] });
     vi.mocked(api.resolveTenderQaItem).mockResolvedValue({
       id: "mapping-1",
       entity_type: "mapping",
@@ -41,7 +43,7 @@ describe("TenderMatrix", () => {
   it("posts a mapping correction when a multi-candidate choice changes", async () => {
     const user = userEvent.setup();
 
-    render(<TenderMatrix comparisonId="comparison-1" />);
+    render(<TenderMatrix projectId="project-1" comparisonId="comparison-1" />);
 
     const choice = await screen.findByLabelText("Mapping choice for Apex Homes Retaining walls");
     await user.selectOptions(choice, "03.01");

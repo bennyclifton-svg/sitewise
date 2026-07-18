@@ -165,7 +165,7 @@ function SelectField({
   id: string;
   label: string;
   value: string;
-  options: Array<{ value: string; label: string }>;
+  options: readonly { value: string; label: string }[];
   onChange: (value: string) => void;
 }) {
   return (

@@ -178,7 +178,7 @@ describe("DraftReviewPanel", () => {
       "draft-1",
       expect.stringContaining("## Second\n\nBeta"),
     );
-    expect(api.patchDraft.mock.calls[0]?.[2]).toContain("Gamma");
-    expect(api.patchDraft.mock.calls[0]?.[2]).not.toContain("Alpha");
+    expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).toContain("Gamma");
+    expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).not.toContain("Alpha");
   });
 });

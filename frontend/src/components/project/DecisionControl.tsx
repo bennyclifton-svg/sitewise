@@ -24,6 +24,8 @@ export type EmbeddedDecision = {
 const UNEVIDENCED_RATIONALE_RE =
   /\b(?:not evidenced|placeholder|selected default|working assumption|default_hint)\b/i;
 
+// Shared with focused contract tests; this pure helper has no refresh state.
+// eslint-disable-next-line react-refresh/only-export-components
 export function selectionIsEvidenced(decision: EmbeddedDecision, source: string): boolean {
   if (source === "user") return true;
   if (typeof decision.evidenced === "boolean") return decision.evidenced;
@@ -143,6 +145,8 @@ function labelForValue(options: ProjectDecisionOption[], value: string): string 
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
+// Shared with the markdown parser tests; this pure helper has no refresh state.
+// eslint-disable-next-line react-refresh/only-export-components
 export function parseEmbeddedDecision(raw: string): EmbeddedDecision | null {
   try {
     const payload = JSON.parse(raw) as Partial<EmbeddedDecision>;
@@ -157,13 +161,14 @@ export function parseEmbeddedDecision(raw: string): EmbeddedDecision | null {
     const options = payload.options
       .map((option) => {
         if (typeof option !== "object" || option === null) return null;
+        const candidate = option as Record<string, unknown>;
         const value =
-          typeof option.value === "string"
-            ? option.value
-            : typeof option.id === "string"
-              ? option.id
+          typeof candidate.value === "string"
+            ? candidate.value
+            : typeof candidate.id === "string"
+              ? candidate.id
               : null;
-        const label = typeof option.label === "string" ? option.label : value;
+        const label = typeof candidate.label === "string" ? candidate.label : value;
         if (!value || !label) return null;
         return { value, label };
       })
