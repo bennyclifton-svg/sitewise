@@ -144,6 +144,107 @@ def test_map_line_item_cascade_escalates_only_none_of_these_to_t3() -> None:
     assert decision.allocations == (mapping.CellAllocation("19.01", 1.0),)
 
 
+def test_map_items_skips_duplicate_line_items(monkeypatch: Any) -> None:
+    """I3: reprint duplicates are not mapped; originals still are."""
+    import uuid
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from tender.models import TenderJob
+
+    quote_id = uuid.uuid4()
+    original = SimpleNamespace(
+        id=uuid.uuid4(),
+        quote_id=quote_id,
+        description_raw="Joinery",
+        section_path=("Interior",),
+        qty=None,
+        unit=None,
+        amount_cents=100000,
+        item_status="included",
+        embedding=None,
+        duplicate_of_id=None,
+        created_at=None,
+    )
+    reprint = SimpleNamespace(
+        id=uuid.uuid4(),
+        quote_id=quote_id,
+        description_raw="Joinery reprint",
+        section_path=("Summary",),
+        qty=None,
+        unit=None,
+        amount_cents=100000,
+        item_status="included",
+        embedding=None,
+        duplicate_of_id=original.id,
+        created_at=None,
+    )
+    mapped: list[str] = []
+
+    async def free_tier(
+        session: Any,
+        item: mapping.LineItemMappingInput,
+        **kwargs: Any,
+    ) -> mapping.FreeTierResult:
+        mapped.append(item.description_raw)
+        return mapping.FreeTierResult(
+            decision=mapping.MappingDecision(
+                tier="t0_exact",
+                allocations=(mapping.CellAllocation("13.01", 1.0),),
+                confidence=1.0,
+                qa_state="auto_pass",
+                adjudication={},
+            )
+        )
+
+    monkeypatch.setattr(
+        mapping, "_context_for_quote", AsyncMock(return_value=_context())
+    )
+    monkeypatch.setattr(mapping, "_existing_mappings", AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        mapping,
+        "load_active_cell_summaries",
+        AsyncMock(return_value=[mapping.TaxonomyCellSummary("13.01", "Joinery")]),
+    )
+    monkeypatch.setattr(mapping, "resolve_free_tier", free_tier)
+    monkeypatch.setattr(mapping, "_add_mapping_rows", lambda *a, **k: None)
+    monkeypatch.setattr(mapping, "_sweep_unmapped", AsyncMock())
+
+    class _Result:
+        def scalars(self):
+            return iter([original, reprint])
+
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=_Result())
+    session.get = AsyncMock(
+        return_value=SimpleNamespace(stage="map_items", comparison_id=uuid.uuid4())
+    )
+    session.flush = AsyncMock()
+
+    class _SessionCM:
+        async def __aenter__(self) -> object:
+            return object()
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    run_async(
+        mapping.map_items(
+            session,
+            TenderJob(
+                kind="map_items",
+                comparison_id=uuid.uuid4(),
+                quote_id=quote_id,
+                payload={},
+            ),
+            session_factory=lambda: _SessionCM(),
+            concurrency=2,
+        )
+    )
+
+    assert mapped == ["Joinery"]
+
+
 def test_mapping_protection_skips_human_confirmed_or_corrected_rows() -> None:
     assert mapping.has_protected_mapping([_mapping("human", "needs_review")])
     assert mapping.has_protected_mapping([_mapping("t1_embedding", "confirmed")])

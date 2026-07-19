@@ -204,6 +204,10 @@ def _session(line_items: list[Any]) -> AsyncMock:
         def scalars(self):
             return iter(line_items)
 
+        def all(self):
+            # Sweep query: nothing left unmapped in these unit fakes.
+            return []
+
     session = AsyncMock()
     session.execute = AsyncMock(return_value=_Result())
     session.get = AsyncMock(return_value=quote)
@@ -244,6 +248,7 @@ def _fake_line_item(
         amount_cents=100000,
         item_status="included",
         embedding=None,
+        duplicate_of_id=None,
     )
 
 

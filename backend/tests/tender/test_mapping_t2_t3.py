@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import uuid
+from types import SimpleNamespace
 from typing import Any
 
 from tender.llm.client import LLMAdjudicationResponse
+from tender.models import TenderMapping
 from tender.schemas import ProjectContext
 from tender.services import mapping
 from tests.conftest import run_async
@@ -116,6 +119,61 @@ def test_t2_low_confidence_marks_review_without_t3_escalation() -> None:
 
     assert decision.allocations == (mapping.CellAllocation("03.05", 1.0),)
     assert decision.qa_state == "needs_review"
+
+
+def test_add_mapping_rows_empty_allocations_falls_back_to_unallocated() -> None:
+    """I3: empty allocations must still produce a 99.01 mapping row."""
+    added: list[Any] = []
+    session = SimpleNamespace(add=lambda obj: added.append(obj))
+    line_item_id = uuid.uuid4()
+    decision = mapping.MappingDecision(
+        tier="t3_frontier",
+        allocations=(),
+        confidence=0.4,
+        qa_state="needs_review",
+        adjudication={
+            "error": "unknown_cell_code",
+            "unknown_cell_codes": ["XX.99"],
+            "rationale": "could not classify",
+        },
+    )
+
+    mapping._add_mapping_rows(session, line_item_id, decision)
+
+    assert len(added) == 1
+    row = added[0]
+    assert isinstance(row, TenderMapping)
+    assert row.line_item_id == line_item_id
+    assert row.cell_code == mapping.UNALLOCATED_CELL_CODE
+    assert float(row.allocation_fraction) == 1.0
+    assert row.qa_state == "needs_review"
+    assert row.tier == "t3_frontier"
+    assert row.adjudication["error"] == "unknown_cell_code"
+    assert row.adjudication["fallback"] == "unallocated"
+
+
+def test_sweep_unmapped_inserts_unallocated_fallback() -> None:
+    """I3 safety net: any remaining unmapped non-duplicate gets 99.01."""
+    unmapped_id = uuid.uuid4()
+    added: list[Any] = []
+
+    class _Session:
+        async def execute(self, statement: Any) -> Any:
+            return SimpleNamespace(all=lambda: [(unmapped_id,)])
+
+        def add(self, obj: Any) -> None:
+            added.append(obj)
+
+    run_async(mapping._sweep_unmapped(_Session(), uuid.uuid4()))
+
+    assert len(added) == 1
+    row = added[0]
+    assert row.cell_code == mapping.UNALLOCATED_CELL_CODE
+    assert row.line_item_id == unmapped_id
+    assert float(row.allocation_fraction) == 1.0
+    assert row.qa_state == "needs_review"
+    assert row.adjudication["fallback"] == "unallocated"
+    assert row.adjudication["reason"] == "sweep_unmapped"
 
 
 def test_t2_none_of_these_returns_escalation_decision() -> None:

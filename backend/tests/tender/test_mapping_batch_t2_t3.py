@@ -359,6 +359,7 @@ def _fake_line_item(
         amount_cents=100000,
         item_status="included",
         embedding=embedding,
+        duplicate_of_id=None,
     )
 
 
@@ -368,6 +369,9 @@ def _session(line_items: list[Any]) -> AsyncMock:
     class _Result:
         def scalars(self):
             return iter(line_items)
+
+        def all(self):
+            return []
 
     session = AsyncMock()
     session.execute = AsyncMock(return_value=_Result())

@@ -198,6 +198,9 @@ async def map_items(
     )
     prepared: list[tuple[uuid.UUID, LineItemMappingInput]] = []
     for line_item in result.scalars():
+        # I3: reprints are not mapped; counted originals carry the money.
+        if line_item.duplicate_of_id is not None:
+            continue
         existing = await _existing_mappings(session, line_item.id)
         if has_protected_mapping(existing):
             continue
@@ -220,6 +223,10 @@ async def map_items(
         for line_item_id, decision in decisions:
             _add_mapping_rows(session, line_item_id, decision)
         await session.flush()
+
+    # I3 safety net: every non-duplicate item must have ≥1 mapping row.
+    await _sweep_unmapped(session, job.quote_id)
+    await session.flush()
 
     quote = await session.get(TenderQuote, job.quote_id)
     if quote is not None:
@@ -1055,6 +1062,22 @@ def _line_item_from_model(line_item: TenderLineItem) -> LineItemMappingInput:
 def _add_mapping_rows(
     session: AsyncSession, line_item_id: uuid.UUID, decision: MappingDecision
 ) -> None:
+    if not decision.allocations:
+        # I3: never drop an item — park money in Unallocated for review.
+        adjudication = dict(decision.adjudication or {})
+        adjudication.setdefault("fallback", "unallocated")
+        session.add(
+            TenderMapping(
+                line_item_id=line_item_id,
+                cell_code=UNALLOCATED_CELL_CODE,
+                allocation_fraction=1.0,
+                tier=decision.tier,
+                confidence=decision.confidence,
+                adjudication=adjudication,
+                qa_state="needs_review",
+            )
+        )
+        return
     for allocation in decision.allocations:
         session.add(
             TenderMapping(
@@ -1065,6 +1088,34 @@ def _add_mapping_rows(
                 confidence=decision.confidence,
                 adjudication=decision.adjudication,
                 qa_state=decision.qa_state,
+            )
+        )
+
+
+async def _sweep_unmapped(session: AsyncSession, quote_id: uuid.UUID) -> None:
+    """Insert Unallocated rows for any non-duplicate items still without mappings (I3)."""
+    result = await session.execute(
+        select(TenderLineItem.id)
+        .outerjoin(TenderMapping, TenderMapping.line_item_id == TenderLineItem.id)
+        .where(
+            TenderLineItem.quote_id == quote_id,
+            TenderLineItem.duplicate_of_id.is_(None),
+            TenderMapping.id.is_(None),
+        )
+    )
+    for (line_item_id,) in result.all():
+        session.add(
+            TenderMapping(
+                line_item_id=line_item_id,
+                cell_code=UNALLOCATED_CELL_CODE,
+                allocation_fraction=1.0,
+                tier="t3_frontier",
+                confidence=None,
+                adjudication={
+                    "fallback": "unallocated",
+                    "reason": "sweep_unmapped",
+                },
+                qa_state="needs_review",
             )
         )
 
