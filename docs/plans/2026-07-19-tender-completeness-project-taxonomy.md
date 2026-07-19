@@ -491,7 +491,7 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 ### Phase 4 Definition of done
 - [ ] Fresh MERRICK re-run produces 20–60 trades in the matrix using project language (e.g. a "Joinery / cabinetry" row with Coastal ≈ $327k ex, Montique ≈ $314k ex, Toussaint $138k ex all aligned on it)
 - [ ] Zero-drop invariant still 0; column conservation still holds; QA mapping corrections work against trades
-- [ ] Mapping/grid/matrix/QA test files green
+- [x] Mapping/grid/matrix/QA test files green
 
 ---
 
