@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Cross-reference integrity for data/tender seeds. Run in CI."""
-import csv, sys, yaml
+
+import csv
+import sys
 from pathlib import Path
+
+import yaml
 
 HERE = Path(__file__).resolve().parent.parent
 BACKEND_DIR = HERE.parents[1] / "backend"
@@ -14,9 +18,16 @@ from tender.services.expectations import (  # noqa: E402
     PredicateValidationError,
     validate_predicate,
 )
+from tender.eval.golden import load_manifest, validate_release_corpus  # noqa: E402
 
 errors = []
 concepts = read_concepts(HERE / "concepts.yaml")
+
+golden_manifest = load_manifest(HERE / "golden" / "manifest.yaml")
+if not golden_manifest.documents:
+    errors.append("golden manifest must be non-empty")
+if "--golden-release-gate" in sys.argv:
+    errors.extend(validate_release_corpus(golden_manifest).errors)
 
 tax = yaml.safe_load(open(HERE / "taxonomy.yaml"))
 cells = tax["cells"]
@@ -30,7 +41,15 @@ for c in cells:
     for p in c.get("bp", []):
         if p not in codes:
             errors.append(f"orphan bundling parent {p} in {c['code']}")
-    if c.get("stage") not in {"prelim","base","lockup","fixing","completion","external","statutory"}:
+    if c.get("stage") not in {
+        "prelim",
+        "base",
+        "lockup",
+        "fixing",
+        "completion",
+        "external",
+        "statutory",
+    }:
         errors.append(f"bad stage in {c['code']}")
     if c.get("applicability"):
         try:
@@ -83,12 +102,22 @@ if missing:
 for b in bm:
     if b["p25"] and b["p50"] and b["p75"]:
         if not (float(b["p25"]) <= float(b["p50"]) <= float(b["p75"])):
-            errors.append(f"non-monotonic percentiles: {b['benchmark_key']}/{b['state']}")
+            errors.append(
+                f"non-monotonic percentiles: {b['benchmark_key']}/{b['state']}"
+            )
     if b["confidence"] not in ("low", "medium", "high"):
         errors.append(f"bad confidence: {b['benchmark_key']}")
 
 rl = yaml.safe_load(open(HERE / "report_language.yaml"))
-for s in ("excluded_explicit","silent_ambiguous","bundled","ps","pc","included","not_required"):
+for s in (
+    "excluded_explicit",
+    "silent_ambiguous",
+    "bundled",
+    "ps",
+    "pc",
+    "included",
+    "not_required",
+):
     if s not in rl["status_phrases"]:
         errors.append(f"missing status phrase: {s}")
 for flag_type in FLAG_TYPES:
@@ -108,7 +137,13 @@ for key in (
         errors.append(f"missing analysis note: {key}")
 
 if errors:
-    print("FAIL"); [print(" -", e) for e in errors]; sys.exit(1)
-print(f"OK: {len(cells)} cells | {len(exp)} rules | {len(syn)} synonyms "
-      f"({len(cells_without_syn)} uncovered cells) | {len(bm)} benchmark rows "
-      f"| taxonomy bk coverage complete")
+    print("FAIL")
+    for error in errors:
+        print(" -", error)
+    sys.exit(1)
+print(
+    f"OK: {len(cells)} cells | {len(exp)} rules | {len(syn)} synonyms "
+    f"({len(cells_without_syn)} uncovered cells) | {len(bm)} benchmark rows "
+    f"| {len(golden_manifest.documents)} golden documents "
+    f"| taxonomy bk coverage complete"
+)

@@ -28,7 +28,11 @@ from tender.models import (
     TenderReport,
 )
 from tender.schemas import MatrixQuoteTotal
-from tender.services import qa
+from tender.eval.release_gate import (
+    CustomerQualityGateError as CustomerQualityGateError,
+    assert_customer_release_approved,
+)
+from tender.services import qa, telemetry
 from tender.services.artefact_publisher import tender_artefact_publisher
 from tender.services.totals import compute_quote_totals
 
@@ -152,11 +156,12 @@ async def assemble_report_draft(session: AsyncSession, job: TenderJob) -> None:
     comparison = await session.get(TenderComparison, job.comparison_id)
     if comparison is None:
         raise ReportLifecycleError(f"unknown comparison: {job.comparison_id}")
-    await build_report_draft(
+    result = await build_report_draft(
         session,
         comparison_id=job.comparison_id,
         user_id=comparison.created_by,
     )
+    telemetry.record_resource_ids(report_id=result.report_id)
 
 
 async def build_report_draft(
@@ -216,6 +221,7 @@ async def approve_report(
     comparison_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> ReportLifecycleResult:
+    assert_customer_release_approved()
     comparison = await _comparison(session, comparison_id)
     project = await _project(session, comparison.project_id)
     report = await _required_latest_report(session, comparison_id=comparison_id)
@@ -262,6 +268,7 @@ async def mark_report_delivered(
     comparison_id: uuid.UUID,
     delivery_note: str | None,
 ) -> ReportLifecycleResult:
+    assert_customer_release_approved()
     comparison = await _comparison(session, comparison_id)
     report = await _required_latest_report(session, comparison_id=comparison_id)
     report.delivered_at = datetime.now(timezone.utc)
@@ -415,14 +422,14 @@ def render_draft_markdown(
         _totals_markdown(view, labels),
         "",
         f"## {section_titles['comparison_matrix']}",
-        _matrix_markdown(view),
+        _matrix_markdown(view, labels),
         "",
         f"## {section_titles['allowances']}",
         _allowances_markdown(view, labels),
         "",
         f"## {section_titles['risk_notes']}",
         _narrative_block("risk_notes_intro", narratives),
-        _flags_markdown(view),
+        _flags_markdown(view, labels),
         "",
         f"## {section_titles['methodology']}",
         str(language_value(language, "report.legal.disclaimer")),
@@ -521,7 +528,7 @@ def report_view(
         "flags": [
             {
                 "builder_name": flag.builder_name,
-                "headline": flag.headline,
+                "cell_name": flag.cell_name,
                 "phrase": language_value(
                     language,
                     f"flag_phrases.{flag.flag_type}",
@@ -695,9 +702,13 @@ def _allowances_markdown(view: Mapping[str, Any], labels: Mapping[str, str]) -> 
     return "\n".join(rows)
 
 
-def _matrix_markdown(view: Mapping[str, Any]) -> str:
+def _matrix_markdown(view: Mapping[str, Any], labels: Mapping[str, str]) -> str:
     quotes = view["quotes"]
-    header = "| Item | " + " | ".join(quote["builder_name"] for quote in quotes) + " |"
+    header = (
+        f"| {labels['item']} | "
+        + " | ".join(quote["builder_name"] for quote in quotes)
+        + " |"
+    )
     separator = "| --- | " + " | ".join("---" for _ in quotes) + " |"
     rows = [header, separator]
     for cell in view["matrix"]:
@@ -709,12 +720,17 @@ def _matrix_markdown(view: Mapping[str, Any]) -> str:
     return "\n".join(rows)
 
 
-def _flags_markdown(view: Mapping[str, Any]) -> str:
+def _flags_markdown(view: Mapping[str, Any], labels: Mapping[str, str]) -> str:
     if not view["flags"]:
         return ""
-    rows = ["| Builder | Flag |", "| --- | --- |"]
+    rows = [
+        f"| {labels['builder']} | {labels['item']} | {labels['flag']} |",
+        "| --- | --- | --- |",
+    ]
     for flag in view["flags"]:
-        rows.append(f"| {flag['builder_name']} | {flag['headline']} |")
+        rows.append(
+            f"| {flag['builder_name']} | {flag['cell_name']} | {flag['phrase']} |"
+        )
     return "\n".join(rows)
 
 

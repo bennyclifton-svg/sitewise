@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from tender.eval.golden import DEFAULT_MANIFEST_PATH, load_manifest
+from tender.eval.golden import (
+    DEFAULT_MANIFEST_PATH,
+    load_manifest,
+    validate_release_corpus,
+)
 
 
 def test_repo_manifest_loads() -> None:
@@ -15,6 +19,19 @@ def test_repo_manifest_loads() -> None:
         "nexusbuilt",
     }
     assert manifest.targets["real_documents_min"] == 30
+
+
+def test_repo_manifest_reports_release_gate_gaps_without_claiming_approval() -> None:
+    report = validate_release_corpus(load_manifest(DEFAULT_MANIFEST_PATH))
+
+    assert report.ready is False
+    assert "requires at least 30 real documents; found 3" in report.errors
+    assert (
+        "requires at least 20 synthetic adversarial documents; found 0" in report.errors
+    )
+    assert any("not anonymised" in error for error in report.errors)
+    assert any("protected storage_path" in error for error in report.errors)
+    assert "corpus access review is not approved" in report.errors
 
 
 def test_manifest_loads_annotation_file(tmp_path: Path) -> None:
@@ -85,4 +102,3 @@ documents:
 
     with pytest.raises(ValueError, match="missing an annotation path"):
         load_manifest(manifest_path)
-

@@ -15,6 +15,19 @@ GoldenDifficulty = Literal["easy", "medium", "hard"]
 
 SOURCE_VALUES = {"real", "synthetic"}
 DIFFICULTY_VALUES = {"easy", "medium", "hard"}
+SUPPORTED_STATES = {"NSW", "VIC", "QLD"}
+SUPPORTED_BUILD_TYPES = {"new_build", "renovation", "addition"}
+ADVERSARIAL_CASES = {
+    "ocr_noise",
+    "duplicate",
+    "addendum",
+    "missing_scope",
+    "conflicting_totals",
+    "allowances",
+    "alternates",
+    "gst",
+    "exclusions",
+}
 
 
 @dataclass(frozen=True)
@@ -63,6 +76,17 @@ class GoldenManifest:
     version: int
     targets: dict[str, Any]
     documents: tuple[GoldenDocument, ...]
+    access_review: dict[str, Any] = field(default_factory=dict)
+    redaction_review: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CorpusValidationReport:
+    errors: tuple[str, ...]
+
+    @property
+    def ready(self) -> bool:
+        return not self.errors
 
 
 def load_manifest(path: Path = DEFAULT_MANIFEST_PATH) -> GoldenManifest:
@@ -79,7 +103,119 @@ def load_manifest(path: Path = DEFAULT_MANIFEST_PATH) -> GoldenManifest:
         version=int(meta.get("version", 1)),
         targets=dict(_mapping(meta.get("targets", {}), "meta.targets")),
         documents=tuple(_parse_document(raw, base_dir) for raw in documents),
+        access_review=dict(
+            _mapping(meta.get("access_review", {}), "meta.access_review")
+        ),
+        redaction_review=dict(
+            _mapping(meta.get("redaction_review", {}), "meta.redaction_review")
+        ),
     )
+
+
+def validate_release_corpus(manifest: GoldenManifest) -> CorpusValidationReport:
+    errors: list[str] = []
+    real = [document for document in manifest.documents if document.source == "real"]
+    synthetic = [
+        document for document in manifest.documents if document.source == "synthetic"
+    ]
+    real_min = int(manifest.targets.get("real_documents_min", 30))
+    synthetic_min = int(manifest.targets.get("synthetic_documents_min", 20))
+    if len(real) < real_min:
+        errors.append(f"requires at least {real_min} real documents; found {len(real)}")
+    if len(synthetic) < synthetic_min:
+        errors.append(
+            f"requires at least {synthetic_min} synthetic adversarial documents; "
+            f"found {len(synthetic)}"
+        )
+    if manifest.documents and len(synthetic) / len(manifest.documents) > 0.5:
+        errors.append("synthetic documents exceed 50% of the release corpus")
+
+    identifiers = [document.id for document in manifest.documents]
+    if len(identifiers) != len(set(identifiers)):
+        errors.append("golden document IDs must be unique")
+
+    for document in manifest.documents:
+        if document.source == "real":
+            if document.doc_meta.get("anonymised") is not True:
+                errors.append(f"real document {document.id} is not anonymised")
+            if not _approved(document.doc_meta.get("consent")):
+                errors.append(
+                    f"real document {document.id} has no approved consent record"
+                )
+            if not document.storage_path or not document.storage_path.startswith(
+                "protected://"
+            ):
+                errors.append(
+                    f"real document {document.id} has no protected storage_path"
+                )
+        if not document.doc_meta.get("provenance"):
+            errors.append(f"document {document.id} has no provenance record")
+        if not document.doc_meta.get("retention"):
+            errors.append(f"document {document.id} has no retention record")
+
+    states = {str(document.doc_meta.get("state")) for document in real}
+    missing_states = SUPPORTED_STATES - states
+    if missing_states:
+        errors.append(
+            f"real corpus is missing states: {', '.join(sorted(missing_states))}"
+        )
+    build_types = {str(document.doc_meta.get("build_type")) for document in real}
+    missing_build_types = SUPPORTED_BUILD_TYPES - build_types
+    if missing_build_types:
+        errors.append(
+            "real corpus is missing build types: "
+            + ", ".join(sorted(missing_build_types))
+        )
+    difficulties = {document.difficulty for document in manifest.documents}
+    if difficulties != DIFFICULTY_VALUES:
+        errors.append("corpus must cover easy, medium, and hard difficulty levels")
+    formats = {
+        str(document.doc_meta.get("format"))
+        for document in manifest.documents
+        if document.doc_meta.get("format")
+    }
+    if len(formats) < 2:
+        errors.append("corpus must cover at least two document formats")
+
+    adversarial = {
+        str(tag)
+        for document in synthetic
+        for tag in document.doc_meta.get("adversarial_tags", [])
+    }
+    missing_adversarial = ADVERSARIAL_CASES - adversarial
+    if missing_adversarial:
+        errors.append(
+            "synthetic corpus is missing adversarial cases: "
+            + ", ".join(sorted(missing_adversarial))
+        )
+
+    line_items = [
+        item
+        for document in manifest.documents
+        for item in document.annotation.line_items
+    ]
+    statuses = {
+        _release_silence_status(status.status)
+        for document in manifest.documents
+        for status in document.annotation.cell_status
+    }
+    if not any(item.amount_cents is not None for item in line_items):
+        errors.append("corpus has no amount exact-match ground truth")
+    if not any(item.item_status for item in line_items):
+        errors.append("corpus has no line-item status ground truth")
+    if not any(item.mappings for item in line_items):
+        errors.append("corpus has no mapping ground truth")
+    silence_classes = {"excluded", "bundled", "ps_covered", "not_required", "ambiguous"}
+    missing_silence = silence_classes - statuses
+    if missing_silence:
+        errors.append(
+            "corpus is missing silence classes: " + ", ".join(sorted(missing_silence))
+        )
+    if not _approved(manifest.access_review):
+        errors.append("corpus access review is not approved")
+    if not _approved(manifest.redaction_review):
+        errors.append("corpus redaction review is not approved")
+    return CorpusValidationReport(errors=tuple(errors))
 
 
 def _parse_document(raw: Any, base_dir: Path) -> GoldenDocument:
@@ -211,3 +347,16 @@ def _read_yaml(path: Path) -> Mapping[str, Any]:
         raise ValueError(f"{path} must contain a YAML mapping")
     return data
 
+
+def _approved(value: Any) -> bool:
+    if value is True or value == "approved":
+        return True
+    return isinstance(value, Mapping) and value.get("status") == "approved"
+
+
+def _release_silence_status(value: str) -> str:
+    return {
+        "excluded_explicit": "excluded",
+        "silent_ambiguous": "ambiguous",
+        "ps": "ps_covered",
+    }.get(value, value)

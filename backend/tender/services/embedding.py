@@ -42,7 +42,11 @@ class OpenAIEmbeddingClient:
             input=texts,
             dimensions=settings.tender_embedding_dimensions,
         )
-        note_openai_response(response)
+        note_openai_response(
+            response,
+            model=model,
+            prompt_version="embedding:v1",
+        )
         return [list(item.embedding) for item in response.data]
 
 

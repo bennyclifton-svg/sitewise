@@ -50,7 +50,11 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
-        note_openai_response(response)
+        note_openai_response(
+            response,
+            model=self.model,
+            prompt_version=PROMPT_VERSION,
+        )
         return LLMExtractionResponse(
             data=json.loads(_response_text(response)),
             model=self.model,
@@ -86,7 +90,11 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
-        note_openai_response(response)
+        note_openai_response(
+            response,
+            model=model,
+            prompt_version=prompt_version,
+        )
         data = json.loads(_response_text(response))
         choice = str(data["choice"])
         if choice not in choices:
@@ -139,7 +147,11 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
-        note_openai_response(response)
+        note_openai_response(
+            response,
+            model=model,
+            prompt_version=prompt_version,
+        )
         data = json.loads(_response_text(response))
         decisions = data.get("decisions")
         if not isinstance(decisions, list):

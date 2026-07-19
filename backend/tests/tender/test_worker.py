@@ -75,8 +75,12 @@ def test_run_once_dispatches_by_kind_and_completes(mock_session: AsyncMock) -> N
             input_tokens=0,
             output_tokens=0,
             cache_hits=0,
-            metadata=None,
+            metadata=ANY,
         )
+        assert mock_timing.await_args.kwargs["metadata"]["correlation"] == {
+            "comparison_id": str(job.comparison_id),
+            "job_id": str(job.id),
+        }
         mock_complete.assert_awaited_once_with(mock_session, job)
 
     run_async(_run())

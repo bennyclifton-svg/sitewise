@@ -45,11 +45,21 @@ class StageUsage:
         input_tokens: int = 0,
         output_tokens: int = 0,
         cache_hits: int = 0,
+        model: str | None = None,
+        prompt_version: str | None = None,
+        request_id: str | None = None,
+        retries: int = 0,
     ) -> None:
         self.llm_calls += 1
         self.input_tokens += max(0, input_tokens)
         self.output_tokens += max(0, output_tokens)
         self.cache_hits += max(0, cache_hits)
+        _append_unique(self.metadata, "models", model)
+        _append_unique(self.metadata, "prompt_versions", prompt_version)
+        _append_unique(self.metadata, "request_ids", request_id)
+        self.metadata["llm_retries"] = int(self.metadata.get("llm_retries", 0)) + max(
+            0, retries
+        )
 
     def merge_metadata(self, values: dict[str, Any]) -> None:
         self.metadata.update(values)
@@ -101,6 +111,10 @@ def record_llm_usage(
     input_tokens: int = 0,
     output_tokens: int = 0,
     cache_hits: int = 0,
+    model: str | None = None,
+    prompt_version: str | None = None,
+    request_id: str | None = None,
+    retries: int = 0,
 ) -> None:
     usage = current_stage_usage()
     if usage is None:
@@ -109,6 +123,10 @@ def record_llm_usage(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         cache_hits=cache_hits,
+        model=model,
+        prompt_version=prompt_version,
+        request_id=request_id,
+        retries=retries,
     )
 
 
@@ -117,6 +135,16 @@ def record_mapping_tier(tier: str, *, duration_ms: int) -> None:
     if usage is None:
         return
     usage.record_mapping_tier(tier, duration_ms=duration_ms)
+
+
+def record_resource_ids(**resource_ids: Any) -> None:
+    usage = current_stage_usage()
+    if usage is None:
+        return
+    correlation = usage.metadata.setdefault("correlation", {})
+    for key, value in resource_ids.items():
+        if value is not None:
+            correlation[key] = str(value)
 
 
 def usage_from_openai_response(response: Any) -> tuple[int, int, int]:
@@ -135,12 +163,21 @@ def usage_from_openai_response(response: Any) -> tuple[int, int, int]:
     return input_tokens, output_tokens, cache_hits
 
 
-def note_openai_response(response: Any) -> None:
+def note_openai_response(
+    response: Any,
+    *,
+    model: str,
+    prompt_version: str,
+) -> None:
     input_tokens, output_tokens, cache_hits = usage_from_openai_response(response)
     record_llm_usage(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         cache_hits=cache_hits,
+        model=model,
+        prompt_version=prompt_version,
+        request_id=_optional_text(getattr(response, "id", None)),
+        retries=_openai_retry_count(response),
     )
 
 
@@ -294,3 +331,40 @@ def _usage_int(usage: Any, *keys: str) -> int:
         except (TypeError, ValueError):
             continue
     return 0
+
+
+def _append_unique(metadata: dict[str, Any], key: str, value: str | None) -> None:
+    if not value:
+        return
+    values = metadata.setdefault(key, [])
+    if value not in values:
+        values.append(value)
+
+
+def _openai_retry_count(response: Any) -> int:
+    for key in ("retries", "_retry_count"):
+        value = getattr(response, key, None)
+        if value is not None:
+            try:
+                return max(0, int(value))
+            except (TypeError, ValueError):
+                pass
+
+    http_response = getattr(response, "http_response", None)
+    headers = getattr(http_response, "headers", None)
+    if headers is not None:
+        for key in ("x-stainless-retry-count", "x-request-retry-count"):
+            value = headers.get(key)
+            if value is not None:
+                try:
+                    return max(0, int(value))
+                except (TypeError, ValueError):
+                    pass
+    return 0
+
+
+def _optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    return text or None

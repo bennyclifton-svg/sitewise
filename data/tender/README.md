@@ -18,6 +18,16 @@ QS red-pen pass on taxonomy completeness, statutory rules (NSW HBCF / VIC
 DBI / QLD QBCC names + current thresholds), and benchmark sanity. Record
 outcomes as edits to these files with reviewer named in provenance.
 
+The machine-readable release decision is `evaluation_release.yaml`. Report
+approval and delivery fail closed until it records a passing protected-corpus
+evaluation, a named/date-stamped QS approval, evidence report paths, and the
+exact frozen prompt/model/taxonomy/report-language versions. Check the complete
+corpus gate with:
+
+```bash
+python data/tender/tools/validate.py --golden-release-gate
+```
+
 ## Conventions (loader contract)
 
 - taxonomy.yaml `meta.defaults` apply to any omitted cell field.
