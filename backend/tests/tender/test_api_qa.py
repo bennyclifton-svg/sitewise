@@ -18,6 +18,7 @@ from tender.models import (
     TenderCorrection,
     TenderLineItem,
     TenderMapping,
+    TenderProjectTrade,
 )
 from tender.schemas import QAResolveRequest, QAReviewItem
 from tender.services import qa
@@ -171,6 +172,83 @@ def test_resolve_mapping_correction_inserts_taxonomy_synonym() -> None:
     assert synonym.source == "correction"
 
 
+def test_resolve_mapping_correction_accepts_project_trade_id() -> None:
+    trade_id = uuid.uuid4()
+    session = FakeQASession(
+        mapping=True,
+        trade=TenderProjectTrade(
+            id=trade_id,
+            comparison_id=COMPARISON_ID,
+            code="PT.JOINERY",
+            name="Joinery / cabinetry",
+            sort_order=1,
+            source="generated",
+            anchor_cell_codes=["08.01"],
+            seed_assignments=[],
+        ),
+    )
+
+    result = run_async(
+        qa.resolve_qa_item(
+            session,
+            item_id=session.mapping.id,
+            reviewer_id=USER_ID,
+            request=QAResolveRequest(
+                action="correct",
+                corrected_value={"project_trade_id": str(trade_id)},
+                reason="Reassign to project trade",
+            ),
+        )
+    )
+
+    correction = _only_added(session, TenderCorrection)
+    synonym = _only_added(session, TaxonomySynonym)
+    assert result.entity_type == "mapping"
+    assert result.qa_state == "corrected"
+    assert session.mapping.project_trade_id == trade_id
+    assert session.mapping.cell_code is None
+    assert correction.field == "project_trade_id"
+    assert synonym.cell_code == "08.01"
+
+
+def test_resolve_mapping_correction_prefers_project_trade_id_over_cell_code() -> None:
+    trade_id = uuid.uuid4()
+    session = FakeQASession(
+        mapping=True,
+        trade=TenderProjectTrade(
+            id=trade_id,
+            comparison_id=COMPARISON_ID,
+            code="PT.JOINERY",
+            name="Joinery / cabinetry",
+            sort_order=1,
+            source="generated",
+            anchor_cell_codes=["08.01"],
+            seed_assignments=[],
+        ),
+    )
+
+    run_async(
+        qa.resolve_qa_item(
+            session,
+            item_id=session.mapping.id,
+            reviewer_id=USER_ID,
+            request=QAResolveRequest(
+                action="correct",
+                corrected_value={
+                    "project_trade_id": str(trade_id),
+                    "cell_code": "03.05",
+                },
+                reason="Trade wins",
+            ),
+        )
+    )
+
+    assert session.mapping.project_trade_id == trade_id
+    assert session.mapping.cell_code is None
+    synonym = _only_added(session, TaxonomySynonym)
+    assert synonym.cell_code == "08.01"
+
+
 def test_report_guard_rejects_pending_review_items() -> None:
     session = FakePendingReviewSession(has_pending=True)
 
@@ -226,10 +304,35 @@ def test_mapping_review_item_payload_includes_quote_id() -> None:
 
     assert item.payload["quote_id"] == str(session.line_item.quote_id)
     assert item.payload["cell_code"] == "03.01"
+    assert item.payload["project_trade_id"] is None
+
+
+def test_mapping_review_item_payload_includes_project_trade_id() -> None:
+    trade_id = uuid.uuid4()
+    session = FakeQASession(mapping=True)
+    session.mapping.cell_code = None
+    session.mapping.project_trade_id = trade_id
+    row = {
+        "item_id": session.mapping.id,
+        "entity_type": "mapping",
+        "report_impact_cents": 500_000,
+        "confidence": 0.58,
+    }
+
+    item = run_async(qa._review_item_from_row(session, row))
+
+    assert item.payload["project_trade_id"] == str(trade_id)
+    assert item.payload["cell_code"] is None
 
 
 class FakeQASession:
-    def __init__(self, *, cell_status: bool = False, mapping: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        cell_status: bool = False,
+        mapping: bool = False,
+        trade: TenderProjectTrade | None = None,
+    ) -> None:
         self.cell_status = TenderCellStatus(
             id=ITEM_ID,
             comparison_id=COMPARISON_ID,
@@ -246,6 +349,7 @@ class FakeQASession:
             id=ITEM_ID,
             line_item_id=uuid.uuid4(),
             cell_code="03.01",
+            project_trade_id=None,
             tier="t1_embedding",
             confidence=0.58,
             qa_state="needs_review",
@@ -259,6 +363,7 @@ class FakeQASession:
             item_status="included",
             amount_cents=500_000,
         )
+        self.trade = trade
         self.include_cell_status = cell_status
         self.include_mapping = mapping
         self.added: list[Any] = []
@@ -270,6 +375,8 @@ class FakeQASession:
             return self.mapping
         if model is TenderLineItem and ident == self.line_item.id:
             return self.line_item
+        if model is TenderProjectTrade and self.trade is not None and ident == self.trade.id:
+            return self.trade
         return None
 
     async def execute(self, statement: Any) -> "FakeResult":

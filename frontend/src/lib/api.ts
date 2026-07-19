@@ -39,6 +39,7 @@ import type {
   TenderReportState,
   TenderTaxonomyCell,
   TenderTaxonomySearchResult,
+  TenderProjectTradesResponse,
   QuoteLedgerResponse,
   TenderCellItemsResponse,
 } from "@/lib/types/tender";
@@ -432,6 +433,13 @@ export const api = {
 
   getTenderMatrix: async (comparisonId: string): Promise<TenderMatrixResponse> =>
     api.get<TenderMatrixResponse>(`/api/tender/comparisons/${comparisonId}/matrix`),
+
+  getTenderTrades: async (
+    comparisonId: string,
+  ): Promise<TenderProjectTradesResponse> =>
+    api.get<TenderProjectTradesResponse>(
+      `/api/tender/comparisons/${comparisonId}/trades`,
+    ),
 
   getTenderQuoteLedger: async (
     comparisonId: string,

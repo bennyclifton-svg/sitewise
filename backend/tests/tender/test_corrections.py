@@ -4,7 +4,13 @@ import uuid
 from types import SimpleNamespace
 from typing import Any
 
-from tender.models import TaxonomySynonym, TenderCorrection, TenderLineItem, TenderMapping
+from tender.models import (
+    TaxonomySynonym,
+    TenderCorrection,
+    TenderLineItem,
+    TenderMapping,
+    TenderProjectTrade,
+)
 from tender.services.corrections import record_mapping_correction
 from tender.services.mapping import t0_match
 from tests.conftest import run_async
@@ -30,16 +36,19 @@ def test_record_mapping_correction_updates_mapping_and_writes_correction() -> No
     assert correction.field == "cell_code"
     assert correction.before == {
         "cell_code": "03.01",
+        "project_trade_id": None,
         "tier": "t1_embedding",
         "qa_state": "needs_review",
     }
     assert correction.after == {
         "cell_code": "03.05",
+        "project_trade_id": None,
         "tier": "human",
         "qa_state": "corrected",
     }
     assert correction.reviewer == reviewer_id
     assert session.mapping.cell_code == "03.05"
+    assert session.mapping.project_trade_id is None
     assert session.mapping.tier == "human"
     assert session.mapping.qa_state == "corrected"
     assert session.mapping.reviewed_by == reviewer_id
@@ -113,12 +122,146 @@ def test_correction_synonym_can_be_picked_up_by_t0_next_run() -> None:
     assert result[0].via == "exact"
 
 
+def test_record_mapping_correction_trade_path_sets_trade_and_clears_cell() -> None:
+    reviewer_id = uuid.uuid4()
+    trade_id = uuid.uuid4()
+    session = FakeCorrectionSession(
+        trade=TenderProjectTrade(
+            id=trade_id,
+            comparison_id=uuid.uuid4(),
+            code="PT.JOINERY",
+            name="Joinery / cabinetry",
+            sort_order=1,
+            source="generated",
+            anchor_cell_codes=["08.01"],
+            seed_assignments=[],
+        )
+    )
+
+    run_async(
+        record_mapping_correction(
+            session,
+            mapping_id=session.mapping.id,
+            corrected_project_trade_id=trade_id,
+            reviewer_id=reviewer_id,
+            reason="Reassign to joinery trade",
+        )
+    )
+
+    correction = _only_added(session, TenderCorrection)
+    assert correction.field == "project_trade_id"
+    assert correction.after == {
+        "cell_code": None,
+        "project_trade_id": str(trade_id),
+        "tier": "human",
+        "qa_state": "corrected",
+    }
+    assert session.mapping.project_trade_id == trade_id
+    assert session.mapping.cell_code is None
+    assert session.mapping.tier == "human"
+    assert session.mapping.qa_state == "corrected"
+
+
+def test_record_mapping_correction_trade_single_anchor_upserts_synonym() -> None:
+    trade_id = uuid.uuid4()
+    session = FakeCorrectionSession(
+        trade=TenderProjectTrade(
+            id=trade_id,
+            comparison_id=uuid.uuid4(),
+            code="PT.JOINERY",
+            name="Joinery / cabinetry",
+            sort_order=1,
+            source="generated",
+            anchor_cell_codes=["08.01"],
+            seed_assignments=[],
+        )
+    )
+
+    run_async(
+        record_mapping_correction(
+            session,
+            mapping_id=session.mapping.id,
+            corrected_project_trade_id=trade_id,
+            reviewer_id=uuid.uuid4(),
+            reason=None,
+        )
+    )
+
+    synonym = _only_added(session, TaxonomySynonym)
+    assert synonym.cell_code == "08.01"
+    assert synonym.phrase_norm == "retaining wall allowance"
+    assert synonym.source == "correction"
+
+
+def test_record_mapping_correction_trade_skips_synonym_when_zero_anchors() -> None:
+    trade_id = uuid.uuid4()
+    session = FakeCorrectionSession(
+        trade=TenderProjectTrade(
+            id=trade_id,
+            comparison_id=uuid.uuid4(),
+            code="PT.UNALLOC",
+            name="Unallocated",
+            sort_order=10_000,
+            source="reserved",
+            anchor_cell_codes=[],
+            seed_assignments=[],
+        )
+    )
+
+    run_async(
+        record_mapping_correction(
+            session,
+            mapping_id=session.mapping.id,
+            corrected_project_trade_id=trade_id,
+            reviewer_id=uuid.uuid4(),
+            reason=None,
+        )
+    )
+
+    assert session.mapping.project_trade_id == trade_id
+    assert not [obj for obj in session.added if isinstance(obj, TaxonomySynonym)]
+
+
+def test_record_mapping_correction_trade_skips_synonym_when_multi_anchor() -> None:
+    trade_id = uuid.uuid4()
+    session = FakeCorrectionSession(
+        trade=TenderProjectTrade(
+            id=trade_id,
+            comparison_id=uuid.uuid4(),
+            code="PT.STRUCT",
+            name="Structure",
+            sort_order=2,
+            source="generated",
+            anchor_cell_codes=["03.01", "03.05"],
+            seed_assignments=[],
+        )
+    )
+
+    run_async(
+        record_mapping_correction(
+            session,
+            mapping_id=session.mapping.id,
+            corrected_project_trade_id=trade_id,
+            reviewer_id=uuid.uuid4(),
+            reason=None,
+        )
+    )
+
+    assert session.mapping.project_trade_id == trade_id
+    assert not [obj for obj in session.added if isinstance(obj, TaxonomySynonym)]
+
+
 class FakeCorrectionSession:
-    def __init__(self, existing_synonym: TaxonomySynonym | None = None) -> None:
+    def __init__(
+        self,
+        existing_synonym: TaxonomySynonym | None = None,
+        trade: TenderProjectTrade | None = None,
+    ) -> None:
         self.mapping = TenderMapping(
             id=uuid.uuid4(),
             line_item_id=uuid.uuid4(),
             cell_code="03.01",
+            project_trade_id=None,
             tier="t1_embedding",
             qa_state="needs_review",
             confidence=0.82,
@@ -132,6 +275,7 @@ class FakeCorrectionSession:
             item_status="included",
         )
         self.existing_synonym = existing_synonym
+        self.trade = trade
         self.added: list[Any] = []
 
     async def get(self, model: type, ident: uuid.UUID) -> object | None:
@@ -139,6 +283,12 @@ class FakeCorrectionSession:
             return self.mapping
         if model is TenderLineItem and ident == self.line_item.id:
             return self.line_item
+        if (
+            model is TenderProjectTrade
+            and self.trade is not None
+            and ident == self.trade.id
+        ):
+            return self.trade
         return None
 
     async def execute(self, statement: Any) -> "FakeResult":

@@ -13,6 +13,8 @@ from app.auth.dependencies import CurrentUser, get_current_user
 from app.database.session import get_db
 from app.main import fastapi_app as app
 from tender.schemas import (
+    CellItemsResponse,
+    CellLineItem,
     MatrixCell,
     MatrixGroup,
     MatrixQuoteCell,
@@ -217,6 +219,130 @@ def test_build_matrix_computes_totals_with_reconciliation() -> None:
     assert second.reconciliation == "not_stated"
 
 
+def test_build_matrix_uses_project_trades_when_present() -> None:
+    trade_joinery = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    trade_unalloc = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    session = FakeMatrixSession(
+        status_rows=[
+            FakeRow(
+                quote_id=QUOTE_ID,
+                cell_code=None,
+                project_trade_id=trade_joinery,
+                status="included",
+                amount_cents=327_000_00,
+                cell_name="Joinery / cabinetry",
+                group_name="Finishes",
+                sort_order=1,
+                trade_code="PT.01",
+            ),
+            FakeRow(
+                quote_id=QUOTE_ID,
+                cell_code=None,
+                project_trade_id=trade_unalloc,
+                status="included",
+                amount_cents=5_000_00,
+                cell_name="Unallocated / uncategorised",
+                group_name="Unallocated",
+                sort_order=10_000,
+                trade_code="PT.UNALLOC",
+            ),
+        ],
+        flag_rows=[],
+        mapping_rows=[],
+        trade_rows=[
+            FakeRow(
+                id=trade_joinery,
+                code="PT.01",
+                name="Joinery / cabinetry",
+                group_label="Finishes",
+                sort_order=1,
+            ),
+            FakeRow(
+                id=trade_unalloc,
+                code="PT.UNALLOC",
+                name="Unallocated / uncategorised",
+                group_label="Unallocated",
+                sort_order=10_000,
+            ),
+        ],
+        quote_rows=[
+            FakeRow(
+                id=QUOTE_ID,
+                stated_total_cents=332_000_00,
+                stated_total_source="extracted",
+                contract_type="lump_sum",
+            ),
+        ],
+        recon_rows=[
+            FakeRow(
+                quote_id=QUOTE_ID,
+                computed_ex_gst_cents=332_000_00,
+                residual_cents=0,
+                status="reconciled",
+            ),
+        ],
+    )
+
+    response = run_async(matrix.build_matrix(session, comparison_id=COMPARISON_ID))
+
+    assert [group.name for group in response.groups] == ["Finishes", "Unallocated"]
+    joinery = response.groups[0].cells[0]
+    assert joinery.code == "PT.01"
+    assert joinery.name == "Joinery / cabinetry"
+    assert joinery.project_trade_id == trade_joinery
+    assert joinery.quotes[str(QUOTE_ID)].amount_cents == 327_000_00
+    unalloc = response.groups[1].cells[0]
+    assert unalloc.code == "PT.UNALLOC"
+    assert unalloc.project_trade_id == trade_unalloc
+    assert response.totals[0].unallocated_cents == 5_000_00
+
+
+def test_trade_items_endpoint_returns_allocations(
+    client: TestClient,
+) -> None:
+    trade_id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    item_a = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+    trade_items = CellItemsResponse(
+        cell_code="PT.01",
+        name="Joinery / cabinetry",
+        quote_id=QUOTE_ID,
+        project_trade_id=trade_id,
+        items=[
+            CellLineItem(
+                line_item_id=item_a,
+                description_raw="Kitchen cabinets",
+                page_no=4,
+                role="contract_component",
+                allocation_fraction=1.0,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="taxonomy_seed",
+                qa_state="auto_pass",
+            ),
+        ],
+        sum_ex_gst_cents=100_00,
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.ledger.build_trade_items",
+            new=AsyncMock(return_value=trade_items),
+        ),
+    ):
+        response = client.get(
+            f"/api/tender/comparisons/{COMPARISON_ID}/trades/{trade_id}/items",
+            params={"quote_id": str(QUOTE_ID)},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cell_code"] == "PT.01"
+    assert payload["project_trade_id"] == str(trade_id)
+    assert payload["sum_ex_gst_cents"] == 100_00
+    assert len(payload["items"]) == 1
+
+
 def test_trades_endpoint_returns_ordered_trades_with_unalloc(
     client: TestClient,
 ) -> None:
@@ -317,25 +443,52 @@ class FakeMatrixSession:
         mapping_rows: list[FakeRow],
         quote_rows: list[FakeRow] | None = None,
         recon_rows: list[FakeRow] | None = None,
+        trade_rows: list[FakeRow] | None = None,
     ) -> None:
-        # build_matrix: statuses, flags, mappings; load_quote_totals: quotes, recons, cells
-        self.results = [
-            FakeResult(status_rows),
-            FakeResult(flag_rows),
-            FakeResult(mapping_rows),
-            FakeResult(quote_rows or []),
-            FakeResult(recon_rows or []),
-            FakeResult(
-                [
-                    FakeRow(
-                        quote_id=row.quote_id,
-                        cell_code=row.cell_code,
-                        amount_cents=row.amount_cents,
-                    )
-                    for row in status_rows
-                ]
-            ),
-        ]
+        # build_matrix: trades probe, then either trade path or legacy cell path;
+        # load_quote_totals: quotes, recons, cells(+trade code).
+        self.trade_rows = trade_rows or []
+        if self.trade_rows:
+            self.results = [
+                FakeResult(self.trade_rows),  # trades for matrix rows
+                FakeResult(status_rows),
+                FakeResult(flag_rows),
+                FakeResult(mapping_rows),
+                FakeResult(quote_rows or []),
+                FakeResult(recon_rows or []),
+                FakeResult(
+                    [
+                        FakeRow(
+                            quote_id=row.quote_id,
+                            cell_code=getattr(row, "trade_code", None)
+                            or row.cell_code,
+                            amount_cents=row.amount_cents,
+                        )
+                        for row in status_rows
+                    ]
+                ),
+            ]
+        else:
+            # First execute is trades probe (empty → legacy path).
+            self.results = [
+                FakeResult([]),
+                FakeResult(status_rows),
+                FakeResult(flag_rows),
+                FakeResult(mapping_rows),
+                FakeResult(quote_rows or []),
+                FakeResult(recon_rows or []),
+                FakeResult(
+                    [
+                        FakeRow(
+                            quote_id=row.quote_id,
+                            cell_code=row.cell_code,
+                            trade_code=None,
+                            amount_cents=row.amount_cents,
+                        )
+                        for row in status_rows
+                    ]
+                ),
+            ]
 
     async def execute(self, statement: Any) -> "FakeResult":
         return self.results.pop(0)

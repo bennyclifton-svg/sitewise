@@ -18,6 +18,7 @@ from tender.models import (
     TenderJob,
     TenderLineItem,
     TenderMapping,
+    TenderProjectTrade,
     TenderQuote,
 )
 from tender.schemas import ProjectContext
@@ -75,8 +76,9 @@ class FiredRule:
 class MappedCellItem:
     line_item_id: uuid.UUID
     quote_id: uuid.UUID
-    cell_code: str
-    item_status: str
+    cell_code: str | None = None
+    project_trade_id: uuid.UUID | None = None
+    item_status: str = "included"
     amount_cents: int | None = None
     allowance_cents: int | None = None
     allocation_fraction: float = 1.0
@@ -89,7 +91,7 @@ class MappedCellItem:
 class CellStatusDraft:
     comparison_id: uuid.UUID
     quote_id: uuid.UUID
-    cell_code: str
+    cell_code: str | None
     status: str
     amount_cents: int | None
     bundled_into_cell: str | None
@@ -98,12 +100,14 @@ class CellStatusDraft:
     qa_state: str
     queue_silence: bool = False
     amount_breakdown: dict[str, Any] | None = None
+    project_trade_id: uuid.UUID | None = None
 
     def as_row_state(self) -> "CellStatusRowState":
         return CellStatusRowState(
             comparison_id=self.comparison_id,
             quote_id=self.quote_id,
             cell_code=self.cell_code,
+            project_trade_id=self.project_trade_id,
             status=self.status,
             amount_cents=self.amount_cents,
             bundled_into_cell=self.bundled_into_cell,
@@ -118,7 +122,7 @@ class CellStatusDraft:
 class CellStatusRowState:
     comparison_id: uuid.UUID
     quote_id: uuid.UUID
-    cell_code: str
+    cell_code: str | None
     status: str
     amount_cents: int | None
     bundled_into_cell: str | None
@@ -126,6 +130,7 @@ class CellStatusRowState:
     confidence: float | None
     qa_state: str
     amount_breakdown: dict[str, Any] | None = None
+    project_trade_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -167,13 +172,26 @@ def build_cell_status_grid(
     quote_ids: Sequence[uuid.UUID],
     fired_rules: Sequence[FiredRule],
     mapped_items: Sequence[MappedCellItem] = (),
+    trade_ids: Sequence[uuid.UUID] | None = None,
 ) -> list[CellStatusDraft]:
+    # Trade mode: key by project_trade_id (cell_code NULL). Fired cell rules
+    # stay unused until Phase 6 anchor expectations.
+    if trade_ids is not None:
+        return _build_trade_status_grid(
+            comparison_id=comparison_id,
+            quote_ids=quote_ids,
+            mapped_items=mapped_items,
+            trade_ids=trade_ids,
+        )
+
     expected_by_cell: dict[str, list[FiredRule]] = defaultdict(list)
     for rule in fired_rules:
         expected_by_cell[rule.cell_code].append(rule)
 
     mapped_by_key: dict[tuple[uuid.UUID, str], list[MappedCellItem]] = defaultdict(list)
     for item in mapped_items:
+        if item.cell_code is None:
+            continue
         mapped_by_key[(item.quote_id, item.cell_code)].append(item)
 
     drafts: list[CellStatusDraft] = []
@@ -186,7 +204,13 @@ def build_cell_status_grid(
                 # I4: money and status from counted frontier items; fall back if none flagged.
                 active = [item for item in mapped if item.counted_in_total] or list(mapped)
                 drafts.append(
-                    _mapped_status_draft(comparison_id, quote_id, cell_code, active)
+                    _mapped_status_draft(
+                        comparison_id,
+                        quote_id,
+                        cell_code,
+                        active,
+                        project_trade_id=None,
+                    )
                 )
             else:
                 drafts.append(
@@ -200,19 +224,57 @@ def build_cell_status_grid(
     return drafts
 
 
+def _build_trade_status_grid(
+    *,
+    comparison_id: uuid.UUID,
+    quote_ids: Sequence[uuid.UUID],
+    mapped_items: Sequence[MappedCellItem],
+    trade_ids: Sequence[uuid.UUID],
+) -> list[CellStatusDraft]:
+    mapped_by_key: dict[tuple[uuid.UUID, uuid.UUID], list[MappedCellItem]] = defaultdict(
+        list
+    )
+    for item in mapped_items:
+        if item.project_trade_id is None:
+            continue
+        mapped_by_key[(item.quote_id, item.project_trade_id)].append(item)
+
+    known_trades = set(trade_ids)
+    drafts: list[CellStatusDraft] = []
+    for quote_id in quote_ids:
+        trade_keys = {
+            trade_id
+            for item_quote_id, trade_id in mapped_by_key
+            if item_quote_id == quote_id and trade_id in known_trades
+        }
+        for trade_id in sorted(trade_keys, key=str):
+            mapped = mapped_by_key.get((quote_id, trade_id), [])
+            if not mapped:
+                continue
+            active = [item for item in mapped if item.counted_in_total] or list(mapped)
+            drafts.append(
+                _mapped_status_draft(
+                    comparison_id,
+                    quote_id,
+                    None,
+                    active,
+                    project_trade_id=trade_id,
+                )
+            )
+    return drafts
+
+
 def merge_cell_status_drafts(
     existing_rows: Sequence[CellStatusRowState],
     drafts: Sequence[CellStatusDraft],
 ) -> CellStatusMerge:
-    existing = {
-        (row.comparison_id, row.quote_id, row.cell_code): row for row in existing_rows
-    }
+    existing = {_status_key(row): row for row in existing_rows}
     inserts: list[CellStatusDraft] = []
     updates: list[tuple[CellStatusRowState, CellStatusDraft]] = []
     silence_jobs: list[CellStatusDraft] = []
 
     for draft in drafts:
-        row = existing.get((draft.comparison_id, draft.quote_id, draft.cell_code))
+        row = existing.get(_status_key(draft))
         if row is None:
             inserts.append(draft)
             if draft.queue_silence:
@@ -227,6 +289,14 @@ def merge_cell_status_drafts(
             silence_jobs.append(draft)
 
     return CellStatusMerge(inserts=inserts, updates=updates, silence_jobs=silence_jobs)
+
+
+def _status_key(
+    row: CellStatusDraft | CellStatusRowState | TenderCellStatus,
+) -> tuple[uuid.UUID, uuid.UUID, str, uuid.UUID | str]:
+    if row.project_trade_id is not None:
+        return (row.comparison_id, row.quote_id, "trade", row.project_trade_id)
+    return (row.comparison_id, row.quote_id, "cell", row.cell_code or "")
 
 
 async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
@@ -252,6 +322,13 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
             .order_by(TenderQuote.created_at),
         )
     ]
+    trade_rows = await _scalars(
+        session,
+        select(TenderProjectTrade)
+        .where(TenderProjectTrade.comparison_id == job.comparison_id)
+        .order_by(TenderProjectTrade.sort_order, TenderProjectTrade.code),
+    )
+    trade_ids = [trade.id for trade in trade_rows] or None
     mapped_items = await _mapped_items_for_comparison(session, job.comparison_id)
     existing_models = await _scalars(
         session,
@@ -260,9 +337,7 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
         ),
     )
     existing_states = [_row_state_from_model(row) for row in existing_models]
-    models_by_key = {
-        (row.comparison_id, row.quote_id, row.cell_code): row for row in existing_models
-    }
+    models_by_key = {_status_key(row): row for row in existing_models}
     merge = merge_cell_status_drafts(
         existing_states,
         build_cell_status_grid(
@@ -270,13 +345,14 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
             quote_ids=quote_ids,
             fired_rules=fired,
             mapped_items=mapped_items,
+            trade_ids=trade_ids,
         ),
     )
 
     for draft in merge.inserts:
         session.add(_cell_status_model(draft))
     for row_state, draft in merge.updates:
-        _apply_draft(models_by_key[(row_state.comparison_id, row_state.quote_id, row_state.cell_code)], draft)
+        _apply_draft(models_by_key[_status_key(row_state)], draft)
     silence_jobs_by_quote: dict[uuid.UUID, list[CellStatusDraft]] = defaultdict(list)
     for draft in merge.silence_jobs:
         silence_jobs_by_quote[draft.quote_id].append(draft)
@@ -288,7 +364,9 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
                 comparison_id=job.comparison_id,
                 quote_id=quote_id,
                 payload={
-                    "cell_codes": sorted(draft.cell_code for draft in drafts),
+                    "cell_codes": sorted(
+                        draft.cell_code for draft in drafts if draft.cell_code
+                    ),
                 },
             )
         )
@@ -451,8 +529,10 @@ def _tags_match(rule_tags: Sequence[str], context_tags: set[str]) -> bool:
 def _mapped_status_draft(
     comparison_id: uuid.UUID,
     quote_id: uuid.UUID,
-    cell_code: str,
+    cell_code: str | None,
     items: Sequence[MappedCellItem],
+    *,
+    project_trade_id: uuid.UUID | None = None,
 ) -> CellStatusDraft:
     breakdown = _role_amount_breakdown(items)
     statuses = {_cell_status_for_mapped_item(item) for item in items}
@@ -465,6 +545,7 @@ def _mapped_status_draft(
         comparison_id=comparison_id,
         quote_id=quote_id,
         cell_code=cell_code,
+        project_trade_id=project_trade_id,
         status=status,
         amount_cents=countable if items else None,
         amount_breakdown=amount_breakdown,
@@ -598,6 +679,7 @@ async def _mapped_items_for_comparison(
                 line_item_id=line_item.id,
                 quote_id=line_item.quote_id,
                 cell_code=mapping.cell_code,
+                project_trade_id=mapping.project_trade_id,
                 item_status=line_item.item_status,
                 amount_cents=line_item.amount_cents,
                 allowance_cents=line_item.allowance_cents,
@@ -627,6 +709,7 @@ def _row_state_from_model(row: TenderCellStatus) -> CellStatusRowState:
         comparison_id=row.comparison_id,
         quote_id=row.quote_id,
         cell_code=row.cell_code,
+        project_trade_id=row.project_trade_id,
         status=row.status,
         amount_cents=row.amount_cents,
         amount_breakdown=row.amount_breakdown,
@@ -642,6 +725,7 @@ def _cell_status_model(draft: CellStatusDraft) -> TenderCellStatus:
         comparison_id=draft.comparison_id,
         quote_id=draft.quote_id,
         cell_code=draft.cell_code,
+        project_trade_id=draft.project_trade_id,
         status=draft.status,
         amount_cents=draft.amount_cents,
         amount_breakdown=draft.amount_breakdown,
@@ -660,3 +744,5 @@ def _apply_draft(row: TenderCellStatus, draft: CellStatusDraft) -> None:
     row.evidence = draft.evidence
     row.confidence = draft.confidence
     row.qa_state = draft.qa_state
+    row.cell_code = draft.cell_code
+    row.project_trade_id = draft.project_trade_id

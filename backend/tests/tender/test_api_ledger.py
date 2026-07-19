@@ -82,6 +82,49 @@ def test_ledger_endpoint_returns_items_summing_to_stated(client: TestClient) -> 
     assert payload["builder_name"] == "Coastal"
 
 
+def test_trade_items_endpoint_returns_allocations_and_sum(client: TestClient) -> None:
+    trade_id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    item_a = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+    trade_items = CellItemsResponse(
+        cell_code="PT.01",
+        name="Joinery / cabinetry",
+        quote_id=QUOTE_ID,
+        project_trade_id=trade_id,
+        items=[
+            CellLineItem(
+                line_item_id=item_a,
+                description_raw="Kitchen cabinets",
+                page_no=4,
+                role="contract_component",
+                allocation_fraction=1.0,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="taxonomy_seed",
+                qa_state="auto_pass",
+            ),
+        ],
+        sum_ex_gst_cents=100_00,
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.ledger.build_trade_items",
+            new=AsyncMock(return_value=trade_items),
+        ),
+    ):
+        response = client.get(
+            f"/api/tender/comparisons/{COMPARISON_ID}/trades/{trade_id}/items",
+            params={"quote_id": str(QUOTE_ID)},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cell_code"] == "PT.01"
+    assert payload["project_trade_id"] == str(trade_id)
+    assert payload["sum_ex_gst_cents"] == 100_00
+
+
 def test_cell_items_endpoint_returns_allocations_and_sum(client: TestClient) -> None:
     item_a = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
     item_b = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")

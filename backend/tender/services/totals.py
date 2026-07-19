@@ -1,8 +1,8 @@
 """Per-quote matrix totals conserved against reconciliation ex-GST (I4).
 
 Column totals come from ``tender_quote_reconciliations.computed_ex_gst_cents``.
-Cell sums (including Unallocated 99.01) explain that total; any remainder is
-``not_itemised_cents``. Money is never discarded by cell status.
+Cell sums (including Unallocated 99.01 / PT.UNALLOC) explain that total; any
+remainder is ``not_itemised_cents``. Money is never discarded by cell status.
 """
 
 from __future__ import annotations
@@ -15,12 +15,19 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tender.models import TenderCellStatus, TenderQuote, TenderQuoteReconciliation
+from tender.models import (
+    TenderCellStatus,
+    TenderProjectTrade,
+    TenderQuote,
+    TenderQuoteReconciliation,
+    UNALLOCATED_TRADE_CODE,
+)
 from tender.schemas import MatrixQuoteTotal
 from tender.services.mapping import UNALLOCATED_CELL_CODE
 
 # Legacy export kept for report/analysis callers that still filter by status.
 COUNTED_STATUSES = frozenset({"included", "pc", "ps", "mixed"})
+UNALLOCATED_ROW_CODES = frozenset({UNALLOCATED_CELL_CODE, UNALLOCATED_TRADE_CODE})
 
 
 @dataclass(frozen=True)
@@ -56,7 +63,7 @@ def compute_quote_totals(
             continue
         key = str(quote_id)
         cell_sums[key] += amount_cents
-        if cell_code == UNALLOCATED_CELL_CODE:
+        if cell_code in UNALLOCATED_ROW_CODES:
             unallocated[key] += amount_cents
 
     totals: list[MatrixQuoteTotal] = []
@@ -138,10 +145,23 @@ async def load_quote_totals(
             TenderCellStatus.quote_id,
             TenderCellStatus.cell_code,
             TenderCellStatus.amount_cents,
-        ).where(TenderCellStatus.comparison_id == comparison_id)
+            TenderProjectTrade.code.label("trade_code"),
+        )
+        .outerjoin(
+            TenderProjectTrade,
+            TenderProjectTrade.id == TenderCellStatus.project_trade_id,
+        )
+        .where(TenderCellStatus.comparison_id == comparison_id)
     )
     cell_rows = [
-        (row.quote_id, row.cell_code, row.amount_cents) for row in cell_result.all()
+        (
+            row.quote_id,
+            row.cell_code
+            if row.cell_code is not None
+            else getattr(row, "trade_code", None),
+            row.amount_cents,
+        )
+        for row in cell_result.all()
     ]
     inputs = [
         QuoteTotalInput(

@@ -5,7 +5,9 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import type {
   TenderCellItemsResponse,
+  TenderMappingChoiceTarget,
   TenderMatrixMappingChoice,
+  TenderProjectTrade,
   TenderQaItem,
   TenderQaResolveRequest,
   TenderTaxonomyCell,
@@ -28,6 +30,7 @@ export function TenderCellDrilldown({
   items,
   choices,
   taxonomy,
+  trades = [],
   resolving,
   error,
   onClose,
@@ -43,12 +46,16 @@ export function TenderCellDrilldown({
   items: TenderQaItem[];
   choices: TenderMatrixMappingChoice[];
   taxonomy: TenderTaxonomyCell[];
+  trades?: TenderProjectTrade[];
   resolving: string | null;
   error: string | null;
   onClose: () => void;
   onAccept: (item: TenderQaItem) => void;
   onResolve: (item: TenderQaItem, request: TenderQaResolveRequest) => Promise<void>;
-  onMappingChoice: (mappingId: string, cellCode: string) => Promise<void>;
+  onMappingChoice: (
+    mappingId: string,
+    target: TenderMappingChoiceTarget,
+  ) => Promise<void>;
 }) {
   const [cellItems, setCellItems] = useState<TenderCellItemsResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -191,6 +198,7 @@ export function TenderCellDrilldown({
           items={items}
           choices={choices}
           taxonomy={taxonomy}
+          trades={trades}
           resolving={resolving}
           error={error}
           onClose={onClose}

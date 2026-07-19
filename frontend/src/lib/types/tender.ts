@@ -217,6 +217,24 @@ export type TenderTaxonomySearchResult = TenderTaxonomyCell & {
   via: string;
 };
 
+export type TenderProjectTrade = {
+  /** Null for the synthetic reserved PT.UNALLOC when no DB row exists. */
+  id: string | null;
+  code: string;
+  name: string;
+  description: string | null;
+  group_label: string | null;
+  sort_order: number;
+  source: "generated" | "manual" | "reserved";
+  anchor_cell_codes: string[];
+  anchor_confidence: number | null;
+};
+
+export type TenderProjectTradesResponse = {
+  comparison_id: string;
+  trades: TenderProjectTrade[];
+};
+
 export type TenderMatrixQuoteCell = {
   status: string;
   amount_cents: number | null;
@@ -238,9 +256,14 @@ export type TenderMatrixMappingChoice = {
   locked: boolean;
 };
 
+export type TenderMappingChoiceTarget =
+  | { project_trade_id: string }
+  | { cell_code: string };
+
 export type TenderMatrixCell = {
   code: string;
   name: string;
+  project_trade_id?: string | null;
   quotes: Record<string, TenderMatrixQuoteCell>;
 };
 

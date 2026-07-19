@@ -59,7 +59,7 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 - [x] **Phase 1** — Migration **034** (ledger columns + reconciliation table) + model/schema updates
 - [x] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel` (unit/API green; live MERRICK smoke deferred)
 - [x] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
-- [ ] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
+- [x] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
 - [ ] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
 - [ ] **Phase 6** — Expectations/silence/benchmarks via anchor cells
 - [ ] **Phase 7** — Report overhaul + golden fixtures/eval gates + E2E MERRICK acceptance
@@ -418,16 +418,16 @@ Concepts: input is the merged list of extracted figures (schema objects from Tas
 
 ---
 
-# Phase 4 — Project-generated taxonomy (Migrations 030/031)
+# Phase 4 — Project-generated taxonomy (Migrations 035/036)
 
 **Todo:**
-- [ ] 4.1 Migrations 030 (tender_project_trades) + 031 (mapping/cell_status trade targets)
-- [ ] 4.2 ORM + trades endpoints
-- [ ] 4.3 Fan-in barrier + worker stage
-- [ ] 4.4 Generation service + prompt
-- [ ] 4.5 Mapping retarget T0–T3
-- [ ] 4.6 Matrix rows from trades (+ legacy fallback)
-- [ ] 4.7 QA/corrections retarget
+- [x] 4.1 Migrations 035 (tender_project_trades) + 036 (mapping/cell_status trade targets)
+- [x] 4.2 ORM + trades endpoints
+- [x] 4.3 Fan-in barrier + worker stage
+- [x] 4.4 Generation service + prompt
+- [x] 4.5 Mapping retarget T0–T3
+- [x] 4.6 Matrix rows from trades (+ legacy fallback)
+- [x] 4.7 QA/corrections retarget
 
 ### Task 4.1: Migrations
 

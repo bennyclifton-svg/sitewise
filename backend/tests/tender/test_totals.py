@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from tender.models import UNALLOCATED_TRADE_CODE
 from tender.services.mapping import UNALLOCATED_CELL_CODE
 from tender.services.totals import QuoteTotalInput, compute_quote_totals, delta_ratio
 
@@ -153,3 +154,28 @@ def test_delta_ratio_semantics() -> None:
     assert delta_ratio(0, 0) == 0.0
     assert delta_ratio(0, 10) == 1.0
     assert delta_ratio(100, 90) == 0.1
+
+
+def test_unallocated_from_pt_unalloc_trade_code() -> None:
+    """Trade-mode unallocated uses PT.UNALLOC, not cell 99.01."""
+    totals = compute_quote_totals(
+        [
+            QuoteTotalInput(
+                quote_id=QUOTE_A,
+                stated_total_cents=100_00,
+                stated_total_source="extracted",
+                contract_type="lump_sum",
+                computed_ex_gst_cents=100_00,
+                residual_cents=0,
+                recon_status="reconciled",
+            )
+        ],
+        cell_rows=[
+            (QUOTE_A, "PT.01", 90_00),
+            (QUOTE_A, UNALLOCATED_TRADE_CODE, 7_00),
+        ],
+    )
+    total = totals[0]
+    assert total.unallocated_cents == 7_00
+    assert total.not_itemised_cents == 3_00
+    assert total.computed_total_cents == 100_00

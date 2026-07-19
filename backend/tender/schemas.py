@@ -309,6 +309,7 @@ class MatrixQuoteCell(BaseModel):
 class MatrixCell(BaseModel):
     code: str
     name: str
+    project_trade_id: uuid.UUID | None = None
     quotes: dict[str, MatrixQuoteCell] = Field(default_factory=dict)
 
 
@@ -547,5 +548,6 @@ class CellItemsResponse(BaseModel):
     cell_code: str
     name: str
     quote_id: uuid.UUID
+    project_trade_id: uuid.UUID | None = None
     items: list[CellLineItem] = Field(default_factory=list)
     sum_ex_gst_cents: int = 0

@@ -16,10 +16,12 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import type {
   TenderComparison,
+  TenderMappingChoiceTarget,
   TenderMatrixCell,
   TenderMatrixQuoteCell,
   TenderMatrixQuoteTotal,
   TenderMatrixResponse,
+  TenderProjectTrade,
   TenderQaItem,
   TenderQaResolveRequest,
   TenderQuote,
@@ -62,6 +64,7 @@ export function TenderMatrix({
   const [comparison, setComparison] = useState<TenderComparison | null>(null);
   const [qaItems, setQaItems] = useState<TenderQaItem[]>([]);
   const [taxonomy, setTaxonomy] = useState<TenderTaxonomyCell[]>([]);
+  const [trades, setTrades] = useState<TenderProjectTrade[]>([]);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
   const [qaNote, setQaNote] = useState<string | null>(null);
@@ -79,17 +82,20 @@ export function TenderMatrix({
       setIsLoading(true);
       setError(null);
       try {
-        const [matrixData, comparisonData, queue, taxonomyCells] = await Promise.all([
-          api.getTenderMatrix(comparisonId),
-          api.getTenderComparison(comparisonId),
-          api.getTenderQaQueue(comparisonId),
-          api.getTenderTaxonomy(),
-        ]);
+        const [matrixData, comparisonData, queue, taxonomyCells, tradesData] =
+          await Promise.all([
+            api.getTenderMatrix(comparisonId),
+            api.getTenderComparison(comparisonId),
+            api.getTenderQaQueue(comparisonId),
+            api.getTenderTaxonomy(),
+            api.getTenderTrades(comparisonId),
+          ]);
         if (cancelled) return;
         setMatrix(matrixData);
         setComparison(comparisonData);
         setQaItems(queue.items);
         setTaxonomy(taxonomyCells);
+        setTrades(tradesData.trades);
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -221,10 +227,13 @@ export function TenderMatrix({
     );
   }
 
-  async function resolveMappingChoice(mappingId: string, cellCode: string) {
+  async function resolveMappingChoice(
+    mappingId: string,
+    target: TenderMappingChoiceTarget,
+  ) {
     await api.resolveTenderQaItem(mappingId, {
       action: "correct",
-      corrected_value: { cell_code: cellCode },
+      corrected_value: target,
       reason: "Inline matrix mapping override",
     });
     const [matrixData, queue] = await Promise.all([
@@ -383,6 +392,7 @@ export function TenderMatrix({
                 items={activeItems}
                 choices={choices}
                 taxonomy={taxonomy}
+                trades={trades}
                 resolving={resolving}
                 error={adjudicationError}
                 onClose={() => setActiveCell(null)}

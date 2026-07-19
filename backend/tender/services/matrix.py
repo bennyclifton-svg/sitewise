@@ -7,7 +7,15 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tender.models import TaxonomyCell, TenderCellStatus, TenderFlag, TenderLineItem, TenderMapping, TenderQuote
+from tender.models import (
+    TaxonomyCell,
+    TenderCellStatus,
+    TenderFlag,
+    TenderLineItem,
+    TenderMapping,
+    TenderProjectTrade,
+    TenderQuote,
+)
 from tender.schemas import (
     MatrixCell,
     MatrixGroup,
@@ -21,6 +29,135 @@ from tender.services.totals import load_quote_totals
 
 
 async def build_matrix(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> MatrixResponse:
+    trades = await _load_project_trades(session, comparison_id)
+    if trades:
+        return await _build_trade_matrix(
+            session, comparison_id=comparison_id, trades=trades
+        )
+    return await _build_cell_matrix(session, comparison_id=comparison_id)
+
+
+async def _load_project_trades(
+    session: AsyncSession, comparison_id: uuid.UUID
+) -> list[TenderProjectTrade]:
+    result = await session.execute(
+        select(TenderProjectTrade)
+        .where(TenderProjectTrade.comparison_id == comparison_id)
+        .order_by(TenderProjectTrade.sort_order, TenderProjectTrade.code)
+    )
+    return list(result.scalars())
+
+
+async def _build_trade_matrix(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    trades: list[TenderProjectTrade],
+) -> MatrixResponse:
+    status_result = await session.execute(
+        select(
+            TenderCellStatus.quote_id,
+            TenderCellStatus.project_trade_id,
+            TenderCellStatus.status,
+            TenderCellStatus.amount_cents,
+        ).where(
+            TenderCellStatus.comparison_id == comparison_id,
+            TenderCellStatus.project_trade_id.is_not(None),
+        )
+    )
+    flag_result = await session.execute(
+        select(TenderFlag.quote_id, TenderFlag.cell_code, TenderFlag.headline).where(
+            TenderFlag.comparison_id == comparison_id,
+            TenderFlag.include_in_report.is_(True),
+            TenderFlag.cell_code.is_not(None),
+            TenderFlag.quote_id.is_not(None),
+        )
+    )
+    flags_by_code: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for row in flag_result.all():
+        flags_by_code[(str(row.quote_id), row.cell_code)].append(row.headline)
+
+    status_by_trade: dict[uuid.UUID, dict[str, Any]] = defaultdict(dict)
+    for row in status_result.all():
+        status_by_trade[row.project_trade_id][str(row.quote_id)] = row
+
+    groups: "OrderedDict[str, OrderedDict[str, MatrixCell]]" = OrderedDict()
+    for trade in trades:
+        group_name = trade.group_label or "Other"
+        group_cells = groups.setdefault(group_name, OrderedDict())
+        cell = group_cells.setdefault(
+            trade.code,
+            MatrixCell(
+                code=trade.code,
+                name=trade.name,
+                project_trade_id=trade.id,
+                quotes={},
+            ),
+        )
+        for quote_id, row in status_by_trade.get(trade.id, {}).items():
+            cell.quotes[quote_id] = MatrixQuoteCell(
+                status=row.status,
+                amount_cents=row.amount_cents,
+                flags=flags_by_code.get((quote_id, trade.code), []),
+            )
+
+    mapping_result = await session.execute(
+        select(
+            TenderMapping.id.label("mapping_id"),
+            TenderQuote.id.label("quote_id"),
+            TenderMapping.cell_code.label("selected_cell_code"),
+            TenderProjectTrade.code.label("selected_trade_code"),
+            TenderMapping.qa_state,
+            TenderMapping.adjudication,
+        )
+        .join(TenderLineItem, TenderLineItem.id == TenderMapping.line_item_id)
+        .join(TenderQuote, TenderQuote.id == TenderLineItem.quote_id)
+        .outerjoin(
+            TenderProjectTrade,
+            TenderProjectTrade.id == TenderMapping.project_trade_id,
+        )
+        .where(TenderQuote.comparison_id == comparison_id)
+    )
+    cells_by_code: dict[str, MatrixCell] = {
+        cell.code: cell for group_cells in groups.values() for cell in group_cells.values()
+    }
+    for row in mapping_result.all():
+        if not has_multi_candidate_adjudication(row.adjudication):
+            continue
+        selected = row.selected_trade_code or row.selected_cell_code
+        cell = cells_by_code.get(selected)
+        if cell is None:
+            continue
+        quote_id = str(row.quote_id)
+        quote_cell = cell.quotes.get(quote_id)
+        if quote_cell is None:
+            continue
+        quote_cell.mapping_choices.append(
+            _mapping_choice_from_adjudication(
+                mapping_id=row.mapping_id,
+                selected_cell_code=selected,
+                qa_state=row.qa_state,
+                adjudication=row.adjudication,
+            )
+        )
+
+    totals = await load_quote_totals(session, comparison_id)
+
+    return MatrixResponse(
+        comparison_id=comparison_id,
+        groups=[
+            MatrixGroup(name=group_name, cells=list(cells.values()))
+            for group_name, cells in groups.items()
+        ],
+        totals=totals,
+    )
+
+
+async def _build_cell_matrix(
     session: AsyncSession,
     *,
     comparison_id: uuid.UUID,

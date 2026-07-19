@@ -4,7 +4,9 @@ import type { ChangeEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import type {
+  TenderMappingChoiceTarget,
   TenderMatrixMappingChoice,
+  TenderProjectTrade,
   TenderQaItem,
   TenderQaResolveRequest,
   TenderTaxonomyCell,
@@ -28,6 +30,7 @@ export function MatrixQaPanel({
   items,
   choices,
   taxonomy,
+  trades = [],
   resolving,
   error,
   onClose,
@@ -42,12 +45,16 @@ export function MatrixQaPanel({
   items: TenderQaItem[];
   choices: TenderMatrixMappingChoice[];
   taxonomy: TenderTaxonomyCell[];
+  trades?: TenderProjectTrade[];
   resolving: string | null;
   error: string | null;
   onClose: () => void;
   onAccept: (item: TenderQaItem) => void;
   onResolve: (item: TenderQaItem, request: TenderQaResolveRequest) => Promise<void>;
-  onMappingChoice: (mappingId: string, cellCode: string) => Promise<void>;
+  onMappingChoice: (
+    mappingId: string,
+    target: TenderMappingChoiceTarget,
+  ) => Promise<void>;
   /** When true, omit outer chrome (used inside TenderCellDrilldown). */
   embedded?: boolean;
 }) {
@@ -84,6 +91,7 @@ export function MatrixQaPanel({
               choice={choice}
               quoteName={quoteName}
               cellName={cellName}
+              trades={trades}
               onChange={onMappingChoice}
             />
           ))}
@@ -198,26 +206,45 @@ export function MappingChoiceControl({
   choice,
   quoteName,
   cellName,
+  trades = [],
   onChange,
 }: {
   choice: TenderMatrixMappingChoice;
   quoteName: string;
   cellName: string;
-  onChange: (mappingId: string, cellCode: string) => Promise<void>;
+  trades?: TenderProjectTrade[];
+  onChange: (
+    mappingId: string,
+    target: TenderMappingChoiceTarget,
+  ) => Promise<void>;
 }) {
-  const [selected, setSelected] = useState(choice.selected_cell_code);
+  // Synthetic reserved PT.UNALLOC may arrive with id=null; ignore those so
+  // legacy comparisons stay on the cell_code choice path.
+  const selectableTrades = trades.filter(
+    (trade): trade is TenderProjectTrade & { id: string } => trade.id != null,
+  );
+  const tradeMode = selectableTrades.length > 0;
+  const selectedTradeId =
+    selectableTrades.find((trade) => trade.code === choice.selected_cell_code)
+      ?.id ?? "";
+  const initialSelected = tradeMode ? selectedTradeId : choice.selected_cell_code;
+  const [selected, setSelected] = useState(initialSelected);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextCellCode = event.target.value;
-    setSelected(nextCellCode);
+    const nextValue = event.target.value;
+    setSelected(nextValue);
     setIsSaving(true);
     setError(null);
     try {
-      await onChange(choice.mapping_id, nextCellCode);
+      if (tradeMode) {
+        await onChange(choice.mapping_id, { project_trade_id: nextValue });
+      } else {
+        await onChange(choice.mapping_id, { cell_code: nextValue });
+      }
     } catch {
-      setSelected(choice.selected_cell_code);
+      setSelected(initialSelected);
       setError("Could not save");
     } finally {
       setIsSaving(false);
@@ -233,16 +260,27 @@ export function MappingChoiceControl({
         disabled={choice.locked || isSaving}
         onChange={handleChange}
       >
-        {choice.candidates.map((candidate) => (
-          <option
-            key={candidate.cell_code}
-            value={candidate.cell_code}
-            className="bg-white text-neutral-900"
-            style={{ color: "#111111", backgroundColor: "#ffffff" }}
-          >
-            {candidate.name ?? candidate.cell_code}
-          </option>
-        ))}
+        {tradeMode
+          ? selectableTrades.map((trade) => (
+              <option
+                key={trade.id}
+                value={trade.id}
+                className="bg-white text-neutral-900"
+                style={{ color: "#111111", backgroundColor: "#ffffff" }}
+              >
+                {trade.name}
+              </option>
+            ))
+          : choice.candidates.map((candidate) => (
+              <option
+                key={candidate.cell_code}
+                value={candidate.cell_code}
+                className="bg-white text-neutral-900"
+                style={{ color: "#111111", backgroundColor: "#ffffff" }}
+              >
+                {candidate.name ?? candidate.cell_code}
+              </option>
+            ))}
       </select>
       {choice.locked ? (
         <p className="mt-1 text-[0.68rem] text-muted-foreground">Locked</p>

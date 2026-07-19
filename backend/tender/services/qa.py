@@ -273,6 +273,9 @@ async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem
             "line_item_id": str(entity.line_item_id),
             "quote_id": str(line_item.quote_id),
             "cell_code": entity.cell_code,
+            "project_trade_id": (
+                str(entity.project_trade_id) if entity.project_trade_id else None
+            ),
             "tier": entity.tier,
             "description_raw": line_item.description_raw,
         }
@@ -353,16 +356,28 @@ async def _resolve_mapping(
         raise InvalidQAResolutionError("mappings cannot be suppressed")
     if request.action == "correct":
         corrected_value = request.corrected_value or {}
+        trade_id = _parse_optional_uuid(corrected_value.get("project_trade_id"))
         cell_code = corrected_value.get("cell_code")
-        if not isinstance(cell_code, str) or not cell_code:
-            raise InvalidQAResolutionError("mapping correction requires cell_code")
-        await record_mapping_correction(
-            session,
-            mapping_id=mapping.id,
-            corrected_cell_code=cell_code,
-            reviewer_id=reviewer_id,
-            reason=request.reason,
-        )
+        if trade_id is not None:
+            await record_mapping_correction(
+                session,
+                mapping_id=mapping.id,
+                corrected_project_trade_id=trade_id,
+                reviewer_id=reviewer_id,
+                reason=request.reason,
+            )
+        elif isinstance(cell_code, str) and cell_code:
+            await record_mapping_correction(
+                session,
+                mapping_id=mapping.id,
+                corrected_cell_code=cell_code,
+                reviewer_id=reviewer_id,
+                reason=request.reason,
+            )
+        else:
+            raise InvalidQAResolutionError(
+                "mapping correction requires project_trade_id or cell_code"
+            )
         return QAResolveResult(
             id=mapping.id,
             entity_type="mapping",
@@ -503,10 +518,30 @@ def _cell_status_snapshot(cell_status: TenderCellStatus) -> dict:
 def _mapping_snapshot(mapping: TenderMapping) -> dict:
     return {
         "cell_code": mapping.cell_code,
+        "project_trade_id": (
+            str(mapping.project_trade_id) if mapping.project_trade_id else None
+        ),
         "tier": mapping.tier,
         "confidence": float(mapping.confidence) if mapping.confidence is not None else None,
         "qa_state": mapping.qa_state,
     }
+
+
+def _parse_optional_uuid(value: Any) -> uuid.UUID | None:
+    if value is None:
+        return None
+    if isinstance(value, uuid.UUID):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            return uuid.UUID(value)
+        except ValueError as exc:
+            raise InvalidQAResolutionError(
+                "mapping correction project_trade_id must be a UUID"
+            ) from exc
+    raise InvalidQAResolutionError(
+        "mapping correction project_trade_id must be a UUID"
+    )
 
 
 def _flag_snapshot(flag: TenderFlag) -> dict:
