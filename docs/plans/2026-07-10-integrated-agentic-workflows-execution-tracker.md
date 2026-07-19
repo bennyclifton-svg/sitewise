@@ -443,126 +443,182 @@ Release blockers requiring deployment evidence:
 Objective: make UI and chat share one ordered Tender selection and freeze exact
 context and inputs at comparison intake.
 
-- [ ] **2.1 — Persist purpose-scoped document selections**
+- [x] **2.1 — Persist purpose-scoped document selections**
   - Dependencies: Stage 1 UUID tenancy; durable events.
   - Gate: immutable/revisioned purpose selections enforce project ownership and
     retention locks.
-- [ ] **2.2A — Add Tender selection HTTP and MCP adapters**
+- [x] **2.2A — Add Tender selection HTTP and MCP adapters**
   - Dependencies: 2.1.
   - Gate: both adapters use the same expected-revision selection service.
-- [ ] **2.2B — Add explicit quote-group selection UI**
+- [x] **2.2B — Add explicit quote-group selection UI**
   - Dependencies: 2.2A.
   - Gate: UI persists and displays 2–5 ordered quote groups, including main
     quote, schedules, and addenda.
-- [ ] **2.3 — Build the TCM-owned project-context adapter**
+- [x] **2.3 — Build the TCM-owned project-context adapter**
   - Dependencies: Project Snapshot/Profile contracts.
   - Gate: supported facts cross the boundary through a typed DTO; TCM does not
     read RAG chunks or import core internals beyond the defined interface.
-- [ ] **2.4A — Add a read-only Tender preparation contract**
+- [x] **2.4A — Add a read-only Tender preparation contract**
   - Dependencies: 2.1, 2.3.
   - Gate: preparation reports exact ready/needs-input state without mutation.
-- [ ] **2.4B — Implement atomic immutable Tender intake**
+- [x] **2.4B — Implement atomic immutable Tender intake**
   - Dependencies: 2.4A.
   - Gate: selection, file versions/hashes, context, and intake identity freeze
     atomically and idempotently.
-- [ ] **2.4C — Cut HTTP, MCP, and UI over to atomic intake**
+- [x] **2.4C — Cut HTTP, MCP, and UI over to atomic intake**
   - Dependencies: 2.4B.
   - Gate: all entry points use the same intake and preserve existing comparisons.
-- [ ] **2.5 — Fix comparison-scoped report state**
+- [x] **2.5 — Fix comparison-scoped report state**
   - Dependencies: may proceed beside 2.3–2.4.
   - Gate: report, QA, and publication state cannot leak between comparisons.
 
 ### R3 internal release record
 
-- [ ] UI and MCP observe the same selection and revision.
-- [ ] Historical Tender context stays frozen after current-profile changes.
-- [ ] Selected/frozen documents cannot be deleted improperly.
-- [ ] Internal atomic-intake acceptance passes.
+- [x] UI and MCP observe the same selection and revision.
+- [x] Historical Tender context stays frozen after current-profile changes.
+- [x] Selected/frozen documents cannot be deleted improperly.
+- [x] Internal atomic-intake acceptance passes.
 - [ ] Customer exposure, approval, and handoff remain disabled pending R3 customer.
 - [ ] Rollback preserves already-created immutable comparisons.
+
+### Stage 3 implementation record — 2026-07-19
+
+Status: complete in code and disposable acceptance; rollout gates remain open
+Owner/agent: Codex
+Branch/worktree: `feature/stage3-tender-intake` / `.worktrees/stage3-tender-intake`
+Commit/PR: `1bb1e1bd` (`feat(tender): implement immutable stage 3 intake`)
+Started: 2026-07-19
+Completed: 2026-07-19
+Predecessors verified: Stage 1 UUID tenancy and Stage 2 durable Project Events,
+Profile, Snapshot, and Capability implementations are present and their offline
+regressions pass.
+Validation commands and exact results:
+
+- `backend/.venv/Scripts/python.exe -m pytest -q` — 1,156 passed, 6 skipped,
+  19 deselected in 60.43 s.
+- `backend/.venv/Scripts/python.exe -m ruff check app tender tests ...` — passed.
+- `backend/.venv/Scripts/python.exe -m alembic heads` — one head,
+  `030_tender_immutable_intake`.
+- `pnpm test -- --run` — 31 files / 109 tests passed.
+- `pnpm lint` — zero errors; one existing TanStack Virtual compatibility warning.
+- `pnpm build` — TypeScript and Vite production build passed.
+- Disposable pgvector PostgreSQL migration roundtrip plus Stage 3 atomic intake
+  acceptance — 2 passed; covers rollback-on-invalid-input, graph atomicity,
+  turn-idempotent replay after selection advancement, conflicting reuse,
+  frozen file hashes/storage identities, and migration downgrade/upgrade.
+
+Rollout result: not performed.
+Rollback result or procedure verified: schema roundtrip passed in disposable
+PostgreSQL; application rollback with preserved production comparisons remains
+to be rehearsed.
+Remaining risks/notes: customer exposure, QS approval, production rollout, and
+application rollback remain gated. Legacy comparison rows remain readable; the
+old partial creation endpoints return 410 and no longer create partial graphs.
 
 ## Stage 4 — Canonical Artefact Revision
 
 Objective: give all artefacts concurrency-safe versions, edit policies, exports,
 provenance, activity, and durable events.
 
-- [ ] **3.1 — Make draft version allocation concurrency-safe**
+- [x] **3.1 — Make draft version allocation concurrency-safe**
   - Dependencies: Stage 0 migration safety.
   - Gate: concurrent allocations cannot create duplicate versions.
-- [ ] **3.2A — Build the core Artefact Revision interface**
+- [x] **3.2A — Build the core Artefact Revision interface**
   - Dependencies: 3.1, 1.4.
   - Gate: expected-base checks, policy, provenance, export jobs, activity, and
     events share one transactionally safe interface.
-- [ ] **3.2B — Add the Project Plan revision adapter**
+- [x] **3.2B — Add the Project Plan revision adapter**
   - Dependencies: 3.2A, 1.7.
   - Gate: Project Plan edits and decision synchronization are exact.
-- [ ] **3.2C — Add the current Cost Plan revision adapter**
+- [x] **3.2C — Add the current Cost Plan revision adapter**
   - Dependencies: 3.2A.
   - Gate: current Cost Plan draft, markdown, workbook, and provenance agree.
-- [ ] **3.2D — Add the consultant artefact revision adapter**
+- [x] **3.2D — Add the consultant artefact revision adapter**
   - Dependencies: 3.2A, 1.7 where decisions are affected.
   - Gate: consultant outputs publish and navigate through exact revisions.
-- [ ] **3.2E — Add the TCM-owned Tender publication adapter**
+- [x] **3.2E — Add the TCM-owned Tender publication adapter**
   - Dependencies: 3.2A; TCM boundary contract.
   - Gate: TCM publishes immutable report references without core importing
     Tender models or querying Tender tables.
-- [ ] **3.3 — Route all existing edit paths through Artefact Revision**
+- [x] **3.3 — Route all existing edit paths through Artefact Revision**
   - Dependencies: matching 3.2 adapter.
   - Gate: no UI or MCP caller performs direct generic draft writes.
-- [ ] **3.4A — Persist and rehydrate agent result references**
+- [x] **3.4A — Persist and rehydrate agent result references**
   - Dependencies: durable run/artefact reference contract.
   - Gate: sanitized result references survive thread reload.
-- [ ] **3.4B — Make artefact navigation exact and durable**
+- [x] **3.4B — Make artefact navigation exact and durable**
   - Dependencies: 3.4A.
   - Gate: every result opens the exact artefact and revision intended.
-- [ ] **3.5 — Remove repair writes from cockpit GETs**
+- [x] **3.5 — Remove repair writes from cockpit GETs**
   - Dependencies: 3.3 and all writer invariants proven.
   - Gate: cockpit reads perform zero storage/database repair writes.
 
 ### Stage 4 exit record
 
-- [ ] Concurrent revision and stale-base suites pass.
-- [ ] Canonical rows and immutable exports agree for every adapted artefact.
-- [ ] Failed exports remain retryable and are never advertised as ready.
+- [x] Concurrent revision and stale-base suites pass.
+- [x] Canonical rows and immutable exports agree for every adapted artefact.
+- [x] Failed exports remain retryable and are never advertised as ready.
 - [ ] Per-artefact additive rollout and rollback results are recorded.
+
+### Stage 4 implementation record — 2026-07-19
+
+Status: complete in code and disposable acceptance; production rollout remains open
+Owner/agent: Codex
+Branch/worktree: `feature/stage4-artefact-revisions` /
+`.worktrees/stage4-artefact-revisions`
+Commit/PR: `939784e4` (`feat(artefacts): implement canonical revisions`)
+Started: 2026-07-19
+Completed: 2026-07-19
+
+Validation evidence:
+
+- Backend offline regression: 1,157 passed, 6 skipped, 20 deselected.
+- Stage 4 disposable PostgreSQL acceptance passed for concurrent allocation,
+  stale-base conflicts, monotonic versions, export failure/retry, retry
+  idempotency, and retention of the prior ready export.
+- Migration `030 -> 031 -> 030 -> 031`, Ruff, frontend tests, TypeScript,
+  production build, and lint all passed.
+
+Open gate: production additive rollout and application rollback remain to be
+rehearsed per artefact.
 
 ## Stage 5 — Durable core workflow actions
 
 Objective: give UI and MCP shared durable start/status/cancel/result behavior for
 Project Plan, Cost Plan creation, file sort, and consultant actions.
 
-- [ ] **4.1 — Add core workflow-run persistence**
+- [x] **4.1 — Add core workflow-run persistence**
   - Dependencies: Stage 0 migration safety; Snapshot/capability contracts.
   - Gate: frozen inputs, project-scoped idempotency, safe claims, recovery, and
     real downgrade/tenancy behavior pass.
-- [ ] **4.2A — Build the core workflow worker infrastructure**
+- [x] **4.2A — Build the core workflow worker infrastructure**
   - Dependencies: 4.1, 1.4.
   - Gate: claims, leases, heartbeat, retry, cancellation, recovery, progress,
     and terminal events are durable and idempotent.
-- [ ] **4.2B — Add Project Plan worker adapters and acceptance**
+- [x] **4.2B — Add Project Plan worker adapters and acceptance**
   - Dependencies: 4.2A, 3.2B.
   - Gate: create/refresh pass all canonical PMP acceptance fixtures, preserving
     locked decisions and evidence status.
-- [ ] **4.2C — Add the Cost Plan creation worker adapter**
+- [x] **4.2C — Add the Cost Plan creation worker adapter**
   - Dependencies: 4.2A, 3.2C.
   - Gate: creation publishes matching draft, markdown, workbook, provenance,
     and event while preserving the prior accepted version on failure.
-- [ ] **4.2D — Add file-sort and consultant action adapters**
+- [x] **4.2D — Add file-sort and consultant action adapters**
   - Dependencies: 4.2A, 3.2D, 1.7.
   - Gate: UI/chat share typed services and long actions survive request timeout.
-- [ ] **4.2E — Deploy the core worker**
+- [~] **4.2E — Deploy the core worker**
   - Dependencies: 4.2A and at least one accepted adapter.
   - Gate: health, shutdown, lease recovery, and one-worker rollback pass on the
     deployment fixture.
-- [ ] **4.3A — Add asynchronous HTTP workflow endpoints additively**
+- [~] **4.3A — Add asynchronous HTTP workflow endpoints additively**
   - Dependencies: 4.1, relevant worker adapter.
   - Gate: typed start/status/cancel/result endpoints acknowledge within p95
     ≤500 ms and do not break existing callers.
-- [ ] **4.3B — Add narrow MCP workflow adapters**
+- [~] **4.3B — Add narrow MCP workflow adapters**
   - Dependencies: 4.3A/shared run service, 0.7D.
   - Gate: explicit tools share the same authorization, idempotency, run, result,
     and cancellation interfaces as HTTP.
-- [ ] **4.4A — Cut the UI over to asynchronous workflow state**
+- [~] **4.4A — Cut the UI over to asynchronous workflow state**
   - Dependencies: 4.3A, 1.10A.
   - Gate: project surfaces update without manual refresh; cached workflow tabs
     render in under 100 ms; failures have a clear retry path.
@@ -577,71 +633,95 @@ Project Plan, Cost Plan creation, file sort, and consultant actions.
 
 ### R2 release record
 
-- [ ] Project Plan create/refresh acceptance is green.
-- [ ] Cost Plan creation acceptance is green; refresh is not advertised yet.
-- [ ] Sort and consultant action acceptance is green.
-- [ ] Cancellation leaves no process, job, or later artefact orphan.
+- [x] Project Plan create/refresh acceptance is green.
+- [x] Cost Plan creation acceptance is green; refresh is not advertised yet.
+- [x] Sort and consultant action acceptance is green.
+- [x] Cancellation leaves no process, job, or later artefact orphan.
 - [ ] Each workflow was released independently after its own gate.
 - [ ] Worker and application rollback were exercised without losing run records.
+
+### Stage 5 implementation record — 2026-07-19
+
+Status: durable execution is complete in code and disposable-database acceptance;
+deployment, browser, and measured performance gates remain open.
+Owner/agent: Codex
+Branch/worktree: `feature/stage5-durable-workflows` /
+`.worktrees/stage5-durable-workflows`
+Commit/PR: `a0ceeb66` (`feat(workflows): add durable stage 5 execution`)
+Started: 2026-07-19
+Completed in code: 2026-07-19
+
+Validation evidence:
+
+- Migration upgrade, downgrade to `031`, and re-upgrade to `032` passed against
+  disposable PostgreSQL.
+- Stage 5 integration passed for idempotency, two-worker exclusion, lease
+  recovery, tenancy, cancellation, and rollback without an orphan artefact.
+- Backend regression, Ruff, 113 frontend tests, TypeScript, lint, production
+  build, Compose validation, and the worker healthcheck passed.
+
+Open gates: real deployment rollback/shutdown, measured HTTP and cached-tab
+latency, MCP transport acceptance, browser/Linux parity, and subsequent removal
+of the synchronous compatibility routes.
 
 ## Stage 6 — Read-path, frontend, retrieval, and runtime performance
 
 Objective: meet hard performance budgets from the canonical baseline without
 weakening correctness, quality, or tenancy.
 
-- [ ] **5.1 — Route-level code splitting and bundle budgets**
+- [x] **5.1 — Route-level code splitting and bundle budgets**
   - Dependencies: 0.0A, 0.8C.
   - Gate: initial JS ≤250 kB gzip; Three.js is absent from non-demo routes; lazy
     workflow entry chunks ≤150 kB gzip; build enforces budgets.
-- [ ] **5.2A — Separate project-shell and chat bootstrap reads**
+- [~] **5.2A — Separate project-shell and chat bootstrap reads**
   - Dependencies: shared frontend queries/events.
   - Gate: no more than two critical calls; warm bootstrap p95 ≤500 ms; GETs
     perform zero writes; chat failure does not replace the shell.
-- [ ] **5.2B — Add list pagination additively**
+- [~] **5.2B — Add list pagination additively**
   - Dependencies: stable list contracts.
   - Gate: bounded stable first pages are cut over consumer by consumer.
-- [ ] **5.3A — Bound chat history and project-file queries**
+- [x] **5.3A — Bound chat history and project-file queries**
   - Dependencies: UUID-filtered data access.
   - Gate: row counts are bounded and filters execute in SQL.
-- [ ] **5.3B — Share frontend agent configuration**
+- [x] **5.3B — Share frontend agent configuration**
   - Dependencies: frontend query foundation.
   - Gate: one configuration request per cache window and no unsupported
     cross-project promise.
-- [ ] **5.3C — Pool Supabase auth HTTP connections**
+- [x] **5.3C — Pool Supabase auth HTTP connections**
   - Dependencies: lifecycle baseline.
   - Gate: pooled client lifecycle is correct and cold/warm auth timings remain
     visible with unchanged behavior.
-- [ ] **5.4A — Batch retrieval neighbours**
+- [~] **5.4A — Batch retrieval neighbours**
   - Dependencies: 0.5A and retrieval baseline.
   - Gate: golden results are equivalent, query count is constant, p95 improves,
     and project isolation remains intact.
-- [ ] **5.4B — Decide semantic/lexical query concurrency**
+- [x] **5.4B — Decide semantic/lexical query concurrency**
   - Dependencies: retrieval benchmark fixture.
   - Gate: decision record selects a measured mechanism or explicitly retains
     sequential execution; no production implementation occurs in this packet.
-- [ ] **Follow-up from 5.4B — Implement the recorded retrieval-concurrency decision, if any**
+- [x] **Follow-up from 5.4B — Implement the recorded retrieval-concurrency decision, if any**
   - Dependencies: follow-up packet produced by 5.4B.
   - Gate: exact follow-up quality, pressure, latency, and isolation criteria pass.
-- [ ] **5.5A — Batch uploads and refresh once**
+- [x] **5.5A — Batch uploads and refresh once**
   - Dependencies: query/event reconciliation.
   - Gate: at most two heavy ingests run concurrently; one refresh occurs per
     batch; individual failures remain visible and isolated.
-- [ ] **5.5B — Batch delete with optimistic rollback**
+- [x] **5.5B — Batch delete with optimistic rollback**
   - Dependencies: retention locks and project-scoped delete contract.
   - Gate: cross-project IDs fail atomically, locked Tender inputs survive, and
     per-file failures roll back visibly.
-- [ ] **5.6A — Share Tender queries and polling**
+- [x] **5.6A — Share Tender queries and polling**
   - Dependencies: durable events and immutable comparison state.
   - Gate: cached transitions <100 ms and active visible progress is ≤2 s stale.
-- [ ] **5.6B — Make QA acceptance optimistic**
+- [~] **5.6B — Make QA acceptance optimistic**
   - Dependencies: 5.6A.
   - Gate: optimistic response <100 ms, settled p95 ≤800 ms, and failure rollback
     does not reload the full queue.
-- [ ] **5.7 — Measure and decide Hermes session reuse**
+- [x] **5.7 — Measure and decide Hermes session reuse**
   - Dependencies: agent timing baseline and runtime safety.
   - Gate: decision is based on measured ≥20% TTFT improvement plus concurrency,
     cancellation, history, and tenancy tests; no production branch is implemented.
-- [ ] **5.8 — Implement the recorded Hermes session decision**
+- [x] **5.8 — Implement the recorded Hermes session decision**
   - Dependencies: exact follow-up packet from 5.7.
   - Gate: the same measurement and safety suite passes after implementation.
 
@@ -651,6 +731,40 @@ weakening correctness, quality, or tenancy.
 - [ ] Raw timings and build manifests are preserved in dated reports.
 - [ ] Every performance change records comparison, resource pressure, and rollback.
 - [ ] No quality, correctness, or tenant-isolation regression is present.
+
+### Stage 6 implementation record — 2026-07-19
+
+Status: code implementation complete; canonical remote latency, browser, and
+deployment rollback gates remain open.
+Owner/agent: Codex
+Branch/worktree: `feature/stage6-performance` / `.worktrees/stage6-performance`
+Commit/PR: `41f5f0fb` (`feat(performance): implement stage 6 read paths`)
+Base: `a0ceeb66` (Stage 5)
+Evidence: `docs/performance/2026-07-19-stage-6-performance.md` at commit
+`41f5f0fb`.
+
+Implemented route budgets, two-call shell/chat bootstrap, bounded keyset pages
+for active thread/Tender consumers, bounded SQL history/file filtering, shared
+agent configuration, lifespan auth pooling, constant-query retrieval
+neighbours, bounded batch upload/delete, shared Tender cache/polling, optimistic
+QA, and the measured no-reuse Hermes decision. Migration
+`033_remove_unused_hermes_session` implements the selected 5.8 branch.
+
+Validation evidence:
+
+- Backend regression: 1,164 passed, 6 skipped, 22 deselected.
+- Backend Ruff: all checks passed.
+- Frontend: 31 files / 113 tests passed; lint had zero errors and one existing
+  TanStack Virtual compatibility warning; production build passed.
+- Enforced production bundle gates passed: cockpit 246,609 bytes gzip, Tender
+  entry 23,494 bytes gzip, and Three.js absent from non-demo route imports.
+- Disposable PostgreSQL 16 migration `upgrade head -> downgrade 032 -> upgrade
+  head` passed; current revision is `033_remove_unused_hermes_session`.
+
+Rollout result: not performed. Rollback: code paths and migration downgrade are
+documented; deployment rollback remains unexercised. The `[~]` packets above
+must not be marked complete until their canonical p95/browser or remaining
+additive-list gates pass.
 
 ## Stage 7 — Full Tender performance, cost, and quality
 
@@ -809,8 +923,8 @@ Record the dated report link and result for every hard gate.
 | Cross-project evidence/mutation isolation | 100% | Pass in disposable DB; production pending | `tests/stage01/test_database_gates.py`; `docs/runbooks/evidence-uuid-tenancy-rollout.md` |
 | Orphan child processes after cancel/timeout | 0 | Pass on Windows and Linux | `tests/agent/test_process_tree.py` |
 | Production TypeScript build | 0 errors | Pass | `docs/performance/2026-07-19-stage-0-baseline.md` |
-| Initial JavaScript | ≤250 kB gzip | Pending |  |
-| Three.js on non-demo routes | 0 bytes | Pending |  |
+| Initial JavaScript | ≤250 kB gzip | Pass — 246,609 bytes | `docs/performance/2026-07-19-stage-6-performance.md` at `41f5f0fb` |
+| Three.js on non-demo routes | 0 bytes | Pass | `docs/performance/2026-07-19-stage-6-performance.md` at `41f5f0fb` |
 | Warm cockpit bootstrap | p95 ≤500 ms; zero writes | Pending |  |
 | Critical calls before composer usable | ≤2 | Pending |  |
 | Agent profile event to visible UI | p95 ≤500 ms | Pending |  |
@@ -838,10 +952,10 @@ cutover requirements.
 
 ## Current next action
 
-Stage 0/1 code and disposable acceptance are present in the working tree. Next:
-report the minimized Hermes ACP Windows workspace-probe hang and both prompt-log
-sites upstream when maintainer-authorized, then verify the released fix with
-Clerk's MCP configuration. Separately perform the approved production backup,
-read-only audit, expand/repair/contract rollout, post-rollout two-owner checks,
-and rollback rehearsal. Hermes mutations remain disabled and the Stage 0/1
-programme exits remain incomplete until those gates pass.
+Review and merge Stage 6 commit `41f5f0fb`, then run its canonical deployed
+measurements: warm cockpit bootstrap p95, populated-fixture retrieval p50/p95,
+settled QA p95, cached browser transitions, and deployment rollback. Complete
+the remaining additive list-pagination consumers before closing 5.2B. Earlier
+production rollout and rollback gates from Stages 0–5 also remain open; Stage 7
+evaluation work must not be treated as released until those applicable gates
+and the Stage 6 hard SLOs are recorded.
