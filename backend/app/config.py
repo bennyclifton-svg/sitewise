@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     tender_worker_poll_seconds: float = 2.0
     tender_worker_concurrency: int = 4
     tender_map_concurrency: int = 8
+    tender_extraction_concurrency: int = 4
     tender_map_t2_batch_size: int = 32
     tender_job_max_attempts: int = 3
     tender_job_backoff_base_seconds: int = 30

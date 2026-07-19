@@ -13,8 +13,8 @@ from tender.llm.schema import openai_strict_json_schema
 from tender.schemas import ProjectContext, TenderDocumentPage
 from tender.services.telemetry import note_openai_response
 
-PROMPT_VERSION = "0.1.0"
-PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "extract_line_items_v0.1.0.md"
+PROMPT_VERSION = "0.2.0"
+PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "extract_line_items_v0.2.0.md"
 
 
 class AsyncOpenAITenderClient:
@@ -35,11 +35,23 @@ class AsyncOpenAITenderClient:
         document_pages: Sequence[TenderDocumentPage],
         schema: dict[str, Any],
         context: ProjectContext,
+        *,
+        page_images: Sequence[bytes] | None = None,
+        prior_section_headings: Sequence[str] | None = None,
+        already_found: Sequence[dict[str, Any]] | None = None,
+        reextract_hint: str | None = None,
     ) -> LLMExtractionResponse:
         response = await self.client.responses.create(
             model=self.model,
             instructions=self.prompt_path.read_text(encoding="utf-8"),
-            input=_build_input(document_pages, context),
+            input=_build_input(
+                document_pages,
+                context,
+                page_images=page_images,
+                prior_section_headings=prior_section_headings,
+                already_found=already_found,
+                reextract_hint=reextract_hint,
+            ),
             text={
                 "format": {
                     "type": "json_schema",
@@ -189,8 +201,14 @@ class AsyncOpenAITenderClient:
 
 
 def _build_input(
-    document_pages: Sequence[TenderDocumentPage], context: ProjectContext
-) -> str:
+    document_pages: Sequence[TenderDocumentPage],
+    context: ProjectContext,
+    *,
+    page_images: Sequence[bytes] | None = None,
+    prior_section_headings: Sequence[str] | None = None,
+    already_found: Sequence[dict[str, Any]] | None = None,
+    reextract_hint: str | None = None,
+) -> str | list[dict[str, Any]]:
     pages = [
         {
             "document_id": page.document_id,
@@ -200,13 +218,33 @@ def _build_input(
         }
         for page in document_pages
     ]
-    return json.dumps(
-        {
-            "project_context": context.model_dump(mode="json"),
-            "document_pages": pages,
-        },
-        ensure_ascii=True,
-    )
+    payload: dict[str, Any] = {
+        "project_context": context.model_dump(mode="json"),
+        "document_pages": pages,
+    }
+    if prior_section_headings:
+        payload["prior_section_headings"] = list(prior_section_headings)
+    if already_found:
+        payload["already_found"] = list(already_found)
+    if reextract_hint:
+        payload["reextract_hint"] = reextract_hint
+
+    text = json.dumps(payload, ensure_ascii=True)
+    if not page_images:
+        return text
+
+    import base64
+
+    content: list[dict[str, Any]] = [{"type": "input_text", "text": text}]
+    for image in page_images:
+        b64 = base64.b64encode(image).decode("ascii")
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": f"data:image/png;base64,{b64}",
+            }
+        )
+    return [{"role": "user", "content": content}]
 
 
 def _build_adjudication_input(

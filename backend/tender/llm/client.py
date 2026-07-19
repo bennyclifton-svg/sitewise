@@ -31,6 +31,11 @@ class TenderLLMClient(Protocol):
         document_pages: Sequence[TenderDocumentPage],
         schema: dict[str, Any],
         context: ProjectContext,
+        *,
+        page_images: Sequence[bytes] | None = None,
+        prior_section_headings: Sequence[str] | None = None,
+        already_found: Sequence[dict[str, Any]] | None = None,
+        reextract_hint: str | None = None,
     ) -> LLMExtractionResponse:
         ...
 

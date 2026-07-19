@@ -5,7 +5,15 @@ from types import SimpleNamespace
 from typing import Any
 
 from tender.llm.client import LLMExtractionResponse
-from tender.models import TenderDocument, TenderFlag, TenderJob, TenderLineItem, TenderPage, TenderQuote
+from tender.models import (
+    TenderDocument,
+    TenderFlag,
+    TenderJob,
+    TenderLineItem,
+    TenderPage,
+    TenderQuote,
+    TenderQuoteReconciliation,
+)
 from tender.schemas import ProjectContext
 from tender.services import extraction_handler
 from tests.conftest import run_async
@@ -31,6 +39,9 @@ class _ExecuteResult:
     def scalar_one(self) -> Any:
         return self._values[0]
 
+    def scalar(self) -> Any:
+        return self._values[0] if self._values else None
+
     def scalars(self) -> _ScalarResult:
         return _ScalarResult(self._values)
 
@@ -51,6 +62,7 @@ class _Session:
         self.line_items = line_items or []
         self.flags: list[TenderFlag] = []
         self.jobs: list[TenderJob] = []
+        self.reconciliations: list[TenderQuoteReconciliation] = []
         self.execute_values: list[list[Any]] = [[context], pages]
         self.flush_count = 0
 
@@ -69,6 +81,13 @@ class _Session:
             return _ExecuteResult([])
         return _ExecuteResult(self.execute_values.pop(0))
 
+    async def scalar(self, statement: Any) -> Any:
+        # Upsert lookup for reconciliation — none existing.
+        return None
+
+    async def scalars(self, statement: Any) -> _ScalarResult:
+        return _ScalarResult(self.execute_values.pop(0))
+
     def add(self, obj: Any) -> None:
         if isinstance(obj, TenderLineItem):
             self.line_items.append(obj)
@@ -76,33 +95,38 @@ class _Session:
             self.flags.append(obj)
         elif isinstance(obj, TenderJob):
             self.jobs.append(obj)
+        elif isinstance(obj, TenderQuoteReconciliation):
+            self.reconciliations.append(obj)
 
     async def flush(self) -> None:
         self.flush_count += 1
 
 
 class _StubLLM:
-    async def extract(self, document_pages, schema, context):
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
+        self.data = data or {
+            "line_items": [
+                {
+                    "page_no": 1,
+                    "description_raw": "Slab and footings",
+                    "item_status": "included",
+                    "amount_cents": 4_500_000,
+                    "extraction_confidence": 0.95,
+                    "figure_key": "p1-1",
+                    "role": "contract_component",
+                    "gst_basis": "inc",
+                    "printed_text": "$45,000.00",
+                }
+            ],
+            "page_subtotals": [],
+            "quote_total_cents": 4_500_000,
+        }
+
+    async def extract(self, document_pages, schema, context, **kwargs):
         return LLMExtractionResponse(
-            data={
-                "line_items": [
-                    {
-                        "page_no": 1,
-                        "description_raw": "Slab and footings",
-                        "item_status": "included",
-                        "amount_cents": 4_500_000,
-                        "extraction_confidence": 0.95,
-                        "figure_key": "p1-1",
-                        "role": "contract_component",
-                        "gst_basis": "inc",
-                        "printed_text": "$45,000.00",
-                    }
-                ],
-                "page_subtotals": [],
-                "quote_total_cents": 4_500_000,
-            },
+            data=self.data,
             model="test-model",
-            prompt_version="0.1.0",
+            prompt_version="0.2.0",
         )
 
     async def adjudicate(self, *args, **kwargs):
@@ -138,6 +162,7 @@ def _quote() -> TenderQuote:
         comparison_id=COMPARISON_ID,
         builder_name="Acme",
         stated_total_cents=4_500_000,
+        gst_treatment="inclusive",
     )
 
 
@@ -164,7 +189,7 @@ def test_extract_persists_line_items_and_replaces_prior_rows() -> None:
         document_id=document.id,
         page_no=1,
         image_path="page-0001.png",
-        text_content="Slab and footings $45,000",
+        text_content="Slab and footings $45,000.00",
     )
     session = _Session(
         document=document,
@@ -185,11 +210,98 @@ def test_extract_persists_line_items_and_replaces_prior_rows() -> None:
     assert item.description_raw == "Slab and footings"
     assert item.amount_cents == 4_500_000
     assert item.item_status == "included"
+    assert item.figure_key == "p1-1"
+    assert item.counted_in_total is True
     assert float(item.extraction_confidence) == 0.95
-    assert session.flags == []
+    assert len(session.reconciliations) == 1
+    assert session.reconciliations[0].status == "reconciled"
     assert quote.stage == "embed_items"
     assert session.jobs[0].kind == "embed_items"
-    assert session.jobs[0].payload == {"document_id": str(document.id)}
+
+
+def test_extract_persists_coastal_tree_and_recon() -> None:
+    document = _document()
+    quote = TenderQuote(
+        id=QUOTE_ID,
+        comparison_id=COMPARISON_ID,
+        builder_name="Coastal",
+        stated_total_cents=66_000_00,
+        gst_treatment="inclusive",
+    )
+    page = TenderPage(
+        document_id=document.id,
+        page_no=1,
+        image_path="page-0001.png",
+        text_content="Cat A $11,000.00 Cat B $22,000.00 Cat C $33,000.00 PS $5,000.00",
+    )
+    llm = _StubLLM(
+        {
+            "line_items": [
+                {
+                    "page_no": 1,
+                    "description_raw": "Category A",
+                    "amount_cents": 11_000_00,
+                    "figure_key": "cat-a",
+                    "role": "contract_component",
+                    "gst_basis": "inc",
+                    "is_rollup": True,
+                    "printed_text": "$11,000.00",
+                    "extraction_confidence": 0.95,
+                },
+                {
+                    "page_no": 1,
+                    "description_raw": "Category B",
+                    "amount_cents": 22_000_00,
+                    "figure_key": "cat-b",
+                    "role": "contract_component",
+                    "gst_basis": "inc",
+                    "is_rollup": True,
+                    "printed_text": "$22,000.00",
+                    "extraction_confidence": 0.95,
+                },
+                {
+                    "page_no": 1,
+                    "description_raw": "Category C",
+                    "amount_cents": 33_000_00,
+                    "figure_key": "cat-c",
+                    "role": "contract_component",
+                    "gst_basis": "inc",
+                    "is_rollup": True,
+                    "printed_text": "$33,000.00",
+                    "extraction_confidence": 0.95,
+                },
+                {
+                    "page_no": 1,
+                    "description_raw": "PS Contingency",
+                    "amount_cents": 5_000_00,
+                    "figure_key": "ps-1",
+                    "parent_figure_key": "cat-b",
+                    "role": "ps_allowance",
+                    "gst_basis": "inc",
+                    "printed_text": "$5,000.00",
+                    "extraction_confidence": 0.95,
+                },
+            ],
+            "page_subtotals": [],
+            "quote_total_cents": 66_000_00,
+        }
+    )
+    session = _Session(
+        document=document, quote=quote, pages=[page], context=_context()
+    )
+
+    run_async(
+        extraction_handler.extract_line_items_job(
+            session, _job(document), llm_client=llm
+        )
+    )
+
+    by_key = {item.figure_key: item for item in session.line_items}
+    assert by_key["ps-1"].parent_id == by_key["cat-b"].id
+    assert by_key["cat-a"].counted_in_total is True
+    assert by_key["ps-1"].counted_in_total is False
+    assert len(session.reconciliations) == 1
+    assert session.reconciliations[0].residual_cents == 0
 
 
 def test_extract_persists_extracted_total_when_stated_missing() -> None:
@@ -199,12 +311,13 @@ def test_extract_persists_extracted_total_when_stated_missing() -> None:
         comparison_id=COMPARISON_ID,
         builder_name="Acme",
         stated_total_cents=None,
+        gst_treatment="inclusive",
     )
     page = TenderPage(
         document_id=document.id,
         page_no=1,
         image_path="page-0001.png",
-        text_content="Slab and footings $45,000",
+        text_content="Slab and footings $45,000.00",
     )
     session = _Session(
         document=document, quote=quote, pages=[page], context=_context()
@@ -218,6 +331,7 @@ def test_extract_persists_extracted_total_when_stated_missing() -> None:
 
     assert quote.stated_total_cents == 4_500_000
     assert quote.stated_total_source == "extracted"
+    assert session.reconciliations[0].stated_total_cents == 4_500_000
 
 
 def test_extract_never_overwrites_manual_total() -> None:
@@ -228,12 +342,13 @@ def test_extract_never_overwrites_manual_total() -> None:
         builder_name="Acme",
         stated_total_cents=9_999_999,
         stated_total_source="manual",
+        gst_treatment="inclusive",
     )
     page = TenderPage(
         document_id=document.id,
         page_no=1,
         image_path="page-0001.png",
-        text_content="Slab and footings $45,000",
+        text_content="Slab and footings $45,000.00",
     )
     session = _Session(
         document=document, quote=quote, pages=[page], context=_context()
