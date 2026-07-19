@@ -396,11 +396,47 @@ capability, and durable-event contract.
 ### R1 release record
 
 - [ ] Stage 1 evidence tenancy gate is green.
-- [ ] Profile HTTP/MCP parity and concurrent-edit tests pass.
-- [ ] Decisions, Snapshot, and Capability contract tests pass.
+- [x] Profile HTTP/MCP parity and concurrent-edit tests pass.
+- [x] Decisions, Snapshot, and Capability contract tests pass.
 - [ ] Agent profile event becomes visible in the UI at p95 ≤500 ms.
 - [ ] Additive rollout completed without removing legacy paths.
 - [ ] Rollback to the prior application deployment has been rehearsed.
+
+#### R1 gate audit — 2026-07-19
+
+Status: **blocked; R1 is not closed**.
+
+Repository and disposable-environment evidence:
+
+- Profile, profile-contract, profile-MCP, decision, decision-MCP, Snapshot,
+  Capability, and durable-event focused tests: 47 passed.
+- Project query reconciliation, dirty-profile protection, and chat-isolation
+  frontend tests: 11 passed; TypeScript type-check passed.
+- Ruff passed and Alembic reports the single head
+  `028_project_decision_revisions`.
+- The Stage 0/1 destructive database acceptance and durable Project Event
+  integration gates passed against a disposable pgvector/PostgreSQL 16
+  database: 2 passed.
+- The audit found and fixed a migration-order regression in the evidence repair
+  script: it now reads only the legacy `projects.id`/`projects.slug` contract
+  while the database is at migration `021b`, instead of loading Stage 2 ORM
+  columns that do not yet exist.
+- The additive implementation retains the legacy modules and paths. The active
+  event-cursor contract polls at 250 ms and same-turn agent resource parts
+  invalidate the exact project query immediately.
+
+Release blockers requiring deployment evidence:
+
+- The production evidence-ownership audit has not reported zero ambiguous rows,
+  so Stage 1 Tasks 0.4 and 0.5A–C remain production-gated.
+- The ≤500 ms figure is supported by the 250 ms active polling contract but has
+  not been measured as a browser-to-deployment p95; a contract test is not an
+  observed latency result.
+- No application rollout was performed during this audit, and no legacy path
+  was removed.
+- Rollback to the prior application deployment has not been rehearsed. The
+  earlier Stage 0/1 record remains accurate: rollback is documented but not
+  exercised.
 
 ## Stage 3 — Shared Tender selection and immutable intake
 

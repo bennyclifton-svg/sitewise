@@ -67,6 +67,14 @@ async def _citation_rows(session, document_id_value: uuid.UUID, project_id: uuid
     return list(result.scalars().all())
 
 
+async def _project_slug(session, project_id: uuid.UUID) -> str:
+    """Read only columns available before the Stage 2 project migrations."""
+    slug = await session.scalar(select(Project.slug).where(Project.id == project_id))
+    if slug is None:
+        raise RuntimeError(f"owning project does not exist: {project_id}")
+    return slug
+
+
 async def repair_evidence_identity(session, *, apply: bool) -> dict[str, int]:
     ambiguous = await ambiguous_documents(session)
     summary = {
@@ -82,11 +90,9 @@ async def repair_evidence_identity(session, *, apply: bool) -> dict[str, int]:
         original = await session.get(SourceDocument, source_document_id, with_for_update=True)
         if original is None:
             continue
-        retained_project = await session.get(Project, owners[0])
-        if retained_project is None:
-            raise RuntimeError(f"owning project does not exist: {owners[0]}")
+        retained_project_slug = await _project_slug(session, owners[0])
         original.project_id = owners[0]
-        original.project = retained_project.slug
+        original.project = retained_project_slug
         chunks = list(
             (
                 await session.execute(
@@ -100,9 +106,7 @@ async def repair_evidence_identity(session, *, apply: bool) -> dict[str, int]:
         )
 
         for owner_id in owners[1:]:
-            owner_project = await session.get(Project, owner_id)
-            if owner_project is None:
-                raise RuntimeError(f"owning project does not exist: {owner_id}")
+            owner_project_slug = await _project_slug(session, owner_id)
             existing = await session.scalar(
                 select(SourceDocument).where(
                     SourceDocument.project_id == owner_id,
@@ -122,7 +126,7 @@ async def repair_evidence_identity(session, *, apply: bool) -> dict[str, int]:
                 target = SourceDocument(
                     id=document_id(original.relative_path, project_id=owner_id),
                     project_id=owner_id,
-                    project=owner_project.slug,
+                    project=owner_project_slug,
                     phase=original.phase,
                     document_type=original.document_type,
                     document_class=original.document_class,
