@@ -273,10 +273,18 @@ capability, and durable-event contract.
     current revision and merges the returned canonical profile. Focused backend
     verification: 31 passed; Project Control Board tests: 2 passed; production
     frontend build passed.
-- [ ] **1.4 — Add the durable Project Event outbox**
+- [x] **1.4 — Add the durable Project Event outbox**
   - Dependencies: Stage 0 migration safety; stable event contracts.
   - Gate: state mutation and event commit atomically with monotonic project
     cursors and replayable resource/workflow events.
+  - Completed 2026-07-19 in migration `026_project_events` and
+    `app.projects.events`. Events carry per-project monotonic sequences, schema
+    and resource revisions, actor/action metadata, safe payloads, and optional
+    project-scoped deduplication keys. Owned cursor reads are available at
+    `GET /projects/{project_id}/events`; profile mutations and tender-worker
+    completions publish in their mutation transaction. Focused offline
+    verification: 54 passed; disposable PostgreSQL migration roundtrip and
+    atomic rollback/concurrent deduplication integration gates: 2 passed.
 - [ ] **1.5 — Bind mutation intent and persist profile proposals**
   - Dependencies: 1.2, 1.4, 0.7D.
   - Gate: document-derived facts remain proposals until confirmed; explicit

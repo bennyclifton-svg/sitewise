@@ -91,6 +91,8 @@ from app.projects.profile import (
     ProfileValidationError,
     apply_profile_patch,
 )
+from app.projects.events import list_project_events
+from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
@@ -773,6 +775,27 @@ async def patch_project(
         ) from exc
     except ProfileValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors) from exc
+
+
+@router.get("/{project_id}/events")
+async def get_project_events(
+    project_id: uuid.UUID,
+    after: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectEventListResponse:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    events = await list_project_events(
+        session,
+        project_id=project_id,
+        after=after,
+        limit=limit,
+    )
+    return ProjectEventListResponse(
+        events=[ProjectEventView.model_validate(event) for event in events],
+        next_after=events[-1].sequence if events else after,
+    )
 
 
 @router.get("/{project_id}")

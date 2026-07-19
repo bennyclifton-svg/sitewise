@@ -28,6 +28,7 @@ from app.sitewise.taxonomy import (
     validate_project_taxonomy,
     work_scope_items_for,
 )
+from app.projects.events import publish_project_event
 
 PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
     "building_class",
@@ -113,7 +114,22 @@ async def apply_profile_patch(
             },
         )
     )
-    await session.flush()
+    await publish_project_event(
+        session,
+        project_id=project.id,
+        actor_source=actor_source,
+        resource_type="project_profile",
+        resource_id=project.id,
+        resource_revision=new_revision,
+        action="updated",
+        payload={
+            "previous_revision": plan.before.profile_revision,
+            "new_revision": new_revision,
+            "changed_fields": list(plan.changed_fields),
+            "cleared_fields": list(plan.cleared_fields),
+        },
+        locked_project=project,
+    )
     return _profile_change(project, plan, new_revision=new_revision)
 
 

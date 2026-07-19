@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import inspect as sa_inspect
@@ -85,6 +85,43 @@ def test_complete_marks_done_and_clears_lock(mock_session: AsyncMock) -> None:
         assert job.status == "done"
         assert job.locked_at is None
         assert job.locked_by is None
+        mock_session.commit.assert_awaited_once()
+
+    run_async(_run())
+
+
+def test_complete_publishes_worker_event_in_the_completion_transaction(
+    mock_session: AsyncMock,
+) -> None:
+    comparison_id = uuid.uuid4()
+    project_id = uuid.uuid4()
+    job = _job(
+        status="running",
+        comparison_id=comparison_id,
+        locked_by="host:1",
+        locked_at=datetime.now(timezone.utc),
+    )
+    mock_session.scalar = AsyncMock(return_value=project_id)
+    publish = AsyncMock()
+
+    async def _run() -> None:
+        with patch("tender.services.jobs.publish_project_event", new=publish):
+            await jobs.complete(mock_session, job)
+
+        publish.assert_awaited_once_with(
+            mock_session,
+            project_id=project_id,
+            actor_source="tender_worker",
+            resource_type="tender_job",
+            resource_id=job.id,
+            resource_revision=None,
+            action="completed",
+            payload={
+                "job_kind": job.kind,
+                "comparison_id": str(comparison_id),
+            },
+            deduplication_key=f"tender_job:{job.id}:completed",
+        )
         mock_session.commit.assert_awaited_once()
 
     run_async(_run())

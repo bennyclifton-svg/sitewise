@@ -39,6 +39,7 @@ MIGRATION_CHAIN = [
     "023_agent_turns",
     "024_tender_quote_total_source",
     "025_project_profile_revision",
+    "026_project_events",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -201,6 +202,16 @@ def test_tender_migrations_roundtrip_against_database() -> None:
         profile_revision = project_columns["profile_revision"]
         assert profile_revision["nullable"] is False
         assert str(profile_revision["default"]) in {"1", "'1'::integer"}
+        event_sequence = project_columns["event_sequence"]
+        assert event_sequence["nullable"] is False
+        assert str(event_sequence["default"]) in {"0", "'0'::integer"}
+        assert "project_events" in tables
+        event_unique_names = {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("project_events")
+        }
+        assert "uq_project_events_project_sequence" in event_unique_names
+        assert "uq_project_events_project_deduplication_key" in event_unique_names
 
         with engine.connect() as connection:
             embedding_type = connection.execute(

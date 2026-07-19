@@ -405,6 +405,57 @@ def test_patch_project_requires_clear_confirmation_for_dependency_conflicts(
     }
 
 
+def test_project_events_are_read_after_an_owned_project_cursor(
+    client: TestClient,
+) -> None:
+    event = SimpleNamespace(
+        id=uuid.uuid4(),
+        sequence=5,
+        schema_version=1,
+        project_id=PROJECT_ID,
+        actor_source="worker",
+        resource_type="workflow_run",
+        resource_id="run-1",
+        resource_revision=2,
+        action="completed",
+        payload={"status": "complete"},
+        deduplication_key="workflow:run-1:complete",
+        created_at=NOW,
+    )
+    list_events = AsyncMock(return_value=[event])
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.list_project_events", new=list_events),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/events?after=4&limit=2")
+
+    assert response.status_code == 200
+    assert response.json()["next_after"] == 5
+    assert response.json()["events"][0]["resource_type"] == "workflow_run"
+    assert list_events.await_args.kwargs == {
+        "project_id": PROJECT_ID,
+        "after": 4,
+        "limit": 2,
+    }
+
+
+def test_project_events_reject_cross_tenant_reads_before_cursor_query(
+    client: TestClient,
+) -> None:
+    list_events = AsyncMock()
+    with (
+        patch(
+            "app.api.projects.get_project",
+            new=AsyncMock(return_value=_project(owner_user_id=uuid.uuid4())),
+        ),
+        patch("app.api.projects.list_project_events", new=list_events),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/events?after=0")
+
+    assert response.status_code == 403
+    list_events.assert_not_awaited()
+
+
 def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> None:
     with patch("app.api.projects.ensure_user_exists", new=AsyncMock()):
         response = client.get("/projects/taxonomy")

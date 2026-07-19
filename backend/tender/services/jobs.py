@@ -16,7 +16,8 @@ from sqlalchemy import Select, func, inspect as sa_inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from tender.models import TenderJob
+from app.projects.events import publish_project_event
+from tender.models import TenderComparison, TenderJob
 
 logger = structlog.get_logger(__name__)
 
@@ -81,6 +82,27 @@ async def complete(session: AsyncSession, job: TenderJob) -> None:
     job.status = "done"
     job.locked_at = None
     job.locked_by = None
+    if job.comparison_id is not None:
+        project_id = await session.scalar(
+            select(TenderComparison.project_id).where(
+                TenderComparison.id == job.comparison_id
+            )
+        )
+        if project_id is not None:
+            await publish_project_event(
+                session,
+                project_id=project_id,
+                actor_source="tender_worker",
+                resource_type="tender_job",
+                resource_id=job.id,
+                resource_revision=None,
+                action="completed",
+                payload={
+                    "job_kind": job.kind,
+                    "comparison_id": str(job.comparison_id),
+                },
+                deduplication_key=f"tender_job:{job.id}:completed",
+            )
     await session.commit()
     logger.info("tender_job_done", job_id=str(job.id), kind=job.kind)
 

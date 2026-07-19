@@ -233,7 +233,7 @@ def test_apply_profile_patch_updates_once_and_records_one_audit_run() -> None:
     assert change.changed_fields == ["state"]
     assert change.cleared_fields == []
     assert session.flush_count == 1
-    assert len(session.added) == 1
+    assert len(session.added) == 2
     activity = session.added[0]
     assert activity.project_id == project.id
     assert activity.source == "user"
@@ -241,6 +241,13 @@ def test_apply_profile_patch_updates_once_and_records_one_audit_run() -> None:
     assert activity.event_metadata["changed_fields"] == ["state"]
     assert activity.event_metadata["before"]["state"] == "NSW"
     assert activity.event_metadata["after"]["state"] == "VIC"
+    event = session.added[1]
+    assert event.project_id == project.id
+    assert event.sequence == 1
+    assert event.resource_type == "project_profile"
+    assert event.resource_revision == 4
+    assert event.action == "updated"
+    assert event.payload["changed_fields"] == ["state"]
 
 
 def test_apply_profile_patch_rechecks_revision_under_row_lock() -> None:
@@ -284,6 +291,7 @@ def _project(**overrides):
     values = {
         "id": uuid.uuid4(),
         "profile_revision": 1,
+        "event_sequence": 0,
         "building_class": None,
         "work_type": None,
         "user_role": None,
