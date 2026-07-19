@@ -67,9 +67,6 @@ def upgrade() -> None:
             "project_id IS NULL AND document_metadata->>'knowledge_scope' = 'platform'"
         ),
     )
-    op.drop_constraint(
-        "source_documents_relative_path_key", "source_documents", type_="unique"
-    )
     op.drop_index(
         "ix_source_documents_project_source_type_relative_path",
         table_name="source_documents",
@@ -107,8 +104,20 @@ def downgrade() -> None:
     )
     op.drop_index("uq_source_documents_platform_path", table_name="source_documents")
     op.drop_index("uq_source_documents_project_path", table_name="source_documents")
-    op.create_unique_constraint(
-        "source_documents_relative_path_key", "source_documents", ["relative_path"]
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'source_documents'::regclass
+              AND conname = 'source_documents_relative_path_key'
+          ) THEN
+            ALTER TABLE source_documents
+            ADD CONSTRAINT source_documents_relative_path_key UNIQUE (relative_path);
+          END IF;
+        END $$;
+        """
     )
     op.drop_constraint(
         "fk_source_documents_project_id_projects", "source_documents", type_="foreignkey"

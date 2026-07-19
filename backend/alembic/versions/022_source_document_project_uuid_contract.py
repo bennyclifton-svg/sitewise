@@ -1,13 +1,13 @@
 """Contract SourceDocument identity to project UUID plus relative path.
 
 Revision ID: 022_source_doc_uuid_contract
-Revises: 021_source_document_uuid_expand
+Revises: 021b_source_doc_path_contract
 """
 
 from alembic import op
 
 revision = "022_source_doc_uuid_contract"
-down_revision = "021_source_document_uuid_expand"
+down_revision = "021b_source_doc_path_contract"
 branch_labels = None
 depends_on = None
 

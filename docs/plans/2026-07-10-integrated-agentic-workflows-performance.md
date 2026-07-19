@@ -645,6 +645,12 @@ Gate:
 
 #### Task 0.4 - Contract legacy evidence identity and repair data
 
+Implementation note (2026-07-19): migration
+`021b_source_doc_path_contract` performs the planned global-to-project path
+uniqueness cutover between the additive 021 expand migration and the 022
+ownership constraints. This preserves the dual-write rollout boundary while
+allowing the repair command to create project-scoped copies.
+
 Prerequisites:
 
 - Tasks 0.1-0.3 are green;

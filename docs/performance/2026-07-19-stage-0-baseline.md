@@ -68,3 +68,14 @@ run because this checkout has no approved smoke-test credentials or fixture.
 | Frontend tests | 29 files / 93 tests passed | 21.77 s |
 | Frontend lint | 0 errors; 1 existing warning | combined lane |
 | Frontend build and bundle measurement | passed; 1,720,350 raw / 460,568 gzip | 46.4 s combined lane |
+
+## Migration-topology correction validation
+
+The additive UUID expand and destructive path-uniqueness cutover are now
+separate revisions (`021` and `021b`) before the `022` ownership contract.
+
+| Check | Result | Wall time |
+| --- | ---: | ---: |
+| Migration graph and source-boundary tests | 6 passed | 0.38 s |
+| Disposable PostgreSQL Stage 0/1 acceptance | 1 passed | 9.30 s |
+| Clean disposable PostgreSQL full migration roundtrip | 1 passed | 2.88 s |

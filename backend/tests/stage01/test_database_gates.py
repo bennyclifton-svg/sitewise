@@ -433,6 +433,7 @@ def test_stage_0_and_stage_1_database_acceptance() -> None:
             assert rows[PLATFORM_DOCUMENT] is None
             assert rows[PROJECTLESS_REFERENCE] is None
 
+        _run_migration("021b_source_doc_path_contract")
         asyncio.run(_exercise_async_gates(url))
         _run_migration("head")
 
@@ -484,11 +485,11 @@ def test_stage_0_and_stage_1_database_acceptance() -> None:
                 )
 
         # Contract and durable-turn schema can roll back while the expanded UUID
-        # schema remains. The expand downgrade must refuse once repaired projects
-        # legitimately share a relative path.
-        _run_migration("021_source_document_uuid_expand", downgrade=True)
+        # schema and project-scoped path contract remain. The path-contract
+        # downgrade must refuse once repaired projects legitimately share a path.
+        _run_migration("021b_source_doc_path_contract", downgrade=True)
         with pytest.raises(Exception, match="global relative_path uniqueness"):
-            _run_migration("020_tender_extract_cache", downgrade=True)
+            _run_migration("021_source_document_uuid_expand", downgrade=True)
         _run_migration("head")
     finally:
         engine.dispose()

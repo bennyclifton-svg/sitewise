@@ -34,6 +34,7 @@ MIGRATION_CHAIN = [
     "019_project_decisions",
     "020_tender_extract_cache",
     "021_source_document_uuid_expand",
+    "021b_source_doc_path_contract",
     "022_source_doc_uuid_contract",
     "023_agent_turns",
     "024_tender_quote_total_source",
@@ -85,6 +86,27 @@ def _verify_migration_graph(scripts: ScriptDirectory) -> str:
 def test_single_head_contains_every_tender_migration() -> None:
     scripts = _script_directory()
     assert _verify_migration_graph(scripts) == scripts.get_current_head()
+
+
+def test_uuid_expand_retains_global_path_uniqueness_until_cutover() -> None:
+    expand_source = (
+        BACKEND_DIR
+        / "alembic"
+        / "versions"
+        / "021_source_document_project_uuid_expand.py"
+    ).read_text(encoding="utf-8")
+    expand_upgrade = expand_source.split("def upgrade() -> None:", 1)[1].split(
+        "def downgrade() -> None:", 1
+    )[0]
+    cutover_source = (
+        BACKEND_DIR
+        / "alembic"
+        / "versions"
+        / "021b_source_document_path_contract.py"
+    ).read_text(encoding="utf-8")
+
+    assert "DROP CONSTRAINT" not in expand_upgrade
+    assert "DROP CONSTRAINT IF EXISTS source_documents_relative_path_key" in cutover_source
 
 
 def test_migration_graph_rejects_synthetic_branch() -> None:
