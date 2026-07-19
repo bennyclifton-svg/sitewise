@@ -275,3 +275,66 @@ export type TenderReportLifecycle = {
   approved_at: string | null;
   delivered_at: string | null;
 };
+export type TenderSelectedWorkspaceFile = {
+  workspace_file_id: string;
+  workspace_path: string;
+  filename: string;
+  content_hash: string;
+  storage_bucket: string;
+  storage_key: string;
+  position: number;
+};
+
+export type TenderReportState = {
+  comparison_id: string;
+  report: TenderReportLifecycle | null;
+  draft: import("./project").DraftArtifact | null;
+};
+
+export type TenderQuoteSelectionGroup = {
+  group_id: string;
+  builder_name: string;
+  position: number;
+  files: TenderSelectedWorkspaceFile[];
+};
+
+export type TenderQuoteSelection = {
+  selection_id: string | null;
+  selection_revision_id: string | null;
+  project_id: string;
+  purpose: "tender_comparison";
+  revision: number;
+  selected_by: string | null;
+  created_at: string | null;
+  quote_groups: TenderQuoteSelectionGroup[];
+};
+
+export type ReplaceTenderQuoteSelection = {
+  expected_revision: number;
+  quote_candidates: Array<{
+    builder_name: string;
+    ordered_workspace_file_ids: string[];
+  }>;
+};
+
+export type TenderPreparationInput = {
+  project_id: string;
+  expected_profile_revision: number;
+  expected_selection_revision: number;
+  context_overrides: Partial<TenderProjectContext>;
+};
+
+export type TenderPreparation = {
+  supported: boolean;
+  ready: boolean;
+  context: TenderProjectContext | null;
+  missing_fields: string[];
+  unsupported_reasons: string[];
+  provenance: Record<string, unknown>;
+};
+
+export type TenderIntakeInput = TenderPreparationInput & { turn_id: string };
+export type TenderIntakeResponse = {
+  comparison: TenderComparison;
+  idempotent_replay: boolean;
+};

@@ -10,13 +10,11 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import HTTPException
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
 from pydantic import ValidationError
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm.attributes import set_committed_value
 
 from app.agent.workspace_paths import (
     WorkspacePathError,
@@ -73,6 +71,13 @@ from app.projects.decisions import (
     update_project_decision as persist_decision_update,
 )
 from app.projects.snapshot import get_project_snapshot as read_project_snapshot
+from app.projects.document_selections import (
+    SelectionRevisionConflict,
+    SelectionValidationError,
+    read_selection as read_document_selection,
+    replace_selection as persist_document_selection,
+)
+from app.schemas.document_selections import QuoteCandidateInput
 from app.projects.workflow_capabilities import (
     CONSULTANT_PROCUREMENT,
     capability_block_message,
@@ -104,15 +109,18 @@ from app.workflows.consultant_procurement import (
     draft_consultant_procurement_artifact as run_consultant_procurement_artifact,
 )
 from tender.router import (
-    create_comparison,
-    create_quote,
     get_comparison_detail,
     list_comparisons,
-    store_project_file_quote_document,
 )
 from tender.models import TenderAnalysisResult, TenderJob, TenderReport
-from tender.schemas import QuoteCreate
-from tender.services import jobs, matrix, qa
+from tender.services import matrix, qa
+from tender.services import intake as tender_intake
+from tender.services.project_context_adapter import (
+    ContextRevisionConflict,
+    ContextValidationError,
+    ProjectContextAdapter,
+)
+from tender.schemas import TenderIntakeRequest
 
 mcp = FastMCP("clerk")
 
@@ -1384,15 +1392,11 @@ async def get_comparison_result(comparison_id: str) -> dict:
 @mcp.tool
 async def start_tender_comparison(
     project_id: str,
-    context: dict,
-    quotes: list[dict],
+    expected_profile_revision: int,
+    expected_selection_revision: int,
+    context_overrides: dict | None = None,
 ) -> dict:
-    """Start a tender comparison: create quotes from workspace files and queue ingestion.
-
-    Each quote is {"builder_name": str, "workspace_paths": [str, ...]}. A quote
-    whose workspace path cannot be found is reported in its "error" field;
-    the other quotes still proceed.
-    """
+    """Atomically start Tender from the exact saved quote selection and profile revision."""
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
@@ -1410,50 +1414,59 @@ async def start_tender_comparison(
             done="Started tender comparison",
             error="Tender comparison start failed",
         ):
-            comparison = await create_comparison(
-                session,
-                project_id=pid,
-                context=context,
-                created_by=project.owner_user_id,
-            )
-
-            quote_results: list[dict] = []
-            for spec in quotes:
-                quote = await create_quote(
+            try:
+                result = await tender_intake.create_immutable_intake(
                     session,
-                    comparison_id=comparison.id,
-                    body=QuoteCreate(builder_name=spec["builder_name"]),
+                    request=TenderIntakeRequest(
+                        project_id=pid,
+                        expected_profile_revision=expected_profile_revision,
+                        expected_selection_revision=expected_selection_revision,
+                        context_overrides=context_overrides or {},
+                        turn_id=_turn_id(authorization) or str(uuid.uuid4()),
+                    ),
+                    owner_user_id=project.owner_user_id,
                 )
-                set_committed_value(quote, "comparison", comparison)
-                entry: dict = {
-                    "quote_id": str(quote.id),
-                    "builder_name": quote.builder_name,
-                    "documents": [],
-                }
-                workspace_path = None
-                try:
-                    for workspace_path in spec.get("workspace_paths", []):
-                        document = await store_project_file_quote_document(
-                            session, quote=quote, workspace_path=workspace_path
-                        )
-                        await jobs.enqueue(
-                            session,
-                            kind="ingest_document",
-                            comparison_id=quote.comparison_id,
-                            quote_id=quote.id,
-                            payload={"document_id": str(document.id)},
-                        )
-                        entry["documents"].append(str(document.id))
-                except HTTPException as exc:
-                    entry["error"] = f"{workspace_path}: {exc.detail}"
-                quote_results.append(entry)
-
-            await session.commit()
-        return {"comparison_id": str(comparison.id), "quotes": quote_results}
+                await session.commit()
+            except (
+                ContextRevisionConflict,
+                ContextValidationError,
+                tender_intake.TenderIntakeNotReady,
+                tender_intake.TenderIdempotencyConflict,
+            ) as exc:
+                await session.rollback()
+                raise ToolError(str(exc)) from exc
+        return result.model_dump(mode="json")
 
 
 @mcp.tool
-async def list_selected_documents(project_id: str) -> list[dict]:
+async def prepare_tender_comparison(
+    project_id: str,
+    expected_profile_revision: int,
+    expected_selection_revision: int,
+    context_overrides: dict | None = None,
+) -> dict:
+    """Read Tender readiness without creating or changing any records."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            prepared = await ProjectContextAdapter().prepare(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+                expected_profile_revision=expected_profile_revision,
+                expected_selection_revision=expected_selection_revision,
+                overrides=context_overrides or {},
+            )
+        except (ToolAuthError, ContextRevisionConflict, ContextValidationError) as exc:
+            raise ToolError(str(exc)) from exc
+        return prepared.model_dump(mode="json")
+
+
+@mcp.tool
+async def find_candidate_tender_documents(project_id: str) -> list[dict]:
     """Return candidate tender PDFs from the project workspace.
 
     Clerk does not yet persist a backend document-selection model. This tool
@@ -1470,13 +1483,58 @@ async def list_selected_documents(project_id: str) -> list[dict]:
             raise ToolError(str(exc)) from exc
         async with _tool_status(
             _turn_id(authorization),
-            tool="list_selected_documents",
+            tool="find_candidate_tender_documents",
             running="Finding candidate tender documents",
             done="Found candidate tender documents",
             error="Candidate document lookup failed",
         ):
             records = await list_workspace_files_for_project(session, project_id=pid)
         return _candidate_documents(records)
+
+
+@mcp.tool
+async def get_tender_quote_selection(project_id: str, revision: int | None = None) -> dict:
+    """Return the exact ordered, revisioned Tender quote-group selection."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            selection = await read_document_selection(
+                session, project_id=pid, revision=revision
+            )
+        except (ToolAuthError, SelectionValidationError) as exc:
+            raise ToolError(str(exc)) from exc
+        return selection.model_dump(mode="json")
+
+
+@mcp.tool
+async def replace_tender_quote_selection(
+    project_id: str,
+    expected_revision: int,
+    quote_candidates: list[dict],
+) -> dict:
+    """Replace the ordered Tender quote groups using optimistic concurrency."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            candidates = [QuoteCandidateInput.model_validate(value) for value in quote_candidates]
+            selection = await persist_document_selection(
+                session,
+                project_id=pid,
+                selected_by=authorization.project.owner_user_id,
+                expected_revision=expected_revision,
+                quote_candidates=candidates,
+                actor_source="agent",
+            )
+            await session.commit()
+        except (ToolAuthError, SelectionRevisionConflict, SelectionValidationError, ValidationError) as exc:
+            raise ToolError(str(exc)) from exc
+        return selection.model_dump(mode="json")
 
 
 @mcp.tool

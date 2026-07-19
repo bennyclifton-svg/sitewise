@@ -88,13 +88,13 @@ def _call(server, project_id: uuid.UUID = PROJECT_ID) -> Any:
     async def _run():
         async with Client(server.mcp) as client:
             return await client.call_tool(
-                "list_selected_documents", {"project_id": str(project_id)}
+                "find_candidate_tender_documents", {"project_id": str(project_id)}
             )
 
     return run_async(_run())
 
 
-def test_list_selected_documents_returns_candidate_tender_pdfs(monkeypatch) -> None:
+def test_find_candidate_tender_documents_returns_candidate_tender_pdfs(monkeypatch) -> None:
     session = _Session(
         project=_project(),
         workspace_files=[
@@ -119,7 +119,7 @@ def test_list_selected_documents_returns_candidate_tender_pdfs(monkeypatch) -> N
     assert documents[0]["size_bytes"] == 100
 
 
-def test_list_selected_documents_rejects_cross_project_token(monkeypatch) -> None:
+def test_find_candidate_tender_documents_rejects_cross_project_token(monkeypatch) -> None:
     session = _Session(project=_project(), workspace_files=[])
     server = _install(monkeypatch, session, token_project=OTHER_PROJECT_ID)
 

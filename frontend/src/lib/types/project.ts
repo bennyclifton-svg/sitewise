@@ -207,6 +207,7 @@ export type ProjectEventListResponse = {
 
 export type EvidencePreview = {
   id: string;
+  workspace_file_id?: string | null;
   title: string;
   filename: string;
   relative_path: string;

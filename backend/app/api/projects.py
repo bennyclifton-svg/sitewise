@@ -103,6 +103,16 @@ from app.projects.decisions import (
     update_project_decision,
 )
 from app.projects.snapshot import ProjectSnapshotNotFound, get_project_snapshot
+from app.projects.document_selections import (
+    SelectionRevisionConflict,
+    SelectionValidationError,
+    read_selection,
+    replace_selection,
+)
+from app.schemas.document_selections import (
+    ReplaceTenderQuoteSelection,
+    TenderQuoteSelection,
+)
 from app.projects.workflow_capabilities import workflow_capabilities
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectSnapshot
@@ -151,6 +161,55 @@ from app.logging import get_logger
 router = APIRouter(prefix="/projects", tags=["projects"])
 sitewise_router = APIRouter(prefix="/sitewise", tags=["sitewise"])
 log = get_logger(__name__)
+
+
+@router.get(
+    "/{project_id}/document-selections/tender-comparison",
+    response_model=TenderQuoteSelection,
+)
+async def get_tender_quote_selection(
+    project_id: uuid.UUID,
+    revision: int | None = Query(default=None, ge=1),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> TenderQuoteSelection:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        return await read_selection(
+            session, project_id=project_id, revision=revision
+        )
+    except SelectionValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.put(
+    "/{project_id}/document-selections/tender-comparison",
+    response_model=TenderQuoteSelection,
+)
+async def put_tender_quote_selection(
+    project_id: uuid.UUID,
+    body: ReplaceTenderQuoteSelection,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> TenderQuoteSelection:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        return await replace_selection(
+            session,
+            project_id=project_id,
+            selected_by=user.id,
+            expected_revision=body.expected_revision,
+            quote_candidates=body.quote_candidates,
+            actor_source="user",
+        )
+    except SelectionRevisionConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "selection_revision_conflict", "expected_revision": exc.expected, "current_revision": exc.current},
+        ) from exc
+    except SelectionValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 def _require_project_owner(project, user_id: uuid.UUID):
@@ -250,10 +309,12 @@ def _evidence_preview_from_values(
     document_class: str,
     excerpt_source: str,
     content: str | None = None,
+    workspace_file_id: uuid.UUID | None = None,
 ) -> EvidencePreview:
     metadata = metadata if isinstance(metadata, dict) else {}
     return EvidencePreview(
         id=document_id,
+        workspace_file_id=workspace_file_id,
         title=_register_title_from_fields(
             metadata=metadata,
             document_type=document_type,
@@ -275,6 +336,7 @@ def _evidence_preview_from_values(
 def _evidence_preview_from_workspace_file(record: WorkspaceFile) -> EvidencePreview:
     return EvidencePreview(
         id=record.id,
+        workspace_file_id=record.id,
         title=record.filename,
         filename=record.filename,
         relative_path=record.workspace_path,
@@ -496,6 +558,10 @@ async def _list_project_evidence_previews(
         for path in workspace_paths
     }
     previews: list[EvidencePreview] = []
+    workspace_by_path = {
+        record.workspace_path.replace("\\", "/"): record.id
+        for record in (workspace_files or [])
+    }
     for row in result.all():
         relative_path = row.relative_path
         if (
@@ -514,6 +580,7 @@ async def _list_project_evidence_previews(
                 source_type=row.source_type,
                 document_class=row.document_class,
                 excerpt_source=row.content_excerpt or "",
+                workspace_file_id=workspace_by_path.get(relative_path.replace("\\", "/")),
             )
         )
     if workspace_files:

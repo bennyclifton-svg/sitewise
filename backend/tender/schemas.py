@@ -79,6 +79,31 @@ class ComparisonFromProjectFilesCreate(BaseModel):
         return paths
 
 
+class TenderPreparationRequest(BaseModel):
+    project_id: uuid.UUID
+    expected_profile_revision: int = Field(ge=1)
+    expected_selection_revision: int = Field(ge=1)
+    context_overrides: dict = Field(default_factory=dict)
+
+
+class TenderPreparationResponse(BaseModel):
+    supported: bool
+    ready: bool
+    context: ProjectContext | None = None
+    missing_fields: list[str] = Field(default_factory=list)
+    unsupported_reasons: list[str] = Field(default_factory=list)
+    provenance: dict
+
+
+class TenderIntakeRequest(TenderPreparationRequest):
+    turn_id: str = Field(min_length=1, max_length=255)
+
+
+class TenderIntakeResponse(BaseModel):
+    comparison: "ComparisonDetail"
+    idempotent_replay: bool = False
+
+
 class ComparisonContextPatch(BaseModel):
     context: ProjectContext
 
@@ -340,6 +365,12 @@ class ReportLifecycleResponse(BaseModel):
     status: str
     approved_at: datetime | None = None
     delivered_at: datetime | None = None
+
+
+class TenderReportStateResponse(BaseModel):
+    comparison_id: uuid.UUID
+    report: ReportLifecycleResponse | None = None
+    draft: dict | None = None
 
 
 class ReportDeliveredRequest(BaseModel):

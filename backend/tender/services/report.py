@@ -126,6 +126,34 @@ class ReportLifecycleResult:
     delivered_at: datetime | None = None
 
 
+async def get_report_state(
+    session: AsyncSession, *, comparison_id: uuid.UUID
+) -> tuple[ReportLifecycleResult | None, dict[str, Any] | None]:
+    record = await _latest_report(session, comparison_id=comparison_id)
+    if record is None:
+        return None, None
+    draft = await get_draft_artifact(session, record.draft_id)
+    status = "delivered" if record.delivered_at else "approved" if record.approved_at else "draft"
+    lifecycle = _lifecycle_result(record, status=status)
+    draft_payload = None if draft is None else {
+        "id": str(draft.id),
+        "project_id": str(draft.project_id),
+        "workflow_type": draft.workflow_type,
+        "version": draft.version,
+        "status": draft.status,
+        "title": draft.title,
+        "content_markdown": draft.content_markdown,
+        "workspace_path": draft.workspace_path,
+        "author_user_id": str(draft.author_user_id),
+        "model": draft.model,
+        "runtime": draft.runtime,
+        "provenance_metadata": draft.provenance_metadata,
+        "created_at": draft.created_at.isoformat(),
+        "updated_at": draft.updated_at.isoformat(),
+    }
+    return lifecycle, draft_payload
+
+
 async def assemble_report_draft(session: AsyncSession, job: TenderJob) -> None:
     if job.comparison_id is None:
         raise ValueError("assemble_report_draft job requires comparison_id")

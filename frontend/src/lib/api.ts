@@ -30,6 +30,13 @@ import type {
   TenderQuote,
   TenderQuoteCreate,
   TenderReportLifecycle,
+  TenderQuoteSelection,
+  ReplaceTenderQuoteSelection,
+  TenderPreparation,
+  TenderPreparationInput,
+  TenderIntakeInput,
+  TenderIntakeResponse,
+  TenderReportState,
   TenderTaxonomyCell,
   TenderTaxonomySearchResult,
 } from "@/lib/types/tender";
@@ -284,6 +291,30 @@ export const api = {
     return response.comparisons;
   },
 
+  getTenderQuoteSelection: async (projectId: string): Promise<TenderQuoteSelection> =>
+    api.get<TenderQuoteSelection>(
+      `/projects/${projectId}/document-selections/tender-comparison`,
+    ),
+
+  replaceTenderQuoteSelection: async (
+    projectId: string,
+    input: ReplaceTenderQuoteSelection,
+  ): Promise<TenderQuoteSelection> =>
+    api.put<TenderQuoteSelection>(
+      `/projects/${projectId}/document-selections/tender-comparison`,
+      input,
+    ),
+
+  prepareTenderComparison: async (
+    input: TenderPreparationInput,
+  ): Promise<TenderPreparation> =>
+    api.post<TenderPreparation>("/api/tender/prepare", input),
+
+  startTenderComparison: async (
+    input: TenderIntakeInput,
+  ): Promise<TenderIntakeResponse> =>
+    api.post<TenderIntakeResponse>("/api/tender/intake", input),
+
   getTenderComparison: async (comparisonId: string): Promise<TenderComparison> =>
     api.get<TenderComparison>(`/api/tender/comparisons/${comparisonId}`),
 
@@ -399,6 +430,9 @@ export const api = {
     api.post<TenderReportLifecycle>(
       `/api/tender/comparisons/${comparisonId}/report/build`,
     ),
+
+  getTenderReport: async (comparisonId: string): Promise<TenderReportState> =>
+    api.get<TenderReportState>(`/api/tender/comparisons/${comparisonId}/report`),
 
   approveTenderReport: async (
     comparisonId: string,

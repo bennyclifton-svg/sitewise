@@ -11,6 +11,7 @@ from app.database.project import Project
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
 from app.inbox.paths import is_inbox_workspace_path
+from app.projects.document_selections import file_has_retention_lock
 
 logger = structlog.get_logger(__name__)
 
@@ -52,6 +53,13 @@ async def delete_project_evidence(
             )
 
         storage_keys = [workspace_file.storage_key]
+        if await file_has_retention_lock(
+            session, project_id=project.id, workspace_file_id=workspace_file.id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Document is retained by an active or approved workflow",
+            )
         await session.execute(
             delete(WorkspaceFile).where(WorkspaceFile.id == workspace_file.id)
         )
@@ -76,6 +84,15 @@ async def delete_project_evidence(
     )
     workspace_files = list(result.scalars().all())
     storage_keys = [record.storage_key for record in workspace_files]
+
+    for record in workspace_files:
+        if await file_has_retention_lock(
+            session, project_id=project.id, workspace_file_id=record.id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Document is retained by an active or approved workflow",
+            )
 
     if workspace_files:
         await session.execute(

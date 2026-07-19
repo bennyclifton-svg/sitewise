@@ -136,6 +136,9 @@ class TenderComparison(Base):
     )
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="intake")
     context: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    context_provenance: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    input_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    idempotency_key: Mapped[str | None] = mapped_column(String(64))
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -154,6 +157,7 @@ class TenderComparison(Base):
     __table_args__ = (
         _values_check("status", COMPARISON_STATUSES, "tender_comparisons"),
         Index("ix_tender_comparisons_project_id", "project_id"),
+        UniqueConstraint("project_id", "idempotency_key", name="uq_tender_comparisons_project_idempotency"),
     )
 
 
@@ -231,6 +235,11 @@ class TenderDocument(Base):
         String(64), nullable=False, default="pending"
     )
     content_hash: Mapped[str | None] = mapped_column(String(64))
+    workspace_file_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    storage_bucket: Mapped[str | None] = mapped_column(String(255))
+    storage_version: Mapped[str | None] = mapped_column(String(255))
+    quote_group_position: Mapped[int | None] = mapped_column(Integer)
+    input_position: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

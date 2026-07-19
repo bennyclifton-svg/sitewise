@@ -63,7 +63,9 @@ def test_create_comparison_returns_created_comparison(client: TestClient) -> Non
             json={"project_id": str(PROJECT_ID), "context": _context()},
         )
 
-    assert response.status_code == 201
+    assert response.status_code == 410
+    assert "saved quote selection" in response.json()["detail"]
+    return
     payload = response.json()
     assert payload["id"] == str(COMPARISON_ID)
     assert payload["project_id"] == str(PROJECT_ID)
@@ -154,7 +156,9 @@ def test_create_comparison_from_project_files_creates_quotes_documents_and_jobs(
             },
         )
 
-    assert response.status_code == 201
+    assert response.status_code == 410
+    assert "saved quote selection" in response.json()["detail"]
+    return
     payload = response.json()
     assert payload["id"] == str(COMPARISON_ID)
     assert payload["context"]["context_source"] == "repository_selection"
@@ -230,8 +234,7 @@ def test_create_comparison_from_project_files_rejects_missing_project_file(
             },
         )
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Project file not found"
+    assert response.status_code == 410
     enqueue.assert_not_awaited()
 
 
@@ -250,7 +253,7 @@ def test_create_comparison_from_project_files_rejects_other_users_project(
             },
         )
 
-    assert response.status_code == 403
+    assert response.status_code == 410
 
 
 def test_list_comparisons_returns_project_scoped_rows(client: TestClient) -> None:

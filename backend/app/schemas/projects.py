@@ -326,6 +326,7 @@ class PatchProjectRequest(BaseModel):
 
 class EvidencePreview(BaseModel):
     id: uuid.UUID
+    workspace_file_id: uuid.UUID | None = None
     title: str
     filename: str
     relative_path: str

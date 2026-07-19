@@ -12,6 +12,13 @@ from app.database.project import Project
 from app.database.project_decision import ProjectDecision
 from app.database.project_event import ProjectEvent
 from app.database.project_profile_proposal import ProjectProfileProposal
+from app.database.project_document_selection import (
+    ProjectDocumentSelection,
+    ProjectDocumentSelectionGroup,
+    ProjectDocumentSelectionItem,
+    ProjectDocumentSelectionRevision,
+    WorkflowInputRetentionLock,
+)
 from app.database.source_document import SourceDocument
 from app.database.stripe_customer import StripeCustomer
 from app.database.stripe_subscription import StripeSubscription
@@ -33,6 +40,11 @@ __all__ = [
     "ProjectDecision",
     "ProjectEvent",
     "ProjectProfileProposal",
+    "ProjectDocumentSelection",
+    "ProjectDocumentSelectionRevision",
+    "ProjectDocumentSelectionGroup",
+    "ProjectDocumentSelectionItem",
+    "WorkflowInputRetentionLock",
     "SourceDocument",
     "StripeCustomer",
     "StripeSubscription",

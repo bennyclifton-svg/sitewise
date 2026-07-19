@@ -443,43 +443,77 @@ Release blockers requiring deployment evidence:
 Objective: make UI and chat share one ordered Tender selection and freeze exact
 context and inputs at comparison intake.
 
-- [ ] **2.1 — Persist purpose-scoped document selections**
+- [x] **2.1 — Persist purpose-scoped document selections**
   - Dependencies: Stage 1 UUID tenancy; durable events.
   - Gate: immutable/revisioned purpose selections enforce project ownership and
     retention locks.
-- [ ] **2.2A — Add Tender selection HTTP and MCP adapters**
+- [x] **2.2A — Add Tender selection HTTP and MCP adapters**
   - Dependencies: 2.1.
   - Gate: both adapters use the same expected-revision selection service.
-- [ ] **2.2B — Add explicit quote-group selection UI**
+- [x] **2.2B — Add explicit quote-group selection UI**
   - Dependencies: 2.2A.
   - Gate: UI persists and displays 2–5 ordered quote groups, including main
     quote, schedules, and addenda.
-- [ ] **2.3 — Build the TCM-owned project-context adapter**
+- [x] **2.3 — Build the TCM-owned project-context adapter**
   - Dependencies: Project Snapshot/Profile contracts.
   - Gate: supported facts cross the boundary through a typed DTO; TCM does not
     read RAG chunks or import core internals beyond the defined interface.
-- [ ] **2.4A — Add a read-only Tender preparation contract**
+- [x] **2.4A — Add a read-only Tender preparation contract**
   - Dependencies: 2.1, 2.3.
   - Gate: preparation reports exact ready/needs-input state without mutation.
-- [ ] **2.4B — Implement atomic immutable Tender intake**
+- [x] **2.4B — Implement atomic immutable Tender intake**
   - Dependencies: 2.4A.
   - Gate: selection, file versions/hashes, context, and intake identity freeze
     atomically and idempotently.
-- [ ] **2.4C — Cut HTTP, MCP, and UI over to atomic intake**
+- [x] **2.4C — Cut HTTP, MCP, and UI over to atomic intake**
   - Dependencies: 2.4B.
   - Gate: all entry points use the same intake and preserve existing comparisons.
-- [ ] **2.5 — Fix comparison-scoped report state**
+- [x] **2.5 — Fix comparison-scoped report state**
   - Dependencies: may proceed beside 2.3–2.4.
   - Gate: report, QA, and publication state cannot leak between comparisons.
 
 ### R3 internal release record
 
-- [ ] UI and MCP observe the same selection and revision.
-- [ ] Historical Tender context stays frozen after current-profile changes.
-- [ ] Selected/frozen documents cannot be deleted improperly.
-- [ ] Internal atomic-intake acceptance passes.
+- [x] UI and MCP observe the same selection and revision.
+- [x] Historical Tender context stays frozen after current-profile changes.
+- [x] Selected/frozen documents cannot be deleted improperly.
+- [x] Internal atomic-intake acceptance passes.
 - [ ] Customer exposure, approval, and handoff remain disabled pending R3 customer.
 - [ ] Rollback preserves already-created immutable comparisons.
+
+### Stage 3 implementation record — 2026-07-19
+
+Status: complete in code and disposable acceptance; rollout gates remain open
+Owner/agent: Codex
+Branch/worktree: `feature/stage3-tender-intake` / `.worktrees/stage3-tender-intake`
+Commit/PR: local Stage 3 implementation commit
+Started: 2026-07-19
+Completed: 2026-07-19
+Predecessors verified: Stage 1 UUID tenancy and Stage 2 durable Project Events,
+Profile, Snapshot, and Capability implementations are present and their offline
+regressions pass.
+Validation commands and exact results:
+
+- `backend/.venv/Scripts/python.exe -m pytest -q` — 1,156 passed, 6 skipped,
+  19 deselected in 60.43 s.
+- `backend/.venv/Scripts/python.exe -m ruff check app tender tests ...` — passed.
+- `backend/.venv/Scripts/python.exe -m alembic heads` — one head,
+  `030_tender_immutable_intake`.
+- `pnpm test -- --run` — 31 files / 109 tests passed.
+- `pnpm lint` — zero errors; one existing TanStack Virtual compatibility warning.
+- `pnpm build` — TypeScript and Vite production build passed.
+- Disposable pgvector PostgreSQL migration roundtrip plus Stage 3 atomic intake
+  acceptance — 2 passed; covers rollback-on-invalid-input, graph atomicity,
+  turn-idempotent replay after selection advancement, conflicting reuse,
+  frozen file hashes/storage identities, and migration downgrade/upgrade.
+
+Rollout result: not performed.
+Rollback result or procedure verified: schema roundtrip passed in disposable
+PostgreSQL; application rollback with preserved production comparisons remains
+to be rehearsed.
+Remaining risks/notes: customer exposure, QS approval, production rollout, and
+application rollback remain gated. Legacy comparison rows remain readable; the
+old partial creation endpoints return 410 and no longer create partial graphs.
 
 ## Stage 4 — Canonical Artefact Revision
 

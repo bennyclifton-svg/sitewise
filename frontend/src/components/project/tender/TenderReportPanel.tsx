@@ -1,13 +1,12 @@
 import { AlertCircle, Check, ExternalLink, FileText, LoaderCircle, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { DraftArtifact } from "@/lib/types/project";
-import type { TenderReportLifecycle } from "@/lib/types/tender";
+import { useTenderReport } from "@/lib/queries/tender";
 
 export function TenderReportPanel({
   projectId,
@@ -16,48 +15,21 @@ export function TenderReportPanel({
   projectId: string;
   comparisonId: string;
 }) {
-  const [report, setReport] = useState<TenderReportLifecycle | null>(null);
-  const [draft, setDraft] = useState<DraftArtifact | null>(null);
-  const [isLoadingDraft, setIsLoadingDraft] = useState(true);
+  const reportQuery = useTenderReport(comparisonId);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDraft() {
-      setIsLoadingDraft(true);
-      setError(null);
-      try {
-        const latest = await api.getLatestDraft(projectId, "tender_report");
-        if (!cancelled) setDraft(latest);
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
-              : "Could not load tender report draft.",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsLoadingDraft(false);
-      }
-    }
-
-    void loadDraft();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+  const report = reportQuery.data?.report ?? null;
+  const draft = reportQuery.data?.draft ?? null;
+  const queryError = reportQuery.error instanceof ApiError ? reportQuery.error.message : reportQuery.error ? "Could not load tender report draft." : null;
 
   async function buildReport() {
     setIsBuilding(true);
     setError(null);
     try {
-      const built = await api.buildTenderReport(comparisonId);
-      setReport(built);
-      setDraft(await api.getProjectDraft(projectId, built.draft_id));
+      await api.buildTenderReport(comparisonId);
+      await reportQuery.refetch();
     } catch (buildError) {
       setError(
         buildError instanceof ApiError
@@ -73,9 +45,8 @@ export function TenderReportPanel({
     setIsApproving(true);
     setError(null);
     try {
-      const approved = await api.approveTenderReport(comparisonId);
-      setReport(approved);
-      setDraft(await api.getProjectDraft(projectId, approved.draft_id));
+      await api.approveTenderReport(comparisonId);
+      await reportQuery.refetch();
     } catch (approveError) {
       setError(
         approveError instanceof ApiError
@@ -104,10 +75,10 @@ export function TenderReportPanel({
         </div>
       </header>
 
-      {error ? (
+      {error || queryError ? (
         <p className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="size-4" aria-hidden />
-          {error}
+          {error || queryError}
         </p>
       ) : null}
 
@@ -158,7 +129,7 @@ export function TenderReportPanel({
           <div className="max-w-sm">
             <FileText className="mx-auto size-8 text-muted-foreground" aria-hidden />
             <p className="mt-3 text-sm font-medium">
-              {isLoadingDraft ? "Loading report draft" : "No report draft yet"}
+              {reportQuery.isLoading ? "Loading report draft" : "No report draft yet"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Build the report to generate draft content.

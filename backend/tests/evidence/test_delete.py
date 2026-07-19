@@ -76,7 +76,14 @@ def test_delete_project_evidence_removes_records_and_returns_storage_keys(
         workspace_path="04-projects/demo/_inbox/report.md",
     )
     mock_session.scalar = AsyncMock(return_value=document)
-    mock_session.execute = AsyncMock(return_value=_execute_result([workspace_file]))
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            _execute_result([workspace_file]),
+            _retention_result(None),
+            MagicMock(),
+            MagicMock(),
+        ]
+    )
 
     async def _run() -> None:
         storage_keys = await delete_project_evidence(
@@ -87,7 +94,7 @@ def test_delete_project_evidence_removes_records_and_returns_storage_keys(
         # rather than performing the slow object-storage round-trip itself.
         assert storage_keys == ["demo/_inbox/report.md"]
         # select workspace files + delete workspace files + delete source document
-        assert mock_session.execute.await_count == 3
+        assert mock_session.execute.await_count == 4
         mock_session.commit.assert_awaited_once()
 
     run_async(_run())
@@ -115,6 +122,9 @@ def test_delete_project_evidence_removes_unindexed_inbox_workspace_file(
         workspace_path="04-projects/demo/_inbox/cover.pdf",
     )
     mock_session.scalar = AsyncMock(side_effect=[None, workspace_file])
+    mock_session.execute = AsyncMock(
+        side_effect=[_retention_result(None), MagicMock()]
+    )
 
     async def _run() -> None:
         storage_keys = await delete_project_evidence(
@@ -122,8 +132,33 @@ def test_delete_project_evidence_removes_unindexed_inbox_workspace_file(
         )
 
         assert storage_keys == ["demo/_inbox/cover.pdf"]
-        assert mock_session.execute.await_count == 1
+        assert mock_session.execute.await_count == 2
         mock_session.commit.assert_awaited_once()
+
+    run_async(_run())
+
+
+def _retention_result(value) -> MagicMock:
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = value
+    return result
+
+
+def test_delete_project_evidence_refuses_retained_workspace_file(
+    mock_session: AsyncMock,
+) -> None:
+    document = SimpleNamespace(id=EVIDENCE_ID, relative_path="04-projects/demo/_inbox/report.md")
+    workspace_file = SimpleNamespace(id=uuid.uuid4(), storage_key="demo/report.md", workspace_path=document.relative_path)
+    mock_session.scalar = AsyncMock(return_value=document)
+    mock_session.execute = AsyncMock(
+        side_effect=[_execute_result([workspace_file]), _retention_result(uuid.uuid4())]
+    )
+
+    async def _run() -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_project_evidence(mock_session, project=_project(), evidence_id=EVIDENCE_ID)
+        assert exc_info.value.status_code == 409
+        mock_session.commit.assert_not_awaited()
 
     run_async(_run())
 

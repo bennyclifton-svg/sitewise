@@ -47,8 +47,18 @@ from tender.schemas import (
     ReportLifecycleResponse,
     TaxonomyListResponse,
     TaxonomySearchResponse,
+    TenderPreparationRequest,
+    TenderPreparationResponse,
+    TenderIntakeRequest,
+    TenderIntakeResponse,
+    TenderReportStateResponse,
 )
-from tender.services import jobs, matrix, progress, qa, report, taxonomy
+from tender.services import intake, jobs, matrix, progress, qa, report, taxonomy
+from tender.services.project_context_adapter import (
+    ContextRevisionConflict,
+    ContextValidationError,
+    ProjectContextAdapter,
+)
 
 router = APIRouter(prefix="/api/tender", tags=["tender"])
 
@@ -64,6 +74,68 @@ MANUAL_COMPARISON_STAGES = {
     "run_analysis",
     "generate_flags",
 }
+
+
+def _context_conflict(exc: ContextRevisionConflict) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": f"{exc.resource}_revision_conflict",
+            "expected_revision": exc.expected,
+            "current_revision": exc.current,
+        },
+    )
+
+
+@router.post("/prepare", response_model=TenderPreparationResponse)
+async def prepare_tender_intake(
+    body: TenderPreparationRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> TenderPreparationResponse:
+    await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
+    try:
+        prepared = await ProjectContextAdapter().prepare(
+            session,
+            project_id=body.project_id,
+            owner_user_id=user.id,
+            expected_profile_revision=body.expected_profile_revision,
+            expected_selection_revision=body.expected_selection_revision,
+            overrides=body.context_overrides,
+        )
+    except ContextRevisionConflict as exc:
+        raise _context_conflict(exc) from exc
+    except ContextValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return TenderPreparationResponse(
+        **prepared.model_dump(mode="python", exclude={"provenance"}),
+        provenance=prepared.provenance.model_dump(mode="json"),
+    )
+
+
+@router.post("/intake", status_code=status.HTTP_201_CREATED, response_model=TenderIntakeResponse)
+async def post_tender_intake(
+    body: TenderIntakeRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> TenderIntakeResponse:
+    await ensure_user_exists(session, user)
+    await require_active_entitlement(session, user)
+    await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
+    await _require_tender_capability(session, project_id=body.project_id, user_id=user.id)
+    try:
+        return await intake.create_immutable_intake(session, request=body, owner_user_id=user.id)
+    except ContextRevisionConflict as exc:
+        raise _context_conflict(exc) from exc
+    except intake.TenderIntakeNotReady as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "tender_intake_not_ready", "missing_fields": exc.missing, "unsupported_reasons": exc.unsupported},
+        ) from exc
+    except intake.TenderIdempotencyConflict as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "tender_idempotency_conflict", "message": str(exc)}) from exc
+    except ContextValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 async def create_comparison(
@@ -297,6 +369,10 @@ async def post_comparison(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> TenderComparison:
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Use POST /api/tender/intake with a saved quote selection",
+    )
     await ensure_user_exists(session, user)
     await require_active_entitlement(session, user)
     await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
@@ -321,6 +397,10 @@ async def post_comparison_from_project_files(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> TenderComparison:
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Use POST /api/tender/intake with a saved quote selection",
+    )
     await ensure_user_exists(session, user)
     await require_active_entitlement(session, user)
     await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
@@ -742,6 +822,24 @@ async def post_report_build(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
+
+
+@router.get(
+    "/comparisons/{comparison_id}/report",
+    response_model=TenderReportStateResponse,
+)
+async def get_report_state(
+    comparison_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> TenderReportStateResponse:
+    await require_comparison_owner(session, comparison_id=comparison_id, user_id=user.id)
+    lifecycle, draft = await report.get_report_state(session, comparison_id=comparison_id)
+    return TenderReportStateResponse(
+        comparison_id=comparison_id,
+        report=ReportLifecycleResponse.model_validate(lifecycle) if lifecycle else None,
+        draft=draft,
+    )
 
 
 @router.post(

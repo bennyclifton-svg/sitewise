@@ -184,6 +184,11 @@ def test_tender_migrations_roundtrip_against_database() -> None:
             "eval_results",
             "report_language",
             "taxonomy_synonyms",
+            "project_document_selections",
+            "project_document_selection_revisions",
+            "project_document_selection_groups",
+            "project_document_selection_items",
+            "workflow_input_retention_locks",
         ):
             assert table in tables
 
@@ -214,6 +219,17 @@ def test_tender_migrations_roundtrip_against_database() -> None:
         }
         assert "uq_project_events_project_sequence" in event_unique_names
         assert "uq_project_events_project_deduplication_key" in event_unique_names
+        comparison_columns = {
+            column["name"] for column in inspector.get_columns("tender_comparisons")
+        }
+        assert {"context_provenance", "input_fingerprint", "idempotency_key"} <= comparison_columns
+        document_columns = {
+            column["name"] for column in inspector.get_columns("tender_documents")
+        }
+        assert {
+            "workspace_file_id", "storage_bucket", "storage_version",
+            "quote_group_position", "input_position",
+        } <= document_columns
         agent_turn_columns = {
             column["name"] for column in inspector.get_columns("agent_turns")
         }
