@@ -1,3 +1,5 @@
+import uuid
+
 from app.retrieval.router import should_use_whole_document_path
 from app.retrieval.schemas import RetrievalFilters
 
@@ -28,7 +30,7 @@ def test_whole_document_path_off_for_project_only_scope() -> None:
     assert not should_use_whole_document_path(
         "what is the contract sum",
         filters=RetrievalFilters(
-            active_project="delivery-house",
+            active_project_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
             include_platform_knowledge=False,
         ),
     )

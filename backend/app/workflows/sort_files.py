@@ -1,3 +1,4 @@
+import time
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,10 +22,12 @@ RUNTIME_NAME = "clerk-sitewise-sort-files"
 
 
 def _trace(step: str, status: str, message: str, **metadata) -> WorkflowTraceEvent:
+    duration_ms = metadata.pop("duration_ms", None)
     return WorkflowTraceEvent(
         step=step,
         status=status,
         message=message,
+        duration_ms=duration_ms,
         metadata={key: value for key, value in metadata.items() if value is not None},
     )
 
@@ -131,6 +134,7 @@ async def run_sort_files_workflow(
 
     trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
 
+    inspection_started = time.perf_counter()
     manifest_hint = await next_draft_version(
         session,
         project_id=project.id,
@@ -153,10 +157,12 @@ async def run_sort_files_workflow(
             refused=result.counts.refused,
             skipped=result.counts.skipped,
             already_filed=result.counts.already_filed,
+            duration_ms=int((time.perf_counter() - inspection_started) * 1000),
         )
     )
     trace.extend(_record_trace_events(result))
 
+    persistence_started = time.perf_counter()
     draft = await create_draft_artifact(
         session,
         project_id=project.id,
@@ -182,6 +188,7 @@ async def run_sort_files_workflow(
             draft_id=str(draft.id),
             version=draft.version,
             manifest_path=result.manifest_workspace_path,
+            duration_ms=int((time.perf_counter() - persistence_started) * 1000),
         )
     )
 

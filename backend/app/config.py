@@ -101,6 +101,7 @@ class Settings(BaseSettings):
     tender_odl_hybrid_fallback: bool = True
     agent_turn_token_secret: str = ""
     agent_runtime_enabled: bool = False
+    hermes_mutations_enabled: bool = False
     hermes_binary_path: str = "hermes"
     hermes_invocation_mode: str = "chat_stream"
     hermes_model_provider: str = "openai-api"
@@ -196,9 +197,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_agent_secret_when_enabled(self) -> "Settings":
-        if self.agent_runtime_enabled and not self.agent_turn_token_secret:
+        if self.agent_runtime_enabled and len(self.agent_turn_token_secret) < 32:
             raise ValueError(
-                "AGENT_RUNTIME_ENABLED is true, but AGENT_TURN_TOKEN_SECRET is missing"
+                "AGENT_RUNTIME_ENABLED is true, but AGENT_TURN_TOKEN_SECRET is missing "
+                "or weaker than 32 characters"
             )
         return self
 

@@ -196,7 +196,7 @@ async def test_list_current_pmp_corpus_documents_filters_and_caps() -> None:
     session = _FakeSession(docs)
     result = await list_current_pmp_corpus_documents(
         session,
-        project_slug="demo-project",
+        project_id=PROJECT_ID,
         max_documents=2,
     )
     assert isinstance(result, CorpusListingResult)
@@ -220,7 +220,7 @@ async def test_sweep_current_pmp_corpus_batches_and_emits_trace() -> None:
         ),
     )
     session = _FakeSession([engagement])
-    project = SimpleNamespace(slug="demo-project")
+    project = SimpleNamespace(id=PROJECT_ID, slug="demo-project")
     result = await sweep_current_pmp_corpus(
         session,
         project=project,
@@ -570,7 +570,7 @@ async def test_sweep_respects_config_cap(monkeypatch: pytest.MonkeyPatch) -> Non
             return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: docs))
         )
     )
-    project = SimpleNamespace(slug="demo-project")
+    project = SimpleNamespace(id=PROJECT_ID, slug="demo-project")
     result = await sweep_current_pmp_corpus(session, project=project, previous_evidence_refs=[])
     assert len(result.listing.documents) == 5
     assert result.listing.capped is True

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
+import uuid
 
 DocumentClass = Literal[
     "unknown",
@@ -45,6 +46,7 @@ class ProjectContext:
     project: str
     phase: str
     source_type: SourceType
+    project_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)

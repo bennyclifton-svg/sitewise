@@ -102,6 +102,12 @@ def _workspace_record(path: str) -> SimpleNamespace:
 def _install(monkeypatch, session: _Session, *, token_project: uuid.UUID = PROJECT_ID):
     from app.mcp_bridge import server
 
+    monkeypatch.setattr(
+        server,
+        "authorize_project_mutation_with_claims",
+        server.authorize_project_access_with_claims,
+    )
+
     token = mint_turn_token(user_id=USER_ID, project_id=token_project, secret=SECRET)
     monkeypatch.setattr(
         server,

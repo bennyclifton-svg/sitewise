@@ -1,4 +1,5 @@
 import asyncio
+import time
 import uuid
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -186,10 +187,12 @@ create_cost_plan_agent = Agent(
 
 
 def _trace(step: str, status: str, message: str, **metadata) -> WorkflowTraceEvent:
+    duration_ms = metadata.pop("duration_ms", None)
     return WorkflowTraceEvent(
         step=step,
         status=status,
         message=message,
+        duration_ms=duration_ms,
         metadata={key: value for key, value in metadata.items() if value is not None},
     )
 
@@ -246,6 +249,7 @@ def _source_document_passage(doc: SourceDocument) -> SourcePassage:
         content=doc.normalized_content[:CREATE_COST_PLAN_EVIDENCE_DOC_CHARS],
         page_or_section=None,
         project=doc.project,
+        project_id=doc.project_id,
         phase=doc.phase,
         source_type=doc.source_type or "project_evidence",
         document_class=doc.document_class,
@@ -303,12 +307,12 @@ def select_cost_evidence_paths(relative_paths: list[str], *, limit: int) -> list
 async def list_cost_evidence_paths(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     limit: int = CREATE_COST_PLAN_MAX_EVIDENCE_DOCS,
 ) -> list[str]:
     result = await session.execute(
         select(SourceDocument.relative_path).where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
         )
     )
     return select_cost_evidence_paths(list(result.scalars().all()), limit=limit)
@@ -317,14 +321,14 @@ async def list_cost_evidence_paths(
 async def load_cost_project_evidence_documents(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     semantic_relative_paths: list[str],
     marker_paths: list[str] | None = None,
 ) -> list[SourcePassage]:
     if marker_paths is None:
         marker_paths = await list_cost_evidence_paths(
             session,
-            project_slug=project_slug,
+            project_id=project_id,
         )
     merged_paths = list(
         dict.fromkeys(semantic_relative_paths + marker_paths)
@@ -334,7 +338,7 @@ async def load_cost_project_evidence_documents(
 
     result = await session.execute(
         select(SourceDocument).where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
             SourceDocument.relative_path.in_(merged_paths),
         )
     )
@@ -360,7 +364,7 @@ async def retrieve_create_cost_plan_sources(
             mandatory_paths,
             content_chars=CREATE_COST_PLAN_PLATFORM_CONTENT_CHARS,
         ),
-        list_cost_evidence_paths(session, project_slug=project.slug),
+        list_cost_evidence_paths(session, project_id=project.id),
     )
 
     semantic_paths: list[str] = []
@@ -369,7 +373,7 @@ async def retrieve_create_cost_plan_sources(
         project_passages = await retriever.retrieve(
             CREATE_COST_PLAN_PROJECT_QUERY,
             filters=RetrievalFilters(
-                active_project=project.slug,
+                active_project_id=project.id,
                 include_platform_knowledge=False,
             ),
             limit=CREATE_COST_PLAN_SEMANTIC_LIMIT,
@@ -379,13 +383,13 @@ async def retrieve_create_cost_plan_sources(
             dict.fromkeys(
                 passage.relative_path
                 for passage in project_passages
-                if _is_project_passage(passage, project.slug)
+                if _is_project_passage(passage, project.id)
             )
         )
 
     cost_passages = await load_cost_project_evidence_documents(
         session,
-        project_slug=project.slug,
+        project_id=project.id,
         semantic_relative_paths=semantic_paths,
         marker_paths=marker_paths,
     )
@@ -515,12 +519,12 @@ async def run_create_cost_plan_model(
 def _project_source_texts(
     passages: list[SourcePassage],
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
 ) -> list[str]:
     return [
         passage.content
         for passage in passages
-        if _is_project_passage(passage, project_slug) and passage.content.strip()
+        if _is_project_passage(passage, project_id) and passage.content.strip()
     ]
 
 
@@ -826,12 +830,12 @@ async def save_cost_plan_workbook_artifact(
 
 def _evidence_refs_from_passages(
     passages: list[SourcePassage],
-    project_slug: str,
+    project_id: uuid.UUID,
 ) -> list[str]:
     return [
         _source_ref(passage)
         for passage in passages
-        if _is_project_passage(passage, project_slug)
+        if _is_project_passage(passage, project_id)
     ]
 
 
@@ -1011,6 +1015,7 @@ async def run_create_cost_plan_workflow(
 
     trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
 
+    retrieval_started = time.perf_counter()
     try:
         (
             passages,
@@ -1021,7 +1026,14 @@ async def run_create_cost_plan_workflow(
         ) = await retrieve_create_cost_plan_sources(session, project=project)
     except ValueError as exc:
         message = str(exc)
-        trace.append(_trace("retrieval", "failed", message))
+        trace.append(
+            _trace(
+                "retrieval",
+                "failed",
+                message,
+                duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
+            )
+        )
         await _persist_trace_message(
             session,
             project_id=project.id,
@@ -1040,7 +1052,15 @@ async def run_create_cost_plan_workflow(
             + ". "
             + _PLATFORM_CORPUS_INGEST_HINT
         )
-        trace.append(_trace("retrieval", "failed", message, missing_paths=missing_paths))
+        trace.append(
+            _trace(
+                "retrieval",
+                "failed",
+                message,
+                missing_paths=missing_paths,
+                duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
+            )
+        )
         await _persist_trace_message(
             session,
             project_id=project.id,
@@ -1073,6 +1093,7 @@ async def run_create_cost_plan_workflow(
                     project=project,
                 )
             ),
+            duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
         )
     )
 
@@ -1094,10 +1115,11 @@ async def run_create_cost_plan_workflow(
         )
         return CreateCostPlanResponse(status="failed", gate=gate, trace=trace, message=message)
 
-    project_source_texts = _project_source_texts(passages, project_slug=project.slug)
+    project_source_texts = _project_source_texts(passages, project_id=project.id)
     use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
     runtime_name = RUNTIME_HYBRID_NAME if use_hybrid else RUNTIME_NAME
     locked_decisions = await locked_selections(session, project_id=project.id)
+    generation_started = time.perf_counter()
     try:
         if use_hybrid:
             output = await run_create_cost_plan_hybrid(
@@ -1177,6 +1199,16 @@ async def run_create_cost_plan_workflow(
 
     trace.append(
         _trace(
+            "generation",
+            "complete",
+            "Generated and normalized the Cost Plan draft.",
+            compiler="hybrid" if use_hybrid else "legacy",
+            duration_ms=int((time.perf_counter() - generation_started) * 1000),
+        )
+    )
+
+    trace.append(
+        _trace(
             "validation",
             "passed",
             "Create Cost Plan output passed validation.",
@@ -1198,6 +1230,7 @@ async def run_create_cost_plan_workflow(
         },
     }
 
+    persistence_started = time.perf_counter()
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     draft = await create_draft_artifact(
         session,
@@ -1230,9 +1263,11 @@ async def run_create_cost_plan_workflow(
             "Saved Create Cost Plan as a versioned draft artefact.",
             draft_id=str(draft.id),
             version=draft.version,
+            duration_ms=int((time.perf_counter() - persistence_started) * 1000),
         )
     )
 
+    workbook_started = time.perf_counter()
     workbook_metadata = await save_cost_plan_workbook_artifact(
         session,
         project=project,
@@ -1246,6 +1281,7 @@ async def run_create_cost_plan_workflow(
             "Generated Create Cost Plan workbook.",
             workspace_path=workbook_metadata["workspace_path"],
             row_count=workbook_metadata["row_count"],
+            duration_ms=int((time.perf_counter() - workbook_started) * 1000),
         )
     )
     draft.provenance_metadata = {

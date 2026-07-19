@@ -12,6 +12,7 @@ def ingest_hosted_file(
     *,
     content: bytes,
     workspace_path: str,
+    project_id: uuid.UUID,
     project_slug: str,
     project_phase: str,
     filename: str,
@@ -37,6 +38,7 @@ def ingest_hosted_file(
             project=project_slug,
             phase=project_phase,
             source_type="project_evidence",
+            project_id=project_id,
         )
         classification = classify_entry(entry)
         plan = build_ingest_plan(entry, context, classification)
@@ -61,15 +63,19 @@ def ingest_hosted_file(
         temp_path.unlink(missing_ok=True)
 
 
-def source_document_id_for_path(workspace_path: str) -> uuid.UUID | None:
+def source_document_id_for_path(
+    workspace_path: str, *, project_id: uuid.UUID
+) -> uuid.UUID | None:
     from sqlalchemy import select
 
     from app.database.source_document import SourceDocument
     from ingest.db import get_sync_session_factory
-    from ingest.ids import document_id
-
-    doc_id = document_id(workspace_path)
     factory = get_sync_session_factory()
     with factory() as session:
-        existing = session.scalar(select(SourceDocument.id).where(SourceDocument.id == doc_id))
+        existing = session.scalar(
+            select(SourceDocument.id).where(
+                SourceDocument.project_id == project_id,
+                SourceDocument.relative_path == workspace_path,
+            )
+        )
         return existing

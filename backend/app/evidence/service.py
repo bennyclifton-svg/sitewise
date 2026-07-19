@@ -34,7 +34,7 @@ async def delete_project_evidence(
     document = await session.scalar(
         select(SourceDocument).where(
             SourceDocument.id == evidence_id,
-            SourceDocument.project == project.slug,
+            SourceDocument.project_id == project.id,
             SourceDocument.source_type == "project_evidence",
         )
     )

@@ -105,6 +105,7 @@ class DocumentRetriever:
                     content=hit.content,
                     page_or_section=hit.page_or_section,
                     project=hit.project,
+                    project_id=hit.project_id,
                     phase=hit.phase,
                     source_type=hit.source_type,
                     document_class=hit.document_class,
@@ -135,9 +136,11 @@ class DocumentRetriever:
         )
         return passages
 
-    async def read_chunk(self, chunk_id: uuid.UUID) -> SourcePassage | None:
+    async def read_chunk(
+        self, chunk_id: uuid.UUID, *, filters: RetrievalFilters | None = None
+    ) -> SourcePassage | None:
         total_start = time.perf_counter()
-        hit = await queries.fetch_chunk_by_id(self._session, chunk_id)
+        hit = await queries.fetch_chunk_by_id(self._session, chunk_id, filters=filters)
         if hit is None:
             return None
 
@@ -165,6 +168,7 @@ class DocumentRetriever:
             content=hit.content,
             page_or_section=hit.page_or_section,
             project=hit.project,
+            project_id=hit.project_id,
             phase=hit.phase,
             source_type=hit.source_type,
             document_class=hit.document_class,

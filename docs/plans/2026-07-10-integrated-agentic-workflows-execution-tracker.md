@@ -58,7 +58,7 @@ Remaining risks/notes:
 
 ## Programme gates
 
-- [ ] Preflight gate — safe, green, measurable baseline
+- [x] Preflight gate — safe, green, measurable baseline
 - [ ] Evidence tenancy gate — project UUID is the sole project-evidence identity
 - [ ] R1 — shared Project Profile, Decisions, Snapshot, and Capability
 - [ ] R2 — durable Project Plan, Cost Plan creation, sort, and consultant actions
@@ -75,17 +75,17 @@ execution, harden agent runtime controls, and establish measurement.
 
 ### Build, test, and CI preflight
 
-- [ ] **0.0A — Repair the frontend production build**
+- [x] **0.0A — Repair the frontend production build**
   - Dependencies: none.
   - Gate: full frontend tests and production build pass without weakened types.
-- [ ] **0.0B — Guard destructive test databases**
+- [x] **0.0B — Guard destructive test databases**
   - Dependencies: none.
   - Gate: destructive migration tests refuse the application database and run
     only with a dedicated test URL and explicit opt-in.
-- [ ] **0.0C — Repair migration graph verification**
+- [x] **0.0C — Repair migration graph verification**
   - Dependencies: none.
   - Gate: the current single migration head passes and a synthetic branch fails.
-- [ ] **0.0D — Restore the default CI contract**
+- [x] **0.0D — Restore the default CI contract**
   - Dependencies: 0.0A, 0.0B, 0.0C.
   - Gate: default CI covers offline backend checks, frontend checks, migration
     graph verification, and Tender seed validation without touching an
@@ -93,46 +93,46 @@ execution, harden agent runtime controls, and establish measurement.
 
 ### Runtime safety, measurement, and quota controls
 
-- [ ] **0.7A — Terminate the complete agent process tree**
+- [x] **0.7A — Terminate the complete agent process tree**
   - Dependencies: 0.0A–0.0D preflight where applicable.
   - Gate: zero direct or descendant processes remain after stop, disconnect,
     timeout, or cancellation on supported development and deployment platforms.
-- [ ] **0.7B — Verify and select a Hermes prompt transport**
+- [!] **0.7B — Verify and select a Hermes prompt transport**
   - Dependencies: safe smoke-test environment.
   - Gate: one non-argv transport is proven, or mutation rollout is explicitly
     blocked with an upstream issue.
-- [ ] **0.7C — Move Hermes prompts off argv**
+- [!] **0.7C — Move Hermes prompts off argv**
   - Dependencies: 0.7B.
   - Gate: prompt text is absent from argv/logs and temporary material is always
     cleaned after success and every failure path.
-- [ ] **0.7D — Make mutation turn revocation durable**
+- [x] **0.7D — Make mutation turn revocation durable**
   - Dependencies: 0.7A; migration safety preflight.
   - Gate: cancellation-versus-mutation races cannot commit after revocation, and
     worker restarts cannot reactivate revoked turns.
-- [ ] **0.8A — Add request/project/thread/turn correlation and agent timing**
+- [x] **0.8A — Add request/project/thread/turn correlation and agent timing**
   - Dependencies: 0.0 preflight.
   - Gate: a turn is traceable end to end with numerical timings and no sensitive
     prompt or tool content in logs.
-- [ ] **0.8B — Add workflow stage timing contracts/baselines**
+- [x] **0.8B — Add workflow stage timing contracts/baselines**
   - Dependencies: instrument current synchronous paths initially; revisit after
     4.1 workflow-run persistence.
   - Gate: workflow timing fields and baseline evidence are recorded.
-- [ ] **0.8C — Add report-only frontend build-size measurement**
+- [x] **0.8C — Add report-only frontend build-size measurement**
   - Dependencies: 0.0A.
   - Gate: current bundle size is recorded without prematurely enforcing the
     Phase 5 budget.
-- [ ] **0.9 — Make agent quota accounting runtime-neutral and race-safe**
+- [x] **0.9 — Make agent quota accounting runtime-neutral and race-safe**
   - Dependencies: migration safety preflight if a new table is required.
   - Gate: Hermes and Pi charge equally; a last-slot race admits exactly one;
     retries do not double-count.
 
 ### Stage 0 exit record
 
-- [ ] Production TypeScript build has zero errors.
-- [ ] Default test lane is offline and non-destructive.
+- [x] Production TypeScript build has zero errors.
+- [x] Default test lane is offline and non-destructive.
 - [ ] Runtime cancellation, revocation, prompt transport, and quota race tests pass.
-- [ ] `docs/performance/environment.md` records the canonical environment.
-- [ ] A dated baseline report records raw timings and bundle measurements.
+- [x] `docs/performance/environment.md` records the canonical environment.
+- [x] A dated baseline report records raw timings and bundle measurements.
 - [ ] Rollback procedures for runtime-control changes have been exercised or
   explicitly documented and reviewed.
 
@@ -143,42 +143,100 @@ the sole identity and authorization key for project evidence.
 
 Execute this sequence strictly in order.
 
-- [ ] **0.1 — Audit project evidence identity**
+- [x] **0.1 — Audit project evidence identity**
   - Dependencies: Stage 0 destructive-test guards.
   - Gate: read-only audit detects ambiguous and duplicate ownership fixtures and
     makes no data changes.
-- [ ] **0.2 — Add project UUID to SourceDocument**
+- [x] **0.2 — Add project UUID to SourceDocument**
   - Dependencies: 0.1 results reviewed.
   - Gate: isolated upgrade/downgrade succeeds; unambiguous rows backfill;
     ambiguous rows remain untouched; platform knowledge remains projectless.
-- [ ] **0.3 — Make hosted ingestion IDs project-scoped**
+- [x] **0.3 — Make hosted ingestion IDs project-scoped**
   - Dependencies: 0.2 expanded schema.
   - Gate: new IDs are project-scoped, historical IDs/citations remain valid,
     re-ingestion is idempotent, and platform seeds remain stable.
-- [ ] **0.4 — Contract legacy evidence identity and repair data**
+- [~] **0.4 — Contract legacy evidence identity and repair data**
   - Dependencies: 0.1–0.3; dual-write application deployed first.
   - Gate: no unresolved ambiguous project-evidence rows; cross-project duplicate
     paths are legal and isolated; within-project duplicates are rejected;
     production backup and rollback runbook is complete.
-- [ ] **0.5A — Switch retrieval schemas, queries, and retriever to project UUID**
+- [~] **0.5A — Switch retrieval schemas, queries, and retriever to project UUID**
   - Dependencies: 0.4 clean data gate.
   - Gate: all retrieval authorization and filtering uses owned project UUID.
-- [ ] **0.5B — Switch evidence, legacy chat, and MCP callers to project UUID**
+- [~] **0.5B — Switch evidence, legacy chat, and MCP callers to project UUID**
   - Dependencies: 0.5A.
   - Gate: same-slug owners cannot read each other through evidence, legacy chat,
     or MCP tools.
-- [ ] **0.5C — Switch Project Plan and Cost Plan retrieval callers to UUID**
+- [~] **0.5C — Switch Project Plan and Cost Plan retrieval callers to UUID**
   - Dependencies: 0.5A.
   - Gate: workflow retrieval is tenant-isolated and platform guidance is
     included only through explicit platform scope.
 
 ### Stage 1 exit record
 
-- [ ] Two-owner/same-slug/same-path isolation suite passes for all read surfaces.
-- [ ] Historical citations resolve to the correct owning project.
-- [ ] No project authorization decision depends on slug.
+- [x] Two-owner/same-slug/same-path isolation suite passes for all read surfaces.
+- [x] Historical citations resolve to the correct owning project.
+- [x] No project authorization decision depends on slug.
 - [ ] Production audit reports zero unresolved ambiguous evidence ownership.
 - [ ] Expand–migrate–contract rollout and application rollback have been verified.
+
+### Stage 0/1 implementation record — 2026-07-19
+
+Working tree: `main` at base commit `18d3bdd4`; changes intentionally left
+uncommitted for review. Canonical measurements and exact local commands are in
+`docs/performance/2026-07-19-stage-0-baseline.md`.
+
+| Packet | Implementation | Gate status / evidence |
+| --- | --- | --- |
+| 0.0A | Complete | Frontend tests, typecheck, and production build pass. |
+| 0.0B | Complete | Guard requires distinct `TEST_DATABASE_URL` plus explicit opt-in; default lane is offline. |
+| 0.0C | Complete | One head (`024_tender_quote_total_source`) passes; synthetic branch test fails as required. |
+| 0.0D | Complete | CI covers backend offline checks, frontend checks, migration graph, and Tender seeds. |
+| 0.7A | Complete | Windows tests pass; Linux Docker tests prove zero parent/descendant processes for success, failure, timeout, disconnect, stop, and cancellation. |
+| 0.7B | Blocked | Hermes 0.17.0 ACP is a supported non-argv candidate. `/help` terminates, but a model turn blocks in the Windows coding-workspace `git status` probe; bypassing only that probe completes in 6.91 seconds. |
+| 0.7C | Blocked | ACP cannot satisfy the no-prompt-content-in-logs gate as shipped: both `acp_adapter.server` and `agent.turn_context` log prompt prefixes. Hermes mutations are disabled by default. |
+| 0.7D | Complete | Disposable-PostgreSQL revocation race and fresh-session restart checks pass. |
+| 0.8A | Complete | Correlated structured timings omit prompt/tool content. |
+| 0.8B | Complete | Synchronous workflow traces include numerical stage durations. |
+| 0.8C | Complete | Report-only raw/gzip measurement recorded. |
+| 0.9 | Complete | Runtime-neutral reservation/idempotency tests and the real last-slot PostgreSQL race pass. |
+| 0.1 | Complete | Read-only aggregate audit detects ambiguous and duplicate ownership fixtures. |
+| 0.2 | Complete | Isolated migration roundtrip and ambiguous/unambiguous/platform backfill checks pass. |
+| 0.3 | Complete | Project-scoped IDs, historical-ID preservation, and database re-ingestion idempotency pass. |
+| 0.4 | Complete in code and disposable acceptance | Repair dry-run/apply/idempotency, duplicate rules, contract migration, and guarded downgrade behavior pass; production audit/backup/rollout remain pending. |
+| 0.5A–C | Complete in code and disposable acceptance | Evidence API service, legacy-chat retrieval, MCP reads, Project Plan, and Cost Plan isolate two same-slug owners; production activation remains gated by 0.4. |
+
+Rollout result: **not performed**. Rollback result: **documented, not exercised**.
+Remaining blockers are intentionally left unchecked in the packet and stage exit
+lists above.
+
+Validation commands and exact local results:
+
+- `backend/.venv/Scripts/python.exe -m pytest -q` — 1,088 passed, 6 skipped,
+  16 deselected in 198.03 s. The immediately preceding run had one
+  order-dependent Tender fake-session failure after 1,085 passes; the test
+  passed alone and the clean full rerun passed.
+- `backend/.venv/Scripts/python.exe -m ruff check .` — passed.
+- `backend/.venv/Scripts/python.exe -m alembic heads` — one head,
+  `024_tender_quote_total_source` (the concurrent Tender migration follows
+  `023_agent_turns`).
+- `npm test -- --run` — 29 files / 93 tests passed.
+- `npm run lint` — 0 errors, one existing TanStack Virtual compatibility
+  warning.
+- `npm run build` — TypeScript and Vite production build passed; initial entry
+  1,720,350 bytes raw / 460,568 bytes gzip by the report-only measurement.
+- `ALLOW_DESTRUCTIVE_TEST_DATABASE=1 TEST_DATABASE_URL=<dedicated Docker DB>
+  backend/.venv/Scripts/python.exe -m pytest -q
+  tests/tender/test_migrations.py::test_tender_migrations_roundtrip_against_database
+  -m integration` — 1 passed.
+- `ALLOW_DESTRUCTIVE_TEST_DATABASE=1 TEST_DATABASE_URL=<dedicated Docker DB>
+  backend/.venv/Scripts/python.exe -m pytest -q
+  tests/stage01/test_database_gates.py -m integration` — 1 passed; covers
+  expand/repair/contract, citations, ingestion idempotency, duplicate rules,
+  read isolation, quota race, revocation race, and restart persistence.
+- `docker run --rm --init ... pytest -q -p no:cacheprovider
+  --confcutdir=tests/agent tests/agent/test_process_tree.py` — 8 passed on
+  Linux.
 
 ## Stage 2 — Shared Project State and agent-controlled Project Profile
 
@@ -593,9 +651,9 @@ Update this table as risks are discovered or retired.
 
 | ID | Risk | Stage | Mitigation/gate | Status | Owner | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| R-01 | Cross-owner evidence collision through slug/path identity | 1 | UUID migration and two-owner tests | Open |  |  |
-| R-02 | Destructive tests target an application database | 0 | Dedicated URL, opt-in, equality refusal | Open |  |  |
-| R-03 | Agent cancellation races with a mutation commit | 0/2 | Durable revocation and transaction lock | Open |  |  |
+| R-01 | Cross-owner evidence collision through slug/path identity | 1 | UUID migration and two-owner tests | Mitigated in disposable acceptance; production rollout pending | Codex | `tests/stage01/test_database_gates.py` |
+| R-02 | Destructive tests target an application database | 0 | Dedicated URL, opt-in, equality refusal | Mitigated; disposable-DB proof pending | Codex | `tests/tender/test_migrations.py` |
+| R-03 | Agent cancellation races with a mutation commit | 0/2 | Durable revocation and transaction lock | Mitigated in disposable acceptance; rollout pending | Codex | `tests/stage01/test_database_gates.py` |
 | R-04 | UI and agent mutations diverge | 2–5 | Shared modules and adapter parity tests | Open |  |  |
 | R-05 | Database artefact and storage export diverge | 4 | Canonical row plus retryable outbox/export job | Open |  |  |
 | R-06 | Worker retry publishes duplicate or stale output | 5 | Frozen inputs, leases, idempotency, base revision | Open |  |  |
@@ -610,9 +668,9 @@ Record the dated report link and result for every hard gate.
 
 | Measure | Required gate | Result | Evidence/report |
 | --- | --- | --- | --- |
-| Cross-project evidence/mutation isolation | 100% | Pending |  |
-| Orphan child processes after cancel/timeout | 0 | Pending |  |
-| Production TypeScript build | 0 errors | Pending |  |
+| Cross-project evidence/mutation isolation | 100% | Pass in disposable DB; production pending | `tests/stage01/test_database_gates.py`; `docs/runbooks/evidence-uuid-tenancy-rollout.md` |
+| Orphan child processes after cancel/timeout | 0 | Pass on Windows and Linux | `tests/agent/test_process_tree.py` |
+| Production TypeScript build | 0 errors | Pass | `docs/performance/2026-07-19-stage-0-baseline.md` |
 | Initial JavaScript | ≤250 kB gzip | Pending |  |
 | Three.js on non-demo routes | 0 bytes | Pending |  |
 | Warm cockpit bootstrap | p95 ≤500 ms; zero writes | Pending |  |
@@ -625,7 +683,7 @@ Record the dated report link and result for every hard gate.
 | Three-quote cold Tender run | ≤90 s measured stretch; 60 s goal | Pending |  |
 | Five-quote Tender run excluding human QA | ≤30 min | Pending |  |
 | Concurrent artefact revisions | No duplicates or stale exports | Pending |  |
-| Default test lane | Offline/non-destructive; shard <60 s | Pending |  |
+| Default test lane | Offline/non-destructive; shard <60 s | Correct scope; local unsharded run >60 s | `pyproject.toml`; `.github/workflows/ci.yml`; baseline report |
 
 ## Decision and exception log
 
@@ -636,10 +694,16 @@ cutover requirements.
 
 | Date | Packet/gate | Decision or exception | Reason | Approver | Follow-up |
 | --- | --- | --- | --- | --- | --- |
+| 2026-07-19 | 0.0–0.5C branch discipline | Implemented in the existing `main` working tree rather than one branch/worktree and commit per packet. | The user explicitly requested continuation after updating `main`; the checkout also received commit `18d3bdd4` during implementation. Splitting already interdependent uncommitted work would add merge risk without changing gate evidence. | User request | Keep changes uncommitted for review; split into logical commits before release if required. |
+| 2026-07-19 | Stage 0 before Stage 1 | Implemented Stage 1 code while 0.7B/0.7C and database acceptance remain blocked; no schema or production rollout was performed. | Hermes v0.17.0 has no verified non-argv agent-turn prompt transport, and no disposable database was supplied. UUID tenancy work is independently testable and reduces risk, but its rollout remains gated. | User request to implement both stages | Do not deploy 022/023 or enable Hermes mutations until the named gates pass. |
+| 2026-07-19 | Stage 0/1 checkpoint | Create one atomic Stage 0/1 commit while leaving the concurrent Tender quote-total/QA feature and unrelated assets uncommitted. | After reviewing the completed gates, the user authorized proceeding with the recommendation to separate the mixed worktree. The Stage migrations, models, runtime gates, and evidence documentation are interdependent. | User follow-up: “proceed” | Review the isolated commit; handle the Tender feature separately. |
 
 ## Current next action
 
-No implementation has started. Begin with Stage 0 packets `0.0A`, `0.0B`, and
-`0.0C` in isolated branches/worktrees, then complete `0.0D`. Do not begin the
-evidence contract migration or enable new agent mutation capabilities until
-their named safety predecessors are green.
+Stage 0/1 code and disposable acceptance are present in the working tree. Next:
+report the minimized Hermes ACP Windows workspace-probe hang and both prompt-log
+sites upstream when maintainer-authorized, then verify the released fix with
+Clerk's MCP configuration. Separately perform the approved production backup,
+read-only audit, expand/repair/contract rollout, post-rollout two-owner checks,
+and rollback rehearsal. Hermes mutations remain disabled and the Stage 0/1
+programme exits remain incomplete until those gates pass.

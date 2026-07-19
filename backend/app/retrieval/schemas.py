@@ -1,12 +1,15 @@
 import uuid
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RetrievalFilters(BaseModel):
-    project: str | None = None
-    active_project: str | None = None
+    model_config = ConfigDict(extra="forbid")
+    project_id: uuid.UUID | None = None
+    active_project_id: uuid.UUID | None = None
+    authorized_project_ids: tuple[uuid.UUID, ...] = ()
+    platform_knowledge_only: bool = False
     include_platform_knowledge: bool = False
     cross_project: bool = False
     phase: str | None = None
@@ -30,6 +33,7 @@ class SourcePassage(BaseModel):
     content: str
     page_or_section: str | None = None
     project: str
+    project_id: uuid.UUID | None = None
     phase: str
     source_type: str | None = None
     document_class: str
@@ -49,6 +53,7 @@ class ChunkSearchHit(BaseModel):
     page_or_section: str | None = None
     chunk_metadata: dict[str, Any] | None = None
     project: str
+    project_id: uuid.UUID | None = None
     phase: str
     source_type: str | None = None
     document_class: str

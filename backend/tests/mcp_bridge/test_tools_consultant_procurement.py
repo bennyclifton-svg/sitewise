@@ -98,6 +98,12 @@ def _install(
 ) -> tuple[Any, AsyncMock]:
     from app.mcp_bridge import server
 
+    monkeypatch.setattr(
+        server,
+        "authorize_project_mutation_with_claims",
+        server.authorize_project_access_with_claims,
+    )
+
     token = mint_turn_token(
         user_id=USER_ID,
         project_id=token_project,

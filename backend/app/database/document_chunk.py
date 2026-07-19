@@ -5,7 +5,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Computed,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,7 +41,11 @@ class DocumentChunk(Base):
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))
     token_count: Mapped[int | None] = mapped_column(Integer)
     chunk_metadata: Mapped[dict | None] = mapped_column(JSONB)
-    search_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
+    search_vector: Mapped[str | None] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', content)", persisted=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

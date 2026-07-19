@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi import Response
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic_ai.exceptions import ModelHTTPError
@@ -27,7 +28,13 @@ from app.agent.turn_context import HistoryMessage, build_agent_prompt
 from app.agent.workspace_instructions import ensure_workspace_instructions
 from app.agent.workspace_paths import project_workspace_root
 from app.billing.entitlements import require_active_entitlement
-from app.billing.usage import require_turn_within_quota
+from app.billing.usage import (
+    complete_agent_turn,
+    reserve_agent_turn,
+    revoke_agent_turn,
+)
+from app.database.agent_turn import AgentTurn
+from app.database.project import Project
 from app.chat.messages import extract_last_user_message
 from app.chat.orchestrator import run_chat_turn
 from app.chat.streaming import (
@@ -414,6 +421,8 @@ async def post_agent_stream(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
+    request_started = time.perf_counter()
+    request_id = uuid.uuid4()
     if not settings.agent_runtime_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -436,20 +445,7 @@ async def post_agent_stream(
             detail="Hermes agent chat requires a project thread.",
         )
     project = await require_project_owner(session, thread.project_id, user.id)
-    quota_state = await require_turn_within_quota(session, user)
-
-    turn_id = uuid.uuid4()
-    try:
-        turn_token = mint_turn_token(
-            user_id=user.id,
-            project_id=thread.project_id,
-            turn_id=turn_id,
-        )
-    except TurnTokenConfigurationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Hermes agent turn tokens are not configured.",
-        ) from exc
+    auth_ms = int((time.perf_counter() - request_started) * 1000)
 
     # History is read before the new user message is persisted so the window
     # holds prior turns only; the current message travels as the prompt body.
@@ -470,15 +466,49 @@ async def post_agent_stream(
             for message in prior_messages
         ],
     )
+    prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     model_override = resolve_hermes_model_override(body.agent_model)
     agent_runtime = resolve_agent_runtime(body.agent_runtime or default_agent_runtime())
 
-    await _persist_agent_user_message(
+    proposed_turn_id = uuid.uuid4()
+    last_message = body.messages[-1] if body.messages else {}
+    supplied_message_id = last_message.get("id") if isinstance(last_message, dict) else None
+    user_message_id = str(supplied_message_id or proposed_turn_id)
+    turn, quota_state, reserved = await reserve_agent_turn(
         session,
-        thread=thread,
-        user_text=user_text,
+        turn_id=proposed_turn_id,
+        project_id=thread.project_id,
+        user_id=user.id,
+        thread_id=thread.id,
+        user_message_id=user_message_id,
         runtime=agent_runtime,
+        model=(
+            model_override.model
+            if model_override
+            else settings.pi_model if agent_runtime == PI_RUNTIME_ID else settings.hermes_model
+        ),
     )
+    turn_id = turn.id
+    quota_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms - prompt_build_ms
+    try:
+        turn_token = mint_turn_token(
+            user_id=user.id,
+            project_id=thread.project_id,
+            turn_id=turn_id,
+        )
+    except TurnTokenConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Hermes agent turn tokens are not configured.",
+        ) from exc
+
+    if reserved:
+        await _persist_agent_user_message(
+            session,
+            thread=thread,
+            user_text=user_text,
+            runtime=agent_runtime,
+        )
     await session.commit()
 
     workspace = _agent_workspace(thread.project_id)
@@ -486,11 +516,13 @@ async def post_agent_stream(
 
     log.info(
         "agent_stream_start",
+        request_id=str(request_id),
         user_id=str(user.id),
         thread_id=str(body.thread_id),
         project_id=str(thread.project_id),
         turn_id=str(turn_id),
         agent_runtime=agent_runtime,
+        timings_ms={"auth": auth_ms, "quota": quota_ms, "prompt_build": prompt_build_ms},
     )
 
     async def event_stream() -> AsyncIterator[str]:
@@ -498,9 +530,10 @@ async def post_agent_stream(
         answer_parts: list[str] = []
         tool_status_events: list[Mapping[str, Any]] = []
         completed = False
+        first_text_ms: int | None = None
 
         async def agent_chunks() -> AsyncIterator[str]:
-            nonlocal completed
+            nonlocal completed, first_text_ms
             if agent_runtime == PI_RUNTIME_ID:
                 stream = stream_pi_turn(
                     prompt=agent_prompt,
@@ -518,6 +551,8 @@ async def post_agent_stream(
                     model=model_override.model if model_override else None,
                 )
             async for chunk in stream:
+                if first_text_ms is None:
+                    first_text_ms = int((time.perf_counter() - stream_start) * 1000)
                 answer_parts.append(chunk)
                 yield chunk
             completed = True
@@ -587,7 +622,7 @@ async def post_agent_stream(
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
                 agent_runtime=agent_runtime,
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
             async for event in stream_error("Hermes could not complete this turn. Please try again."):
                 yield event
@@ -599,11 +634,16 @@ async def post_agent_stream(
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
                 agent_runtime=agent_runtime,
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
             async for event in stream_error("Pi could not complete this turn. Please try again."):
                 yield event
             return
+        finally:
+            if not completed:
+                async with factory() as revoke_session:
+                    await revoke_agent_turn(revoke_session, turn_id)
+                    await revoke_session.commit()
 
         if completed:
             content = "".join(answer_parts)
@@ -616,14 +656,23 @@ async def post_agent_stream(
                     runtime=agent_runtime,
                     source_trace=_agent_source_trace(tool_status_events),
                 )
+                await complete_agent_turn(persist_session, turn_id, status_value="completed")
                 await persist_session.commit()
             elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
             log.info(
                 "agent_stream_persisted",
+                request_id=str(request_id),
+                project_id=str(thread.project_id),
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
-                elapsed_ms=elapsed_ms,
+                timings_ms={
+                    "auth": auth_ms,
+                    "quota": quota_ms,
+                    "prompt_build": prompt_build_ms,
+                    "first_text": first_text_ms,
+                    "total": elapsed_ms,
+                },
             )
 
     return StreamingResponse(
@@ -645,6 +694,19 @@ async def post_agent_cancel(
 ) -> dict[str, bool]:
     thread = await get_thread_by_id(session, thread_id)
     require_thread_owner(thread, user.id)
+    active_turn_id = await session.scalar(
+        select(AgentTurn.id)
+        .where(
+            AgentTurn.thread_id == thread_id,
+            AgentTurn.user_id == user.id,
+            AgentTurn.state == "active",
+        )
+        .order_by(AgentTurn.created_at.desc())
+        .limit(1)
+    )
+    if active_turn_id is not None:
+        await revoke_agent_turn(session, active_turn_id)
+        await session.commit()
     cancelled = await agent_turn_registry.cancel(str(thread_id))
     return {"cancelled": cancelled}
 
@@ -673,22 +735,27 @@ async def post_chat_stream(
         await require_active_entitlement(session, user)
         if thread.project_id is not None:
             project = await require_project_owner(session, thread.project_id, user.id)
+            authorized_project_ids: tuple[uuid.UUID, ...] = ()
+            if cross_project:
+                owned_project_ids = await session.scalars(
+                    select(Project.id).where(Project.owner_user_id == user.id)
+                )
+                authorized_project_ids = tuple(owned_project_ids.all())
             filters = RetrievalFilters(
-                active_project=project.slug,
+                active_project_id=project.id,
+                authorized_project_ids=authorized_project_ids,
                 include_platform_knowledge=True,
                 cross_project=cross_project,
             )
+        else:
+            filters = RetrievalFilters(platform_knowledge_only=True)
 
     log.info(
         "chat_stream_start",
         user_id=str(user.id),
         thread_id=str(body.thread_id),
-        query=user_text,
+        query_length=len(user_text),
         chat_model=resolved_model,
-    )
-    print(
-        f"chat_stream_start query={user_text!r} model={resolved_model}",
-        flush=True,
     )
 
     async def event_stream() -> AsyncIterator[str]:
@@ -739,11 +806,6 @@ async def post_chat_stream(
                 elapsed_ms=turn_elapsed_ms,
                 citation_count=len(grounded_answer.citations),
             )
-            print(
-                f"chat_turn_complete citations={len(grounded_answer.citations)} "
-                f"turn_ms={turn_elapsed_ms}",
-                flush=True,
-            )
             async for event in stream_grounded_answer(grounded_answer, chunk_delay_s=0):
                 yield event
         except ModelHTTPError as exc:
@@ -752,12 +814,7 @@ async def post_chat_stream(
                     "chat_openai_rate_limit",
                     user_id=str(user.id),
                     thread_id=str(body.thread_id),
-                    query=user_text,
                     model=settings.openai_chat_model,
-                )
-                print(
-                    f"chat_openai_rate_limit query={user_text!r} model={settings.openai_chat_model}",
-                    flush=True,
                 )
                 async for event in stream_error(
                     "OpenAI rate limit reached for the chat model. "
@@ -780,12 +837,7 @@ async def post_chat_stream(
                 "chat_grounding_failed",
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
-                query=user_text,
-                error=str(exc),
-            )
-            print(
-                f"chat_grounding_failed query={user_text!r} error={exc}",
-                flush=True,
+                error_type=type(exc).__name__,
             )
             async for event in stream_error(
                 "The assistant response could not be verified against retrieved sources. "
@@ -811,11 +863,6 @@ async def post_chat_stream(
                 thread_id=str(body.thread_id),
                 total_elapsed_ms=total_elapsed_ms,
                 citation_count=len(grounded_answer.citations),
-            )
-            print(
-                f"chat_stream_end citations={len(grounded_answer.citations)} "
-                f"total_ms={total_elapsed_ms}",
-                flush=True,
             )
 
     return StreamingResponse(

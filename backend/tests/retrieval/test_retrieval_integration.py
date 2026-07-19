@@ -35,6 +35,18 @@ async def _skip_if_corpus_missing(
         pytest.skip(f"{corpus_name} chunks are not seeded in this database")
 
 
+async def _project_id_for_slug(session, slug: str) -> uuid.UUID:
+    result = await session.scalars(
+        select(SourceDocument.project_id)
+        .where(SourceDocument.project == slug, SourceDocument.project_id.is_not(None))
+        .distinct()
+    )
+    project_ids = list(result.all())
+    if len(project_ids) != 1:
+        pytest.skip(f"{slug} does not resolve to one UUID-scoped corpus project")
+    return project_ids[0]
+
+
 @pytest.mark.integration
 def test_pure_catalog_question(session_factory) -> None:
     async def _run_query() -> None:
@@ -59,7 +71,7 @@ def test_blockb_evaluation_criteria(session_factory) -> None:
     async def _run_query() -> None:
         async with session_factory() as session:
             filters = RetrievalFilters(
-                project="procurement-blockb",
+                project_id=await _project_id_for_slug(session, "procurement-blockb"),
                 procurement_stage="evaluation",
             )
             await _skip_if_corpus_missing(
@@ -88,7 +100,7 @@ def test_blockb_trr_recommendation(session_factory) -> None:
     async def _run_query() -> None:
         async with session_factory() as session:
             filters = RetrievalFilters(
-                project="procurement-blockb",
+                project_id=await _project_id_for_slug(session, "procurement-blockb"),
                 procurement_stage="trr",
             )
             await _skip_if_corpus_missing(
@@ -148,7 +160,9 @@ def test_doctrine_progress_certification(session_factory) -> None:
 def test_read_chunk_by_id(session_factory) -> None:
     async def _run_query() -> None:
         async with session_factory() as session:
-            filters = RetrievalFilters(project="procurement-blockb")
+            filters = RetrievalFilters(
+                project_id=await _project_id_for_slug(session, "procurement-blockb")
+            )
             await _skip_if_corpus_missing(
                 session,
                 filters,
@@ -162,7 +176,7 @@ def test_read_chunk_by_id(session_factory) -> None:
                 include_neighbours=False,
             )
             assert sample
-            loaded = await retriever.read_chunk(sample[0].chunk_id)
+            loaded = await retriever.read_chunk(sample[0].chunk_id, filters=filters)
             assert loaded is not None
             assert loaded.chunk_id == sample[0].chunk_id
             assert loaded.content == sample[0].content

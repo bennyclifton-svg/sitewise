@@ -5,6 +5,58 @@ on:
   push:
 
 jobs:
+  backend-offline:
+    name: Backend offline checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+      - name: Lint backend
+        working-directory: backend
+        run: uv run ruff check app ingest tender tests
+      - name: Run offline backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:9/application_database_must_not_be_contacted
+        run: uv run pytest -m "not integration and not tender_eval"
+      - name: Verify migration graph
+        working-directory: backend
+        run: uv run pytest tests/tender/test_migrations.py -m "not integration"
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: pnpm tsc --noEmit
+      - name: Lint frontend
+        working-directory: frontend
+        run: pnpm lint
+      - name: Test frontend
+        working-directory: frontend
+        run: pnpm test
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm build
+
   tender-seeds:
     name: Tender seed validation
     runs-on: ubuntu-latest

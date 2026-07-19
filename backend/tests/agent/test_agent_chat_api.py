@@ -160,14 +160,27 @@ def test_agent_stream_blocks_over_quota(
 ) -> None:
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         chat_api,
         "require_project_owner",
-        AsyncMock(return_value=SimpleNamespace(id=PROJECT_ID)),
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                title="Test project",
+                archetype=None,
+                user_role=None,
+                state=None,
+                phase="brief-planning",
+                building_class=None,
+                work_type=None,
+                project_metadata=None,
+            )
+        ),
     )
     monkeypatch.setattr(
         chat_api,
-        "require_turn_within_quota",
+        "reserve_agent_turn",
         AsyncMock(
             side_effect=HTTPException(
                 status_code=402,
@@ -232,16 +245,16 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
         chat_api,
-        "require_turn_within_quota",
+        "reserve_agent_turn",
         AsyncMock(
-            return_value=SimpleNamespace(
-                used_turns=12,
-                quota=100,
-                percent=12,
-                warning=False,
+            return_value=(
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(used_turns=13, quota=100, percent=13, warning=False),
+                True,
             )
         ),
     )
+    monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
     monkeypatch.setattr(
         chat_api,
         "require_project_owner",
@@ -542,16 +555,16 @@ def test_agent_stream_pi_runtime_receives_project_context(
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
         chat_api,
-        "require_turn_within_quota",
+        "reserve_agent_turn",
         AsyncMock(
-            return_value=SimpleNamespace(
-                used_turns=12,
-                quota=100,
-                percent=12,
-                warning=False,
+            return_value=(
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(used_turns=13, quota=100, percent=13, warning=False),
+                True,
             )
         ),
     )
+    monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
     monkeypatch.setattr(
         chat_api,
         "require_project_owner",

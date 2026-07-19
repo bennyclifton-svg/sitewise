@@ -124,11 +124,15 @@ def _next_manifest_version(files: list[WorkspaceFile], drafts_version: int) -> i
 
 def _purge_source_document(
     relative_path: str,
+    project_id: uuid.UUID,
     source_document_id: uuid.UUID | None = None,
 ) -> None:
     from ingest.db import get_sync_session_factory
 
-    candidate_ids = {document_id(relative_path)}
+    candidate_ids = {
+        document_id(relative_path),
+        document_id(relative_path, project_id=project_id),
+    }
     if source_document_id is not None:
         candidate_ids.add(source_document_id)
     candidate_id_values = tuple(candidate_ids)
@@ -138,6 +142,7 @@ def _purge_source_document(
         stale_ids = set(
             session.scalars(
                 select(SourceDocument.id).where(
+                    SourceDocument.project_id == project_id,
                     or_(
                         SourceDocument.id.in_(candidate_id_values),
                         SourceDocument.relative_path == relative_path,
@@ -150,14 +155,9 @@ def _purge_source_document(
             session.execute(
                 delete(DocumentChunk).where(DocumentChunk.document_id.in_(stale_id_values))
             )
-        session.execute(
-            delete(SourceDocument).where(
-                or_(
-                    SourceDocument.id.in_(candidate_id_values),
-                    SourceDocument.relative_path == relative_path,
-                )
+            session.execute(
+                delete(SourceDocument).where(SourceDocument.id.in_(stale_id_values))
             )
-        )
         session.commit()
 
 
@@ -277,6 +277,7 @@ async def _move_workspace_file(
         await asyncio.to_thread(
             _purge_source_document,
             record.workspace_path,
+            project.id,
             record.source_document_id,
         )
 
@@ -285,6 +286,7 @@ async def _move_workspace_file(
         ingest_hosted_file,
         content=content,
         workspace_path=destination_workspace_path,
+        project_id=project.id,
         project_slug=project.slug,
         project_phase=project.phase,
         filename=destination_filename,
@@ -295,6 +297,7 @@ async def _move_workspace_file(
     source_doc_id = await asyncio.to_thread(
         source_document_id_for_path,
         destination_workspace_path,
+        project_id=project.id,
     )
 
     moved = await upsert_workspace_file(

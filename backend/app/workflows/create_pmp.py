@@ -1,4 +1,5 @@
 import asyncio
+import time
 import uuid
 from datetime import date, datetime
 from pathlib import Path
@@ -162,10 +163,12 @@ create_pmp_agent = Agent(
 
 
 def _trace(step: str, status: str, message: str, **metadata) -> WorkflowTraceEvent:
+    duration_ms = metadata.pop("duration_ms", None)
     return WorkflowTraceEvent(
         step=step,
         status=status,
         message=message,
+        duration_ms=duration_ms,
         metadata={key: value for key, value in metadata.items() if value is not None},
     )
 
@@ -181,8 +184,11 @@ def _is_platform_passage(passage: SourcePassage) -> bool:
     return metadata.get("knowledge_scope") == "platform"
 
 
-def _is_project_passage(passage: SourcePassage, project_slug: str) -> bool:
-    return passage.source_type == "project_evidence" and passage.project == project_slug
+def _is_project_passage(passage: SourcePassage, project_id: uuid.UUID) -> bool:
+    return passage.source_type == "project_evidence" and passage.project_id in {
+        None,
+        project_id,
+    }
 
 
 def _is_whole_document_passage(passage: SourcePassage) -> bool:
@@ -191,9 +197,7 @@ def _is_whole_document_passage(passage: SourcePassage) -> bool:
 
 
 def _source_excerpt_chars(passage: SourcePassage) -> int:
-    if _is_project_passage(passage, passage.project or "") and _is_whole_document_passage(
-        passage
-    ):
+    if passage.source_type == "project_evidence" and _is_whole_document_passage(passage):
         return CREATE_PMP_EVIDENCE_DOC_CHARS
     return CREATE_PMP_CHUNK_EXCERPT_CHARS
 
@@ -335,6 +339,7 @@ def _source_document_passage(doc: SourceDocument) -> SourcePassage:
         content=doc.normalized_content[:CREATE_PMP_EVIDENCE_DOC_CHARS],
         page_or_section=None,
         project=doc.project,
+        project_id=doc.project_id,
         phase=doc.phase,
         source_type=doc.source_type or "project_evidence",
         document_class=doc.document_class,
@@ -349,13 +354,13 @@ def _source_document_passage(doc: SourceDocument) -> SourcePassage:
 async def list_mobilisation_evidence_paths(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     limit: int = CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS,
 ) -> list[str]:
     """Return relative paths for mobilisation-relevant project evidence."""
     result = await session.execute(
         select(SourceDocument.relative_path).where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
         )
     )
     paths: list[str] = []
@@ -371,13 +376,13 @@ async def list_mobilisation_evidence_paths(
 async def load_mobilisation_project_evidence_documents(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     semantic_relative_paths: list[str],
 ) -> list[SourcePassage]:
     """Load whole mobilisation evidence docs (semantic hits + path-marked files)."""
     marker_paths = await list_mobilisation_evidence_paths(
         session,
-        project_slug=project_slug,
+        project_id=project_id,
     )
     merged_paths = list(
         dict.fromkeys(semantic_relative_paths + marker_paths)
@@ -386,7 +391,7 @@ async def load_mobilisation_project_evidence_documents(
         return []
     return await load_project_evidence_whole_documents(
         session,
-        project_slug=project_slug,
+        project_id=project_id,
         relative_paths=merged_paths,
     )
 
@@ -394,7 +399,7 @@ async def load_mobilisation_project_evidence_documents(
 async def load_project_evidence_whole_documents(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     relative_paths: list[str],
 ) -> list[SourcePassage]:
     """Replace chunk excerpts with whole-document passages for mobilisation evidence."""
@@ -403,7 +408,7 @@ async def load_project_evidence_whole_documents(
 
     result = await session.execute(
         select(SourceDocument).where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
             SourceDocument.relative_path.in_(relative_paths),
         )
     )
@@ -424,7 +429,7 @@ async def expand_project_passages_to_whole_documents(
         dict.fromkeys(
             passage.relative_path
             for passage in passages
-            if _is_project_passage(passage, project.slug)
+            if _is_project_passage(passage, project.id)
         )
     )
     if not project_paths:
@@ -432,7 +437,7 @@ async def expand_project_passages_to_whole_documents(
 
     whole_passages = await load_project_evidence_whole_documents(
         session,
-        project_slug=project.slug,
+        project_id=project.id,
         relative_paths=project_paths,
     )
     if not whole_passages:
@@ -442,7 +447,7 @@ async def expand_project_passages_to_whole_documents(
     merged: list[SourcePassage] = []
     seen_project_paths: set[str] = set()
     for passage in passages:
-        if not _is_project_passage(passage, project.slug):
+        if not _is_project_passage(passage, project.id):
             merged.append(passage)
             continue
         if passage.relative_path in seen_project_paths:
@@ -513,7 +518,7 @@ async def retrieve_create_pmp_sources(
     project_passages = await retriever.retrieve(
         CREATE_PMP_PROJECT_QUERY,
         filters=RetrievalFilters(
-            active_project=project.slug,
+            active_project_id=project.id,
             include_platform_knowledge=False,
         ),
         limit=8,
@@ -523,12 +528,12 @@ async def retrieve_create_pmp_sources(
         dict.fromkeys(
             passage.relative_path
             for passage in project_passages
-            if _is_project_passage(passage, project.slug)
+            if _is_project_passage(passage, project.id)
         )
     )
     mobilisation_passages = await load_mobilisation_project_evidence_documents(
         session,
-        project_slug=project.slug,
+        project_id=project.id,
         semantic_relative_paths=semantic_paths,
     )
     if mobilisation_passages:
@@ -548,7 +553,7 @@ async def retrieve_create_pmp_sources(
 async def retrieve_project_evidence_delta(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     since: datetime,
     limit: int = 8,
 ) -> list[SourcePassage]:
@@ -556,7 +561,7 @@ async def retrieve_project_evidence_delta(
     result = await session.execute(
         select(SourceDocument)
         .where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
             SourceDocument.updated_at > since,
         )
         .order_by(SourceDocument.updated_at.desc())
@@ -573,6 +578,7 @@ async def retrieve_project_evidence_delta(
                 content=content,
                 page_or_section=None,
                 project=doc.project,
+                project_id=doc.project_id,
                 phase=doc.phase,
                 source_type=doc.source_type or "project_evidence",
                 document_class=doc.document_class,
@@ -830,36 +836,36 @@ async def run_create_pmp_model(
 def _project_source_texts(
     passages: list[SourcePassage],
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
 ) -> list[str]:
     return [
         passage.content
         for passage in passages
-        if _is_project_passage(passage, project_slug) and passage.content.strip()
+        if _is_project_passage(passage, project_id) and passage.content.strip()
     ]
 
 
 def _project_source_labels(
     passages: list[SourcePassage],
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
 ) -> list[str]:
     """Filenames parallel to _project_source_texts, for evidence attribution."""
     return [
         passage.filename or passage.relative_path
         for passage in passages
-        if _is_project_passage(passage, project_slug) and passage.content.strip()
+        if _is_project_passage(passage, project_id) and passage.content.strip()
     ]
 
 
 def _evidence_refs_from_passages(
     passages: list[SourcePassage],
-    project_slug: str,
+    project_id: uuid.UUID,
 ) -> list[str]:
     return [
         _source_ref(passage)
         for passage in passages
-        if _is_project_passage(passage, project_slug)
+        if _is_project_passage(passage, project_id)
     ]
 
 
@@ -908,8 +914,8 @@ async def run_create_pmp_hybrid(
     from app.workflows.pmp_narrative import run_pmp_narrative_model
 
     user_role = project.user_role or ""
-    evidence_refs = _evidence_refs_from_passages(passages, project.slug)
-    source_labels = _project_source_labels(passages, project_slug=project.slug)
+    evidence_refs = _evidence_refs_from_passages(passages, project.id)
+    source_labels = _project_source_labels(passages, project_id=project.id)
     pack = extract_mobilisation_evidence_pack(
         project_source_texts, evidence_refs, source_labels
     )
@@ -1246,6 +1252,7 @@ async def run_create_pmp_workflow(
 
     trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
     locked_decisions = await locked_selections(session, project_id=project.id)
+    retrieval_started = time.perf_counter()
 
     try:
         (
@@ -1257,7 +1264,14 @@ async def run_create_pmp_workflow(
         ) = await retrieve_create_pmp_sources(session, project=project)
     except ValueError as exc:
         message = str(exc)
-        trace.append(_trace("retrieval", "failed", message))
+        trace.append(
+            _trace(
+                "retrieval",
+                "failed",
+                message,
+                duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
+            )
+        )
         await _persist_trace_message(
             session,
             project_id=project.id,
@@ -1276,6 +1290,7 @@ async def run_create_pmp_workflow(
                 "failed",
                 message,
                 **_upstream_failure_metadata(exc, model=settings.openai_embedding_model),
+                duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
             )
         )
         await _persist_trace_message(
@@ -1301,6 +1316,7 @@ async def run_create_pmp_workflow(
                 "failed",
                 message,
                 missing_paths=missing_paths,
+                duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
             )
         )
         await _persist_trace_message(
@@ -1354,6 +1370,7 @@ async def run_create_pmp_workflow(
                 user_role=project.user_role or "",
                 project=project,
             )),
+            duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
         )
     )
 
@@ -1375,9 +1392,9 @@ async def run_create_pmp_workflow(
         )
         return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
 
-    project_source_texts = _project_source_texts(passages, project_slug=project.slug)
-    project_source_labels = _project_source_labels(passages, project_slug=project.slug)
-    required_evidence_refs = _evidence_refs_from_passages(passages, project.slug)
+    project_source_texts = _project_source_texts(passages, project_id=project.id)
+    project_source_labels = _project_source_labels(passages, project_id=project.id)
+    required_evidence_refs = _evidence_refs_from_passages(passages, project.id)
     coverage_required_evidence_refs = (
         required_evidence_refs
         if project_has_taxonomy(project) and draft_mode == "evidence_grounded"
@@ -1398,6 +1415,7 @@ async def run_create_pmp_workflow(
         if use_hybrid
         else RUNTIME_NAME
     )
+    generation_started = time.perf_counter()
     try:
         if use_scaffold:
             from app.sitewise.mobilisation_evidence import MobilisationEvidencePack
@@ -1543,6 +1561,16 @@ async def run_create_pmp_workflow(
 
     trace.append(
         _trace(
+            "generation",
+            "complete",
+            "Generated and normalized the Project Plan draft.",
+            compiler="adaptive_scaffold" if use_scaffold else "hybrid" if use_hybrid else "legacy",
+            duration_ms=int((time.perf_counter() - generation_started) * 1000),
+        )
+    )
+
+    trace.append(
+        _trace(
             "validation",
             "passed",
             "Create PMP output passed validation.",
@@ -1597,6 +1625,7 @@ async def run_create_pmp_workflow(
                 )
             )
 
+    persistence_started = time.perf_counter()
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     output.markdown = sync_document_control_version(output.markdown, existing_version)
     draft = await create_draft_artifact(
@@ -1657,6 +1686,7 @@ async def run_create_pmp_workflow(
             draft_id=str(draft.id),
             version=draft.version,
             **model_metadata,
+            duration_ms=int((time.perf_counter() - persistence_started) * 1000),
         )
     )
 

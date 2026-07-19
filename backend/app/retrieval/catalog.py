@@ -5,11 +5,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.source_document import SourceDocument
+from app.retrieval.queries import apply_document_filters
+from app.retrieval.schemas import RetrievalFilters
 from app.retrieval.schemas import SourcePassage
 
 
 class CorpusProjectSummary(BaseModel):
     project: str
+    project_id: uuid.UUID | None = None
     phase: str
     source_type: str | None
     document_count: int
@@ -19,37 +22,37 @@ class CorpusProjectSummary(BaseModel):
     sample_relative_path: str
 
 
-async def list_corpus_projects(session: AsyncSession) -> list[CorpusProjectSummary]:
-    counts = (
-        select(
-            SourceDocument.project,
-            func.count(SourceDocument.id).label("document_count"),
-        )
-        .group_by(SourceDocument.project)
-        .subquery()
-    )
+async def list_corpus_projects(
+    session: AsyncSession, *, filters: RetrievalFilters | None = None
+) -> list[CorpusProjectSummary]:
+    counts_stmt = select(
+        SourceDocument.project,
+        SourceDocument.project_id,
+        func.count(SourceDocument.id).label("document_count"),
+    ).group_by(SourceDocument.project, SourceDocument.project_id)
+    counts = apply_document_filters(counts_stmt, filters).subquery()
 
-    ranked = (
-        select(
-            SourceDocument.project,
-            SourceDocument.phase,
-            SourceDocument.source_type,
-            SourceDocument.id.label("document_id"),
-            SourceDocument.filename,
-            SourceDocument.relative_path,
-            func.row_number()
-            .over(
-                partition_by=SourceDocument.project,
-                order_by=(SourceDocument.created_at.asc(), SourceDocument.relative_path.asc()),
-            )
-            .label("row_num"),
+    ranked_stmt = select(
+        SourceDocument.project,
+        SourceDocument.project_id,
+        SourceDocument.phase,
+        SourceDocument.source_type,
+        SourceDocument.id.label("document_id"),
+        SourceDocument.filename,
+        SourceDocument.relative_path,
+        func.row_number()
+        .over(
+            partition_by=(SourceDocument.project, SourceDocument.project_id),
+            order_by=(SourceDocument.created_at.asc(), SourceDocument.relative_path.asc()),
         )
-        .subquery()
+        .label("row_num"),
     )
+    ranked = apply_document_filters(ranked_stmt, filters).subquery()
 
     stmt = (
         select(
             ranked.c.project,
+            ranked.c.project_id,
             ranked.c.phase,
             ranked.c.source_type,
             counts.c.document_count,
@@ -58,7 +61,11 @@ async def list_corpus_projects(session: AsyncSession) -> list[CorpusProjectSumma
             ranked.c.filename,
             ranked.c.relative_path,
         )
-        .join(counts, counts.c.project == ranked.c.project)
+        .join(
+            counts,
+            (counts.c.project == ranked.c.project)
+            & counts.c.project_id.is_not_distinct_from(ranked.c.project_id),
+        )
         .where(ranked.c.row_num == 1)
         .order_by(ranked.c.project.asc())
     )
@@ -67,6 +74,7 @@ async def list_corpus_projects(session: AsyncSession) -> list[CorpusProjectSumma
     return [
         CorpusProjectSummary(
             project=row.project,
+            project_id=row.project_id,
             phase=row.phase,
             source_type=row.source_type,
             document_count=row.document_count,
@@ -96,6 +104,7 @@ def catalog_to_passages(catalog: list[CorpusProjectSummary]) -> list[SourcePassa
                 ),
                 page_or_section=None,
                 project=entry.project,
+                project_id=entry.project_id,
                 phase=entry.phase,
                 source_type=entry.source_type,
                 document_class="corpus_catalog",

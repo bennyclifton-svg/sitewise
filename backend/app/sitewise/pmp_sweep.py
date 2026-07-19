@@ -125,6 +125,7 @@ def _document_passage(document) -> SourcePassage:
         content=content,
         page_or_section=None,
         project=document.project,
+        project_id=getattr(document, "project_id", None),
         phase=document.phase,
         source_type=document.source_type or "project_evidence",
         document_class=document.document_class,
@@ -151,7 +152,7 @@ async def sweep_current_pmp_corpus(
 ) -> CorpusSweepResult:
     listing = await list_current_pmp_corpus_documents(
         session,
-        project_slug=project.slug,
+        project_id=project.id,
         max_documents=settings.pmp_sweep_max_documents,
     )
     trace_events: list[WorkflowTraceEvent] = []

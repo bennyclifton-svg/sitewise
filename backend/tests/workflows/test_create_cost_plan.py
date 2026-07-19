@@ -319,6 +319,10 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
 
     with (
         patch(
+            "app.workflows.create_cost_plan.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
             "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
             new=AsyncMock(return_value=[]),
         ),

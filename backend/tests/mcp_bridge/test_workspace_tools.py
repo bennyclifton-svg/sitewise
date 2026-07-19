@@ -87,6 +87,11 @@ def _install(
     monkeypatch.setattr(server, "get_session_factory", lambda: lambda: session)
     monkeypatch.setattr(
         server,
+        "authorize_project_mutation_with_claims",
+        server.authorize_project_access_with_claims,
+    )
+    monkeypatch.setattr(
+        server,
         "get_latest_draft_artifact_by_workspace_path",
         AsyncMock(return_value=None),
     )

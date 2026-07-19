@@ -369,7 +369,7 @@ def test_search_platform_knowledge_returns_only_applicable_platform_rows(monkeyp
     (retriever,) = _StubRetriever.instances
     (call,) = retriever.calls
     assert call["query"] == "contract notices"
-    assert call["filters"].project == "sitewise-platform"
+    assert call["filters"].platform_knowledge_only is True
     assert call["filters"].phase == "reference"
 
 

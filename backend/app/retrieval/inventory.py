@@ -38,7 +38,7 @@ async def list_platform_documents(
             SourceDocument.document_class,
             kind_expr.label("knowledge_kind"),
         )
-        .where(scope_expr == "platform")
+        .where(SourceDocument.project_id.is_(None), scope_expr == "platform")
         .order_by(SourceDocument.relative_path.asc())
     )
     if knowledge_kind is not None:

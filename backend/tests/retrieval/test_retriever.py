@@ -5,6 +5,8 @@ from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import ChunkSearchHit, RetrievalFilters
 from tests.conftest import run_async
 
+PROJECT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
 
 def _hit(
     *,
@@ -21,6 +23,7 @@ def _hit(
         page_or_section="p.1",
         chunk_metadata=None,
         project=project,
+        project_id=PROJECT_ID,
         phase="procurement",
         source_type="project_evidence",
         document_class="evaluation",
@@ -62,7 +65,7 @@ def test_retriever_fuses_semantic_and_lexical_hits() -> None:
     ):
         retriever = DocumentRetriever(session)
         filters = RetrievalFilters(
-            project="procurement-blockb",
+            project_id=PROJECT_ID,
             procurement_stage="evaluation",
         )
         results = run_async(
@@ -101,7 +104,7 @@ def test_retriever_forwards_project_scope_filters() -> None:
     ):
         retriever = DocumentRetriever(session)
         filters = RetrievalFilters(
-            active_project="procurement-blockb",
+            active_project_id=PROJECT_ID,
             include_platform_knowledge=True,
             cross_project=False,
         )

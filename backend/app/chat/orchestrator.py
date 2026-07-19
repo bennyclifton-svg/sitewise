@@ -73,7 +73,7 @@ async def run_chat_turn(
         "chat_turn_start",
         user_id=str(user_id),
         thread_id=str(thread_id),
-        query=user_text,
+        query_length=len(user_text),
     )
     total_start = time.perf_counter()
     retriever = DocumentRetriever(session)
@@ -130,7 +130,7 @@ async def run_chat_turn(
     catalog_question = is_corpus_catalog_question(user_text)
     if catalog_question:
         catalog_start = time.perf_counter()
-        catalog = await list_corpus_projects(session)
+        catalog = await list_corpus_projects(session, filters=filters)
         catalog_passages = catalog_to_passages(catalog)
         validator.register(catalog_passages)
         logger.info(
@@ -141,7 +141,7 @@ async def run_chat_turn(
 
     async def load_catalog() -> list:
         catalog_start = time.perf_counter()
-        loaded = await list_corpus_projects(session)
+        loaded = await list_corpus_projects(session, filters=filters)
         logger.info(
             "chat_turn_catalog_loaded",
             project_count=len(loaded),

@@ -105,6 +105,10 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
 
     with (
         patch(
+            "app.workflows.create_cost_plan.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
             "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
             new=AsyncMock(return_value=[]),
         ),
@@ -215,6 +219,10 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
     }
 
     with (
+        patch(
+            "app.workflows.create_cost_plan.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
         patch("app.workflows.create_cost_plan.settings.cost_plan_hybrid_compiler", False),
         patch(
             "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
@@ -304,6 +312,10 @@ def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
     )
 
     with (
+        patch(
+            "app.workflows.create_cost_plan.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
         patch(
             "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
             new=AsyncMock(return_value=[]),

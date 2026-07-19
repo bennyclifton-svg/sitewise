@@ -59,7 +59,7 @@ def should_use_whole_document_path(
         return False
     if (
         filters is not None
-        and filters.active_project
+        and filters.active_project_id
         and not filters.include_platform_knowledge
     ):
         return False

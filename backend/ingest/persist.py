@@ -87,11 +87,17 @@ def _merged_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict:
 
 
 def should_skip_unchanged(session, plan: IngestPlan, content_hash: str) -> bool:
-    existing = session.scalar(
-        select(SourceDocument.content_hash).where(
-            SourceDocument.relative_path == plan.entry.relative_path
+    conditions = [SourceDocument.relative_path == plan.entry.relative_path]
+    if plan.context.project_id is not None:
+        conditions.append(SourceDocument.project_id == plan.context.project_id)
+    else:
+        conditions.extend(
+            [
+                SourceDocument.project_id.is_(None),
+                SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
+            ]
         )
-    )
+    existing = session.scalar(select(SourceDocument.content_hash).where(*conditions))
     return existing == content_hash
 
 
@@ -101,13 +107,28 @@ def upsert_document(
     extracted: ExtractedDocument,
     content_hash: str,
 ) -> uuid.UUID:
-    doc_id = document_id(plan.entry.relative_path)
+    conditions = [SourceDocument.relative_path == plan.entry.relative_path]
+    if plan.context.project_id is not None:
+        conditions.append(SourceDocument.project_id == plan.context.project_id)
+    else:
+        conditions.extend(
+            [
+                SourceDocument.project_id.is_(None),
+                SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
+            ]
+        )
+    persisted_id = session.scalar(select(SourceDocument.id).where(*conditions))
+    doc_id = persisted_id or document_id(
+        plan.entry.relative_path,
+        project_id=plan.context.project_id,
+    )
     document_type = infer_document_type(
         plan.entry.filename,
         plan.classification.document_class,
     )
     values = {
         "id": doc_id,
+        "project_id": plan.context.project_id,
         "project": plan.context.project,
         "phase": plan.context.phase,
         "document_type": document_type,
@@ -120,12 +141,21 @@ def upsert_document(
         "relative_path": plan.entry.relative_path,
         "normalized_content": extracted.normalized_content,
     }
+    conflict_elements = ["project_id", "relative_path"]
+    conflict_where = SourceDocument.project_id.is_not(None)
+    if plan.context.project_id is None:
+        conflict_elements = ["relative_path"]
+        conflict_where = SourceDocument.project_id.is_(None) & (
+            SourceDocument.document_metadata["knowledge_scope"].astext == "platform"
+        )
     stmt = (
         insert(SourceDocument)
         .values(**values)
         .on_conflict_do_update(
-            index_elements=["relative_path"],
+            index_elements=conflict_elements,
+            index_where=conflict_where,
             set_={
+                "project_id": values["project_id"],
                 "project": values["project"],
                 "phase": values["phase"],
                 "document_type": values["document_type"],
@@ -139,9 +169,9 @@ def upsert_document(
                 "updated_at": func.now(),
             },
         )
+        .returning(SourceDocument.id)
     )
-    session.execute(stmt)
-    return doc_id
+    return session.execute(stmt).scalar_one()
 
 
 def delete_document_chunks(session, doc_id: uuid.UUID) -> None:
@@ -161,7 +191,7 @@ def upsert_chunks(
 
     for chunk, embedding in zip(chunks, embeddings, strict=True):
         values = {
-            "id": chunk_id(plan.entry.relative_path, chunk.chunk_index),
+            "id": chunk_id(doc_id, chunk.chunk_index),
             "document_id": doc_id,
             "chunk_index": chunk.chunk_index,
             "page_or_section": chunk.page_or_section,

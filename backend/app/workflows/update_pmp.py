@@ -470,7 +470,7 @@ async def run_update_pmp_workflow(
 
         delta_passages = await retrieve_project_evidence_delta(
             session,
-            project_slug=project.slug,
+            project_id=project.id,
             since=baseline.created_at,
         )
         has_delta = len(delta_passages) > 0
@@ -518,7 +518,7 @@ async def run_update_pmp_workflow(
     )
     sanitize_source_texts = delta_source_texts or _project_source_texts(
         _passages,
-        project_slug=project.slug,
+        project_id=project.id,
     )
     validation_feedback: str | None = None
     max_attempts = 3

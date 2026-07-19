@@ -36,7 +36,11 @@ from app.database.workspace_files import (
     list_workspace_files_for_project,
 )
 from app.config import settings
-from app.mcp_bridge.auth import ToolAuthError, authorize_project_access_with_claims
+from app.mcp_bridge.auth import (
+    ToolAuthError,
+    authorize_project_access_with_claims,
+    authorize_project_mutation_with_claims,
+)
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from app.sitewise.cost_plan_consultant_forecast import (
@@ -562,11 +566,11 @@ def _score_platform_result(
 async def _load_project_source_document(
     session,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     document_id: uuid.UUID | None = None,
     workspace_path: str | None = None,
 ) -> SourceDocument | None:
-    filters = [SourceDocument.project == project_slug]
+    filters = [SourceDocument.project_id == project_id]
     if document_id is not None:
         filters.append(SourceDocument.id == document_id)
     elif workspace_path is not None:
@@ -901,7 +905,7 @@ async def start_tender_comparison(
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            authorization = await authorize_project_access_with_claims(
+            authorization = await authorize_project_mutation_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
@@ -1152,7 +1156,7 @@ async def apply_consultant_fee_forecast(
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            authorization = await authorize_project_access_with_claims(
+            authorization = await authorize_project_mutation_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
@@ -1220,7 +1224,7 @@ async def draft_consultant_procurement_artifact(
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            authorization = await authorize_project_access_with_claims(
+            authorization = await authorize_project_mutation_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
@@ -1397,7 +1401,7 @@ async def get_document(
                     raise ToolError("document_id must be a UUID") from exc
                 document = await _load_project_source_document(
                     session,
-                    project_slug=project.slug,
+                    project_id=project.id,
                     document_id=parsed_document_id,
                 )
             else:
@@ -1410,13 +1414,13 @@ async def get_document(
                 if record is not None and record.source_document_id is not None:
                     document = await _load_project_source_document(
                         session,
-                        project_slug=project.slug,
+                        project_id=project.id,
                         document_id=record.source_document_id,
                     )
                 if document is None:
                     document = await _load_project_source_document(
                         session,
-                        project_slug=project.slug,
+                        project_id=project.id,
                         workspace_path=path,
                     )
                 if document is None and record is not None:
@@ -1470,7 +1474,7 @@ async def find_document_text(
                 func.lower(SourceDocument.normalized_content).contains(term)
                 for term in terms
             ]
-            filters = [SourceDocument.project == project.slug, or_(*content_filters)]
+            filters = [SourceDocument.project_id == project.id, or_(*content_filters)]
             if filename_hint and filename_hint.strip():
                 hint = filename_hint.strip().lower()
                 filters.append(
@@ -1519,7 +1523,7 @@ async def write_workspace_file(project_id: str, path: str, content: str) -> dict
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
-            authorization = await authorize_project_access_with_claims(
+            authorization = await authorize_project_mutation_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
         except ToolAuthError as exc:
@@ -1595,7 +1599,7 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
             passages = await retriever.retrieve(
                 query,
                 filters=RetrievalFilters(
-                    active_project=project.slug,
+                    active_project_id=project.id,
                     # Platform knowledge stays out of evidence search by design:
                     # it arrives through platform knowledge tools so the
                     # evidence-beats-guidance authority stack stays structural.
@@ -1720,7 +1724,7 @@ async def search_platform_knowledge(
             passages = await retriever.retrieve(
                 normalized_query,
                 filters=RetrievalFilters(
-                    project="sitewise-platform",
+                    platform_knowledge_only=True,
                     phase="reference",
                 ),
                 limit=result_limit * 4,

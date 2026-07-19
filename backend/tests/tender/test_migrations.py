@@ -9,6 +9,8 @@ want to keep.
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pytest
 from alembic.config import Config
@@ -31,6 +33,9 @@ MIGRATION_CHAIN = [
     "018_project_taxonomy",
     "019_project_decisions",
     "020_tender_extract_cache",
+    "021_source_document_uuid_expand",
+    "022_source_doc_uuid_contract",
+    "023_agent_turns",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -43,7 +48,7 @@ TENDER_REVISIONS = [
     "015_tender_telemetry_events",
     "020_tender_extract_cache",
 ]
-HEAD_REVISION = "020_tender_extract_cache"
+DESTRUCTIVE_OPT_IN = "ALLOW_DESTRUCTIVE_TEST_DATABASE"
 
 
 def _alembic_config() -> Config:
@@ -65,8 +70,25 @@ def test_tender_migrations_chain_in_order() -> None:
         expected_parent = revision
 
 
-def test_head_is_last_tender_migration() -> None:
-    assert _script_directory().get_current_head() == HEAD_REVISION
+def _verify_migration_graph(scripts: ScriptDirectory) -> str:
+    heads = scripts.get_heads()
+    assert len(heads) == 1, f"migration graph must have one head; found {heads}"
+    head = heads[0]
+    ancestors = {script.revision for script in scripts.iterate_revisions(head, "base")}
+    missing = [revision for revision in TENDER_REVISIONS if revision not in ancestors]
+    assert not missing, f"Tender revisions are not ancestors of {head}: {missing}"
+    return head
+
+
+def test_single_head_contains_every_tender_migration() -> None:
+    scripts = _script_directory()
+    assert _verify_migration_graph(scripts) == scripts.get_current_head()
+
+
+def test_migration_graph_rejects_synthetic_branch() -> None:
+    scripts = SimpleNamespace(get_heads=lambda: ["main_head", "branch_head"])
+    with pytest.raises(AssertionError, match="one head"):
+        _verify_migration_graph(scripts)  # type: ignore[arg-type]
 
 
 def test_every_tender_migration_has_real_downgrade() -> None:
@@ -84,10 +106,10 @@ def test_every_tender_migration_has_real_downgrade() -> None:
 @pytest.mark.integration
 def test_tender_migrations_roundtrip_against_database() -> None:
     """upgrade head → downgrade to pre-tender → upgrade head, then spot-check schema."""
-    if os.environ.get("TENDER_MIGRATION_ROUNDTRIP") != "1":
+    if os.environ.get(DESTRUCTIVE_OPT_IN) != "1":
         pytest.skip(
             "DESTRUCTIVE: drops and recreates every tender table (data and seeds "
-            "included) on settings.database_url. Set TENDER_MIGRATION_ROUNDTRIP=1 "
+            f"included). Set TEST_DATABASE_URL and {DESTRUCTIVE_OPT_IN}=1 "
             "against a disposable database to run it."
         )
 
@@ -96,8 +118,14 @@ def test_tender_migrations_roundtrip_against_database() -> None:
 
     from app.config import settings
 
+    test_database_url = require_destructive_test_database_url(
+        application_url=settings.database_url,
+        test_url=os.environ.get("TEST_DATABASE_URL"),
+        opted_in=True,
+    )
+
     def sync_database_url() -> str:
-        url = settings.database_url
+        url = test_database_url
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         if "sslmode=" not in url:
@@ -106,12 +134,14 @@ def test_tender_migrations_roundtrip_against_database() -> None:
         return url
 
     config = _alembic_config()
+    original_database_url = settings.database_url
+    settings.database_url = test_database_url
 
-    command.upgrade(config, "head")
-    command.downgrade(config, PRE_TENDER_REV)
-
-    engine = sa.create_engine(sync_database_url())
     try:
+        command.upgrade(config, "head")
+        command.downgrade(config, PRE_TENDER_REV)
+
+        engine = sa.create_engine(sync_database_url())
         inspector = sa.inspect(engine)
         assert "tender_jobs" not in inspector.get_table_names()
         assert "tender_pages" not in inspector.get_table_names()
@@ -178,4 +208,49 @@ def test_tender_migrations_roundtrip_against_database() -> None:
         assert "ix_taxonomy_synonyms_phrase_norm_trgm" in synonym_indexes
         assert "ix_taxonomy_synonyms_embedding" in synonym_indexes
     finally:
-        engine.dispose()
+        if "engine" in locals():
+            engine.dispose()
+        settings.database_url = original_database_url
+
+
+def _database_identity(url: str) -> str:
+    parts = urlsplit(url.replace("postgresql+psycopg://", "postgresql://", 1))
+    query = urlencode(
+        sorted(
+            (key.lower(), value)
+            for key, value in parse_qsl(parts.query)
+            if key.lower() not in {"sslmode", "pgbouncer"}
+        )
+    )
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, query, ""))
+
+
+def require_destructive_test_database_url(
+    *, application_url: str, test_url: str | None, opted_in: bool
+) -> str:
+    if not opted_in:
+        raise RuntimeError(f"{DESTRUCTIVE_OPT_IN}=1 is required")
+    if not test_url:
+        raise RuntimeError("TEST_DATABASE_URL is required")
+    if _database_identity(test_url) == _database_identity(application_url):
+        raise RuntimeError("TEST_DATABASE_URL must not equal DATABASE_URL")
+    return test_url
+
+
+def test_destructive_database_guard_requires_dedicated_url() -> None:
+    application_url = "postgresql://user:pass@db.example/clerk?sslmode=require"
+    with pytest.raises(RuntimeError, match="TEST_DATABASE_URL is required"):
+        require_destructive_test_database_url(
+            application_url=application_url, test_url=None, opted_in=True
+        )
+    with pytest.raises(RuntimeError, match="must not equal"):
+        require_destructive_test_database_url(
+            application_url=application_url,
+            test_url="postgresql+psycopg://user:pass@db.example/clerk",
+            opted_in=True,
+        )
+    assert require_destructive_test_database_url(
+        application_url=application_url,
+        test_url="postgresql://user:pass@db.example/clerk_test",
+        opted_in=True,
+    ).endswith("/clerk_test")

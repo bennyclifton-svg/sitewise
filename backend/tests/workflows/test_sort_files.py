@@ -278,7 +278,7 @@ def test_move_workspace_file_purges_old_source_document_id() -> None:
         )
 
     assert result == moved_record
-    purge.assert_called_once_with(source.workspace_path, old_source_document_id)
+    purge.assert_called_once_with(source.workspace_path, PROJECT_ID, old_source_document_id)
     session.delete.assert_awaited_once_with(source)
     session.flush.assert_awaited_once()
 

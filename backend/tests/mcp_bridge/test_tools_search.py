@@ -126,7 +126,7 @@ def test_authorized_search_returns_mapped_passages(monkeypatch):
     (call,) = retriever.calls
     assert call["query"] == "bearing capacity"
     filters = call["filters"]
-    assert filters.active_project == "test-project"
+    assert filters.active_project_id == PROJECT_ID
     assert filters.include_platform_knowledge is False
 
 

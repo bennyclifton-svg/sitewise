@@ -27,7 +27,7 @@ def test_agent_runtime_accepts_turn_token_secret():
     settings = Settings(
         **_settings_kwargs(),
         agent_runtime_enabled=True,
-        agent_turn_token_secret="secret",
+        agent_turn_token_secret="secret-value-at-least-32-characters",
     )
 
     assert settings.agent_runtime_enabled is True

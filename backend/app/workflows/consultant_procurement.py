@@ -477,7 +477,7 @@ async def _retrieve_project_evidence(
     profile: DisciplineProfile,
 ) -> list[dict[str, Any]]:
     filters = RetrievalFilters(
-        active_project=project.slug,
+        active_project_id=project.id,
         include_platform_knowledge=False,
     )
     evidence: list[dict[str, Any]] = []
@@ -509,7 +509,7 @@ async def _retrieve_platform_knowledge(
             f"consultant procurement request for fee proposal {profile.name} "
             "scope deliverables exclusions fee response programme"
         ),
-        filters=RetrievalFilters(project="sitewise-platform", phase="reference"),
+        filters=RetrievalFilters(platform_knowledge_only=True, phase="reference"),
         limit=5,
         include_neighbours=False,
     )

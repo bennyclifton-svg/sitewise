@@ -4,7 +4,6 @@ from app.sitewise.pmp_decisions import (
     PMP_CORE_DECISIONS,
     SPARSE_BRIEF_DECISION_BAND,
     decision_option_sets_for_project,
-    format_decision_option_sets,
     required_decision_ids_for_project,
 )
 

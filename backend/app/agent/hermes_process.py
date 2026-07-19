@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config import settings
+from app.agent.process_tree import subprocess_group_options, terminate_process_tree
 
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _RICH_BORDER_CHARS = (
@@ -74,6 +75,10 @@ class _ThreadedProcess:
         self.stderr = _ThreadedStream(process.stderr) if process.stderr is not None else None
 
     @property
+    def pid(self) -> int:
+        return self._process.pid
+
+    @property
     def returncode(self) -> int | None:
         return self._process.returncode
 
@@ -82,6 +87,9 @@ class _ThreadedProcess:
 
     def kill(self) -> None:
         self._process.kill()
+
+    def send_signal(self, sig: int) -> None:
+        self._process.send_signal(sig)
 
 
 def _spawn_threaded_process(
@@ -96,6 +104,7 @@ def _spawn_threaded_process(
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        **subprocess_group_options(),
     )
     return _ThreadedProcess(process)
 
@@ -108,6 +117,7 @@ async def _default_spawn(*, argv: list[str], env: dict[str, str], cwd: str) -> _
             env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            **subprocess_group_options(),
         )
     except NotImplementedError:
         return await asyncio.to_thread(
@@ -302,11 +312,7 @@ def _stderr_tail_text(stderr_tail: deque[str]) -> str:
 
 
 async def _kill_and_wait(process: _Process) -> None:
-    process.kill()
-    try:
-        await asyncio.wait_for(process.wait(), timeout=5)
-    except Exception:
-        pass
+    await terminate_process_tree(process)
 
 
 async def stream_hermes_turn(
@@ -340,7 +346,8 @@ async def stream_hermes_turn(
                 await _kill_and_wait(process)
                 raise HermesTurnTimeout("Hermes turn timed out") from exc
             finally:
-                await asyncio.gather(stderr_task, return_exceptions=True)
+                if process.returncode is not None:
+                    await asyncio.gather(stderr_task, return_exceptions=True)
 
             if returncode != 0:
                 tail = _stderr_tail_text(stderr_tail)
@@ -348,7 +355,13 @@ async def stream_hermes_turn(
                 if tail:
                     message = f"{message}: {tail}"
                 raise HermesTurnError(message)
-        except Exception:
+        except BaseException:
+            if process.returncode is None:
+                await _kill_and_wait(process)
             if not stderr_task.done():
                 stderr_task.cancel()
+            await asyncio.gather(stderr_task, return_exceptions=True)
             raise
+        finally:
+            if isinstance(getattr(process, "pid", None), int):
+                await _kill_and_wait(process)

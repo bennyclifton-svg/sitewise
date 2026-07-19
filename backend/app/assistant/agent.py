@@ -200,7 +200,6 @@ async def list_corpus_projects(ctx: RunContext[DocumentAgentDeps]) -> str:
 async def search_documents(
     ctx: RunContext[DocumentAgentDeps],
     query: str,
-    project: str | None = None,
     source_type: str | None = None,
     procurement_stage: str | None = None,
     tenderer_id: str | None = None,
@@ -211,8 +210,13 @@ async def search_documents(
     tool_start = time.perf_counter()
     result_count = 0
     filters = RetrievalFilters(
-        project=project or (ctx.deps.filters.project if ctx.deps.filters else None),
-        active_project=ctx.deps.filters.active_project if ctx.deps.filters else None,
+        project_id=ctx.deps.filters.project_id if ctx.deps.filters else None,
+        active_project_id=(
+            ctx.deps.filters.active_project_id if ctx.deps.filters else None
+        ),
+        authorized_project_ids=(
+            ctx.deps.filters.authorized_project_ids if ctx.deps.filters else ()
+        ),
         include_platform_knowledge=(
             ctx.deps.filters.include_platform_knowledge if ctx.deps.filters else False
         ),
@@ -266,7 +270,7 @@ async def read_chunk(ctx: RunContext[DocumentAgentDeps], chunk_id: str) -> str:
         except ValueError:
             return f"Invalid chunk_id: {chunk_id}"
 
-        passage = await ctx.deps.retriever.read_chunk(parsed_id)
+        passage = await ctx.deps.retriever.read_chunk(parsed_id, filters=ctx.deps.filters)
         if passage is None:
             return f"Chunk not found: {chunk_id}"
 
@@ -325,7 +329,7 @@ async def read_surrounding_chunks(
         except ValueError:
             return f"Invalid chunk_id: {chunk_id}"
 
-        passage = await ctx.deps.retriever.read_chunk(parsed_id)
+        passage = await ctx.deps.retriever.read_chunk(parsed_id, filters=ctx.deps.filters)
         if passage is None:
             return f"Chunk not found: {chunk_id}"
 

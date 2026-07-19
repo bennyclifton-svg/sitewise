@@ -442,7 +442,7 @@ def _workspace_paths_for_tree(
 async def _list_project_evidence_previews(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     workspace_paths: set[str],
     workspace_files: list[WorkspaceFile] | None = None,
 ) -> list[EvidencePreview]:
@@ -461,7 +461,7 @@ async def _list_project_evidence_previews(
             content_excerpt,
         )
         .where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
             SourceDocument.source_type == "project_evidence",
         )
         .order_by(SourceDocument.relative_path.asc())
@@ -500,12 +500,12 @@ async def _list_project_evidence_previews(
 
 async def _first_evidence_preview(
     session: AsyncSession,
-    project_slug: str,
+    project_id: uuid.UUID,
 ) -> EvidencePreview | None:
     stmt = (
         select(SourceDocument)
         .where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
             SourceDocument.source_type == "project_evidence",
         )
         .order_by(SourceDocument.created_at.asc())
@@ -522,7 +522,10 @@ async def _platform_knowledge_status(session: AsyncSession) -> PlatformKnowledge
     kind_expr = SourceDocument.document_metadata["sitewise_knowledge_kind"].astext
     stmt = (
         select(kind_expr.label("kind"), func.count(SourceDocument.id).label("count"))
-        .where(SourceDocument.document_metadata["knowledge_scope"].astext == "platform")
+        .where(
+            SourceDocument.project_id.is_(None),
+            SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
+        )
         .group_by(kind_expr)
         .order_by(kind_expr.asc())
     )
@@ -757,7 +760,7 @@ async def patch_project(
     )
     return _project_detail_response(
         updated,
-        evidence_preview=await _first_evidence_preview(session, updated.slug),
+        evidence_preview=await _first_evidence_preview(session, updated.id),
     )
 
 
@@ -770,7 +773,7 @@ async def get_project_detail(
     project = _require_project_owner(await get_project(session, project_id), user.id)
     return _project_detail_response(
         project,
-        evidence_preview=await _first_evidence_preview(session, project.slug),
+        evidence_preview=await _first_evidence_preview(session, project.id),
     )
 
 
@@ -854,7 +857,7 @@ async def get_project_cockpit_bootstrap(
     step_start = time.perf_counter()
     evidence = await _list_project_evidence_previews(
         session,
-        project_slug=project.slug,
+        project_id=project.id,
         workspace_paths=workspace_paths,
         workspace_files=workspace_files,
     )
@@ -1141,7 +1144,7 @@ async def get_project_evidence(
     workspace_paths = {record.workspace_path for record in workspace_files}
     previews = await _list_project_evidence_previews(
         session,
-        project_slug=project.slug,
+        project_id=project.id,
         workspace_paths=workspace_paths,
         workspace_files=workspace_files,
     )
@@ -1159,7 +1162,7 @@ async def get_project_evidence_document(
     result = await session.execute(
         select(SourceDocument).where(
             SourceDocument.id == evidence_id,
-            SourceDocument.project == project.slug,
+            SourceDocument.project_id == project.id,
             SourceDocument.source_type == "project_evidence",
         )
     )

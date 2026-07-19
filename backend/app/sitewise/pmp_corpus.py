@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,14 +90,14 @@ def _dedupe_revision_groups(
 async def list_current_pmp_corpus_documents(
     session: AsyncSession,
     *,
-    project_slug: str,
+    project_id: uuid.UUID,
     max_documents: int | None = None,
 ) -> CorpusListingResult:
     """Return current active project evidence documents for PMP sweeps."""
     result = await session.execute(
         select(SourceDocument)
         .where(
-            SourceDocument.project == project_slug,
+            SourceDocument.project_id == project_id,
             SourceDocument.source_type == "project_evidence",
         )
         .order_by(SourceDocument.relative_path.asc())

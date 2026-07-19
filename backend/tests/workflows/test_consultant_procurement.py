@@ -31,7 +31,7 @@ class _StubRetriever:
     async def retrieve(self, query: str, **kwargs: Any) -> list[Any]:
         self.calls.append({"query": query, **kwargs})
         filters = kwargs["filters"]
-        if getattr(filters, "project", None) == "sitewise-platform":
+        if filters.platform_knowledge_only:
             return self.platform_passages
         for key, passages in self.project_passages.items():
             if key in query.lower():

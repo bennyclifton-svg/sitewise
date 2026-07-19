@@ -1,7 +1,7 @@
 import time
 
 import structlog
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -22,9 +22,9 @@ def _query_terms(query: str) -> list[str]:
 
 def _platform_scope_filter():
     scope_expr = SourceDocument.document_metadata["knowledge_scope"].astext
-    return or_(
+    return and_(
+        SourceDocument.project_id.is_(None),
         scope_expr == "platform",
-        SourceDocument.source_type.in_(("doctrine", "reference")),
     )
 
 
@@ -56,6 +56,7 @@ def _document_columns(*, content_chars: int | None = None):
         SourceDocument.filename,
         SourceDocument.relative_path,
         SourceDocument.project,
+        SourceDocument.project_id,
         SourceDocument.phase,
         SourceDocument.source_type,
         SourceDocument.document_class,
@@ -94,6 +95,7 @@ def _row_to_passage(row, *, max_chars: int, terms: list[str]) -> SourcePassage:
         content=row.normalized_content,
         page_or_section=None,
         project=row.project,
+        project_id=row.project_id,
         phase=row.phase,
         source_type=row.source_type,
         document_class=row.document_class,

@@ -16,7 +16,7 @@ PROJECT = uuid.uuid4()
 
 def test_round_trip():
     token = mint_turn_token(user_id=USER, project_id=PROJECT, secret=SECRET, now=1000.0)
-    claims = verify_turn_token(token, secret=SECRET, now=1500.0)
+    claims = verify_turn_token(token, secret=SECRET, now=1100.0)
     assert claims.user_id == USER
     assert claims.project_id == PROJECT
     assert claims.turn_id is None
@@ -31,7 +31,7 @@ def test_round_trip_with_turn_id():
         secret=SECRET,
         now=1000.0,
     )
-    claims = verify_turn_token(token, secret=SECRET, now=1500.0)
+    claims = verify_turn_token(token, secret=SECRET, now=1100.0)
     assert claims.turn_id == turn_id
 
 

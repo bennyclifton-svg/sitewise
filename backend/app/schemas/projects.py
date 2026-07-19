@@ -328,6 +328,8 @@ class WorkflowTraceEvent(BaseModel):
     step: str
     status: str
     message: str
+    started_at: datetime | None = None
+    duration_ms: int | None = Field(default=None, ge=0)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

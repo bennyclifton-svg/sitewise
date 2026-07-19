@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 import logging
-import os
 import time
 
 from fastapi import FastAPI, Request
@@ -45,15 +44,6 @@ async def lifespan(_app: FastAPI):
         embedding_model=settings.openai_embedding_model,
         log_level=settings.log_level,
     )
-    print(
-        f"Clerk backend ready | pid={os.getpid()} | chat={settings.openai_chat_model} "
-        f"| pmp={settings.pmp_model_label} "
-        f"| hermes={settings.hermes_model_provider}:{settings.hermes_model} "
-        f"| pi={settings.pi_model_provider}:{settings.pi_model} "
-        f"| embeddings={settings.openai_embedding_model} "
-        f"| log={settings.log_level}",
-        flush=True,
-    )
     # The MCP session manager needs its own lifespan running alongside ours.
     worker_handle = await start_inprocess_tender_worker()
     try:
@@ -72,12 +62,10 @@ async def log_requests(request: Request, call_next):
     start = time.perf_counter()
     start_line = f"-> {request.method} {request.url.path}"
     _access_log.info(start_line)
-    print(start_line, flush=True)
     response = await call_next(request)
     elapsed_ms = int((time.perf_counter() - start) * 1000)
     end_line = f"<- {request.method} {request.url.path} {response.status_code} ({elapsed_ms}ms)"
     _access_log.info(end_line)
-    print(end_line, flush=True)
     return response
 
 

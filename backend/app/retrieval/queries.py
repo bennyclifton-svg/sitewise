@@ -16,19 +16,26 @@ def apply_document_filters(
     if filters is None:
         return stmt
 
-    if filters.active_project is not None and not filters.cross_project:
-        scope_conditions = [SourceDocument.project == filters.active_project]
+    if filters.active_project_id is not None:
+        if filters.cross_project:
+            authorized_ids = filters.authorized_project_ids or (filters.active_project_id,)
+            scope_conditions = [SourceDocument.project_id.in_(authorized_ids)]
+        else:
+            scope_conditions = [SourceDocument.project_id == filters.active_project_id]
         if filters.include_platform_knowledge:
             scope_conditions.append(
-                or_(
-                    SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
-                    SourceDocument.source_type.in_(("doctrine", "reference")),
-                )
+                (SourceDocument.project_id.is_(None))
+                & (SourceDocument.document_metadata["knowledge_scope"].astext == "platform")
             )
         stmt = stmt.where(or_(*scope_conditions))
 
-    if filters.project is not None:
-        stmt = stmt.where(SourceDocument.project == filters.project)
+    if filters.project_id is not None:
+        stmt = stmt.where(SourceDocument.project_id == filters.project_id)
+    if filters.platform_knowledge_only:
+        stmt = stmt.where(
+            SourceDocument.project_id.is_(None),
+            SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
+        )
     if filters.phase is not None:
         stmt = stmt.where(SourceDocument.phase == filters.phase)
     if filters.source_type is not None:
@@ -57,6 +64,7 @@ def _row_to_hit(row, *, raw_score: float | None) -> ChunkSearchHit:
         page_or_section=row.page_or_section,
         chunk_metadata=row.chunk_metadata,
         project=row.project,
+        project_id=row.project_id,
         phase=row.phase,
         source_type=row.source_type,
         document_class=row.document_class,
@@ -86,6 +94,7 @@ async def semantic_search(
             DocumentChunk.content,
             DocumentChunk.chunk_metadata,
             SourceDocument.project,
+            SourceDocument.project_id,
             SourceDocument.phase,
             SourceDocument.source_type,
             SourceDocument.document_class,
@@ -130,6 +139,7 @@ async def fulltext_search(
             DocumentChunk.content,
             DocumentChunk.chunk_metadata,
             SourceDocument.project,
+            SourceDocument.project_id,
             SourceDocument.phase,
             SourceDocument.source_type,
             SourceDocument.document_class,
@@ -183,6 +193,8 @@ def hits_by_id(hits: list[ChunkSearchHit]) -> dict[uuid.UUID, ChunkSearchHit]:
 async def fetch_chunk_by_id(
     session: AsyncSession,
     chunk_id: uuid.UUID,
+    *,
+    filters: RetrievalFilters | None = None,
 ) -> ChunkSearchHit | None:
     stmt = (
         select(
@@ -193,6 +205,7 @@ async def fetch_chunk_by_id(
             DocumentChunk.content,
             DocumentChunk.chunk_metadata,
             SourceDocument.project,
+            SourceDocument.project_id,
             SourceDocument.phase,
             SourceDocument.source_type,
             SourceDocument.document_class,
@@ -203,6 +216,7 @@ async def fetch_chunk_by_id(
         .join(SourceDocument, DocumentChunk.document_id == SourceDocument.id)
         .where(DocumentChunk.id == chunk_id)
     )
+    stmt = apply_document_filters(stmt, filters)
     result = await session.execute(stmt)
     row = result.one_or_none()
     if row is None:

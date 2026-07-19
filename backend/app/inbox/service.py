@@ -279,6 +279,7 @@ async def _upload_single_file(
             ingest_hosted_file,
             content=item.content,
             workspace_path=workspace_path,
+            project_id=project.id,
             project_slug=project.slug,
             project_phase=project.phase,
             filename=filename,
@@ -327,7 +328,9 @@ async def _upload_single_file(
             ],
         )
 
-    source_doc_id = await asyncio.to_thread(source_document_id_for_path, workspace_path)
+    source_doc_id = await asyncio.to_thread(
+        source_document_id_for_path, workspace_path, project_id=project.id
+    )
     record = await upsert_workspace_file(
         session,
         project_id=project.id,
