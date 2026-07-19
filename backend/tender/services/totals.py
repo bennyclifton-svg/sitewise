@@ -1,16 +1,8 @@
-"""Per-quote matrix totals reconciled against the quote's stated total.
+"""Per-quote matrix totals conserved against reconciliation ex-GST (I4).
 
-Single source of the column-total computation: consumed by the matrix API
-and the report renderer so the on-screen grid and the frozen PDF can never
-disagree.
-
-Counting rule: a cell contributes its ``amount_cents`` when its status is
-included/pc/ps — ``_allocated_amount`` already folds pc/ps allowances into
-the cell amount, and printed quote totals include allowances. Excluded,
-not-required, silent-ambiguous, and bundled cells contribute nothing (a
-bundled cell's money is carried by the cell it was bundled into). This
-intentionally differs from extract-time reconciliation, which sums raw line
-items; the matrix total is the user-facing figure.
+Column totals come from ``tender_quote_reconciliations.computed_ex_gst_cents``.
+Cell sums (including Unallocated 99.01) explain that total; any remainder is
+``not_itemised_cents``. Money is never discarded by cell status.
 """
 
 from __future__ import annotations
@@ -18,11 +10,28 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
-from app.config import settings
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tender.models import TenderCellStatus, TenderQuote, TenderQuoteReconciliation
 from tender.schemas import MatrixQuoteTotal
+from tender.services.mapping import UNALLOCATED_CELL_CODE
 
-COUNTED_STATUSES = frozenset({"included", "pc", "ps"})
+# Legacy export kept for report/analysis callers that still filter by status.
+COUNTED_STATUSES = frozenset({"included", "pc", "ps", "mixed"})
+
+
+@dataclass(frozen=True)
+class QuoteTotalInput:
+    quote_id: uuid.UUID
+    stated_total_cents: int | None
+    stated_total_source: str | None
+    contract_type: str
+    computed_ex_gst_cents: int | None
+    residual_cents: int = 0
+    recon_status: str | None = None
 
 
 def delta_ratio(expected_cents: int, actual_cents: int) -> float:
@@ -32,47 +41,122 @@ def delta_ratio(expected_cents: int, actual_cents: int) -> float:
 
 
 def compute_quote_totals(
-    cell_rows: Iterable[tuple[uuid.UUID | str, str, int | None]],
-    quotes: Sequence[tuple[uuid.UUID, int | None, str | None]],
-    *,
-    tolerance: float | None = None,
+    quotes: Sequence[QuoteTotalInput],
+    cell_rows: Iterable[tuple[uuid.UUID, str, int | None]] = (),
 ) -> list[MatrixQuoteTotal]:
-    """Sum matrix cells per quote and reconcile against the stated total.
+    """Build conserved ex-GST column totals.
 
-    ``cell_rows`` is ``(quote_id, status, amount_cents)`` per matrix cell;
-    ``quotes`` is ``(quote_id, stated_total_cents, stated_total_source)`` in
-    display order. Quotes with no cells still get a (zero) total.
+    ``cell_rows`` is ``(quote_id, cell_code, amount_cents)`` — amounts are
+    already ex-GST countable sums from the grid (I4).
     """
-    tol = (
-        settings.tender_reconciliation_tolerance if tolerance is None else tolerance
-    )
-    sums: dict[str, int] = defaultdict(int)
-    for quote_id, status, amount_cents in cell_rows:
-        if status in COUNTED_STATUSES and amount_cents is not None:
-            sums[str(quote_id)] += amount_cents
+    cell_sums: dict[str, int] = defaultdict(int)
+    unallocated: dict[str, int] = defaultdict(int)
+    for quote_id, cell_code, amount_cents in cell_rows:
+        if amount_cents is None:
+            continue
+        key = str(quote_id)
+        cell_sums[key] += amount_cents
+        if cell_code == UNALLOCATED_CELL_CODE:
+            unallocated[key] += amount_cents
 
     totals: list[MatrixQuoteTotal] = []
-    for quote_id, stated_total_cents, stated_total_source in quotes:
-        computed = sums.get(str(quote_id), 0)
-        if stated_total_cents is None:
-            totals.append(
-                MatrixQuoteTotal(
-                    quote_id=quote_id,
-                    computed_total_cents=computed,
-                    reconciliation="not_stated",
-                )
-            )
-            continue
-        ratio = delta_ratio(stated_total_cents, computed)
+    for quote in quotes:
+        key = str(quote.quote_id)
+        itemised = cell_sums.get(key, 0)
+        unalloc = unallocated.get(key, 0)
+        if quote.computed_ex_gst_cents is not None:
+            computed = quote.computed_ex_gst_cents
+        else:
+            computed = itemised
+        not_itemised = computed - itemised
+        non_comparable = quote.contract_type == "cost_plus" or (
+            quote.recon_status == "non_comparable"
+        )
+        reconciliation = _reconciliation_label(quote, computed)
+        stated = quote.stated_total_cents
+        delta = None if stated is None else computed - stated
+        ratio = None if stated is None else delta_ratio(stated, computed)
         totals.append(
             MatrixQuoteTotal(
-                quote_id=quote_id,
+                quote_id=quote.quote_id,
                 computed_total_cents=computed,
-                stated_total_cents=stated_total_cents,
-                stated_total_source=stated_total_source,
-                delta_cents=computed - stated_total_cents,
+                basis="ex",
+                residual_cents=quote.residual_cents,
+                unallocated_cents=unalloc,
+                not_itemised_cents=not_itemised,
+                stated_native_cents=stated,
+                stated_total_cents=stated,
+                stated_total_source=(
+                    quote.stated_total_source
+                    if quote.stated_total_source in {"manual", "extracted"}
+                    else None
+                ),
+                non_comparable=non_comparable,
+                delta_cents=delta,
                 delta_ratio=ratio,
-                reconciliation="match" if ratio <= tol else "mismatch",
+                reconciliation=reconciliation,
             )
         )
     return totals
+
+
+def _reconciliation_label(
+    quote: QuoteTotalInput, computed: int
+) -> str:
+    if quote.recon_status == "not_stated" or quote.stated_total_cents is None:
+        return "not_stated"
+    if quote.recon_status == "reconciled" and quote.residual_cents == 0:
+        return "match"
+    if quote.recon_status == "residual" or quote.residual_cents != 0:
+        return "mismatch"
+    if quote.recon_status == "non_comparable":
+        return "mismatch"
+    # Fallback when recon row missing: compare computed to stated native
+    # (legacy path; may mix bases — preferred path always has recon).
+    if quote.stated_total_cents is None:
+        return "not_stated"
+    return "match" if computed == quote.stated_total_cents else "mismatch"
+
+
+async def load_quote_totals(
+    session: AsyncSession, comparison_id: uuid.UUID
+) -> list[MatrixQuoteTotal]:
+    quote_result = await session.execute(
+        select(TenderQuote)
+        .where(TenderQuote.comparison_id == comparison_id)
+        .order_by(TenderQuote.created_at)
+    )
+    quotes = list(quote_result.scalars())
+    recon_result = await session.execute(
+        select(TenderQuoteReconciliation).where(
+            TenderQuoteReconciliation.comparison_id == comparison_id
+        )
+    )
+    recons = {row.quote_id: row for row in recon_result.scalars()}
+    cell_result = await session.execute(
+        select(
+            TenderCellStatus.quote_id,
+            TenderCellStatus.cell_code,
+            TenderCellStatus.amount_cents,
+        ).where(TenderCellStatus.comparison_id == comparison_id)
+    )
+    cell_rows = [
+        (row.quote_id, row.cell_code, row.amount_cents) for row in cell_result.all()
+    ]
+    inputs = [
+        QuoteTotalInput(
+            quote_id=quote.id,
+            stated_total_cents=quote.stated_total_cents,
+            stated_total_source=quote.stated_total_source,
+            contract_type=quote.contract_type,
+            computed_ex_gst_cents=(
+                recons[quote.id].computed_ex_gst_cents
+                if quote.id in recons
+                else None
+            ),
+            residual_cents=recons[quote.id].residual_cents if quote.id in recons else 0,
+            recon_status=recons[quote.id].status if quote.id in recons else None,
+        )
+        for quote in quotes
+    ]
+    return compute_quote_totals(inputs, cell_rows=cell_rows)

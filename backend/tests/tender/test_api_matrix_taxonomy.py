@@ -163,7 +163,7 @@ def test_build_matrix_computes_totals_with_reconciliation() -> None:
                 quote_id=QUOTE_ID,
                 cell_code="03.01",
                 status="excluded_explicit",
-                amount_cents=5_000_00,
+                amount_cents=0,
                 cell_name="Site costs",
                 group_name="Site works",
                 sort_order=3,
@@ -176,11 +176,21 @@ def test_build_matrix_computes_totals_with_reconciliation() -> None:
                 id=QUOTE_ID,
                 stated_total_cents=100_000_00,
                 stated_total_source="extracted",
+                contract_type="lump_sum",
             ),
             FakeRow(
                 id=other_quote_id,
                 stated_total_cents=None,
                 stated_total_source=None,
+                contract_type="unknown",
+            ),
+        ],
+        recon_rows=[
+            FakeRow(
+                quote_id=QUOTE_ID,
+                computed_ex_gst_cents=100_000_00,
+                residual_cents=0,
+                status="reconciled",
             ),
         ],
     )
@@ -193,10 +203,13 @@ def test_build_matrix_computes_totals_with_reconciliation() -> None:
     ]
     first = response.totals[0]
     assert first.computed_total_cents == 100_000_00
+    assert first.basis == "ex"
     assert first.stated_total_cents == 100_000_00
+    assert first.stated_native_cents == 100_000_00
     assert first.stated_total_source == "extracted"
     assert first.reconciliation == "match"
     assert first.delta_cents == 0
+    assert first.not_itemised_cents == 0
     second = response.totals[1]
     assert second.computed_total_cents == 0
     assert second.reconciliation == "not_stated"
@@ -261,12 +274,25 @@ class FakeMatrixSession:
         flag_rows: list[FakeRow],
         mapping_rows: list[FakeRow],
         quote_rows: list[FakeRow] | None = None,
+        recon_rows: list[FakeRow] | None = None,
     ) -> None:
+        # build_matrix: statuses, flags, mappings; load_quote_totals: quotes, recons, cells
         self.results = [
             FakeResult(status_rows),
             FakeResult(flag_rows),
             FakeResult(mapping_rows),
             FakeResult(quote_rows or []),
+            FakeResult(recon_rows or []),
+            FakeResult(
+                [
+                    FakeRow(
+                        quote_id=row.quote_id,
+                        cell_code=row.cell_code,
+                        amount_cents=row.amount_cents,
+                    )
+                    for row in status_rows
+                ]
+            ),
         ]
 
     async def execute(self, statement: Any) -> "FakeResult":
@@ -278,4 +304,7 @@ class FakeResult:
         self.rows = rows
 
     def all(self) -> list[FakeRow]:
+        return self.rows
+
+    def scalars(self) -> list[FakeRow]:
         return self.rows

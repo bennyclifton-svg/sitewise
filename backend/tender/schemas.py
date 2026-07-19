@@ -320,8 +320,14 @@ class MatrixGroup(BaseModel):
 class MatrixQuoteTotal(BaseModel):
     quote_id: uuid.UUID
     computed_total_cents: int
+    basis: Literal["ex"] = "ex"
+    residual_cents: int = 0
+    unallocated_cents: int = 0
+    not_itemised_cents: int = 0
+    stated_native_cents: int | None = None
     stated_total_cents: int | None = None
     stated_total_source: Literal["manual", "extracted"] | None = None
+    non_comparable: bool = False
     delta_cents: int | None = None
     delta_ratio: float | None = None
     reconciliation: Literal["match", "mismatch", "not_stated"]

@@ -17,7 +17,7 @@ from tender.schemas import (
     MatrixResponse,
 )
 from tender.services.mapping import has_multi_candidate_adjudication
-from tender.services.totals import compute_quote_totals
+from tender.services.totals import load_quote_totals
 
 
 async def build_matrix(
@@ -100,22 +100,7 @@ async def build_matrix(
             )
         )
 
-    quote_result = await session.execute(
-        select(
-            TenderQuote.id,
-            TenderQuote.stated_total_cents,
-            TenderQuote.stated_total_source,
-        )
-        .where(TenderQuote.comparison_id == comparison_id)
-        .order_by(TenderQuote.created_at)
-    )
-    totals = compute_quote_totals(
-        ((row.quote_id, row.status, row.amount_cents) for row in status_rows),
-        [
-            (row.id, row.stated_total_cents, row.stated_total_source)
-            for row in quote_result.all()
-        ],
-    )
+    totals = await load_quote_totals(session, comparison_id)
 
     return MatrixResponse(
         comparison_id=comparison_id,

@@ -30,7 +30,7 @@ from tender.models import (
 from tender.schemas import MatrixQuoteTotal
 from tender.services import qa
 from tender.services.artefact_publisher import tender_artefact_publisher
-from tender.services.totals import compute_quote_totals
+from tender.services.totals import load_quote_totals
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "report_templates"
 NARRATIVE_KEYS = ("executive_summary_intro", "risk_notes_intro")
@@ -308,17 +308,7 @@ async def load_report_data(
     analysis = analysis_result.scalar_one_or_none()
     matrix = await _report_matrix(session, comparison_id=comparison_id)
     flags = await _report_flags(session, comparison_id=comparison_id)
-    totals = compute_quote_totals(
-        (
-            (status.quote_id, status.status, status.amount_cents)
-            for cell in matrix
-            for status in cell.statuses
-        ),
-        [
-            (quote.id, quote.stated_total_cents, quote.stated_total_source)
-            for quote in quotes
-        ],
-    )
+    totals = await load_quote_totals(session, comparison_id)
     return ReportData(
         comparison_id=comparison_id,
         project_title=project.title,
