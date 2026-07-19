@@ -38,6 +38,7 @@ MIGRATION_CHAIN = [
     "022_source_doc_uuid_contract",
     "023_agent_turns",
     "024_tender_quote_total_source",
+    "025_project_profile_revision",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -193,6 +194,13 @@ def test_tender_migrations_roundtrip_against_database() -> None:
             constraint["name"] for constraint in inspector.get_unique_constraints("tender_pages")
         }
         assert "uq_tender_pages_document_id_page_no" in unique_names
+
+        project_columns = {
+            column["name"]: column for column in inspector.get_columns("projects")
+        }
+        profile_revision = project_columns["profile_revision"]
+        assert profile_revision["nullable"] is False
+        assert str(profile_revision["default"]) in {"1", "'1'::integer"}
 
         with engine.connect() as connection:
             embedding_type = connection.execute(

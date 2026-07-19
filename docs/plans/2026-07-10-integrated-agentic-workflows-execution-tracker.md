@@ -243,10 +243,15 @@ Validation commands and exact local results:
 Objective: give HTTP, UI, and MCP one revisioned profile, decision, snapshot,
 capability, and durable-event contract.
 
-- [ ] **1.1 — Add profile revision and typed contracts**
+- [x] **1.1 — Add profile revision and typed contracts**
   - Dependencies: Stage 0 migration safety.
   - Gate: omitted fields, explicit clears, no-ops, revisions, and stale conflicts
     have stable typed behavior.
+  - Completed 2026-07-19 in migration `025_project_profile_revision` and the
+    `ProjectProfileView`, `ProjectProfilePatch`, and `ProjectProfileChange`
+    contracts. Focused schema/taxonomy/migration verification: 22 passed;
+    disposable PostgreSQL roundtrip: 1 passed. HTTP 409 translation remains
+    deliberately assigned to 1.3 after the deep module owns concurrency in 1.2.
 - [ ] **1.2 — Build the deep Project Profile module**
   - Dependencies: 1.1.
   - Gate: all validation families, dependent clearing, diffs, revisions, audit,

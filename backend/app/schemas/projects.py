@@ -1,8 +1,15 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal, Self
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.assistant.chat_models import InvalidChatModelError, resolve_chat_model
 from app.assistant.pmp_models import InvalidPmpModelError, resolve_pmp_model
@@ -81,6 +88,108 @@ class ProjectSubclassSelection(BaseModel):
             return None
         stripped = value.strip()
         return stripped or None
+
+
+class ProjectProfilePatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    building_class: str | None = Field(default=None, max_length=64)
+    work_type: str | None = Field(default=None, max_length=64)
+    subclasses: list[str | ProjectSubclassSelection] | None = None
+    scale: dict[str, Any] | None = None
+    complexity: dict[str, Any] | None = None
+    work_scope: list[str] | None = None
+    user_role: str | None = Field(default=None, max_length=64)
+    state: str | None = Field(default=None, max_length=16)
+    clear_incompatible: bool = False
+
+    @field_validator("building_class", "work_type", "user_role", "state")
+    @classmethod
+    def strip_optional_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    @field_validator("subclasses")
+    @classmethod
+    def strip_optional_subclasses(
+        cls,
+        value: list[str | ProjectSubclassSelection] | None,
+    ) -> list[str | ProjectSubclassSelection] | None:
+        if value is None:
+            return None
+        stripped: list[str | ProjectSubclassSelection] = []
+        for item in value:
+            if isinstance(item, str):
+                text = item.strip()
+                if text:
+                    stripped.append(text)
+            else:
+                stripped.append(item)
+        return stripped or None
+
+    @field_validator("work_scope")
+    @classmethod
+    def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        stripped = [item.strip() for item in value if item.strip()]
+        return stripped or None
+
+
+ProjectProfileField = Literal[
+    "building_class",
+    "work_type",
+    "subclasses",
+    "scale",
+    "complexity",
+    "work_scope",
+    "user_role",
+    "state",
+]
+
+
+class ProjectProfileView(BaseModel):
+    project_id: uuid.UUID
+    profile_revision: int = Field(ge=1)
+    building_class: str | None = None
+    work_type: str | None = None
+    subclasses: list[str | ProjectSubclassSelection] = Field(default_factory=list)
+    scale: dict[str, Any] = Field(default_factory=dict)
+    complexity: dict[str, Any] = Field(default_factory=dict)
+    work_scope: list[str] = Field(default_factory=list)
+    user_role: str | None = None
+    state: str | None = None
+
+
+class ProjectProfileChange(BaseModel):
+    profile: ProjectProfileView
+    previous_revision: int = Field(ge=1)
+    new_revision: int = Field(ge=1)
+    changed_fields: list[ProjectProfileField]
+    cleared_fields: list[ProjectProfileField]
+    overlay_status: OverlayStatus
+    risk_flags: list[RiskFlag]
+
+    @model_validator(mode="after")
+    def validate_revision_contract(self) -> Self:
+        overlap = set(self.changed_fields) & set(self.cleared_fields)
+        if overlap:
+            raise ValueError("changed_fields and cleared_fields must not overlap")
+        effective_change = bool(self.changed_fields or self.cleared_fields)
+        expected_new_revision = (
+            self.previous_revision + 1 if effective_change else self.previous_revision
+        )
+        if self.new_revision != expected_new_revision:
+            raise ValueError(
+                "new_revision must increment exactly once for an effective change "
+                "and remain unchanged for a no-op"
+            )
+        if self.profile.profile_revision != self.new_revision:
+            raise ValueError("profile revision must match new_revision")
+        return self
 
 
 class InboxUploadResult(BaseModel):
