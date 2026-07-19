@@ -1,4 +1,5 @@
 import uuid
+from pathlib import PurePosixPath
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,29 +35,48 @@ async def create_draft_artifact(
     model: str | None,
     runtime: str,
     provenance_metadata: dict,
+    expected_base_version: int,
+    actor_source: str = "workflow",
 ) -> DraftArtifact:
-    version = await next_draft_version(
+    from app.inbox.paths import build_storage_key
+    from app.projects.artefact_revisions import ExportSpec, publish
+
+    exports = [
+        ExportSpec(
+            export_type="markdown",
+            workspace_path=workspace_path,
+            storage_key=build_storage_key(str(project_id), workspace_path),
+        )
+    ]
+    if workflow_type == "create_cost_plan":
+        workbook_path = str(
+            PurePosixPath(workspace_path).parent
+            / f"Cost_Plan_v{expected_base_version + 1:02d}.draft.xlsx"
+        )
+        exports.append(
+            ExportSpec(
+                export_type="workbook",
+                workspace_path=workbook_path,
+                storage_key=build_storage_key(str(project_id), workbook_path),
+            )
+        )
+
+    result = await publish(
         session,
         project_id=project_id,
         workflow_type=workflow_type,
-    )
-    draft = DraftArtifact(
-        project_id=project_id,
-        workflow_type=workflow_type,
-        version=version,
-        status="draft",
+        expected_base_version=expected_base_version,
         title=title,
         workspace_path=workspace_path,
         author_user_id=author_user_id,
         content_markdown=content_markdown,
         model=model,
         runtime=runtime,
-        provenance_metadata=provenance_metadata,
+        provenance=provenance_metadata,
+        actor_source=actor_source,
+        exports=exports,
     )
-    session.add(draft)
-    await session.flush()
-    await session.refresh(draft)
-    return draft
+    return result.revision
 
 
 async def get_latest_draft_artifact(
@@ -173,54 +193,3 @@ async def get_draft_artifact(
     draft_id: uuid.UUID,
 ) -> DraftArtifact | None:
     return await session.get(DraftArtifact, draft_id)
-
-
-async def update_draft_content(
-    session: AsyncSession,
-    draft: DraftArtifact,
-    *,
-    content_markdown: str,
-) -> DraftArtifact:
-    draft.content_markdown = content_markdown
-    await session.flush()
-    await session.refresh(draft)
-    return draft
-
-
-async def create_draft_revision(
-    session: AsyncSession,
-    *,
-    draft: DraftArtifact,
-    author_user_id: uuid.UUID,
-    content_markdown: str,
-    edit_source: str,
-) -> DraftArtifact:
-    provenance_metadata = dict(draft.provenance_metadata or {})
-    provenance_metadata["edited_from"] = {
-        "draft_id": str(draft.id),
-        "version": draft.version,
-        "workspace_path": draft.workspace_path,
-        "edit_source": edit_source,
-    }
-    return await create_draft_artifact(
-        session,
-        project_id=draft.project_id,
-        workflow_type=draft.workflow_type,
-        title=draft.title,
-        workspace_path=draft.workspace_path,
-        author_user_id=author_user_id,
-        content_markdown=content_markdown,
-        model=draft.model,
-        runtime=draft.runtime,
-        provenance_metadata=provenance_metadata,
-    )
-
-
-async def accept_draft(
-    session: AsyncSession,
-    draft: DraftArtifact,
-) -> DraftArtifact:
-    draft.status = "accepted"
-    await session.flush()
-    await session.refresh(draft)
-    return draft

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -113,14 +113,13 @@ def test_patch_project_draft_creates_new_version(
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
         patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)),
         patch(
-            "app.api.projects.create_draft_revision",
+            "app.api.projects.revise_workflow_artefact",
             new=AsyncMock(return_value=updated),
-        ) as create_revision,
-        patch("app.api.projects.sync_pmp_draft_workspace", new=AsyncMock()) as sync_pmp,
+        ) as revise_artefact,
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}",
-            json={"content_markdown": "# Edited"},
+            json={"content_markdown": "# Edited", "expected_base_version": 1},
         )
 
     assert response.status_code == 200
@@ -129,15 +128,15 @@ def test_patch_project_draft_creates_new_version(
     assert payload["version"] == 2
     assert payload["content_markdown"] == "# Edited"
     assert original.content_markdown == "# Original"
-    create_revision.assert_awaited_once_with(
+    revise_artefact.assert_awaited_once_with(
         mock_session,
+        project=ANY,
         draft=original,
+        expected_base_version=1,
         author_user_id=USER_ID,
         content_markdown="# Edited",
-        edit_source="user",
+        actor_source="user",
     )
-    sync_pmp.assert_awaited_once()
-    assert sync_pmp.await_args.kwargs["draft"] is updated
 
 
 def test_patch_cost_plan_draft_regenerates_workbook(
@@ -156,38 +155,31 @@ def test_patch_cost_plan_draft_regenerates_workbook(
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
         patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)),
         patch(
-            "app.api.projects.create_draft_revision",
+            "app.api.projects.revise_workflow_artefact",
             new=AsyncMock(return_value=updated),
-        ) as create_revision,
-        patch(
-            "app.api.projects.sync_cost_plan_revision_artifacts",
-            new=AsyncMock(
-                return_value={
-                    "file_name": "Cost_Plan_v02.draft.xlsx",
-                    "workspace_path": "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
-                }
-            ),
-        ) as sync_cost_plan,
+        ) as revise_artefact,
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}",
-            json={"content_markdown": "# Cost Plan\n\nEdited"},
+            json={
+                "content_markdown": "# Cost Plan\n\nEdited",
+                "expected_base_version": 1,
+            },
         )
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["version"] == 2
     assert payload["content_markdown"] == "# Cost Plan\n\nEdited"
-    create_revision.assert_awaited_once_with(
+    revise_artefact.assert_awaited_once_with(
         mock_session,
+        project=ANY,
         draft=original,
+        expected_base_version=1,
         author_user_id=USER_ID,
         content_markdown="# Cost Plan\n\nEdited",
-        edit_source="user",
+        actor_source="user",
     )
-    sync_cost_plan.assert_awaited_once()
-    assert sync_cost_plan.await_args.kwargs["draft"] is updated
-    assert sync_cost_plan.await_args.kwargs["markdown"] == "# Cost Plan\n\nEdited"
 
 
 def test_patch_project_draft_rejects_source_document_id(
@@ -202,7 +194,7 @@ def test_patch_project_draft_rejects_source_document_id(
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}/drafts/{source_document_id}",
-            json={"content_markdown": "# Not a draft"},
+            json={"content_markdown": "# Not a draft", "expected_base_version": 1},
         )
 
     assert response.status_code == 404

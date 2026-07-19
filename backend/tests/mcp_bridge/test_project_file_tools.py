@@ -273,7 +273,7 @@ def test_apply_consultant_fee_forecast_versions_draft_and_workbook(monkeypatch) 
     server = _install(monkeypatch, session)
     source = _draft(version=1, content=_cost_plan_markdown())
     updated = _draft(version=2, content="# updated")
-    create_revision = AsyncMock(return_value=updated)
+    revise_artefact = AsyncMock(return_value=updated)
     sync_artifacts = AsyncMock(
         return_value={
             "file_name": "Cost_Plan_v02.draft.xlsx",
@@ -282,7 +282,7 @@ def test_apply_consultant_fee_forecast_versions_draft_and_workbook(monkeypatch) 
         }
     )
     monkeypatch.setattr(server, "get_latest_draft_artifact", AsyncMock(return_value=source))
-    monkeypatch.setattr(server, "create_draft_revision", create_revision)
+    monkeypatch.setattr(server, "revise_workflow_artefact", revise_artefact)
     monkeypatch.setattr(server, "sync_cost_plan_revision_artifacts", sync_artifacts)
 
     result = _call(
@@ -295,7 +295,8 @@ def test_apply_consultant_fee_forecast_versions_draft_and_workbook(monkeypatch) 
     assert result.data["source_draft_id"] == str(source.id)
     assert result.data["draft_id"] == str(updated.id)
     assert result.data["workbook"]["file_name"] == "Cost_Plan_v02.draft.xlsx"
-    content = create_revision.await_args.kwargs["content_markdown"]
+    content = revise_artefact.await_args.kwargs["content_markdown"]
+    assert revise_artefact.await_args.kwargs["expected_base_version"] == 1
     assert "## Consultant fee forecast basis" in content
     assert "| 6 | Consultants | Structural engineer | $16,500 | Judgement |" in content
     sync_artifacts.assert_awaited_once()

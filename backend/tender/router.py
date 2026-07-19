@@ -830,11 +830,14 @@ async def post_report_build(
 )
 async def get_report_state(
     comparison_id: uuid.UUID,
+    revision: int | None = Query(default=None, ge=1),
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> TenderReportStateResponse:
     await require_comparison_owner(session, comparison_id=comparison_id, user_id=user.id)
-    lifecycle, draft = await report.get_report_state(session, comparison_id=comparison_id)
+    lifecycle, draft = await report.get_report_state(
+        session, comparison_id=comparison_id, version=revision
+    )
     return TenderReportStateResponse(
         comparison_id=comparison_id,
         report=ReportLifecycleResponse.model_validate(lifecycle) if lifecycle else None,

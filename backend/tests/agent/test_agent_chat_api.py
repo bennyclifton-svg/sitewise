@@ -51,6 +51,35 @@ BODY_WITH_PI_RUNTIME = {
 }
 
 
+def test_terminal_event_persistence_is_ordered_and_sanitized() -> None:
+    events = chat_api._sanitized_terminal_events(
+        [
+            {"kind": "tool", "tool": "write", "state": "done"},
+            {
+                "kind": "artefact",
+                "title": "Project plan",
+                "draftId": "draft-2",
+                "version": 2,
+                "token": "must-not-persist",
+                "prompt": "must-not-persist",
+            },
+            {
+                "kind": "resource",
+                "projectId": "project-1",
+                "resourceType": "artefact_revision",
+                "resourceId": "draft-2",
+                "revision": 2,
+                "action": "published",
+            },
+        ]
+    )
+
+    assert [event["kind"] for event in events] == ["artefact", "resource"]
+    assert events[0]["draftId"] == "draft-2"
+    assert "token" not in events[0]
+    assert "prompt" not in events[0]
+
+
 def _thread(
     *,
     owner_id: uuid.UUID = USER_ID,

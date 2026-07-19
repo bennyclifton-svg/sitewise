@@ -159,11 +159,9 @@ def test_put_project_decision_rewrites_draft_markdown(
             new=AsyncMock(return_value={"procurement-route": "design_construct"}),
         ),
         patch(
-            "app.api.projects.update_draft_content",
+            "app.api.projects.revise_workflow_artefact",
             new=AsyncMock(return_value=updated),
-        ) as update_content,
-        patch("app.api.projects.sync_pmp_draft_workspace", new=AsyncMock()),
-        patch("app.api.projects.sync_cost_plan_draft_workspace", new=AsyncMock()),
+        ) as revise_artefact,
         patch("app.api.projects.record_activity_events", new=AsyncMock()),
     ):
         response = client.put(
@@ -180,8 +178,9 @@ def test_put_project_decision_rewrites_draft_markdown(
     assert payload["decision"]["selected"] == "design_construct"
     assert payload["draft"]["content_markdown"]
     update_decision.assert_awaited_once()
-    update_content.assert_awaited_once()
-    rewritten = update_content.await_args.kwargs["content_markdown"]
+    revise_artefact.assert_awaited_once()
+    rewritten = revise_artefact.await_args.kwargs["content_markdown"]
+    assert revise_artefact.await_args.kwargs["expected_base_version"] == 1
     assert '"selected": "design_construct"' in rewritten
     assert '"source": "user"' in rewritten
 
@@ -219,7 +218,7 @@ def test_put_project_decision_restamps_cost_plan_and_pmp(
             return cost_draft
         return None
 
-    async def update_content(session, draft, *, content_markdown):  # noqa: ANN001
+    async def revise_artefact(session, *, draft, content_markdown, **_kwargs):  # noqa: ANN001
         updates.append(draft.workflow_type)
         draft.content_markdown = content_markdown
         return draft
@@ -249,13 +248,9 @@ def test_put_project_decision_restamps_cost_plan_and_pmp(
             new=AsyncMock(return_value={"procurement-route": "design_construct"}),
         ),
         patch(
-            "app.api.projects.update_draft_content",
-            new=AsyncMock(side_effect=update_content),
+            "app.api.projects.revise_workflow_artefact",
+            new=AsyncMock(side_effect=revise_artefact),
         ),
-        patch("app.api.projects.sync_pmp_draft_workspace", new=AsyncMock()) as sync_pmp,
-        patch(
-            "app.api.projects.sync_cost_plan_draft_workspace", new=AsyncMock()
-        ) as sync_cost,
         patch("app.api.projects.record_activity_events", new=AsyncMock()),
     ):
         response = client.put(
@@ -269,8 +264,6 @@ def test_put_project_decision_restamps_cost_plan_and_pmp(
 
     assert response.status_code == 200
     assert updates == ["create_pmp", "create_cost_plan"]
-    sync_pmp.assert_awaited_once()
-    sync_cost.assert_awaited_once()
     assert '"selected": "design_construct"' in pmp_draft.content_markdown
     assert '"selected": "design_construct"' in cost_draft.content_markdown
 

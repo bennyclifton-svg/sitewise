@@ -19,13 +19,10 @@ from app.database.activity_events import (
 )
 from app.database.chats import create_thread, title_from_message
 from app.database.draft_artifacts import (
-    accept_draft,
-    create_draft_revision,
     get_draft_artifact,
     get_latest_consultant_procurement_draft_summaries,
     get_latest_draft_artifact_summaries,
     get_latest_draft_artifact,
-    update_draft_content,
 )
 from app.database.projects import (
     create_project,
@@ -50,6 +47,7 @@ from app.schemas.projects import (
     DeleteProjectActivityRequest,
     DeleteProjectActivityResponse,
     PatchDraftRequest,
+    AcceptDraftRequest,
     PatchProjectRequest,
     ProjectProfileChange,
     ProjectProfilePatch,
@@ -114,6 +112,14 @@ from app.schemas.document_selections import (
     TenderQuoteSelection,
 )
 from app.projects.workflow_capabilities import workflow_capabilities
+from app.projects.artefact_adapters import (
+    accept_workflow_artefact,
+    revise_workflow_artefact,
+)
+from app.projects.artefact_revisions import (
+    ArtefactPolicyViolation,
+    ArtefactRevisionConflict,
+)
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
@@ -134,18 +140,15 @@ from app.sitewise.taxonomy import (
     taxonomy_options_payload,
     validate_project_taxonomy,
 )
-from app.sitewise.pmp_decisions import extract_decisions, render_decisions_static, restamp_decisions
+from app.sitewise.pmp_decisions import extract_decisions, restamp_decisions
 from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.consultant_procurement import (
-    is_consultant_procurement_workflow,
     sync_consultant_procurement_draft_workspace,
 )
 from app.workflows.create_cost_plan import (
     draft_workspace_path as cost_plan_draft_workspace_path,
-    is_cost_plan_workflow,
     run_create_cost_plan_workflow,
     sync_cost_plan_draft_workspace,
-    sync_cost_plan_revision_artifacts,
 )
 from app.workflows.create_pmp import (
     canonical_pmp_workspace_path,
@@ -975,24 +978,6 @@ async def get_project_cockpit_bootstrap(
 
     step_start = time.perf_counter()
     workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
-    workspace_files = await _ensure_pmp_workspace_file(
-        session,
-        project=project,
-        workspace_files=workspace_files,
-        draft_summaries=latest_drafts,
-    )
-    workspace_files = await _ensure_cost_plan_workspace_file(
-        session,
-        project=project,
-        workspace_files=workspace_files,
-        draft_summaries=latest_drafts,
-    )
-    workspace_files = await _ensure_consultant_procurement_workspace_files(
-        session,
-        project=project,
-        workspace_files=workspace_files,
-        consultant_draft_summaries=consultant_drafts,
-    )
     workspace_path_list = _workspace_paths_for_tree(
         workspace_files,
         draft_summaries=all_draft_summaries,
@@ -1076,24 +1061,6 @@ async def get_project_workspace_tree(
     )
     consultant_drafts = _consultant_procurement_draft_summaries(consultant_draft_rows)
     all_draft_summaries = _merge_draft_summaries(draft_summaries, consultant_drafts)
-    workspace_files = await _ensure_pmp_workspace_file(
-        session,
-        project=project,
-        workspace_files=workspace_files,
-        draft_summaries=draft_summaries,
-    )
-    workspace_files = await _ensure_cost_plan_workspace_file(
-        session,
-        project=project,
-        workspace_files=workspace_files,
-        draft_summaries=draft_summaries,
-    )
-    workspace_files = await _ensure_consultant_procurement_workspace_files(
-        session,
-        project=project,
-        workspace_files=workspace_files,
-        consultant_draft_summaries=consultant_drafts,
-    )
     return ProjectWorkspaceTreeResponse(
         project_id=project.id,
         root_path=project.workspace_path,
@@ -1676,6 +1643,7 @@ async def _restamp_shared_decision_drafts(
     decision_id: str,
     locked: dict[str, str],
     preferred_workflow_type: str,
+    author_user_id: uuid.UUID,
 ):
     """Restamp every latest draft that embeds this decision (hard sync)."""
     primary = None
@@ -1692,25 +1660,15 @@ async def _restamp_shared_decision_drafts(
         if decision_id not in present_ids:
             continue
         updated_markdown = restamp_decisions(draft.content_markdown, locked)
-        updated_draft = await update_draft_content(
+        updated_draft = await revise_workflow_artefact(
             session,
-            draft,
+            project=project,
+            draft=draft,
+            expected_base_version=draft.version,
+            author_user_id=author_user_id,
             content_markdown=updated_markdown,
+            actor_source="decision_override",
         )
-        if is_pmp_workflow(updated_draft.workflow_type):
-            await sync_pmp_draft_workspace(
-                session,
-                project=project,
-                draft=updated_draft,
-                markdown=updated_markdown,
-            )
-        elif is_cost_plan_workflow(updated_draft.workflow_type):
-            await sync_cost_plan_draft_workspace(
-                session,
-                project=project,
-                draft=updated_draft,
-                markdown=updated_markdown,
-            )
         if primary is None or workflow_type == preferred_workflow_type:
             primary = updated_draft
             primary_markdown = updated_markdown
@@ -1774,6 +1732,7 @@ async def put_project_decision(
         decision_id=decision_id,
         locked=locked,
         preferred_workflow_type=workflow_type,
+        author_user_id=user.id,
     )
     if updated_draft is None or updated_markdown is None:
         raise HTTPException(
@@ -1831,34 +1790,20 @@ async def patch_project_draft(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found",
         )
-    updated = await create_draft_revision(
-        session,
-        draft=draft,
-        author_user_id=user.id,
-        content_markdown=body.content_markdown,
-        edit_source="user",
-    )
-    if is_pmp_workflow(updated.workflow_type):
-        await sync_pmp_draft_workspace(
+    try:
+        updated = await revise_workflow_artefact(
             session,
             project=project,
-            draft=updated,
-            markdown=body.content_markdown,
+            draft=draft,
+            expected_base_version=body.expected_base_version,
+            author_user_id=user.id,
+            content_markdown=body.content_markdown,
+            actor_source="user",
         )
-    elif is_cost_plan_workflow(updated.workflow_type):
-        await sync_cost_plan_revision_artifacts(
-            session,
-            project=project,
-            draft=updated,
-            markdown=body.content_markdown,
-        )
-    elif is_consultant_procurement_workflow(updated.workflow_type):
-        await sync_consultant_procurement_draft_workspace(
-            session,
-            project=project,
-            draft=updated,
-            markdown=body.content_markdown,
-        )
+    except ArtefactRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ArtefactPolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return DraftArtifactResponse.model_validate(updated)
 
 
@@ -1866,6 +1811,7 @@ async def patch_project_draft(
 async def post_accept_project_draft(
     project_id: uuid.UUID,
     draft_id: uuid.UUID,
+    body: AcceptDraftRequest,
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> DraftArtifactResponse:
@@ -1877,15 +1823,18 @@ async def post_accept_project_draft(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found",
         )
-    accepted = await accept_draft(session, draft)
-    if is_pmp_workflow(accepted.workflow_type):
-        static_markdown = render_decisions_static(accepted.content_markdown)
-        await sync_pmp_draft_workspace(
+    try:
+        accepted = await accept_workflow_artefact(
             session,
             project=project,
-            draft=accepted,
-            markdown=static_markdown,
+            draft=draft,
+            expected_version=body.expected_version,
+            actor_source="user",
         )
+    except ArtefactRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ArtefactPolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return DraftArtifactResponse.model_validate(accepted)
 
 

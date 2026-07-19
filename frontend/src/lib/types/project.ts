@@ -331,6 +331,8 @@ export type DraftArtifactSummary = {
   author_user_id: string;
   model: string | null;
   runtime: string;
+  is_stale?: boolean;
+  stale_reason?: string | null;
   created_at: string;
   updated_at: string;
 };

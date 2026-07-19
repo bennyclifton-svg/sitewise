@@ -14,11 +14,6 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.draft_artifacts import (
-    accept_draft,
-    create_draft_artifact,
-    get_draft_artifact,
-)
 from app.database.project import Project
 from app.storage.project_files import upload_project_file
 from tender.models import (
@@ -34,6 +29,7 @@ from tender.models import (
 )
 from tender.schemas import MatrixQuoteTotal
 from tender.services import qa
+from tender.services.artefact_publisher import tender_artefact_publisher
 from tender.services.totals import compute_quote_totals
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "report_templates"
@@ -127,30 +123,26 @@ class ReportLifecycleResult:
 
 
 async def get_report_state(
-    session: AsyncSession, *, comparison_id: uuid.UUID
+    session: AsyncSession, *, comparison_id: uuid.UUID, version: int | None = None
 ) -> tuple[ReportLifecycleResult | None, dict[str, Any] | None]:
-    record = await _latest_report(session, comparison_id=comparison_id)
+    if version is None:
+        record = await _latest_report(session, comparison_id=comparison_id)
+    else:
+        record = (
+            await session.execute(
+                select(TenderReport).where(
+                    TenderReport.comparison_id == comparison_id,
+                    TenderReport.version == version,
+                )
+            )
+        ).scalar_one_or_none()
     if record is None:
         return None, None
-    draft = await get_draft_artifact(session, record.draft_id)
+    draft_payload = await tender_artefact_publisher().read_projection(
+        session, draft_id=record.draft_id
+    )
     status = "delivered" if record.delivered_at else "approved" if record.approved_at else "draft"
     lifecycle = _lifecycle_result(record, status=status)
-    draft_payload = None if draft is None else {
-        "id": str(draft.id),
-        "project_id": str(draft.project_id),
-        "workflow_type": draft.workflow_type,
-        "version": draft.version,
-        "status": draft.status,
-        "title": draft.title,
-        "content_markdown": draft.content_markdown,
-        "workspace_path": draft.workspace_path,
-        "author_user_id": str(draft.author_user_id),
-        "model": draft.model,
-        "runtime": draft.runtime,
-        "provenance_metadata": draft.provenance_metadata,
-        "created_at": draft.created_at.isoformat(),
-        "updated_at": draft.updated_at.isoformat(),
-    }
     return lifecycle, draft_payload
 
 
@@ -188,21 +180,15 @@ async def build_report_draft(
         # Local Windows often lacks GTK; still ship HTML + markdown draft.
         require_pdf=False,
     )
-    draft = await create_draft_artifact(
+    draft_id = await tender_artefact_publisher().publish_draft(
         session,
-        project_id=project.id,
-        workflow_type="tender_report",
+        project=project,
+        comparison_id=comparison_id,
+        report_version=version,
         title=f"{language_value(language, 'report.title')} v{version:02d}",
         workspace_path=_draft_workspace_path(project, version),
         author_user_id=user_id,
-        content_markdown=artifacts.markdown,
-        model=None,
-        runtime="clerk-tender",
-        provenance_metadata={
-            "comparison_id": str(comparison_id),
-            "version": version,
-            "watermark": "DRAFT",
-        },
+        markdown=artifacts.markdown,
     )
     html_path, pdf_path = await _store_artifacts(
         project=project,
@@ -213,7 +199,7 @@ async def build_report_draft(
     )
     report = TenderReport(
         comparison_id=comparison_id,
-        draft_id=draft.id,
+        draft_id=draft_id,
         version=version,
         html_path=html_path,
         pdf_path=pdf_path,
@@ -233,14 +219,16 @@ async def approve_report(
     comparison = await _comparison(session, comparison_id)
     project = await _project(session, comparison.project_id)
     report = await _required_latest_report(session, comparison_id=comparison_id)
-    draft = await get_draft_artifact(session, report.draft_id)
-    if draft is None:
+    draft_markdown = await tender_artefact_publisher().read_markdown(
+        session, draft_id=report.draft_id
+    )
+    if draft_markdown is None:
         raise ReportLifecycleError(f"report draft not found: {report.draft_id}")
     language = await load_report_language(session)
     artifacts = assemble_report_artifacts(
         await load_report_data(session, comparison_id=comparison_id),
         language=language,
-        previous_markdown=draft.content_markdown,
+        previous_markdown=draft_markdown,
         draft=False,
     )
     html_path, pdf_path = await _store_artifacts(
@@ -255,7 +243,15 @@ async def approve_report(
     report.approved_by = user_id
     report.approved_at = datetime.now(timezone.utc)
     comparison.status = "approved"
-    await accept_draft(session, draft)
+    await tender_artefact_publisher().publish_approved(
+        session,
+        draft_id=report.draft_id,
+        comparison_id=comparison_id,
+        report_version=report.version,
+        approved_by=user_id,
+        html_path=html_path,
+        pdf_path=pdf_path,
+    )
     await session.flush()
     return _lifecycle_result(report, status=comparison.status)
 
@@ -778,8 +774,9 @@ async def _previous_markdown(
 ) -> str | None:
     if report is None:
         return None
-    draft = await get_draft_artifact(session, report.draft_id)
-    return draft.content_markdown if draft is not None else None
+    return await tender_artefact_publisher().read_markdown(
+        session, draft_id=report.draft_id
+    )
 
 
 async def _report_matrix(

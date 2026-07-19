@@ -345,12 +345,22 @@ async def sync_consultant_procurement_draft_workspace(
         draft.workspace_path = canonical_path
         await session.flush()
         await session.refresh(draft)
-    return await save_consultant_procurement_workspace_file(
+    saved_path = await save_consultant_procurement_workspace_file(
         session,
         project=project,
         draft=draft,
         markdown=markdown or draft.content_markdown,
     )
+    from app.projects.artefact_revisions import set_export_result_for_path
+
+    content = (markdown or draft.content_markdown).encode("utf-8")
+    await set_export_result_for_path(
+        session,
+        revision=draft,
+        workspace_path=saved_path,
+        content_hash=bytes_content_hash(content),
+    )
+    return saved_path
 
 
 def normalise_discipline(discipline: str) -> DisciplineProfile:
@@ -448,6 +458,8 @@ async def draft_consultant_procurement_artifact(
         content_markdown=markdown,
         model=None,
         runtime=RUNTIME_NAME,
+        expected_base_version=version_hint - 1,
+        actor_source="consultant_procurement_workflow",
         provenance_metadata={
             "workflow": WORKFLOW_TYPE_PREFIX,
             "discipline": profile.name,

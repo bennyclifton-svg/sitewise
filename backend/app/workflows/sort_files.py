@@ -16,6 +16,7 @@ from app.schemas.projects import (
     WorkflowTraceEvent,
 )
 from app.sitewise.gate import format_overlay_failure, overlay_status
+from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE = "sort_files"
 RUNTIME_NAME = "clerk-sitewise-sort-files"
@@ -173,12 +174,22 @@ async def run_sort_files_workflow(
         content_markdown=result.manifest_markdown,
         model=None,
         runtime=RUNTIME_NAME,
+        expected_base_version=result.manifest_version - 1,
+        actor_source="sort_files_workflow",
         provenance_metadata={
             "summary": _summary(result).model_dump(),
             "rows": [row.model_dump() for row in _rows(result)],
             "warnings": result.warnings,
             "trace": [event.model_dump() for event in trace],
         },
+    )
+    from app.projects.artefact_revisions import set_export_result_for_path
+
+    await set_export_result_for_path(
+        session,
+        revision=draft,
+        workspace_path=result.manifest_workspace_path,
+        content_hash=bytes_content_hash(result.manifest_markdown.encode("utf-8")),
     )
     trace.append(
         _trace(

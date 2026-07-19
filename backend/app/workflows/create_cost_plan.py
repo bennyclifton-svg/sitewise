@@ -741,12 +741,22 @@ async def sync_cost_plan_draft_workspace(
         draft.workspace_path = canonical_path
         await session.flush()
         await session.refresh(draft)
-    return await save_cost_plan_markdown_workspace_file(
+    saved_path = await save_cost_plan_markdown_workspace_file(
         session,
         project=project,
         draft=draft,
         markdown=markdown or draft.content_markdown,
     )
+    from app.projects.artefact_revisions import set_export_result_for_path
+
+    content = (markdown or draft.content_markdown).encode("utf-8")
+    await set_export_result_for_path(
+        session,
+        revision=draft,
+        workspace_path=saved_path,
+        content_hash=bytes_content_hash(content),
+    )
+    return saved_path
 
 
 async def sync_cost_plan_revision_artifacts(
@@ -816,6 +826,14 @@ async def save_cost_plan_workbook_artifact(
         ingest_status="generated",
         ingest_error=None,
         source_document_id=None,
+    )
+    from app.projects.artefact_revisions import set_export_result_for_path
+
+    await set_export_result_for_path(
+        session,
+        revision=draft,
+        workspace_path=workspace_path,
+        content_hash=content_hash,
     )
     return {
         "file_name": workbook.filename,
@@ -1283,6 +1301,8 @@ async def run_create_cost_plan_workflow(
         content_markdown=output.markdown,
         model=resolved_model,
         runtime=runtime_name,
+        expected_base_version=existing_version - 1,
+        actor_source="cost_plan_workflow",
         provenance_metadata=provenance_metadata,
     )
     await sync_decisions_from_markdown(

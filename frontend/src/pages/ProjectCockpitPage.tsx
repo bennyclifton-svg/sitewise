@@ -210,6 +210,37 @@ export function ProjectCockpitPage() {
     );
   }, [workspaceTree]);
 
+  useEffect(() => {
+    if (!projectId || !bootstrapLoaded) return;
+    const params = new URLSearchParams(location.search);
+    const draftId = params.get("artefact");
+    if (!draftId) return;
+    const expectedRevision = params.get("revision");
+    let cancelled = false;
+    void api.getProjectDraft(projectId, draftId).then((draft) => {
+      if (cancelled) return;
+      if (expectedRevision && draft.version !== Number(expectedRevision)) {
+        setProjectError(`Artefact revision v${expectedRevision} is no longer available.`);
+        return;
+      }
+      setReviewDraft(draft);
+      setLatestDraftsMap((current) => ({ ...current, [draft.workflow_type]: draft }));
+      setSelectedWorkspacePath(draft.workspace_path);
+      setSelectedWorkflowId(
+        draft.workflow_type === "create_cost_plan" ? "cost-plan" : "create-pmp",
+      );
+      setChatPanelCollapsed(true);
+      setActiveView("draft");
+    }).catch((error: unknown) => {
+      if (!cancelled) {
+        setProjectError(formatApiError(error, "Could not open that artefact revision."));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapLoaded, location.search, projectId]);
+
   const activeProjectId = project?.id;
   useEffect(() => {
     if (!activeProjectId) return;

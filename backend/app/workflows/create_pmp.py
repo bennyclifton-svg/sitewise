@@ -1199,11 +1199,21 @@ async def sync_pmp_draft_workspace(
         draft.workspace_path = canonical_path
         await session.flush()
         await session.refresh(draft)
-    return await save_pmp_workspace_file(
+    saved_path = await save_pmp_workspace_file(
         session,
         project=project,
         markdown=markdown if markdown is not None else draft.content_markdown,
     )
+    from app.projects.artefact_revisions import set_export_result_for_path
+
+    content = (markdown if markdown is not None else draft.content_markdown).encode("utf-8")
+    await set_export_result_for_path(
+        session,
+        revision=draft,
+        workspace_path=saved_path,
+        content_hash=bytes_content_hash(content),
+    )
+    return saved_path
 
 
 async def run_create_pmp_workflow(
@@ -1669,6 +1679,8 @@ async def run_create_pmp_workflow(
         content_markdown=output.markdown,
         model=resolved_model,
         runtime=runtime_name,
+        expected_base_version=existing_version - 1,
+        actor_source="project_plan_workflow",
         provenance_metadata={
             "draft_mode": draft_mode,
             "compiler": "adaptive_scaffold" if use_scaffold else "hybrid" if use_hybrid else "legacy",

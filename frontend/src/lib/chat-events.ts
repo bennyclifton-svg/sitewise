@@ -26,6 +26,7 @@ export type ArtefactEvent = {
   draftId?: string;
   comparisonId?: string;
   projectId?: string;
+  version?: number;
 };
 
 export type ResourceEvent = {
@@ -91,6 +92,7 @@ export function artefactFromPart(part: MessagePart): ArtefactEvent | null {
     comparisonId:
       typeof data.comparisonId === "string" ? data.comparisonId : undefined,
     projectId: typeof data.projectId === "string" ? data.projectId : undefined,
+    version: typeof data.version === "number" ? data.version : undefined,
   };
 }
 

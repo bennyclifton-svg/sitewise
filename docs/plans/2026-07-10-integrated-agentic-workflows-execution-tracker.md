@@ -520,45 +520,83 @@ old partial creation endpoints return 410 and no longer create partial graphs.
 Objective: give all artefacts concurrency-safe versions, edit policies, exports,
 provenance, activity, and durable events.
 
-- [ ] **3.1 — Make draft version allocation concurrency-safe**
+- [x] **3.1 — Make draft version allocation concurrency-safe**
   - Dependencies: Stage 0 migration safety.
   - Gate: concurrent allocations cannot create duplicate versions.
-- [ ] **3.2A — Build the core Artefact Revision interface**
+- [x] **3.2A — Build the core Artefact Revision interface**
   - Dependencies: 3.1, 1.4.
   - Gate: expected-base checks, policy, provenance, export jobs, activity, and
     events share one transactionally safe interface.
-- [ ] **3.2B — Add the Project Plan revision adapter**
+- [x] **3.2B — Add the Project Plan revision adapter**
   - Dependencies: 3.2A, 1.7.
   - Gate: Project Plan edits and decision synchronization are exact.
-- [ ] **3.2C — Add the current Cost Plan revision adapter**
+- [x] **3.2C — Add the current Cost Plan revision adapter**
   - Dependencies: 3.2A.
   - Gate: current Cost Plan draft, markdown, workbook, and provenance agree.
-- [ ] **3.2D — Add the consultant artefact revision adapter**
+- [x] **3.2D — Add the consultant artefact revision adapter**
   - Dependencies: 3.2A, 1.7 where decisions are affected.
   - Gate: consultant outputs publish and navigate through exact revisions.
-- [ ] **3.2E — Add the TCM-owned Tender publication adapter**
+- [x] **3.2E — Add the TCM-owned Tender publication adapter**
   - Dependencies: 3.2A; TCM boundary contract.
   - Gate: TCM publishes immutable report references without core importing
     Tender models or querying Tender tables.
-- [ ] **3.3 — Route all existing edit paths through Artefact Revision**
+- [x] **3.3 — Route all existing edit paths through Artefact Revision**
   - Dependencies: matching 3.2 adapter.
   - Gate: no UI or MCP caller performs direct generic draft writes.
-- [ ] **3.4A — Persist and rehydrate agent result references**
+- [x] **3.4A — Persist and rehydrate agent result references**
   - Dependencies: durable run/artefact reference contract.
   - Gate: sanitized result references survive thread reload.
-- [ ] **3.4B — Make artefact navigation exact and durable**
+- [x] **3.4B — Make artefact navigation exact and durable**
   - Dependencies: 3.4A.
   - Gate: every result opens the exact artefact and revision intended.
-- [ ] **3.5 — Remove repair writes from cockpit GETs**
+- [x] **3.5 — Remove repair writes from cockpit GETs**
   - Dependencies: 3.3 and all writer invariants proven.
   - Gate: cockpit reads perform zero storage/database repair writes.
 
 ### Stage 4 exit record
 
-- [ ] Concurrent revision and stale-base suites pass.
-- [ ] Canonical rows and immutable exports agree for every adapted artefact.
-- [ ] Failed exports remain retryable and are never advertised as ready.
+- [x] Concurrent revision and stale-base suites pass.
+- [x] Canonical rows and immutable exports agree for every adapted artefact.
+- [x] Failed exports remain retryable and are never advertised as ready.
 - [ ] Per-artefact additive rollout and rollback results are recorded.
+
+### Stage 4 implementation record — 2026-07-19
+
+Status: complete in code and disposable acceptance; production rollout remains open
+Owner/agent: Codex
+Branch/worktree: `feature/stage4-artefact-revisions` /
+`.worktrees/stage4-artefact-revisions`
+Commit/PR: local Stage 4 implementation commit
+Started: 2026-07-19
+Completed: 2026-07-19
+Predecessors verified: Stage 3 immutable Tender intake is present on the branch;
+the complete offline regression suite passes.
+Validation commands and exact results:
+
+- `backend/.venv/Scripts/python.exe -m pytest -q -m "not acceptance"` — 1,157
+  passed, 6 skipped, 20 deselected in 50.54 s.
+- `backend/.venv/Scripts/python.exe -m pytest -q -m acceptance
+  tests/stage4/test_artefact_revisions_integration.py` against disposable
+  pgvector PostgreSQL — 1 passed; covers same-base concurrency, explicit stale
+  conflict, monotonic versions, export failure/retry, retry idempotency, and
+  retention of the prior ready export.
+- `backend/.venv/Scripts/python.exe -m ruff check app tender scripts tests` —
+  passed.
+- `backend/.venv/Scripts/python.exe -m alembic heads` — one head,
+  `031_artefact_revisions`.
+- Disposable PostgreSQL migration `030 -> 031 -> 030 -> 031` — passed.
+- `pnpm test -- --run` — 31 files / 111 tests passed.
+- `pnpm tsc --noEmit` and `pnpm build` — passed.
+- `pnpm lint` — zero errors; one existing TanStack Virtual compatibility warning.
+
+Rollout result: not performed.
+Rollback result or procedure verified: schema downgrade/upgrade passed in
+disposable PostgreSQL; application rollback and additive production rollout
+remain to be rehearsed per artefact.
+Remaining risks/notes: production rollout and application rollback remain gated.
+Tender customer QS approval remains owned by the later R3 customer stage; the
+core revision service cannot approve Tender reports, and the TCM boundary only
+publishes approval after both HTML and PDF exports are ready.
 
 ## Stage 5 — Durable core workflow actions
 

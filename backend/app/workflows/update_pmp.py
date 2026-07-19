@@ -733,6 +733,8 @@ async def run_update_pmp_workflow(
         content_markdown=output.markdown,
         model=resolved_model,
         runtime=UPDATE_RUNTIME_NAME,
+        expected_base_version=next_version - 1,
+        actor_source="project_plan_workflow",
         provenance_metadata={
             "workflow": "update_pmp",
             "draft_mode": "evidence_grounded" if has_delta else "baseline_refresh",

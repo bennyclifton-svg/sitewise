@@ -13,10 +13,14 @@ function artefactHref(artefact: ArtefactEvent, projectId?: string | null): strin
   const resolvedProjectId = artefact.projectId ?? projectId;
   if (!resolvedProjectId) return null;
   if (artefact.workflowType === "tender_report" && artefact.comparisonId) {
-    return `/projects/${resolvedProjectId}/tender/${artefact.comparisonId}/report`;
+    const version = artefact.version ? `?revision=${artefact.version}` : "";
+    return `/projects/${resolvedProjectId}/tender/${artefact.comparisonId}/report${version}`;
   }
   if (artefact.draftId) {
-    return `/projects/${resolvedProjectId}`;
+    const params = new URLSearchParams({ artefact: artefact.draftId });
+    if (artefact.workflowType) params.set("workflow", artefact.workflowType);
+    if (artefact.version) params.set("revision", String(artefact.version));
+    return `/projects/${resolvedProjectId}?${params.toString()}`;
   }
   return null;
 }

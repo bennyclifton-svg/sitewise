@@ -20,8 +20,11 @@ from app.logging import configure_logging, get_logger
 from app.mcp_bridge.server import mcp
 from app.tender_worker import start_inprocess_tender_worker, stop_inprocess_tender_worker
 from tender.router import router as tender_router
+from tender.services.artefact_publisher import configure_tender_artefact_publisher
+from app.projects.tender_artefact_adapter import CoreTenderArtefactPublisher
 
 configure_logging()
+configure_tender_artefact_publisher(CoreTenderArtefactPublisher())
 log = get_logger(__name__)
 _access_log = logging.getLogger("clerk.access")
 

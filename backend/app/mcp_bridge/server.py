@@ -23,10 +23,14 @@ from app.agent.workspace_paths import (
     resolve_workspace_path,
 )
 from app.database.draft_artifacts import (
-    create_draft_revision,
     get_draft_artifact,
     get_latest_draft_artifact,
     get_latest_draft_artifact_by_workspace_path,
+)
+from app.projects.artefact_adapters import revise_workflow_artefact
+from app.projects.artefact_revisions import (
+    ArtefactPolicyViolation,
+    ArtefactRevisionConflict,
 )
 from app.database.session import get_session_factory
 from app.agent.status_bus import agent_turn_status_bus
@@ -1730,13 +1734,18 @@ async def apply_consultant_fee_forecast(
                 draft.content_markdown,
                 source_path=draft.workspace_path,
             )
-            updated = await create_draft_revision(
-                session,
-                draft=draft,
-                author_user_id=authorization.claims.user_id,
-                content_markdown=forecast.updated_markdown,
-                edit_source="agent_consultant_fee_forecast",
-            )
+            try:
+                updated = await revise_workflow_artefact(
+                    session,
+                    project=authorization.project,
+                    draft=draft,
+                    expected_base_version=draft.version,
+                    author_user_id=authorization.claims.user_id,
+                    content_markdown=forecast.updated_markdown,
+                    actor_source="agent_consultant_fee_forecast",
+                )
+            except (ArtefactRevisionConflict, ArtefactPolicyViolation) as exc:
+                raise ToolError(str(exc)) from exc
             workbook_metadata = await sync_cost_plan_revision_artifacts(
                 session,
                 project=authorization.project,
@@ -2104,13 +2113,18 @@ async def write_workspace_file(project_id: str, path: str, content: str) -> dict
                 workspace_path=workspace_path,
             )
             if draft is not None:
-                updated = await create_draft_revision(
-                    session,
-                    draft=draft,
-                    author_user_id=authorization.claims.user_id,
-                    content_markdown=content,
-                    edit_source="agent",
-                )
+                try:
+                    updated = await revise_workflow_artefact(
+                        session,
+                        project=authorization.project,
+                        draft=draft,
+                        expected_base_version=draft.version,
+                        author_user_id=authorization.claims.user_id,
+                        content_markdown=content,
+                        actor_source="agent",
+                    )
+                except (ArtefactRevisionConflict, ArtefactPolicyViolation) as exc:
+                    raise ToolError(str(exc)) from exc
                 await session.commit()
                 return {
                     "kind": "artefact",

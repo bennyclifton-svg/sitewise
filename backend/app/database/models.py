@@ -1,6 +1,7 @@
 from app.database.base import Base
 from app.database.agent_turn import AgentTurn
 from app.database.activity_event import ActivityEvent
+from app.database.artefact_export import ArtefactExport
 from app.database.chat_message import ChatMessage
 from app.database.chat_thread import ChatThread
 from app.database.document_chunk import DocumentChunk
@@ -29,6 +30,7 @@ __all__ = [
     "Base",
     "AgentTurn",
     "ActivityEvent",
+    "ArtefactExport",
     "ChatMessage",
     "ChatThread",
     "DocumentChunk",

@@ -319,11 +319,15 @@ def test_run_sort_files_workflow_persists_manifest_draft() -> None:
             "app.workflows.sort_files.next_draft_version",
             new=AsyncMock(return_value=2),
         ),
-        patch(
-            "app.workflows.sort_files.create_draft_artifact",
-            new=AsyncMock(return_value=draft),
-        ),
-    ):
+            patch(
+                "app.workflows.sort_files.create_draft_artifact",
+                new=AsyncMock(return_value=draft),
+            ),
+            patch(
+                "app.projects.artefact_revisions.set_export_result_for_path",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
         result = run_async(
             run_sort_files_workflow(
                 session,

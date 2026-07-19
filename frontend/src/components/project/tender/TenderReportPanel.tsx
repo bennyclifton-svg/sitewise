@@ -1,5 +1,6 @@
 import { AlertCircle, Check, ExternalLink, FileText, LoaderCircle, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,12 @@ export function TenderReportPanel({
   projectId: string;
   comparisonId: string;
 }) {
-  const reportQuery = useTenderReport(comparisonId);
+  const [searchParams] = useSearchParams();
+  const revisionValue = Number(searchParams.get("revision"));
+  const revision = Number.isInteger(revisionValue) && revisionValue > 0
+    ? revisionValue
+    : undefined;
+  const reportQuery = useTenderReport(comparisonId, revision);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);

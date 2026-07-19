@@ -108,7 +108,7 @@ describe("DraftReviewPanel", () => {
     await waitFor(() => {
       expect(onDraftUpdated).toHaveBeenCalledWith(updated);
     });
-    expect(api.patchDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1", "# Edited");
+    expect(api.patchDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1", "# Edited", 1);
     expect(screen.getAllByText("v2")[0]).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Edited" })).toBeInTheDocument();
   });
@@ -177,6 +177,7 @@ describe("DraftReviewPanel", () => {
       PROJECT_ID,
       "draft-1",
       expect.stringContaining("## Second\n\nBeta"),
+      1,
     );
     expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).toContain("Gamma");
     expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).not.toContain("Alpha");

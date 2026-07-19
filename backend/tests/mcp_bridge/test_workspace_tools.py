@@ -205,8 +205,8 @@ def test_write_workspace_file_versions_existing_draft_artifact(monkeypatch):
         "get_latest_draft_artifact_by_workspace_path",
         AsyncMock(return_value=existing),
     )
-    create_revision = AsyncMock(return_value=updated)
-    monkeypatch.setattr(server, "create_draft_revision", create_revision)
+    revise_artefact = AsyncMock(return_value=updated)
+    monkeypatch.setattr(server, "revise_workflow_artefact", revise_artefact)
 
     result = _call(
         server,
@@ -221,9 +221,10 @@ def test_write_workspace_file_versions_existing_draft_artifact(monkeypatch):
     assert result.data["kind"] == "artefact"
     assert result.data["draftId"] == str(updated.id)
     assert result.data["version"] == 2
-    create_revision.assert_awaited_once()
-    assert create_revision.await_args.kwargs["draft"] is existing
-    assert create_revision.await_args.kwargs["content_markdown"] == "# Edited by agent"
+    revise_artefact.assert_awaited_once()
+    assert revise_artefact.await_args.kwargs["draft"] is existing
+    assert revise_artefact.await_args.kwargs["expected_base_version"] == 1
+    assert revise_artefact.await_args.kwargs["content_markdown"] == "# Edited by agent"
     session.commit.assert_awaited_once()
 
 

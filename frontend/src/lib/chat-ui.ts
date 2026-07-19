@@ -17,6 +17,14 @@ export type ChatErrorKind =
 export function toUiMessage(message: ChatMessage): UIMessage {
   const parts: UIMessage["parts"] = [{ type: "text", text: message.content }];
 
+  const terminalEvents = message.message_data?.agent;
+  if (isRecord(terminalEvents) && Array.isArray(terminalEvents.terminalEvents)) {
+    for (const event of terminalEvents.terminalEvents) {
+      if (!isRecord(event) || typeof event.kind !== "string") continue;
+      parts.push({ type: "data-clerk-status", data: event } as UIMessage["parts"][number]);
+    }
+  }
+
   const citations = message.message_data?.citations;
   if (Array.isArray(citations)) {
     const uniqueCitations = dedupeCitations(
@@ -55,6 +63,10 @@ export function toUiMessage(message: ChatMessage): UIMessage {
     role: message.role as UIMessage["role"],
     parts,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 export function toUiMessages(messages: ChatMessage[]): UIMessage[] {

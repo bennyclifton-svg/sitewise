@@ -284,6 +284,7 @@ async def _persist_agent_assistant_message(
     content: str,
     runtime: str,
     source_trace: dict[str, Any] | None = None,
+    terminal_events: list[dict[str, Any]] | None = None,
 ) -> None:
     agent_data: dict[str, Any] = {
         "runtime": runtime,
@@ -291,6 +292,8 @@ async def _persist_agent_assistant_message(
     }
     if source_trace is not None:
         agent_data["sourceTrace"] = source_trace
+    if terminal_events:
+        agent_data["terminalEvents"] = terminal_events
 
     await create_message(
         session,
@@ -398,6 +401,43 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
         "tools": tools,
         "model": {"used": True, "label": "LLM reasoning"},
     }
+
+
+_TERMINAL_EVENT_FIELDS = frozenset(
+    {
+        "kind",
+        "title",
+        "workflowType",
+        "draftId",
+        "comparisonId",
+        "projectId",
+        "version",
+        "revision",
+        "resourceType",
+        "resourceId",
+        "action",
+        "runId",
+        "status",
+    }
+)
+
+
+def _sanitized_terminal_events(
+    status_events: list[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    sanitized: list[dict[str, Any]] = []
+    for event in status_events:
+        if event.get("kind") not in {"artefact", "resource", "run"}:
+            continue
+        item = {
+            key: value
+            for key, value in event.items()
+            if key in _TERMINAL_EVENT_FIELDS
+            and isinstance(value, (str, int, float, bool))
+        }
+        if "kind" in item:
+            sanitized.append(item)
+    return sanitized
 
 
 async def _capture_status_events(
@@ -668,6 +708,7 @@ async def post_agent_stream(
                     content=content,
                     runtime=agent_runtime,
                     source_trace=_agent_source_trace(tool_status_events),
+                    terminal_events=_sanitized_terminal_events(tool_status_events),
                 )
                 await complete_agent_turn(persist_session, turn_id, status_value="completed")
                 await persist_session.commit()

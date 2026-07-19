@@ -431,8 +431,13 @@ export const api = {
       `/api/tender/comparisons/${comparisonId}/report/build`,
     ),
 
-  getTenderReport: async (comparisonId: string): Promise<TenderReportState> =>
-    api.get<TenderReportState>(`/api/tender/comparisons/${comparisonId}/report`),
+  getTenderReport: async (
+    comparisonId: string,
+    revision?: number,
+  ): Promise<TenderReportState> =>
+    api.get<TenderReportState>(
+      `/api/tender/comparisons/${comparisonId}/report${revision ? `?revision=${revision}` : ""}`,
+    ),
 
   approveTenderReport: async (
     comparisonId: string,
@@ -643,9 +648,11 @@ export const api = {
     projectId: string,
     draftId: string,
     contentMarkdown: string,
+    expectedBaseVersion: number,
   ): Promise<DraftArtifact> =>
     api.patch<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`, {
       content_markdown: contentMarkdown,
+      expected_base_version: expectedBaseVersion,
     }),
 
   listDecisions: async (projectId: string): Promise<ProjectDecision[]> => {
@@ -671,8 +678,14 @@ export const api = {
       },
     ),
 
-  acceptDraft: async (projectId: string, draftId: string): Promise<DraftArtifact> =>
-    api.post<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}/accept`),
+  acceptDraft: async (
+    projectId: string,
+    draftId: string,
+    expectedVersion: number,
+  ): Promise<DraftArtifact> =>
+    api.post<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}/accept`, {
+      expected_version: expectedVersion,
+    }),
 
   runSortFiles: async (
     projectId: string,

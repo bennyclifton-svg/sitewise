@@ -143,7 +143,12 @@ export function DraftReviewPanel({
     setIsSaving(true);
     setActionError(null);
     try {
-      const updated = await api.patchDraft(projectId, loadedDraft.id, nextMarkdown);
+      const updated = await api.patchDraft(
+        projectId,
+        loadedDraft.id,
+        nextMarkdown,
+        loadedDraft.version,
+      );
       setLoadedDraft(updated);
       onDraftUpdated(updated);
       setSectionEditHeading(null);
@@ -160,7 +165,12 @@ export function DraftReviewPanel({
     setIsSaving(true);
     setActionError(null);
     try {
-      const updated = await api.patchDraft(projectId, loadedDraft.id, editorValue);
+      const updated = await api.patchDraft(
+        projectId,
+        loadedDraft.id,
+        editorValue,
+        loadedDraft.version,
+      );
       setLoadedDraft(updated);
       onDraftUpdated(updated);
       setIsEditing(false);
@@ -175,7 +185,11 @@ export function DraftReviewPanel({
     setIsAccepting(true);
     setActionError(null);
     try {
-      const updated = await api.acceptDraft(projectId, displayDraft.id);
+      const updated = await api.acceptDraft(
+        projectId,
+        displayDraft.id,
+        displayDraft.version,
+      );
       setLoadedDraft(updated);
       onDraftUpdated(updated);
     } catch (error) {

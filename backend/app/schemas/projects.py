@@ -410,6 +410,7 @@ class DraftArtifactResponse(BaseModel):
     updated_at: datetime
 
 
+
 class DraftArtifactSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -425,6 +426,7 @@ class DraftArtifactSummary(BaseModel):
     runtime: str
     created_at: datetime
     updated_at: datetime
+
 
 
 class ProjectCockpitBootstrapResponse(BaseModel):
@@ -512,6 +514,11 @@ class UpdatePmpRequest(BaseModel):
 
 class PatchDraftRequest(BaseModel):
     content_markdown: str = Field(min_length=1)
+    expected_base_version: int = Field(ge=1)
+
+
+class AcceptDraftRequest(BaseModel):
+    expected_version: int = Field(ge=1)
 
 
 class ProjectDecisionOption(BaseModel):
