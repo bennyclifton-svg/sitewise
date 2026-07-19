@@ -129,6 +129,22 @@ Before adding a runtime dependency, answer in the commit message:
 
 Per-stack specifics live in `backend/AGENTS.md` and `frontend/AGENTS.md`.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are Markdown files under `docs/issues/`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the standard five-role label vocabulary. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
+
 ## Configuration
 
 A single settings module is the source of truth for environment per service:
