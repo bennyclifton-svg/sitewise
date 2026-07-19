@@ -34,6 +34,7 @@ export function MatrixQaPanel({
   onAccept,
   onResolve,
   onMappingChoice,
+  embedded = false,
 }: {
   cellCode: string;
   cellName: string;
@@ -47,26 +48,34 @@ export function MatrixQaPanel({
   onAccept: (item: TenderQaItem) => void;
   onResolve: (item: TenderQaItem, request: TenderQaResolveRequest) => Promise<void>;
   onMappingChoice: (mappingId: string, cellCode: string) => Promise<void>;
+  /** When true, omit outer chrome (used inside TenderCellDrilldown). */
+  embedded?: boolean;
 }) {
   return (
-    <div className="border-b bg-background px-4 py-3">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium">
-          {cellName}
-          <span className="ml-2 font-mono text-xs text-muted-foreground">{cellCode}</span>
-          {quoteName ? (
-            <span className="ml-2 text-xs text-muted-foreground">{quoteName}</span>
-          ) : null}
+    <div className={embedded ? "border-t px-4 py-3" : "border-b bg-background px-4 py-3"}>
+      {embedded ? (
+        <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Questions & mapping
         </p>
-        <button
-          type="button"
-          className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="Close questions"
-          onClick={onClose}
-        >
-          <X className="size-4" aria-hidden />
-        </button>
-      </div>
+      ) : (
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium">
+            {cellName}
+            <span className="ml-2 font-mono text-xs text-muted-foreground">{cellCode}</span>
+            {quoteName ? (
+              <span className="ml-2 text-xs text-muted-foreground">{quoteName}</span>
+            ) : null}
+          </p>
+          <button
+            type="button"
+            className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Close questions"
+            onClick={onClose}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      )}
       {choices.length && quoteName ? (
         <div className="mt-2 space-y-2">
           {choices.map((choice) => (

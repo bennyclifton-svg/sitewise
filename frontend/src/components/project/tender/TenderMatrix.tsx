@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/http";
 import type {
   TenderComparison,
   TenderMatrixCell,
+  TenderMatrixQuoteCell,
   TenderMatrixQuoteTotal,
   TenderMatrixResponse,
   TenderQaItem,
@@ -33,11 +34,13 @@ import {
   tenderStatusGlyph,
   tenderStatusTextTone,
 } from "./format";
-import { MatrixQaPanel } from "./MatrixQaPanel";
 import { MatrixQaStrip } from "./MatrixQaStrip";
 import { QuoteLedgerPanel } from "./QuoteLedgerPanel";
+import { NOT_ITEMISED_CODE, TenderCellDrilldown } from "./TenderCellDrilldown";
 import { cellKey, groupQaByCell, qaItemKey, unanchoredQaItems } from "./qa";
 import { pageEvidenceFromPayload } from "./evidence";
+
+const UNALLOCATED_CELL_CODE = "99.01";
 
 type MatrixRow =
   | { kind: "group"; id: string; groupName: string }
@@ -106,8 +109,16 @@ export function TenderMatrix({
     };
   }, [comparisonId]);
 
-  const rows = useMemo(() => flattenRows(matrix), [matrix]);
   const quotes = useMemo(() => quoteColumns(matrix, comparison?.quotes ?? []), [comparison, matrix]);
+  const totalsByQuote = useMemo(() => {
+    const map = new Map<string, TenderMatrixQuoteTotal>();
+    for (const total of matrix?.totals ?? []) map.set(total.quote_id, total);
+    return map;
+  }, [matrix]);
+  const rows = useMemo(
+    () => flattenRows(matrix, quotes, totalsByQuote),
+    [matrix, quotes, totalsByQuote],
+  );
   const qaByCell = useMemo(() => groupQaByCell(qaItems), [qaItems]);
   const unanchoredItems = useMemo(() => unanchoredQaItems(qaItems), [qaItems]);
   const cellNames = useMemo(() => cellNameIndex(matrix), [matrix]);
@@ -121,11 +132,6 @@ export function TenderMatrix({
       .filter((total): total is number => typeof total === "number");
     return totals.length > 1 ? Math.min(...totals) : null;
   }, [quotes]);
-  const totalsByQuote = useMemo(() => {
-    const map = new Map<string, TenderMatrixQuoteTotal>();
-    for (const total of matrix?.totals ?? []) map.set(total.quote_id, total);
-    return map;
-  }, [matrix]);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -354,16 +360,25 @@ export function TenderMatrix({
 
       {activeCell
         ? (() => {
-            const activeMatrixCell = matrix?.groups
-              .flatMap((group) => group.cells)
-              .find((cell) => cell.code === activeCell.cellCode);
+            const activeMatrixCell =
+              rows
+                .filter((row): row is Extract<MatrixRow, { kind: "cell" }> => row.kind === "cell")
+                .find((row) => row.cell.code === activeCell.cellCode)?.cell ??
+              matrix?.groups
+                .flatMap((group) => group.cells)
+                .find((cell) => cell.code === activeCell.cellCode);
             const choices =
               activeMatrixCell?.quotes[activeCell.quoteId]?.mapping_choices ?? [];
-            if (!activeItems.length && !choices.length) return null;
             return (
-              <MatrixQaPanel
+              <TenderCellDrilldown
+                comparisonId={comparisonId}
                 cellCode={activeCell.cellCode}
-                cellName={cellNames.get(activeCell.cellCode) ?? activeCell.cellCode}
+                cellName={
+                  cellNames.get(activeCell.cellCode) ??
+                  activeMatrixCell?.name ??
+                  activeCell.cellCode
+                }
+                quoteId={activeCell.quoteId}
                 quoteName={activeQuote?.builderName ?? null}
                 items={activeItems}
                 choices={choices}
@@ -481,7 +496,7 @@ function MatrixTotalsRow({
       style={{ gridTemplateColumns: gridColumns(quotes.length) }}
     >
       <div className="px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Total
+        Total (ex GST)
       </div>
       {quotes.map((quote) => {
         const total = totalsByQuote.get(quote.id);
@@ -575,6 +590,7 @@ function MatrixCellRow({
         const isActive =
           activeCell?.quoteId === quote.id && activeCell?.cellCode === row.cell.code;
         const statusLabel = formatTenderStatus(cell.status);
+        const isNotItemised = row.cell.code === NOT_ITEMISED_CODE;
         const content = (
           <>
             <span
@@ -622,36 +638,36 @@ function MatrixCellRow({
           </>
         );
 
-        if (questions.length || mappingChoices.length) {
+        if (isNotItemised) {
           return (
-            <button
+            <div
               key={quote.id}
-              type="button"
               className={cn(
-                "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95 dark:hover:brightness-110",
+                "flex items-center gap-1.5 border-l px-2",
                 tenderStatusCellTint(cell.status),
-                isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
               )}
               title={statusLabel}
-              aria-label={`${statusLabel} — ${questions.length} question${questions.length === 1 ? "" : "s"} for ${row.cell.name}, ${quote.builderName}`}
-              onClick={() => onToggleCell({ quoteId: quote.id, cellCode: row.cell.code })}
             >
               {content}
-            </button>
+            </div>
           );
         }
 
         return (
-          <div
+          <button
             key={quote.id}
+            type="button"
             className={cn(
-              "flex items-center gap-1.5 border-l px-2",
+              "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95 dark:hover:brightness-110",
               tenderStatusCellTint(cell.status),
+              isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
             )}
             title={statusLabel}
+            aria-label={`${statusLabel} — line items for ${row.cell.name}, ${quote.builderName}`}
+            onClick={() => onToggleCell({ quoteId: quote.id, cellCode: row.cell.code })}
           >
             {content}
-          </div>
+          </button>
         );
       })}
     </div>
@@ -701,12 +717,18 @@ function cellNameIndex(matrix: TenderMatrixResponse | null): Map<string, string>
   for (const group of matrix?.groups ?? []) {
     for (const cell of group.cells) map.set(cell.code, cell.name);
   }
+  map.set(UNALLOCATED_CELL_CODE, "Unallocated / uncategorised");
+  map.set(NOT_ITEMISED_CODE, "Not itemised in quote");
   return map;
 }
 
-function flattenRows(matrix: TenderMatrixResponse | null): MatrixRow[] {
+function flattenRows(
+  matrix: TenderMatrixResponse | null,
+  quotes: MatrixQuote[],
+  totalsByQuote: Map<string, TenderMatrixQuoteTotal>,
+): MatrixRow[] {
   if (!matrix) return [];
-  return matrix.groups.flatMap((group) => [
+  const rows: MatrixRow[] = matrix.groups.flatMap((group) => [
     { kind: "group" as const, id: `group:${group.name}`, groupName: group.name },
     ...group.cells.map((cell) => ({
       kind: "cell" as const,
@@ -715,6 +737,78 @@ function flattenRows(matrix: TenderMatrixResponse | null): MatrixRow[] {
       cell,
     })),
   ]);
+
+  const hasUnallocated = matrix.groups.some((group) =>
+    group.cells.some((cell) => cell.code === UNALLOCATED_CELL_CODE),
+  );
+  if (!hasUnallocated && quotes.length) {
+    rows.push(
+      {
+        kind: "group",
+        id: "group:Unallocated",
+        groupName: "Unallocated",
+      },
+      {
+        kind: "cell",
+        id: `cell:Unallocated:${UNALLOCATED_CELL_CODE}`,
+        groupName: "Unallocated",
+        cell: syntheticAmountCell(
+          UNALLOCATED_CELL_CODE,
+          "Unallocated / uncategorised",
+          quotes,
+          totalsByQuote,
+          (total) => total.unallocated_cents ?? 0,
+          "included",
+        ),
+      },
+    );
+  }
+
+  if (quotes.length) {
+    rows.push(
+      {
+        kind: "group",
+        id: "group:Reconciliation",
+        groupName: "Reconciliation",
+      },
+      {
+        kind: "cell",
+        id: `cell:Reconciliation:${NOT_ITEMISED_CODE}`,
+        groupName: "Reconciliation",
+        cell: syntheticAmountCell(
+          NOT_ITEMISED_CODE,
+          "Not itemised in quote",
+          quotes,
+          totalsByQuote,
+          (total) => total.not_itemised_cents ?? 0,
+          "silent_ambiguous",
+        ),
+      },
+    );
+  }
+
+  return rows;
+}
+
+function syntheticAmountCell(
+  code: string,
+  name: string,
+  quotes: MatrixQuote[],
+  totalsByQuote: Map<string, TenderMatrixQuoteTotal>,
+  amountOf: (total: TenderMatrixQuoteTotal) => number,
+  status: string,
+): TenderMatrixCell {
+  const quoteCells: Record<string, TenderMatrixQuoteCell> = {};
+  for (const quote of quotes) {
+    const total = totalsByQuote.get(quote.id);
+    quoteCells[quote.id] = {
+      status,
+      amount_cents: total ? amountOf(total) : 0,
+      flags: [],
+      mapping_choices: [],
+    };
+  }
+  return { code, name, quotes: quoteCells };
 }
 
 function quoteColumns(

@@ -58,7 +58,7 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 - [x] **Phase 0** — Branch, plan commit, pytest guard rails
 - [x] **Phase 1** — Migration **034** (ledger columns + reconciliation table) + model/schema updates
 - [x] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel` (unit/API green; live MERRICK smoke deferred)
-- [ ] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
+- [x] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
 - [ ] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
 - [ ] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
 - [ ] **Phase 6** — Expectations/silence/benchmarks via anchor cells
@@ -347,12 +347,12 @@ Concepts: input is the merged list of extracted figures (schema objects from Tas
 # Phase 3 — No-drop mapping + money-conserving grid + drill-down
 
 **Todo:**
-- [ ] 3.1 Unallocated seed cell
-- [ ] 3.2 Mapping fallback + sweep (I3)
-- [ ] 3.3 Grid per-role aggregation (I4)
-- [ ] 3.4 Totals rewrite
-- [ ] 3.5 Cell drill-down endpoint
-- [ ] 3.6 Always-clickable cells UI
+- [x] 3.1 Unallocated seed cell
+- [x] 3.2 Mapping fallback + sweep (I3)
+- [x] 3.3 Grid per-role aggregation (I4)
+- [x] 3.4 Totals rewrite
+- [x] 3.5 Cell drill-down endpoint
+- [x] 3.6 Always-clickable cells UI
 
 ### Task 3.1: Seed `99.01 Unallocated`
 
@@ -414,7 +414,7 @@ Concepts: input is the merged list of extracted figures (schema objects from Tas
 ### Phase 3 Definition of done
 - [ ] Zero-drop SQL returns 0 on a fresh MERRICK re-run; Toussaint's "51.01 Internal Fix Carpentry $20,000" visible (mapped or Unallocated)
 - [ ] Σ every matrix column (cells + unallocated + not-itemised) == recon computed ex-GST (spot-check SQL)
-- [ ] Grid/mapping/totals/api test files green
+- [x] Grid/mapping/totals/api test files green
 
 ---
 
