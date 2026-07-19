@@ -42,6 +42,7 @@ from tender.schemas import (
     QAResolveRequest,
     QAResolveResponse,
     QuoteCreate,
+    QuoteLedgerResponse,
     QuoteView,
     ReportDeliveredRequest,
     ReportLifecycleResponse,
@@ -53,7 +54,7 @@ from tender.schemas import (
     TenderIntakeResponse,
     TenderReportStateResponse,
 )
-from tender.services import intake, jobs, matrix, progress, qa, report, taxonomy
+from tender.services import intake, jobs, ledger, matrix, progress, qa, report, taxonomy
 from tender.services.project_context_adapter import (
     ContextRevisionConflict,
     ContextValidationError,
@@ -754,6 +755,26 @@ async def get_comparison_matrix(
         user_id=user.id,
     )
     return await matrix.build_matrix(session, comparison_id=comparison_id)
+
+
+@router.get(
+    "/comparisons/{comparison_id}/quotes/{quote_id}/ledger",
+    response_model=QuoteLedgerResponse,
+)
+async def get_quote_ledger(
+    comparison_id: uuid.UUID,
+    quote_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> QuoteLedgerResponse:
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await ledger.build_quote_ledger(
+        session, comparison_id=comparison_id, quote_id=quote_id
+    )
 
 
 @router.get("/taxonomy", response_model=TaxonomyListResponse)

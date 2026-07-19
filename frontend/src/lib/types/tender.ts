@@ -339,3 +339,32 @@ export type TenderIntakeResponse = {
   comparison: TenderComparison;
   idempotent_replay: boolean;
 };
+
+export type QuoteLedgerItem = {
+  id: string | null;
+  figure_key: string;
+  page_no: number | null;
+  description_raw: string;
+  printed_text: string | null;
+  amount_cents: number | null;
+  amount_ex_gst_cents: number | null;
+  gst_basis: string | null;
+  role: string | null;
+  is_rollup: boolean;
+  counted_in_total: boolean;
+  duplicate_of_id: string | null;
+  parent_id: string | null;
+  children: QuoteLedgerItem[];
+};
+
+export type QuoteLedgerResponse = {
+  quote_id: string;
+  builder_name: string;
+  stated_total_cents: number | null;
+  stated_basis: string | null;
+  status: string;
+  residual_cents: number;
+  computed_ex_gst_cents: number | null;
+  uncaptured: Array<Record<string, unknown>>;
+  items: QuoteLedgerItem[];
+};

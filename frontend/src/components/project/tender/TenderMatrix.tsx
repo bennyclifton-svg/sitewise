@@ -35,6 +35,7 @@ import {
 } from "./format";
 import { MatrixQaPanel } from "./MatrixQaPanel";
 import { MatrixQaStrip } from "./MatrixQaStrip";
+import { QuoteLedgerPanel } from "./QuoteLedgerPanel";
 import { cellKey, groupQaByCell, qaItemKey, unanchoredQaItems } from "./qa";
 import { pageEvidenceFromPayload } from "./evidence";
 
@@ -65,6 +66,7 @@ export function TenderMatrix({
   const [adjudicationError, setAdjudicationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ledgerQuoteId, setLedgerQuoteId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -377,6 +379,14 @@ export function TenderMatrix({
           })()
         : null}
 
+      {ledgerQuoteId ? (
+        <QuoteLedgerPanel
+          comparisonId={comparisonId}
+          quoteId={ledgerQuoteId}
+          onClose={() => setLedgerQuoteId(null)}
+        />
+      ) : null}
+
       <div className="overflow-x-auto">
         <div className="min-w-[54rem]">
           <div
@@ -395,6 +405,17 @@ export function TenderMatrix({
                     <span className="ml-1.5 font-sans text-[var(--ok-text)]">Lowest</span>
                   ) : null}
                 </span>
+                <button
+                  type="button"
+                  className="mt-0.5 text-[0.65rem] font-normal text-foreground underline-offset-2 hover:underline"
+                  onClick={() =>
+                    setLedgerQuoteId((current) =>
+                      current === quote.id ? null : quote.id,
+                    )
+                  }
+                >
+                  Ledger
+                </button>
               </div>
             ))}
           </div>

@@ -477,3 +477,32 @@ def currency_to_cents(value: object) -> int | None:
         return int((Decimal(cleaned) * 100).quantize(Decimal("1")))
     except InvalidOperation as exc:
         raise ValueError(f"invalid currency value: {value}") from exc
+
+
+class LedgerItem(BaseModel):
+    id: uuid.UUID | None = None
+    figure_key: str
+    page_no: int | None = None
+    description_raw: str
+    printed_text: str | None = None
+    amount_cents: int | None = None
+    amount_ex_gst_cents: int | None = None
+    gst_basis: str | None = None
+    role: str | None = None
+    is_rollup: bool = False
+    counted_in_total: bool = False
+    duplicate_of_id: uuid.UUID | None = None
+    parent_id: uuid.UUID | None = None
+    children: list["LedgerItem"] = Field(default_factory=list)
+
+
+class QuoteLedgerResponse(BaseModel):
+    quote_id: uuid.UUID
+    builder_name: str
+    stated_total_cents: int | None = None
+    stated_basis: str | None = None
+    status: str
+    residual_cents: int = 0
+    computed_ex_gst_cents: int | None = None
+    uncaptured: list[dict] = Field(default_factory=list)
+    items: list[LedgerItem] = Field(default_factory=list)
