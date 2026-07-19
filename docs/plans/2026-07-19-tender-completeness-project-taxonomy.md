@@ -76,8 +76,8 @@ Each phase = one PR. Do not start a phase until the previous phase's "Definition
 # Phase 0 — Setup and guard rails
 
 **Todo:**
-- [ ] 0.1 Branch + commit plan copy
-- [ ] 0.2 pytest addopts guard
+- [x] 0.1 Branch + commit plan copy
+- [x] 0.2 pytest addopts guard (already present: `-m 'not integration and not tender_eval'`)
 
 ### Task 0.1: Branch and plan document
 
@@ -96,15 +96,15 @@ Each phase = one PR. Do not start a phase until the previous phase's "Definition
 
 ---
 
-# Phase 1 — Schema: ledger tree, roles, reconciliation (Migration 029)
+# Phase 1 — Schema: ledger tree, roles, reconciliation (Migration 034)
 
 **Todo:**
-- [ ] 1.1 Migration file 029
-- [ ] 1.2 ORM models
-- [ ] 1.3 Pydantic schema fields
-- [ ] 1.4 Model tests
+- [x] 1.1 Migration file 034 (`034_tender_ledger_completeness`)
+- [x] 1.2 ORM models
+- [x] 1.3 Pydantic schema fields
+- [x] 1.4 Model tests
 
-### Task 1.1: Migration `029_tender_ledger_completeness`
+### Task 1.1: Migration `034_tender_ledger_completeness`
 
 **Files:** Create: `backend/alembic/versions/029_tender_ledger_completeness.py`
 
@@ -161,20 +161,20 @@ Each phase = one PR. Do not start a phase until the previous phase's "Definition
 5. Commit: `git commit -am "feat(tender): extraction schema carries figure tree + roles + gst basis"`
 
 ### Phase 1 Definition of done
-- [ ] `alembic heads` shows 029; app boots (`.venv\Scripts\python.exe -c "import app.main"` from `backend/` or start uvicorn briefly)
-- [ ] `pytest tests/tender/test_models.py tests/tender/test_schemas.py tests/tender/test_extraction_schemas.py` all green
+- [x] `alembic heads` shows 034; app boots (`.venv\Scripts\python.exe -c "import app.main"` from `backend/` or start uvicorn briefly)
+- [x] `pytest tests/tender/test_models.py tests/tender/test_schemas.py tests/tender/test_extraction_schemas.py` all green
 
 ---
 
 # Phase 2 — Extraction overhaul + quote ledger (HIGHEST RISK)
 
 **Todo:**
-- [ ] 2.1 Census module (pure, TDD)
-- [ ] 2.2 Reconciliation module (pure, TDD)
-- [ ] 2.3 Prompt v0.2.0 + windowed extraction
-- [ ] 2.4 Handler: write tree + recon row + flags
-- [ ] 2.5 Ledger service + endpoint
-- [ ] 2.6 Frontend `QuoteLedgerPanel`
+- [x] 2.1 Census module (pure, TDD)
+- [x] 2.2 Reconciliation module (pure, TDD)
+- [x] 2.3 Prompt v0.2.0 + windowed extraction
+- [x] 2.4 Handler: write tree + recon row + flags
+- [x] 2.5 Ledger service + endpoint
+- [x] 2.6 Frontend `QuoteLedgerPanel`
 - [ ] 2.7 Live smoke test on MERRICK
 
 ### Task 2.1: Currency census (new pure module)
@@ -339,7 +339,7 @@ Concepts: input is the merged list of extracted figures (schema objects from Tas
 5. Fix anything that fails BEFORE proceeding. Commit fixes individually.
 
 ### Phase 2 Definition of done
-- [ ] `pytest tests/tender/test_census.py tests/tender/test_reconciliation.py tests/tender/test_extraction_service.py tests/tender/test_extraction_handler.py tests/tender/test_api_ledger.py tests/tender/test_extract_cache.py` green
+- [x] `pytest tests/tender/test_census.py tests/tender/test_reconciliation.py tests/tender/test_extraction_service.py tests/tender/test_extraction_handler.py tests/tender/test_api_ledger.py tests/tender/test_extract_cache.py` green
 - [ ] MERRICK smoke: all three recon rows exist, coverage ≥ 95% of stated per quote, ledger UI sums correct
 
 ---
