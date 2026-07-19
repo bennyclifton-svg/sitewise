@@ -52,7 +52,7 @@ from app.database.chats import (
     delete_thread,
     get_thread_by_id,
     list_messages,
-    list_threads,
+    list_threads_page,
     title_from_message,
     update_thread,
 )
@@ -131,11 +131,15 @@ async def require_project_owner(
 
 @router.get("/threads")
 async def get_threads(
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: uuid.UUID | None = Query(default=None),
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ThreadListResponse:
-    threads = await list_threads(session, user.id)
-    return ThreadListResponse(threads=threads)
+    threads, next_cursor = await list_threads_page(
+        session, user.id, limit=limit, cursor=cursor
+    )
+    return ThreadListResponse(threads=threads, next_cursor=next_cursor)
 
 
 @router.post("/threads", status_code=status.HTTP_201_CREATED)
@@ -205,7 +209,9 @@ async def get_thread_messages(
 ) -> MessageListResponse:
     thread = await get_thread_by_id(session, thread_id)
     require_thread_owner(thread, user.id)
-    messages = await list_messages(session, thread_id)
+    messages = await list_messages(
+        session, thread_id, limit=settings.chat_history_message_limit
+    )
     return MessageListResponse(messages=messages)
 
 
@@ -491,7 +497,9 @@ async def post_agent_stream(
 
     # History is read before the new user message is persisted so the window
     # holds prior turns only; the current message travels as the prompt body.
-    prior_messages = await list_messages(session, thread.id)
+    prior_messages = await list_messages(
+        session, thread.id, limit=settings.agent_history_message_limit
+    )
     mutation_intent = classify_mutation_intent(user_text)
     snapshot = await get_project_snapshot(
         session,

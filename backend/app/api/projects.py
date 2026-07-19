@@ -17,7 +17,12 @@ from app.database.activity_events import (
     list_project_activity_runs,
     record_activity_events,
 )
-from app.database.chats import create_thread, title_from_message
+from app.database.chats import (
+    create_thread,
+    get_latest_project_thread,
+    list_messages,
+    title_from_message,
+)
 from app.database.draft_artifacts import (
     get_draft_artifact,
     get_latest_consultant_procurement_draft_summaries,
@@ -26,18 +31,19 @@ from app.database.draft_artifacts import (
 )
 from app.database.projects import (
     create_project,
-    ensure_default_project_catalog,
     get_project,
     list_projects,
     project_overlay_summary,
     user_owns_project,
 )
+from app.database.projects import ensure_default_project_catalog  # noqa: F401
 from app.database.session import get_db
 from app.database.draft_artifact import DraftArtifact
 from app.database.project_decision import ProjectDecision
 from app.database.source_document import SourceDocument
 from app.database.users import ensure_user_exists
-from app.schemas.chat import ThreadResponse
+from app.schemas.chat import MessageResponse, ProjectChatBootstrapResponse, ThreadResponse
+from app.config import settings
 from app.schemas.projects import (
     CreateCostPlanRequest,
     CreateCostPlanResponse,
@@ -48,6 +54,9 @@ from app.schemas.projects import (
     DeleteProjectActivityResponse,
     PatchDraftRequest,
     AcceptDraftRequest,
+    BatchDeleteEvidenceFailure,
+    BatchDeleteEvidenceRequest,
+    BatchDeleteEvidenceResponse,
     PatchProjectRequest,
     ProjectProfileChange,
     ProjectProfilePatch,
@@ -128,7 +137,7 @@ from app.schemas.workflow_runs import (
     WorkflowRunStartRequest,
     WorkflowRunView,
 )
-from app.evidence.service import delete_project_evidence
+from app.evidence.service import delete_project_evidence, require_project_evidence_ids
 from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
 from app.inbox.split_service import (
@@ -788,8 +797,6 @@ async def get_projects(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ProjectListResponse:
-    await ensure_user_exists(session, user)
-    await ensure_default_project_catalog(session, user.id)
     projects = await list_projects(session, user.id)
     return ProjectListResponse(projects=[_project_summary(project) for project in projects])
 
@@ -825,6 +832,7 @@ async def post_project(
         phase=body.phase,
         taxonomy=_project_taxonomy_metadata(body),
     )
+    await create_thread(session, user.id, project_id=project.id)
     return _project_detail_response(project, evidence_preview=None)
 
 
@@ -834,7 +842,6 @@ async def get_project_taxonomy(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    await ensure_user_exists(session, user)
     response.headers["Cache-Control"] = "private, max-age=3600"
     return taxonomy_options_payload()
 
@@ -950,16 +957,12 @@ async def get_project_detail(
 @router.get("/{project_id}/cockpit-bootstrap")
 async def get_project_cockpit_bootstrap(
     project_id: uuid.UUID,
+    response: Response,
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ProjectCockpitBootstrapResponse:
     total_start = time.perf_counter()
     timings_ms: dict[str, int] = {}
-
-    step_start = time.perf_counter()
-    await ensure_user_exists(session, user)
-    await ensure_default_project_catalog(session, user.id)
-    timings_ms["catalog"] = _elapsed_ms(step_start)
 
     step_start = time.perf_counter()
     project = _require_project_owner(await get_project(session, project_id), user.id)
@@ -1025,6 +1028,11 @@ async def get_project_cockpit_bootstrap(
     capabilities = workflow_capabilities(snapshot)
     timings_ms["workflow_capabilities"] = _elapsed_ms(step_start)
     timings_ms["total"] = _elapsed_ms(total_start)
+    response.headers["ETag"] = (
+        f'W/"{project.profile_revision}:{project.decision_set_revision}:'
+        f'{capabilities.snapshot_content_fingerprint}"'
+    )
+    response.headers["Cache-Control"] = "private, no-cache"
 
     log.info(
         "project_cockpit_bootstrap_complete",
@@ -1044,6 +1052,35 @@ async def get_project_cockpit_bootstrap(
         platform_knowledge=platform_knowledge,
         latest_drafts=_merge_draft_summaries(latest_drafts, consultant_drafts),
         timings_ms=timings_ms,
+    )
+
+
+@router.get("/{project_id}/chat-bootstrap")
+async def get_project_chat_bootstrap(
+    project_id: uuid.UUID,
+    response: Response,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectChatBootstrapResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    thread = await get_latest_project_thread(
+        session, project_id=project.id, user_id=user.id
+    )
+    if thread is None:
+        response.headers["Cache-Control"] = "private, no-cache"
+        return ProjectChatBootstrapResponse()
+    messages = await list_messages(
+        session, thread.id, limit=settings.chat_history_message_limit
+    )
+    latest_message = messages[-1] if messages else None
+    response.headers["ETag"] = (
+        f'W/"{thread.updated_at.isoformat()}:'
+        f'{latest_message.id if latest_message else "empty"}"'
+    )
+    response.headers["Cache-Control"] = "private, no-cache"
+    return ProjectChatBootstrapResponse(
+        thread=ThreadResponse.model_validate(thread),
+        messages=[MessageResponse.model_validate(message) for message in messages],
     )
 
 
@@ -1323,6 +1360,47 @@ async def get_project_evidence_document(
             detail="Evidence not found",
         )
     return _evidence_preview_from_workspace_file(workspace_file)
+
+
+@router.delete("/{project_id}/evidence/batch")
+async def delete_project_evidence_batch(
+    project_id: uuid.UUID,
+    body: BatchDeleteEvidenceRequest,
+    background_tasks: BackgroundTasks,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> BatchDeleteEvidenceResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    evidence_ids = list(dict.fromkeys(body.evidence_ids))
+    await require_project_evidence_ids(
+        session, project_id=project.id, evidence_ids=evidence_ids
+    )
+
+    deleted: list[uuid.UUID] = []
+    failed: list[BatchDeleteEvidenceFailure] = []
+    storage_keys: list[str] = []
+    for evidence_id in evidence_ids:
+        try:
+            storage_keys.extend(
+                await delete_project_evidence(
+                    session, project=project, evidence_id=evidence_id
+                )
+            )
+            deleted.append(evidence_id)
+        except HTTPException as exc:
+            if exc.status_code not in {
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_409_CONFLICT,
+            }:
+                raise
+            failed.append(
+                BatchDeleteEvidenceFailure(
+                    evidence_id=evidence_id, detail=str(exc.detail)
+                )
+            )
+    if storage_keys:
+        background_tasks.add_task(delete_project_files, storage_keys=storage_keys)
+    return BatchDeleteEvidenceResponse(deleted=deleted, failed=failed)
 
 
 @router.delete(

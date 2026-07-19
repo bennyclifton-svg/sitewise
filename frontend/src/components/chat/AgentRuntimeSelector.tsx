@@ -1,13 +1,12 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
-import { api } from "@/lib/api";
 import {
   HERMES_RUNTIME_ID,
   getSelectedAgentRuntime,
   setSelectedAgentRuntime,
   subscribeSelectedAgentRuntime,
-  type AgentRuntimeOption,
 } from "@/lib/agent-runtime";
+import { useAgentConfiguration } from "@/lib/queries/agent-configuration";
 
 type AgentRuntimeSelectorProps = {
   className?: string;
@@ -15,35 +14,15 @@ type AgentRuntimeSelectorProps = {
 };
 
 export function AgentRuntimeSelector({ className, compact = false }: AgentRuntimeSelectorProps) {
-  const [runtimes, setRuntimes] = useState<AgentRuntimeOption[]>([]);
-  const [defaultRuntime, setDefaultRuntime] = useState(HERMES_RUNTIME_ID);
-  const [loading, setLoading] = useState(true);
+  const configuration = useAgentConfiguration();
+  const runtimes = configuration.data?.agent.runtimes ?? [];
+  const defaultRuntime = configuration.data?.agent.default_runtime ?? HERMES_RUNTIME_ID;
+  const loading = configuration.isPending;
   const selectedRuntime = useSyncExternalStore(
     subscribeSelectedAgentRuntime,
     getSelectedAgentRuntime,
     () => null,
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadRuntimes() {
-      setLoading(true);
-      try {
-        const response = await api.getAgentModels();
-        if (cancelled) return;
-        setRuntimes(response.runtimes ?? []);
-        setDefaultRuntime(response.default_runtime ?? HERMES_RUNTIME_ID);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-    void loadRuntimes();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const enabledRuntimes = runtimes.filter((runtime) => runtime.enabled);
   if (enabledRuntimes.length <= 1) {

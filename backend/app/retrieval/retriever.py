@@ -69,8 +69,19 @@ class DocumentRetriever:
             return []
 
         hit_lookup = queries.hits_by_id(semantic_hits + lexical_hits)
+        top_hits = [hit_lookup[chunk_id] for chunk_id in top_ids if chunk_id in hit_lookup]
+        neighbours_by_hit: dict[uuid.UUID, list] = {}
+        neighbours_start = time.perf_counter()
+        if include_neighbours:
+            neighbours_by_hit = await queries.fetch_neighbouring_chunks_batch(
+                self._session,
+                top_hits,
+                filters=filters,
+                before=settings.retrieval_neighbour_before,
+                after=settings.retrieval_neighbour_after,
+            )
+        neighbours_ms = int((time.perf_counter() - neighbours_start) * 1000)
         passages: list[SourcePassage] = []
-        neighbours_ms = 0
         for chunk_id, score in fused[:final_limit]:
             hit = hit_lookup.get(chunk_id)
             if hit is None:
@@ -78,15 +89,7 @@ class DocumentRetriever:
 
             neighbours: list[NeighbourChunk] = []
             if include_neighbours:
-                neighbours_start = time.perf_counter()
-                neighbour_rows = await queries.fetch_neighbouring_chunks(
-                    self._session,
-                    hit.document_id,
-                    hit.chunk_index,
-                    before=settings.retrieval_neighbour_before,
-                    after=settings.retrieval_neighbour_after,
-                )
-                neighbours_ms += int((time.perf_counter() - neighbours_start) * 1000)
+                neighbour_rows = neighbours_by_hit.get(hit.chunk_id, [])
                 neighbours = [
                     NeighbourChunk(
                         chunk_id=row.id,

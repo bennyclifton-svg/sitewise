@@ -138,6 +138,7 @@ def test_create_project_persists_taxonomy_payload(client: TestClient) -> None:
         patch("app.api.projects.ensure_user_exists", new=AsyncMock()),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
         patch("app.api.projects.create_project", new=create_project),
+        patch("app.api.projects.create_thread", new=AsyncMock()),
     ):
         response = client.post(
             "/projects",
@@ -180,6 +181,7 @@ def test_create_project_rejects_invalid_taxonomy_combo(client: TestClient) -> No
         patch("app.api.projects.ensure_user_exists", new=AsyncMock()),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
         patch("app.api.projects.create_project", new=create_project),
+        patch("app.api.projects.create_thread", new=AsyncMock()),
     ):
         response = client.post(
             "/projects",

@@ -138,14 +138,11 @@ def test_list_project_files_finds_generated_workbook(monkeypatch) -> None:
         workspace_path="04-projects/walsh-reno/01-cost/Cost_Plan_v01.draft.xlsx",
         filename="Cost_Plan_v01.draft.xlsx",
     )
-    markdown = _workspace_file(
-        workspace_path="04-projects/walsh-reno/01-cost/cost_plan_v01.md",
-        filename="cost_plan_v01.md",
-    )
+    search = AsyncMock(return_value=[workbook])
     monkeypatch.setattr(
         server,
-        "list_workspace_files_for_project",
-        AsyncMock(return_value=[markdown, workbook]),
+        "search_workspace_files_for_project",
+        search,
     )
 
     result = _call(
@@ -165,6 +162,13 @@ def test_list_project_files_finds_generated_workbook(monkeypatch) -> None:
             "read_with": "read_project_workbook",
         }
     ]
+    search.assert_awaited_once_with(
+        session,
+        project_id=PROJECT_ID,
+        query="cost_plan_v01.draft.xlsx",
+        path_prefix=None,
+        limit=50,
+    )
 
 
 def test_pi_runtime_allows_project_file_tools() -> None:

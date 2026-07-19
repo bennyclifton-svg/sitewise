@@ -1,3 +1,5 @@
+import type { ChatMessage, ChatThread } from "@/lib/types/chat";
+
 export type OverlayIssue = {
   field: string;
   value: string | null;
@@ -406,6 +408,16 @@ export type ProjectCockpitBootstrap = {
   platform_knowledge: PlatformKnowledgeStatus;
   latest_drafts: Record<string, DraftArtifactSummary | null>;
   timings_ms: Record<string, number>;
+};
+
+export type ProjectChatBootstrap = {
+  thread: ChatThread | null;
+  messages: ChatMessage[];
+};
+
+export type BatchDeleteEvidenceResponse = {
+  deleted: string[];
+  failed: { evidence_id: string; detail: string }[];
 };
 
 export type WorkflowTraceEvent = {

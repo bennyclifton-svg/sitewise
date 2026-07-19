@@ -714,59 +714,59 @@ Open gates:
 Objective: meet hard performance budgets from the canonical baseline without
 weakening correctness, quality, or tenancy.
 
-- [ ] **5.1 — Route-level code splitting and bundle budgets**
+- [x] **5.1 — Route-level code splitting and bundle budgets**
   - Dependencies: 0.0A, 0.8C.
   - Gate: initial JS ≤250 kB gzip; Three.js is absent from non-demo routes; lazy
     workflow entry chunks ≤150 kB gzip; build enforces budgets.
-- [ ] **5.2A — Separate project-shell and chat bootstrap reads**
+- [~] **5.2A — Separate project-shell and chat bootstrap reads**
   - Dependencies: shared frontend queries/events.
   - Gate: no more than two critical calls; warm bootstrap p95 ≤500 ms; GETs
     perform zero writes; chat failure does not replace the shell.
-- [ ] **5.2B — Add list pagination additively**
+- [~] **5.2B — Add list pagination additively**
   - Dependencies: stable list contracts.
   - Gate: bounded stable first pages are cut over consumer by consumer.
-- [ ] **5.3A — Bound chat history and project-file queries**
+- [x] **5.3A — Bound chat history and project-file queries**
   - Dependencies: UUID-filtered data access.
   - Gate: row counts are bounded and filters execute in SQL.
-- [ ] **5.3B — Share frontend agent configuration**
+- [x] **5.3B — Share frontend agent configuration**
   - Dependencies: frontend query foundation.
   - Gate: one configuration request per cache window and no unsupported
     cross-project promise.
-- [ ] **5.3C — Pool Supabase auth HTTP connections**
+- [x] **5.3C — Pool Supabase auth HTTP connections**
   - Dependencies: lifecycle baseline.
   - Gate: pooled client lifecycle is correct and cold/warm auth timings remain
     visible with unchanged behavior.
-- [ ] **5.4A — Batch retrieval neighbours**
+- [~] **5.4A — Batch retrieval neighbours**
   - Dependencies: 0.5A and retrieval baseline.
   - Gate: golden results are equivalent, query count is constant, p95 improves,
     and project isolation remains intact.
-- [ ] **5.4B — Decide semantic/lexical query concurrency**
+- [x] **5.4B — Decide semantic/lexical query concurrency**
   - Dependencies: retrieval benchmark fixture.
   - Gate: decision record selects a measured mechanism or explicitly retains
     sequential execution; no production implementation occurs in this packet.
-- [ ] **Follow-up from 5.4B — Implement the recorded retrieval-concurrency decision, if any**
+- [x] **Follow-up from 5.4B — Implement the recorded retrieval-concurrency decision, if any**
   - Dependencies: follow-up packet produced by 5.4B.
   - Gate: exact follow-up quality, pressure, latency, and isolation criteria pass.
-- [ ] **5.5A — Batch uploads and refresh once**
+- [x] **5.5A — Batch uploads and refresh once**
   - Dependencies: query/event reconciliation.
   - Gate: at most two heavy ingests run concurrently; one refresh occurs per
     batch; individual failures remain visible and isolated.
-- [ ] **5.5B — Batch delete with optimistic rollback**
+- [x] **5.5B — Batch delete with optimistic rollback**
   - Dependencies: retention locks and project-scoped delete contract.
   - Gate: cross-project IDs fail atomically, locked Tender inputs survive, and
     per-file failures roll back visibly.
-- [ ] **5.6A — Share Tender queries and polling**
+- [x] **5.6A — Share Tender queries and polling**
   - Dependencies: durable events and immutable comparison state.
   - Gate: cached transitions <100 ms and active visible progress is ≤2 s stale.
-- [ ] **5.6B — Make QA acceptance optimistic**
+- [~] **5.6B — Make QA acceptance optimistic**
   - Dependencies: 5.6A.
   - Gate: optimistic response <100 ms, settled p95 ≤800 ms, and failure rollback
     does not reload the full queue.
-- [ ] **5.7 — Measure and decide Hermes session reuse**
+- [x] **5.7 — Measure and decide Hermes session reuse**
   - Dependencies: agent timing baseline and runtime safety.
   - Gate: decision is based on measured ≥20% TTFT improvement plus concurrency,
     cancellation, history, and tenancy tests; no production branch is implemented.
-- [ ] **5.8 — Implement the recorded Hermes session decision**
+- [x] **5.8 — Implement the recorded Hermes session decision**
   - Dependencies: exact follow-up packet from 5.7.
   - Gate: the same measurement and safety suite passes after implementation.
 
@@ -776,6 +776,27 @@ weakening correctness, quality, or tenancy.
 - [ ] Raw timings and build manifests are preserved in dated reports.
 - [ ] Every performance change records comparison, resource pressure, and rollback.
 - [ ] No quality, correctness, or tenant-isolation regression is present.
+
+### Stage 6 implementation record — 2026-07-19
+
+Status: code implementation complete; canonical remote latency, browser, and
+deployment rollback gates remain open.
+Owner/agent: Codex
+Branch/worktree: `feature/stage6-performance` / `.worktrees/stage6-performance`
+Base: `a0ceeb66` (Stage 5)
+Evidence: `docs/performance/2026-07-19-stage-6-performance.md`
+
+Implemented route budgets, two-call shell/chat bootstrap, bounded keyset pages
+for active thread/Tender consumers, bounded SQL history/file filtering, shared
+agent configuration, lifespan auth pooling, constant-query retrieval
+neighbours, bounded batch upload/delete, shared Tender cache/polling, optimistic
+QA, and the measured no-reuse Hermes decision. Migration
+`033_remove_unused_hermes_session` implements the selected 5.8 branch.
+
+Rollout result: not performed. Rollback: code paths and migration downgrade are
+documented; deployment rollback remains unexercised. The `[~]` packets above
+must not be marked complete until their canonical p95/browser or remaining
+additive-list gates pass.
 
 ## Stage 7 — Full Tender performance, cost, and quality
 
@@ -934,8 +955,8 @@ Record the dated report link and result for every hard gate.
 | Cross-project evidence/mutation isolation | 100% | Pass in disposable DB; production pending | `tests/stage01/test_database_gates.py`; `docs/runbooks/evidence-uuid-tenancy-rollout.md` |
 | Orphan child processes after cancel/timeout | 0 | Pass on Windows and Linux | `tests/agent/test_process_tree.py` |
 | Production TypeScript build | 0 errors | Pass | `docs/performance/2026-07-19-stage-0-baseline.md` |
-| Initial JavaScript | ≤250 kB gzip | Pending |  |
-| Three.js on non-demo routes | 0 bytes | Pending |  |
+| Initial JavaScript | ≤250 kB gzip | Pass — 246,609 bytes | `docs/performance/2026-07-19-stage-6-performance.md` |
+| Three.js on non-demo routes | 0 bytes | Pass | `docs/performance/2026-07-19-stage-6-performance.md` |
 | Warm cockpit bootstrap | p95 ≤500 ms; zero writes | Pending |  |
 | Critical calls before composer usable | ≤2 | Pending |  |
 | Agent profile event to visible UI | p95 ≤500 ms | Pending |  |

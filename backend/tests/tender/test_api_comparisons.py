@@ -262,7 +262,10 @@ def test_list_comparisons_returns_project_scoped_rows(client: TestClient) -> Non
 
     with (
         patch("tender.router.get_project", new=AsyncMock(return_value=_project())),
-        patch("tender.router.list_comparisons", new=AsyncMock(return_value=[comparison])),
+        patch(
+            "tender.router.list_comparisons_page",
+            new=AsyncMock(return_value=([comparison], None)),
+        ),
     ):
         response = client.get(f"/api/tender/comparisons?project_id={PROJECT_ID}")
 

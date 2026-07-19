@@ -29,7 +29,6 @@ class ChatThread(Base):
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL")
     )
     title: Mapped[str | None] = mapped_column(String(512))
-    hermes_session_id: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

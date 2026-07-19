@@ -81,7 +81,10 @@ def test_require_thread_owner_forbidden() -> None:
 def test_get_threads_returns_user_threads(client: TestClient, mock_session: AsyncMock) -> None:
     thread = _thread()
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr("app.api.chat.list_threads", AsyncMock(return_value=[thread]))
+        patch.setattr(
+            "app.api.chat.list_threads_page",
+            AsyncMock(return_value=([thread], None)),
+        )
         response = client.get("/chat/threads")
 
     assert response.status_code == 200

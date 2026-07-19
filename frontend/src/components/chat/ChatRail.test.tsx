@@ -19,9 +19,7 @@ describe("ChatRail failure boundary", () => {
         chatLoading={false}
         chatError="Could not open project chat."
         onRetry={retry}
-        crossProject={false}
         selectedCitationId={null}
-        onCrossProjectChange={vi.fn()}
         onConversationUpdate={vi.fn()}
         onSelectCitation={vi.fn()}
       />,

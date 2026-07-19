@@ -23,13 +23,13 @@ class ThreadResponse(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID | None
     title: str | None
-    hermes_session_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class ThreadListResponse(BaseModel):
     threads: list[ThreadResponse]
+    next_cursor: uuid.UUID | None = None
 
 
 class MessageResponse(BaseModel):
@@ -44,6 +44,11 @@ class MessageResponse(BaseModel):
 
 class MessageListResponse(BaseModel):
     messages: list[MessageResponse]
+
+
+class ProjectChatBootstrapResponse(BaseModel):
+    thread: ThreadResponse | None = None
+    messages: list[MessageResponse] = Field(default_factory=list)
 
 
 class StreamChatRequest(BaseModel):

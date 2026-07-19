@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LlmModelSelector } from "@/components/LlmModelSelector";
@@ -10,6 +11,7 @@ vi.mock("@/lib/api", () => ({
   api: {
     getAgentModels: vi.fn(),
     getLlmModels: vi.fn(),
+    getAgentConfiguration: vi.fn(),
   },
 }));
 
@@ -17,6 +19,14 @@ describe("LlmModelSelector", () => {
   beforeEach(() => {
     window.localStorage.clear();
     vi.clearAllMocks();
+    vi.mocked(api.getAgentConfiguration).mockImplementation(async () => ({
+      agent: await api.getAgentModels(),
+      legacy: await api.getLlmModels(),
+    }));
+    vi.mocked(api.getLlmModels).mockResolvedValue({
+      default_model: "gpt-4o-mini",
+      models: [],
+    });
   });
 
   it("uses Hermes model options when the agent runtime is enabled", async () => {
@@ -46,7 +56,7 @@ describe("LlmModelSelector", () => {
       ],
     });
 
-    render(<LlmModelSelector />);
+    renderSelector();
 
     const select = await screen.findByLabelText(/hermes model/i);
     expect(select).toHaveValue("__hermes_config__");
@@ -55,7 +65,7 @@ describe("LlmModelSelector", () => {
     await userEvent.selectOptions(select, "openai-codex:gpt-5.5");
 
     expect(getSelectedAgentModel()).toBe("openai-codex:gpt-5.5");
-    await waitFor(() => expect(api.getLlmModels).not.toHaveBeenCalled());
+    await waitFor(() => expect(api.getAgentConfiguration).toHaveBeenCalledTimes(1));
   });
 
   it("shows Pi's configured model instead of Hermes options when Pi is selected", async () => {
@@ -98,7 +108,7 @@ describe("LlmModelSelector", () => {
       ],
     });
 
-    render(<LlmModelSelector />);
+    renderSelector();
 
     const select = await screen.findByLabelText(/pi model/i);
     expect(select).toBeDisabled();
@@ -106,3 +116,14 @@ describe("LlmModelSelector", () => {
     expect(screen.queryByRole("option", { name: "gpt-5.5 (Codex)" })).not.toBeInTheDocument();
   });
 });
+
+function renderSelector() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <LlmModelSelector />
+    </QueryClientProvider>,
+  );
+}

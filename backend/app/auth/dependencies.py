@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import httpx
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import settings
@@ -22,16 +22,22 @@ class CurrentUser:
     email: str
 
 
-async def _fetch_supabase_user(access_token: str) -> dict:
+def create_auth_http_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
+        limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
+    )
+
+
+async def _fetch_supabase_user(client: httpx.AsyncClient, access_token: str) -> dict:
     start = time.perf_counter()
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"{settings.supabase_url.rstrip('/')}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "apikey": settings.supabase_anon_key,
-            },
-        )
+    response = await client.get(
+        f"{settings.supabase_url.rstrip('/')}/auth/v1/user",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "apikey": settings.supabase_anon_key,
+        },
+    )
     elapsed_ms = int((time.perf_counter() - start) * 1000)
 
     if response.status_code != status.HTTP_200_OK:
@@ -41,7 +47,7 @@ async def _fetch_supabase_user(access_token: str) -> dict:
         )
 
     payload = response.json()
-    logger.info("auth_user_verified", elapsed_ms=elapsed_ms)
+    logger.info("auth_user_verified", auth_path="cold", elapsed_ms=elapsed_ms)
     user = payload.get("user", payload)
     if not isinstance(user, dict):
         raise HTTPException(
@@ -51,17 +57,24 @@ async def _fetch_supabase_user(access_token: str) -> dict:
     return user
 
 
-async def _verified_supabase_user(access_token: str) -> dict:
+async def _verified_supabase_user(
+    client: httpx.AsyncClient, access_token: str
+) -> dict:
+    start = time.perf_counter()
     now = time.monotonic()
     cached = _auth_user_cache.get(access_token)
     if cached is not None:
         expires_at, user = cached
         if expires_at > now:
-            logger.info("auth_user_verified_cache")
+            logger.info(
+                "auth_user_verified",
+                auth_path="warm_cache",
+                elapsed_ms=int((time.perf_counter() - start) * 1000),
+            )
             return user
         _auth_user_cache.pop(access_token, None)
 
-    user = await _fetch_supabase_user(access_token)
+    user = await _fetch_supabase_user(client, access_token)
     if len(_auth_user_cache) >= _AUTH_CACHE_MAX_SIZE:
         _auth_user_cache.clear()
     _auth_user_cache[access_token] = (now + _AUTH_CACHE_TTL_SECONDS, user)
@@ -69,6 +82,7 @@ async def _verified_supabase_user(access_token: str) -> dict:
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> CurrentUser:
     if credentials is None or credentials.scheme.lower() != "bearer":
@@ -77,7 +91,8 @@ async def get_current_user(
             detail="Missing authentication credentials",
         )
 
-    user = await _verified_supabase_user(credentials.credentials)
+    client: httpx.AsyncClient = request.app.state.auth_http_client
+    user = await _verified_supabase_user(client, credentials.credentials)
     user_id = user.get("id")
     email = user.get("email")
     if not user_id or not email:

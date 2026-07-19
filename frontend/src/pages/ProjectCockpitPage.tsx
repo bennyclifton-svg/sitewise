@@ -1,11 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
-import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
-import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { ChatRail } from "@/components/chat/ChatRail";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
@@ -13,7 +11,6 @@ import { isCostPlanWorkspaceFile, isPmpWorkspaceFile, findDraftByWorkspacePath }
 import { buildLifecycleTiles } from "@/components/project/workflow/workflowTiles";
 import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
-import { WorkspaceFolderPanel } from "@/components/project/WorkspaceFolderPanel";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
@@ -57,6 +54,22 @@ class WorkflowRunError extends Error {}
 
 const EMPTY_EVIDENCE: EvidencePreview[] = [];
 const EMPTY_WORKSPACE_TREE: WorkspaceTreeNode[] = [];
+
+const DraftReviewPanel = lazy(() =>
+  import("@/components/project/DraftReviewPanel").then((module) => ({
+    default: module.DraftReviewPanel,
+  })),
+);
+const WorkspaceFilePanel = lazy(() =>
+  import("@/components/project/WorkspaceFilePanel").then((module) => ({
+    default: module.WorkspaceFilePanel,
+  })),
+);
+const WorkspaceFolderPanel = lazy(() =>
+  import("@/components/project/WorkspaceFolderPanel").then((module) => ({
+    default: module.WorkspaceFolderPanel,
+  })),
+);
 
 function workflowRunInput(
   project: ProjectDetail,
@@ -142,7 +155,6 @@ export function ProjectCockpitPage() {
     Set<string>
   >(() => new Set<string>());
   const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
-  const [crossProject, setCrossProject] = useState(false);
   const [selectedCitationId, setSelectedCitationId] = useState<string | null>(null);
   const [chatRevision, setChatRevision] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -195,7 +207,6 @@ export function ProjectCockpitPage() {
     async function loadProject() {
       setLoading(true);
       setProjectsLoading(true);
-      setChatLoading(true);
       setBootstrapLoaded(false);
       setProjectError(null);
       setChatError(null);
@@ -301,21 +312,18 @@ export function ProjectCockpitPage() {
     };
   }, [bootstrapLoaded, location.search, projectId]);
 
-  const activeProjectId = project?.id;
   useEffect(() => {
-    if (!activeProjectId) return;
-    const id = activeProjectId;
+    if (!projectId) return;
+    const id = projectId;
     let cancelled = false;
 
-    async function ensureProjectThread() {
+    async function loadProjectChat() {
       setChatLoading(true);
       setChatError(null);
       try {
-        const threads = await api.listThreads();
-        const existingThread =
-          threads.find((candidate) => candidate.project_id === id) ??
-          (await api.createProjectThread(id));
-        const loadedMessages = await api.getThreadMessages(existingThread.id);
+        const bootstrap = await api.getProjectChatBootstrap(id);
+        const existingThread = bootstrap.thread ?? (await api.createProjectThread(id));
+        const loadedMessages = bootstrap.thread ? bootstrap.messages : [];
         if (cancelled) return;
         setThread(existingThread);
         setMessages(loadedMessages);
@@ -329,11 +337,11 @@ export function ProjectCockpitPage() {
       }
     }
 
-    void ensureProjectThread();
+    void loadProjectChat();
     return () => {
       cancelled = true;
     };
-  }, [activeProjectId, chatReloadToken]);
+  }, [projectId, chatReloadToken]);
 
   async function refreshEvidence() {
     if (!projectId) return;
@@ -859,9 +867,7 @@ export function ProjectCockpitPage() {
           chatLoading={chatLoading}
           chatError={chatError}
           onRetry={() => setChatReloadToken((current) => current + 1)}
-          crossProject={crossProject}
           selectedCitationId={selectedCitationId}
-          onCrossProjectChange={setCrossProject}
           onConversationUpdate={() => {
             void refreshMessages();
             projectEvents.pollNow();
@@ -962,13 +968,18 @@ export function ProjectCockpitPage() {
         />
       ) : null}
       {activeView === "file" ? (
-        <WorkspaceFilePanel projectId={project.id} evidence={selectedEvidence} />
+        <Suspense fallback={null}>
+          <WorkspaceFilePanel projectId={project.id} evidence={selectedEvidence} />
+        </Suspense>
       ) : null}
       {activeView === "folder" ? (
-        <WorkspaceFolderPanel folder={selectedFolder} evidence={evidence} />
+        <Suspense fallback={null}>
+          <WorkspaceFolderPanel folder={selectedFolder} evidence={evidence} />
+        </Suspense>
       ) : null}
       {activeView === "draft" && project ? (
-        <DraftReviewPanel
+        <Suspense fallback={null}>
+          <DraftReviewPanel
           projectId={project.id}
           draft={activeDraft}
           workflowType={activeWorkflowType}
@@ -998,7 +1009,8 @@ export function ProjectCockpitPage() {
             }
             await refreshWorkspaceTree();
           }}
-        />
+          />
+        </Suspense>
       ) : null}
         </>
       )}

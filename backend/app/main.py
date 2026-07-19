@@ -14,6 +14,7 @@ from app.api.chat import router as chat_router
 from app.api.config import router as config_router
 from app.api.projects import router as projects_router
 from app.api.projects import sitewise_router
+from app.auth.dependencies import create_auth_http_client
 from app.config import settings
 from app.database.session import get_engine
 from app.logging import configure_logging, get_logger
@@ -51,6 +52,7 @@ async def lifespan(_app: FastAPI):
         embedding_model=settings.openai_embedding_model,
         log_level=settings.log_level,
     )
+    _app.state.auth_http_client = create_auth_http_client()
     # The MCP session manager needs its own lifespan running alongside ours.
     worker_handle = await start_inprocess_tender_worker()
     workflow_worker_handle = await start_inprocess_workflow_worker()
@@ -60,6 +62,7 @@ async def lifespan(_app: FastAPI):
     finally:
         await stop_inprocess_workflow_worker(workflow_worker_handle)
         await stop_inprocess_tender_worker(worker_handle)
+        await _app.state.auth_http_client.aclose()
         await get_engine().dispose()
 
 

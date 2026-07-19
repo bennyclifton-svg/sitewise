@@ -177,6 +177,7 @@ class ComparisonDetail(ComparisonView):
 
 class ComparisonListResponse(BaseModel):
     comparisons: list[ComparisonDetail] = Field(default_factory=list)
+    next_cursor: uuid.UUID | None = None
 
 
 class JobView(BaseModel):

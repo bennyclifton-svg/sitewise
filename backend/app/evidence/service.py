@@ -16,6 +16,42 @@ from app.projects.document_selections import file_has_retention_lock
 logger = structlog.get_logger(__name__)
 
 
+async def require_project_evidence_ids(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    evidence_ids: list[uuid.UUID],
+) -> None:
+    requested = set(evidence_ids)
+    source_ids = set(
+        (
+            await session.scalars(
+                select(SourceDocument.id).where(
+                    SourceDocument.id.in_(requested),
+                    SourceDocument.project_id == project_id,
+                    SourceDocument.source_type == "project_evidence",
+                )
+            )
+        ).all()
+    )
+    workspace_rows = (
+        await session.execute(
+            select(WorkspaceFile.id, WorkspaceFile.workspace_path).where(
+                WorkspaceFile.id.in_(requested),
+                WorkspaceFile.project_id == project_id,
+            )
+        )
+    ).all()
+    workspace_ids = {
+        row.id for row in workspace_rows if is_inbox_workspace_path(row.workspace_path)
+    }
+    if requested - source_ids - workspace_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more documents do not belong to this project",
+        )
+
+
 async def delete_project_evidence(
     session: AsyncSession,
     *,

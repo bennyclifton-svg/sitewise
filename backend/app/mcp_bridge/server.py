@@ -38,6 +38,7 @@ from app.database.source_document import SourceDocument
 from app.database.workspace_files import (
     get_workspace_file_by_path,
     list_workspace_files_for_project,
+    search_workspace_files_for_project,
 )
 from app.config import settings
 from app.mcp_bridge.auth import (
@@ -1811,6 +1812,15 @@ async def list_project_files(
     document.
     """
     pid = uuid.UUID(project_id)
+    query_text = query.strip().lower() if query and query.strip() else None
+    prefix = (
+        _tool_workspace_path(path_prefix)
+        if path_prefix and path_prefix.strip()
+        else None
+    )
+    if prefix == ".":
+        prefix = None
+    result_limit = max(1, min(max_results, 200))
     async with get_session_factory()() as session:
         try:
             authorization = await authorize_project_access_with_claims(
@@ -1825,30 +1835,14 @@ async def list_project_files(
             done="Listed project files",
             error="Project file listing failed",
         ):
-            records = await list_workspace_files_for_project(session, project_id=pid)
-
-    query_text = query.strip().lower() if query and query.strip() else None
-    prefix = (
-        _tool_workspace_path(path_prefix)
-        if path_prefix and path_prefix.strip()
-        else None
-    )
-    if prefix == ".":
-        prefix = None
-    result_limit = max(1, min(max_results, 200))
-    matches: list[dict] = []
-    for record in records:
-        path = record.workspace_path.replace("\\", "/")
-        if prefix and not _path_matches_prefix(path, prefix):
-            continue
-        if query_text:
-            haystack = f"{path} {record.filename}".lower()
-            if query_text not in haystack:
-                continue
-        matches.append(_project_file_summary(record))
-        if len(matches) >= result_limit:
-            break
-    return matches
+            records = await search_workspace_files_for_project(
+                session,
+                project_id=pid,
+                query=query_text,
+                path_prefix=prefix,
+                limit=result_limit,
+            )
+    return [_project_file_summary(record) for record in records]
 
 
 @mcp.tool

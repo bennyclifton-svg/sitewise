@@ -1,11 +1,10 @@
 import { AlertCircle, ArrowRight, FileSearch, LoaderCircle } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { useTenderComparisons } from "@/lib/queries/tender";
 import type { EvidencePreview } from "@/lib/types/project";
 import type { TenderComparison } from "@/lib/types/tender";
 
@@ -19,37 +18,14 @@ export function ComparisonList({
   projectId: string;
   selectedEvidence: EvidencePreview[];
 }) {
-  const [comparisons, setComparisons] = useState<TenderComparison[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadComparisons() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await api.listTenderComparisons(projectId);
-        if (!cancelled) setComparisons(data);
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
-              : "Could not load tender comparisons.",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    void loadComparisons();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+  const query = useTenderComparisons(projectId);
+  const comparisons: TenderComparison[] = query.data ?? [];
+  const isLoading = query.isLoading;
+  const error = query.error instanceof ApiError
+    ? query.error.message
+    : query.error
+      ? "Could not load tender comparisons."
+      : null;
 
   if (isLoading) {
     return (

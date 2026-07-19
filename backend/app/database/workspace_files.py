@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.workspace_file import WorkspaceFile
@@ -15,6 +15,37 @@ async def list_workspace_files_for_project(
         select(WorkspaceFile)
         .where(WorkspaceFile.project_id == project_id)
         .order_by(WorkspaceFile.workspace_path.asc())
+    )
+    return list(result.scalars().all())
+
+
+async def search_workspace_files_for_project(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    query: str | None = None,
+    path_prefix: str | None = None,
+    limit: int = 50,
+) -> list[WorkspaceFile]:
+    stmt = select(WorkspaceFile).where(WorkspaceFile.project_id == project_id)
+    if path_prefix:
+        prefix = path_prefix.rstrip("/")
+        stmt = stmt.where(
+            or_(
+                WorkspaceFile.workspace_path == prefix,
+                WorkspaceFile.workspace_path.startswith(prefix + "/"),
+            )
+        )
+    if query:
+        stmt = stmt.where(
+            func.lower(
+                WorkspaceFile.workspace_path + " " + WorkspaceFile.filename
+            ).contains(query.lower())
+        )
+    result = await session.execute(
+        stmt.order_by(WorkspaceFile.workspace_path.asc(), WorkspaceFile.id.asc()).limit(
+            limit
+        )
     )
     return list(result.scalars().all())
 

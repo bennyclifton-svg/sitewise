@@ -440,6 +440,20 @@ class ProjectCockpitBootstrapResponse(BaseModel):
     timings_ms: dict[str, int] = Field(default_factory=dict)
 
 
+class BatchDeleteEvidenceRequest(BaseModel):
+    evidence_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+
+
+class BatchDeleteEvidenceFailure(BaseModel):
+    evidence_id: uuid.UUID
+    detail: str
+
+
+class BatchDeleteEvidenceResponse(BaseModel):
+    deleted: list[uuid.UUID] = Field(default_factory=list)
+    failed: list[BatchDeleteEvidenceFailure] = Field(default_factory=list)
+
+
 class WorkflowTraceEvent(BaseModel):
     step: str
     status: str

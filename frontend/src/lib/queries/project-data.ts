@@ -108,6 +108,48 @@ export function useDeleteEvidence(projectId: string) {
   });
 }
 
+export function useBatchDeleteEvidence(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (evidenceIds: string[]) =>
+      api.deleteProjectEvidenceBatch(projectId, evidenceIds),
+    onMutate: async (evidenceIds) => {
+      await queryClient.cancelQueries({ queryKey: projectKeys.evidence(projectId) });
+      const previous = queryClient.getQueryData<EvidencePreview[]>(
+        projectKeys.evidence(projectId),
+      );
+      const selected = new Set(evidenceIds);
+      queryClient.setQueryData<EvidencePreview[]>(
+        projectKeys.evidence(projectId),
+        (current) => (current ?? []).filter((item) => !selected.has(item.id)),
+      );
+      return { previous };
+    },
+    onSuccess: (result, _ids, context) => {
+      if (!context?.previous || !result.failed.length) return;
+      const previous = context.previous;
+      const failed = new Set(result.failed.map((item) => item.evidence_id));
+      queryClient.setQueryData<EvidencePreview[]>(
+        projectKeys.evidence(projectId),
+        (current) => [
+          ...(current ?? []),
+          ...previous.filter((item) => failed.has(item.id)),
+        ],
+      );
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(projectKeys.evidence(projectId), context.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.evidence(projectId) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.workspaceTree(projectId) });
+    },
+  });
+}
+
 /** Fetch the latest workspace tree and write it into the query cache. */
 export async function reloadProjectWorkspaceTree(
   queryClient: QueryClient,

@@ -36,6 +36,7 @@ import {
 import { MatrixQaPanel } from "./MatrixQaPanel";
 import { MatrixQaStrip } from "./MatrixQaStrip";
 import { cellKey, groupQaByCell, qaItemKey, unanchoredQaItems } from "./qa";
+import { pageEvidenceFromPayload } from "./evidence";
 
 type MatrixRow =
   | { kind: "group"; id: string; groupName: string }
@@ -174,20 +175,24 @@ export function TenderMatrix({
     setResolving(item.id);
     setQaError(null);
     setQaNote(null);
+    const previousItems = qaItems;
+    const optimisticItems = qaItems.filter((candidate) => candidate.id !== item.id);
+    setQaItems(optimisticItems);
+    prefetchQaImage(optimisticItems[0]);
     try {
       await api.resolveTenderQaItem(item.id, {
         action: "accept",
         corrected_value: null,
         reason: null,
       });
-      const remaining = await reloadQueue();
       if (
         activeKey &&
-        !remaining.some((candidate) => qaItemKey(candidate) === activeKey)
+        !optimisticItems.some((candidate) => qaItemKey(candidate) === activeKey)
       ) {
         setActiveCell(null);
       }
     } catch (resolveError) {
+      setQaItems(previousItems);
       setQaError(
         resolveError instanceof ApiError
           ? resolveError.message
@@ -431,6 +436,14 @@ export function TenderMatrix({
       </div>
     </section>
   );
+}
+
+function prefetchQaImage(item: TenderQaItem | undefined): void {
+  if (!item) return;
+  const imagePath = pageEvidenceFromPayload(item.payload).imagePath;
+  if (!imagePath) return;
+  const image = new Image();
+  image.src = imagePath;
 }
 
 function MatrixTotalsRow({

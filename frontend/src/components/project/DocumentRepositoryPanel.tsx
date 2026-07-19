@@ -35,7 +35,7 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { IngestBatchEstimator, type IngestBatchSnapshot } from "@/lib/ingest-progress";
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
-import { useDeleteEvidence } from "@/lib/queries/project-data";
+import { useBatchDeleteEvidence, useDeleteEvidence } from "@/lib/queries/project-data";
 import type {
   EvidencePreview,
   InboxUploadResult,
@@ -140,6 +140,7 @@ export function DocumentRepositoryPanel({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
+  const batchDeleteEvidence = useBatchDeleteEvidence(projectId);
   const [activePanelView, setActivePanelView] =
     useState<RepositoryPanelView>("schedule");
   const [openTreeSections, setOpenTreeSections] = useState<Set<RepositoryTreeSectionId>>(
@@ -341,30 +342,33 @@ export function DocumentRepositoryPanel({
     setUploadError(null);
     setBulkDeletingIds(new Set(selectedRows.map((row) => row.id)));
 
-    const failedRows: string[] = [];
     const failedIds = new Set<string>();
     try {
-      for (const row of selectedRows) {
-        try {
-          await deleteEvidence.mutateAsync(row.id);
-        } catch (error) {
-          const detail =
-            error instanceof ApiError ? error.message : "Please try again.";
-          failedRows.push(`${row.title}: ${detail}`);
-          failedIds.add(row.id);
-        }
+      const result = await batchDeleteEvidence.mutateAsync(
+        selectedRows.map((row) => row.id),
+      );
+      for (const failure of result.failed) {
+        failedIds.add(failure.evidence_id);
       }
+      if (result.failed.length) {
+        const titles = new Map(selectedRows.map((row) => [row.id, row.title]));
+        setUploadError(
+          result.failed
+            .map((failure) => `${titles.get(failure.evidence_id) ?? "Document"}: ${failure.detail}`)
+            .join("; "),
+        );
+      }
+    } catch (error) {
+      selectedRows.forEach((row) => failedIds.add(row.id));
+      setUploadError(
+        error instanceof ApiError ? error.message : "Could not delete the selected documents.",
+      );
     } finally {
       setBulkDeletingIds(new Set<string>());
     }
 
     setSelectedIds(failedIds);
     setSelectionAnchorId(failedIds.values().next().value ?? null);
-    if (failedRows.length) {
-      setUploadError(
-        `Could not delete ${failedRows.length} selected ${failedRows.length === 1 ? "document" : "documents"}: ${failedRows.join("; ")}`,
-      );
-    }
   }
 
   async function resolveSplit(proposal: SplitProposal, mode: "split" | "single") {
@@ -446,10 +450,10 @@ export function DocumentRepositoryPanel({
       // Phase 1 — analyzing a PDF uploads its bytes to staging, so this is the
       // real upload for PDFs. Drawing sets divert to split proposals; other
       // PDFs are ingested from staging later without a second upload.
-      for (const entry of entries) {
+      await runWithConcurrency(entries, 2, async (entry) => {
         if (!isPdfFile(entry.file)) {
           queue.push({ kind: "file", uid: entry.uid, file: entry.file });
-          continue;
+          return;
         }
         patchPendingUpload(entry.uid, { stage: "uploading" });
         setStrip(entry.file.name, "uploading");
@@ -484,14 +488,14 @@ export function DocumentRepositoryPanel({
           total -= 1;
           analyzeErrors.push(`${entry.file.name}: ${formatUploadError(error)}`);
         }
-      }
+      });
       if (analyzeErrors.length) {
         setUploadError(analyzeErrors.join("; "));
       }
 
-      // Phase 2 — ingest one file at a time so each register row settles in
-      // order and the estimator can learn real upload/ingest rates.
-      for (const item of queue) {
+      // Phase 2 keeps at most two heavy ingests in flight. Each file settles
+      // independently and the shared project queries refresh once per batch.
+      await runWithConcurrency(queue, 2, async (item) => {
         const filename = item.kind === "file" ? item.file.name : item.filename;
         try {
           let results: InboxUploadResult[];
@@ -532,7 +536,6 @@ export function DocumentRepositoryPanel({
             failedCount += 1;
           }
           estimator.finishFile(item.uid);
-          await onUploadComplete();
         } catch (error) {
           uploadErrors.push(`${filename}: ${formatUploadError(error)}`);
           estimator.finishFile(item.uid);
@@ -542,6 +545,10 @@ export function DocumentRepositoryPanel({
           completed += 1;
           setStrip(null, null);
         }
+      });
+
+      if (queue.length) {
+        await onUploadComplete();
       }
 
       if (failedResults.length) {
@@ -1033,6 +1040,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  run: (item: T) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const item = items[nextIndex];
+        nextIndex += 1;
+        await run(item);
+      }
+    },
+  );
+  await Promise.all(workers);
 }
 
 function formatUploadError(error: unknown): string {

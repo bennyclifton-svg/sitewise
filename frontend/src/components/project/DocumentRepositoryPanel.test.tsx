@@ -19,6 +19,11 @@ vi.mock("@/lib/queries/project-data", () => ({
     isPending: false,
     variables: undefined,
   }),
+  useBatchDeleteEvidence: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+    variables: undefined,
+  }),
 }));
 
 function deferred<T>() {

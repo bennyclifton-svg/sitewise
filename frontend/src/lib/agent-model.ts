@@ -19,6 +19,11 @@ export type AgentModelsResponse = {
   runtimes: AgentRuntimeOption[];
 };
 
+export type AgentConfigurationResponse = {
+  agent: AgentModelsResponse;
+  legacy: import("@/lib/chat-model").ChatModelsResponse;
+};
+
 export type AgentRuntimeOption = {
   id: string;
   label: string;

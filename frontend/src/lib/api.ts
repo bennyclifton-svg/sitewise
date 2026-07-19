@@ -1,5 +1,5 @@
 import { getAccessToken } from "@/lib/auth";
-import type { AgentModelsResponse } from "@/lib/agent-model";
+import type { AgentConfigurationResponse, AgentModelsResponse } from "@/lib/agent-model";
 import { workflowChatModelPayload, type ChatModelsResponse } from "@/lib/chat-model";
 import { env } from "@/lib/env";
 import {
@@ -42,6 +42,7 @@ import type {
 } from "@/lib/types/tender";
 import type {
   CreateCostPlanResponse,
+  BatchDeleteEvidenceResponse,
   CreatePmpResponse,
   DeleteProjectActivityResponse,
   SortFilesResponse,
@@ -53,6 +54,7 @@ import type {
   PlatformKnowledgeStatus,
   ProjectActivityResponse,
   ProjectCockpitBootstrap,
+  ProjectChatBootstrap,
   ProjectDetail,
   ProjectDecision,
   ProjectDecisionListResponse,
@@ -220,7 +222,9 @@ export const api = {
     apiRequest<T>(path, { ...options, method: "DELETE" }),
 
   listThreads: async (): Promise<ChatThread[]> => {
-    const response = await api.get<{ threads: ChatThread[] }>("/chat/threads");
+    const response = await api.get<{ threads: ChatThread[]; next_cursor?: string | null }>(
+      "/chat/threads?limit=50",
+    );
     return response.threads;
   },
 
@@ -289,7 +293,7 @@ export const api = {
 
   listTenderComparisons: async (projectId: string): Promise<TenderComparison[]> => {
     const response = await api.get<TenderComparisonListResponse>(
-      `/api/tender/comparisons?project_id=${encodeURIComponent(projectId)}`,
+      `/api/tender/comparisons?project_id=${encodeURIComponent(projectId)}&limit=50`,
     );
     return response.comparisons;
   },
@@ -460,6 +464,11 @@ export const api = {
   ): Promise<ProjectCockpitBootstrap> =>
     api.get<ProjectCockpitBootstrap>(`/projects/${projectId}/cockpit-bootstrap`),
 
+  getProjectChatBootstrap: async (
+    projectId: string,
+  ): Promise<ProjectChatBootstrap> =>
+    api.get<ProjectChatBootstrap>(`/projects/${projectId}/chat-bootstrap`),
+
   getProjectWorkspaceTree: async (
     projectId: string,
   ): Promise<ProjectWorkspaceTree> =>
@@ -527,6 +536,15 @@ export const api = {
     await api.delete<void>(`/projects/${projectId}/evidence/${evidenceId}`);
   },
 
+  deleteProjectEvidenceBatch: async (
+    projectId: string,
+    evidenceIds: string[],
+  ): Promise<BatchDeleteEvidenceResponse> =>
+    apiRequest<BatchDeleteEvidenceResponse>(
+      `/projects/${projectId}/evidence/batch`,
+      { method: "DELETE", body: { evidence_ids: evidenceIds } },
+    ),
+
   analyzePdf: async (
     projectId: string,
     file: File,
@@ -579,6 +597,9 @@ export const api = {
 
   getAgentModels: async (): Promise<AgentModelsResponse> =>
     api.get<AgentModelsResponse>("/config/agent/models"),
+
+  getAgentConfiguration: async (): Promise<AgentConfigurationResponse> =>
+    api.get<AgentConfigurationResponse>("/config/agent"),
 
   getBillingPlans: async (): Promise<BillingPlansResponse> =>
     api.get<BillingPlansResponse>("/billing/plans", { auth: false }),

@@ -73,6 +73,7 @@ export type TenderComparisonFromProjectFilesCreate = {
 
 export type TenderComparisonListResponse = {
   comparisons: TenderComparison[];
+  next_cursor?: string | null;
 };
 
 export type TenderQuoteCreate = {

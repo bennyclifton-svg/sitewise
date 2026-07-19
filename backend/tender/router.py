@@ -6,7 +6,7 @@ import mimetypes
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
@@ -185,6 +185,45 @@ async def list_comparisons(
         .order_by(TenderComparison.updated_at.desc(), TenderComparison.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+async def list_comparisons_page(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    limit: int,
+    cursor: uuid.UUID | None = None,
+) -> tuple[list[TenderComparison], uuid.UUID | None]:
+    stmt = (
+        select(TenderComparison)
+        .options(
+            selectinload(TenderComparison.quotes).selectinload(TenderQuote.documents)
+        )
+        .where(TenderComparison.project_id == project_id)
+    )
+    if cursor is not None:
+        anchor = await session.get(TenderComparison, cursor)
+        if anchor is not None and anchor.project_id == project_id:
+            stmt = stmt.where(
+                or_(
+                    TenderComparison.updated_at < anchor.updated_at,
+                    and_(
+                        TenderComparison.updated_at == anchor.updated_at,
+                        TenderComparison.id < anchor.id,
+                    ),
+                )
+            )
+    rows = list(
+        (
+            await session.execute(
+                stmt.order_by(
+                    TenderComparison.updated_at.desc(), TenderComparison.id.desc()
+                ).limit(limit + 1)
+            )
+        ).scalars().all()
+    )
+    next_cursor = rows[limit - 1].id if len(rows) > limit else None
+    return rows[:limit], next_cursor
 
 
 async def create_quote(
@@ -445,13 +484,16 @@ async def post_comparison_from_project_files(
 @router.get("/comparisons", response_model=ComparisonListResponse)
 async def get_comparisons(
     project_id: uuid.UUID = Query(...),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: uuid.UUID | None = Query(default=None),
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ComparisonListResponse:
     await _require_project_owner(session, project_id=project_id, user_id=user.id)
-    return ComparisonListResponse(
-        comparisons=await list_comparisons(session, project_id=project_id)
+    comparisons, next_cursor = await list_comparisons_page(
+        session, project_id=project_id, limit=limit, cursor=cursor
     )
+    return ComparisonListResponse(comparisons=comparisons, next_cursor=next_cursor)
 
 
 @router.get("/comparisons/{comparison_id}", response_model=ComparisonDetail)

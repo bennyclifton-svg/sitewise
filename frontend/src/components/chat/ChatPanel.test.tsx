@@ -43,6 +43,23 @@ vi.mock("@/lib/auth", () => ({
   getAccessToken: vi.fn(),
 }));
 
+vi.mock("@/lib/queries/agent-configuration", () => ({
+  useAgentConfiguration: () => ({
+    data: {
+      agent: {
+        agent_runtime_enabled: true,
+        default_model: "__hermes_config__",
+        default_runtime: "hermes",
+        runtimes: [{ id: "hermes", label: "Hermes", enabled: true }],
+        models: [],
+      },
+      legacy: { default_model: "gpt-4.1-mini", models: [] },
+    },
+    isPending: false,
+    error: null,
+  }),
+}));
+
 function renderPanel(status: "ready" | "submitted" | "streaming" = "ready") {
   useChatMock.mockReturnValue({
     messages: [],

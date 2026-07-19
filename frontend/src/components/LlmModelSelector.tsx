@@ -1,6 +1,5 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
-import { api } from "@/lib/api";
 import {
   HERMES_DEFAULT_MODEL_ID,
   getSelectedAgentModel,
@@ -22,6 +21,7 @@ import {
   subscribeSelectedChatModel,
   type ChatModelOption,
 } from "@/lib/chat-model";
+import { useAgentConfiguration } from "@/lib/queries/agent-configuration";
 import { cn } from "@/lib/utils";
 
 function getSelectionSnapshot(): string | null {
@@ -50,15 +50,22 @@ export function LlmModelSelector({
   className?: string;
   compact?: boolean;
 }) {
-  const [mode, setMode] = useState<SelectorMode>("legacy");
-  const [models, setModels] = useState<ModelOption[]>(FALLBACK_CHAT_MODELS);
-  const [defaultModel, setDefaultModel] = useState(FALLBACK_DEFAULT_MODEL);
-  const [defaultRuntime, setDefaultRuntime] = useState(HERMES_RUNTIME_ID);
-  const [runtimes, setRuntimes] = useState<
-    { id: string; model?: string | null; model_label?: string | null }[]
-  >([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const configuration = useAgentConfiguration();
+  const agent = configuration.data?.agent;
+  const legacy = configuration.data?.legacy;
+  const mode: SelectorMode = agent?.agent_runtime_enabled ? "agent" : "legacy";
+  const models: ModelOption[] = mode === "agent"
+    ? agent?.models ?? []
+    : legacy?.models ?? FALLBACK_CHAT_MODELS;
+  const defaultModel = mode === "agent"
+    ? agent?.default_model ?? HERMES_DEFAULT_MODEL_ID
+    : legacy?.default_model ?? FALLBACK_DEFAULT_MODEL;
+  const defaultRuntime = agent?.default_runtime ?? HERMES_RUNTIME_ID;
+  const runtimes = agent?.runtimes ?? [];
+  const loadError = configuration.error instanceof Error
+    ? configuration.error.message
+    : null;
+  const loading = configuration.isPending;
   const selectedLegacyModel = useSyncExternalStore(
     subscribeSelectedChatModel,
     getSelectionSnapshot,
@@ -74,56 +81,6 @@ export function LlmModelSelector({
     getAgentRuntimeSnapshot,
     getSelectionServerSnapshot,
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadModels() {
-      setLoading(true);
-      try {
-        const agentResponse = await api.getAgentModels();
-        if (cancelled) return;
-        if (agentResponse.agent_runtime_enabled) {
-          setMode("agent");
-          setModels(agentResponse.models);
-          setDefaultModel(agentResponse.default_model);
-          setDefaultRuntime(agentResponse.default_runtime ?? HERMES_RUNTIME_ID);
-          setRuntimes(agentResponse.runtimes ?? []);
-          setLoadError(null);
-          return;
-        }
-
-        const response = await api.getLlmModels();
-        if (cancelled) return;
-        setMode("legacy");
-        setRuntimes([]);
-        if (response.models.length > 0) {
-          setModels(response.models);
-          setDefaultModel(response.default_model);
-        }
-        setLoadError(null);
-      } catch (error: unknown) {
-        if (cancelled) return;
-        setMode("legacy");
-        setRuntimes([]);
-        setModels(FALLBACK_CHAT_MODELS);
-        setDefaultModel(FALLBACK_DEFAULT_MODEL);
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Could not load model list from backend.",
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadModels();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const effectiveAgentRuntime = selectedAgentRuntime ?? defaultRuntime;
   const piRuntime = runtimes.find((runtime) => runtime.id === PI_RUNTIME_ID);

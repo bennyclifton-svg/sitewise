@@ -10,16 +10,15 @@ import {
   RefreshCw,
   Table2,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { useTenderComparison, useTenderProgress } from "@/lib/queries/tender";
 import type {
-  TenderComparison,
-  TenderComparisonProgress,
   TenderProgressMilestone,
   TenderQuote,
 } from "@/lib/types/tender";
@@ -32,8 +31,6 @@ import {
   formatTenderStage,
 } from "./format";
 
-const POLL_INTERVAL_MS = 4000;
-
 export function ComparisonOverview({
   projectId,
   comparisonId,
@@ -41,76 +38,30 @@ export function ComparisonOverview({
   projectId: string;
   comparisonId: string;
 }) {
-  const [comparison, setComparison] = useState<TenderComparison | null>(null);
-  const [progress, setProgress] = useState<TenderComparisonProgress | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const comparisonQuery = useTenderComparison(comparisonId);
+  const progressQuery = useTenderProgress(comparisonId);
+  const comparison = comparisonQuery.data ?? null;
+  const progress = progressQuery.data ?? null;
+  const isLoading = comparisonQuery.isLoading || progressQuery.isLoading;
+  const queryError = comparisonQuery.error ?? progressQuery.error;
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processNotes, setProcessNotes] = useState<string[]>([]);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const loadAll = useCallback(async () => {
-    const [comparisonData, progressData] = await Promise.all([
-      api.getTenderComparison(comparisonId),
-      api.getTenderComparisonProgress(comparisonId),
-    ]);
-    setComparison(comparisonData);
-    setProgress(progressData);
-    return progressData;
-  }, [comparisonId]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadInitial() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        await loadAll();
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
-              : "Could not load tender comparison.",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    void loadInitial();
-    return () => {
-      cancelled = true;
-    };
-  }, [comparisonId, loadAll]);
-
-  // While the pipeline is running, refresh progress on an interval. When it
-  // stops, do a final full reload so quotes/status reflect the end state.
   const isProcessingNow = progress?.is_processing ?? false;
+  const wasProcessing = useRef(false);
   useEffect(() => {
-    if (!isProcessingNow) return;
-    let cancelled = false;
-    const timer = window.setInterval(async () => {
-      try {
-        const next = await api.getTenderComparisonProgress(comparisonId);
-        if (cancelled) return;
-        setProgress(next);
-        if (!next.is_processing) {
-          const comparisonData = await api.getTenderComparison(comparisonId);
-          if (!cancelled) setComparison(comparisonData);
-        }
-      } catch {
-        // transient poll failure; next tick retries
-      }
-    }, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [comparisonId, isProcessingNow]);
+    if (wasProcessing.current && !isProcessingNow) {
+      void comparisonQuery.refetch();
+    }
+    wasProcessing.current = isProcessingNow;
+  }, [comparisonQuery, isProcessingNow]);
+
+  async function loadAll() {
+    await Promise.all([comparisonQuery.refetch(), progressQuery.refetch()]);
+  }
 
   async function startProcessing() {
     setProcessing(true);
@@ -174,12 +125,20 @@ export function ComparisonOverview({
     );
   }
 
-  if (error && !comparison) {
+  const visibleError = error ?? (
+    queryError instanceof ApiError
+      ? queryError.message
+      : queryError
+        ? "Could not load tender comparison."
+        : null
+  );
+
+  if (visibleError && !comparison) {
     return (
       <div className="flex min-h-72 items-center justify-center rounded-md border bg-card p-6 text-center">
         <div>
           <AlertCircle className="mx-auto size-7 text-destructive" aria-hidden />
-          <p className="mt-3 text-sm font-medium text-destructive">{error}</p>
+          <p className="mt-3 text-sm font-medium text-destructive">{visibleError}</p>
         </div>
       </div>
     );
@@ -235,9 +194,9 @@ export function ComparisonOverview({
 
           <ProgressGates milestones={milestones} percent={progress?.percent ?? 0} />
 
-          {error ? (
+          {visibleError ? (
             <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {error}
+              {visibleError}
             </p>
           ) : null}
           {processNotes.map((note) => (

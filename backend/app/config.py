@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     doctrine_core_content_chars: int = 16000
     agent_history_message_limit: int = 12
     agent_history_message_chars: int = 1500
+    chat_history_message_limit: int = 100
+    project_list_page_size: int = 50
     openai_rate_limit_max_retries: int = 5
     pmp_model_provider: str = "openai-codex"
     pmp_model: str = "gpt-5.5"

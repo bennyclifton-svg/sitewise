@@ -12,9 +12,7 @@ type ChatRailProps = {
   chatLoading: boolean;
   chatError?: string | null;
   onRetry?: () => void;
-  crossProject: boolean;
   selectedCitationId: string | null;
-  onCrossProjectChange: (value: boolean) => void;
   onConversationUpdate: () => void;
   onResourceEvent?: (event: ResourceEvent) => void;
   onUserSubmit?: () => void;
@@ -31,9 +29,7 @@ export function ChatRail({
   chatLoading,
   chatError,
   onRetry,
-  crossProject,
   selectedCitationId,
-  onCrossProjectChange,
   onConversationUpdate,
   onResourceEvent,
   onUserSubmit,
@@ -86,9 +82,7 @@ export function ChatRail({
             onCollapsedChange={onCollapsedChange}
             agentMode
             projectId={thread.project_id}
-            showScopeControls
-            crossProject={crossProject}
-            onCrossProjectChange={onCrossProjectChange}
+            crossProject={false}
             selectedCitationId={selectedCitationId}
             onSelectCitation={onSelectCitation}
           />

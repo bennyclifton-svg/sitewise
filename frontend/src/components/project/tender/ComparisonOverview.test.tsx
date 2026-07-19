@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComparisonOverview } from "@/components/project/tender/ComparisonOverview";
@@ -26,11 +27,7 @@ describe("ComparisonOverview", () => {
     vi.mocked(api.getTenderComparison).mockResolvedValue(repositoryComparison);
     vi.mocked(api.getTenderComparisonProgress).mockResolvedValue(idleProgress);
 
-    render(
-      <MemoryRouter>
-        <ComparisonOverview projectId="project-1" comparisonId="comparison-1" />
-      </MemoryRouter>,
-    );
+    renderOverview();
 
     await waitFor(() => expectMetric("State", "Not stated"));
     expectMetric("Region", "Not stated");
@@ -43,11 +40,7 @@ describe("ComparisonOverview", () => {
     vi.mocked(api.getTenderComparison).mockResolvedValue(repositoryComparison);
     vi.mocked(api.getTenderComparisonProgress).mockResolvedValue(idleProgress);
 
-    render(
-      <MemoryRouter>
-        <ComparisonOverview projectId="project-1" comparisonId="comparison-1" />
-      </MemoryRouter>,
-    );
+    renderOverview();
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /process quotes/i })).toBeInTheDocument(),
@@ -61,11 +54,7 @@ describe("ComparisonOverview", () => {
     vi.mocked(api.getTenderComparison).mockResolvedValue(repositoryComparison);
     vi.mocked(api.getTenderComparisonProgress).mockResolvedValue(qaProgress);
 
-    render(
-      <MemoryRouter>
-        <ComparisonOverview projectId="project-1" comparisonId="comparison-1" />
-      </MemoryRouter>,
-    );
+    renderOverview();
 
     await waitFor(() =>
       expect(
@@ -81,11 +70,7 @@ describe("ComparisonOverview", () => {
     vi.mocked(api.getTenderComparison).mockResolvedValue(repositoryComparison);
     vi.mocked(api.getTenderComparisonProgress).mockResolvedValue(failedIngestProgress);
 
-    render(
-      <MemoryRouter>
-        <ComparisonOverview projectId="project-1" comparisonId="comparison-1" />
-      </MemoryRouter>,
-    );
+    renderOverview();
 
     await waitFor(() =>
       expect(
@@ -97,6 +82,19 @@ describe("ComparisonOverview", () => {
     ).toBeInTheDocument();
   });
 });
+
+function renderOverview() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <ComparisonOverview projectId="project-1" comparisonId="comparison-1" />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 function expectMetric(label: string, value: string) {
   expect(screen.getByText(label).nextElementSibling).toHaveTextContent(value);

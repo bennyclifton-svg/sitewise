@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.document_chunk import DocumentChunk
@@ -184,6 +184,46 @@ async def fetch_neighbouring_chunks(
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def fetch_neighbouring_chunks_batch(
+    session: AsyncSession,
+    hits: list[ChunkSearchHit],
+    *,
+    filters: RetrievalFilters | None = None,
+    before: int = 1,
+    after: int = 1,
+) -> dict[uuid.UUID, list[DocumentChunk]]:
+    if not hits or (before < 1 and after < 1):
+        return {hit.chunk_id: [] for hit in hits}
+
+    ranges = [
+        and_(
+            DocumentChunk.document_id == hit.document_id,
+            DocumentChunk.chunk_index >= max(0, hit.chunk_index - before),
+            DocumentChunk.chunk_index <= hit.chunk_index + after,
+        )
+        for hit in hits
+    ]
+    stmt = (
+        select(DocumentChunk)
+        .join(SourceDocument, DocumentChunk.document_id == SourceDocument.id)
+        .where(or_(*ranges))
+        .order_by(DocumentChunk.document_id.asc(), DocumentChunk.chunk_index.asc())
+    )
+    rows = list(
+        (await session.execute(apply_document_filters(stmt, filters))).scalars().all()
+    )
+    return {
+        hit.chunk_id: [
+            row
+            for row in rows
+            if row.document_id == hit.document_id
+            and max(0, hit.chunk_index - before) <= row.chunk_index <= hit.chunk_index + after
+            and row.chunk_index != hit.chunk_index
+        ]
+        for hit in hits
+    }
 
 
 def hits_by_id(hits: list[ChunkSearchHit]) -> dict[uuid.UUID, ChunkSearchHit]:

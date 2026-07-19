@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.chat_message import ChatMessage
@@ -14,6 +14,39 @@ async def list_threads(session: AsyncSession, user_id: uuid.UUID) -> list[ChatTh
         .order_by(ChatThread.updated_at.desc())
     )
     return list(result.scalars().all())
+
+
+async def list_threads_page(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    limit: int,
+    cursor: uuid.UUID | None = None,
+) -> tuple[list[ChatThread], uuid.UUID | None]:
+    stmt = select(ChatThread).where(ChatThread.user_id == user_id)
+    if cursor is not None:
+        anchor = await session.get(ChatThread, cursor)
+        if anchor is not None and anchor.user_id == user_id:
+            stmt = stmt.where(
+                or_(
+                    ChatThread.updated_at < anchor.updated_at,
+                    and_(
+                        ChatThread.updated_at == anchor.updated_at,
+                        ChatThread.id < anchor.id,
+                    ),
+                )
+            )
+    rows = list(
+        (
+            await session.execute(
+                stmt.order_by(ChatThread.updated_at.desc(), ChatThread.id.desc()).limit(
+                    limit + 1
+                )
+            )
+        ).scalars().all()
+    )
+    next_cursor = rows[limit - 1].id if len(rows) > limit else None
+    return rows[:limit], next_cursor
 
 
 async def create_thread(
@@ -39,13 +72,33 @@ async def get_thread_by_id(
 async def list_messages(
     session: AsyncSession,
     thread_id: uuid.UUID,
+    *,
+    limit: int,
 ) -> list[ChatMessage]:
     result = await session.execute(
         select(ChatMessage)
         .where(ChatMessage.thread_id == thread_id)
-        .order_by(ChatMessage.created_at.asc())
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+        .limit(limit)
     )
-    return list(result.scalars().all())
+    return list(reversed(result.scalars().all()))
+
+
+async def get_latest_project_thread(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> ChatThread | None:
+    return await session.scalar(
+        select(ChatThread)
+        .where(
+            ChatThread.project_id == project_id,
+            ChatThread.user_id == user_id,
+        )
+        .order_by(ChatThread.updated_at.desc(), ChatThread.id.desc())
+        .limit(1)
+    )
 
 
 def title_from_message(text: str, *, max_length: int = 60) -> str:

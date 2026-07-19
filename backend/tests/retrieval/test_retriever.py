@@ -59,8 +59,8 @@ def test_retriever_fuses_semantic_and_lexical_hits() -> None:
             new=AsyncMock(return_value=[shared, lexical_only]),
         ) as lexical_mock,
         patch(
-            "app.retrieval.retriever.queries.fetch_neighbouring_chunks",
-            new=AsyncMock(return_value=[]),
+            "app.retrieval.retriever.queries.fetch_neighbouring_chunks_batch",
+            new=AsyncMock(return_value={}),
         ),
     ):
         retriever = DocumentRetriever(session)
@@ -143,8 +143,8 @@ def test_retriever_includes_neighbours_when_requested() -> None:
             new=AsyncMock(return_value=[]),
         ),
         patch(
-            "app.retrieval.retriever.queries.fetch_neighbouring_chunks",
-            new=AsyncMock(return_value=[neighbour]),
+            "app.retrieval.retriever.queries.fetch_neighbouring_chunks_batch",
+            new=AsyncMock(return_value={hit.chunk_id: [neighbour]}),
         ) as neighbour_mock,
     ):
         retriever = DocumentRetriever(session)
