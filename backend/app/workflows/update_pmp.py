@@ -14,7 +14,7 @@ from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact, get_latest_draft_artifact
 from app.database.project import Project
-from app.database.project_decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.schemas.projects import CreatePmpResponse, DraftArtifactResponse, WorkflowTraceEvent
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.pmp_evidence_validation import (

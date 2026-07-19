@@ -17,6 +17,8 @@ export type EmbeddedDecision = {
   rationale?: string;
   evidence_conflict?: boolean;
   agent_suggestion?: string;
+  revision?: number;
+  set_revision?: number;
   /** True when Sources ground the selection; false for AI default/assumption. */
   evidenced?: boolean;
 };
@@ -64,7 +66,13 @@ export function DecisionControl({
     setSource("user");
     setEvidenceConflict(false);
     try {
-      const result = await api.putDecision(projectId, decision.id, nextValue);
+      const result = await api.putDecision(
+        projectId,
+        decision.id,
+        nextValue,
+        decision.revision ?? 1,
+        decision.set_revision ?? 1,
+      );
       setSelected(result.decision.selected);
       setSource(result.decision.source);
       setEvidenceConflict(result.decision.evidence_conflict);

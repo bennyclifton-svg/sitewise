@@ -615,10 +615,16 @@ export const api = {
     projectId: string,
     decisionId: string,
     selected: string,
+    expectedRevision: number,
+    expectedSetRevision: number,
   ): Promise<UpdateProjectDecisionResponse> =>
     api.put<UpdateProjectDecisionResponse>(
       `/projects/${projectId}/decisions/${decisionId}`,
-      { selected },
+      {
+        selected,
+        expected_revision: expectedRevision,
+        expected_set_revision: expectedSetRevision,
+      },
     ),
 
   acceptDraft: async (projectId: string, draftId: string): Promise<DraftArtifact> =>

@@ -313,10 +313,20 @@ capability, and durable-event contract.
     cross-project tokens before profile reads. Agent prompt and workspace
     guidance now describe the same policy. Complete MCP regression: 70 passed;
     Ruff checks passed.
-- [ ] **1.7 — Make Project Decisions a shared revisioned interface**
+- [x] **1.7 — Make Project Decisions a shared revisioned interface**
   - Dependencies: 1.4.
   - Gate: UI, workflows, and MCP share optimistic revisions, locked-decision
     semantics, activity, and events.
+  - Completed 2026-07-19 in migration `028_project_decision_revisions` and
+    `app.projects.decisions`. Project Decisions now have per-decision and
+    set-wide optimistic revisions, explicit locks, durable provenance and
+    evidence-conflict state, and project resource events. HTTP, PMP/Cost Plan
+    regeneration, and the five narrow MCP read/update/lock adapters use the
+    same service; generated selections cannot replace a locked user choice and
+    are retained as an explicit conflicting suggestion. The frontend sends and
+    renders the same revisions returned by HTTP/MCP. Focused backend gate and
+    regression verification: 145 passed; affected frontend type-check and 5
+    render tests passed; Ruff and the single-head Alembic graph passed.
 - [ ] **1.8 — Build the minimal deterministic Project Snapshot**
   - Dependencies: 1.2, 1.7; UUID evidence reads.
   - Gate: one deterministic snapshot composes profile, decisions, evidence, and

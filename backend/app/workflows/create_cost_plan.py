@@ -18,7 +18,7 @@ from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
-from app.database.project_decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key

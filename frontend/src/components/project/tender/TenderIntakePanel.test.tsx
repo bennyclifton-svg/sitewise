@@ -67,6 +67,8 @@ describe("TenderIntakePanel", () => {
         "project-1",
         "contract-form",
         "cost_plus",
+        1,
+        1,
       ),
     );
     expect(screen.getByText("Your selection")).toBeInTheDocument();
@@ -113,8 +115,12 @@ function contractFormDecision(
     selected: "hia",
     source: "agent",
     workflow_type: "create_pmp",
+    revision: 1,
+    set_revision: 1,
+    locked: false,
     evidence_conflict: false,
     agent_suggestion: null,
+    provenance: {},
     created_at: "2026-07-12T00:00:00.000Z",
     updated_at: "2026-07-12T00:00:00.000Z",
     ...overrides,

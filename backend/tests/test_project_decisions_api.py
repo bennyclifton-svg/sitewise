@@ -11,6 +11,7 @@ from app.database.project import Project
 from app.database.project_decision import ProjectDecision
 from app.database.session import get_db
 from app.main import fastapi_app as app
+from app.projects.decisions import DecisionValidationError
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -48,6 +49,7 @@ def _project() -> Project:
         state="NSW",
         status="active",
         project_metadata={},
+        decision_set_revision=1,
         created_at=NOW,
         updated_at=NOW,
     )
@@ -85,6 +87,11 @@ def _decision_row() -> ProjectDecision:
         ],
         selected="traditional",
         source="agent",
+        revision=1,
+        locked=False,
+        evidence_conflict=False,
+        agent_suggestion=None,
+        provenance={},
         workflow_type="create_pmp",
         created_at=NOW,
         updated_at=NOW,
@@ -115,7 +122,9 @@ def test_put_project_decision_rewrites_draft_markdown(
     mock_session: AsyncMock,
 ) -> None:
     draft = _draft(f"# PMP\n\n{DECISION_BLOCK}")
-    updated = _draft(f"# PMP\n\n{DECISION_BLOCK.replace('traditional', 'design_construct').replace('agent', 'user')}")
+    updated = _draft(
+        f"# PMP\n\n{DECISION_BLOCK.replace('traditional', 'design_construct').replace('agent', 'user')}"
+    )
     row = _decision_row()
     row.selected = "design_construct"
     row.source = "user"
@@ -128,8 +137,19 @@ def test_put_project_decision_rewrites_draft_markdown(
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.list_decisions", new=AsyncMock(return_value=[row])),
-        patch("app.api.projects.upsert_decision", new=AsyncMock(return_value=row)) as upsert,
+        patch(
+            "app.api.projects.list_project_decisions",
+            new=AsyncMock(return_value=([row], 1)),
+        ),
+        patch(
+            "app.api.projects.update_project_decision",
+            new=AsyncMock(return_value=(row, 2)),
+        ) as update_decision,
+        patch("app.api.projects.sync_decisions_from_markdown", new=AsyncMock()),
+        patch(
+            "app.api.projects.read_project_decision",
+            new=AsyncMock(return_value=(row, 3)),
+        ),
         patch(
             "app.api.projects.get_latest_draft_artifact",
             new=AsyncMock(side_effect=latest_draft),
@@ -148,14 +168,18 @@ def test_put_project_decision_rewrites_draft_markdown(
     ):
         response = client.put(
             f"/projects/{PROJECT_ID}/decisions/procurement-route",
-            json={"selected": "design_construct"},
+            json={
+                "selected": "design_construct",
+                "expected_revision": 1,
+                "expected_set_revision": 1,
+            },
         )
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["decision"]["selected"] == "design_construct"
     assert payload["draft"]["content_markdown"]
-    upsert.assert_awaited_once()
+    update_decision.assert_awaited_once()
     update_content.assert_awaited_once()
     rewritten = update_content.await_args.kwargs["content_markdown"]
     assert '"selected": "design_construct"' in rewritten
@@ -203,8 +227,19 @@ def test_put_project_decision_restamps_cost_plan_and_pmp(
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.list_decisions", new=AsyncMock(return_value=[row])),
-        patch("app.api.projects.upsert_decision", new=AsyncMock(return_value=row)),
+        patch(
+            "app.api.projects.list_project_decisions",
+            new=AsyncMock(return_value=([row], 1)),
+        ),
+        patch(
+            "app.api.projects.update_project_decision",
+            new=AsyncMock(return_value=(row, 2)),
+        ),
+        patch("app.api.projects.sync_decisions_from_markdown", new=AsyncMock()),
+        patch(
+            "app.api.projects.read_project_decision",
+            new=AsyncMock(return_value=(row, 3)),
+        ),
         patch(
             "app.api.projects.get_latest_draft_artifact",
             new=AsyncMock(side_effect=latest_draft),
@@ -213,14 +248,23 @@ def test_put_project_decision_restamps_cost_plan_and_pmp(
             "app.api.projects.locked_selections",
             new=AsyncMock(return_value={"procurement-route": "design_construct"}),
         ),
-        patch("app.api.projects.update_draft_content", new=AsyncMock(side_effect=update_content)),
+        patch(
+            "app.api.projects.update_draft_content",
+            new=AsyncMock(side_effect=update_content),
+        ),
         patch("app.api.projects.sync_pmp_draft_workspace", new=AsyncMock()) as sync_pmp,
-        patch("app.api.projects.sync_cost_plan_draft_workspace", new=AsyncMock()) as sync_cost,
+        patch(
+            "app.api.projects.sync_cost_plan_draft_workspace", new=AsyncMock()
+        ) as sync_cost,
         patch("app.api.projects.record_activity_events", new=AsyncMock()),
     ):
         response = client.put(
             f"/projects/{PROJECT_ID}/decisions/procurement-route",
-            json={"selected": "design_construct"},
+            json={
+                "selected": "design_construct",
+                "expected_revision": 1,
+                "expected_set_revision": 1,
+            },
         )
 
     assert response.status_code == 200
@@ -236,10 +280,21 @@ def test_put_project_decision_rejects_invalid_option(client: TestClient) -> None
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.list_decisions", new=AsyncMock(return_value=[row])),
+        patch(
+            "app.api.projects.list_project_decisions",
+            new=AsyncMock(return_value=([row], 1)),
+        ),
+        patch(
+            "app.api.projects.update_project_decision",
+            new=AsyncMock(side_effect=DecisionValidationError("invalid option")),
+        ),
     ):
         response = client.put(
             f"/projects/{PROJECT_ID}/decisions/procurement-route",
-            json={"selected": "not-valid"},
+            json={
+                "selected": "not-valid",
+                "expected_revision": 1,
+                "expected_set_revision": 1,
+            },
         )
     assert response.status_code == 422

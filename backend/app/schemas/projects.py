@@ -528,18 +528,25 @@ class ProjectDecision(BaseModel):
     selected: str
     source: str
     workflow_type: str
+    revision: int = 1
+    set_revision: int = 1
+    locked: bool = False
     evidence_conflict: bool = False
     agent_suggestion: str | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
 
 class ProjectDecisionListResponse(BaseModel):
     decisions: list[ProjectDecision]
+    set_revision: int = 1
 
 
 class UpdateProjectDecisionRequest(BaseModel):
     selected: str = Field(min_length=1, max_length=128)
+    expected_revision: int = Field(ge=1)
+    expected_set_revision: int = Field(ge=1)
 
 
 class UpdateProjectDecisionResponse(BaseModel):

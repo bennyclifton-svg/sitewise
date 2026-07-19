@@ -265,14 +265,19 @@ export type ProjectDecision = {
   selected: string;
   source: string;
   workflow_type: string;
+  revision: number;
+  set_revision: number;
+  locked: boolean;
   evidence_conflict: boolean;
   agent_suggestion: string | null;
+  provenance: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
 
 export type ProjectDecisionListResponse = {
   decisions: ProjectDecision[];
+  set_revision: number;
 };
 
 export type UpdateProjectDecisionResponse = {

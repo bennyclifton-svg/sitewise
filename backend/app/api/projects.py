@@ -27,7 +27,6 @@ from app.database.draft_artifacts import (
     get_latest_draft_artifact,
     update_draft_content,
 )
-from app.database.project_decisions import list_decisions, locked_selections, upsert_decision
 from app.database.projects import (
     create_project,
     ensure_default_project_catalog,
@@ -92,6 +91,17 @@ from app.projects.profile import (
     apply_profile_patch,
 )
 from app.projects.events import list_project_events
+from app.projects.decisions import (
+    DecisionNotFound,
+    DecisionRevisionConflict,
+    DecisionSetRevisionConflict,
+    DecisionValidationError,
+    get_project_decision as read_project_decision,
+    list_project_decisions,
+    locked_selections,
+    sync_decisions_from_markdown,
+    update_project_decision,
+)
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
@@ -1443,10 +1453,11 @@ def _decision_conflict_map(markdown: str) -> dict[str, tuple[bool, str | None]]:
 def _project_decision_schema(
     row: ProjectDecision,
     *,
+    set_revision: int,
     conflict_map: dict[str, tuple[bool, str | None]] | None = None,
 ) -> ProjectDecisionSchema:
-    evidence_conflict = False
-    agent_suggestion: str | None = None
+    evidence_conflict = row.evidence_conflict
+    agent_suggestion: str | None = row.agent_suggestion
     if conflict_map and row.decision_id in conflict_map:
         evidence_conflict, agent_suggestion = conflict_map[row.decision_id]
     return ProjectDecisionSchema(
@@ -1459,8 +1470,12 @@ def _project_decision_schema(
         selected=row.selected,
         source=row.source,
         workflow_type=row.workflow_type,
+        revision=row.revision,
+        set_revision=set_revision,
+        locked=row.locked,
         evidence_conflict=evidence_conflict,
         agent_suggestion=agent_suggestion,
+        provenance=row.provenance,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -1473,7 +1488,7 @@ async def get_project_decisions(
     session: AsyncSession = Depends(get_db),
 ) -> ProjectDecisionListResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    rows = await list_decisions(session, project_id=project.id)
+    rows, set_revision = await list_project_decisions(session, project_id=project.id)
     latest_draft = await get_latest_draft_artifact(
         session,
         project_id=project.id,
@@ -1486,8 +1501,12 @@ async def get_project_decisions(
     )
     return ProjectDecisionListResponse(
         decisions=[
-            _project_decision_schema(row, conflict_map=conflict_map) for row in rows
-        ]
+            _project_decision_schema(
+                row, set_revision=set_revision, conflict_map=conflict_map
+            )
+            for row in rows
+        ],
+        set_revision=set_revision,
     )
 
 
@@ -1579,7 +1598,7 @@ async def put_project_decision(
 ) -> UpdateProjectDecisionResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
-    rows = await list_decisions(session, project_id=project.id)
+    rows, _set_revision = await list_project_decisions(session, project_id=project.id)
     existing = next((row for row in rows if row.decision_id == decision_id), None)
     if existing is None:
         latest_draft, embedded = await _find_embedded_decision(
@@ -1592,38 +1611,33 @@ async def put_project_decision(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Decision not found",
             )
-        options = [dict(option) for option in embedded.options]
-        section = embedded.section
-        label = embedded.label
         workflow_type = latest_draft.workflow_type
-    else:
-        options = existing.options
-        section = existing.section
-        label = existing.label
-        workflow_type = existing.workflow_type
-
-    allowed = {
-        option["value"]
-        for option in options
-        if isinstance(option, dict) and isinstance(option.get("value"), str)
-    }
-    if body.selected not in allowed:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Selected value is not a valid option for this decision.",
+        await sync_decisions_from_markdown(
+            session,
+            project_id=project.id,
+            markdown=latest_draft.content_markdown,
+            workflow_type=workflow_type,
         )
-
-    row = await upsert_decision(
-        session,
-        project_id=project.id,
-        decision_id=decision_id,
-        section=section,
-        label=label,
-        options=options,
-        selected=body.selected,
-        source="user",
-        workflow_type=workflow_type,
-    )
+    else:
+        workflow_type = existing.workflow_type
+    try:
+        row, set_revision = await update_project_decision(
+            session,
+            project_id=project.id,
+            decision_id=decision_id,
+            selected=body.selected,
+            expected_revision=body.expected_revision,
+            expected_set_revision=body.expected_set_revision,
+            actor_source="user",
+            provenance={"interface": "http", "user_id": str(user.id)},
+            lock=True,
+        )
+    except DecisionNotFound as exc:
+        raise HTTPException(status_code=404, detail="Decision not found") from exc
+    except (DecisionRevisionConflict, DecisionSetRevisionConflict) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DecisionValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     locked = await locked_selections(session, project_id=project.id)
     updated_draft, updated_markdown = await _restamp_shared_decision_drafts(
         session,
@@ -1637,6 +1651,15 @@ async def put_project_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found",
         )
+    await sync_decisions_from_markdown(
+        session,
+        project_id=project.id,
+        markdown=updated_markdown,
+        workflow_type=workflow_type,
+    )
+    row, set_revision = await read_project_decision(
+        session, project_id=project.id, decision_id=decision_id
+    )
     run_id = uuid.uuid4()
     await record_activity_events(
         session,
@@ -1656,7 +1679,9 @@ async def put_project_decision(
     )
     conflict_map = _decision_conflict_map(updated_markdown)
     return UpdateProjectDecisionResponse(
-        decision=_project_decision_schema(row, conflict_map=conflict_map),
+        decision=_project_decision_schema(
+            row, set_revision=set_revision, conflict_map=conflict_map
+        ),
         draft=DraftArtifactResponse.model_validate(updated_draft),
     )
 

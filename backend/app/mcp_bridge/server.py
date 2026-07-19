@@ -1,4 +1,5 @@
 """Clerk's MCP tool server: thin tools delegating to existing services."""
+
 from __future__ import annotations
 
 import asyncio
@@ -58,6 +59,18 @@ from app.projects.profile_proposals import (
     accept_profile_proposal,
     propose_project_profile_change as persist_profile_proposal,
     reject_profile_proposal,
+)
+from app.projects.decisions import (
+    DecisionLockedConflict,
+    DecisionNotFound,
+    DecisionRevisionConflict,
+    DecisionSetRevisionConflict,
+    DecisionValidationError,
+    get_project_decision as read_project_decision,
+    list_project_decisions as read_project_decisions,
+    lock_project_decision as persist_decision_lock,
+    unlock_project_decision as persist_decision_unlock,
+    update_project_decision as persist_decision_update,
 )
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
@@ -185,8 +198,7 @@ def _quote_status_summary(quote) -> dict:
         "builder_name": quote.builder_name,
         "stage": quote.stage,
         "documents": [
-            _document_summary(document)
-            for document in getattr(quote, "documents", [])
+            _document_summary(document) for document in getattr(quote, "documents", [])
         ],
     }
 
@@ -218,7 +230,9 @@ def _progress_payload(comparison, pending_review_count: int) -> dict:
         stage = "report_draft"
     elif comparison.status in {"approved", "delivered"}:
         stage = comparison.status
-    elif any(getattr(quote, "stage", "intake") != "intake" for quote in comparison.quotes):
+    elif any(
+        getattr(quote, "stage", "intake") != "intake" for quote in comparison.quotes
+    ):
         stage = "processing"
     else:
         stage = comparison.status
@@ -253,7 +267,9 @@ def _candidate_document(record) -> dict | None:
 
 
 def _candidate_documents(records) -> list[dict]:
-    candidates = [candidate for record in records if (candidate := _candidate_document(record))]
+    candidates = [
+        candidate for record in records if (candidate := _candidate_document(record))
+    ]
     return sorted(
         candidates,
         key=lambda item: (
@@ -340,9 +356,7 @@ def _profile_tool_error(exc: Exception) -> ToolError:
             f"expected={exc.expected_revision}, current={exc.current_revision}"
         )
     if isinstance(exc, ProfileDependencyConflict):
-        return ToolError(
-            "profile_dependency_conflict: " + ", ".join(exc.fields)
-        )
+        return ToolError("profile_dependency_conflict: " + ", ".join(exc.fields))
     if isinstance(exc, ProfileProposalRevisionConflict):
         return ToolError(
             "profile_proposal_revision_conflict: "
@@ -383,7 +397,9 @@ def _scratch_relative_path(project_id: uuid.UUID, path: Path) -> str:
 
 def _list_scratch_directory(project_id: uuid.UUID, path: Path) -> list[dict]:
     entries: list[dict] = []
-    for item in sorted(path.iterdir(), key=lambda entry: (not entry.is_dir(), entry.name.lower())):
+    for item in sorted(
+        path.iterdir(), key=lambda entry: (not entry.is_dir(), entry.name.lower())
+    ):
         rel_path = _scratch_relative_path(project_id, item)
         entries.append(
             {
@@ -420,7 +436,9 @@ def _draft_file_payload(draft) -> dict:
     }
 
 
-def _source_document_payload(document: SourceDocument, *, max_chars: int | None) -> dict:
+def _source_document_payload(
+    document: SourceDocument, *, max_chars: int | None
+) -> dict:
     default_limit = settings.whole_document_content_chars
     content_limit = max_chars if max_chars and max_chars > 0 else default_limit
     content_limit = min(content_limit, default_limit)
@@ -599,7 +617,9 @@ def _score_platform_result(
     source_type: str | None,
 ) -> float:
     score = base_score
-    wanted = {topic.strip().lower() for topic in requested_topics or [] if topic.strip()}
+    wanted = {
+        topic.strip().lower() for topic in requested_topics or [] if topic.strip()
+    }
     if wanted and wanted.intersection(topic.lower() for topic in topics):
         score += 0.05
     if mandatory_for:
@@ -669,7 +689,9 @@ async def _latest_report_payload(session, comparison_id: uuid.UUID) -> dict | No
         "html_path": latest.html_path,
         "pdf_path": latest.pdf_path,
         "approved_at": latest.approved_at.isoformat() if latest.approved_at else None,
-        "delivered_at": latest.delivered_at.isoformat() if latest.delivered_at else None,
+        "delivered_at": latest.delivered_at.isoformat()
+        if latest.delivered_at
+        else None,
     }
 
 
@@ -846,6 +868,172 @@ async def get_project_profile_options(project_id: str) -> dict:
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         return profile_options()
+
+
+def _decision_payload(row, set_revision: int) -> dict:
+    return {
+        "id": str(row.id),
+        "project_id": str(row.project_id),
+        "decision_id": row.decision_id,
+        "section": row.section,
+        "label": row.label,
+        "options": row.options,
+        "selected": row.selected,
+        "source": row.source,
+        "workflow_type": row.workflow_type,
+        "revision": row.revision,
+        "set_revision": set_revision,
+        "locked": row.locked,
+        "evidence_conflict": row.evidence_conflict,
+        "agent_suggestion": row.agent_suggestion,
+        "provenance": row.provenance,
+        "created_at": row.created_at.isoformat(),
+        "updated_at": row.updated_at.isoformat(),
+    }
+
+
+def _decision_tool_error(exc: Exception) -> ToolError:
+    if isinstance(exc, DecisionNotFound):
+        return ToolError("project decision not found")
+    if isinstance(exc, (DecisionRevisionConflict, DecisionSetRevisionConflict)):
+        return ToolError(f"project_decision_revision_conflict: {exc}")
+    if isinstance(exc, DecisionLockedConflict):
+        return ToolError(f"project_decision_locked: {exc}")
+    if isinstance(exc, DecisionValidationError):
+        return ToolError(f"invalid project decision: {exc}")
+    return ToolError(str(exc))
+
+
+@mcp.tool
+async def list_project_decisions(project_id: str) -> dict:
+    """List the revisioned Project Decisions for the active project."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            rows, set_revision = await read_project_decisions(session, project_id=pid)
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except DecisionNotFound as exc:
+            raise _decision_tool_error(exc) from exc
+        return {
+            "set_revision": set_revision,
+            "decisions": [_decision_payload(row, set_revision) for row in rows],
+        }
+
+
+@mcp.tool
+async def get_project_decision(project_id: str, decision_id: str) -> dict:
+    """Read one Project Decision, including lock, conflict, and revision state."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            row, set_revision = await read_project_decision(
+                session, project_id=pid, decision_id=decision_id
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except DecisionNotFound as exc:
+            raise _decision_tool_error(exc) from exc
+        return _decision_payload(row, set_revision)
+
+
+async def _mutate_project_decision(
+    *,
+    operation,
+    project_id: str,
+    decision_id: str,
+    expected_revision: int,
+    expected_set_revision: int,
+    selected: str | None = None,
+) -> dict:
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            kwargs = {
+                "project_id": pid,
+                "decision_id": decision_id,
+                "expected_revision": expected_revision,
+                "expected_set_revision": expected_set_revision,
+                "actor_source": "agent",
+            }
+            if selected is not None:
+                kwargs["selected"] = selected
+                kwargs["provenance"] = {"interface": "mcp"}
+            row, set_revision = await operation(session, **kwargs)
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except (
+            DecisionLockedConflict,
+            DecisionNotFound,
+            DecisionRevisionConflict,
+            DecisionSetRevisionConflict,
+            DecisionValidationError,
+        ) as exc:
+            raise _decision_tool_error(exc) from exc
+        return _decision_payload(row, set_revision)
+
+
+@mcp.tool
+async def update_project_decision(
+    project_id: str,
+    decision_id: str,
+    selected: str,
+    expected_revision: int,
+    expected_set_revision: int,
+) -> dict:
+    """Update a decision using optimistic decision and set revisions."""
+    return await _mutate_project_decision(
+        operation=persist_decision_update,
+        project_id=project_id,
+        decision_id=decision_id,
+        selected=selected,
+        expected_revision=expected_revision,
+        expected_set_revision=expected_set_revision,
+    )
+
+
+@mcp.tool
+async def lock_project_decision(
+    project_id: str,
+    decision_id: str,
+    expected_revision: int,
+    expected_set_revision: int,
+) -> dict:
+    """Lock a decision so generated evidence cannot overwrite its selection."""
+    return await _mutate_project_decision(
+        operation=persist_decision_lock,
+        project_id=project_id,
+        decision_id=decision_id,
+        expected_revision=expected_revision,
+        expected_set_revision=expected_set_revision,
+    )
+
+
+@mcp.tool
+async def unlock_project_decision(
+    project_id: str,
+    decision_id: str,
+    expected_revision: int,
+    expected_set_revision: int,
+) -> dict:
+    """Unlock a decision so later evidence can update its selection."""
+    return await _mutate_project_decision(
+        operation=persist_decision_unlock,
+        project_id=project_id,
+        decision_id=decision_id,
+        expected_revision=expected_revision,
+        expected_set_revision=expected_set_revision,
+    )
 
 
 @mcp.tool
@@ -1267,7 +1455,11 @@ async def list_project_files(
             records = await list_workspace_files_for_project(session, project_id=pid)
 
     query_text = query.strip().lower() if query and query.strip() else None
-    prefix = _tool_workspace_path(path_prefix) if path_prefix and path_prefix.strip() else None
+    prefix = (
+        _tool_workspace_path(path_prefix)
+        if path_prefix and path_prefix.strip()
+        else None
+    )
     if prefix == ".":
         prefix = None
     result_limit = max(1, min(max_results, 200))
@@ -1492,9 +1684,7 @@ async def draft_consultant_procurement_artifact(
                 max_pages=max_pages,
                 instructions=instructions,
             )
-            extra.update(
-                _consultant_procurement_status_metadata(result.source_trace)
-            )
+            extra.update(_consultant_procurement_status_metadata(result.source_trace))
             extra["workflowType"] = result.draft.workflow_type
             extra["draftId"] = str(result.draft.id)
             extra["projectId"] = str(pid)
@@ -1869,7 +2059,9 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
 
 
 @mcp.tool
-async def list_platform_knowledge(project_id: str, topics: list[str] | None = None) -> dict:
+async def list_platform_knowledge(
+    project_id: str, topics: list[str] | None = None
+) -> dict:
     """Catalog SiteWise platform knowledge (doctrine + seed guides) for this project.
 
     Applies the three-overlay gate: if the project has not declared archetype,
@@ -1956,9 +2148,7 @@ async def search_platform_knowledge(
             status, _gate = _project_overlay_gate(project)
             if not status.ready:
                 raise ToolError(
-                    format_overlay_failure(
-                        status, workflow="Platform knowledge search"
-                    )
+                    format_overlay_failure(status, workflow="Platform knowledge search")
                 )
 
             allowed_paths = _applicable_platform_paths_for_project(

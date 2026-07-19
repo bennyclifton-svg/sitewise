@@ -58,8 +58,12 @@ describe("DecisionControl", () => {
         selected: "design_construct",
         source: "user",
         workflow_type: "create_pmp",
+        revision: 2,
+        set_revision: 3,
+        locked: true,
         evidence_conflict: false,
         agent_suggestion: null,
+        provenance: { interface: "http" },
         created_at: "2026-07-05T00:00:00.000Z",
         updated_at: "2026-07-05T00:00:00.000Z",
       },
@@ -105,6 +109,8 @@ describe("DecisionControl", () => {
       "project-1",
       "procurement-route",
       "design_construct",
+      1,
+      1,
     );
     expect(screen.getByText("Your selection")).toBeInTheDocument();
   });
