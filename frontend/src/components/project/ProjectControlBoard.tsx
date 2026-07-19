@@ -172,11 +172,12 @@ function ProjectProfilePanel({
   onProjectUpdated?: (project: ProjectDetail) => void;
 }) {
   const taxonomyQuery = useTaxonomy();
-  const [profile, setProfile] = useState<TaxonomyPickerValue>(() =>
-    taxonomyValueFromProject(project),
-  );
-  const [userRole, setUserRole] = useState(project.user_role ?? "");
-  const [state, setState] = useState(project.state ?? "");
+  const serverForm = profileFormFromProject(project);
+  const serverRevision = project.profile_revision ?? 1;
+  const [draft, setDraft] = useState<ProfileFormValue | null>(null);
+  const [baseForm, setBaseForm] = useState<ProfileFormValue | null>(null);
+  const [editingRevision, setEditingRevision] = useState<number | null>(null);
+  const [conflictRevision, setConflictRevision] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -184,6 +185,59 @@ function ProjectProfilePanel({
     ...project.overlay_status.missing,
     ...project.overlay_status.invalid,
   ];
+  const form = draft ?? serverForm;
+
+  useEffect(() => {
+    if (
+      draft &&
+      editingRevision !== null &&
+      serverRevision > editingRevision &&
+      conflictRevision !== serverRevision
+    ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setConflictRevision(serverRevision);
+    }
+  }, [conflictRevision, draft, editingRevision, serverRevision]);
+
+  function updateDraft(next: ProfileFormValue) {
+    const baseline = baseForm ?? serverForm;
+    const changedFields = changedProfileFormFields(next, baseline);
+    setSaved(false);
+    setError(null);
+    if (changedFields.length === 0) {
+      setDraft(null);
+      setBaseForm(null);
+      setEditingRevision(null);
+      setConflictRevision(null);
+      return;
+    }
+    if (!baseForm) setBaseForm(baseline);
+    if (editingRevision === null) setEditingRevision(serverRevision);
+    setDraft(next);
+  }
+
+  function reloadLatestProfile() {
+    setDraft(null);
+    setBaseForm(null);
+    setEditingRevision(null);
+    setConflictRevision(null);
+    setError(null);
+    setSaved(false);
+  }
+
+  function keepEditing() {
+    if (!draft || !baseForm) return;
+    const changedFields = changedProfileFormFields(draft, baseForm);
+    const rebased = rebaseProfileForm(serverForm, draft, changedFields);
+    if (changedProfileFormFields(rebased, serverForm).length === 0) {
+      reloadLatestProfile();
+      return;
+    }
+    setDraft(rebased);
+    setBaseForm(serverForm);
+    setEditingRevision(serverRevision);
+    setConflictRevision(null);
+  }
 
   async function saveProfile() {
     if (saving || !onProjectUpdated) return;
@@ -192,10 +246,10 @@ function ProjectProfilePanel({
     setSaved(false);
     try {
       const updated = await api.updateProject(project.id, {
-        expected_revision: project.profile_revision ?? 1,
-        ...compactTaxonomyValue(profile),
-        user_role: userRole || null,
-        state: state || null,
+        expected_revision: editingRevision ?? serverRevision,
+        ...compactTaxonomyValue(form.profile),
+        user_role: form.userRole || null,
+        state: form.state || null,
       });
       onProjectUpdated({
         ...project,
@@ -217,6 +271,10 @@ function ProjectProfilePanel({
         overlay_status: updated.overlay_status,
         risk_flags: updated.risk_flags,
       });
+      setDraft(null);
+      setBaseForm(null);
+      setEditingRevision(null);
+      setConflictRevision(null);
       setSaved(true);
     } catch (saveError) {
       setError(
@@ -231,6 +289,25 @@ function ProjectProfilePanel({
 
   return (
     <div className="grid gap-4">
+      {conflictRevision !== null ? (
+        <div
+          className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+          role="alert"
+        >
+          <p className="font-medium">Project profile changed elsewhere.</p>
+          <p className="mt-1 text-xs">
+            Revision {conflictRevision} arrived while you had unsaved edits.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={reloadLatestProfile}>
+              Reload latest
+            </Button>
+            <Button type="button" size="sm" variant="secondary" onClick={keepEditing}>
+              Keep editing
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {overlayIssues.length ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
           <p className="font-medium">Project overlays are incomplete.</p>
@@ -256,8 +333,8 @@ function ProjectProfilePanel({
         <OverlaySelectField
           id={`project-role-${project.id}`}
           label="Your role"
-          value={userRole}
-          onChange={setUserRole}
+          value={form.userRole}
+          onChange={(userRole) => updateDraft({ ...form, userRole })}
           options={projectRoleOptions}
           placeholder="Select role"
           disabled={saving || !onProjectUpdated}
@@ -265,8 +342,8 @@ function ProjectProfilePanel({
         <OverlaySelectField
           id={`project-state-${project.id}`}
           label="State"
-          value={state}
-          onChange={setState}
+          value={form.state}
+          onChange={(state) => updateDraft({ ...form, state })}
           options={projectStateOptions.map((item) => ({ value: item, label: item }))}
           placeholder="Select state"
           disabled={saving || !onProjectUpdated}
@@ -274,8 +351,8 @@ function ProjectProfilePanel({
       </div>
       <TaxonomyPicker
         catalog={taxonomyQuery.data}
-        value={profile}
-        onChange={setProfile}
+        value={form.profile}
+        onChange={(profile) => updateDraft({ ...form, profile })}
         disabled={saving || !onProjectUpdated}
         idPrefix={`project-profile-${project.id}`}
       />
@@ -294,7 +371,7 @@ function ProjectProfilePanel({
           <Button
             type="button"
             onClick={() => void saveProfile()}
-            disabled={saving || !taxonomyQuery.data}
+            disabled={saving || !taxonomyQuery.data || conflictRevision !== null}
           >
             {saving ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -307,6 +384,101 @@ function ProjectProfilePanel({
       ) : null}
     </div>
   );
+}
+
+type ProfileFormValue = {
+  profile: TaxonomyPickerValue;
+  userRole: string;
+  state: string;
+};
+
+type ProfileFormField =
+  | keyof TaxonomyPickerValue
+  | "user_role"
+  | "state";
+
+const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
+  "building_class",
+  "work_type",
+  "subclasses",
+  "scale",
+  "complexity",
+  "work_scope",
+  "user_role",
+  "state",
+];
+
+function profileFormFromProject(project: ProjectDetail): ProfileFormValue {
+  return {
+    profile: taxonomyValueFromProject(project),
+    userRole: project.user_role ?? "",
+    state: project.state ?? "",
+  };
+}
+
+function changedProfileFormFields(
+  current: ProfileFormValue,
+  baseline: ProfileFormValue,
+): ProfileFormField[] {
+  return PROFILE_FORM_FIELDS.filter(
+    (field) => !profileFormFieldEqual(current, baseline, field),
+  );
+}
+
+function profileFormFieldEqual(
+  left: ProfileFormValue,
+  right: ProfileFormValue,
+  field: ProfileFormField,
+) {
+  return JSON.stringify(profileFormField(left, field)) ===
+    JSON.stringify(profileFormField(right, field));
+}
+
+function profileFormField(form: ProfileFormValue, field: ProfileFormField) {
+  if (field === "user_role") return form.userRole;
+  if (field === "state") return form.state;
+  return form.profile[field];
+}
+
+function rebaseProfileForm(
+  latest: ProfileFormValue,
+  draft: ProfileFormValue,
+  changedFields: ProfileFormField[],
+): ProfileFormValue {
+  const rebased: ProfileFormValue = {
+    profile: { ...latest.profile },
+    userRole: latest.userRole,
+    state: latest.state,
+  };
+  for (const field of changedFields) {
+    switch (field) {
+      case "user_role":
+        rebased.userRole = draft.userRole;
+        break;
+      case "state":
+        rebased.state = draft.state;
+        break;
+      case "building_class":
+        rebased.profile.building_class = draft.profile.building_class;
+        break;
+      case "work_type":
+        rebased.profile.work_type = draft.profile.work_type;
+        break;
+      case "subclasses":
+        rebased.profile.subclasses = draft.profile.subclasses;
+        break;
+      case "scale":
+        rebased.profile.scale = draft.profile.scale;
+        break;
+      case "complexity":
+        rebased.profile.complexity = draft.profile.complexity;
+        break;
+      case "work_scope":
+        rebased.profile.work_scope = draft.profile.work_scope;
+        break;
+    }
+  }
+  return rebased;
 }
 
 function OverlaySelectField({

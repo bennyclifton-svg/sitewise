@@ -370,10 +370,18 @@ capability, and durable-event contract.
     side effects. Validation: frontend 104 passed and production build passed;
     backend 1,153 passed, 6 skipped, 18 deselected; final focused frontend 9
     passed; TypeScript, ESLint, Ruff, and focused MCP profile tests passed.
-- [ ] **1.10B — Protect dirty profile forms**
+- [x] **1.10B — Protect dirty profile forms**
   - Dependencies: 1.10A.
   - Gate: incoming revisions never silently overwrite local edits; conflicts
     can be reviewed and resolved.
+  - Completed 2026-07-19 in `ProjectControlBoard`. Clean profile controls now
+    render directly from query-backed project state; local form state exists
+    only for unsaved edits and records its base revision. A newer revision
+    preserves the draft, blocks saving, and offers explicit Reload latest and
+    Keep editing actions. Keep editing rebases only fields changed by the user
+    onto the latest server values, preserving unrelated concurrent changes.
+    Validation: 5 focused component tests passed; full frontend suite 108
+    passed; TypeScript, ESLint, and production build passed.
 - [ ] **1.10C — Isolate chat failure from the project shell**
   - Dependencies: shared query boundaries.
   - Gate: project controls remain usable when chat bootstrap or streaming fails.
