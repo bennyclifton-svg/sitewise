@@ -12,12 +12,20 @@ from app.database.project import Project
 from app.database.session import get_db
 from app.main import fastapi_app as app
 from app.schemas.projects import EvidencePreview, PlatformKnowledgeStatus
+from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 DRAFT_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 EVIDENCE_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 NOW = datetime(2026, 6, 8, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def _capabilities() -> WorkflowCapabilityMatrix:
+    return WorkflowCapabilityMatrix(
+        snapshot_content_fingerprint="test-snapshot",
+        capabilities={},
+    )
 
 
 def _project() -> Project:
@@ -52,7 +60,11 @@ def client(mock_session: AsyncMock) -> TestClient:
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
-    with TestClient(app) as test_client:
+    with (
+        patch("app.api.projects.get_project_snapshot", new=AsyncMock(return_value=object())),
+        patch("app.api.projects.workflow_capabilities", return_value=_capabilities()),
+        TestClient(app) as test_client,
+    ):
         yield test_client
     app.dependency_overrides.clear()
 

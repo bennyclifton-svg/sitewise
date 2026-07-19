@@ -14,6 +14,7 @@ from pydantic import (
 from app.assistant.chat_models import InvalidChatModelError, resolve_chat_model
 from app.assistant.pmp_models import InvalidPmpModelError, resolve_pmp_model
 from app.sitewise.gate import OverlayStatus
+from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 
 
 def _validate_optional_chat_model(value: str | None) -> str | None:
@@ -341,6 +342,7 @@ class ProjectDetail(ProjectSummary):
     metadata: dict[str, Any] | None
     evidence_preview: EvidencePreview | None
     risk_flags: list[RiskFlag] = Field(default_factory=list)
+    workflow_capabilities: WorkflowCapabilityMatrix | None = None
 
 
 class WorkspaceTreeNode(BaseModel):

@@ -17,6 +17,11 @@ from app.database.projects import get_project, user_owns_project
 from app.database.session import get_db
 from app.database.users import ensure_user_exists
 from app.database.workspace_files import get_workspace_file_by_path
+from app.projects.snapshot import get_project_snapshot
+from app.projects.workflow_capabilities import (
+    TENDER_COMPARISON,
+    capability_block_message,
+)
 from app.storage.project_files import upload_project_file
 from tender.models import TenderComparison, TenderDocument, TenderQuote
 from tender.schemas import (
@@ -221,6 +226,22 @@ async def _require_project_owner(
     return project
 
 
+async def _require_tender_capability(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    snapshot = await get_project_snapshot(
+        session,
+        project_id=project_id,
+        owner_user_id=user_id,
+    )
+    message = capability_block_message(snapshot, TENDER_COMPARISON)
+    if message:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message)
+
+
 async def require_comparison_owner(
     session: AsyncSession,
     *,
@@ -279,6 +300,9 @@ async def post_comparison(
     await ensure_user_exists(session, user)
     await require_active_entitlement(session, user)
     await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
+    await _require_tender_capability(
+        session, project_id=body.project_id, user_id=user.id
+    )
     return await create_comparison(
         session,
         project_id=body.project_id,
@@ -300,6 +324,9 @@ async def post_comparison_from_project_files(
     await ensure_user_exists(session, user)
     await require_active_entitlement(session, user)
     await _require_project_owner(session, project_id=body.project_id, user_id=user.id)
+    await _require_tender_capability(
+        session, project_id=body.project_id, user_id=user.id
+    )
 
     comparison = await create_comparison(
         session,

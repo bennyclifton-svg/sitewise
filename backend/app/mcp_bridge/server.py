@@ -73,6 +73,11 @@ from app.projects.decisions import (
     update_project_decision as persist_decision_update,
 )
 from app.projects.snapshot import get_project_snapshot as read_project_snapshot
+from app.projects.workflow_capabilities import (
+    CONSULTANT_PROCUREMENT,
+    capability_block_message,
+    workflow_capabilities,
+)
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
 from app.retrieval.retriever import DocumentRetriever
@@ -890,6 +895,25 @@ async def get_project_snapshot(project_id: str) -> dict:
         return snapshot.model_dump(mode="json")
 
 
+@mcp.tool
+async def get_workflow_capabilities(project_id: str) -> dict:
+    """Return authoritative workflow support, missing inputs, and coverage limits."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        snapshot = await read_project_snapshot(
+            session,
+            project_id=pid,
+            owner_user_id=authorization.project.owner_user_id,
+        )
+        return workflow_capabilities(snapshot).model_dump(mode="json")
+
+
 def _decision_payload(row, set_revision: int) -> dict:
     return {
         "id": str(row.id),
@@ -1688,6 +1712,17 @@ async def draft_consultant_procurement_artifact(
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
+        snapshot = await read_project_snapshot(
+            session,
+            project_id=pid,
+            owner_user_id=authorization.project.owner_user_id,
+        )
+        capability_message = capability_block_message(
+            snapshot,
+            CONSULTANT_PROCUREMENT,
+        )
+        if capability_message:
+            raise ToolError(capability_message)
         turn_id = _turn_id(authorization)
         async with _tool_status(
             turn_id,

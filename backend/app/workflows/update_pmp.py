@@ -15,6 +15,7 @@ from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact, get_latest_draft_artifact
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.workflow_capabilities import UPDATE_PMP, capability_block_message
 from app.schemas.projects import CreatePmpResponse, DraftArtifactResponse, WorkflowTraceEvent
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
@@ -365,6 +366,24 @@ async def run_update_pmp_workflow(
             status="blocked",
         )
         return CreatePmpResponse(status="blocked", gate=gate, trace=trace, message=message)
+
+    capability_message = (
+        capability_block_message(snapshot, UPDATE_PMP) if snapshot is not None else None
+    )
+    if capability_message:
+        trace.append(_trace("capability", "blocked", capability_message))
+        await _persist_trace_message(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            thread_id=thread_id,
+            content=capability_message,
+            trace=trace,
+            status="blocked",
+        )
+        return CreatePmpResponse(
+            status="blocked", gate=gate, trace=trace, message=capability_message
+        )
 
     trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
     locked_decisions = await locked_selections(session, project_id=project.id)

@@ -98,6 +98,9 @@ def _install(
 ) -> tuple[Any, AsyncMock]:
     from app.mcp_bridge import server
 
+    monkeypatch.setattr(server, "read_project_snapshot", AsyncMock(return_value=object()))
+    monkeypatch.setattr(server, "capability_block_message", lambda *_args: None)
+
     monkeypatch.setattr(
         server,
         "authorize_project_mutation_with_claims",

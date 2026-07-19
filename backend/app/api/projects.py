@@ -103,8 +103,10 @@ from app.projects.decisions import (
     update_project_decision,
 )
 from app.projects.snapshot import ProjectSnapshotNotFound, get_project_snapshot
+from app.projects.workflow_capabilities import workflow_capabilities
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectSnapshot
+from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
@@ -567,6 +569,7 @@ def _project_detail_response(
     project,
     *,
     evidence_preview: EvidencePreview | None,
+    capabilities: WorkflowCapabilityMatrix | None = None,
 ) -> ProjectDetail:
     summary = _project_summary(project)
     return ProjectDetail(
@@ -574,6 +577,7 @@ def _project_detail_response(
         metadata=project.project_metadata,
         evidence_preview=evidence_preview,
         risk_flags=_risk_flags_for_project(project),
+        workflow_capabilities=capabilities,
     )
 
 
@@ -826,6 +830,23 @@ async def get_project_snapshot_view(
         raise HTTPException(status_code=404, detail="Project not found") from exc
 
 
+@router.get("/{project_id}/workflow-capabilities")
+async def get_project_workflow_capabilities(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowCapabilityMatrix:
+    try:
+        snapshot = await get_project_snapshot(
+            session,
+            project_id=project_id,
+            owner_user_id=user.id,
+        )
+    except ProjectSnapshotNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    return workflow_capabilities(snapshot)
+
+
 @router.get("/{project_id}")
 async def get_project_detail(
     project_id: uuid.UUID,
@@ -833,9 +854,13 @@ async def get_project_detail(
     session: AsyncSession = Depends(get_db),
 ) -> ProjectDetail:
     project = _require_project_owner(await get_project(session, project_id), user.id)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
     return _project_detail_response(
         project,
         evidence_preview=await _first_evidence_preview(session, project.id),
+        capabilities=workflow_capabilities(snapshot),
     )
 
 
@@ -928,6 +953,12 @@ async def get_project_cockpit_bootstrap(
     step_start = time.perf_counter()
     platform_knowledge = await _platform_knowledge_status(session)
     timings_ms["platform_knowledge"] = _elapsed_ms(step_start)
+    step_start = time.perf_counter()
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
+    capabilities = workflow_capabilities(snapshot)
+    timings_ms["workflow_capabilities"] = _elapsed_ms(step_start)
     timings_ms["total"] = _elapsed_ms(total_start)
 
     log.info(
@@ -940,6 +971,7 @@ async def get_project_cockpit_bootstrap(
         project=_project_detail_response(
             project,
             evidence_preview=evidence[0] if evidence else None,
+            capabilities=capabilities,
         ),
         projects=[_project_summary(item) for item in projects],
         evidence=evidence,

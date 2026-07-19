@@ -24,6 +24,7 @@ from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.workflow_capabilities import CREATE_PMP, capability_block_message
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.storage.project_files import upload_project_file
@@ -1261,6 +1262,24 @@ async def run_create_pmp_workflow(
             status="blocked",
         )
         return CreatePmpResponse(status="blocked", gate=gate, trace=trace, message=message)
+
+    capability_message = (
+        capability_block_message(snapshot, CREATE_PMP) if snapshot is not None else None
+    )
+    if capability_message:
+        trace.append(_trace("capability", "blocked", capability_message))
+        await _persist_trace_message(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            thread_id=thread_id,
+            content=capability_message,
+            trace=trace,
+            status="blocked",
+        )
+        return CreatePmpResponse(
+            status="blocked", gate=gate, trace=trace, message=capability_message
+        )
 
     trace.append(_trace("gate", "passed", "SiteWise three-overlay gate passed."))
     locked_decisions = await locked_selections(session, project_id=project.id)

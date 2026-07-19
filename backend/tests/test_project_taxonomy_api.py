@@ -14,10 +14,18 @@ from app.projects.profile import (
     ProfileRevisionConflict,
     ProfileValidationError,
 )
+from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 NOW = datetime(2026, 7, 5, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def _capabilities() -> WorkflowCapabilityMatrix:
+    return WorkflowCapabilityMatrix(
+        snapshot_content_fingerprint="test-snapshot",
+        capabilities={},
+    )
 
 
 @pytest.fixture
@@ -34,7 +42,11 @@ def client(mock_session: AsyncMock) -> TestClient:
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
-    with TestClient(app) as test_client:
+    with (
+        patch("app.api.projects.get_project_snapshot", new=AsyncMock(return_value=object())),
+        patch("app.api.projects.workflow_capabilities", return_value=_capabilities()),
+        TestClient(app) as test_client,
+    ):
         yield test_client
     app.dependency_overrides.clear()
 

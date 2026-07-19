@@ -341,10 +341,21 @@ capability, and durable-event contract.
     share the reader, agent turn context embeds its version/fingerprint, and
     manual PMP/Cost Plan starts persist the same snapshot provenance. Focused
     and adjacent regression verification: 247 passed, 4 skipped; Ruff passed.
-- [ ] **1.9 — Publish the workflow capability matrix**
+- [x] **1.9 — Publish the workflow capability matrix**
   - Dependencies: 1.8.
   - Gate: UI and agent share identical readiness/unsupported results and no
     missing reference capability is filled with general model knowledge.
+  - Completed 2026-07-19 in `app.projects.workflow_capabilities` and
+    `app.schemas.workflow_capabilities`. The snapshot-fingerprinted matrix
+    publishes deterministic `supported`, `needs_input`, and `unsupported`
+    results with reasons and required fields for Project Plan, Cost Plan,
+    Tender Comparison, and consultant procurement. HTTP/bootstrap, MCP,
+    Hermes context, lifecycle tiles, and workflow starts consume the same
+    result; Tender and consultant adapters reject unsupported work before any
+    mutation or enqueue. Coverage is explicit for Class 1a Tender work and NSW
+    residential architect-PM Cost Plans. Validation: full backend suite 1,153
+    passed, 6 skipped, 18 deselected; focused frontend test passed; TypeScript,
+    ESLint, Ruff, and `git diff --check` passed.
 - [ ] **1.10A — Reconcile project queries and events**
   - Dependencies: 1.4 and relevant query contracts.
   - Gate: immediate responses and durable cursor replay keep all project

@@ -42,6 +42,7 @@ def client(mock_session: AsyncMock) -> TestClient:
     app.dependency_overrides[get_current_user] = lambda: current_user
     with (
         patch("tender.router.require_active_entitlement", new=AsyncMock()),
+        patch("tender.router._require_tender_capability", new=AsyncMock()),
         TestClient(app) as test_client,
     ):
         yield test_client

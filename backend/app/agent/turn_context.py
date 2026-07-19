@@ -15,6 +15,7 @@ from typing import Any
 from app.config import settings
 from app.agent.mutation_intent import MutationIntent
 from app.schemas.project_snapshot import ProjectSnapshot
+from app.projects.workflow_capabilities import workflow_capabilities
 from app.sitewise.taxonomy import scale_fields_for, subclasses_for
 
 _NOT_DECLARED = "(not declared)"
@@ -71,6 +72,8 @@ Ground every answer in project evidence and platform knowledge:
   never mutate the profile directly from evidence.
 - Use get_project_snapshot when a workflow or answer needs the shared profile,
   decision locks, confirmed inputs, evidence health, and open proposals together.
+- Use get_workflow_capabilities before advertising or starting a workflow. Never
+  use general model knowledge to override needs_input or unsupported capability.
 - For construction-management guidance, consult SiteWise platform knowledge
   before general model knowledge: list_platform_knowledge,
   search_platform_knowledge, read_platform_knowledge.
@@ -147,6 +150,15 @@ def build_agent_prompt(
 
 
 def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
+    capability_matrix = workflow_capabilities(snapshot)
+    capability_lines = [
+        (
+            f"workflow.{name}={capability.status}; "
+            f"required_fields={','.join(capability.required_fields) or '(none)'}; "
+            f"reasons={' | '.join(capability.reasons)}"
+        )
+        for name, capability in sorted(capability_matrix.capabilities.items())
+    ]
     decision_lines = [
         (
             f"{decision.decision_id}={decision.selected} "
@@ -167,6 +179,7 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         f"active_evidence_count: {snapshot.evidence.active_count}",
         f"ingest_failure_count: {snapshot.evidence.ingest_failure_count}",
         f"open_profile_proposals: {len(snapshot.open_profile_proposals)}",
+        *capability_lines,
         *input_lines,
         *decision_lines,
         "</project-snapshot>",

@@ -203,6 +203,20 @@ export type ProjectDetail = ProjectSummary & {
   metadata: ProjectMetadata | null;
   evidence_preview: EvidencePreview | null;
   risk_flags: RiskFlag[];
+  workflow_capabilities?: WorkflowCapabilityMatrix | null;
+};
+
+export type WorkflowCapability = {
+  status: "supported" | "needs_input" | "unsupported";
+  reasons: string[];
+  required_fields: string[];
+};
+
+export type WorkflowCapabilityMatrix = {
+  schema_version: 1;
+  snapshot_schema_version: 1;
+  snapshot_content_fingerprint: string;
+  capabilities: Record<string, WorkflowCapability>;
 };
 
 export type WorkspaceTreeNode = {

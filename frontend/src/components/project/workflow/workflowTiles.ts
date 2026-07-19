@@ -37,6 +37,8 @@ export function buildLifecycleTiles({
   isRunningWorkflow: boolean;
   isRunningCostPlan: boolean;
 }): WorkflowTile[] {
+  const capabilities = project.workflow_capabilities?.capabilities;
+  const tenderCapability = capabilities?.tender_comparison;
   const createPmpStatus = getCreatePmpStatus({
     project,
     latestDraft,
@@ -89,8 +91,9 @@ export function buildLifecycleTiles({
       label: "Tender Comparison",
       folder: "05-procurement",
       icon: BriefcaseBusiness,
-      status: "ready",
-      statusLabel: "Ready",
+      status: tenderCapability && tenderCapability.status !== "supported" ? "blocked" : "ready",
+      statusLabel:
+        tenderCapability && tenderCapability.status !== "supported" ? "Blocked" : "Ready",
       description:
         "Create tender comparisons, review QA, inspect the matrix, and approve reports.",
       implemented: true,
@@ -111,6 +114,10 @@ function getCreatePmpStatus({
 }): { status: WorkflowStatus; label: string } {
   if (isRunningWorkflow) return { status: "running", label: "Running" };
   if (workflowError) return { status: "failed", label: "Failed" };
+  const capability = project.workflow_capabilities?.capabilities.create_pmp;
+  if (capability && capability.status !== "supported") {
+    return { status: "blocked", label: "Blocked" };
+  }
   if (!project.overlay_status.ready) return { status: "blocked", label: "Blocked" };
   if (latestDraft) return { status: "draft", label: `Draft v${latestDraft.version}` };
   return { status: "ready", label: "Ready" };
@@ -129,6 +136,10 @@ function getCreateCostPlanStatus({
 }): { status: WorkflowStatus; label: string } {
   if (isRunningWorkflow) return { status: "running", label: "Running" };
   if (workflowError) return { status: "failed", label: "Failed" };
+  const capability = project.workflow_capabilities?.capabilities.create_cost_plan;
+  if (capability && capability.status !== "supported") {
+    return { status: "blocked", label: "Blocked" };
+  }
   if (!project.overlay_status.ready) return { status: "blocked", label: "Blocked" };
   if (latestDraft) return { status: "draft", label: `Draft v${latestDraft.version}` };
   return { status: "ready", label: "Ready" };
