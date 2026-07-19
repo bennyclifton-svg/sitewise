@@ -4,9 +4,17 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef } from "react";
 
 import { api } from "@/lib/api";
-import type { EvidencePreview, WorkspaceTreeNode } from "@/lib/types/project";
+import { projectActivityKeys } from "@/lib/queries/project-activity";
+import type { ResourceEvent } from "@/lib/chat-events";
+import type {
+  EvidencePreview,
+  ProjectDetail,
+  ProjectEvent,
+  WorkspaceTreeNode,
+} from "@/lib/types/project";
 
 /**
  * Centralised query keys for project-scoped data. Keeping them in one place
@@ -14,6 +22,7 @@ import type { EvidencePreview, WorkspaceTreeNode } from "@/lib/types/project";
  */
 export const projectKeys = {
   root: (projectId: string) => ["project", projectId] as const,
+  detail: (projectId: string) => ["project", projectId, "detail"] as const,
   evidence: (projectId: string) => ["project", projectId, "evidence"] as const,
   workspaceTree: (projectId: string) =>
     ["project", projectId, "workspace-tree"] as const,
@@ -22,6 +31,15 @@ export const projectKeys = {
 const PROJECT_DATA_STALE_MS = 60_000;
 
 type QueryToggle = { enabled?: boolean };
+
+export function useProjectDetail(projectId: string, options?: QueryToggle) {
+  return useQuery({
+    queryKey: projectKeys.detail(projectId),
+    queryFn: () => api.getProject(projectId),
+    staleTime: PROJECT_DATA_STALE_MS,
+    enabled: options?.enabled ?? true,
+  });
+}
 
 export function useProjectEvidence(projectId: string, options?: QueryToggle) {
   return useQuery({
@@ -105,11 +123,158 @@ export async function reloadProjectWorkspaceTree(
 export function seedProjectData(
   queryClient: QueryClient,
   projectId: string,
-  data: { evidence: EvidencePreview[]; workspaceTree: WorkspaceTreeNode[] },
+  data: {
+    project: ProjectDetail;
+    evidence: EvidencePreview[];
+    workspaceTree: WorkspaceTreeNode[];
+  },
 ) {
+  queryClient.setQueryData(projectKeys.detail(projectId), data.project);
   queryClient.setQueryData(projectKeys.evidence(projectId), data.evidence);
   queryClient.setQueryData(
     projectKeys.workspaceTree(projectId),
     data.workspaceTree,
   );
+}
+
+export function setProjectDetail(
+  queryClient: QueryClient,
+  project: ProjectDetail,
+) {
+  queryClient.setQueryData(projectKeys.detail(project.id), project);
+}
+
+type ProjectResourceSignal = Pick<ResourceEvent, "projectId" | "resourceType">;
+
+export function applyProjectResourceSignal(
+  queryClient: QueryClient,
+  signal: ProjectResourceSignal,
+) {
+  const keys = invalidationKeys(signal.projectId, signal.resourceType);
+  for (const queryKey of keys) {
+    void queryClient.invalidateQueries({ queryKey, exact: true });
+  }
+}
+
+export function useProjectEventCursor({
+  projectId,
+  enabled,
+  active,
+}: {
+  projectId: string;
+  enabled: boolean;
+  active: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const cursorRef = useRef(0);
+  const seenIdsRef = useRef(new Set<string>());
+  const pollRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    cursorRef.current = 0;
+    seenIdsRef.current.clear();
+  }, [projectId]);
+
+  const applyResource = useCallback(
+    (resource: ResourceEvent) => {
+      if (resource.projectId !== projectId) return;
+      applyProjectResourceSignal(queryClient, resource);
+    },
+    [projectId, queryClient],
+  );
+
+  useEffect(() => {
+    if (!enabled || !projectId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+
+    const schedule = (delay: number) => {
+      if (cancelled || document.visibilityState === "hidden") return;
+      timer = setTimeout(poll, delay);
+    };
+    const poll = async () => {
+      if (cancelled || inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      try {
+        const response = await api.getProjectEvents(projectId, cursorRef.current);
+        for (const event of response.events) {
+          if (
+            event.sequence <= cursorRef.current ||
+            seenIdsRef.current.has(event.id)
+          ) {
+            continue;
+          }
+          seenIdsRef.current.add(event.id);
+          applyDurableProjectEvent(queryClient, event);
+        }
+        cursorRef.current = Math.max(cursorRef.current, response.next_after);
+        schedule(response.events.length >= 100 ? 0 : active ? 250 : 1_500);
+      } catch {
+        schedule(active ? 500 : 1_500);
+      } finally {
+        inFlight = false;
+      }
+    };
+    pollRef.current = () => void poll();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void poll();
+      else if (timer) clearTimeout(timer);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    void poll();
+    return () => {
+      cancelled = true;
+      pollRef.current = null;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [active, enabled, projectId, queryClient]);
+
+  return {
+    applyResource,
+    pollNow: () => pollRef.current?.(),
+  };
+}
+
+export function applyDurableProjectEvent(
+  queryClient: QueryClient,
+  event: ProjectEvent,
+) {
+  applyProjectResourceSignal(queryClient, {
+    projectId: event.project_id,
+    resourceType: event.resource_type,
+  });
+  const changedResources =
+    event.payload.changedResources ?? event.payload.changed_resources;
+  if (Array.isArray(changedResources)) {
+    for (const resourceType of changedResources) {
+      if (typeof resourceType === "string") {
+        applyProjectResourceSignal(queryClient, {
+          projectId: event.project_id,
+          resourceType,
+        });
+      }
+    }
+  }
+}
+
+function invalidationKeys(projectId: string, resourceType: string) {
+  switch (resourceType) {
+    case "project_profile":
+    case "project_profile_proposal":
+    case "project_decision":
+      return [projectKeys.detail(projectId)];
+    case "source_document":
+    case "project_evidence":
+      return [projectKeys.evidence(projectId), projectKeys.workspaceTree(projectId)];
+    case "workspace_file":
+    case "draft_artifact":
+      return [projectKeys.workspaceTree(projectId), projectActivityKeys.root(projectId)];
+    case "workflow_run":
+    case "tender_job":
+      return [projectActivityKeys.root(projectId)];
+    default:
+      return [];
+  }
 }

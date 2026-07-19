@@ -138,6 +138,8 @@ def test_direct_update_uses_bound_scope_and_refreshes_next_prompt(monkeypatch) -
     project = _project()
     session = _Session(project)
     server, _, mutation = _install(monkeypatch, session)
+    publish = AsyncMock()
+    monkeypatch.setattr(server.agent_turn_status_bus, "publish", publish)
     changes = {
         "building_class": "residential",
         "work_type": "refurb",
@@ -164,6 +166,17 @@ def test_direct_update_uses_bound_scope_and_refreshes_next_prompt(monkeypatch) -
     assert mutation.await_args.kwargs["required_scope"] == "profile_mutation"
     assert mutation.await_args.kwargs["requested_profile_patch"] == changes
     assert session.committed is True
+    assert publish.await_args.kwargs == {
+        "kind": "resource",
+        "message": "Updated project profile",
+        "projectId": str(PROJECT_ID),
+        "resourceType": "project_profile",
+        "resourceId": str(PROJECT_ID),
+        "action": "updated",
+        "revision": 2,
+        "changedFields": ["building_class", "work_type", "user_role", "state"],
+        "clearedFields": [],
+    }
     prompt = build_agent_prompt(
         "What is the current setup?",
         project_id=str(project.id),

@@ -356,10 +356,20 @@ capability, and durable-event contract.
     residential architect-PM Cost Plans. Validation: full backend suite 1,153
     passed, 6 skipped, 18 deselected; focused frontend test passed; TypeScript,
     ESLint, Ruff, and `git diff --check` passed.
-- [ ] **1.10A — Reconcile project queries and events**
+- [x] **1.10A — Reconcile project queries and events**
   - Dependencies: 1.4 and relevant query contracts.
   - Gate: immediate responses and durable cursor replay keep all project
     surfaces current without full-page refresh.
+  - Completed 2026-07-19. Project detail/profile now uses one exact TanStack
+    Query key seeded by cockpit bootstrap and updated immediately by manual HTTP
+    responses. Hermes profile commits publish same-turn resource parts that
+    invalidate that key, while the durable project-event cursor deduplicates by
+    ID/sequence and targets only detail, evidence, workspace, or activity data.
+    Polling runs at 250 ms during active work and 1.5 s while idle, pauses while
+    hidden, resumes immediately on visibility, and replays without duplicate UI
+    side effects. Validation: frontend 104 passed and production build passed;
+    backend 1,153 passed, 6 skipped, 18 deselected; final focused frontend 9
+    passed; TypeScript, ESLint, Ruff, and focused MCP profile tests passed.
 - [ ] **1.10B — Protect dirty profile forms**
   - Dependencies: 1.10A.
   - Gate: incoming revisions never silently overwrite local edits; conflicts

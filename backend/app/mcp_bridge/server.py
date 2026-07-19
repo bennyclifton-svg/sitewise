@@ -1126,6 +1126,18 @@ async def update_project_profile(
                 actor_source="agent",
             )
             await session.commit()
+            await agent_turn_status_bus.publish(
+                _turn_id(authorization),
+                kind="resource",
+                message="Updated project profile",
+                projectId=str(pid),
+                resourceType="project_profile",
+                resourceId=str(pid),
+                action="updated",
+                revision=change.new_revision,
+                changedFields=list(change.changed_fields),
+                clearedFields=list(change.cleared_fields),
+            )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         except (

@@ -185,6 +185,26 @@ export type ProjectProfileChange = {
   risk_flags: RiskFlag[];
 };
 
+export type ProjectEvent = {
+  id: string;
+  sequence: number;
+  schema_version: number;
+  project_id: string;
+  actor_source: string;
+  resource_type: string;
+  resource_id: string;
+  resource_revision: number | null;
+  action: string;
+  payload: Record<string, unknown>;
+  deduplication_key: string | null;
+  created_at: string;
+};
+
+export type ProjectEventListResponse = {
+  events: ProjectEvent[];
+  next_after: number;
+};
+
 export type EvidencePreview = {
   id: string;
   title: string;

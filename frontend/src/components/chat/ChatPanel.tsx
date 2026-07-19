@@ -31,8 +31,10 @@ import {
 import { getAccessToken } from "@/lib/auth";
 import {
   artefactsFromMessage,
+  resourceFromPart,
   toolStatusesFromMessage,
   type ArtefactEvent,
+  type ResourceEvent,
   type ToolStatusEvent,
 } from "@/lib/chat-events";
 import {
@@ -53,6 +55,7 @@ type ChatPanelProps = {
   threadId: string;
   initialMessages: ChatMessage[];
   onConversationUpdate?: () => void;
+  onResourceEvent?: (event: ResourceEvent) => void;
   onUserSubmit?: () => void;
   layout?: "page" | "rail" | "main";
   collapsed?: boolean;
@@ -71,6 +74,7 @@ export function ChatPanel({
   threadId,
   initialMessages,
   onConversationUpdate,
+  onResourceEvent,
   onUserSubmit,
   layout = "page",
   collapsed = false,
@@ -175,6 +179,8 @@ export function ChatPanel({
     messages: toUiMessages(initialMessages),
     transport,
     onData: (part) => {
+      const resource = resourceFromPart(part);
+      if (resource) onResourceEvent?.(resource);
       if (
         part.type === "data-clerk-status" &&
         typeof part.data === "object" &&

@@ -49,6 +49,7 @@ import type {
   ProjectDetail,
   ProjectDecision,
   ProjectDecisionListResponse,
+  ProjectEventListResponse,
   ProjectProfileChange,
   ProjectSummary,
   TaxonomyCatalog,
@@ -263,6 +264,15 @@ export const api = {
 
   getProject: async (projectId: string): Promise<ProjectDetail> =>
     api.get<ProjectDetail>(`/projects/${projectId}`),
+
+  getProjectEvents: async (
+    projectId: string,
+    after: number,
+    limit = 100,
+  ): Promise<ProjectEventListResponse> =>
+    api.get<ProjectEventListResponse>(
+      `/projects/${projectId}/events?after=${after}&limit=${limit}`,
+    ),
 
   getTaxonomy: async (): Promise<TaxonomyCatalog> =>
     api.get<TaxonomyCatalog>("/projects/taxonomy"),

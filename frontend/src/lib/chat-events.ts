@@ -28,6 +28,17 @@ export type ArtefactEvent = {
   projectId?: string;
 };
 
+export type ResourceEvent = {
+  kind: "resource";
+  projectId: string;
+  resourceType: string;
+  resourceId: string;
+  action: string;
+  revision?: number;
+  changedFields: string[];
+  clearedFields: string[];
+};
+
 function isRecord(value: unknown): value is RecordLike {
   return typeof value === "object" && value !== null;
 }
@@ -83,6 +94,29 @@ export function artefactFromPart(part: MessagePart): ArtefactEvent | null {
   };
 }
 
+export function resourceFromPart(part: MessagePart): ResourceEvent | null {
+  const data = clerkStatusData(part);
+  if (!data || data.kind !== "resource") return null;
+  if (
+    typeof data.projectId !== "string" ||
+    typeof data.resourceType !== "string" ||
+    typeof data.resourceId !== "string" ||
+    typeof data.action !== "string"
+  ) {
+    return null;
+  }
+  return {
+    kind: "resource",
+    projectId: data.projectId,
+    resourceType: data.resourceType,
+    resourceId: data.resourceId,
+    action: data.action,
+    revision: typeof data.revision === "number" ? data.revision : undefined,
+    changedFields: stringArray(data.changedFields),
+    clearedFields: stringArray(data.clearedFields),
+  };
+}
+
 export function toolStatusesFromMessage(message: UIMessage): ToolStatusEvent[] {
   return message.parts
     .map((part) => toolStatusFromPart(part))
@@ -93,4 +127,10 @@ export function artefactsFromMessage(message: UIMessage): ArtefactEvent[] {
   return message.parts
     .map((part) => artefactFromPart(part))
     .filter((event): event is ArtefactEvent => event !== null);
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }

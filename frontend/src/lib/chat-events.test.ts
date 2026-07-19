@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
 
-import { toolStatusFromPart } from "@/lib/chat-events";
+import { resourceFromPart, toolStatusFromPart } from "@/lib/chat-events";
 
 type MessagePart = UIMessage["parts"][number];
 
@@ -78,6 +78,35 @@ describe("toolStatusFromPart", () => {
       message: "Read platform knowledge",
       knowledgePath: "seed/nsw/residential-refurb.md",
       sectionIds: ["brief", "budget"],
+    });
+  });
+});
+
+describe("resourceFromPart", () => {
+  it("parses a project resource acknowledgement for exact cache updates", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "resource",
+        projectId: "project-1",
+        resourceType: "project_profile",
+        resourceId: "project-1",
+        action: "updated",
+        revision: 4,
+        changedFields: ["state"],
+        clearedFields: [],
+      },
+    } as MessagePart;
+
+    expect(resourceFromPart(part)).toEqual({
+      kind: "resource",
+      projectId: "project-1",
+      resourceType: "project_profile",
+      resourceId: "project-1",
+      action: "updated",
+      revision: 4,
+      changedFields: ["state"],
+      clearedFields: [],
     });
   });
 });

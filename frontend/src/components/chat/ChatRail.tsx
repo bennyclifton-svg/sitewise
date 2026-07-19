@@ -1,6 +1,7 @@
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
+import type { ResourceEvent } from "@/lib/chat-events";
 import { cn } from "@/lib/utils";
 
 type ChatRailProps = {
@@ -12,6 +13,7 @@ type ChatRailProps = {
   selectedCitationId: string | null;
   onCrossProjectChange: (value: boolean) => void;
   onConversationUpdate: () => void;
+  onResourceEvent?: (event: ResourceEvent) => void;
   onUserSubmit?: () => void;
   onSelectCitation: (citation: Citation | null) => void;
   layout?: "rail" | "main";
@@ -28,6 +30,7 @@ export function ChatRail({
   selectedCitationId,
   onCrossProjectChange,
   onConversationUpdate,
+  onResourceEvent,
   onUserSubmit,
   onSelectCitation,
   layout = "rail",
@@ -57,6 +60,7 @@ export function ChatRail({
             threadId={thread.id}
             initialMessages={messages}
             onConversationUpdate={onConversationUpdate}
+            onResourceEvent={onResourceEvent}
             onUserSubmit={onUserSubmit}
             layout={layout === "main" ? "main" : "rail"}
             collapsed={collapsed}

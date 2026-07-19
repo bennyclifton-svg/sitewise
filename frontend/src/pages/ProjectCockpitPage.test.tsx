@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   },
   reloadProjectWorkspaceTree: vi.fn(),
   seedProjectData: vi.fn(),
+  setProjectDetail: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -35,6 +36,9 @@ vi.mock("@/lib/queries/project-data", () => ({
   },
   reloadProjectWorkspaceTree: mocks.reloadProjectWorkspaceTree,
   seedProjectData: mocks.seedProjectData,
+  setProjectDetail: mocks.setProjectDetail,
+  useProjectDetail: () => ({ data: project }),
+  useProjectEventCursor: () => ({ applyResource: vi.fn(), pollNow: vi.fn() }),
   useProjectEvidence: () => ({ data: [] }),
   useProjectWorkspaceTree: () => ({ data: [] }),
 }));

@@ -22,7 +22,10 @@ import {
   projectKeys,
   reloadProjectWorkspaceTree,
   seedProjectData,
+  setProjectDetail,
+  useProjectDetail,
   useProjectEvidence,
+  useProjectEventCursor,
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
@@ -63,7 +66,9 @@ export function ProjectCockpitPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [bootstrapLoaded, setBootstrapLoaded] = useState(false);
-  const [project, setProject] = useState<ProjectDetail | null>(null);
+  const { data: project = null } = useProjectDetail(projectId ?? "", {
+    enabled: bootstrapLoaded && !!projectId,
+  });
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("create-pmp");
@@ -111,6 +116,14 @@ export function ProjectCockpitPage() {
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [isRunningCostPlan, setIsRunningCostPlan] = useState(false);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
+  const projectEvents = useProjectEventCursor({
+    projectId: projectId ?? "",
+    enabled: bootstrapLoaded && !!projectId,
+    active:
+      isRunningWorkflow ||
+      isRunningCostPlan ||
+      isRunningSortFiles,
+  });
 
   useEffect(() => {
     if (!projectId) return;
@@ -128,9 +141,9 @@ export function ProjectCockpitPage() {
       try {
         const data = await api.getProjectCockpitBootstrap(id);
         if (cancelled) return;
-        setProject(data.project);
         setProjects(data.projects);
         seedProjectData(queryClient, id, {
+          project: data.project,
           evidence: data.evidence,
           workspaceTree: data.workspace_tree.tree,
         });
@@ -194,9 +207,10 @@ export function ProjectCockpitPage() {
     );
   }, [workspaceTree]);
 
+  const activeProjectId = project?.id;
   useEffect(() => {
-    if (!project) return;
-    const currentProject = project;
+    if (!activeProjectId) return;
+    const id = activeProjectId;
     let cancelled = false;
 
     async function ensureProjectThread() {
@@ -204,8 +218,8 @@ export function ProjectCockpitPage() {
       try {
         const threads = await api.listThreads();
         const existingThread =
-          threads.find((candidate) => candidate.project_id === currentProject.id) ??
-          (await api.createProjectThread(currentProject.id));
+          threads.find((candidate) => candidate.project_id === id) ??
+          (await api.createProjectThread(id));
         const loadedMessages = await api.getThreadMessages(existingThread.id);
         if (cancelled) return;
         setThread(existingThread);
@@ -224,7 +238,7 @@ export function ProjectCockpitPage() {
     return () => {
       cancelled = true;
     };
-  }, [project]);
+  }, [activeProjectId]);
 
   async function refreshEvidence() {
     if (!projectId) return;
@@ -672,7 +686,11 @@ export function ProjectCockpitPage() {
           crossProject={crossProject}
           selectedCitationId={selectedCitationId}
           onCrossProjectChange={setCrossProject}
-          onConversationUpdate={() => void refreshMessages()}
+          onConversationUpdate={() => {
+            void refreshMessages();
+            projectEvents.pollNow();
+          }}
+          onResourceEvent={projectEvents.applyResource}
           onUserSubmit={promoteChatFromComposer}
           onSelectCitation={handleSelectCitation}
         />
@@ -745,7 +763,11 @@ export function ProjectCockpitPage() {
           sortFilesError={sortFilesError}
           isRunningSortFiles={isRunningSortFiles}
           onProjectUpdated={(updatedProject) => {
-            setProject(updatedProject);
+            setProjectDetail(queryClient, updatedProject);
+            void queryClient.invalidateQueries({
+              queryKey: projectKeys.detail(updatedProject.id),
+              exact: true,
+            });
             setProjects((current) =>
               current.map((item) =>
                 item.id === updatedProject.id ? updatedProject : item,
