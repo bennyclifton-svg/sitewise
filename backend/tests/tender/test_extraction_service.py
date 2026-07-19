@@ -122,6 +122,9 @@ class FakeLLMClient:
         )
 
 
+_LINE_SEQ = 0
+
+
 def _line(
     description: str,
     *,
@@ -129,12 +132,20 @@ def _line(
     amount_cents: int,
     confidence: float = 0.95,
 ) -> dict[str, Any]:
+    global _LINE_SEQ
+    _LINE_SEQ += 1
+    dollars = amount_cents / 100
+    printed = f"${dollars:,.2f}"
     return {
         "page_no": page_no,
         "description_raw": description,
         "amount_cents": amount_cents,
         "item_status": "included",
         "extraction_confidence": confidence,
+        "figure_key": f"p{page_no}-{_LINE_SEQ}",
+        "role": "contract_component",
+        "gst_basis": "inc",
+        "printed_text": printed,
     }
 
 

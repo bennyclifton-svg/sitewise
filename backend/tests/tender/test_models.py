@@ -8,6 +8,7 @@ EXPECTED_TABLES = {
     "tender_documents",
     "tender_pages",
     "tender_line_items",
+    "tender_quote_reconciliations",
     # taxonomy & knowledge
     "taxonomy_cells",
     "taxonomy_synonyms",
@@ -111,3 +112,25 @@ def test_taxonomy_synonym_embedding_is_1536_vector() -> None:
     assert isinstance(column.type, Vector)
     assert column.type.dim == 1536
     assert column.nullable
+
+
+def test_line_item_ledger_columns_registered() -> None:
+    table = Base.metadata.tables["tender_line_items"]
+    for name in (
+        "parent_id",
+        "role",
+        "is_rollup",
+        "duplicate_of_id",
+        "gst_basis",
+        "amount_ex_gst_cents",
+        "counted_in_total",
+        "figure_key",
+    ):
+        assert name in table.columns
+
+
+def test_quote_reconciliation_unique_on_quote() -> None:
+    assert ("quote_id",) in _unique_constraint_columns("tender_quote_reconciliations")
+    assert _foreign_key_targets("tender_quote_reconciliations", "quote_id") == {
+        "tender_quotes.id"
+    }

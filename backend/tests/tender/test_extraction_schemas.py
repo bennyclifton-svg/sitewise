@@ -28,6 +28,10 @@ def test_extraction_output_normalizes_currency_text_to_integer_cents() -> None:
                     "item_status": "pc_allowance",
                     "allowance_cents": "$12,345.67",
                     "extraction_confidence": 0.91,
+                    "figure_key": "p1-1",
+                    "role": "pc_allowance",
+                    "gst_basis": "inc",
+                    "printed_text": "$12,345.67",
                 }
             ],
             "page_subtotals": [
@@ -57,6 +61,44 @@ def test_line_item_confidence_is_bounded() -> None:
                 "description_raw": "Bad confidence",
                 "item_status": "included",
                 "extraction_confidence": 1.1,
+                "figure_key": "p1-1",
+                "role": "contract_component",
+                "printed_text": "$0.00",
+            }
+        )
+
+
+def test_extracted_line_item_accepts_figure_tree_fields() -> None:
+    item = ExtractedLineItem.model_validate(
+        {
+            "page_no": 10,
+            "description_raw": "Demolition",
+            "amount_cents": 15912320,
+            "figure_key": "p10-t1-r3",
+            "parent_figure_key": None,
+            "role": "contract_component",
+            "gst_basis": "inc",
+            "is_rollup": True,
+            "duplicate_of_figure_key": None,
+            "printed_text": "$159,123.20",
+        }
+    )
+    assert item.figure_key == "p10-t1-r3"
+    assert item.role == "contract_component"
+    assert item.is_rollup is True
+    assert item.printed_text == "$159,123.20"
+    assert item.item_status is None
+
+
+def test_extracted_line_item_rejects_bogus_role() -> None:
+    with pytest.raises(ValidationError):
+        ExtractedLineItem.model_validate(
+            {
+                "page_no": 1,
+                "description_raw": "Bad role",
+                "figure_key": "p1-1",
+                "role": "bogus",
+                "printed_text": "$100.00",
             }
         )
 

@@ -55,14 +55,19 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 
 ## MASTER TODO LIST
 
-- [ ] **Phase 0** — Branch, plan commit, pytest guard rails
-- [ ] **Phase 1** — Migration 029 (ledger columns + reconciliation table) + model/schema updates
+- [x] **Phase 0** — Branch, plan commit, pytest guard rails
+- [ ] **Phase 1** — Migration **034** (ledger columns + reconciliation table) + model/schema updates
 - [ ] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel`
 - [ ] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
-- [ ] **Phase 4** — Migrations 030/031 + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
+- [ ] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
 - [ ] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
 - [ ] **Phase 6** — Expectations/silence/benchmarks via anchor cells
 - [ ] **Phase 7** — Report overhaul + golden fixtures/eval gates + E2E MERRICK acceptance
+
+> **Migration renumber (2026-07-19):** Stages 3–6 already claimed `029`–`033` on
+> `main`. This plan’s former `029`/`030`/`031` are implemented as
+> `034_tender_ledger_completeness`, then `035`/`036` for project trades.
+> `down_revision` for Phase 1 is `033_remove_unused_hermes_session`.
 
 Each phase = one PR. Do not start a phase until the previous phase's "Definition of done" checks pass.
 

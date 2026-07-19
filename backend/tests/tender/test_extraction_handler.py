@@ -92,6 +92,10 @@ class _StubLLM:
                         "item_status": "included",
                         "amount_cents": 4_500_000,
                         "extraction_confidence": 0.95,
+                        "figure_key": "p1-1",
+                        "role": "contract_component",
+                        "gst_basis": "inc",
+                        "printed_text": "$45,000.00",
                     }
                 ],
                 "page_subtotals": [],

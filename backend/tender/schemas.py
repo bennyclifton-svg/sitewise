@@ -401,9 +401,26 @@ class ExtractedLineItem(BaseModel):
     unit: str | None = None
     rate_cents: int | None = None
     amount_cents: int | None = None
-    item_status: Literal["included", "excluded", "pc_allowance", "ps_allowance", "note"]
+    # Legacy status kept optional; role is the v0.2.0 source of truth (I1/I2).
+    item_status: (
+        Literal["included", "excluded", "pc_allowance", "ps_allowance", "note"] | None
+    ) = None
     allowance_cents: int | None = None
-    extraction_confidence: float = Field(ge=0, le=1)
+    extraction_confidence: float = Field(default=0.5, ge=0, le=1)
+    figure_key: str
+    parent_figure_key: str | None = None
+    role: Literal[
+        "contract_component",
+        "pc_allowance",
+        "ps_allowance",
+        "optional_upgrade",
+        "informational",
+        "excluded",
+    ]
+    gst_basis: Literal["inc", "ex", "unknown"] = "unknown"
+    is_rollup: bool = False
+    duplicate_of_figure_key: str | None = None
+    printed_text: str
 
     @field_validator("rate_cents", "amount_cents", "allowance_cents", mode="before")
     @classmethod

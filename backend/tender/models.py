@@ -77,6 +77,24 @@ INGEST_STATUSES = (
     "failed",
 )
 LINE_ITEM_STATUSES = ("included", "excluded", "pc_allowance", "ps_allowance", "note")
+LINE_ITEM_ROLES = (
+    "contract_component",
+    "pc_allowance",
+    "ps_allowance",
+    "optional_upgrade",
+    "informational",
+    "excluded",
+)
+GST_BASES = ("inc", "ex", "unknown")
+RECONCILIATION_STATUSES = ("reconciled", "residual", "not_stated", "non_comparable")
+ROLE_TO_ITEM_STATUS = {
+    "contract_component": "included",
+    "pc_allowance": "pc_allowance",
+    "ps_allowance": "ps_allowance",
+    "optional_upgrade": "note",
+    "informational": "note",
+    "excluded": "excluded",
+}
 TAXONOMY_STAGES = (
     "prelim",
     "base",
@@ -112,6 +130,9 @@ FLAG_TYPES = (
     "exclusion_risk",
     "statutory_missing",
     "arithmetic_inconsistency",
+    "unreconciled_residual",
+    "non_comparable_basis",
+    "suspect_number_format",
 )
 FLAG_SEVERITIES = ("info", "caution", "warning")
 FLAG_QA_STATES = ("needs_review", "confirmed", "suppressed")
@@ -198,6 +219,9 @@ class TenderQuote(Base):
 
     comparison: Mapped["TenderComparison"] = relationship(back_populates="quotes")
     documents: Mapped[list["TenderDocument"]] = relationship(back_populates="quote")
+    reconciliation: Mapped["TenderQuoteReconciliation | None"] = relationship(
+        back_populates="quote", uselist=False
+    )
 
     __table_args__ = (
         _values_check("stated_total_source", STATED_TOTAL_SOURCES, "tender_quotes"),
@@ -319,14 +343,80 @@ class TenderLineItem(Base):
     allowance_cents: Mapped[int | None] = mapped_column(BigInteger)
     extraction_confidence: Mapped[float | None] = mapped_column(Numeric)
     embedding = mapped_column(Vector(1536), nullable=True)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_line_items.id", ondelete="CASCADE"),
+    )
+    role: Mapped[str | None] = mapped_column(String(32))
+    is_rollup: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    duplicate_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_line_items.id", ondelete="SET NULL"),
+    )
+    gst_basis: Mapped[str | None] = mapped_column(String(8))
+    amount_ex_gst_cents: Mapped[int | None] = mapped_column(BigInteger)
+    counted_in_total: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    figure_key: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     __table_args__ = (
         _values_check("item_status", LINE_ITEM_STATUSES, "tender_line_items"),
+        _values_check("role", LINE_ITEM_ROLES, "tender_line_items"),
+        _values_check("gst_basis", GST_BASES, "tender_line_items"),
         Index("ix_tender_line_items_quote_id", "quote_id"),
         Index("ix_tender_line_items_document_id", "document_id"),
+        Index("ix_tender_line_items_quote_parent", "quote_id", "parent_id"),
+    )
+
+
+class TenderQuoteReconciliation(Base):
+    __tablename__ = "tender_quote_reconciliations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    quote_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_quotes.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    comparison_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_comparisons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stated_total_cents: Mapped[int | None] = mapped_column(BigInteger)
+    stated_basis: Mapped[str | None] = mapped_column(String(8))
+    gst_line_cents: Mapped[int | None] = mapped_column(BigInteger)
+    counted_total_cents: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    computed_ex_gst_cents: Mapped[int | None] = mapped_column(BigInteger)
+    residual_cents: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    checks: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    uncaptured: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    quote: Mapped["TenderQuote"] = relationship(back_populates="reconciliation")
+    comparison: Mapped["TenderComparison"] = relationship()
+
+    __table_args__ = (
+        _values_check("stated_basis", GST_BASES, "tender_quote_reconciliations"),
+        _values_check("status", RECONCILIATION_STATUSES, "tender_quote_reconciliations"),
     )
 
 
