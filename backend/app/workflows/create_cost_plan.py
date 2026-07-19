@@ -27,6 +27,7 @@ from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
 from app.schemas.projects import CreateCostPlanResponse, DraftArtifactResponse, WorkflowTraceEvent
+from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.cost_plan_brief import (
     build_greenfield_brief,
     greenfield_markers_missing,
@@ -987,10 +988,21 @@ async def run_create_cost_plan_workflow(
     project: Project,
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
+    snapshot: ProjectSnapshot | None = None,
 ) -> CreateCostPlanResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
     resolved_model = resolve_chat_model(chat_model)
+    if snapshot is not None:
+        trace.append(
+            _trace(
+                "project_snapshot",
+                "complete",
+                "Loaded deterministic Project Snapshot v1.",
+                schema_version=snapshot.schema_version,
+                content_fingerprint=snapshot.content_fingerprint,
+            )
+        )
 
     gate = overlay_status(
         archetype=project.archetype,
@@ -1219,6 +1231,14 @@ async def run_create_cost_plan_workflow(
     provenance_metadata = {
         "draft_mode": draft_mode,
         "compiler": "hybrid" if use_hybrid else "legacy",
+        "project_snapshot": (
+            {
+                "schema_version": snapshot.schema_version,
+                "content_fingerprint": snapshot.content_fingerprint,
+            }
+            if snapshot is not None
+            else None
+        ),
         "seed_consulted": output.seed_consulted,
         "evidence_refs": output.evidence_refs,
         "context_refs": output.context_refs,

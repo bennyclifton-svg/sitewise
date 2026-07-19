@@ -67,6 +67,22 @@ def _thread(
     )
 
 
+def _snapshot():
+    return SimpleNamespace(
+        schema_version=1,
+        content_fingerprint="snapshot-fingerprint",
+        profile=SimpleNamespace(profile_revision=1),
+        decisions=SimpleNamespace(set_revision=1, items=[]),
+        evidence=SimpleNamespace(
+            fingerprint="evidence-fingerprint",
+            active_count=0,
+            ingest_failure_count=0,
+        ),
+        confirmed_inputs={},
+        open_profile_proposals=[],
+    )
+
+
 class _SessionContext:
     def __init__(self, session) -> None:
         self.session = session
@@ -99,6 +115,11 @@ def client(mock_session: AsyncMock, monkeypatch: pytest.MonkeyPatch) -> TestClie
         yield mock_session
 
     monkeypatch.setattr(settings, "agent_runtime_enabled", True)
+    monkeypatch.setattr(
+        chat_api,
+        "get_project_snapshot",
+        AsyncMock(return_value=_snapshot()),
+    )
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
     with TestClient(app) as test_client:
@@ -348,10 +369,20 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "Do not inspect repository files, run shell commands, or query the database directly\n"
         "to answer questions about uploaded source documents.\n"
         "Only use OCR or document-conversion skills when these tools report text is unavailable,\n"
-        "or when the ingested text is clearly garbled or insufficient for the user's question.\n"
-        "</document-access>\n"
-        "\n"
-        "<recent-conversation>\n"
+            "or when the ingested text is clearly garbled or insufficient for the user's question.\n"
+            "</document-access>\n"
+            "\n"
+            '<project-snapshot schema-version="1">\n'
+            "content_fingerprint: snapshot-fingerprint\n"
+            "profile_revision: 1\n"
+            "decision_set_revision: 1\n"
+            "evidence_fingerprint: evidence-fingerprint\n"
+            "active_evidence_count: 0\n"
+            "ingest_failure_count: 0\n"
+            "open_profile_proposals: 0\n"
+            "</project-snapshot>\n"
+            "\n"
+            "<recent-conversation>\n"
         "user: What quotes do we have?\n"
         "assistant: Three structural quotes are on file.\n"
         "</recent-conversation>\n"

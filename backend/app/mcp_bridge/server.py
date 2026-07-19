@@ -72,6 +72,7 @@ from app.projects.decisions import (
     unlock_project_decision as persist_decision_unlock,
     update_project_decision as persist_decision_update,
 )
+from app.projects.snapshot import get_project_snapshot as read_project_snapshot
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
 from app.retrieval.retriever import DocumentRetriever
@@ -868,6 +869,25 @@ async def get_project_profile_options(project_id: str) -> dict:
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         return profile_options()
+
+
+@mcp.tool
+async def get_project_snapshot(project_id: str) -> dict:
+    """Read the deterministic Project Snapshot shared by agent and manual workflows."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        snapshot = await read_project_snapshot(
+            session,
+            project_id=pid,
+            owner_user_id=authorization.project.owner_user_id,
+        )
+        return snapshot.model_dump(mode="json")
 
 
 def _decision_payload(row, set_revision: int) -> dict:

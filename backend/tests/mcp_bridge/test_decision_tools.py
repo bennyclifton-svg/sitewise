@@ -102,3 +102,36 @@ def test_decision_read_and_update_tools_share_revision_contract(monkeypatch) -> 
     assert update.await_args.kwargs["expected_revision"] == 3
     assert update.await_args.kwargs["expected_set_revision"] == 7
     assert session.committed is True
+
+
+def test_snapshot_tool_returns_shared_snapshot_version(monkeypatch) -> None:
+    from app.mcp_bridge import server
+
+    session = _Session()
+    owner_user_id = uuid.uuid4()
+    authorization = SimpleNamespace(
+        project=SimpleNamespace(id=PROJECT_ID, owner_user_id=owner_user_id),
+        claims=SimpleNamespace(user_id=owner_user_id, turn_id=uuid.uuid4()),
+    )
+    monkeypatch.setattr(server, "get_session_factory", lambda: lambda: session)
+    monkeypatch.setattr(server, "get_http_headers", lambda **_kwargs: {})
+    monkeypatch.setattr(
+        server,
+        "authorize_project_access_with_claims",
+        AsyncMock(return_value=authorization),
+    )
+    read = AsyncMock(
+        return_value=SimpleNamespace(
+            model_dump=lambda **_kwargs: {
+                "schema_version": 1,
+                "content_fingerprint": "snapshot-fingerprint",
+            }
+        )
+    )
+    monkeypatch.setattr(server, "read_project_snapshot", read)
+
+    result = _call(server, "get_project_snapshot", {"project_id": str(PROJECT_ID)})
+
+    assert result["schema_version"] == 1
+    assert result["content_fingerprint"] == "snapshot-fingerprint"
+    assert read.await_args.kwargs["owner_user_id"] == owner_user_id

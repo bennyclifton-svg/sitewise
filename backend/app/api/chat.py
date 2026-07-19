@@ -25,6 +25,7 @@ from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
+from app.projects.snapshot import get_project_snapshot
 from app.agent.mutation_intent import classify_mutation_intent
 from app.agent.workspace_instructions import ensure_workspace_instructions
 from app.agent.workspace_paths import project_workspace_root
@@ -452,6 +453,11 @@ async def post_agent_stream(
     # holds prior turns only; the current message travels as the prompt body.
     prior_messages = await list_messages(session, thread.id)
     mutation_intent = classify_mutation_intent(user_text)
+    snapshot = await get_project_snapshot(
+        session,
+        project_id=project.id,
+        owner_user_id=user.id,
+    )
     agent_prompt = build_agent_prompt(
         user_text,
         project_id=str(thread.project_id),
@@ -468,6 +474,7 @@ async def post_agent_stream(
             for message in prior_messages
         ],
         mutation_intent=mutation_intent,
+        snapshot=snapshot,
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     model_override = resolve_hermes_model_override(body.agent_model)

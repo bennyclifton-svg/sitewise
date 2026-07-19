@@ -46,6 +46,8 @@ conventions, they are for software agents — ignore them.
      request for fee proposal for a consultant discipline.
    - get_project_profile / get_project_profile_options - read confirmed project
      setup and discover valid profile values.
+   - get_project_snapshot - read the shared snapshot version, profile,
+     decision locks, confirmed inputs, evidence health, and open proposals.
    - update_project_profile - apply only the exact values in an explicit current
      user command; the server will reject unbound changes.
    - propose_project_profile_change - persist document-derived, hedged, or

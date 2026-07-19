@@ -327,10 +327,20 @@ capability, and durable-event contract.
     renders the same revisions returned by HTTP/MCP. Focused backend gate and
     regression verification: 145 passed; affected frontend type-check and 5
     render tests passed; Ruff and the single-head Alembic graph passed.
-- [ ] **1.8 — Build the minimal deterministic Project Snapshot**
+- [x] **1.8 — Build the minimal deterministic Project Snapshot**
   - Dependencies: 1.2, 1.7; UUID evidence reads.
   - Gate: one deterministic snapshot composes profile, decisions, evidence, and
     selection metadata without importing TCM internals.
+  - Completed 2026-07-19 in `app.projects.snapshot` and
+    `app.schemas.project_snapshot`. Snapshot v1 composes tenant-scoped project
+    identity and setup inputs, revisioned profile and locked decisions, bounded
+    evidence/failure summaries, explicit non-persisted selection state, and
+    pending profile proposals without importing TCM. Stable SHA-256 content and
+    evidence fingerprints exclude generation time; missing setup remains
+    `needs_input`, and bounded collections expose completeness. HTTP and MCP
+    share the reader, agent turn context embeds its version/fingerprint, and
+    manual PMP/Cost Plan starts persist the same snapshot provenance. Focused
+    and adjacent regression verification: 247 passed, 4 skipped; Ruff passed.
 - [ ] **1.9 — Publish the workflow capability matrix**
   - Dependencies: 1.8.
   - Gate: UI and agent share identical readiness/unsupported results and no

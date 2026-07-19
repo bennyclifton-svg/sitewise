@@ -14,6 +14,7 @@ from typing import Any
 
 from app.config import settings
 from app.agent.mutation_intent import MutationIntent
+from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.taxonomy import scale_fields_for, subclasses_for
 
 _NOT_DECLARED = "(not declared)"
@@ -68,6 +69,8 @@ Ground every answer in project evidence and platform knowledge:
   values in an explicit user set/change/update/save command. Document-derived,
   quoted, hedged, or inferred facts must use propose_project_profile_change;
   never mutate the profile directly from evidence.
+- Use get_project_snapshot when a workflow or answer needs the shared profile,
+  decision locks, confirmed inputs, evidence health, and open proposals together.
 - For construction-management guidance, consult SiteWise platform knowledge
   before general model knowledge: list_platform_knowledge,
   search_platform_knowledge, read_platform_knowledge.
@@ -100,6 +103,7 @@ def build_agent_prompt(
     history: list[HistoryMessage],
     project_metadata: dict | None = None,
     mutation_intent: MutationIntent | None = None,
+    snapshot: ProjectSnapshot | None = None,
 ) -> str:
     """Wrap the user's message with the agent role, project overlays, and history.
 
@@ -123,6 +127,8 @@ def build_agent_prompt(
         )
     )
     blocks.append(_DOCUMENT_ACCESS_GUIDANCE)
+    if snapshot is not None:
+        blocks.append(_snapshot_context_block(snapshot))
 
     if mutation_intent is not None and (
         mutation_intent.scopes or mutation_intent.requires_confirmation
@@ -138,6 +144,34 @@ def build_agent_prompt(
 
     blocks.append(user_text)
     return "\n\n".join(blocks)
+
+
+def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
+    decision_lines = [
+        (
+            f"{decision.decision_id}={decision.selected} "
+            f"(revision={decision.revision}, locked={str(decision.locked).lower()})"
+        )
+        for decision in snapshot.decisions.items[:50]
+    ]
+    input_lines = [
+        f"{key}={value.value if value.status == 'confirmed' else _NOT_DECLARED}"
+        for key, value in sorted(snapshot.confirmed_inputs.items())
+    ]
+    lines = [
+        '<project-snapshot schema-version="1">',
+        f"content_fingerprint: {snapshot.content_fingerprint}",
+        f"profile_revision: {snapshot.profile.profile_revision}",
+        f"decision_set_revision: {snapshot.decisions.set_revision}",
+        f"evidence_fingerprint: {snapshot.evidence.fingerprint}",
+        f"active_evidence_count: {snapshot.evidence.active_count}",
+        f"ingest_failure_count: {snapshot.evidence.ingest_failure_count}",
+        f"open_profile_proposals: {len(snapshot.open_profile_proposals)}",
+        *input_lines,
+        *decision_lines,
+        "</project-snapshot>",
+    ]
+    return "\n".join(lines)
 
 
 def _mutation_policy_block(intent: MutationIntent) -> str:

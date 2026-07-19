@@ -16,6 +16,7 @@ from app.database.draft_artifacts import create_draft_artifact, get_latest_draft
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.schemas.projects import CreatePmpResponse, DraftArtifactResponse, WorkflowTraceEvent
+from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.pmp_evidence_validation import (
     evidence_grounded_violations,
@@ -315,12 +316,23 @@ async def run_update_pmp_workflow(
     project: Project,
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
+    snapshot: ProjectSnapshot | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
     model_spec = resolve_pmp_model(chat_model)
     resolved_model = model_spec.execution_id
     model_metadata = pmp_model_metadata(model_spec)
+    if snapshot is not None:
+        trace.append(
+            _trace(
+                "project_snapshot",
+                "complete",
+                "Loaded deterministic Project Snapshot v1.",
+                schema_version=snapshot.schema_version,
+                content_fingerprint=snapshot.content_fingerprint,
+            )
+        )
     trace.append(
         _trace(
             "model_config",
@@ -712,6 +724,14 @@ async def run_update_pmp_workflow(
             "model_source": model_spec.source,
             "model_execution_provider": model_spec.execution_provider,
             "model_execution_id": model_spec.execution_id,
+            "project_snapshot": (
+                {
+                    "schema_version": snapshot.schema_version,
+                    "content_fingerprint": snapshot.content_fingerprint,
+                }
+                if snapshot is not None
+                else None
+            ),
             "based_on_draft_id": str(baseline.id),
             "based_on_version": baseline.version,
             "evidence_delta_count": len(delta_passages),

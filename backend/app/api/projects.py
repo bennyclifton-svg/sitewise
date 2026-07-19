@@ -102,7 +102,9 @@ from app.projects.decisions import (
     sync_decisions_from_markdown,
     update_project_decision,
 )
+from app.projects.snapshot import ProjectSnapshotNotFound, get_project_snapshot
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
+from app.schemas.project_snapshot import ProjectSnapshot
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
@@ -176,7 +178,7 @@ def _project_summary(project) -> ProjectSummary:
             "work_type": project.work_type,
             "user_role": project.user_role,
             "state": project.state,
-            "profile_revision": getattr(project, "profile_revision", 1),
+            "profile_revision": getattr(project, "profile_revision", None) or 1,
             "status": project.status,
             "overlay_status": project_overlay_summary(project),
             "updated_at": project.updated_at,
@@ -808,6 +810,22 @@ async def get_project_events(
     )
 
 
+@router.get("/{project_id}/snapshot")
+async def get_project_snapshot_view(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectSnapshot:
+    try:
+        return await get_project_snapshot(
+            session,
+            project_id=project_id,
+            owner_user_id=user.id,
+        )
+    except ProjectSnapshotNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
 @router.get("/{project_id}")
 async def get_project_detail(
     project_id: uuid.UUID,
@@ -1395,12 +1413,16 @@ async def post_create_pmp(
 ) -> CreatePmpResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
     result = await run_create_pmp_workflow(
         session,
         user_id=user.id,
         project=project,
         thread_id=body.thread_id,
         chat_model=body.chat_model,
+        snapshot=snapshot,
     )
     return result
 
@@ -1414,12 +1436,16 @@ async def post_create_cost_plan(
 ) -> CreateCostPlanResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
     result = await run_create_cost_plan_workflow(
         session,
         user_id=user.id,
         project=project,
         thread_id=body.thread_id,
         chat_model=body.chat_model,
+        snapshot=snapshot,
     )
     return result
 
@@ -1433,12 +1459,16 @@ async def post_update_pmp(
 ) -> CreatePmpResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
     result = await run_update_pmp_workflow(
         session,
         user_id=user.id,
         project=project,
         thread_id=body.thread_id,
         chat_model=body.chat_model,
+        snapshot=snapshot,
     )
     return result
 
