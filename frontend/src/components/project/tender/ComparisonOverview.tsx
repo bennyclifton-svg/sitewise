@@ -255,18 +255,11 @@ export function ComparisonOverview({
                 {progress.qa_pending} finding{progress.qa_pending === 1 ? "" : "s"} need
                 your review before the report can be built.
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                <Button asChild size="sm" variant="outline">
-                  <Link to={`/projects/${projectId}/tender/${comparison.id}/matrix`}>
-                    Review in matrix
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="ghost">
-                  <Link to={`/projects/${projectId}/tender/${comparison.id}/qa`}>
-                    QA console
-                  </Link>
-                </Button>
-              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link to={`/projects/${projectId}/tender/${comparison.id}/matrix`}>
+                  Review in matrix
+                </Link>
+              </Button>
             </div>
           ) : null}
         </section>
@@ -406,20 +399,14 @@ export function ComparisonOverview({
           <p className="cockpit-zone-title">Review surfaces</p>
           <div className="mt-3 grid gap-2">
             <Button asChild variant="outline" className="justify-start">
-              <Link to={`/projects/${projectId}/tender/${comparison.id}/qa`}>
-                <FileText className="size-4" aria-hidden />
-                QA console
+              <Link to={`/projects/${projectId}/tender/${comparison.id}/matrix`}>
+                <Table2 className="size-4" aria-hidden />
+                Matrix and QA
                 {progress && progress.qa_pending > 0 ? (
                   <Badge variant="secondary" className="ml-auto">
                     {progress.qa_pending}
                   </Badge>
                 ) : null}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="justify-start">
-              <Link to={`/projects/${projectId}/tender/${comparison.id}/matrix`}>
-                <Table2 className="size-4" aria-hidden />
-                Matrix
               </Link>
             </Button>
             <Button asChild variant="outline" className="justify-start">

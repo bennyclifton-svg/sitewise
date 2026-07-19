@@ -42,6 +42,7 @@ class ExtractionResult:
     line_items: tuple[ReconciledLineItem, ...]
     flags: tuple[ExtractionFlag, ...]
     llm: LLMExtractionResponse
+    quote_total_cents: int | None = None
 
 
 async def extract_line_items(
@@ -120,6 +121,7 @@ def materialize_extraction(
         line_items=reconciled,
         flags=tuple(flags),
         llm=llm_response,
+        quote_total_cents=structured.quote_total_cents,
     )
 
 

@@ -137,6 +137,71 @@ def test_build_matrix_includes_multi_candidate_mapping_choices() -> None:
     ]
 
 
+def test_build_matrix_computes_totals_with_reconciliation() -> None:
+    other_quote_id = uuid.UUID("55555555-5555-5555-5555-555555555555")
+    session = FakeMatrixSession(
+        status_rows=[
+            FakeRow(
+                quote_id=QUOTE_ID,
+                cell_code="03.05",
+                status="included",
+                amount_cents=90_000_00,
+                cell_name="Retaining walls",
+                group_name="Site works",
+                sort_order=1,
+            ),
+            FakeRow(
+                quote_id=QUOTE_ID,
+                cell_code="18.01",
+                status="pc",
+                amount_cents=10_000_00,
+                cell_name="Cooktop",
+                group_name="Appliances",
+                sort_order=2,
+            ),
+            FakeRow(
+                quote_id=QUOTE_ID,
+                cell_code="03.01",
+                status="excluded_explicit",
+                amount_cents=5_000_00,
+                cell_name="Site costs",
+                group_name="Site works",
+                sort_order=3,
+            ),
+        ],
+        flag_rows=[],
+        mapping_rows=[],
+        quote_rows=[
+            FakeRow(
+                id=QUOTE_ID,
+                stated_total_cents=100_000_00,
+                stated_total_source="extracted",
+            ),
+            FakeRow(
+                id=other_quote_id,
+                stated_total_cents=None,
+                stated_total_source=None,
+            ),
+        ],
+    )
+
+    response = run_async(matrix.build_matrix(session, comparison_id=COMPARISON_ID))
+
+    assert [str(total.quote_id) for total in response.totals] == [
+        str(QUOTE_ID),
+        str(other_quote_id),
+    ]
+    first = response.totals[0]
+    assert first.computed_total_cents == 100_000_00
+    assert first.stated_total_cents == 100_000_00
+    assert first.stated_total_source == "extracted"
+    assert first.reconciliation == "match"
+    assert first.delta_cents == 0
+    second = response.totals[1]
+    assert second.computed_total_cents == 0
+    assert second.reconciliation == "not_stated"
+
+
 def test_taxonomy_endpoints_return_cells_and_search_results(client: TestClient) -> None:
     cell = TaxonomyCellView(
         code="03.05",
@@ -195,11 +260,13 @@ class FakeMatrixSession:
         status_rows: list[FakeRow],
         flag_rows: list[FakeRow],
         mapping_rows: list[FakeRow],
+        quote_rows: list[FakeRow] | None = None,
     ) -> None:
         self.results = [
             FakeResult(status_rows),
             FakeResult(flag_rows),
             FakeResult(mapping_rows),
+            FakeResult(quote_rows or []),
         ]
 
     async def execute(self, statement: Any) -> "FakeResult":

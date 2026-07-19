@@ -36,6 +36,7 @@ MIGRATION_CHAIN = [
     "021_source_document_uuid_expand",
     "022_source_doc_uuid_contract",
     "023_agent_turns",
+    "024_tender_quote_total_source",
 ]
 TENDER_REVISIONS = [
     "007_tender_core",
@@ -47,6 +48,7 @@ TENDER_REVISIONS = [
     "013_tender_analysis_results",
     "015_tender_telemetry_events",
     "020_tender_extract_cache",
+    "024_tender_quote_total_source",
 ]
 DESTRUCTIVE_OPT_IN = "ALLOW_DESTRUCTIVE_TEST_DATABASE"
 

@@ -2,13 +2,12 @@ import { Navigate, useLocation, useOutletContext, useParams } from "react-router
 
 import { ComparisonList } from "@/components/project/tender/ComparisonList";
 import { ComparisonOverview } from "@/components/project/tender/ComparisonOverview";
-import { QaConsole } from "@/components/project/tender/QaConsole";
 import { TenderMatrix } from "@/components/project/tender/TenderMatrix";
 import { TenderReportPanel } from "@/components/project/tender/TenderReportPanel";
 import { TenderRouteFrame } from "@/components/project/tender/TenderRouteFrame";
 import type { ProjectCockpitOutletContext } from "@/pages/ProjectCockpitPage";
 
-type TenderRouteView = "list" | "overview" | "qa" | "matrix" | "report";
+type TenderRouteView = "list" | "overview" | "matrix" | "report";
 
 /**
  * Renders the tender comparison cockpit inside the project shell's middle
@@ -31,6 +30,15 @@ export function TenderCockpitPage() {
   if (view !== "list" && !comparisonId) {
     return <Navigate to={`/projects/${projectId}/tender`} replace />;
   }
+  // QA now lives inline in the matrix; old links land there.
+  if (location.pathname.endsWith("/qa") && comparisonId) {
+    return (
+      <Navigate
+        to={`/projects/${projectId}/tender/${comparisonId}/matrix`}
+        replace
+      />
+    );
+  }
 
   return (
     <TenderRouteFrame
@@ -47,7 +55,6 @@ export function TenderCockpitPage() {
       {view === "overview" && comparisonId ? (
         <ComparisonOverview projectId={projectId} comparisonId={comparisonId} />
       ) : null}
-      {view === "qa" && comparisonId ? <QaConsole comparisonId={comparisonId} /> : null}
       {view === "matrix" && comparisonId ? (
         <TenderMatrix projectId={projectId} comparisonId={comparisonId} />
       ) : null}
@@ -59,7 +66,7 @@ export function TenderCockpitPage() {
 }
 
 function routeView(pathname: string): TenderRouteView {
-  if (pathname.endsWith("/qa")) return "qa";
+  if (pathname.endsWith("/qa")) return "matrix";
   if (pathname.endsWith("/matrix")) return "matrix";
   if (pathname.endsWith("/report")) return "report";
   if (/\/tender\/[^/]+$/.test(pathname)) return "overview";
@@ -68,7 +75,6 @@ function routeView(pathname: string): TenderRouteView {
 
 function viewTitle(view: TenderRouteView): string {
   if (view === "overview") return "Tender overview";
-  if (view === "qa") return "QA console";
   if (view === "matrix") return "Comparison matrix";
   if (view === "report") return "Report preview";
   return "Tender comparisons";

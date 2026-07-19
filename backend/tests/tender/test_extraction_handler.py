@@ -186,3 +186,60 @@ def test_extract_persists_line_items_and_replaces_prior_rows() -> None:
     assert quote.stage == "embed_items"
     assert session.jobs[0].kind == "embed_items"
     assert session.jobs[0].payload == {"document_id": str(document.id)}
+
+
+def test_extract_persists_extracted_total_when_stated_missing() -> None:
+    document = _document()
+    quote = TenderQuote(
+        id=QUOTE_ID,
+        comparison_id=COMPARISON_ID,
+        builder_name="Acme",
+        stated_total_cents=None,
+    )
+    page = TenderPage(
+        document_id=document.id,
+        page_no=1,
+        image_path="page-0001.png",
+        text_content="Slab and footings $45,000",
+    )
+    session = _Session(
+        document=document, quote=quote, pages=[page], context=_context()
+    )
+
+    run_async(
+        extraction_handler.extract_line_items_job(
+            session, _job(document), llm_client=_StubLLM()
+        )
+    )
+
+    assert quote.stated_total_cents == 4_500_000
+    assert quote.stated_total_source == "extracted"
+
+
+def test_extract_never_overwrites_manual_total() -> None:
+    document = _document()
+    quote = TenderQuote(
+        id=QUOTE_ID,
+        comparison_id=COMPARISON_ID,
+        builder_name="Acme",
+        stated_total_cents=9_999_999,
+        stated_total_source="manual",
+    )
+    page = TenderPage(
+        document_id=document.id,
+        page_no=1,
+        image_path="page-0001.png",
+        text_content="Slab and footings $45,000",
+    )
+    session = _Session(
+        document=document, quote=quote, pages=[page], context=_context()
+    )
+
+    run_async(
+        extraction_handler.extract_line_items_job(
+            session, _job(document), llm_client=_StubLLM()
+        )
+    )
+
+    assert quote.stated_total_cents == 9_999_999
+    assert quote.stated_total_source == "manual"

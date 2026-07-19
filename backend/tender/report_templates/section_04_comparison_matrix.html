@@ -15,7 +15,7 @@
         <td>{{ cell.name }}</td>
         {% for quote in quotes %}
         {% set status = cell.by_quote.get(quote.id) %}
-        <td>{% if status %}{{ status.glyph }} {{ status.phrase }}{% endif %}</td>
+        <td>{% if status %}{{ status.glyph }} {{ status.display }}{% endif %}</td>
         {% endfor %}
       </tr>
       {% endfor %}

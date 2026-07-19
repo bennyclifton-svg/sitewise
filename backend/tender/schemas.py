@@ -291,9 +291,20 @@ class MatrixGroup(BaseModel):
     cells: list[MatrixCell] = Field(default_factory=list)
 
 
+class MatrixQuoteTotal(BaseModel):
+    quote_id: uuid.UUID
+    computed_total_cents: int
+    stated_total_cents: int | None = None
+    stated_total_source: Literal["manual", "extracted"] | None = None
+    delta_cents: int | None = None
+    delta_ratio: float | None = None
+    reconciliation: Literal["match", "mismatch", "not_stated"]
+
+
 class MatrixResponse(BaseModel):
     comparison_id: uuid.UUID
     groups: list[MatrixGroup] = Field(default_factory=list)
+    totals: list[MatrixQuoteTotal] = Field(default_factory=list)
 
 
 class TaxonomyCellView(BaseModel):

@@ -285,3 +285,34 @@ def test_extract_cache_hit_skips_llm_and_materializes_items(monkeypatch) -> None
     assert session.line_items[0].amount_cents == 1_000_000
     assert usage.cache_hits == 1
     assert session.jobs[0].kind == "embed_items"
+
+
+def test_extract_cache_hit_persists_extracted_total(monkeypatch) -> None:
+    document, session = _fixtures()
+    session.quote.stated_total_cents = None
+    session.quote.stated_total_source = None
+    cache_row = TenderExtractCache(
+        project_id=PROJECT_ID,
+        content_hash=CONTENT_HASH,
+        extractor_version=extract_cache.EXTRACTOR_VERSION,
+        payload=PAYLOAD,
+        model="cached-model",
+    )
+
+    async def _get(*args, **kwargs):
+        return cache_row
+
+    async def _put(*args, **kwargs):
+        raise AssertionError("cache hit must not re-store the payload")
+
+    monkeypatch.setattr(extraction_handler.extract_cache, "get_cached_extract", _get)
+    monkeypatch.setattr(extraction_handler.extract_cache, "put_cached_extract", _put)
+
+    run_async(
+        extraction_handler.extract_line_items_job(
+            session, _job(document), llm_client=_CountingLLM()
+        )
+    )
+
+    assert session.quote.stated_total_cents == 4_500_000
+    assert session.quote.stated_total_source == "extracted"

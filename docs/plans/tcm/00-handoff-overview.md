@@ -1,5 +1,11 @@
 # TCM M3–M6 Handoff Package — Overview
 
+> **Current-status addendum (2026-07-19):** The state-of-play section below is
+> a historical 2026-06-13 handoff snapshot, not the current repository state.
+> Stages 0 and M3-M5 are now implemented on `main`. The maintained M5 checklist
+> and current verification results are in `04-m5-qa-console-report.md`. M6 and
+> its human/QS gates remain outstanding.
+
 - **Date:** 2026-06-13
 - **Prepared by:** planning session (frontier model); execution intended for a cost-effective coding model
 - **Governing spec:** `docs/plans/2026-06-11-tender-comparison-module-prd.md` (the PRD). **The PRD wins every disagreement.**

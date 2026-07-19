@@ -4,6 +4,26 @@
     <thead>
       <tr>
         <th>{{ labels.builder }}</th>
+        <th>{{ labels.computed_total }}</th>
+        <th>{{ labels.stated_total }}</th>
+        <th>{{ labels.variance }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for total in totals %}
+      <tr>
+        <td>{{ total.builder_name }}</td>
+        <td>{{ total.computed_total }}</td>
+        <td>{{ total.stated_total }}</td>
+        <td>{{ total.variance }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ labels.builder }}</th>
         <th>{{ labels.item }}</th>
         <th>{{ labels.comparable_adjustment }}</th>
         <th>{{ labels.provenance }}</th>

@@ -42,6 +42,7 @@ COMPARISON_STATUSES = (
     "failed",
 )
 GST_TREATMENTS = ("inclusive", "exclusive", "unclear")
+STATED_TOTAL_SOURCES = ("manual", "extracted")
 CONTRACT_TYPES = ("hia", "mba", "custom", "cost_plus", "unknown")
 QUOTE_STAGES = (
     "intake",
@@ -172,6 +173,7 @@ class TenderQuote(Base):
     quote_ref: Mapped[str | None] = mapped_column(String(255))
     quote_date: Mapped[date | None] = mapped_column(Date)
     stated_total_cents: Mapped[int | None] = mapped_column(BigInteger)
+    stated_total_source: Mapped[str | None] = mapped_column(String(16))
     gst_treatment: Mapped[str] = mapped_column(
         String(16), nullable=False, default="unclear"
     )
@@ -194,6 +196,12 @@ class TenderQuote(Base):
     documents: Mapped[list["TenderDocument"]] = relationship(back_populates="quote")
 
     __table_args__ = (
+        _values_check("stated_total_source", STATED_TOTAL_SOURCES, "tender_quotes"),
+        CheckConstraint(
+            "(stated_total_cents IS NULL AND stated_total_source IS NULL) OR "
+            "(stated_total_cents IS NOT NULL AND stated_total_source IS NOT NULL)",
+            name="ck_tender_quotes_stated_total_provenance",
+        ),
         _values_check("gst_treatment", GST_TREATMENTS, "tender_quotes"),
         _values_check("contract_type", CONTRACT_TYPES, "tender_quotes"),
         _values_check("stage", QUOTE_STAGES, "tender_quotes"),

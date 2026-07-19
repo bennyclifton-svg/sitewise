@@ -248,9 +248,20 @@ export type TenderMatrixGroup = {
   cells: TenderMatrixCell[];
 };
 
+export type TenderMatrixQuoteTotal = {
+  quote_id: string;
+  computed_total_cents: number;
+  stated_total_cents: number | null;
+  stated_total_source: "manual" | "extracted" | null;
+  delta_cents: number | null;
+  delta_ratio: number | null;
+  reconciliation: "match" | "mismatch" | "not_stated";
+};
+
 export type TenderMatrixResponse = {
   comparison_id: string;
   groups: TenderMatrixGroup[];
+  totals: TenderMatrixQuoteTotal[];
 };
 
 export type TenderReportLifecycle = {

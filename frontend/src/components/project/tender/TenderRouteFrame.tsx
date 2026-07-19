@@ -44,13 +44,6 @@ export function TenderRouteFrame({
       disabled: !comparisonPath,
     },
     {
-      label: "QA",
-      to: comparisonPath ? `${comparisonPath}/qa` : basePath,
-      match: (pathname) => comparisonPath !== null && pathname === `${comparisonPath}/qa`,
-      icon: <FileText className="size-4" aria-hidden />,
-      disabled: !comparisonPath,
-    },
-    {
       label: "Matrix",
       to: comparisonPath ? `${comparisonPath}/matrix` : basePath,
       match: (pathname) => comparisonPath !== null && pathname === `${comparisonPath}/matrix`,

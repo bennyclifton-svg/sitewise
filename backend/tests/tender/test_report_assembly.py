@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from tender.schemas import MatrixQuoteTotal
 from tender.services import report
 
 COMPARISON_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -26,6 +27,9 @@ def test_render_report_html_uses_language_phrases_glyphs_and_watermark() -> None
     assert 'class="report draft"' in artifacts.html
     assert "DRAFT" in artifacts.html
     assert "Allowance of $2,000 for selection" in artifacts.html
+    assert "Matrix total" in artifacts.html
+    assert "$5,000" in artifacts.html
+    assert "Variance" in artifacts.html
     assert "✓" in artifacts.html
     assert "◷" in artifacts.html
     assert "This report is information and document analysis only." in artifacts.html
@@ -216,6 +220,26 @@ def _report_data(
         ],
         questions=[
             "B Homes: Please confirm what product/range the cooktop allowance assumes."
+        ],
+        totals=[
+            MatrixQuoteTotal(
+                quote_id=QUOTE_A,
+                computed_total_cents=500_000,
+                stated_total_cents=1_000_000_00,
+                stated_total_source="manual",
+                delta_cents=-99_500_000,
+                delta_ratio=0.995,
+                reconciliation="mismatch",
+            ),
+            MatrixQuoteTotal(
+                quote_id=QUOTE_B,
+                computed_total_cents=pc_amount_cents,
+                stated_total_cents=950_000_00,
+                stated_total_source="manual",
+                delta_cents=pc_amount_cents - 950_000_00,
+                delta_ratio=(950_000_00 - pc_amount_cents) / 950_000_00,
+                reconciliation="mismatch",
+            ),
         ],
     )
 

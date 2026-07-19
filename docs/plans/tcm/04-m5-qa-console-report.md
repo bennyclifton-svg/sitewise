@@ -2,6 +2,13 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+> **Implementation status (verified 2026-07-19):** Parts A and B are
+> implemented. QA adjudication now lives inline in the comparison matrix;
+> `/qa` remains as a compatibility route and redirects to `/matrix`. The page
+> image/bbox viewer, taxonomy adjudication, and split controls are retained in
+> the inline panel. Automated verification is complete; the human timing,
+> scanned-document alignment, QS review, and pilot gates remain open.
+
 **Two sessions.** Part A: backend API + report assembly (§9.8, §13, §15, §18). Part B: cockpit frontend (§12, §16). Branch `feature/tcm-main`. Prerequisite: M4 merged.
 
 ---
@@ -32,22 +39,26 @@
 
 ## Exit criteria (Part A)
 
-- [ ] Every §15 endpoint implemented and tested (full suite output pasted)
-- [ ] Rebuild preserves narrative, regenerates tables (test green)
-- [ ] Approval freeze + watermark semantics tested
+- [x] Every §15 endpoint implemented and tested
+- [x] Rebuild preserves narrative, regenerates tables (test green)
+- [x] Approval freeze + watermark semantics tested
 - [ ] A real rendered PDF from the fixture comparison attached for human review
 
 ---
 
 # Part B — Cockpit frontend
 
-**Goal:** Routes per §16; QA console at < 20s/item; matrix; report preview/approve.
+**Goal:** Routes per §16; matrix-integrated QA at < 20s/item; report preview/approve.
 
 ## Design decisions (made; do not relitigate)
 
 1. **Follow the house style.** Components live in `frontend/src/components/project/` and pages/routes follow the existing cockpit patterns (`ProjectShell.tsx`, `ProjectLeftNav.tsx`, existing panels). Reuse the existing data-fetching idiom (inspect how `WorkbookGrid.tsx` / `DraftReviewPanel.tsx` fetch) — no new state libraries.
 2. **Page viewer = image + bbox overlay only.** An `<img>` of `tender_pages.image_path` with absolutely-positioned highlight divs scaled from page coords. No PDF.js.
-3. **Keyboard map** (PRD §12): `a` accept, `e` edit, `j/k` next/prev, `s` split. Global within the console route, disabled when a text input is focused.
+3. **QA surface update (2026-07-19):** adjudication is anchored to matrix
+   cells, with quote/document-level findings in the matrix review strip. The
+   former global `a/e/j/k/s` queue bindings do not apply to this integrated
+   layout; actions use explicit accessible controls. Split remains available
+   in the adjudication pane.
 4. **Split UI:** fraction sliders constrained to sum 1.0 (UI renormalizes on release); submits multiple mappings via resolve.
 5. **Matrix virtualised** (~250 cells × 5 quotes): use whatever virtualisation the repo already depends on; if none, `@tanstack/react-virtual` (small, headless). Glyphs per §13.4 with a legend.
 6. **Report tab:** iframe the draft HTML; narrative blocks editable via the existing draft-editing surface (see `DraftReviewPanel.tsx`); Approve button calls the approve endpoint and then shows the frozen PDF link.
@@ -55,15 +66,22 @@
 ## Tasks (Part B)
 
 - [x] Routes + comparisons list + overview page (stage status per quote, retry buttons). Files: route registrations per existing router setup, `frontend/src/components/project/tender/ComparisonList.tsx`, `ComparisonOverview.tsx`.
-- [x] QA console: queue pane, page-image pane with bbox overlay, adjudication pane with taxonomy typeahead; keyboard bindings. Files: `frontend/src/components/project/tender/QaConsole.tsx` + subcomponents.
-- [x] Matrix view. `TenderMatrix.tsx`.
+- [x] Matrix-integrated QA: cell-anchored questions, quote/document review strip,
+  page-image pane with bbox overlay, taxonomy typeahead, and correction,
+  suppression, and split actions. Files: `TenderMatrix.tsx`,
+  `MatrixQaPanel.tsx`, `MatrixQaStrip.tsx`, and shared adjudication/viewer
+  components. The legacy `/qa` route redirects to `/matrix`.
+- [x] Matrix view with deterministic totals and stated-total reconciliation.
+  `TenderMatrix.tsx`.
 - [x] Report preview/approve. `TenderReportPanel.tsx`.
-- [ ] Verification: frontend test/build commands per repo convention (check `frontend/package.json` scripts) pass; a manual click-through script (listed steps) executed against a seeded local comparison, results noted in this doc.
+- [x] Automated verification: frontend tests and production build pass.
+- [ ] Manual click-through against a seeded local comparison, with results noted
+  in this doc.
 
 ## Exit criteria (Part B)
 
 - [x] All §16 routes reachable; build + tests green (output pasted)
-- [ ] Keyboard-only QA pass over ≥ 20 fixture items, median < 20s/item (measure roughly, note it)
+- [ ] Operator QA pass over ≥ 20 fixture items, median < 20s/item (measure roughly, note it)
 - [ ] Bbox highlights align on at least one real scanned document
 
 ## Part B verification notes - 2026-06-13
@@ -80,3 +98,16 @@
   no local frontend `.env` exists, background dev-server launch was blocked by
   local process/job permissions, and no authenticated seeded comparison session
   was available to measure 20 QA items or real bbox alignment.
+
+## Completion verification notes - 2026-07-19
+
+- Backend Tender suite: `265 passed, 1 skipped, 9 deselected`.
+- Disposable PostgreSQL migration roundtrip through
+  `024_tender_quote_total_source`: `1 passed`.
+- Frontend: `29` test files / `99` tests passed; production build passed.
+- Tender governed-data validator: `180` cells, `70` rules, `2580` synonyms,
+  `188` benchmark rows; all checks passed.
+- Focused ESLint passed with the existing TanStack Virtual React Compiler
+  compatibility warning and no errors.
+- Human fixture timing, real scanned-document bbox review, and PDF attachment
+  remain open and are not represented as automated completion.

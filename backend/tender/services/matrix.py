@@ -17,6 +17,7 @@ from tender.schemas import (
     MatrixResponse,
 )
 from tender.services.mapping import has_multi_candidate_adjudication
+from tender.services.totals import compute_quote_totals
 
 
 async def build_matrix(
@@ -50,8 +51,9 @@ async def build_matrix(
     for row in flag_result.all():
         flags_by_cell[(str(row.quote_id), row.cell_code)].append(row.headline)
 
+    status_rows = status_result.all()
     groups: "OrderedDict[str, OrderedDict[str, MatrixCell]]" = OrderedDict()
-    for row in status_result.all():
+    for row in status_rows:
         group_cells = groups.setdefault(row.group_name, OrderedDict())
         cell = group_cells.setdefault(
             row.cell_code,
@@ -98,12 +100,30 @@ async def build_matrix(
             )
         )
 
+    quote_result = await session.execute(
+        select(
+            TenderQuote.id,
+            TenderQuote.stated_total_cents,
+            TenderQuote.stated_total_source,
+        )
+        .where(TenderQuote.comparison_id == comparison_id)
+        .order_by(TenderQuote.created_at)
+    )
+    totals = compute_quote_totals(
+        ((row.quote_id, row.status, row.amount_cents) for row in status_rows),
+        [
+            (row.id, row.stated_total_cents, row.stated_total_source)
+            for row in quote_result.all()
+        ],
+    )
+
     return MatrixResponse(
         comparison_id=comparison_id,
         groups=[
             MatrixGroup(name=group_name, cells=list(cells.values()))
             for group_name, cells in groups.items()
         ],
+        totals=totals,
     )
 
 

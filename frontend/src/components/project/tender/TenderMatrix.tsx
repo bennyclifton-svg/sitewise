@@ -7,7 +7,6 @@ import {
   CircleHelp,
   Flag,
   LoaderCircle,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -15,25 +14,28 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { ChangeEvent } from "react";
 import type {
   TenderComparison,
   TenderMatrixCell,
-  TenderMatrixMappingChoice,
+  TenderMatrixQuoteTotal,
   TenderMatrixResponse,
   TenderQaItem,
+  TenderQaResolveRequest,
   TenderQuote,
+  TenderTaxonomyCell,
 } from "@/lib/types/tender";
 import { cn } from "@/lib/utils";
 
 import {
   formatTenderMoney,
-  formatTenderPercent,
   formatTenderStatus,
   tenderStatusCellTint,
   tenderStatusGlyph,
   tenderStatusTextTone,
 } from "./format";
+import { MatrixQaPanel } from "./MatrixQaPanel";
+import { MatrixQaStrip } from "./MatrixQaStrip";
+import { cellKey, groupQaByCell, qaItemKey, unanchoredQaItems } from "./qa";
 
 type MatrixRow =
   | { kind: "group"; id: string; groupName: string }
@@ -54,10 +56,12 @@ export function TenderMatrix({
   const [matrix, setMatrix] = useState<TenderMatrixResponse | null>(null);
   const [comparison, setComparison] = useState<TenderComparison | null>(null);
   const [qaItems, setQaItems] = useState<TenderQaItem[]>([]);
+  const [taxonomy, setTaxonomy] = useState<TenderTaxonomyCell[]>([]);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
   const [qaNote, setQaNote] = useState<string | null>(null);
   const [qaError, setQaError] = useState<string | null>(null);
+  const [adjudicationError, setAdjudicationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,15 +73,17 @@ export function TenderMatrix({
       setIsLoading(true);
       setError(null);
       try {
-        const [matrixData, comparisonData, queue] = await Promise.all([
+        const [matrixData, comparisonData, queue, taxonomyCells] = await Promise.all([
           api.getTenderMatrix(comparisonId),
           api.getTenderComparison(comparisonId),
           api.getTenderQaQueue(comparisonId),
+          api.getTenderTaxonomy(),
         ]);
         if (cancelled) return;
         setMatrix(matrixData);
         setComparison(comparisonData);
         setQaItems(queue.items);
+        setTaxonomy(taxonomyCells);
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -100,6 +106,7 @@ export function TenderMatrix({
   const rows = useMemo(() => flattenRows(matrix), [matrix]);
   const quotes = useMemo(() => quoteColumns(matrix, comparison?.quotes ?? []), [comparison, matrix]);
   const qaByCell = useMemo(() => groupQaByCell(qaItems), [qaItems]);
+  const unanchoredItems = useMemo(() => unanchoredQaItems(qaItems), [qaItems]);
   const cellNames = useMemo(() => cellNameIndex(matrix), [matrix]);
   const anchoredCount = useMemo(
     () => [...qaByCell.values()].reduce((sum, items) => sum + items.length, 0),
@@ -111,6 +118,11 @@ export function TenderMatrix({
       .filter((total): total is number => typeof total === "number");
     return totals.length > 1 ? Math.min(...totals) : null;
   }, [quotes]);
+  const totalsByQuote = useMemo(() => {
+    const map = new Map<string, TenderMatrixQuoteTotal>();
+    for (const total of matrix?.totals ?? []) map.set(total.quote_id, total);
+    return map;
+  }, [matrix]);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -120,7 +132,6 @@ export function TenderMatrix({
     overscan: 12,
   });
 
-  const qaPath = `/projects/${projectId}/tender/${comparisonId}/qa`;
   const reportPath = `/projects/${projectId}/tender/${comparisonId}/report`;
   const activeKey = activeCell ? cellKey(activeCell.quoteId, activeCell.cellCode) : null;
   const activeItems = activeKey ? qaByCell.get(activeKey) ?? [] : [];
@@ -145,7 +156,7 @@ export function TenderMatrix({
       const accepted = `Accepted ${result.accepted} recommendation${result.accepted === 1 ? "" : "s"}.`;
       setQaNote(
         result.skipped_documents > 0
-          ? `${accepted} ${result.skipped_documents} document${result.skipped_documents === 1 ? "" : "s"} still need classification in the QA console.`
+          ? `${accepted} ${result.skipped_documents} document${result.skipped_documents === 1 ? "" : "s"} still need classification below.`
           : accepted,
       );
     } catch (acceptError) {
@@ -189,6 +200,7 @@ export function TenderMatrix({
 
   function toggleCell(next: ActiveCell) {
     setQaError(null);
+    setAdjudicationError(null);
     setActiveCell((current) =>
       current && current.quoteId === next.quoteId && current.cellCode === next.cellCode
         ? null
@@ -202,7 +214,40 @@ export function TenderMatrix({
       corrected_value: { cell_code: cellCode },
       reason: "Inline matrix mapping override",
     });
-    setMatrix((current) => updateMatrixChoice(current, mappingId, cellCode));
+    const [matrixData, queue] = await Promise.all([
+      api.getTenderMatrix(comparisonId),
+      api.getTenderQaQueue(comparisonId),
+    ]);
+    setMatrix(matrixData);
+    setQaItems(queue.items);
+  }
+
+  async function resolveQaItem(item: TenderQaItem, request: TenderQaResolveRequest) {
+    setResolving(item.id);
+    setAdjudicationError(null);
+    try {
+      await api.resolveTenderQaItem(item.id, request);
+      const [matrixData, queue] = await Promise.all([
+        api.getTenderMatrix(comparisonId),
+        api.getTenderQaQueue(comparisonId),
+      ]);
+      setMatrix(matrixData);
+      setQaItems(queue.items);
+      if (
+        activeKey &&
+        !queue.items.some((candidate) => qaItemKey(candidate) === activeKey)
+      ) {
+        setActiveCell(null);
+      }
+    } catch (resolveError) {
+      setAdjudicationError(
+        resolveError instanceof ApiError
+          ? resolveError.message
+          : "Could not resolve QA item.",
+      );
+    } finally {
+      setResolving(null);
+    }
   }
 
   if (isLoading) {
@@ -245,10 +290,10 @@ export function TenderMatrix({
             <CircleHelp className="size-4 shrink-0" aria-hidden />
             {qaItems.length} question{qaItems.length === 1 ? "" : "s"} from the analysis
             {anchoredCount > 0
-              ? ` ? ${anchoredCount} marked on cells below`
+              ? ` - ${anchoredCount} marked on cells below`
               : ""}
-            {qaItems.length - anchoredCount > 0
-              ? `, ${qaItems.length - anchoredCount} in the QA console`
+            {unanchoredItems.length > 0
+              ? `, ${unanchoredItems.length} at quote or document level`
               : ""}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -265,16 +310,13 @@ export function TenderMatrix({
               )}
               Accept all recommendations
             </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link to={qaPath}>QA console</Link>
-            </Button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-[var(--ok-bg)] px-4 py-2">
           <p className="flex items-center gap-1.5 text-sm text-[var(--ok-text)]">
             <Check className="size-4 shrink-0" aria-hidden />
-            All findings reviewed ? ready to build the report.
+            All findings reviewed — ready to build the report.
           </p>
           <Button asChild size="sm">
             <Link to={reportPath}>
@@ -294,94 +336,46 @@ export function TenderMatrix({
         </p>
       ) : null}
 
-      {activeCell && (activeItems.length > 0 || (activeQuote && ((matrix?.groups.flatMap((g) => g.cells).find((c) => c.code === activeCell.cellCode)?.quotes[activeCell.quoteId]?.mapping_choices?.length ?? 0) > 0))) ? (
-        <div className="border-b bg-background px-4 py-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium">
-              {cellNames.get(activeCell.cellCode) ?? activeCell.cellCode}
-              <span className="ml-2 font-mono text-xs text-muted-foreground">
-                {activeCell.cellCode}
-              </span>
-              {activeQuote ? (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  {activeQuote.builderName}
-                </span>
-              ) : null}
-            </p>
-            <button
-              type="button"
-              className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Close questions"
-              onClick={() => setActiveCell(null)}
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          </div>
-          {activeCell
-            ? (() => {
-                const activeMatrixCell = matrix?.groups
-                  .flatMap((group) => group.cells)
-                  .find((cell) => cell.code === activeCell.cellCode);
-                const choices =
-                  activeMatrixCell?.quotes[activeCell.quoteId]?.mapping_choices ?? [];
-                if (!choices.length || !activeQuote) return null;
-                return (
-                  <div className="mt-2 space-y-2">
-                    {choices.map((choice) => (
-                      <MappingChoiceControl
-                        key={choice.mapping_id}
-                        choice={choice}
-                        quoteName={activeQuote.builderName}
-                        cellName={activeMatrixCell?.name ?? activeCell.cellCode}
-                        onChange={resolveMappingChoice}
-                      />
-                    ))}
-                  </div>
-                );
-              })()
-            : null}
-          <ul className="mt-2 space-y-1.5">
-            {activeItems.map((item) => (
-              <li
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm">{qaQuestion(item)}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Impact {formatTenderMoney(item.report_impact_cents)} ? Confidence{" "}
-                    {formatTenderPercent(item.confidence)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="secondary"
-                    disabled={resolving !== null}
-                    onClick={() => void acceptItem(item)}
-                  >
-                    {resolving === item.id ? (
-                      <LoaderCircle className="size-3 animate-spin" aria-hidden />
-                    ) : (
-                      <Check className="size-3" aria-hidden />
-                    )}
-                    Accept
-                  </Button>
-                  <Button asChild size="xs" variant="ghost">
-                    <Link to={qaPath}>Edit in console</Link>
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <MatrixQaStrip
+        items={unanchoredItems}
+        taxonomy={taxonomy}
+        resolving={resolving}
+        error={adjudicationError}
+        onAccept={(item) => void acceptItem(item)}
+        onResolve={resolveQaItem}
+      />
+
+      {activeCell
+        ? (() => {
+            const activeMatrixCell = matrix?.groups
+              .flatMap((group) => group.cells)
+              .find((cell) => cell.code === activeCell.cellCode);
+            const choices =
+              activeMatrixCell?.quotes[activeCell.quoteId]?.mapping_choices ?? [];
+            if (!activeItems.length && !choices.length) return null;
+            return (
+              <MatrixQaPanel
+                cellCode={activeCell.cellCode}
+                cellName={cellNames.get(activeCell.cellCode) ?? activeCell.cellCode}
+                quoteName={activeQuote?.builderName ?? null}
+                items={activeItems}
+                choices={choices}
+                taxonomy={taxonomy}
+                resolving={resolving}
+                error={adjudicationError}
+                onClose={() => setActiveCell(null)}
+                onAccept={(item) => void acceptItem(item)}
+                onResolve={resolveQaItem}
+                onMappingChoice={resolveMappingChoice}
+              />
+            );
+          })()
+        : null}
 
       <div className="overflow-x-auto">
         <div className="min-w-[54rem]">
           <div
-            className="grid border-b bg-background text-xs font-medium text-muted-foreground"
+            className="grid overflow-y-hidden border-b bg-background text-xs font-medium text-muted-foreground [scrollbar-gutter:stable]"
             style={{ gridTemplateColumns: gridColumns(quotes.length) }}
           >
             <div className="px-3 py-2">Line item</div>
@@ -400,7 +394,7 @@ export function TenderMatrix({
             ))}
           </div>
 
-          <div ref={scrollRef} className="h-[42rem] overflow-auto">
+          <div ref={scrollRef} className="h-[42rem] overflow-auto [scrollbar-gutter:stable]">
             <div
               className="relative"
               style={{ height: `${virtualizer.getTotalSize()}px` }}
@@ -431,9 +425,76 @@ export function TenderMatrix({
               })}
             </div>
           </div>
+
+          <MatrixTotalsRow quotes={quotes} totalsByQuote={totalsByQuote} />
         </div>
       </div>
     </section>
+  );
+}
+
+function MatrixTotalsRow({
+  quotes,
+  totalsByQuote,
+}: {
+  quotes: MatrixQuote[];
+  totalsByQuote: Map<string, TenderMatrixQuoteTotal>;
+}) {
+  if (!quotes.length) return null;
+  return (
+    <div
+      className="grid overflow-y-hidden border-t-2 bg-background [scrollbar-gutter:stable]"
+      style={{ gridTemplateColumns: gridColumns(quotes.length) }}
+    >
+      <div className="px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Total
+      </div>
+      {quotes.map((quote) => {
+        const total = totalsByQuote.get(quote.id);
+        return (
+          <div key={quote.id} className="border-l px-2 py-2">
+            {total ? (
+              <>
+                <span className="block font-mono text-sm font-semibold tabular-nums">
+                  {formatTenderMoney(total.computed_total_cents)}
+                </span>
+                <TotalReconciliation total={total} />
+              </>
+            ) : (
+              <span className="block text-xs text-muted-foreground">
+                No total
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TotalReconciliation({ total }: { total: TenderMatrixQuoteTotal }) {
+  if (total.reconciliation === "match") {
+    return (
+      <span className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-[var(--ok-bg)] px-1 py-0.5 text-[0.68rem] font-medium text-[var(--ok-text)]">
+        <Check className="size-3 shrink-0" aria-hidden />
+        Matches stated total
+      </span>
+    );
+  }
+  if (total.reconciliation === "mismatch") {
+    const delta = total.delta_cents ?? 0;
+    const sign = delta > 0 ? "+" : "-";
+    return (
+      <span className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-[var(--alert-bg)] px-1 py-0.5 text-[0.68rem] font-medium text-[var(--alert-text)]">
+        <AlertCircle className="size-3 shrink-0" aria-hidden />
+        {`Stated ${formatTenderMoney(total.stated_total_cents)} (${sign}${formatTenderMoney(Math.abs(delta))})`}
+      </span>
+    );
+  }
+  return (
+    <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
+      Not stated in quote
+    </span>
   );
 }
 
@@ -538,7 +599,7 @@ function MatrixCellRow({
                 isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
               )}
               title={statusLabel}
-              aria-label={`${statusLabel} ? ${questions.length} question${questions.length === 1 ? "" : "s"} for ${row.cell.name}, ${quote.builderName}`}
+              aria-label={`${statusLabel} — ${questions.length} question${questions.length === 1 ? "" : "s"} for ${row.cell.name}, ${quote.builderName}`}
               onClick={() => onToggleCell({ quoteId: quote.id, cellCode: row.cell.code })}
             >
               {content}
@@ -563,94 +624,6 @@ function MatrixCellRow({
   );
 }
 
-
-function MappingChoiceControl({
-  choice,
-  quoteName,
-  cellName,
-  onChange,
-}: {
-  choice: TenderMatrixMappingChoice;
-  quoteName: string;
-  cellName: string;
-  onChange: (mappingId: string, cellCode: string) => Promise<void>;
-}) {
-  const [selected, setSelected] = useState(choice.selected_cell_code);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextCellCode = event.target.value;
-    setSelected(nextCellCode);
-    setIsSaving(true);
-    setError(null);
-    try {
-      await onChange(choice.mapping_id, nextCellCode);
-    } catch {
-      setSelected(choice.selected_cell_code);
-      setError("Could not save");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <div>
-      <select
-        aria-label={`Mapping choice for ${quoteName} ${cellName}`}
-        className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-        value={selected}
-        disabled={choice.locked || isSaving}
-        onChange={handleChange}
-      >
-        {choice.candidates.map((candidate) => (
-          <option
-            key={candidate.cell_code}
-            value={candidate.cell_code}
-            className="bg-white text-neutral-900"
-            style={{ color: "#111111", backgroundColor: "#ffffff" }}
-          >
-            {candidate.name ?? candidate.cell_code}
-          </option>
-        ))}
-      </select>
-      {choice.locked ? (
-        <p className="mt-1 text-[0.68rem] text-muted-foreground">Locked</p>
-      ) : null}
-      {error ? <p className="mt-1 text-[0.68rem] text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function updateMatrixChoice(
-  matrix: TenderMatrixResponse | null,
-  mappingId: string,
-  selectedCellCode: string,
-): TenderMatrixResponse | null {
-  if (!matrix) return matrix;
-  return {
-    ...matrix,
-    groups: matrix.groups.map((group) => ({
-      ...group,
-      cells: group.cells.map((cell) => ({
-        ...cell,
-        quotes: Object.fromEntries(
-          Object.entries(cell.quotes).map(([quoteId, quoteCell]) => [
-            quoteId,
-            {
-              ...quoteCell,
-              mapping_choices: (quoteCell.mapping_choices ?? []).map((choice) =>
-                choice.mapping_id === mappingId
-                  ? { ...choice, selected_cell_code: selectedCellCode, locked: true }
-                  : choice,
-              ),
-            },
-          ]),
-        ),
-      })),
-    })),
-  };
-}
 
 function MatrixLegend() {
   const entries = [
@@ -689,68 +662,12 @@ function gridColumns(quoteCount: number): string {
   return `16rem repeat(${quoteCount}, minmax(9.5rem, 1fr))`;
 }
 
-function cellKey(quoteId: string, cellCode: string): string {
-  return `${quoteId}:${cellCode}`;
-}
-
-function qaItemKey(item: TenderQaItem): string | null {
-  const quoteId = readString(item.payload.quote_id);
-  const cellCode = readString(item.payload.cell_code);
-  if (!quoteId || !cellCode) return null;
-  return cellKey(quoteId, cellCode);
-}
-
-function groupQaByCell(items: TenderQaItem[]): Map<string, TenderQaItem[]> {
-  const map = new Map<string, TenderQaItem[]>();
-  for (const item of items) {
-    const key = qaItemKey(item);
-    if (!key) continue;
-    const existing = map.get(key);
-    if (existing) {
-      existing.push(item);
-    } else {
-      map.set(key, [item]);
-    }
-  }
-  return map;
-}
-
 function cellNameIndex(matrix: TenderMatrixResponse | null): Map<string, string> {
   const map = new Map<string, string>();
   for (const group of matrix?.groups ?? []) {
     for (const cell of group.cells) map.set(cell.code, cell.name);
   }
   return map;
-}
-
-function qaQuestion(item: TenderQaItem): string {
-  const payload = item.payload;
-  if (item.entity_type === "cell_status") {
-    const status = readString(payload.status);
-    const amount = readNumber(payload.amount_cents);
-    const statusLabel = status ? formatTenderStatus(status) : "this reading";
-    return amount !== null
-      ? `Read as ${statusLabel} at ${formatTenderMoney(amount)} ? is this correctly allocated?`
-      : `Read as ${statusLabel} ? is this correctly allocated?`;
-  }
-  if (item.entity_type === "mapping") {
-    const description = readString(payload.description_raw);
-    return description
-      ? `"${description}" was mapped to this line item ? is that where it belongs?`
-      : "Confirm this line item mapping.";
-  }
-  if (item.entity_type === "flag") {
-    return readString(payload.headline) ?? "Review this flag.";
-  }
-  return readString(payload.filename) ?? "Review this document classification.";
-}
-
-function readString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
-function readNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function flattenRows(matrix: TenderMatrixResponse | null): MatrixRow[] {

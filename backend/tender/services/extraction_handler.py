@@ -82,6 +82,14 @@ async def extract_line_items_job(
             if usage is not None:
                 usage.merge_metadata({"extract_cache": "miss"})
 
+    if (
+        quote is not None
+        and quote.stated_total_cents is None
+        and result.quote_total_cents is not None
+    ):
+        quote.stated_total_cents = result.quote_total_cents
+        quote.stated_total_source = "extracted"
+
     await session.execute(
         delete(TenderLineItem).where(TenderLineItem.document_id == document.id)
     )

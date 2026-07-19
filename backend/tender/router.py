@@ -123,6 +123,7 @@ async def create_quote(
         quote_ref=body.quote_ref,
         quote_date=body.quote_date,
         stated_total_cents=body.stated_total_cents,
+        stated_total_source="manual" if body.stated_total_cents is not None else None,
         gst_treatment=body.gst_treatment,
         contract_type=body.contract_type,
         validity_days=body.validity_days,

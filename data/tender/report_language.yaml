@@ -21,7 +21,11 @@ report:
     not_itemised: "Not itemised does not mean excluded; it means the document does not state the item clearly enough to rely on without builder confirmation."
   labels:
     builder: "Builder"
+    computed_total: "Matrix total"
     stated_total: "Stated total"
+    variance: "Variance"
+    matches_stated: "Matches stated total"
+    total_not_stated: "Not stated in quote"
     comparable_adjustment: "Comparable adjustment"
     provenance: "Provenance"
     item: "Item"

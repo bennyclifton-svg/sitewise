@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import re
 import asyncio
+import re
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -32,7 +32,9 @@ from tender.models import (
     TenderQuote,
     TenderReport,
 )
+from tender.schemas import MatrixQuoteTotal
 from tender.services import qa
+from tender.services.totals import compute_quote_totals
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "report_templates"
 NARRATIVE_KEYS = ("executive_summary_intro", "risk_notes_intro")
@@ -60,6 +62,7 @@ class ReportQuote:
     id: uuid.UUID
     builder_name: str
     stated_total_cents: int | None
+    stated_total_source: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +103,7 @@ class ReportData:
     matrix: list[ReportMatrixCell]
     flags: list[ReportFlag]
     questions: list[str]
+    totals: list[MatrixQuoteTotal] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,6 +271,7 @@ async def load_report_data(
             id=quote.id,
             builder_name=quote.builder_name,
             stated_total_cents=quote.stated_total_cents,
+            stated_total_source=quote.stated_total_source,
         )
         for quote in quote_result.scalars()
     ]
@@ -278,6 +283,17 @@ async def load_report_data(
     analysis = analysis_result.scalar_one_or_none()
     matrix = await _report_matrix(session, comparison_id=comparison_id)
     flags = await _report_flags(session, comparison_id=comparison_id)
+    totals = compute_quote_totals(
+        (
+            (status.quote_id, status.status, status.amount_cents)
+            for cell in matrix
+            for status in cell.statuses
+        ),
+        [
+            (quote.id, quote.stated_total_cents, quote.stated_total_source)
+            for quote in quotes
+        ],
+    )
     return ReportData(
         comparison_id=comparison_id,
         project_title=project.title,
@@ -287,6 +303,7 @@ async def load_report_data(
         matrix=matrix,
         flags=flags,
         questions=analysis.questions if analysis is not None else [],
+        totals=totals,
     )
 
 
@@ -310,8 +327,12 @@ def assemble_report_artifacts(
     narratives = default_narratives(language)
     narratives.update(extract_narratives(previous_markdown or ""))
     view = report_view(data, language=language, narratives=narratives)
-    markdown = render_draft_markdown(view, language=language, narratives=narratives)
-    html = render_report_html(view, language=language, narratives=narratives, draft=draft)
+    markdown = render_draft_markdown(
+        view, language=language, narratives=narratives
+    )
+    html = render_report_html(
+        view, language=language, narratives=narratives, draft=draft
+    )
     renderer = pdf_renderer or render_pdf_bytes
     try:
         pdf_bytes = renderer(html)
@@ -359,14 +380,21 @@ def render_draft_markdown(
     narratives: Mapping[str, str],
 ) -> str:
     section_titles = _section_titles(language)
+    labels = _labels(language)
     lines = [
         f"# {language_value(language, 'report.title')}",
         "",
         f"## {section_titles['executive_summary']}",
         _narrative_block("executive_summary_intro", narratives),
         "",
+        f"## {section_titles['price_comparison']}",
+        _totals_markdown(view, labels),
+        "",
         f"## {section_titles['comparison_matrix']}",
         _matrix_markdown(view),
+        "",
+        f"## {section_titles['allowances']}",
+        _allowances_markdown(view, labels),
         "",
         f"## {section_titles['risk_notes']}",
         _narrative_block("risk_notes_intro", narratives),
@@ -408,6 +436,8 @@ def render_report_html(
         allowances=view["allowances"],
         flags=view["flags"],
         questions=view["questions"],
+        totals=view["totals"],
+        totals_by_quote=view["totals_by_quote"],
     )
 
 
@@ -432,11 +462,7 @@ def report_view(
             "name": cell.name,
             "group": cell.group,
             "by_quote": {
-                str(status.quote_id): {
-                    "glyph": glyph_for_status(status.status),
-                    "phrase": status_phrase(cell, status, language),
-                    "amount": money(status.amount_cents),
-                }
+                str(status.quote_id): _cell_view(cell, status, language)
                 for status in cell.statuses
             },
         }
@@ -452,6 +478,7 @@ def report_view(
         for status in cell.statuses
         if status.status in {"pc", "ps"}
     ]
+    totals = [_total_view(total, builder_by_id, language) for total in data.totals]
     return {
         "project_title": data.project_title,
         "context": data.context,
@@ -480,6 +507,47 @@ def report_view(
         ],
         "questions": data.questions,
         "narratives": dict(narratives),
+        "totals": totals,
+        "totals_by_quote": {total["quote_id"]: total for total in totals},
+    }
+
+
+def _cell_view(
+    cell: ReportMatrixCell,
+    status: ReportCellStatus,
+    language: Mapping[str, Any],
+) -> dict[str, str]:
+    phrase = status_phrase(cell, status, language)
+    amount = money(status.amount_cents)
+    # Included cells read as their price; every other status keeps its
+    # claim-strength phrase (which embeds the amount for pc/ps allowances).
+    display = amount if status.status == "included" and amount else phrase
+    return {
+        "glyph": glyph_for_status(status.status),
+        "phrase": phrase,
+        "amount": amount,
+        "display": display,
+    }
+
+
+def _total_view(
+    total: MatrixQuoteTotal,
+    builder_by_id: Mapping[uuid.UUID, str],
+    language: Mapping[str, Any],
+) -> dict[str, str]:
+    if total.reconciliation == "match":
+        variance = str(language_value(language, "report.labels.matches_stated"))
+    elif total.reconciliation == "not_stated":
+        variance = str(language_value(language, "report.labels.total_not_stated"))
+    else:
+        variance = signed_money(total.delta_cents)
+    return {
+        "quote_id": str(total.quote_id),
+        "builder_name": builder_by_id.get(total.quote_id, ""),
+        "computed_total": money(total.computed_total_cents),
+        "stated_total": money(total.stated_total_cents),
+        "reconciliation": total.reconciliation,
+        "variance": variance,
     }
 
 
@@ -509,6 +577,15 @@ def money(cents: Any) -> str:
         return ""
     dollars = int(cents) / 100
     return f"${dollars:,.0f}"
+
+
+def signed_money(cents: int | None) -> str:
+    if cents is None:
+        return ""
+    if cents == 0:
+        return "$0"
+    prefix = "+" if cents > 0 else "-"
+    return f"{prefix}{money(abs(cents))}"
 
 
 def language_value(language: Mapping[str, Any], key_path: str) -> Any:
@@ -567,6 +644,33 @@ def _narrative_block(key: str, narratives: Mapping[str, str]) -> str:
     )
 
 
+def _totals_markdown(view: Mapping[str, Any], labels: Mapping[str, str]) -> str:
+    rows = [
+        f"| {labels['builder']} | {labels['computed_total']} | "
+        f"{labels['stated_total']} | {labels['variance']} |",
+        "| --- | --- | --- | --- |",
+    ]
+    for total in view["totals"]:
+        rows.append(
+            f"| {total['builder_name']} | {total['computed_total']} | "
+            f"{total['stated_total']} | {total['variance']} |"
+        )
+    return "\n".join(rows)
+
+
+def _allowances_markdown(view: Mapping[str, Any], labels: Mapping[str, str]) -> str:
+    rows = [
+        f"| {labels['item']} | {labels['builder']} | {labels['amount']} |",
+        "| --- | --- | --- |",
+    ]
+    for allowance in view["allowances"]:
+        rows.append(
+            f"| {allowance['cell_name']} | {allowance['builder_name']} | "
+            f"{allowance['amount']} |"
+        )
+    return "\n".join(rows)
+
+
 def _matrix_markdown(view: Mapping[str, Any]) -> str:
     quotes = view["quotes"]
     header = "| Item | " + " | ".join(quote["builder_name"] for quote in quotes) + " |"
@@ -576,7 +680,7 @@ def _matrix_markdown(view: Mapping[str, Any]) -> str:
         values = []
         for quote in quotes:
             status = cell["by_quote"].get(quote["id"])
-            values.append(f"{status['glyph']} {status['phrase']}" if status else "")
+            values.append(f"{status['glyph']} {status['display']}" if status else "")
         rows.append(f"| {cell['name']} | " + " | ".join(values) + " |")
     return "\n".join(rows)
 
