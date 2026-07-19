@@ -1,4 +1,5 @@
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { Button } from "@/components/ui/button";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type { ResourceEvent } from "@/lib/chat-events";
@@ -9,6 +10,8 @@ type ChatRailProps = {
   messages: ChatMessage[];
   chatRevision: number;
   chatLoading: boolean;
+  chatError?: string | null;
+  onRetry?: () => void;
   crossProject: boolean;
   selectedCitationId: string | null;
   onCrossProjectChange: (value: boolean) => void;
@@ -26,6 +29,8 @@ export function ChatRail({
   messages,
   chatRevision,
   chatLoading,
+  chatError,
+  onRetry,
   crossProject,
   selectedCitationId,
   onCrossProjectChange,
@@ -50,7 +55,20 @@ export function ChatRail({
               : "flex min-h-0 flex-1 flex-col px-3 py-3",
         )}
       >
-        {chatLoading || !thread ? (
+        {chatError ? (
+          <div
+            className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            role="alert"
+          >
+            <p className="font-medium">Chat unavailable</p>
+            <p className="mt-1">{chatError}</p>
+            {onRetry ? (
+              <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+                Retry chat
+              </Button>
+            ) : null}
+          </div>
+        ) : chatLoading || !thread ? (
           <p className="text-sm text-muted-foreground" role="status">
             Loading chat...
           </p>

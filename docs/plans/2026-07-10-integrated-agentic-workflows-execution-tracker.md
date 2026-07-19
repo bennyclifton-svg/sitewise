@@ -382,9 +382,16 @@ capability, and durable-event contract.
     onto the latest server values, preserving unrelated concurrent changes.
     Validation: 5 focused component tests passed; full frontend suite 108
     passed; TypeScript, ESLint, and production build passed.
-- [ ] **1.10C — Isolate chat failure from the project shell**
+- [x] **1.10C — Isolate chat failure from the project shell**
   - Dependencies: shared query boundaries.
   - Gate: project controls remain usable when chat bootstrap or streaming fails.
+  - Completed 2026-07-19. Project bootstrap errors and chat session errors now
+    have separate state boundaries. Thread/message failures render as a local
+    ChatRail alert with retry, while runtime failures remain in ChatPanel; none
+    replace the project shell. Focused tests prove repository, workflow nav, and
+    Cost Plan controls remain rendered and actionable during chat failure.
+    Validation: 13 focused tests passed; full frontend suite 111 passed;
+    TypeScript, ESLint, and production build passed.
 
 ### R1 release record
 

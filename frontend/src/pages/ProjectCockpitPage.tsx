@@ -110,7 +110,9 @@ export function ProjectCockpitPage() {
   const [chatRevision, setChatRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [chatReloadToken, setChatReloadToken] = useState(0);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [costPlanWorkflowError, setCostPlanWorkflowError] = useState<string | null>(null);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
@@ -135,7 +137,8 @@ export function ProjectCockpitPage() {
       setProjectsLoading(true);
       setChatLoading(true);
       setBootstrapLoaded(false);
-      setError(null);
+      setProjectError(null);
+      setChatError(null);
       setThread(null);
       setMessages([]);
       try {
@@ -165,7 +168,7 @@ export function ProjectCockpitPage() {
         );
       } catch (loadError) {
         if (!cancelled) {
-          setError(formatApiError(loadError, "Could not load this project."));
+          setProjectError(formatApiError(loadError, "Could not load this project."));
         }
       } finally {
         if (!cancelled) {
@@ -215,6 +218,7 @@ export function ProjectCockpitPage() {
 
     async function ensureProjectThread() {
       setChatLoading(true);
+      setChatError(null);
       try {
         const threads = await api.listThreads();
         const existingThread =
@@ -227,7 +231,7 @@ export function ProjectCockpitPage() {
         setChatRevision((current) => current + 1);
       } catch (loadError) {
         if (!cancelled) {
-          setError(formatApiError(loadError, "Could not open project chat."));
+          setChatError(formatApiError(loadError, "Could not open project chat."));
         }
       } finally {
         if (!cancelled) setChatLoading(false);
@@ -238,7 +242,7 @@ export function ProjectCockpitPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeProjectId]);
+  }, [activeProjectId, chatReloadToken]);
 
   async function refreshEvidence() {
     if (!projectId) return;
@@ -266,9 +270,14 @@ export function ProjectCockpitPage() {
 
   async function refreshMessages() {
     if (!thread) return;
-    const loadedMessages = await api.getThreadMessages(thread.id);
-    // Keep ChatPanel mounted; remounting resets scroll through full history.
-    setMessages(loadedMessages);
+    try {
+      const loadedMessages = await api.getThreadMessages(thread.id);
+      // Keep ChatPanel mounted; remounting resets scroll through full history.
+      setMessages(loadedMessages);
+      setChatError(null);
+    } catch (loadError) {
+      setChatError(formatApiError(loadError, "Could not refresh project chat."));
+    }
   }
 
   function refreshWorkflowSurfaces() {
@@ -324,6 +333,7 @@ export function ProjectCockpitPage() {
     setChatPanelCollapsed(false);
     setChatLoading(true);
     setSelectedCitationId(null);
+    setChatError(null);
     try {
       const loadedThread = await api.getThread(threadId);
       const loadedMessages = await api.getThreadMessages(threadId);
@@ -331,7 +341,7 @@ export function ProjectCockpitPage() {
       setMessages(loadedMessages);
       setChatRevision((current) => current + 1);
     } catch (loadError) {
-      setError(formatApiError(loadError, "Could not open that chat session."));
+      setChatError(formatApiError(loadError, "Could not open that chat session."));
     } finally {
       setChatLoading(false);
     }
@@ -342,6 +352,7 @@ export function ProjectCockpitPage() {
     setThread(created);
     setMessages([]);
     setSelectedCitationId(null);
+    setChatError(null);
     setChatRevision((current) => current + 1);
   }
 
@@ -349,6 +360,7 @@ export function ProjectCockpitPage() {
     if (!project) return;
     setChatLoading(true);
     setSelectedCitationId(null);
+    setChatError(null);
     try {
       const threads = await api.listThreads();
       const existingThread = threads.find((candidate) => candidate.project_id === project.id);
@@ -359,7 +371,7 @@ export function ProjectCockpitPage() {
       const created = await api.createProjectThread(project.id);
       handleCreateThread(created);
     } catch (loadError) {
-      setError(formatApiError(loadError, "Could not restore project chat."));
+      setChatError(formatApiError(loadError, "Could not restore project chat."));
     } finally {
       setChatLoading(false);
     }
@@ -587,7 +599,7 @@ export function ProjectCockpitPage() {
     );
   }
 
-  if (error || !project) {
+  if (projectError || !project) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-10">
         <Button asChild variant="outline" className="w-fit">
@@ -597,7 +609,7 @@ export function ProjectCockpitPage() {
           </Link>
         </Button>
         <p className="text-sm text-destructive" role="alert">
-          {error ?? "Project not found."}
+          {projectError ?? "Project not found."}
         </p>
       </div>
     );
@@ -683,6 +695,8 @@ export function ProjectCockpitPage() {
           messages={messages}
           chatRevision={chatRevision}
           chatLoading={chatLoading}
+          chatError={chatError}
+          onRetry={() => setChatReloadToken((current) => current + 1)}
           crossProject={crossProject}
           selectedCitationId={selectedCitationId}
           onCrossProjectChange={setCrossProject}

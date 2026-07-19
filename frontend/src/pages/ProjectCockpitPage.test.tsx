@@ -62,7 +62,11 @@ vi.mock("@/components/project/WorkspaceFolderPanel", () => ({
 }));
 
 vi.mock("@/components/chat/ChatRail", () => ({
-  ChatRail: () => <div data-testid="chat-rail" />,
+  ChatRail: ({ chatError }: { chatError?: string | null }) => (
+    <div data-testid="chat-rail">
+      {chatError ? <div role="alert">{chatError}</div> : null}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/project/ProjectShell", () => ({
@@ -70,13 +74,16 @@ vi.mock("@/components/project/ProjectShell", () => ({
     leftNav,
     children,
     repository,
+    chatPanel,
   }: {
     leftNav: ReactNode;
     children: ReactNode;
     repository: ReactNode;
+    chatPanel: ReactNode;
   }) => (
     <div>
       {leftNav}
+      {chatPanel}
       {children}
       {repository}
     </div>
@@ -180,6 +187,23 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     expect(screen.getByTestId("draft-review")).toHaveTextContent("draft-v2");
 
     resolveWorkspaceRefresh?.();
+  });
+
+  it("keeps project controls usable when chat bootstrap fails", async () => {
+    const user = userEvent.setup();
+    mocks.api.listThreads.mockRejectedValueOnce(new Error("chat offline"));
+
+    renderProjectCockpit();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not open project chat.",
+    );
+    expect(screen.getByTestId("repository")).toBeInTheDocument();
+    expect(screen.getByTestId("cost-plan-nav-status")).toBeInTheDocument();
+    const createCostPlan = screen.getByRole("button", { name: "Create cost plan" });
+    expect(createCostPlan).toBeEnabled();
+    await user.click(createCostPlan);
+    await waitFor(() => expect(mocks.api.runCreateCostPlan).toHaveBeenCalledOnce());
   });
 });
 

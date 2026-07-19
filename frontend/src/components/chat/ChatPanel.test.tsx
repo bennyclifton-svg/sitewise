@@ -121,6 +121,37 @@ describe("ChatPanel stop control", () => {
   });
 });
 
+describe("ChatPanel runtime failure", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("renders the failure inside the chat pane", () => {
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage: vi.fn(),
+      status: "ready",
+      error: new Error("Hermes runtime unavailable"),
+      stop: stopMock,
+    });
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Hermes runtime unavailable",
+    );
+    expect(screen.getByRole("textbox", { name: /message/i })).toBeInTheDocument();
+  });
+});
+
 describe("ChatPanel submit promotion", () => {
   beforeEach(() => {
     window.localStorage.clear();
