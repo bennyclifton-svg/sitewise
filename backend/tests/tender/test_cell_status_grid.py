@@ -6,6 +6,48 @@ from tender import worker
 from tender.services import expectations
 
 
+def test_mixed_roles_keep_countable_money_and_breakdown() -> None:
+    """I4: excluded money stays in breakdown; amount_cents is countable ex-GST only."""
+    comparison_id = uuid.uuid4()
+    quote_id = uuid.uuid4()
+
+    drafts = expectations.build_cell_status_grid(
+        comparison_id=comparison_id,
+        quote_ids=[quote_id],
+        fired_rules=[],
+        mapped_items=[
+            expectations.MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=quote_id,
+                cell_code="13.01",
+                item_status="included",
+                role="contract_component",
+                amount_ex_gst_cents=100_00,
+                counted_in_total=True,
+            ),
+            expectations.MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=quote_id,
+                cell_code="13.01",
+                item_status="excluded",
+                role="excluded",
+                amount_ex_gst_cents=50_00,
+                counted_in_total=True,
+            ),
+        ],
+    )
+
+    assert len(drafts) == 1
+    draft = drafts[0]
+    assert draft.status == "mixed"
+    assert draft.amount_cents == 100_00
+    assert draft.amount_breakdown == {
+        "contract_component": 100_00,
+        "excluded": 50_00,
+        "item_count": 2,
+    }
+
+
 def test_cell_status_grid_unions_expected_and_mapped_cells() -> None:
     comparison_id = uuid.uuid4()
     q1 = uuid.uuid4()

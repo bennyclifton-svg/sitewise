@@ -119,6 +119,7 @@ CELL_STATUSES = (
     "bundled",
     "not_required",
     "silent_ambiguous",
+    "mixed",
 )
 FLAG_TYPES = (
     "gap",
@@ -617,6 +618,7 @@ class TenderCellStatus(Base):
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     amount_cents: Mapped[int | None] = mapped_column(BigInteger)
+    amount_breakdown: Mapped[dict | None] = mapped_column(JSONB)
     bundled_into_cell: Mapped[str | None] = mapped_column(String(32))
     evidence: Mapped[dict | None] = mapped_column(JSONB)
     confidence: Mapped[float | None] = mapped_column(Numeric)

@@ -42,6 +42,7 @@ status_phrases:
   pc: "Allowance of {amount} for selection"
   included: "Included"
   not_required: "Not applicable to this site/project"
+  mixed: "Mixed inclusion — see line items"
 
 claim_strength_by_benchmark_confidence:
   high: "allowance is below the typical market range ({band})"

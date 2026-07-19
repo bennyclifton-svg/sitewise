@@ -22,8 +22,26 @@ from tender.models import (
 )
 from tender.schemas import ProjectContext
 from tender.services import jobs
+from tender.services.reconciliation import COUNTABLE_ROLES
 
 ConceptMap = Mapping[str, Sequence[str]]
+
+# Display status for a uniform role. Money never follows this map (I4).
+_ROLE_TO_CELL_STATUS = {
+    "contract_component": "included",
+    "pc_allowance": "pc",
+    "ps_allowance": "ps",
+    "optional_upgrade": "included",
+    "informational": "included",
+    "excluded": "excluded_explicit",
+}
+_ITEM_STATUS_TO_ROLE = {
+    "included": "contract_component",
+    "excluded": "excluded",
+    "pc_allowance": "pc_allowance",
+    "ps_allowance": "ps_allowance",
+    "note": "informational",
+}
 
 _MISSING = object()
 _COMPARATORS = {"eq", "in", "gte", "lte", "before", "exists", "contains_concept"}
@@ -62,6 +80,9 @@ class MappedCellItem:
     amount_cents: int | None = None
     allowance_cents: int | None = None
     allocation_fraction: float = 1.0
+    role: str | None = None
+    counted_in_total: bool = True
+    amount_ex_gst_cents: int | None = None
 
 
 @dataclass(frozen=True)
@@ -76,6 +97,7 @@ class CellStatusDraft:
     confidence: float | None
     qa_state: str
     queue_silence: bool = False
+    amount_breakdown: dict[str, Any] | None = None
 
     def as_row_state(self) -> "CellStatusRowState":
         return CellStatusRowState(
@@ -88,6 +110,7 @@ class CellStatusDraft:
             evidence=self.evidence,
             confidence=self.confidence,
             qa_state=self.qa_state,
+            amount_breakdown=self.amount_breakdown,
         )
 
 
@@ -102,6 +125,7 @@ class CellStatusRowState:
     evidence: dict[str, Any] | None
     confidence: float | None
     qa_state: str
+    amount_breakdown: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -159,7 +183,11 @@ def build_cell_status_grid(
         for cell_code in sorted(expected_cells | mapped_cells):
             mapped = mapped_by_key.get((quote_id, cell_code), [])
             if mapped:
-                drafts.append(_mapped_status_draft(comparison_id, quote_id, cell_code, mapped))
+                # I4: money and status from counted frontier items; fall back if none flagged.
+                active = [item for item in mapped if item.counted_in_total] or list(mapped)
+                drafts.append(
+                    _mapped_status_draft(comparison_id, quote_id, cell_code, active)
+                )
             else:
                 drafts.append(
                     _silent_status_draft(
@@ -426,19 +454,27 @@ def _mapped_status_draft(
     cell_code: str,
     items: Sequence[MappedCellItem],
 ) -> CellStatusDraft:
-    status = max((_cell_status_for_item(item.item_status) for item in items), key=_status_priority)
+    breakdown = _role_amount_breakdown(items)
+    statuses = {_cell_status_for_mapped_item(item) for item in items}
+    status = next(iter(statuses)) if len(statuses) == 1 else "mixed"
+    countable = sum(breakdown.get(role, 0) for role in COUNTABLE_ROLES)
+    amount_breakdown: dict[str, Any] | None = None
+    if items:
+        amount_breakdown = {**breakdown, "item_count": len(items)}
     return CellStatusDraft(
         comparison_id=comparison_id,
         quote_id=quote_id,
         cell_code=cell_code,
         status=status,
-        amount_cents=_allocated_amount(items),
+        amount_cents=countable if items else None,
+        amount_breakdown=amount_breakdown,
         bundled_into_cell=None,
         evidence={
             "mapped_line_items": [
                 {
                     "line_item_id": str(item.line_item_id),
                     "item_status": item.item_status,
+                    "role": item.role or _role_for_item_status(item.item_status),
                     "allocation_fraction": item.allocation_fraction,
                 }
                 for item in items
@@ -489,31 +525,41 @@ def _cell_status_for_item(item_status: str) -> str:
     }[item_status]
 
 
-def _status_priority(status: str) -> int:
-    return {
-        "included": 1,
-        "pc": 2,
-        "ps": 3,
-        "excluded_explicit": 4,
-    }[status]
+def _role_for_item_status(item_status: str) -> str:
+    return _ITEM_STATUS_TO_ROLE.get(item_status, "contract_component")
 
 
-def _allocated_amount(items: Sequence[MappedCellItem]) -> int | None:
-    total = 0
-    has_amount = False
+def _cell_status_for_mapped_item(item: MappedCellItem) -> str:
+    role = item.role or _role_for_item_status(item.item_status)
+    if role in _ROLE_TO_CELL_STATUS:
+        return _ROLE_TO_CELL_STATUS[role]
+    return _cell_status_for_item(item.item_status)
+
+
+def _item_native_amount_cents(item: MappedCellItem) -> int | None:
+    if item.amount_ex_gst_cents is not None:
+        return item.amount_ex_gst_cents
+    if item.item_status in {"pc_allowance", "ps_allowance"}:
+        return item.allowance_cents
+    return item.amount_cents
+
+
+def _role_amount_breakdown(items: Sequence[MappedCellItem]) -> dict[str, int]:
+    breakdown: dict[str, int] = defaultdict(int)
     for item in items:
-        amount = item.allowance_cents if item.item_status in {"pc_allowance", "ps_allowance"} else item.amount_cents
+        amount = _item_native_amount_cents(item)
         if amount is None:
             continue
-        total += round(amount * item.allocation_fraction)
-        has_amount = True
-    return total if has_amount else None
+        role = item.role or _role_for_item_status(item.item_status)
+        breakdown[role] += round(amount * item.allocation_fraction)
+    return dict(breakdown)
 
 
 def _row_matches_draft(row: CellStatusRowState, draft: CellStatusDraft) -> bool:
     return (
         row.status == draft.status
         and row.amount_cents == draft.amount_cents
+        and row.amount_breakdown == draft.amount_breakdown
         and row.bundled_into_cell == draft.bundled_into_cell
         and (row.evidence or {}) == draft.evidence
         and row.confidence == draft.confidence
@@ -540,7 +586,10 @@ async def _mapped_items_for_comparison(
         select(TenderMapping, TenderLineItem)
         .join(TenderLineItem, TenderLineItem.id == TenderMapping.line_item_id)
         .join(TenderQuote, TenderQuote.id == TenderLineItem.quote_id)
-        .where(TenderQuote.comparison_id == comparison_id)
+        .where(
+            TenderQuote.comparison_id == comparison_id,
+            TenderLineItem.duplicate_of_id.is_(None),
+        )
     )
     items: list[MappedCellItem] = []
     for mapping, line_item in result.all():
@@ -553,6 +602,9 @@ async def _mapped_items_for_comparison(
                 amount_cents=line_item.amount_cents,
                 allowance_cents=line_item.allowance_cents,
                 allocation_fraction=float(mapping.allocation_fraction),
+                role=line_item.role,
+                counted_in_total=bool(line_item.counted_in_total),
+                amount_ex_gst_cents=line_item.amount_ex_gst_cents,
             )
         )
     return items
@@ -577,6 +629,7 @@ def _row_state_from_model(row: TenderCellStatus) -> CellStatusRowState:
         cell_code=row.cell_code,
         status=row.status,
         amount_cents=row.amount_cents,
+        amount_breakdown=row.amount_breakdown,
         bundled_into_cell=row.bundled_into_cell,
         evidence=row.evidence,
         confidence=float(row.confidence) if row.confidence is not None else None,
@@ -591,6 +644,7 @@ def _cell_status_model(draft: CellStatusDraft) -> TenderCellStatus:
         cell_code=draft.cell_code,
         status=draft.status,
         amount_cents=draft.amount_cents,
+        amount_breakdown=draft.amount_breakdown,
         bundled_into_cell=draft.bundled_into_cell,
         evidence=draft.evidence,
         confidence=draft.confidence,
@@ -601,6 +655,7 @@ def _cell_status_model(draft: CellStatusDraft) -> TenderCellStatus:
 def _apply_draft(row: TenderCellStatus, draft: CellStatusDraft) -> None:
     row.status = draft.status
     row.amount_cents = draft.amount_cents
+    row.amount_breakdown = draft.amount_breakdown
     row.bundled_into_cell = draft.bundled_into_cell
     row.evidence = draft.evidence
     row.confidence = draft.confidence

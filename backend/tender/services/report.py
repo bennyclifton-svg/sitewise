@@ -42,6 +42,7 @@ GLYPHS = {
     "silent_ambiguous": "○",
     "bundled": "○",
     "not_required": "–",
+    "mixed": "◑",
 }
 
 
