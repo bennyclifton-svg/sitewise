@@ -5,11 +5,15 @@ import pytest
 from tender.eval.golden import DEFAULT_MANIFEST_PATH, load_manifest
 
 
-def test_empty_repo_manifest_loads() -> None:
+def test_repo_manifest_loads() -> None:
     manifest = load_manifest(DEFAULT_MANIFEST_PATH)
 
     assert manifest.version == 1
-    assert manifest.documents == ()
+    assert {document.id for document in manifest.documents} == {
+        "enmore",
+        "kaposi",
+        "nexusbuilt",
+    }
     assert manifest.targets["real_documents_min"] == 30
 
 
