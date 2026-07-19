@@ -299,10 +299,20 @@ capability, and durable-event contract.
     and accept/reject under a locked optimistic profile revision. Focused
     offline verification: 77 passed; disposable PostgreSQL migration/outbox and
     proposal lifecycle gates: 3 passed across the final integration runs.
-- [ ] **1.6 — Add profile MCP adapters**
+- [x] **1.6 — Add profile MCP adapters**
   - Dependencies: 1.2, 1.4, 1.5.
   - Gate: narrow read/options/update tools share the Project Profile module,
     enforce expected revision, and never expose generic mutation.
+  - Completed 2026-07-19. The MCP server now exposes the six narrow Project
+    Profile read/options/update/propose/accept/reject tools. Direct updates pass
+    the exact requested values through durable-turn authorization and require
+    the server-minted `profile_mutation` scope plus `expected_revision`;
+    evidence-derived facts persist proposals without touching confirmed state.
+    All adapters delegate to the shared profile/proposal modules, translate
+    stable conflicts, publish through their underlying services, and reject
+    cross-project tokens before profile reads. Agent prompt and workspace
+    guidance now describe the same policy. Complete MCP regression: 70 passed;
+    Ruff checks passed.
 - [ ] **1.7 — Make Project Decisions a shared revisioned interface**
   - Dependencies: 1.4.
   - Gate: UI, workflows, and MCP share optimistic revisions, locked-decision

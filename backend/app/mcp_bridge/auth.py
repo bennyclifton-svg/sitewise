@@ -62,6 +62,8 @@ async def authorize_project_mutation_with_claims(
     *,
     authorization_header: str | None,
     project_id: uuid.UUID,
+    required_scope: str | None = None,
+    requested_profile_patch: dict | None = None,
 ) -> ToolAuthorization:
     authorization = await authorize_project_access_with_claims(
         session,
@@ -77,6 +79,8 @@ async def authorize_project_mutation_with_claims(
             turn_id=turn_id,
             project_id=project_id,
             user_id=authorization.claims.user_id,
+            required_scope=required_scope,
+            requested_profile_patch=requested_profile_patch,
         )
     except PermissionError as exc:
         raise ToolAuthError(str(exc)) from exc

@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
+from pydantic import ValidationError
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm.attributes import set_committed_value
 
@@ -41,6 +42,25 @@ from app.mcp_bridge.auth import (
     authorize_project_access_with_claims,
     authorize_project_mutation_with_claims,
 )
+from app.agent.mutation_intent import PROFILE_MUTATION_SCOPE
+from app.projects.profile import (
+    ProfileDependencyConflict,
+    ProfileRevisionConflict,
+    ProfileValidationError,
+    apply_profile_patch,
+    profile_options,
+    read_profile,
+)
+from app.projects.profile_proposals import (
+    ProfileProposalNotFound,
+    ProfileProposalRevisionConflict,
+    ProfileProposalStateConflict,
+    accept_profile_proposal,
+    propose_project_profile_change as persist_profile_proposal,
+    reject_profile_proposal,
+)
+from app.schemas.profile_proposals import ProfileEvidenceReference
+from app.schemas.projects import ProjectProfilePatch
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from app.sitewise.cost_plan_consultant_forecast import (
@@ -311,6 +331,32 @@ async def _load_cost_plan_draft(session, *, project_id: uuid.UUID, path: str | N
 
 def _turn_id(authorization) -> str | None:
     return str(authorization.claims.turn_id) if authorization.claims.turn_id else None
+
+
+def _profile_tool_error(exc: Exception) -> ToolError:
+    if isinstance(exc, ProfileRevisionConflict):
+        return ToolError(
+            "profile_revision_conflict: "
+            f"expected={exc.expected_revision}, current={exc.current_revision}"
+        )
+    if isinstance(exc, ProfileDependencyConflict):
+        return ToolError(
+            "profile_dependency_conflict: " + ", ".join(exc.fields)
+        )
+    if isinstance(exc, ProfileProposalRevisionConflict):
+        return ToolError(
+            "profile_proposal_revision_conflict: "
+            f"proposal={exc.proposal_revision}, current={exc.current_revision}"
+        )
+    if isinstance(exc, ProfileProposalStateConflict):
+        return ToolError(f"profile_proposal_state_conflict: {exc.state}")
+    if isinstance(exc, ProfileProposalNotFound):
+        return ToolError("profile proposal not found")
+    if isinstance(exc, ProfileValidationError):
+        return ToolError("invalid project profile: " + "; ".join(exc.errors))
+    if isinstance(exc, ValidationError):
+        return ToolError(f"invalid project profile request: {exc}")
+    return ToolError(str(exc))
 
 
 def _tool_workspace_path(path: str | None) -> str:
@@ -768,6 +814,207 @@ async def _tool_status(
             state="done",
             **extra,
         )
+
+
+@mcp.tool
+async def get_project_profile(project_id: str) -> dict:
+    """Read the confirmed revisioned Project Profile for the active project."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        return read_profile(authorization.project).model_dump(mode="json")
+
+
+@mcp.tool
+async def get_project_profile_options(project_id: str) -> dict:
+    """Return valid Project Profile taxonomy and setup options."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        return profile_options()
+
+
+@mcp.tool
+async def update_project_profile(
+    project_id: str,
+    expected_revision: int,
+    changes: dict,
+    clear_incompatible: bool = False,
+) -> dict:
+    """Apply exact user-authorized profile values; never use for inferred facts."""
+    pid = uuid.UUID(project_id)
+    reserved_fields = {"expected_revision", "clear_incompatible"} & set(changes)
+    if reserved_fields:
+        raise ToolError(
+            "changes cannot contain reserved fields: "
+            + ", ".join(sorted(reserved_fields))
+        )
+    try:
+        patch = ProjectProfilePatch(
+            expected_revision=expected_revision,
+            clear_incompatible=clear_incompatible,
+            **changes,
+        )
+    except ValidationError as exc:
+        raise _profile_tool_error(exc) from exc
+    requested_fields = patch.model_fields_set - {
+        "expected_revision",
+        "clear_incompatible",
+    }
+    requested_patch = patch.model_dump(mode="json", include=requested_fields)
+    if clear_incompatible:
+        requested_patch["clear_incompatible"] = True
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+                required_scope=PROFILE_MUTATION_SCOPE,
+                requested_profile_patch=requested_patch,
+            )
+            change = await apply_profile_patch(
+                session,
+                project=authorization.project,
+                patch=patch,
+                actor_source="agent",
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except (
+            ProfileDependencyConflict,
+            ProfileRevisionConflict,
+            ProfileValidationError,
+        ) as exc:
+            raise _profile_tool_error(exc) from exc
+        return change.model_dump(mode="json")
+
+
+@mcp.tool
+async def propose_project_profile_change(
+    project_id: str,
+    proposed_values: dict,
+    evidence_references: list[dict] | None = None,
+    confidence: float | None = None,
+) -> dict:
+    """Persist inferred or evidence-derived profile facts for user confirmation."""
+    pid = uuid.UUID(project_id)
+    try:
+        references = [
+            ProfileEvidenceReference.model_validate(reference)
+            for reference in (evidence_references or [])
+        ]
+    except ValidationError as exc:
+        raise _profile_tool_error(exc) from exc
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            proposal = await persist_profile_proposal(
+                session,
+                project=authorization.project,
+                proposed_values=proposed_values,
+                evidence_references=references,
+                confidence=confidence,
+                proposer="agent",
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except (ProfileValidationError, ValidationError) as exc:
+            raise _profile_tool_error(exc) from exc
+        return proposal.model_dump(mode="json")
+
+
+@mcp.tool
+async def accept_project_profile_proposal(
+    project_id: str,
+    proposal_id: str,
+    expected_revision: int,
+) -> dict:
+    """Accept a persisted profile proposal after explicit user confirmation."""
+    pid = uuid.UUID(project_id)
+    proposal_uuid = uuid.UUID(proposal_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            resolution = await accept_profile_proposal(
+                session,
+                project=authorization.project,
+                proposal_id=proposal_uuid,
+                expected_profile_revision=expected_revision,
+                actor_source="agent",
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except (
+            ProfileDependencyConflict,
+            ProfileProposalNotFound,
+            ProfileProposalRevisionConflict,
+            ProfileProposalStateConflict,
+            ProfileRevisionConflict,
+            ProfileValidationError,
+        ) as exc:
+            raise _profile_tool_error(exc) from exc
+        return resolution.model_dump(mode="json")
+
+
+@mcp.tool
+async def reject_project_profile_proposal(
+    project_id: str,
+    proposal_id: str,
+    expected_revision: int,
+) -> dict:
+    """Reject a persisted profile proposal after explicit user confirmation."""
+    pid = uuid.UUID(project_id)
+    proposal_uuid = uuid.UUID(proposal_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            resolution = await reject_profile_proposal(
+                session,
+                project=authorization.project,
+                proposal_id=proposal_uuid,
+                expected_profile_revision=expected_revision,
+                actor_source="agent",
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except (
+            ProfileProposalNotFound,
+            ProfileProposalRevisionConflict,
+            ProfileProposalStateConflict,
+        ) as exc:
+            raise _profile_tool_error(exc) from exc
+        return resolution.model_dump(mode="json")
 
 
 @mcp.tool

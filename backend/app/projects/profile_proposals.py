@@ -52,6 +52,11 @@ async def propose_project_profile_change(
     confidence: float | None,
     proposer: str,
 ) -> ProjectProfileProposalView:
+    reserved_fields = {"expected_revision"} & set(proposed_values)
+    if reserved_fields:
+        raise ProfileValidationError(
+            ["Proposal values cannot contain expected_revision"]
+        )
     if confidence is not None and not 0 <= confidence <= 1:
         raise ProfileValidationError(["Proposal confidence must be between 0 and 1"])
     proposer = proposer.strip()

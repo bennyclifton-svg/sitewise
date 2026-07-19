@@ -1,5 +1,6 @@
 import uuid
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -96,3 +97,39 @@ def test_missing_or_garbage_token_rejected(header):
                 project_id=PROJECT_ID,
             )
         )
+
+
+def test_mutation_authorization_passes_bound_scope_to_durable_turn(monkeypatch):
+    from app.mcp_bridge import auth
+
+    turn_id = uuid.uuid4()
+    token = mint_turn_token(
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        turn_id=turn_id,
+        secret=SECRET,
+    )
+    monkeypatch.setattr(auth, "get_project", AsyncMock(return_value=_project()))
+    require_turn = AsyncMock()
+    monkeypatch.setattr(auth, "require_active_mutation_turn", require_turn)
+    session = object()
+
+    result = run_async(
+        auth.authorize_project_mutation_with_claims(
+            session,
+            authorization_header=f"Bearer {token}",
+            project_id=PROJECT_ID,
+            required_scope="profile_mutation",
+            requested_profile_patch={"state": "VIC"},
+        )
+    )
+
+    assert result.project.id == PROJECT_ID
+    require_turn.assert_awaited_once_with(
+        session,
+        turn_id=turn_id,
+        project_id=PROJECT_ID,
+        user_id=USER_ID,
+        required_scope="profile_mutation",
+        requested_profile_patch={"state": "VIC"},
+    )
