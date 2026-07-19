@@ -33,6 +33,7 @@ groups:
   "20": { name: "Connections & authority" }
   "21": { name: "Statutory, insurance & certification" }
   "22": { name: "Contract commercials" }
+  "99": { name: "Unallocated" }
 
 cells:
   # ── 01 Preliminaries & approvals ─────────────────────────────────────
@@ -258,3 +259,6 @@ cells:
   - { code: "22.08", name: "Liquidated damages rate", stage: statutory }
   - { code: "22.09", name: "Defects liability period", stage: statutory }
   - { code: "22.10", name: "Site cost certainty disclosure (fixed vs provisional)", stage: statutory }
+
+  # ── 99 Unallocated (I3 fallback; no synonyms — must never win T0/T1) ──
+  - { code: "99.01", name: "Unallocated / uncategorised", stage: base }

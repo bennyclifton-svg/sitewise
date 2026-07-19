@@ -58,6 +58,9 @@ flag_phrases:
   exclusion_risk: "Excluded items become your cost after signing — price them before comparing."
   statutory_missing: "This is a compliance requirement — confirm who carries it and that it is costed."
   arithmetic_inconsistency: "The stated figures do not reconcile — ask the builder to confirm the total."
+  unreconciled_residual: "Not every printed figure is accounted for in the counted total — check the quote ledger residual."
+  non_comparable_basis: "This quote uses a different pricing basis and is not directly comparable without adjustment."
+  suspect_number_format: "A printed figure has unusual number formatting — confirm the intended amount with the builder."
 
 question_templates:
   gap: "{builder_name}: Please confirm whether {cell_name} is included in your price, and if not, what amount should be added."
@@ -69,6 +72,9 @@ question_templates:
   exclusion_risk: "{builder_name}: Please price {cell_name} as an included item, or confirm the customer must carry this cost separately."
   statutory_missing: "{builder_name}: Please confirm who is responsible for {cell_name} and where the cost is included."
   arithmetic_inconsistency: "{builder_name}: Please confirm the arithmetic behind the quoted total and provide a corrected total if needed."
+  unreconciled_residual: "{builder_name}: Please confirm the figures behind your stated total; the counted line items leave an unexplained residual of {amount}."
+  non_comparable_basis: "{builder_name}: Please confirm whether your price is cost-plus or lump-sum and what is excluded from the stated total."
+  suspect_number_format: "{builder_name}: Please confirm the intended amount for {cell_name}; the printed figure has unusual formatting."
 
 analysis:
   notes:

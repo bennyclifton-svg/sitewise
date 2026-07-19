@@ -41,6 +41,21 @@ def test_taxonomy_defaults_aliases_and_group_derivation() -> None:
     assert nsw_home_warranty["region_tags"] == ["NSW"]
 
 
+def test_unallocated_bucket_cell_exists_without_synonyms() -> None:
+    """I3 fallback target: real matrix row that must never win T0/T1."""
+    cells = {row["code"]: row for row in read_taxonomy(DEFAULT_DATA_DIR / "taxonomy.yaml")}
+    unallocated = cells["99.01"]
+
+    assert unallocated["name"] == "Unallocated / uncategorised"
+    assert unallocated["grp"] == "Unallocated"
+    assert unallocated["stage"] == "base"
+    assert unallocated["active"] is True
+    assert len(cells) == 181
+
+    synonyms = read_synonyms(DEFAULT_DATA_DIR / "synonyms.seed.csv")
+    assert not any(row["cell_code"] == "99.01" for row in synonyms)
+
+
 def test_synonym_sources_are_normalized_to_prd_values() -> None:
     rows = read_synonyms(DEFAULT_DATA_DIR / "synonyms.seed.csv")
     expanded = next(row for row in rows if row["phrase"] == "building approvals")

@@ -51,6 +51,9 @@ for r in exp:
     except PredicateValidationError as exc:
         errors.append(f"bad predicate in {r['rule']}: {exc}")
 
+# Reserved fallback cells intentionally have zero synonyms so they never win T0/T1.
+SYNONYM_EXEMPT_CELLS = {"99.01"}
+
 syn = list(csv.DictReader(open(HERE / "synonyms.seed.csv")))
 syn_orphans = {s["cell_code"] for s in syn} - codes
 if syn_orphans:
@@ -58,7 +61,7 @@ if syn_orphans:
 norms = [(s["cell_code"], s["phrase"].strip().lower()) for s in syn]
 if len(norms) != len(set(norms)):
     errors.append("duplicate synonym (cell, phrase) pairs")
-cells_without_syn = codes - {s["cell_code"] for s in syn}
+cells_without_syn = codes - {s["cell_code"] for s in syn} - SYNONYM_EXEMPT_CELLS
 if cells_without_syn:
     errors.append(f"cells with zero synonyms: {sorted(cells_without_syn)}")
 

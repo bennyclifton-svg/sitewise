@@ -35,6 +35,9 @@ T3_PROMPT_VERSION = "0.1.0"
 T2_PROMPT_PATH = PROMPT_DIR / f"map_items_t2_v{T2_PROMPT_VERSION}.md"
 T3_PROMPT_PATH = PROMPT_DIR / f"map_items_t3_v{T3_PROMPT_VERSION}.md"
 
+# I3 fallback target. Real matrix row; never offered as an LLM/T0/T1 candidate.
+UNALLOCATED_CELL_CODE = "99.01"
+
 SessionFactory = Callable[[], Any]
 
 
@@ -446,13 +449,16 @@ def scope_cells_for_t3(
     *,
     t1_candidates: Sequence[CellCandidate],
 ) -> list[TaxonomyCellSummary]:
+    mappable = [
+        cell for cell in active_cells if cell.code != UNALLOCATED_CELL_CODE
+    ]
     if not t1_candidates:
-        return list(active_cells)
+        return list(mappable)
     groups = {taxonomy_group(candidate.cell_code) for candidate in t1_candidates}
     scoped = [
-        cell for cell in active_cells if taxonomy_group(cell.code) in groups
+        cell for cell in mappable if taxonomy_group(cell.code) in groups
     ]
-    return scoped or list(active_cells)
+    return scoped or list(mappable)
 
 
 def has_protected_mapping(mappings: Sequence[Any]) -> bool:
@@ -517,9 +523,14 @@ async def t1_candidates(
         if existing is None or candidate.similarity > existing.similarity:
             by_cell[candidate.cell_code] = candidate
 
-    return sorted(by_cell.values(), key=lambda candidate: candidate.similarity, reverse=True)[
-        :limit
-    ]
+    ranked = sorted(
+        by_cell.values(), key=lambda candidate: candidate.similarity, reverse=True
+    )
+    return [
+        candidate
+        for candidate in ranked
+        if candidate.cell_code != UNALLOCATED_CELL_CODE
+    ][:limit]
 
 
 def accept_t1_candidate(candidates: Sequence[CellCandidate]) -> CellCandidate | None:
@@ -553,7 +564,10 @@ async def load_cell_summaries(
 async def load_active_cell_summaries(session: AsyncSession) -> list[TaxonomyCellSummary]:
     result = await session.execute(
         select(TaxonomyCell)
-        .where(TaxonomyCell.active.is_(True))
+        .where(
+            TaxonomyCell.active.is_(True),
+            TaxonomyCell.code != UNALLOCATED_CELL_CODE,
+        )
         .order_by(TaxonomyCell.sort_order, TaxonomyCell.code)
     )
     return [
