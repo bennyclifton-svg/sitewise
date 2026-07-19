@@ -109,7 +109,16 @@ RULE_SEVERITIES = ("must", "should", "conditional")
 BENCHMARK_METRICS = ("absolute", "per_m2", "pct_of_build", "ratio")
 BENCHMARK_SOURCES = ("model_seed", "published", "observed")
 BENCHMARK_CONFIDENCES = ("low", "medium", "high")
-MAPPING_TIERS = ("t0_exact", "t1_embedding", "t2_small_llm", "t3_frontier", "human")
+MAPPING_TIERS = (
+    "t0_exact",
+    "t1_embedding",
+    "t2_small_llm",
+    "t3_frontier",
+    "human",
+    "taxonomy_seed",
+)
+PROJECT_TRADE_SOURCES = ("generated", "manual")
+UNALLOCATED_TRADE_CODE = "PT.UNALLOC"
 QA_STATES = ("auto_pass", "needs_review", "confirmed", "corrected")
 CELL_STATUSES = (
     "included",
@@ -559,6 +568,44 @@ class ReportLanguageEntry(Base):
     )
 
 
+class TenderProjectTrade(Base):
+    __tablename__ = "tender_project_trades"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    comparison_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_comparisons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(String(32), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    group_label: Mapped[str | None] = mapped_column(String(64))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="generated")
+    anchor_cell_codes: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    anchor_confidence: Mapped[float | None] = mapped_column(Numeric)
+    seed_assignments: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    embedding = mapped_column(Vector(1536), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    comparison: Mapped["TenderComparison"] = relationship()
+
+    __table_args__ = (
+        _values_check("source", PROJECT_TRADE_SOURCES, "tender_project_trades"),
+        UniqueConstraint(
+            "comparison_id",
+            "code",
+            name="uq_tender_project_trades_comparison_id_code",
+        ),
+        Index("ix_tender_project_trades_comparison_id", "comparison_id"),
+    )
+
+
 class TenderMapping(Base):
     __tablename__ = "tender_mappings"
 
@@ -570,8 +617,12 @@ class TenderMapping(Base):
         ForeignKey("tender_line_items.id", ondelete="CASCADE"),
         nullable=False,
     )
-    cell_code: Mapped[str] = mapped_column(
-        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE"), nullable=False
+    cell_code: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE")
+    )
+    project_trade_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_project_trades.id", ondelete="CASCADE"),
     )
     allocation_fraction: Mapped[float] = mapped_column(
         Numeric, nullable=False, default=1.0
@@ -593,7 +644,12 @@ class TenderMapping(Base):
     __table_args__ = (
         _values_check("tier", MAPPING_TIERS, "tender_mappings"),
         _values_check("qa_state", QA_STATES, "tender_mappings"),
+        CheckConstraint(
+            "cell_code IS NOT NULL OR project_trade_id IS NOT NULL",
+            name="ck_tender_mappings_cell_or_trade",
+        ),
         Index("ix_tender_mappings_line_item_id", "line_item_id"),
+        Index("ix_tender_mappings_project_trade_id", "project_trade_id"),
     )
 
 
@@ -613,8 +669,12 @@ class TenderCellStatus(Base):
         ForeignKey("tender_quotes.id", ondelete="CASCADE"),
         nullable=False,
     )
-    cell_code: Mapped[str] = mapped_column(
-        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE"), nullable=False
+    cell_code: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE")
+    )
+    project_trade_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_project_trades.id", ondelete="CASCADE"),
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     amount_cents: Mapped[int | None] = mapped_column(BigInteger)
@@ -633,12 +693,12 @@ class TenderCellStatus(Base):
     __table_args__ = (
         _values_check("status", CELL_STATUSES, "tender_cell_status"),
         _values_check("qa_state", QA_STATES, "tender_cell_status"),
-        UniqueConstraint(
-            "comparison_id",
-            "quote_id",
-            "cell_code",
-            name="uq_tender_cell_status_comparison_quote_cell",
+        CheckConstraint(
+            "cell_code IS NOT NULL OR project_trade_id IS NOT NULL",
+            name="ck_tender_cell_status_cell_or_trade",
         ),
+        # Partial uniques live in migration 036; ORM cannot express them.
+        Index("ix_tender_cell_status_comparison_id", "comparison_id"),
     )
 
 

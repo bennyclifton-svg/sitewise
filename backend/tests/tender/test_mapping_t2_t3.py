@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from tender.llm.client import LLMAdjudicationResponse
-from tender.models import TenderMapping
+from tender.models import TenderMapping, UNALLOCATED_TRADE_CODE
 from tender.schemas import ProjectContext
 from tender.services import mapping
 from tests.conftest import run_async
@@ -174,6 +174,87 @@ def test_sweep_unmapped_inserts_unallocated_fallback() -> None:
     assert row.qa_state == "needs_review"
     assert row.adjudication["fallback"] == "unallocated"
     assert row.adjudication["reason"] == "sweep_unmapped"
+
+
+def test_add_mapping_rows_trade_mode_falls_back_to_pt_unalloc() -> None:
+    added: list[Any] = []
+    session = SimpleNamespace(add=lambda obj: added.append(obj))
+    line_item_id = uuid.uuid4()
+    unalloc_id = uuid.uuid4()
+    trade_ids = {
+        "PT.01": uuid.uuid4(),
+        UNALLOCATED_TRADE_CODE: unalloc_id,
+    }
+    decision = mapping.MappingDecision(
+        tier="t3_frontier",
+        allocations=(),
+        confidence=0.4,
+        qa_state="needs_review",
+        adjudication={"error": "unknown_cell_code"},
+    )
+
+    mapping._add_mapping_rows(session, line_item_id, decision, trade_ids=trade_ids)
+
+    assert len(added) == 1
+    row = added[0]
+    assert row.cell_code is None
+    assert row.project_trade_id == unalloc_id
+    assert float(row.allocation_fraction) == 1.0
+    assert row.qa_state == "needs_review"
+    assert row.adjudication["fallback"] == "unallocated"
+
+
+def test_sweep_unmapped_trade_mode_uses_pt_unalloc() -> None:
+    unmapped_id = uuid.uuid4()
+    unalloc_id = uuid.uuid4()
+    added: list[Any] = []
+
+    class _Session:
+        async def execute(self, statement: Any) -> Any:
+            return SimpleNamespace(all=lambda: [(unmapped_id,)])
+
+        def add(self, obj: Any) -> None:
+            added.append(obj)
+
+    run_async(
+        mapping._sweep_unmapped(
+            _Session(), uuid.uuid4(), unallocated_trade_id=unalloc_id
+        )
+    )
+
+    assert len(added) == 1
+    row = added[0]
+    assert row.cell_code is None
+    assert row.project_trade_id == unalloc_id
+    assert row.adjudication["fallback"] == "unallocated"
+    assert row.adjudication["reason"] == "sweep_unmapped"
+
+
+def test_add_mapping_rows_trade_mode_writes_project_trade_id() -> None:
+    added: list[Any] = []
+    session = SimpleNamespace(add=lambda obj: added.append(obj))
+    line_item_id = uuid.uuid4()
+    trade_id = uuid.uuid4()
+    trade_ids = {
+        "PT.01": trade_id,
+        UNALLOCATED_TRADE_CODE: uuid.uuid4(),
+    }
+    decision = mapping.MappingDecision(
+        tier="taxonomy_seed",
+        allocations=(mapping.CellAllocation("PT.01", 1.0),),
+        confidence=1.0,
+        qa_state="auto_pass",
+        adjudication={},
+    )
+
+    mapping._add_mapping_rows(session, line_item_id, decision, trade_ids=trade_ids)
+
+    assert len(added) == 1
+    row = added[0]
+    assert row.cell_code is None
+    assert row.project_trade_id == trade_id
+    assert row.tier == "taxonomy_seed"
+    assert row.qa_state == "auto_pass"
 
 
 def test_t2_none_of_these_returns_escalation_decision() -> None:

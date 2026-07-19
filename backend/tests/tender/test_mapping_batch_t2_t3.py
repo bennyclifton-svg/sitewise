@@ -231,10 +231,12 @@ def test_map_items_batches_t2_instead_of_per_item_adjudicate(monkeypatch) -> Non
         *,
         context: ProjectContext,
         llm_client: Any,
+        prompt_version: str = mapping.T2_PROMPT_VERSION,
     ) -> list[mapping.MappingDecision]:
         nonlocal batch_calls
         batch_calls += 1
         assert len(items) == 2
+        assert prompt_version == mapping.T2_PROMPT_VERSION
         return [
             mapping.MappingDecision(
                 tier="t2_small_llm",
@@ -254,6 +256,7 @@ def test_map_items_batches_t2_instead_of_per_item_adjudicate(monkeypatch) -> Non
 
     monkeypatch.setattr(mapping, "_context_for_quote", AsyncMock(return_value=_context()))
     monkeypatch.setattr(mapping, "_existing_mappings", AsyncMock(return_value=[]))
+    monkeypatch.setattr(mapping, "load_project_trades", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         mapping,
         "load_active_cell_summaries",
@@ -360,6 +363,10 @@ def _fake_line_item(
         item_status="included",
         embedding=embedding,
         duplicate_of_id=None,
+        figure_key=None,
+        parent_id=None,
+        counted_in_total=False,
+        created_at=None,
     )
 
 

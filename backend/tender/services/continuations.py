@@ -21,7 +21,9 @@ async def after_job_complete(
     if comparison_id is None:
         return
     try:
-        if job_kind == "map_items":
+        if job_kind == "embed_items":
+            await _enqueue_taxonomy_if_ready(session, comparison_id=comparison_id)
+        elif job_kind == "map_items":
             await _enqueue_expectations_if_ready(session, comparison_id=comparison_id)
         elif job_kind in {"infer_silence", "infer_silence_batch"}:
             await _enqueue_analysis_if_ready(session, comparison_id=comparison_id)
@@ -31,6 +33,58 @@ async def after_job_complete(
             in_transaction = await in_transaction
         if in_transaction:
             await session.rollback()
+
+
+async def _enqueue_taxonomy_if_ready(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> None:
+    await _lock_continuation(
+        session,
+        comparison_id=comparison_id,
+        stage="generate_project_taxonomy",
+    )
+    if await _has_active_jobs(
+        session,
+        comparison_id=comparison_id,
+        kind="embed_items",
+    ) or await _has_active_jobs(
+        session,
+        comparison_id=comparison_id,
+        kind="extract_line_items",
+    ):
+        return
+    if not await _all_quotes_ready_for_taxonomy(
+        session,
+        comparison_id=comparison_id,
+    ):
+        return
+    if await _has_existing_job(
+        session,
+        comparison_id=comparison_id,
+        kind="generate_project_taxonomy",
+    ):
+        return
+    await jobs.enqueue(
+        session,
+        kind="generate_project_taxonomy",
+        comparison_id=comparison_id,
+        payload={"reason": "all_quotes_embedded"},
+    )
+    await session.commit()
+
+
+async def _all_quotes_ready_for_taxonomy(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> bool:
+    result = await session.execute(
+        select(TenderQuote.stage).where(TenderQuote.comparison_id == comparison_id)
+    )
+    stages = list(result.scalars())
+    return bool(stages) and all(stage == "map_items" for stage in stages)
 
 
 async def _enqueue_expectations_if_ready(

@@ -72,7 +72,10 @@ def test_map_items_parallel_outcomes_match_serial_order(monkeypatch) -> None:
         )
 
     def capture_rows(
-        session: Any, line_item_id: uuid.UUID, decision: mapping.MappingDecision
+        session: Any,
+        line_item_id: uuid.UUID,
+        decision: mapping.MappingDecision,
+        **kwargs: Any,
     ) -> None:
         written.append((line_item_id, decision))
 
@@ -124,10 +127,12 @@ def test_map_items_loads_active_cells_once(monkeypatch) -> None:
         active_cells: list[mapping.TaxonomyCellSummary],
         context: ProjectContext,
         frontier_client: Any = None,
+        prompt_version: str = mapping.T3_PROMPT_VERSION,
     ) -> mapping.MappingDecision:
         nonlocal t3_calls
         t3_calls += 1
         assert [cell.code for cell in active_cells] == ["03.01", "19.01"]
+        assert prompt_version == mapping.T3_PROMPT_VERSION
         return _decision(item.description_raw)
 
     _patch_map_items_deps(monkeypatch, free_tier)
@@ -188,6 +193,7 @@ def _patch_map_items_deps(monkeypatch: Any, free_tier: Any) -> None:
         AsyncMock(return_value=_context()),
     )
     monkeypatch.setattr(mapping, "_existing_mappings", AsyncMock(return_value=[]))
+    monkeypatch.setattr(mapping, "load_project_trades", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         mapping,
         "load_active_cell_summaries",
@@ -249,6 +255,10 @@ def _fake_line_item(
         item_status="included",
         embedding=None,
         duplicate_of_id=None,
+        figure_key=None,
+        parent_id=None,
+        counted_in_total=False,
+        created_at=None,
     )
 
 

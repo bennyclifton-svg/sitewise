@@ -165,6 +165,9 @@ def test_map_items_skips_duplicate_line_items(monkeypatch: Any) -> None:
         embedding=None,
         duplicate_of_id=None,
         created_at=None,
+        figure_key="p1-1",
+        parent_id=None,
+        counted_in_total=True,
     )
     reprint = SimpleNamespace(
         id=uuid.uuid4(),
@@ -178,6 +181,9 @@ def test_map_items_skips_duplicate_line_items(monkeypatch: Any) -> None:
         embedding=None,
         duplicate_of_id=original.id,
         created_at=None,
+        figure_key="p2-1",
+        parent_id=None,
+        counted_in_total=False,
     )
     mapped: list[str] = []
 
@@ -201,6 +207,7 @@ def test_map_items_skips_duplicate_line_items(monkeypatch: Any) -> None:
         mapping, "_context_for_quote", AsyncMock(return_value=_context())
     )
     monkeypatch.setattr(mapping, "_existing_mappings", AsyncMock(return_value=[]))
+    monkeypatch.setattr(mapping, "load_project_trades", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         mapping,
         "load_active_cell_summaries",

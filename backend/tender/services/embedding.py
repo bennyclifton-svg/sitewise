@@ -61,14 +61,8 @@ async def embed_items(
         return
     quote = await session.get(TenderQuote, job.quote_id)
     if quote is not None:
+        # Wait at map_items until generate_project_taxonomy fans out (I3/Phase 4).
         quote.stage = "map_items"
-    await jobs.enqueue(
-        session,
-        kind="map_items",
-        comparison_id=job.comparison_id,
-        quote_id=job.quote_id,
-        payload={"reason": "embedding_complete"},
-    )
 
 
 async def embed_line_items(

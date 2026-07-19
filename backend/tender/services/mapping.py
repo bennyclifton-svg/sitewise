@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import time
 import uuid
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -22,7 +23,9 @@ from tender.models import (
     TenderJob,
     TenderLineItem,
     TenderMapping,
+    TenderProjectTrade,
     TenderQuote,
+    UNALLOCATED_TRADE_CODE,
 )
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
@@ -32,8 +35,8 @@ from tender.services.telemetry import note_openai_response, record_mapping_tier
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "llm" / "prompts"
 T2_PROMPT_VERSION = "0.1.0"
 T3_PROMPT_VERSION = "0.1.0"
-T2_PROMPT_PATH = PROMPT_DIR / f"map_items_t2_v{T2_PROMPT_VERSION}.md"
-T3_PROMPT_PATH = PROMPT_DIR / f"map_items_t3_v{T3_PROMPT_VERSION}.md"
+T2_TRADE_PROMPT_VERSION = "0.2.0"
+T3_TRADE_PROMPT_VERSION = "0.2.0"
 
 # I3 fallback target. Real matrix row; never offered as an LLM/T0/T1 candidate.
 UNALLOCATED_CELL_CODE = "99.01"
@@ -57,6 +60,17 @@ class TaxonomyCellSummary:
 
 
 @dataclass(frozen=True)
+class ProjectTradeInfo:
+    id: uuid.UUID
+    code: str
+    name: str
+    description: str | None = None
+    sort_order: int = 0
+    embedding: list[float] | None = None
+    seed_assignments: tuple[dict[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
 class LineItemMappingInput:
     description_raw: str
     section_path: tuple[str, ...]
@@ -65,6 +79,9 @@ class LineItemMappingInput:
     amount_cents: int | None
     item_status: str
     embedding: list[float] | None = None
+    figure_key: str | None = None
+    parent_id: uuid.UUID | None = None
+    counted_in_total: bool = False
 
 
 @dataclass(frozen=True)
@@ -136,7 +153,7 @@ class OpenAIFrontierMappingClient:
     ) -> FrontierMappingResponse:
         response = await self.client.responses.create(
             model=_model_for_key(model_key),
-            instructions=_prompt_text(T3_PROMPT_PATH),
+            instructions=_prompt_text(_prompt_path("map_items_t3", prompt_version)),
             input=json.dumps(
                 {
                     "project_context": context.model_dump(mode="json"),
@@ -189,15 +206,44 @@ async def map_items(
         raise ValueError("map_items job requires quote_id")
     llm_client = llm_client or _default_llm_client()
     context = await _context_for_quote(session, job.quote_id)
-    active_cells = await load_active_cell_summaries(session)
+
+    comparison_id = job.comparison_id
+    if comparison_id is None:
+        quote_for_comparison = await session.get(TenderQuote, job.quote_id)
+        if quote_for_comparison is not None:
+            comparison_id = quote_for_comparison.comparison_id
+
+    trades = (
+        await load_project_trades(session, comparison_id)
+        if comparison_id is not None
+        else []
+    )
+    trade_mode = bool(trades)
+    trade_ids = {trade.code: trade.id for trade in trades} if trade_mode else None
+
+    if trade_mode:
+        active_cells = trade_summaries(trades)
+    else:
+        active_cells = await load_active_cell_summaries(session)
 
     result = await session.execute(
         select(TenderLineItem)
         .where(TenderLineItem.quote_id == job.quote_id)
         .order_by(TenderLineItem.created_at)
     )
+    line_items = list(result.scalars())
+    figure_key_by_id = {
+        item.id: item.figure_key
+        for item in line_items
+        if item.figure_key is not None
+    }
+    parent_by_id = {item.id: item.parent_id for item in line_items}
+    seed_index = (
+        build_seed_index(trades, job.quote_id) if trade_mode else {}
+    )
+
     prepared: list[tuple[uuid.UUID, LineItemMappingInput]] = []
-    for line_item in result.scalars():
+    for line_item in line_items:
         # I3: reprints are not mapped; counted originals carry the money.
         if line_item.duplicate_of_id is not None:
             continue
@@ -219,13 +265,25 @@ async def map_items(
             session_factory=session_factory,
             concurrency=concurrency,
             active_cells=active_cells,
+            trade_mode=trade_mode,
+            trades=trades,
+            seed_index=seed_index,
+            figure_key_by_id=figure_key_by_id,
+            parent_by_id=parent_by_id,
         )
         for line_item_id, decision in decisions:
-            _add_mapping_rows(session, line_item_id, decision)
+            _add_mapping_rows(
+                session, line_item_id, decision, trade_ids=trade_ids
+            )
         await session.flush()
 
     # I3 safety net: every non-duplicate item must have ≥1 mapping row.
-    await _sweep_unmapped(session, job.quote_id)
+    unallocated_trade_id = (
+        trade_ids.get(UNALLOCATED_TRADE_CODE) if trade_ids is not None else None
+    )
+    await _sweep_unmapped(
+        session, job.quote_id, unallocated_trade_id=unallocated_trade_id
+    )
     await session.flush()
 
     quote = await session.get(TenderQuote, job.quote_id)
@@ -242,6 +300,11 @@ async def map_prepared_line_items(
     session_factory: SessionFactory | None = None,
     concurrency: int | None = None,
     active_cells: Sequence[TaxonomyCellSummary],
+    trade_mode: bool = False,
+    trades: Sequence[ProjectTradeInfo] | None = None,
+    seed_index: Mapping[str, str] | None = None,
+    figure_key_by_id: Mapping[uuid.UUID, str] | None = None,
+    parent_by_id: Mapping[uuid.UUID, uuid.UUID | None] | None = None,
 ) -> list[tuple[uuid.UUID, MappingDecision]]:
     """Map line items: parallel free tiers → batch T2 → parallel scoped T3."""
 
@@ -251,11 +314,26 @@ async def map_prepared_line_items(
     )
     factory = session_factory or _default_session_factory()
     semaphore = asyncio.Semaphore(limit)
+    t2_prompt_version = (
+        T2_TRADE_PROMPT_VERSION if trade_mode else T2_PROMPT_VERSION
+    )
+    t3_prompt_version = (
+        T3_TRADE_PROMPT_VERSION if trade_mode else T3_PROMPT_VERSION
+    )
 
     async def resolve_one(
         line_item_id: uuid.UUID, item: LineItemMappingInput
     ) -> tuple[uuid.UUID, LineItemMappingInput, FreeTierResult]:
         async with semaphore:
+            if trade_mode:
+                free = resolve_free_tier_trades(
+                    item,
+                    seed_index=seed_index or {},
+                    trades=trades or (),
+                    figure_key_by_id=figure_key_by_id or {},
+                    parent_by_id=parent_by_id or {},
+                )
+                return line_item_id, item, free
             async with factory() as item_session:
                 free = await resolve_free_tier(item_session, item)
                 return line_item_id, item, free
@@ -292,6 +370,7 @@ async def map_prepared_line_items(
             batch_items,
             context=context,
             llm_client=llm_client,
+            prompt_version=t2_prompt_version,
         )
         for (line_item_id, batch_item), decision in zip(
             pending_t2, t2_decisions, strict=True
@@ -312,14 +391,19 @@ async def map_prepared_line_items(
         ) -> tuple[uuid.UUID, MappingDecision]:
             started = time.perf_counter()
             async with semaphore:
-                scoped = scope_cells_for_t3(
-                    active_cells, t1_candidates=t1_candidates
-                )
+                # Trade mode: T3 gets the full trade list (UNALLOC already excluded).
+                if trade_mode:
+                    scoped = list(active_cells)
+                else:
+                    scoped = scope_cells_for_t3(
+                        active_cells, t1_candidates=t1_candidates
+                    )
                 decision = await t3_map_item(
                     item,
                     active_cells=scoped,
                     context=context,
                     frontier_client=frontier_client,
+                    prompt_version=t3_prompt_version,
                 )
                 _note_mapping_tier(decision.tier, started)
                 return line_item_id, decision
@@ -378,6 +462,52 @@ async def resolve_free_tier(
     candidate_cells = await cell_loader(
         session, [candidate.cell_code for candidate in t1]
     )
+    return FreeTierResult(
+        t1_candidates=tuple(t1),
+        candidate_cells=tuple(candidate_cells),
+    )
+
+
+def resolve_free_tier_trades(
+    item: LineItemMappingInput,
+    *,
+    seed_index: Mapping[str, str],
+    trades: Sequence[ProjectTradeInfo],
+    figure_key_by_id: Mapping[uuid.UUID, str],
+    parent_by_id: Mapping[uuid.UUID, uuid.UUID | None],
+) -> FreeTierResult:
+    started = time.perf_counter()
+    t0_candidates = t0_seed_match(
+        item,
+        seed_index=seed_index,
+        figure_key_by_id=figure_key_by_id,
+        parent_by_id=parent_by_id,
+    )
+    if t0_candidates:
+        decision = _candidate_decision("taxonomy_seed", t0_candidates[0])
+        _note_mapping_tier(decision.tier, started)
+        return FreeTierResult(decision=decision)
+
+    t1 = (
+        t1_trade_candidates(item.embedding, trades, limit=5)
+        if item.embedding
+        else []
+    )
+    accepted = accept_t1_candidate(t1)
+    if accepted is not None:
+        decision = _candidate_decision("t1_embedding", accepted)
+        _note_mapping_tier(decision.tier, started)
+        return FreeTierResult(decision=decision)
+
+    if not t1:
+        return FreeTierResult()
+
+    summaries = {cell.code: cell for cell in trade_summaries(trades)}
+    candidate_cells = [
+        summaries[candidate.cell_code]
+        for candidate in t1
+        if candidate.cell_code in summaries
+    ]
     return FreeTierResult(
         t1_candidates=tuple(t1),
         candidate_cells=tuple(candidate_cells),
@@ -457,7 +587,9 @@ def scope_cells_for_t3(
     t1_candidates: Sequence[CellCandidate],
 ) -> list[TaxonomyCellSummary]:
     mappable = [
-        cell for cell in active_cells if cell.code != UNALLOCATED_CELL_CODE
+        cell
+        for cell in active_cells
+        if cell.code not in {UNALLOCATED_CELL_CODE, UNALLOCATED_TRADE_CODE}
     ]
     if not t1_candidates:
         return list(mappable)
@@ -474,6 +606,146 @@ def has_protected_mapping(mappings: Sequence[Any]) -> bool:
         or getattr(mapping, "qa_state") in {"confirmed", "corrected"}
         for mapping in mappings
     )
+
+
+async def load_project_trades(
+    session: AsyncSession, comparison_id: uuid.UUID
+) -> list[ProjectTradeInfo]:
+    result = await session.execute(
+        select(TenderProjectTrade)
+        .where(TenderProjectTrade.comparison_id == comparison_id)
+        .order_by(TenderProjectTrade.sort_order, TenderProjectTrade.code)
+    )
+    trades: list[ProjectTradeInfo] = []
+    for row in result.scalars():
+        # Unit fakes may reuse session.execute; only real ORM rows count.
+        if not isinstance(row, TenderProjectTrade):
+            continue
+        embedding = list(row.embedding) if row.embedding is not None else None
+        assignments = tuple(
+            {
+                "quote_id": str(entry.get("quote_id", "")),
+                "figure_key": str(entry.get("figure_key", "")),
+            }
+            for entry in (row.seed_assignments or [])
+            if isinstance(entry, Mapping)
+        )
+        trades.append(
+            ProjectTradeInfo(
+                id=row.id,
+                code=row.code,
+                name=row.name,
+                description=row.description,
+                sort_order=row.sort_order,
+                embedding=embedding,
+                seed_assignments=assignments,
+            )
+        )
+    return trades
+
+
+def trade_summaries(trades: Sequence[ProjectTradeInfo]) -> list[TaxonomyCellSummary]:
+    return [
+        TaxonomyCellSummary(
+            code=trade.code,
+            name=trade.name,
+            description=trade.description,
+            sort_order=trade.sort_order,
+        )
+        for trade in trades
+        if trade.code != UNALLOCATED_TRADE_CODE
+    ]
+
+
+def build_seed_index(
+    trades: Sequence[ProjectTradeInfo], quote_id: uuid.UUID | str
+) -> dict[str, str]:
+    """Map figure_key → trade code for seed_assignments belonging to quote_id."""
+    quote_key = str(quote_id)
+    index: dict[str, str] = {}
+    for trade in trades:
+        if trade.code == UNALLOCATED_TRADE_CODE:
+            continue
+        for assignment in trade.seed_assignments:
+            if str(assignment.get("quote_id")) != quote_key:
+                continue
+            figure_key = assignment.get("figure_key")
+            if not figure_key or figure_key in index:
+                continue
+            index[figure_key] = trade.code
+    return index
+
+
+def ancestor_figure_keys(
+    item: LineItemMappingInput,
+    *,
+    figure_key_by_id: Mapping[uuid.UUID, str],
+    parent_by_id: Mapping[uuid.UUID, uuid.UUID | None],
+) -> list[str]:
+    """Nearest-first figure_keys for the item and its parent chain."""
+    keys: list[str] = []
+    if item.figure_key:
+        keys.append(item.figure_key)
+    parent_id = item.parent_id
+    seen: set[uuid.UUID] = set()
+    while parent_id is not None and parent_id not in seen:
+        seen.add(parent_id)
+        figure_key = figure_key_by_id.get(parent_id)
+        if figure_key:
+            keys.append(figure_key)
+        parent_id = parent_by_id.get(parent_id)
+    return keys
+
+
+def t0_seed_match(
+    item: LineItemMappingInput,
+    *,
+    seed_index: Mapping[str, str],
+    figure_key_by_id: Mapping[uuid.UUID, str],
+    parent_by_id: Mapping[uuid.UUID, uuid.UUID | None],
+) -> list[CellCandidate]:
+    """T0 trade rung: item or counted-frontier ancestor in seed_assignments."""
+    if not seed_index:
+        return []
+    for figure_key in ancestor_figure_keys(
+        item,
+        figure_key_by_id=figure_key_by_id,
+        parent_by_id=parent_by_id,
+    ):
+        trade_code = seed_index.get(figure_key)
+        if trade_code is None:
+            continue
+        return [
+            CellCandidate(
+                cell_code=trade_code,
+                similarity=1.0,
+                via=f"seed:{figure_key}",
+            )
+        ]
+    return []
+
+
+def t1_trade_candidates(
+    embedding: Sequence[float],
+    trades: Sequence[ProjectTradeInfo],
+    limit: int = 5,
+) -> list[CellCandidate]:
+    scored: list[CellCandidate] = []
+    for trade in trades:
+        if trade.code == UNALLOCATED_TRADE_CODE:
+            continue
+        if not trade.embedding:
+            continue
+        similarity = _cosine_similarity(embedding, trade.embedding)
+        scored.append(
+            CellCandidate(
+                cell_code=trade.code,
+                similarity=similarity,
+                via=trade.name,
+            )
+        )
+    scored.sort(key=lambda candidate: candidate.similarity, reverse=True)
+    return scored[:limit]
 
 
 async def t0_match(session: AsyncSession, phrase_norm: str) -> list[CellCandidate]:
@@ -595,15 +867,16 @@ async def t2_map_item(
     candidate_cells: Sequence[TaxonomyCellSummary],
     context: ProjectContext,
     llm_client: TenderLLMClient,
+    prompt_version: str = T2_PROMPT_VERSION,
 ) -> MappingDecision:
     ordered_cells = _ordered_candidate_cells(candidates, candidate_cells)
     choices = _t2_choices(candidates)
     response = await llm_client.adjudicate(
-        _prompt_text(T2_PROMPT_PATH),
+        _prompt_text(_prompt_path("map_items_t2", prompt_version)),
         choices,
         _t2_evidence(item, candidates, ordered_cells),
         context,
-        prompt_version=T2_PROMPT_VERSION,
+        prompt_version=prompt_version,
         model_key="tender_model_adjudicate_small",
     )
     return _decision_from_t2_response(response, candidates, ordered_cells)
@@ -614,6 +887,7 @@ async def t2_map_items_batch(
     *,
     context: ProjectContext,
     llm_client: TenderLLMClient,
+    prompt_version: str = T2_PROMPT_VERSION,
 ) -> list[MappingDecision]:
     if not items:
         return []
@@ -624,7 +898,10 @@ async def t2_map_items_batch(
         chunk = list(items[offset : offset + batch_size])
         decisions.extend(
             await _t2_map_items_batch_chunk(
-                chunk, context=context, llm_client=llm_client
+                chunk,
+                context=context,
+                llm_client=llm_client,
+                prompt_version=prompt_version,
             )
         )
     return decisions
@@ -635,6 +912,7 @@ async def _t2_map_items_batch_chunk(
     *,
     context: ProjectContext,
     llm_client: TenderLLMClient,
+    prompt_version: str = T2_PROMPT_VERSION,
 ) -> list[MappingDecision]:
     prepared = [
         (
@@ -660,24 +938,25 @@ async def _t2_map_items_batch_chunk(
         for item, candidates, ordered_cells in prepared
     ]
 
+    prompt_text = _prompt_text(_prompt_path("map_items_t2", prompt_version))
     adjudicate_many = getattr(llm_client, "adjudicate_many", None)
     if adjudicate_many is not None:
         responses = await adjudicate_many(
-            _prompt_text(T2_PROMPT_PATH),
+            prompt_text,
             choice_union,
             evidence_items,
             context,
-            prompt_version=T2_PROMPT_VERSION,
+            prompt_version=prompt_version,
             model_key="tender_model_adjudicate_small",
         )
     else:
         responses = [
             await llm_client.adjudicate(
-                _prompt_text(T2_PROMPT_PATH),
+                prompt_text,
                 _t2_choices(candidates),
                 evidence,
                 context,
-                prompt_version=T2_PROMPT_VERSION,
+                prompt_version=prompt_version,
                 model_key="tender_model_adjudicate_small",
             )
             for (_item, candidates, _cells), evidence in zip(
@@ -783,6 +1062,7 @@ async def t3_map_item(
     active_cells: Sequence[TaxonomyCellSummary],
     context: ProjectContext,
     frontier_client: FrontierMappingClient | None = None,
+    prompt_version: str = T3_PROMPT_VERSION,
 ) -> MappingDecision:
     frontier_client = frontier_client or OpenAIFrontierMappingClient()
     ordered_cells = sorted(active_cells, key=lambda cell: (cell.sort_order, cell.code))
@@ -792,7 +1072,7 @@ async def t3_map_item(
         line_item=_line_item_payload(item),
         active_cells=list(ordered_cells),
         context=context,
-        prompt_version=T3_PROMPT_VERSION,
+        prompt_version=prompt_version,
         model_key="tender_model_adjudicate_frontier",
     )
     return _decision_from_frontier_response(response, ordered_cells)
@@ -963,6 +1243,10 @@ def _frontier_raw(response: FrontierMappingResponse) -> dict[str, Any]:
     }
 
 
+def _prompt_path(name: str, version: str) -> Path:
+    return PROMPT_DIR / f"{name}_v{version}.md"
+
+
 def _prompt_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -1034,6 +1318,17 @@ def _candidate_decision(tier: str, candidate: CellCandidate) -> MappingDecision:
     )
 
 
+def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
+    if len(left) != len(right):
+        return 0.0
+    numerator = sum(a * b for a, b in zip(left, right, strict=True))
+    left_norm = math.sqrt(sum(value * value for value in left))
+    right_norm = math.sqrt(sum(value * value for value in right))
+    if left_norm == 0 or right_norm == 0:
+        return 0.0
+    return numerator / (left_norm * right_norm)
+
+
 async def _context_for_quote(session: AsyncSession, quote_id: uuid.UUID) -> ProjectContext:
     return await context_for_quote(session, quote_id)
 
@@ -1056,12 +1351,23 @@ def _line_item_from_model(line_item: TenderLineItem) -> LineItemMappingInput:
         amount_cents=line_item.amount_cents,
         item_status=line_item.item_status,
         embedding=list(line_item.embedding) if line_item.embedding is not None else None,
+        figure_key=getattr(line_item, "figure_key", None),
+        parent_id=getattr(line_item, "parent_id", None),
+        counted_in_total=bool(getattr(line_item, "counted_in_total", False)),
     )
 
 
 def _add_mapping_rows(
-    session: AsyncSession, line_item_id: uuid.UUID, decision: MappingDecision
+    session: AsyncSession,
+    line_item_id: uuid.UUID,
+    decision: MappingDecision,
+    *,
+    trade_ids: Mapping[str, uuid.UUID] | None = None,
 ) -> None:
+    if trade_ids is not None:
+        _add_trade_mapping_rows(session, line_item_id, decision, trade_ids)
+        return
+
     if not decision.allocations:
         # I3: never drop an item — park money in Unallocated for review.
         adjudication = dict(decision.adjudication or {})
@@ -1092,7 +1398,66 @@ def _add_mapping_rows(
         )
 
 
-async def _sweep_unmapped(session: AsyncSession, quote_id: uuid.UUID) -> None:
+def _add_trade_mapping_rows(
+    session: AsyncSession,
+    line_item_id: uuid.UUID,
+    decision: MappingDecision,
+    trade_ids: Mapping[str, uuid.UUID],
+) -> None:
+    unalloc_id = trade_ids.get(UNALLOCATED_TRADE_CODE)
+    if not decision.allocations:
+        if unalloc_id is None:
+            raise ValueError("trade mode requires PT.UNALLOC project trade")
+        adjudication = dict(decision.adjudication or {})
+        adjudication.setdefault("fallback", "unallocated")
+        session.add(
+            TenderMapping(
+                line_item_id=line_item_id,
+                cell_code=None,
+                project_trade_id=unalloc_id,
+                allocation_fraction=1.0,
+                tier=decision.tier,
+                confidence=decision.confidence,
+                adjudication=adjudication,
+                qa_state="needs_review",
+            )
+        )
+        return
+
+    for allocation in decision.allocations:
+        trade_id = trade_ids.get(allocation.cell_code, unalloc_id)
+        if trade_id is None:
+            raise ValueError("trade mode requires PT.UNALLOC project trade")
+        qa_state = (
+            decision.qa_state
+            if allocation.cell_code in trade_ids
+            else "needs_review"
+        )
+        adjudication = decision.adjudication
+        if allocation.cell_code not in trade_ids:
+            adjudication = dict(decision.adjudication or {})
+            adjudication.setdefault("fallback", "unallocated")
+            adjudication["unknown_trade_code"] = allocation.cell_code
+        session.add(
+            TenderMapping(
+                line_item_id=line_item_id,
+                cell_code=None,
+                project_trade_id=trade_id,
+                allocation_fraction=allocation.allocation_fraction,
+                tier=decision.tier,
+                confidence=decision.confidence,
+                adjudication=adjudication,
+                qa_state=qa_state,
+            )
+        )
+
+
+async def _sweep_unmapped(
+    session: AsyncSession,
+    quote_id: uuid.UUID,
+    *,
+    unallocated_trade_id: uuid.UUID | None = None,
+) -> None:
     """Insert Unallocated rows for any non-duplicate items still without mappings (I3)."""
     result = await session.execute(
         select(TenderLineItem.id)
@@ -1104,6 +1469,23 @@ async def _sweep_unmapped(session: AsyncSession, quote_id: uuid.UUID) -> None:
         )
     )
     for (line_item_id,) in result.all():
+        if unallocated_trade_id is not None:
+            session.add(
+                TenderMapping(
+                    line_item_id=line_item_id,
+                    cell_code=None,
+                    project_trade_id=unallocated_trade_id,
+                    allocation_fraction=1.0,
+                    tier="t3_frontier",
+                    confidence=None,
+                    adjudication={
+                        "fallback": "unallocated",
+                        "reason": "sweep_unmapped",
+                    },
+                    qa_state="needs_review",
+                )
+            )
+            continue
         session.add(
             TenderMapping(
                 line_item_id=line_item_id,

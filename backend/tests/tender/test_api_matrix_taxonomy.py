@@ -17,6 +17,8 @@ from tender.schemas import (
     MatrixGroup,
     MatrixQuoteCell,
     MatrixResponse,
+    ProjectTradeView,
+    ProjectTradesResponse,
     TaxonomyCellView,
     TaxonomySearchResult,
 )
@@ -213,6 +215,46 @@ def test_build_matrix_computes_totals_with_reconciliation() -> None:
     second = response.totals[1]
     assert second.computed_total_cents == 0
     assert second.reconciliation == "not_stated"
+
+
+def test_trades_endpoint_returns_ordered_trades_with_unalloc(
+    client: TestClient,
+) -> None:
+    trades = ProjectTradesResponse(
+        comparison_id=COMPARISON_ID,
+        trades=[
+            ProjectTradeView(
+                id=uuid.uuid4(),
+                code="PT.01",
+                name="Joinery",
+                group_label="Finishes",
+                sort_order=1,
+                source="generated",
+            ),
+            ProjectTradeView(
+                id=None,
+                code="PT.UNALLOC",
+                name="Unallocated / uncategorised",
+                group_label="Unallocated",
+                sort_order=10_000,
+                source="reserved",
+            ),
+        ],
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.project_taxonomy.list_project_trades",
+            new=AsyncMock(return_value=trades),
+        ),
+    ):
+        response = client.get(f"/api/tender/comparisons/{COMPARISON_ID}/trades")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["trades"][0]["code"] == "PT.01"
+    assert payload["trades"][-1]["code"] == "PT.UNALLOC"
 
 
 def test_taxonomy_endpoints_return_cells_and_search_results(client: TestClient) -> None:

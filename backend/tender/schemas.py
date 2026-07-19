@@ -351,6 +351,23 @@ class TaxonomyListResponse(BaseModel):
     cells: list[TaxonomyCellView] = Field(default_factory=list)
 
 
+class ProjectTradeView(BaseModel):
+    id: uuid.UUID | None = None
+    code: str
+    name: str
+    description: str | None = None
+    group_label: str | None = None
+    sort_order: int = 0
+    source: Literal["generated", "manual", "reserved"] = "generated"
+    anchor_cell_codes: list[str] = Field(default_factory=list)
+    anchor_confidence: float | None = None
+
+
+class ProjectTradesResponse(BaseModel):
+    comparison_id: uuid.UUID
+    trades: list[ProjectTradeView] = Field(default_factory=list)
+
+
 class TaxonomySearchResult(TaxonomyCellView):
     similarity: float
     via: str

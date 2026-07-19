@@ -30,6 +30,7 @@ from tender.services.expectations import run_expectations
 from tender.services.extraction_handler import extract_line_items_job
 from tender.services.ingestion import ingest_document
 from tender.services.mapping import map_items
+from tender.services.project_taxonomy import generate_project_taxonomy
 from tender.services.report import assemble_report_draft
 from tender.services.silence import infer_silence, infer_silence_batch
 
@@ -42,6 +43,7 @@ HANDLERS: dict[str, Handler] = {
     "classify_document": classify_document,
     "extract_line_items": extract_line_items_job,
     "embed_items": embed_items,
+    "generate_project_taxonomy": generate_project_taxonomy,
     "map_items": map_items,
     "infer_silence": infer_silence,
     "infer_silence_batch": infer_silence_batch,
