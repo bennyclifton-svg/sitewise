@@ -394,6 +394,7 @@ async def draft_consultant_procurement_artifact(
     discipline: str,
     max_pages: int = 1,
     instructions: str | None = None,
+    auto_commit: bool = True,
 ) -> ConsultantProcurementResult:
     profile = normalise_discipline(discipline)
     pages = max(1, min(max_pages, 3))
@@ -474,7 +475,8 @@ async def draft_consultant_procurement_artifact(
         draft=draft,
         markdown=markdown,
     )
-    await session.commit()
+    if auto_commit:
+        await session.commit()
     return ConsultantProcurementResult(
         draft=draft,
         discipline=profile.name,

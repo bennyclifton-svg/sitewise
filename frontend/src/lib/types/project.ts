@@ -127,6 +127,7 @@ export type ProjectSummary = {
   user_role: string | null;
   state: string | null;
   profile_revision?: number;
+  decision_set_revision?: number;
   status: string;
   overlay_status: OverlayStatus;
   updated_at: string;
@@ -238,6 +239,61 @@ export type WorkflowCapabilityMatrix = {
   snapshot_schema_version: 1;
   snapshot_content_fingerprint: string;
   capabilities: Record<string, WorkflowCapability>;
+};
+
+export type WorkflowRunState =
+  | "queued"
+  | "running"
+  | "needs_input"
+  | "complete"
+  | "failed"
+  | "cancelled";
+
+export type WorkflowRun = {
+  id: string;
+  project_id: string;
+  requested_by_user_id: string;
+  requested_by_thread_id: string | null;
+  requested_by_turn_id: string | null;
+  workflow_type: string;
+  idempotency_key: string;
+  schema_version: number;
+  frozen_profile_revision: number;
+  frozen_snapshot_fingerprint: string;
+  frozen_evidence_fingerprint: string;
+  frozen_decision_set_revision: number;
+  frozen_selection_revision: number | null;
+  frozen_artefact_version: number | null;
+  state: WorkflowRunState;
+  attempt: number;
+  max_attempts: number;
+  cancel_requested: boolean;
+  progress: Record<string, unknown>;
+  stage_durations_ms: Record<string, number>;
+  result_artefact_id: string | null;
+  result_reference: Record<string, unknown> | null;
+  error_class: string | null;
+  error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+};
+
+export type WorkflowRunStartInput = {
+  idempotency_key: string;
+  expected_snapshot_fingerprint: string;
+  expected_profile_revision: number;
+  expected_decision_set_revision: number;
+  expected_artefact_version?: number;
+  thread_id?: string;
+  chat_model?: string;
+  parameters?: Record<string, unknown>;
+};
+
+export type WorkflowRunResult = {
+  run: WorkflowRun;
+  result: Record<string, unknown> | null;
 };
 
 export type WorkspaceTreeNode = {

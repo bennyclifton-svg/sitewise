@@ -19,6 +19,10 @@ from app.database.session import get_engine
 from app.logging import configure_logging, get_logger
 from app.mcp_bridge.server import mcp
 from app.tender_worker import start_inprocess_tender_worker, stop_inprocess_tender_worker
+from app.workflow_worker import (
+    start_inprocess_workflow_worker,
+    stop_inprocess_workflow_worker,
+)
 from tender.router import router as tender_router
 from tender.services.artefact_publisher import configure_tender_artefact_publisher
 from app.projects.tender_artefact_adapter import CoreTenderArtefactPublisher
@@ -49,10 +53,12 @@ async def lifespan(_app: FastAPI):
     )
     # The MCP session manager needs its own lifespan running alongside ours.
     worker_handle = await start_inprocess_tender_worker()
+    workflow_worker_handle = await start_inprocess_workflow_worker()
     try:
         async with mcp_app.lifespan(_app):
             yield
     finally:
+        await stop_inprocess_workflow_worker(workflow_worker_handle)
         await stop_inprocess_tender_worker(worker_handle)
         await get_engine().dispose()
 

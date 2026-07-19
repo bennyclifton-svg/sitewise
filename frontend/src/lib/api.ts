@@ -64,6 +64,9 @@ import type {
   UpdateProjectDecisionResponse,
   ProjectWorkspaceTree,
   WorkbookPreview,
+  WorkflowRun,
+  WorkflowRunResult,
+  WorkflowRunStartInput,
 } from "@/lib/types/project";
 
 const WORKFLOW_TIMEOUT_MS = 600_000;
@@ -698,6 +701,44 @@ export const api = {
         ...(threadId ? { thread_id: threadId } : {}),
       },
       { timeoutMs: WORKFLOW_TIMEOUT_MS },
+    ),
+
+  startWorkflowRun: async (
+    projectId: string,
+    workflowPath:
+      | "project-plan"
+      | "project-plan/refresh"
+      | "cost-plan"
+      | "sort-files"
+      | "consultant-procurement",
+    input: WorkflowRunStartInput,
+  ): Promise<WorkflowRun> =>
+    api.post<WorkflowRun>(
+      `/projects/${projectId}/workflow-runs/${workflowPath}`,
+      { ...workflowChatModelPayload(), ...input },
+    ),
+
+  getWorkflowRun: async (
+    projectId: string,
+    runId: string,
+  ): Promise<WorkflowRun> =>
+    api.get<WorkflowRun>(`/projects/${projectId}/workflow-runs/${runId}`),
+
+  getWorkflowResult: async (
+    projectId: string,
+    runId: string,
+  ): Promise<WorkflowRunResult> =>
+    api.get<WorkflowRunResult>(
+      `/projects/${projectId}/workflow-runs/${runId}/result`,
+    ),
+
+  cancelWorkflowRun: async (
+    projectId: string,
+    runId: string,
+  ): Promise<WorkflowRun> =>
+    api.post<WorkflowRun>(
+      `/projects/${projectId}/workflow-runs/${runId}/cancel`,
+      {},
     ),
 
   uploadInboxFiles: async (

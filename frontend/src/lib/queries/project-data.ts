@@ -160,10 +160,12 @@ export function useProjectEventCursor({
   projectId,
   enabled,
   active,
+  onEvent,
 }: {
   projectId: string;
   enabled: boolean;
   active: boolean;
+  onEvent?: (event: ProjectEvent) => void;
 }) {
   const queryClient = useQueryClient();
   const cursorRef = useRef(0);
@@ -207,6 +209,7 @@ export function useProjectEventCursor({
           }
           seenIdsRef.current.add(event.id);
           applyDurableProjectEvent(queryClient, event);
+          onEvent?.(event);
         }
         cursorRef.current = Math.max(cursorRef.current, response.next_after);
         schedule(response.events.length >= 100 ? 0 : active ? 250 : 1_500);
@@ -229,7 +232,7 @@ export function useProjectEventCursor({
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [active, enabled, projectId, queryClient]);
+  }, [active, enabled, onEvent, projectId, queryClient]);
 
   return {
     applyResource,
@@ -270,6 +273,7 @@ function invalidationKeys(projectId: string, resourceType: string) {
       return [projectKeys.evidence(projectId), projectKeys.workspaceTree(projectId)];
     case "workspace_file":
     case "draft_artifact":
+    case "artefact_revision":
       return [projectKeys.workspaceTree(projectId), projectActivityKeys.root(projectId)];
     case "workflow_run":
     case "tender_job":

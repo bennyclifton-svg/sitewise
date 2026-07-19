@@ -25,6 +25,7 @@ from app.database.stripe_customer import StripeCustomer
 from app.database.stripe_subscription import StripeSubscription
 from app.database.user import User
 from app.database.workspace_file import WorkspaceFile
+from app.database.workflow_run import WorkflowRun
 
 __all__ = [
     "Base",
@@ -52,4 +53,5 @@ __all__ = [
     "StripeSubscription",
     "User",
     "WorkspaceFile",
+    "WorkflowRun",
 ]

@@ -89,6 +89,7 @@ from app.projects.workflow_capabilities import (
 )
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
+from app.schemas.workflow_runs import WorkflowRunStartRequest, WorkflowRunView
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from app.sitewise.cost_plan_consultant_forecast import (
@@ -111,6 +112,14 @@ from app.workflows.create_cost_plan import (
 )
 from app.workflows.consultant_procurement import (
     draft_consultant_procurement_artifact as run_consultant_procurement_artifact,
+)
+from app.workflows.runs import (
+    WorkflowRunCapabilityConflict,
+    WorkflowRunConflict,
+    WorkflowRunNotFound,
+    cancel_workflow_run as persist_workflow_cancellation,
+    get_workflow_run as read_workflow_run,
+    start_workflow_run as persist_workflow_run,
 )
 from tender.router import (
     get_comparison_detail,
@@ -924,6 +933,252 @@ async def get_workflow_capabilities(project_id: str) -> dict:
             owner_user_id=authorization.project.owner_user_id,
         )
         return workflow_capabilities(snapshot).model_dump(mode="json")
+
+
+_MCP_WORKFLOW_CAPABILITIES = {
+    "create_project_plan": "create_pmp",
+    "refresh_project_plan": "update_pmp",
+    "create_cost_plan": "create_cost_plan",
+    "consultant_procurement": "consultant_procurement",
+}
+
+
+async def _start_mcp_workflow(
+    *,
+    project_id: str,
+    workflow_type: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    expected_artefact_version: int | None = None,
+    chat_model: str | None = None,
+    parameters: dict | None = None,
+) -> dict:
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            snapshot = await read_project_snapshot(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+            )
+            capability_name = _MCP_WORKFLOW_CAPABILITIES.get(workflow_type)
+            if capability_name is not None:
+                message = capability_block_message(snapshot, capability_name)
+                if message:
+                    raise WorkflowRunCapabilityConflict(message)
+            request = WorkflowRunStartRequest(
+                idempotency_key=idempotency_key,
+                expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+                expected_profile_revision=expected_profile_revision,
+                expected_decision_set_revision=expected_decision_set_revision,
+                expected_artefact_version=expected_artefact_version,
+                turn_id=authorization.claims.turn_id,
+                chat_model=chat_model,
+                parameters=parameters or {},
+            )
+            run, _created = await persist_workflow_run(
+                session,
+                project=authorization.project,
+                user_id=authorization.claims.user_id,
+                workflow_type=workflow_type,
+                request=request,
+                snapshot=snapshot,
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except (ValidationError, WorkflowRunConflict, WorkflowRunCapabilityConflict) as exc:
+            raise ToolError(f"workflow_run_conflict: {exc}") from exc
+    await agent_turn_status_bus.publish(
+        _turn_id(authorization),
+        kind="resource",
+        message="Workflow queued",
+        projectId=str(pid),
+        resourceType="workflow_run",
+        resourceId=str(run.id),
+        action="queued",
+        workflowType=workflow_type,
+    )
+    return WorkflowRunView.model_validate(run).model_dump(mode="json")
+
+
+@mcp.tool
+async def start_project_plan(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    chat_model: str | None = None,
+) -> dict:
+    """Queue Project Plan creation from an exact frozen project snapshot."""
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="create_project_plan",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        chat_model=chat_model,
+    )
+
+
+@mcp.tool
+async def refresh_project_plan(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    expected_artefact_version: int,
+    chat_model: str | None = None,
+) -> dict:
+    """Queue a Project Plan refresh against an exact base artefact version."""
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="refresh_project_plan",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        expected_artefact_version=expected_artefact_version,
+        chat_model=chat_model,
+    )
+
+
+@mcp.tool
+async def start_cost_plan(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    chat_model: str | None = None,
+) -> dict:
+    """Queue Cost Plan creation; Cost Plan refresh is intentionally unavailable."""
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="create_cost_plan",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        chat_model=chat_model,
+    )
+
+
+@mcp.tool
+async def sort_project_files(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+) -> dict:
+    """Queue durable project-file classification and sorting."""
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="sort_project_files",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+    )
+
+
+@mcp.tool
+async def start_consultant_procurement(
+    project_id: str,
+    discipline: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    max_pages: int = 1,
+    instructions: str | None = None,
+) -> dict:
+    """Queue a durable consultant request-for-fee-proposal artefact."""
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="consultant_procurement",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        parameters={
+            "discipline": discipline,
+            "max_pages": max_pages,
+            "instructions": instructions,
+        },
+    )
+
+
+@mcp.tool
+async def get_project_workflow_status(project_id: str, run_id: str) -> dict:
+    """Read durable workflow state and progress for one project-scoped run."""
+    pid = uuid.UUID(project_id)
+    rid = uuid.UUID(run_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            run = await read_workflow_run(session, project_id=pid, run_id=rid)
+        except (ToolAuthError, WorkflowRunNotFound) as exc:
+            raise ToolError(str(exc)) from exc
+        return WorkflowRunView.model_validate(run).model_dump(mode="json")
+
+
+@mcp.tool
+async def get_project_workflow_result(project_id: str, run_id: str) -> dict:
+    """Read the typed result of one durable project workflow run."""
+    pid = uuid.UUID(project_id)
+    rid = uuid.UUID(run_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            run = await read_workflow_run(session, project_id=pid, run_id=rid)
+        except (ToolAuthError, WorkflowRunNotFound) as exc:
+            raise ToolError(str(exc)) from exc
+        return {
+            "run": WorkflowRunView.model_validate(run).model_dump(mode="json"),
+            "result": run.result,
+        }
+
+
+@mcp.tool
+async def cancel_project_workflow(project_id: str, run_id: str) -> dict:
+    """Request cooperative cancellation of one durable project workflow run."""
+    pid = uuid.UUID(project_id)
+    rid = uuid.UUID(run_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            run = await persist_workflow_cancellation(
+                session, project_id=pid, run_id=rid
+            )
+            await session.commit()
+        except (ToolAuthError, WorkflowRunNotFound) as exc:
+            raise ToolError(str(exc)) from exc
+    await agent_turn_status_bus.publish(
+        _turn_id(authorization),
+        kind="resource",
+        message="Workflow cancellation requested",
+        projectId=str(pid),
+        resourceType="workflow_run",
+        resourceId=str(rid),
+        action="cancel_requested",
+    )
+    return WorkflowRunView.model_validate(run).model_dump(mode="json")
 
 
 def _decision_payload(row, set_revision: int) -> dict:

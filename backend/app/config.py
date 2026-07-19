@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     tender_job_max_attempts: int = 3
     tender_job_backoff_base_seconds: int = 30
     tender_job_stale_lock_minutes: int = 10
+    workflow_worker_inproc_enabled: bool = False
+    workflow_worker_poll_seconds: float = 1.0
+    workflow_worker_concurrency: int = 2
+    workflow_worker_lease_seconds: int = 90
+    workflow_worker_max_attempts: int = 3
     tender_model_extract: str = "gpt-4.1-mini"
     tender_model_adjudicate_small: str = "gpt-4.1-mini"
     tender_model_adjudicate_frontier: str = "gpt-4.1"

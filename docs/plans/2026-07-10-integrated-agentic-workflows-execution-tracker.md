@@ -603,38 +603,38 @@ publishes approval after both HTML and PDF exports are ready.
 Objective: give UI and MCP shared durable start/status/cancel/result behavior for
 Project Plan, Cost Plan creation, file sort, and consultant actions.
 
-- [ ] **4.1 — Add core workflow-run persistence**
+- [x] **4.1 — Add core workflow-run persistence**
   - Dependencies: Stage 0 migration safety; Snapshot/capability contracts.
   - Gate: frozen inputs, project-scoped idempotency, safe claims, recovery, and
     real downgrade/tenancy behavior pass.
-- [ ] **4.2A — Build the core workflow worker infrastructure**
+- [x] **4.2A — Build the core workflow worker infrastructure**
   - Dependencies: 4.1, 1.4.
   - Gate: claims, leases, heartbeat, retry, cancellation, recovery, progress,
     and terminal events are durable and idempotent.
-- [ ] **4.2B — Add Project Plan worker adapters and acceptance**
+- [x] **4.2B — Add Project Plan worker adapters and acceptance**
   - Dependencies: 4.2A, 3.2B.
   - Gate: create/refresh pass all canonical PMP acceptance fixtures, preserving
     locked decisions and evidence status.
-- [ ] **4.2C — Add the Cost Plan creation worker adapter**
+- [x] **4.2C — Add the Cost Plan creation worker adapter**
   - Dependencies: 4.2A, 3.2C.
   - Gate: creation publishes matching draft, markdown, workbook, provenance,
     and event while preserving the prior accepted version on failure.
-- [ ] **4.2D — Add file-sort and consultant action adapters**
+- [x] **4.2D — Add file-sort and consultant action adapters**
   - Dependencies: 4.2A, 3.2D, 1.7.
   - Gate: UI/chat share typed services and long actions survive request timeout.
-- [ ] **4.2E — Deploy the core worker**
+- [~] **4.2E — Deploy the core worker**
   - Dependencies: 4.2A and at least one accepted adapter.
   - Gate: health, shutdown, lease recovery, and one-worker rollback pass on the
     deployment fixture.
-- [ ] **4.3A — Add asynchronous HTTP workflow endpoints additively**
+- [~] **4.3A — Add asynchronous HTTP workflow endpoints additively**
   - Dependencies: 4.1, relevant worker adapter.
   - Gate: typed start/status/cancel/result endpoints acknowledge within p95
     ≤500 ms and do not break existing callers.
-- [ ] **4.3B — Add narrow MCP workflow adapters**
+- [~] **4.3B — Add narrow MCP workflow adapters**
   - Dependencies: 4.3A/shared run service, 0.7D.
   - Gate: explicit tools share the same authorization, idempotency, run, result,
     and cancellation interfaces as HTTP.
-- [ ] **4.4A — Cut the UI over to asynchronous workflow state**
+- [~] **4.4A — Cut the UI over to asynchronous workflow state**
   - Dependencies: 4.3A, 1.10A.
   - Gate: project surfaces update without manual refresh; cached workflow tabs
     render in under 100 ms; failures have a clear retry path.
@@ -649,12 +649,65 @@ Project Plan, Cost Plan creation, file sort, and consultant actions.
 
 ### R2 release record
 
-- [ ] Project Plan create/refresh acceptance is green.
-- [ ] Cost Plan creation acceptance is green; refresh is not advertised yet.
-- [ ] Sort and consultant action acceptance is green.
-- [ ] Cancellation leaves no process, job, or later artefact orphan.
+- [x] Project Plan create/refresh acceptance is green.
+- [x] Cost Plan creation acceptance is green; refresh is not advertised yet.
+- [x] Sort and consultant action acceptance is green.
+- [x] Cancellation leaves no process, job, or later artefact orphan.
 - [ ] Each workflow was released independently after its own gate.
 - [ ] Worker and application rollback were exercised without losing run records.
+
+### Stage 5 implementation record — 2026-07-19
+
+Status: durable execution is complete in code and disposable-database acceptance;
+deployment, browser, and measured performance gates remain open.
+Owner/agent: Codex
+Branch/worktree: `feature/stage5-durable-workflows` /
+`.worktrees/stage5-durable-workflows`
+Commit/PR: local Stage 5 implementation commit
+Started: 2026-07-19
+Completed in code: 2026-07-19
+
+Implemented:
+
+- `workflow_runs` persistence with frozen snapshots and revisions, canonical
+  input hashing, project-scoped idempotency, row-level tenancy, `SKIP LOCKED`
+  claims, leases, heartbeat, retry/backoff, cancellation, progress, result
+  references, and terminal Project Events.
+- A separately deployable core worker plus Project Plan create/refresh, Cost
+  Plan create, file-sort, and consultant-procurement adapters. Publication and
+  terminal state share one transaction, so cancellation/failure cannot publish
+  a later artefact orphan.
+- Additive typed HTTP start/status/cancel/result routes and eight narrow MCP
+  tools backed by the same run service and authorization checks.
+- Cockpit migration to TanStack-managed workflow state with adaptive polling,
+  exact-run cancellation, readable retry failures, and Project Event cache
+  reconciliation across tabs. Synchronous routes remain intentionally available
+  until browser acceptance completes.
+- Dokploy worker service, healthcheck, configuration, and operator runbook.
+
+Validation evidence:
+
+- Alembic `upgrade head`, `downgrade 031`, and `upgrade 032` passed against a
+  disposable pgvector PostgreSQL database.
+- Stage 5 PostgreSQL integration tests passed for idempotency conflicts,
+  two-worker claim exclusion, lease recovery, tenancy, cancellation, and
+  rollback with no unpublished `DraftArtifact` orphan (`2 passed`).
+- Backend offline regression passed (`1160 passed, 6 skipped, 22 deselected`),
+  final focused workflow/agent tests passed (`14 passed`), and Ruff is clean.
+- Frontend tests (`31` files, `113` tests), TypeScript, lint (one pre-existing
+  TanStack Virtual warning), and production build passed.
+- `docker compose config --services` and the core worker database healthcheck
+  passed.
+
+Open gates:
+
+- Exercise health, graceful shutdown, rollback, and lease recovery on the real
+  deployment fixture (4.2E).
+- Measure HTTP acknowledgement p95 at or below 500 ms and run MCP tools through
+  their transport boundary (4.3A/4.3B).
+- Measure cached workflow tabs below 100 ms, complete the authoritative Linux/WSL
+  browser parity script with screenshots, then retire the superseded synchronous
+  routes (4.4A/4.4B/4.5).
 
 ## Stage 6 — Read-path, frontend, retrieval, and runtime performance
 

@@ -19,15 +19,22 @@ const mocks = vi.hoisted(() => ({
     getProjectCockpitBootstrap: vi.fn(),
     getThreadMessages: vi.fn(),
     listThreads: vi.fn(),
-    runCreateCostPlan: vi.fn(),
+    startWorkflowRun: vi.fn(),
+    getWorkflowResult: vi.fn(),
+    cancelWorkflowRun: vi.fn(),
   },
   reloadProjectWorkspaceTree: vi.fn(),
   seedProjectData: vi.fn(),
   setProjectDetail: vi.fn(),
+  waitForWorkflowRun: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   api: mocks.api,
+}));
+
+vi.mock("@/lib/queries/workflow-runs", () => ({
+  waitForWorkflowRun: mocks.waitForWorkflowRun,
 }));
 
 vi.mock("@/lib/queries/project-data", () => ({
@@ -111,9 +118,13 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
   ProjectControlBoard: ({
     isRunningCostPlan,
     onRunCreateCostPlan,
+    costPlanWorkflowError,
+    onCancelCostPlan,
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
+    costPlanWorkflowError: string | null;
+    onCancelCostPlan?: () => void;
   }) => (
     <div>
       <div data-testid="control-cost-plan-state">
@@ -122,6 +133,12 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
       <button type="button" onClick={onRunCreateCostPlan}>
         Create cost plan
       </button>
+      {isRunningCostPlan && onCancelCostPlan ? (
+        <button type="button" onClick={onCancelCostPlan}>
+          Cancel cost plan
+        </button>
+      ) : null}
+      {costPlanWorkflowError ? <div>{costPlanWorkflowError}</div> : null}
     </div>
   ),
 }));
@@ -149,20 +166,37 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     mocks.api.listThreads.mockResolvedValue([thread]);
     mocks.api.getThreadMessages.mockResolvedValue([]);
     mocks.api.getLatestDraft.mockResolvedValue(costPlanSummary);
-    mocks.api.runCreateCostPlan.mockResolvedValue({
-      status: "complete",
-      gate: project.overlay_status,
-      trace: [
-        {
-          step: "draft_save",
-          status: "complete",
-          message: "Saved Create Cost Plan as a versioned draft artefact.",
-          metadata: {},
-        },
-      ],
-      draft: costPlanDraft,
-      message: null,
+    mocks.api.startWorkflowRun.mockResolvedValue({
+      id: "run-1",
+      project_id: project.id,
+      state: "queued",
     });
+    mocks.api.getWorkflowResult.mockResolvedValue({
+      run: { id: "run-1", project_id: project.id, state: "complete" },
+      result: {
+        status: "complete",
+        gate: project.overlay_status,
+        trace: [
+          {
+            step: "draft_save",
+            status: "complete",
+            message: "Saved Create Cost Plan as a versioned draft artefact.",
+            metadata: {},
+          },
+        ],
+        draft: costPlanDraft,
+        message: null,
+      },
+    });
+    mocks.api.cancelWorkflowRun.mockResolvedValue({
+      id: "run-1",
+      project_id: project.id,
+      state: "running",
+      cancel_requested: true,
+    });
+    mocks.waitForWorkflowRun.mockImplementation(
+      async (_client, _projectId, run) => ({ ...run, state: "complete" }),
+    );
   });
 
   it("stops showing Cost Plan as running once the draft is returned", async () => {
@@ -185,6 +219,15 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       );
     });
     expect(screen.getByTestId("draft-review")).toHaveTextContent("draft-v2");
+    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
+      project.id,
+      "cost-plan",
+      expect.objectContaining({
+        expected_snapshot_fingerprint: "a".repeat(64),
+        expected_profile_revision: 1,
+        expected_decision_set_revision: 1,
+      }),
+    );
 
     resolveWorkspaceRefresh?.();
   });
@@ -203,7 +246,49 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     const createCostPlan = screen.getByRole("button", { name: "Create cost plan" });
     expect(createCostPlan).toBeEnabled();
     await user.click(createCostPlan);
-    await waitFor(() => expect(mocks.api.runCreateCostPlan).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
+  });
+
+  it("shows a readable retry path when a durable run fails", async () => {
+    const user = userEvent.setup();
+    mocks.waitForWorkflowRun.mockImplementationOnce(
+      async (_client, _projectId, run) => ({
+        ...run,
+        state: "failed",
+        error_message: "Workbook export failed; retry the Cost Plan.",
+      }),
+    );
+
+    renderProjectCockpit();
+    const button = await screen.findByRole("button", { name: "Create cost plan" });
+    await user.click(button);
+
+    expect(
+      await screen.findByText("Workbook export failed; retry the Cost Plan."),
+    ).toBeInTheDocument();
+    expect(button).toBeEnabled();
+  });
+
+  it("cancels the exact durable run from the UI", async () => {
+    const user = userEvent.setup();
+    let finishRun: ((run: Record<string, unknown>) => void) | undefined;
+    mocks.waitForWorkflowRun.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRun = resolve;
+        }),
+    );
+
+    renderProjectCockpit();
+    await user.click(
+      await screen.findByRole("button", { name: "Create cost plan" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Cancel cost plan" }),
+    );
+
+    expect(mocks.api.cancelWorkflowRun).toHaveBeenCalledWith(project.id, "run-1");
+    finishRun?.({ id: "run-1", state: "cancelled", error_message: null });
   });
 });
 
@@ -247,6 +332,20 @@ const project: ProjectDetail = {
   metadata: {},
   evidence_preview: null,
   risk_flags: [],
+  profile_revision: 1,
+  decision_set_revision: 1,
+  workflow_capabilities: {
+    schema_version: 1,
+    snapshot_schema_version: 1,
+    snapshot_content_fingerprint: "a".repeat(64),
+    capabilities: {
+      create_cost_plan: {
+        status: "supported",
+        reasons: [],
+        required_fields: [],
+      },
+    },
+  },
 };
 
 const thread = {

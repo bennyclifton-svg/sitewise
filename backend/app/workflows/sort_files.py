@@ -103,6 +103,7 @@ async def run_sort_files_workflow(
     user_id: uuid.UUID,
     project: Project,
     thread_id: uuid.UUID | None,
+    auto_commit: bool = True,
 ) -> SortFilesResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
@@ -203,7 +204,8 @@ async def run_sort_files_workflow(
         )
     )
 
-    await session.commit()
+    if auto_commit:
+        await session.commit()
 
     message = (
         f"Sort Files completed. {result.counts.moved} moved, "

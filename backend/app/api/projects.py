@@ -111,7 +111,7 @@ from app.schemas.document_selections import (
     ReplaceTenderQuoteSelection,
     TenderQuoteSelection,
 )
-from app.projects.workflow_capabilities import workflow_capabilities
+from app.projects.workflow_capabilities import capability_for, workflow_capabilities
 from app.projects.artefact_adapters import (
     accept_workflow_artefact,
     revise_workflow_artefact,
@@ -123,6 +123,11 @@ from app.projects.artefact_revisions import (
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
+from app.schemas.workflow_runs import (
+    WorkflowRunResult,
+    WorkflowRunStartRequest,
+    WorkflowRunView,
+)
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
@@ -159,6 +164,14 @@ from app.workflows.create_pmp import (
 )
 from app.workflows.sort_files import run_sort_files_workflow
 from app.workflows.update_pmp import run_update_pmp_workflow
+from app.workflows.runs import (
+    WorkflowRunCapabilityConflict,
+    WorkflowRunConflict,
+    WorkflowRunNotFound,
+    cancel_workflow_run,
+    get_workflow_run,
+    start_workflow_run,
+)
 from app.logging import get_logger
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -1854,6 +1867,215 @@ async def post_sort_files(
         thread_id=body.thread_id,
     )
     return result
+
+
+_ASYNC_CAPABILITIES = {
+    "create_project_plan": "create_pmp",
+    "refresh_project_plan": "update_pmp",
+    "create_cost_plan": "create_cost_plan",
+    "consultant_procurement": "consultant_procurement",
+}
+
+
+async def _start_core_workflow(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    workflow_type: str,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser,
+) -> WorkflowRunView:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
+    capability_name = _ASYNC_CAPABILITIES.get(workflow_type)
+    if capability_name is not None:
+        capability = capability_for(snapshot, capability_name)
+        if capability.status != "supported":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "workflow_capability_conflict",
+                    "status": capability.status,
+                    "reasons": capability.reasons,
+                    "required_fields": capability.required_fields,
+                },
+            )
+    if workflow_type == "consultant_procurement" and not str(
+        body.parameters.get("discipline", "")
+    ).strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="parameters.discipline is required",
+        )
+    if workflow_type == "refresh_project_plan":
+        latest = await get_latest_draft_artifact(
+            session, project_id=project.id, workflow_type="create_pmp"
+        )
+        if latest is None:
+            raise HTTPException(status_code=409, detail="Project Plan does not exist")
+        if body.expected_artefact_version != latest.version:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Expected Project Plan v{body.expected_artefact_version}, current is v{latest.version}",
+            )
+    try:
+        run, _created = await start_workflow_run(
+            session,
+            project=project,
+            user_id=user.id,
+            workflow_type=workflow_type,
+            request=body,
+            snapshot=snapshot,
+        )
+    except (WorkflowRunConflict, WorkflowRunCapabilityConflict) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return WorkflowRunView.model_validate(run)
+
+
+@router.post(
+    "/{project_id}/workflow-runs/project-plan",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_project_plan_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="create_project_plan",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/project-plan/refresh",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_project_plan_refresh_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="refresh_project_plan",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/cost-plan",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_cost_plan_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="create_cost_plan",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/sort-files",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_sort_files_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="sort_project_files",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/consultant-procurement",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_consultant_procurement_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="consultant_procurement",
+        body=body,
+        user=user,
+    )
+
+
+@router.get("/{project_id}/workflow-runs/{run_id}")
+async def get_core_workflow_run(
+    project_id: uuid.UUID,
+    run_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        return WorkflowRunView.model_validate(
+            await get_workflow_run(session, project_id=project_id, run_id=run_id)
+        )
+    except WorkflowRunNotFound as exc:
+        raise HTTPException(status_code=404, detail="Workflow run not found") from exc
+
+
+@router.get("/{project_id}/workflow-runs/{run_id}/result")
+async def get_core_workflow_result(
+    project_id: uuid.UUID,
+    run_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunResult:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        run = await get_workflow_run(session, project_id=project_id, run_id=run_id)
+    except WorkflowRunNotFound as exc:
+        raise HTTPException(status_code=404, detail="Workflow run not found") from exc
+    return WorkflowRunResult(run=WorkflowRunView.model_validate(run), result=run.result)
+
+
+@router.post("/{project_id}/workflow-runs/{run_id}/cancel")
+async def post_cancel_core_workflow_run(
+    project_id: uuid.UUID,
+    run_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        run = await cancel_workflow_run(
+            session, project_id=project_id, run_id=run_id
+        )
+    except WorkflowRunNotFound as exc:
+        raise HTTPException(status_code=404, detail="Workflow run not found") from exc
+    return WorkflowRunView.model_validate(run)
 
 
 @sitewise_router.get("/platform-knowledge")

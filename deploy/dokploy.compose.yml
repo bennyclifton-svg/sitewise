@@ -45,6 +45,11 @@ x-sitewise-api-environment: &sitewise-api-environment
   TENDER_JOB_MAX_ATTEMPTS: ${TENDER_JOB_MAX_ATTEMPTS:-3}
   TENDER_JOB_BACKOFF_BASE_SECONDS: ${TENDER_JOB_BACKOFF_BASE_SECONDS:-30}
   TENDER_JOB_STALE_LOCK_MINUTES: ${TENDER_JOB_STALE_LOCK_MINUTES:-10}
+  WORKFLOW_WORKER_INPROC_ENABLED: ${WORKFLOW_WORKER_INPROC_ENABLED:-false}
+  WORKFLOW_WORKER_POLL_SECONDS: ${WORKFLOW_WORKER_POLL_SECONDS:-1}
+  WORKFLOW_WORKER_CONCURRENCY: ${WORKFLOW_WORKER_CONCURRENCY:-2}
+  WORKFLOW_WORKER_LEASE_SECONDS: ${WORKFLOW_WORKER_LEASE_SECONDS:-90}
+  WORKFLOW_WORKER_MAX_ATTEMPTS: ${WORKFLOW_WORKER_MAX_ATTEMPTS:-3}
 
 services:
   sitewise-api:
@@ -87,6 +92,28 @@ services:
       sitewise-public:
         aliases:
           - sitewise-worker
+
+  sitewise-core-workflow-worker:
+    image: sitewise-production-api:latest
+    pull_policy: never
+    command: ["python", "-m", "app.workflows.worker"]
+    depends_on:
+      sitewise-api:
+        condition: service_healthy
+    environment:
+      <<: *sitewise-api-environment
+      WORKFLOW_WORKER_INPROC_ENABLED: "false"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.workflows.worker", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      sitewise-public:
+        aliases:
+          - sitewise-core-workflow-worker
 
   sitewise-web:
     image: sitewise-production-web:latest

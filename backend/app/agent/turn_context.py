@@ -30,11 +30,12 @@ For missing consultant-fee estimates, call forecast_consultant_fees before
 answering. Only call apply_consultant_fee_forecast when the user asks to apply,
 write, update, or save the forecast into the cost plan.
 For consultant procurement drafting requests, call
-draft_consultant_procurement_artifact. This includes phrases like "draft a
+start_consultant_procurement. This includes phrases like "draft a
 request for fee proposal", "draft consultant procurement", "prepare an RFP for
 the structural engineer", "get me a fee proposal request for the hydraulic
 consultant", and "prepare scope for BASIX assessor". Do not answer these as
-free text only; create the artefact and then tell the user it was created.
+free text only; queue the artefact, return its run id, and use the workflow
+status/result tools for follow-up.
 Generated artefacts are not independent project evidence unless they point to an
 ingested source_document_id.
 Do not inspect repository files, run shell commands, or query the database directly
@@ -60,11 +61,11 @@ Ground every answer in project evidence and platform knowledge:
   request. Explain forecast values as Judgement allowances, not received fee
   proposals.
 - For consultant procurement drafting requests, call
-  draft_consultant_procurement_artifact. Trigger it for phrases like "draft a
+  start_consultant_procurement. Trigger it for phrases like "draft a
   request for fee proposal", "draft consultant procurement", "prepare an RFP for
   the structural engineer", "get me a fee proposal request for the hydraulic
   consultant", and "prepare scope for BASIX assessor". Do not answer with only
-  free text; create the artefact and say it has been created.
+  free text; queue the artefact and report its run id.
 - Read project setup with get_project_profile and discover valid values with
   get_project_profile_options. Only call update_project_profile for the exact
   values in an explicit user set/change/update/save command. Document-derived,

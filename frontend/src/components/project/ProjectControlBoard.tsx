@@ -14,6 +14,7 @@ import {
   Scale,
   Settings2,
   ShieldAlert,
+  Square,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -73,6 +74,9 @@ export function ProjectControlBoard({
   onRunUpdatePmp,
   onRunCreateCostPlan,
   onRunSortFiles,
+  onCancelWorkflow,
+  onCancelCostPlan,
+  onCancelSortFiles,
   onOpenDraft,
   onOpenTenderComparison,
   inboxCount,
@@ -98,6 +102,9 @@ export function ProjectControlBoard({
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
   onRunSortFiles: () => void;
+  onCancelWorkflow?: () => void;
+  onCancelCostPlan?: () => void;
+  onCancelSortFiles?: () => void;
   onOpenDraft: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -150,6 +157,9 @@ export function ProjectControlBoard({
           onRunUpdatePmp={onRunUpdatePmp}
           onRunCreateCostPlan={onRunCreateCostPlan}
           onRunSortFiles={onRunSortFiles}
+          onCancelWorkflow={onCancelWorkflow}
+          onCancelCostPlan={onCancelCostPlan}
+          onCancelSortFiles={onCancelSortFiles}
           onOpenDraft={onOpenDraft}
           onOpenTenderComparison={onOpenTenderComparison}
           inboxCount={inboxCount}
@@ -564,6 +574,9 @@ function WorkflowDetail({
   onRunUpdatePmp,
   onRunCreateCostPlan,
   onRunSortFiles,
+  onCancelWorkflow,
+  onCancelCostPlan,
+  onCancelSortFiles,
   onOpenDraft,
   onOpenTenderComparison,
   inboxCount,
@@ -588,6 +601,9 @@ function WorkflowDetail({
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
   onRunSortFiles: () => void;
+  onCancelWorkflow?: () => void;
+  onCancelCostPlan?: () => void;
+  onCancelSortFiles?: () => void;
   onOpenDraft: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -692,6 +708,12 @@ function WorkflowDetail({
                 )}
                 {isRunningWorkflow ? "Running" : "Create PMP"}
               </Button>
+              {isRunningWorkflow && onCancelWorkflow ? (
+                <Button variant="outline" onClick={onCancelWorkflow}>
+                  <Square className="size-4" aria-hidden />
+                  Cancel
+                </Button>
+              ) : null}
               <Button
                 variant="outline"
                 onClick={onRunUpdatePmp}
@@ -769,6 +791,12 @@ function WorkflowDetail({
                 )}
                 {isRunningCostPlan ? "Running" : "Create cost plan"}
               </Button>
+              {isRunningCostPlan && onCancelCostPlan ? (
+                <Button variant="outline" onClick={onCancelCostPlan}>
+                  <Square className="size-4" aria-hidden />
+                  Cancel
+                </Button>
+              ) : null}
               <Button variant="secondary" onClick={onOpenDraft} disabled={!activeDraft}>
                 <Bot className="size-4" aria-hidden />
                 Review draft
@@ -834,6 +862,12 @@ function WorkflowDetail({
                 )}
                 {isRunningSortFiles ? "Running" : "Run Sort Files"}
               </Button>
+              {isRunningSortFiles && onCancelSortFiles ? (
+                <Button variant="outline" onClick={onCancelSortFiles}>
+                  <Square className="size-4" aria-hidden />
+                  Cancel
+                </Button>
+              ) : null}
             </div>
 
             <SortFilesResultPanel

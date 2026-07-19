@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
@@ -29,6 +29,7 @@ import {
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
+import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
@@ -37,19 +38,55 @@ import type {
   EvidencePreview,
   PlatformKnowledgeStatus,
   ProjectDetail,
+  ProjectEvent,
   ProjectSummary,
   SortFilesResponse,
   WorkspaceTreeNode,
+  WorkflowRunStartInput,
 } from "@/lib/types/project";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
 function formatApiError(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback;
+  return error instanceof ApiError || error instanceof WorkflowRunError
+    ? error.message
+    : fallback;
 }
+
+class WorkflowRunError extends Error {}
 
 const EMPTY_EVIDENCE: EvidencePreview[] = [];
 const EMPTY_WORKSPACE_TREE: WorkspaceTreeNode[] = [];
+
+function workflowRunInput(
+  project: ProjectDetail,
+  threadId?: string,
+  expectedArtefactVersion?: number,
+): WorkflowRunStartInput {
+  const fingerprint =
+    project.workflow_capabilities?.snapshot_content_fingerprint;
+  if (!fingerprint) {
+    throw new WorkflowRunError("Project workflow inputs are still loading.");
+  }
+  return {
+    idempotency_key: crypto.randomUUID(),
+    expected_snapshot_fingerprint: fingerprint,
+    expected_profile_revision: project.profile_revision ?? 1,
+    expected_decision_set_revision: project.decision_set_revision ?? 1,
+    ...(expectedArtefactVersion
+      ? { expected_artefact_version: expectedArtefactVersion }
+      : {}),
+    ...(threadId ? { thread_id: threadId } : {}),
+  };
+}
+
+function workflowPayload<T>(
+  payload: Record<string, unknown> | null,
+  fallback: string,
+): T {
+  if (!payload) throw new WorkflowRunError(fallback);
+  return payload as T;
+}
 
 /**
  * Context handed to nested cockpit routes (e.g. the tender comparison views)
@@ -117,7 +154,29 @@ export function ProjectCockpitPage() {
   const [costPlanWorkflowError, setCostPlanWorkflowError] = useState<string | null>(null);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [isRunningCostPlan, setIsRunningCostPlan] = useState(false);
+  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
+  const [costPlanRunId, setCostPlanRunId] = useState<string | null>(null);
+  const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
+  const reconcileArtefactEvent = useCallback(
+    (event: ProjectEvent) => {
+      if (event.resource_type !== "artefact_revision" || !projectId) return;
+      const workflowType = event.payload.workflow_type;
+      if (workflowType !== "create_pmp" && workflowType !== "create_cost_plan") {
+        return;
+      }
+      void api.getLatestDraft(projectId, workflowType).then((draft) => {
+        if (!draft) return;
+        setLatestDraftsMap((current) => ({
+          ...current,
+          [workflowType]: draft,
+        }));
+        if (workflowType === "create_cost_plan") setLatestCostPlanDraft(draft);
+        else setLatestDraft(draft);
+      });
+    },
+    [projectId],
+  );
   const projectEvents = useProjectEventCursor({
     projectId: projectId ?? "",
     enabled: bootstrapLoaded && !!projectId,
@@ -125,6 +184,7 @@ export function ProjectCockpitPage() {
       isRunningWorkflow ||
       isRunningCostPlan ||
       isRunningSortFiles,
+    onEvent: reconcileArtefactEvent,
   });
 
   useEffect(() => {
@@ -431,7 +491,21 @@ export function ProjectCockpitPage() {
     setIsRunningSortFiles(true);
     setSortFilesError(null);
     try {
-      const result = await api.runSortFiles(project.id, thread?.id);
+      const queued = await api.startWorkflowRun(
+        project.id,
+        "sort-files",
+        workflowRunInput(project, thread?.id),
+      );
+      setSortFilesRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(run.error_message ?? `Sort Files ${run.state}.`);
+      }
+      const response = await api.getWorkflowResult(project.id, run.id);
+      const result = workflowPayload<SortFilesResponse>(
+        response.result,
+        "Sort Files completed without a result.",
+      );
       setSortFilesResult(result);
       if (result.draft) {
         setSortFilesDraft(result.draft);
@@ -445,6 +519,7 @@ export function ProjectCockpitPage() {
     } catch (runError) {
       setSortFilesError(formatApiError(runError, "Sort Files could not run."));
     } finally {
+      setSortFilesRunId(null);
       setIsRunningSortFiles(false);
     }
   }
@@ -454,7 +529,23 @@ export function ProjectCockpitPage() {
     setIsRunningWorkflow(true);
     setWorkflowError(null);
     try {
-      const result = await api.runCreatePmp(project.id, thread?.id);
+      const queued = await api.startWorkflowRun(
+        project.id,
+        "project-plan",
+        workflowRunInput(project, thread?.id),
+      );
+      setWorkflowRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(
+          run.error_message ?? `Create Project Plan ${run.state}.`,
+        );
+      }
+      const response = await api.getWorkflowResult(project.id, run.id);
+      const result = workflowPayload<CreatePmpResponse>(
+        response.result,
+        "Create Project Plan completed without a result.",
+      );
       setWorkflowResult(result);
       if (result.status === "failed" || result.status === "blocked") {
         setWorkflowError(result.message ?? "Create PMP did not complete.");
@@ -467,6 +558,7 @@ export function ProjectCockpitPage() {
     } catch (runError) {
       setWorkflowError(formatApiError(runError, "Create PMP could not run."));
     } finally {
+      setWorkflowRunId(null);
       setIsRunningWorkflow(false);
     }
   }
@@ -476,7 +568,23 @@ export function ProjectCockpitPage() {
     setIsRunningCostPlan(true);
     setCostPlanWorkflowError(null);
     try {
-      const result = await api.runCreateCostPlan(project.id, thread?.id);
+      const queued = await api.startWorkflowRun(
+        project.id,
+        "cost-plan",
+        workflowRunInput(project, thread?.id),
+      );
+      setCostPlanRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(
+          run.error_message ?? `Create Cost Plan ${run.state}.`,
+        );
+      }
+      const response = await api.getWorkflowResult(project.id, run.id);
+      const result = workflowPayload<CreatePmpResponse>(
+        response.result,
+        "Create Cost Plan completed without a result.",
+      );
       setCostPlanWorkflowResult(result);
       if (result.status === "failed" || result.status === "blocked") {
         setCostPlanWorkflowError(result.message ?? "Create Cost Plan did not complete.");
@@ -489,6 +597,7 @@ export function ProjectCockpitPage() {
     } catch (runError) {
       setCostPlanWorkflowError(formatApiError(runError, "Create Cost Plan could not run."));
     } finally {
+      setCostPlanRunId(null);
       setIsRunningCostPlan(false);
     }
   }
@@ -498,7 +607,28 @@ export function ProjectCockpitPage() {
     setIsRunningWorkflow(true);
     setWorkflowError(null);
     try {
-      const result = await api.runUpdatePmp(project.id, thread?.id);
+      if (!latestDraft) {
+        throw new WorkflowRunError(
+          "Create a Project Plan before refreshing it.",
+        );
+      }
+      const queued = await api.startWorkflowRun(
+        project.id,
+        "project-plan/refresh",
+        workflowRunInput(project, thread?.id, latestDraft.version),
+      );
+      setWorkflowRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(
+          run.error_message ?? `Refresh Project Plan ${run.state}.`,
+        );
+      }
+      const response = await api.getWorkflowResult(project.id, run.id);
+      const result = workflowPayload<CreatePmpResponse>(
+        response.result,
+        "Refresh Project Plan completed without a result.",
+      );
       setWorkflowResult(result);
       if (result.status === "failed" || result.status === "blocked") {
         setWorkflowError(result.message ?? "Update PMP did not complete.");
@@ -511,6 +641,7 @@ export function ProjectCockpitPage() {
     } catch (runError) {
       setWorkflowError(formatApiError(runError, "Update PMP could not run."));
     } finally {
+      setWorkflowRunId(null);
       setIsRunningWorkflow(false);
     }
   }
@@ -796,6 +927,15 @@ export function ProjectCockpitPage() {
           onRunUpdatePmp={() => void runUpdatePmp()}
           onRunCreateCostPlan={() => void runCreateCostPlan()}
           onRunSortFiles={() => void runSortFiles()}
+          onCancelWorkflow={() => {
+            if (workflowRunId) void api.cancelWorkflowRun(project.id, workflowRunId);
+          }}
+          onCancelCostPlan={() => {
+            if (costPlanRunId) void api.cancelWorkflowRun(project.id, costPlanRunId);
+          }}
+          onCancelSortFiles={() => {
+            if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);
+          }}
           onOpenDraft={() => {
             setReviewDraft(null);
             setChatPanelCollapsed(true);
