@@ -34,7 +34,6 @@ from app.database.projects import (
     get_project,
     list_projects,
     project_overlay_summary,
-    update_project_taxonomy,
     user_owns_project,
 )
 from app.database.session import get_db
@@ -53,6 +52,8 @@ from app.schemas.projects import (
     DeleteProjectActivityResponse,
     PatchDraftRequest,
     PatchProjectRequest,
+    ProjectProfileChange,
+    ProjectProfilePatch,
     ProjectDecisionListResponse,
     UpdateProjectDecisionRequest,
     UpdateProjectDecisionResponse,
@@ -83,6 +84,12 @@ from app.schemas.projects import (
     StagedSplitRequest,
     WorkbookPreviewResponse,
     WorkflowTraceEvent,
+)
+from app.projects.profile import (
+    ProfileDependencyConflict,
+    ProfileRevisionConflict,
+    ProfileValidationError,
+    apply_profile_patch,
 )
 from app.evidence.service import delete_project_evidence
 from app.storage.project_files import delete_project_files, download_project_file
@@ -157,6 +164,7 @@ def _project_summary(project) -> ProjectSummary:
             "work_type": project.work_type,
             "user_role": project.user_role,
             "state": project.state,
+            "profile_revision": getattr(project, "profile_revision", 1),
             "status": project.status,
             "overlay_status": project_overlay_summary(project),
             "updated_at": project.updated_at,
@@ -733,35 +741,38 @@ async def get_project_taxonomy(
 @router.patch("/{project_id}")
 async def patch_project(
     project_id: uuid.UUID,
-    body: PatchProjectRequest,
+    body: ProjectProfilePatch,
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
-) -> ProjectDetail:
+) -> ProjectProfileChange:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
-    taxonomy_errors = validate_project_taxonomy(
-        building_class=body.building_class,
-        work_type=body.work_type,
-        subclasses=_subclass_values(body.subclasses),
-    )
-    if taxonomy_errors:
-        raise HTTPException(
-            status_code=422,
-            detail=taxonomy_errors,
+    try:
+        return await apply_profile_patch(
+            session,
+            project=project,
+            patch=body,
+            actor_source="user",
         )
-    updated = await update_project_taxonomy(
-        session,
-        project=project,
-        building_class=body.building_class,
-        work_type=body.work_type,
-        taxonomy=_project_taxonomy_metadata(body),
-        user_role=body.user_role,
-        state=body.state,
-    )
-    return _project_detail_response(
-        updated,
-        evidence_preview=await _first_evidence_preview(session, updated.id),
-    )
+    except ProfileRevisionConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "profile_revision_conflict",
+                "expected_revision": exc.expected_revision,
+                "current_revision": exc.current_revision,
+            },
+        ) from exc
+    except ProfileDependencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "profile_dependency_conflict",
+                "fields": list(exc.fields),
+            },
+        ) from exc
+    except ProfileValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors) from exc
 
 
 @router.get("/{project_id}")

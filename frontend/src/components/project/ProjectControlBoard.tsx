@@ -192,11 +192,31 @@ function ProjectProfilePanel({
     setSaved(false);
     try {
       const updated = await api.updateProject(project.id, {
+        expected_revision: project.profile_revision ?? 1,
         ...compactTaxonomyValue(profile),
         user_role: userRole || null,
         state: state || null,
       });
-      onProjectUpdated(updated);
+      onProjectUpdated({
+        ...project,
+        building_class: updated.profile.building_class,
+        work_type: updated.profile.work_type,
+        user_role: updated.profile.user_role,
+        state: updated.profile.state,
+        profile_revision: updated.new_revision,
+        metadata: {
+          ...(project.metadata ?? {}),
+          taxonomy: {
+            ...(project.metadata?.taxonomy ?? {}),
+            subclasses: updated.profile.subclasses,
+            scale: updated.profile.scale,
+            complexity: updated.profile.complexity,
+            work_scope: updated.profile.work_scope,
+          },
+        },
+        overlay_status: updated.overlay_status,
+        risk_flags: updated.risk_flags,
+      });
       setSaved(true);
     } catch (saveError) {
       setError(

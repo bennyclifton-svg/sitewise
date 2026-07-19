@@ -53,6 +53,7 @@ class ProjectSummary(BaseModel):
     work_type: str | None
     user_role: str | None
     state: str | None
+    profile_revision: int = Field(default=1, ge=1)
     status: str
     overlay_status: OverlayStatus
     updated_at: datetime

@@ -68,16 +68,41 @@ describe("ProjectControlBoard project profile", () => {
   it("renders risk chips and saves taxonomy edits", async () => {
     const user = userEvent.setup();
     const onProjectUpdated = vi.fn();
+    const updatedChange = {
+      profile: {
+        project_id: project.id,
+        profile_revision: 2,
+        building_class: project.building_class,
+        work_type: project.work_type,
+        subclasses: [{ value: "other", label: "Laboratory office" }],
+        scale: {},
+        complexity: { operational_constraints: "live_environment" },
+        work_scope: [],
+        user_role: project.user_role,
+        state: project.state,
+      },
+      previous_revision: 1,
+      new_revision: 2,
+      changed_fields: ["subclasses" as const],
+      cleared_fields: [],
+      overlay_status: project.overlay_status,
+      risk_flags: project.risk_flags,
+    };
     const updatedProject = {
       ...project,
+      profile_revision: 2,
       metadata: {
+        ...project.metadata,
         taxonomy: {
+          ...project.metadata?.taxonomy,
           subclasses: [{ value: "other", label: "Laboratory office" }],
+          scale: {},
           complexity: { operational_constraints: "live_environment" },
+          work_scope: [],
         },
       },
     };
-    vi.mocked(api.updateProject).mockResolvedValue(updatedProject);
+    vi.mocked(api.updateProject).mockResolvedValue(updatedChange);
 
     render(
       <ProjectControlBoard
@@ -119,6 +144,7 @@ describe("ProjectControlBoard project profile", () => {
 
     await waitFor(() =>
       expect(api.updateProject).toHaveBeenCalledWith("project-1", {
+        expected_revision: 1,
         building_class: "commercial",
         work_type: "refurb",
         subclasses: [{ value: "other", label: "Laboratory office" }],
@@ -190,6 +216,7 @@ const project: ProjectDetail = {
   work_type: "refurb",
   user_role: "architect-pm",
   state: "NSW",
+  profile_revision: 1,
   status: "active",
   overlay_status: {
     ready: true,

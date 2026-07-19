@@ -261,10 +261,18 @@ capability, and durable-event contract.
     validation, typed dependency conflicts, explicit clearing, row-locked
     revision rechecks, derived overlay/risk state, and one before/after activity
     record. Focused module, taxonomy, and contract verification: 31 passed.
-- [ ] **1.3 — Make HTTP PATCH a thin adapter**
+- [x] **1.3 — Make HTTP PATCH a thin adapter**
   - Dependencies: 1.2.
   - Gate: HTTP delegates without duplicated validation and preserves unrelated
     profile fields.
+  - Completed 2026-07-19. `PATCH /projects/{project_id}` now accepts
+    `ProjectProfilePatch`, delegates to `app.projects.profile`, and returns only
+    `ProjectProfileChange`. Auth and entitlement checks remain at the boundary;
+    validation is translated to 422, while stale revisions and incompatible
+    dependent fields use stable typed 409 details. The frontend supplies the
+    current revision and merges the returned canonical profile. Focused backend
+    verification: 31 passed; Project Control Board tests: 2 passed; production
+    frontend build passed.
 - [ ] **1.4 — Add the durable Project Event outbox**
   - Dependencies: Stage 0 migration safety; stable event contracts.
   - Gate: state mutation and event commit atomically with monotonic project

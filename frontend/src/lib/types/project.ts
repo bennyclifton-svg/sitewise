@@ -126,6 +126,7 @@ export type ProjectSummary = {
   work_type: string | null;
   user_role: string | null;
   state: string | null;
+  profile_revision?: number;
   status: string;
   overlay_status: OverlayStatus;
   updated_at: string;
@@ -146,8 +147,42 @@ export type CreateProjectInput = {
 };
 
 export type UpdateProjectInput = ProjectTaxonomyInput & {
+  expected_revision: number;
   user_role?: string | null;
   state?: string | null;
+  clear_incompatible?: boolean;
+};
+
+export type ProjectProfileView = {
+  project_id: string;
+  profile_revision: number;
+  building_class: string | null;
+  work_type: string | null;
+  subclasses: ProjectSubclassSelection[];
+  scale: Record<string, TaxonomyScalar>;
+  complexity: Record<string, string>;
+  work_scope: string[];
+  user_role: string | null;
+  state: string | null;
+};
+
+export type ProjectProfileChange = {
+  profile: ProjectProfileView;
+  previous_revision: number;
+  new_revision: number;
+  changed_fields: Array<
+    | "building_class"
+    | "work_type"
+    | "subclasses"
+    | "scale"
+    | "complexity"
+    | "work_scope"
+    | "user_role"
+    | "state"
+  >;
+  cleared_fields: ProjectProfileChange["changed_fields"];
+  overlay_status: OverlayStatus;
+  risk_flags: RiskFlag[];
 };
 
 export type EvidencePreview = {

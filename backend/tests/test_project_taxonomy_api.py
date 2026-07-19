@@ -9,6 +9,11 @@ from fastapi.testclient import TestClient
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.database.session import get_db
 from app.main import fastapi_app as app
+from app.projects.profile import (
+    ProfileDependencyConflict,
+    ProfileRevisionConflict,
+    ProfileValidationError,
+)
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -47,6 +52,7 @@ def _project(**overrides):
         "work_type": None,
         "user_role": "architect-pm",
         "state": "NSW",
+        "profile_revision": 1,
         "status": "active",
         "project_metadata": {
             "source": "hosted-create-project",
@@ -57,6 +63,45 @@ def _project(**overrides):
     }
     values.update(overrides)
     return SimpleNamespace(**values)
+
+
+def _profile_change(**overrides) -> dict:
+    values = {
+        "profile": {
+            "project_id": str(PROJECT_ID),
+            "profile_revision": 2,
+            "building_class": "commercial",
+            "work_type": "refurb",
+            "subclasses": [{"value": "other", "label": "Laboratory office"}],
+            "scale": {"nla_sqm": 1200},
+            "complexity": {"operational_constraints": "live_environment"},
+            "work_scope": ["fire_services"],
+            "user_role": "architect-pm",
+            "state": "NSW",
+        },
+        "previous_revision": 1,
+        "new_revision": 2,
+        "changed_fields": [
+            "building_class",
+            "work_type",
+            "subclasses",
+            "scale",
+            "complexity",
+            "work_scope",
+        ],
+        "cleared_fields": [],
+        "overlay_status": {"ready": True, "missing": [], "invalid": []},
+        "risk_flags": [
+            {
+                "value": "live_operations",
+                "severity": "high",
+                "title": "Live operations",
+                "description": "Works occur in an operating environment.",
+            }
+        ],
+    }
+    values.update(overrides)
+    return values
 
 
 def test_create_project_persists_taxonomy_payload(client: TestClient) -> None:
@@ -185,31 +230,17 @@ def test_get_project_detail_exposes_taxonomy_metadata(client: TestClient) -> Non
 
 def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> None:
     project = _project()
-    updated_project = _project(
-        building_class="commercial",
-        work_type="refurb",
-        project_metadata={
-            "source": "hosted-create-project",
-            "workspace_model": "sitewise-template-v1",
-            "taxonomy": {
-                "subclasses": [{"value": "other", "label": "Laboratory office"}],
-                "scale": {"nla_sqm": 1200},
-                "complexity": {"operational_constraints": "live_environment"},
-                "work_scope": ["fire_services"],
-            },
-        },
-    )
-    update_project_taxonomy = AsyncMock(return_value=updated_project)
+    apply_patch = AsyncMock(return_value=_profile_change())
 
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
-        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+        patch("app.api.projects.apply_profile_patch", new=apply_patch),
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}",
             json={
+                "expected_revision": 1,
                 "building_class": "commercial",
                 "work_type": "refurb",
                 "subclasses": [{"value": "other", "label": "Laboratory office"}],
@@ -221,79 +252,98 @@ def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> No
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["building_class"] == "commercial"
-    assert payload["work_type"] == "refurb"
-    assert payload["metadata"]["taxonomy"]["subclasses"] == [
+    assert payload["previous_revision"] == 1
+    assert payload["new_revision"] == 2
+    assert payload["profile"]["building_class"] == "commercial"
+    assert payload["profile"]["subclasses"] == [
         {"value": "other", "label": "Laboratory office"}
     ]
-    assert [flag["value"] for flag in payload["risk_flags"]] == [
-        "live_operations",
-        "critical_infrastructure",
-    ]
-    update_project_taxonomy.assert_awaited_once()
-    kwargs = update_project_taxonomy.await_args.kwargs
+    assert [flag["value"] for flag in payload["risk_flags"]] == ["live_operations"]
+    apply_patch.assert_awaited_once()
+    kwargs = apply_patch.await_args.kwargs
     assert kwargs["project"] is project
-    assert kwargs["building_class"] == "commercial"
-    assert kwargs["work_type"] == "refurb"
-    assert kwargs["taxonomy"]["subclasses"] == [
+    assert kwargs["actor_source"] == "user"
+    assert kwargs["patch"].expected_revision == 1
+    assert [item.model_dump() for item in kwargs["patch"].subclasses] == [
         {"value": "other", "label": "Laboratory office"}
     ]
+
+
+def test_patch_project_returns_conflict_for_stale_profile_revision(
+    client: TestClient,
+) -> None:
+    apply_patch = AsyncMock(
+        side_effect=ProfileRevisionConflict(
+            expected_revision=4,
+            current_revision=5,
+        )
+    )
+
+    with (
+        patch(
+            "app.api.projects.get_project",
+            new=AsyncMock(return_value=_project(profile_revision=5)),
+        ),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.apply_profile_patch", new=apply_patch),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={"expected_revision": 4, "state": "VIC"},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "profile_revision_conflict",
+        "expected_revision": 4,
+        "current_revision": 5,
+    }
 
 
 def test_patch_project_persists_user_role_and_state(client: TestClient) -> None:
     project = _project(user_role="architect-pm", state="NSW")
-    updated_project = _project(user_role="builder", state="VIC")
-    update_project_taxonomy = AsyncMock(return_value=updated_project)
+    change = _profile_change(
+        profile={
+            **_profile_change()["profile"],
+            "user_role": "builder",
+            "state": "VIC",
+        },
+        changed_fields=["user_role", "state"],
+    )
+    apply_patch = AsyncMock(return_value=change)
 
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
-        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+        patch("app.api.projects.apply_profile_patch", new=apply_patch),
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}",
-            json={"user_role": "builder", "state": "VIC"},
+            json={"expected_revision": 1, "user_role": "builder", "state": "VIC"},
         )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["user_role"] == "builder"
-    assert payload["state"] == "VIC"
-    update_project_taxonomy.assert_awaited_once()
-    kwargs = update_project_taxonomy.await_args.kwargs
-    assert kwargs["user_role"] == "builder"
-    assert kwargs["state"] == "VIC"
+    assert payload["profile"]["user_role"] == "builder"
+    assert payload["profile"]["state"] == "VIC"
+    body = apply_patch.await_args.kwargs["patch"]
+    assert body.model_fields_set == {"expected_revision", "user_role", "state"}
 
 
 def test_patch_project_taxonomy_satisfies_overlay_gate_without_archetype(
     client: TestClient,
 ) -> None:
-    # Walsh Renault regression: a project set up purely through the Class +
-    # Work-type picker (no legacy archetype) must gate ready so Create PMP is
-    # not blocked with "archetype: missing".
-    project = _project()
-    updated_project = _project(
-        archetype=None,
-        building_class="residential",
-        work_type="refurb",
-        project_metadata={
-            "source": "hosted-create-project",
-            "workspace_model": "sitewise-template-v1",
-            "taxonomy": {"subclasses": ["house"]},
-        },
-    )
-    update_project_taxonomy = AsyncMock(return_value=updated_project)
+    apply_patch = AsyncMock(return_value=_profile_change())
 
     with (
-        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
-        patch("app.api.projects._first_evidence_preview", new=AsyncMock(return_value=None)),
+        patch("app.api.projects.apply_profile_patch", new=apply_patch),
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}",
             json={
+                "expected_revision": 1,
                 "building_class": "residential",
                 "work_type": "refurb",
                 "subclasses": ["house"],
@@ -308,16 +358,19 @@ def test_patch_project_taxonomy_satisfies_overlay_gate_without_archetype(
 
 
 def test_patch_project_rejects_invalid_taxonomy_combo(client: TestClient) -> None:
-    update_project_taxonomy = AsyncMock()
+    apply_patch = AsyncMock(
+        side_effect=ProfileValidationError(["Residential allows only one subclass"])
+    )
 
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.update_project_taxonomy", new=update_project_taxonomy),
+        patch("app.api.projects.apply_profile_patch", new=apply_patch),
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}",
             json={
+                "expected_revision": 1,
                 "building_class": "residential",
                 "work_type": "new",
                 "subclasses": ["house", "apartments"],
@@ -326,7 +379,30 @@ def test_patch_project_rejects_invalid_taxonomy_combo(client: TestClient) -> Non
 
     assert response.status_code == 422
     assert "allows only one subclass" in str(response.json()["detail"])
-    update_project_taxonomy.assert_not_awaited()
+    apply_patch.assert_awaited_once()
+
+
+def test_patch_project_requires_clear_confirmation_for_dependency_conflicts(
+    client: TestClient,
+) -> None:
+    apply_patch = AsyncMock(
+        side_effect=ProfileDependencyConflict(("subclasses", "scale"))
+    )
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.apply_profile_patch", new=apply_patch),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={"expected_revision": 1, "building_class": "commercial"},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "profile_dependency_conflict",
+        "fields": ["subclasses", "scale"],
+    }
 
 
 def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> None:

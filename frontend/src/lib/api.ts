@@ -49,6 +49,7 @@ import type {
   ProjectDetail,
   ProjectDecision,
   ProjectDecisionListResponse,
+  ProjectProfileChange,
   ProjectSummary,
   TaxonomyCatalog,
   UpdateProjectInput,
@@ -257,8 +258,8 @@ export const api = {
   updateProject: async (
     projectId: string,
     input: UpdateProjectInput,
-  ): Promise<ProjectDetail> =>
-    api.patch<ProjectDetail>(`/projects/${projectId}`, input),
+  ): Promise<ProjectProfileChange> =>
+    api.patch<ProjectProfileChange>(`/projects/${projectId}`, input),
 
   getProject: async (projectId: string): Promise<ProjectDetail> =>
     api.get<ProjectDetail>(`/projects/${projectId}`),
