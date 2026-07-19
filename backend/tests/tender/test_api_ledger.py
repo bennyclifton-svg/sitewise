@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.database.session import get_db
 from app.main import fastapi_app as app
-from tender.schemas import LedgerItem, QuoteLedgerResponse
+from tender.schemas import CellItemsResponse, CellLineItem, LedgerItem, QuoteLedgerResponse
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 COMPARISON_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -80,3 +80,66 @@ def test_ledger_endpoint_returns_items_summing_to_stated(client: TestClient) -> 
     )
     assert counted + payload["residual_cents"] == payload["stated_total_cents"]
     assert payload["builder_name"] == "Coastal"
+
+
+def test_cell_items_endpoint_returns_allocations_and_sum(client: TestClient) -> None:
+    item_a = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    item_b = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    cell_items = CellItemsResponse(
+        cell_code="13.01",
+        name="Joinery",
+        quote_id=QUOTE_ID,
+        items=[
+            CellLineItem(
+                line_item_id=item_a,
+                description_raw="Kitchen cabinets",
+                page_no=4,
+                role="contract_component",
+                allocation_fraction=0.6,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="t1_embedding",
+                qa_state="auto_pass",
+            ),
+            CellLineItem(
+                line_item_id=item_b,
+                description_raw="Vanity",
+                page_no=5,
+                role="contract_component",
+                allocation_fraction=0.4,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="t2_small_llm",
+                qa_state="needs_review",
+            ),
+        ],
+        sum_ex_gst_cents=100_00,
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.ledger.build_cell_items",
+            new=AsyncMock(return_value=cell_items),
+        ),
+    ):
+        response = client.get(
+            f"/api/tender/comparisons/{COMPARISON_ID}/cells/13.01/items",
+            params={"quote_id": str(QUOTE_ID)},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cell_code"] == "13.01"
+    assert payload["name"] == "Joinery"
+    assert len(payload["items"]) == 2
+    assert payload["items"][0]["allocation_fraction"] == 0.6
+    assert payload["items"][1]["allocation_fraction"] == 0.4
+    assert payload["sum_ex_gst_cents"] == 100_00
+    assert (
+        sum(
+            round(item["amount_ex_gst_cents"] * item["allocation_fraction"])
+            for item in payload["items"]
+        )
+        == payload["sum_ex_gst_cents"]
+    )

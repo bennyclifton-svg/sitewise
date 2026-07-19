@@ -42,6 +42,7 @@ from tender.schemas import (
     QAResolveRequest,
     QAResolveResponse,
     QuoteCreate,
+    CellItemsResponse,
     QuoteLedgerResponse,
     QuoteView,
     ReportDeliveredRequest,
@@ -774,6 +775,30 @@ async def get_quote_ledger(
     )
     return await ledger.build_quote_ledger(
         session, comparison_id=comparison_id, quote_id=quote_id
+    )
+
+
+@router.get(
+    "/comparisons/{comparison_id}/cells/{cell_code}/items",
+    response_model=CellItemsResponse,
+)
+async def get_cell_items(
+    comparison_id: uuid.UUID,
+    cell_code: str,
+    quote_id: uuid.UUID = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CellItemsResponse:
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await ledger.build_cell_items(
+        session,
+        comparison_id=comparison_id,
+        cell_code=cell_code,
+        quote_id=quote_id,
     )
 
 

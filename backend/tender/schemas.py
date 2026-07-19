@@ -512,3 +512,23 @@ class QuoteLedgerResponse(BaseModel):
     computed_ex_gst_cents: int | None = None
     uncaptured: list[dict] = Field(default_factory=list)
     items: list[LedgerItem] = Field(default_factory=list)
+
+
+class CellLineItem(BaseModel):
+    line_item_id: uuid.UUID
+    description_raw: str
+    page_no: int | None = None
+    role: str | None = None
+    allocation_fraction: float
+    amount_cents: int | None = None
+    amount_ex_gst_cents: int | None = None
+    mapping_tier: str
+    qa_state: str
+
+
+class CellItemsResponse(BaseModel):
+    cell_code: str
+    name: str
+    quote_id: uuid.UUID
+    items: list[CellLineItem] = Field(default_factory=list)
+    sum_ex_gst_cents: int = 0

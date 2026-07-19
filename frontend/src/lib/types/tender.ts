@@ -368,3 +368,23 @@ export type QuoteLedgerResponse = {
   uncaptured: Array<Record<string, unknown>>;
   items: QuoteLedgerItem[];
 };
+
+export type TenderCellLineItem = {
+  line_item_id: string;
+  description_raw: string;
+  page_no: number | null;
+  role: string | null;
+  allocation_fraction: number;
+  amount_cents: number | null;
+  amount_ex_gst_cents: number | null;
+  mapping_tier: string;
+  qa_state: string;
+};
+
+export type TenderCellItemsResponse = {
+  cell_code: string;
+  name: string;
+  quote_id: string;
+  items: TenderCellLineItem[];
+  sum_ex_gst_cents: number;
+};

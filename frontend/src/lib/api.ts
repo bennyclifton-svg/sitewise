@@ -40,6 +40,7 @@ import type {
   TenderTaxonomyCell,
   TenderTaxonomySearchResult,
   QuoteLedgerResponse,
+  TenderCellItemsResponse,
 } from "@/lib/types/tender";
 import type {
   CreateCostPlanResponse,
@@ -438,6 +439,15 @@ export const api = {
   ): Promise<QuoteLedgerResponse> =>
     api.get<QuoteLedgerResponse>(
       `/api/tender/comparisons/${comparisonId}/quotes/${quoteId}/ledger`,
+    ),
+
+  getTenderCellItems: async (
+    comparisonId: string,
+    cellCode: string,
+    quoteId: string,
+  ): Promise<TenderCellItemsResponse> =>
+    api.get<TenderCellItemsResponse>(
+      `/api/tender/comparisons/${comparisonId}/cells/${encodeURIComponent(cellCode)}/items?quote_id=${encodeURIComponent(quoteId)}`,
     ),
 
   buildTenderReport: async (

@@ -8,8 +8,14 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tender.models import TenderLineItem, TenderQuote, TenderQuoteReconciliation
-from tender.schemas import LedgerItem, QuoteLedgerResponse
+from tender.models import (
+    TaxonomyCell,
+    TenderLineItem,
+    TenderMapping,
+    TenderQuote,
+    TenderQuoteReconciliation,
+)
+from tender.schemas import CellItemsResponse, CellLineItem, LedgerItem, QuoteLedgerResponse
 
 
 async def build_quote_ledger(
@@ -87,4 +93,62 @@ async def build_quote_ledger(
         computed_ex_gst_cents=None if recon is None else recon.computed_ex_gst_cents,
         uncaptured=list(recon.uncaptured) if recon is not None else [],
         items=roots,
+    )
+
+
+async def build_cell_items(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    cell_code: str,
+    quote_id: uuid.UUID,
+) -> CellItemsResponse:
+    quote = await session.get(TenderQuote, quote_id)
+    if quote is None or quote.comparison_id != comparison_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Quote not found")
+
+    cell = await session.get(TaxonomyCell, cell_code)
+    if cell is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Taxonomy cell not found")
+
+    result = await session.execute(
+        select(TenderMapping, TenderLineItem)
+        .join(TenderLineItem, TenderLineItem.id == TenderMapping.line_item_id)
+        .where(
+            TenderLineItem.quote_id == quote_id,
+            TenderMapping.cell_code == cell_code,
+            TenderLineItem.duplicate_of_id.is_(None),
+        )
+        .order_by(TenderLineItem.page_no, TenderLineItem.figure_key)
+    )
+
+    items: list[CellLineItem] = []
+    sum_ex_gst = 0
+    for mapping, line_item in result.all():
+        fraction = float(mapping.allocation_fraction)
+        amount_ex = line_item.amount_ex_gst_cents
+        if amount_ex is None:
+            amount_ex = line_item.amount_cents
+        if amount_ex is not None:
+            sum_ex_gst += round(amount_ex * fraction)
+        items.append(
+            CellLineItem(
+                line_item_id=line_item.id,
+                description_raw=line_item.description_raw,
+                page_no=line_item.page_no,
+                role=line_item.role,
+                allocation_fraction=fraction,
+                amount_cents=line_item.amount_cents,
+                amount_ex_gst_cents=line_item.amount_ex_gst_cents,
+                mapping_tier=mapping.tier,
+                qa_state=mapping.qa_state,
+            )
+        )
+
+    return CellItemsResponse(
+        cell_code=cell.code,
+        name=cell.name,
+        quote_id=quote_id,
+        items=items,
+        sum_ex_gst_cents=sum_ex_gst,
     )
