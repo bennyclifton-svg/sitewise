@@ -252,10 +252,15 @@ capability, and durable-event contract.
     contracts. Focused schema/taxonomy/migration verification: 22 passed;
     disposable PostgreSQL roundtrip: 1 passed. HTTP 409 translation remains
     deliberately assigned to 1.3 after the deep module owns concurrency in 1.2.
-- [ ] **1.2 — Build the deep Project Profile module**
+- [x] **1.2 — Build the deep Project Profile module**
   - Dependencies: 1.1.
   - Gate: all validation families, dependent clearing, diffs, revisions, audit,
     and concurrency are owned by the module.
+  - Completed 2026-07-19 in `app.projects.profile`. The public module owns
+    normalized reads/options, taxonomy/scale/complexity/work-scope/role/state
+    validation, typed dependency conflicts, explicit clearing, row-locked
+    revision rechecks, derived overlay/risk state, and one before/after activity
+    record. Focused module, taxonomy, and contract verification: 31 passed.
 - [ ] **1.3 — Make HTTP PATCH a thin adapter**
   - Dependencies: 1.2.
   - Gate: HTTP delegates without duplicated validation and preserves unrelated
