@@ -15,4 +15,5 @@ def test_ignores_abn_phone_and_bare_numbers() -> None:
 def test_flags_malformed_grouping() -> None:
     toks = census_page("Internal balustrade and handrail - $9,5556.80", page_no=3)
     assert toks[0].suspect_format is True
-    assert toks[0].cents == 955680
+    # Naive parse of OCR typo "$9,5556.80" → 95556.80 dollars; flagged via grouping.
+    assert toks[0].cents == 9555680
