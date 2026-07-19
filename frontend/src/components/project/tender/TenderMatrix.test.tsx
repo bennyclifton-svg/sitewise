@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TenderMatrix } from "@/components/project/tender/TenderMatrix";
@@ -43,8 +44,16 @@ describe("TenderMatrix", () => {
   it("posts a mapping correction when a multi-candidate choice changes", async () => {
     const user = userEvent.setup();
 
-    render(<TenderMatrix projectId="project-1" comparisonId="comparison-1" />);
+    render(
+      <MemoryRouter>
+        <TenderMatrix projectId="project-1" comparisonId="comparison-1" />
+      </MemoryRouter>,
+    );
 
+    const cell = await screen.findByRole("button", {
+      name: /Included .* Retaining walls, Apex Homes/,
+    });
+    await user.click(cell);
     const choice = await screen.findByLabelText("Mapping choice for Apex Homes Retaining walls");
     await user.selectOptions(choice, "03.01");
 
