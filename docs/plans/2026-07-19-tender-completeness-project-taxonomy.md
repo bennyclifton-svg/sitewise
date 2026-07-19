@@ -56,8 +56,8 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 ## MASTER TODO LIST
 
 - [x] **Phase 0** — Branch, plan commit, pytest guard rails
-- [ ] **Phase 1** — Migration **034** (ledger columns + reconciliation table) + model/schema updates
-- [ ] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel`
+- [x] **Phase 1** — Migration **034** (ledger columns + reconciliation table) + model/schema updates
+- [x] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel` (unit/API green; live MERRICK smoke deferred)
 - [ ] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
 - [ ] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
 - [ ] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
