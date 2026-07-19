@@ -25,6 +25,7 @@ from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
+from app.agent.mutation_intent import classify_mutation_intent
 from app.agent.workspace_instructions import ensure_workspace_instructions
 from app.agent.workspace_paths import project_workspace_root
 from app.billing.entitlements import require_active_entitlement
@@ -450,6 +451,7 @@ async def post_agent_stream(
     # History is read before the new user message is persisted so the window
     # holds prior turns only; the current message travels as the prompt body.
     prior_messages = await list_messages(session, thread.id)
+    mutation_intent = classify_mutation_intent(user_text)
     agent_prompt = build_agent_prompt(
         user_text,
         project_id=str(thread.project_id),
@@ -465,6 +467,7 @@ async def post_agent_stream(
             HistoryMessage(role=message.role, content=message.content)
             for message in prior_messages
         ],
+        mutation_intent=mutation_intent,
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     model_override = resolve_hermes_model_override(body.agent_model)
@@ -481,6 +484,9 @@ async def post_agent_stream(
         user_id=user.id,
         thread_id=thread.id,
         user_message_id=user_message_id,
+        user_message_hash=mutation_intent.user_message_hash,
+        mutation_scopes=list(mutation_intent.scopes),
+        mutation_intent=mutation_intent.as_turn_payload(),
         runtime=agent_runtime,
         model=(
             model_override.model

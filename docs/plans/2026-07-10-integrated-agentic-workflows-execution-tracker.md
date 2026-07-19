@@ -285,10 +285,20 @@ capability, and durable-event contract.
     completions publish in their mutation transaction. Focused offline
     verification: 54 passed; disposable PostgreSQL migration roundtrip and
     atomic rollback/concurrent deduplication integration gates: 2 passed.
-- [ ] **1.5 — Bind mutation intent and persist profile proposals**
+- [x] **1.5 — Bind mutation intent and persist profile proposals**
   - Dependencies: 1.2, 1.4, 0.7D.
   - Gate: document-derived facts remain proposals until confirmed; explicit
     reversible user commands use bound project/turn intent.
+  - Completed 2026-07-19 in migration `027_profile_proposals`,
+    `app.agent.mutation_intent`, and `app.projects.profile_proposals`. The chat
+    boundary hashes only the current user message and stores exact target values
+    with a narrow `profile_mutation` scope for explicit imperatives. Hedged,
+    quoted, document-derived, and unrelated workflow instructions receive no
+    mutation scope and are directed to proposal/confirmation. Evidence-linked
+    proposals persist pending/accepted/rejected state, publish project events,
+    and accept/reject under a locked optimistic profile revision. Focused
+    offline verification: 77 passed; disposable PostgreSQL migration/outbox and
+    proposal lifecycle gates: 3 passed across the final integration runs.
 - [ ] **1.6 — Add profile MCP adapters**
   - Dependencies: 1.2, 1.4, 1.5.
   - Gate: narrow read/options/update tools share the Project Profile module,

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -24,6 +24,13 @@ class AgentTurn(Base):
         UUID(as_uuid=True), ForeignKey("chat_threads.id", ondelete="SET NULL")
     )
     user_message_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_message_hash: Mapped[str | None] = mapped_column(String(64))
+    mutation_scopes: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
+    mutation_intent: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     state: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     runtime: Mapped[str] = mapped_column(String(32), nullable=False)
     model: Mapped[str | None] = mapped_column(String(255))

@@ -100,6 +100,36 @@ def test_reservation_retry_reuses_durable_turn_without_double_count(monkeypatch)
     session.add.assert_not_called()
 
 
+def test_reservation_persists_message_hash_and_bound_mutation_intent(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "agent_monthly_turn_quota", 100)
+    monkeypatch.setattr(usage, "count_monthly_agent_turns", AsyncMock(return_value=0))
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.scalar = AsyncMock(return_value=None)
+    session.flush = AsyncMock()
+
+    turn, _, created = run_async(
+        usage.reserve_agent_turn(
+            session,
+            turn_id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            user_id=USER_ID,
+            thread_id=uuid.uuid4(),
+            user_message_id="mutation-message",
+            user_message_hash="a" * 64,
+            mutation_scopes=["profile_mutation"],
+            mutation_intent={"profile_patch": {"state": "VIC"}},
+            runtime="pi",
+            model="test-model",
+        )
+    )
+
+    assert created is True
+    assert turn.user_message_hash == "a" * 64
+    assert turn.mutation_scopes == ["profile_mutation"]
+    assert turn.mutation_intent["profile_patch"] == {"state": "VIC"}
+
+
 def _active_turn(*, runtime: str = "pi", state: str = "active") -> SimpleNamespace:
     return SimpleNamespace(
         id=uuid.uuid4(),
@@ -108,6 +138,8 @@ def _active_turn(*, runtime: str = "pi", state: str = "active") -> SimpleNamespa
         runtime=runtime,
         state=state,
         expires_at=datetime.now(UTC) + timedelta(minutes=1),
+        mutation_scopes=["profile_mutation"],
+        mutation_intent={"profile_patch": {"state": "VIC"}},
     )
 
 
@@ -124,6 +156,37 @@ def test_mutation_authorization_rejects_revoked_durable_turn(monkeypatch) -> Non
                 turn_id=turn.id,
                 project_id=turn.project_id,
                 user_id=turn.user_id,
+            )
+        )
+
+
+def test_mutation_authorization_requires_bound_scope_and_exact_values(monkeypatch) -> None:
+    turn = _active_turn()
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.get = AsyncMock(return_value=turn)
+
+    allowed = run_async(
+        usage.require_active_mutation_turn(
+            session,
+            turn_id=turn.id,
+            project_id=turn.project_id,
+            user_id=turn.user_id,
+            required_scope="profile_mutation",
+            requested_profile_patch={"state": "VIC"},
+        )
+    )
+    assert allowed is turn
+
+    with pytest.raises(PermissionError, match="does not match bound user intent"):
+        run_async(
+            usage.require_active_mutation_turn(
+                session,
+                turn_id=turn.id,
+                project_id=turn.project_id,
+                user_id=turn.user_id,
+                required_scope="profile_mutation",
+                requested_profile_patch={"state": "QLD"},
             )
         )
 

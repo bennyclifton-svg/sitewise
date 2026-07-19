@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
+from app.agent.mutation_intent import MutationIntent
 from app.sitewise.taxonomy import scale_fields_for, subclasses_for
 
 _NOT_DECLARED = "(not declared)"
@@ -93,6 +94,7 @@ def build_agent_prompt(
     work_type: str | None,
     history: list[HistoryMessage],
     project_metadata: dict | None = None,
+    mutation_intent: MutationIntent | None = None,
 ) -> str:
     """Wrap the user's message with the agent role, project overlays, and history.
 
@@ -117,6 +119,11 @@ def build_agent_prompt(
     )
     blocks.append(_DOCUMENT_ACCESS_GUIDANCE)
 
+    if mutation_intent is not None and (
+        mutation_intent.scopes or mutation_intent.requires_confirmation
+    ):
+        blocks.append(_mutation_policy_block(mutation_intent))
+
     window = _bounded_history(history)
     if window:
         lines = [f"{message.role}: {message.content}" for message in window]
@@ -126,6 +133,26 @@ def build_agent_prompt(
 
     blocks.append(user_text)
     return "\n\n".join(blocks)
+
+
+def _mutation_policy_block(intent: MutationIntent) -> str:
+    if intent.scopes:
+        targets = ", ".join(
+            f"{field}={value}" for field, value in intent.profile_patch.items()
+        )
+        instruction = (
+            "This turn has a server-bound profile_mutation scope for exactly: "
+            f"{targets}. Do not mutate any other profile field."
+        )
+    elif intent.requires_confirmation:
+        instruction = (
+            "This message does not authorize a direct profile mutation. "
+            "Create a profile proposal when the proposal tool is available, or ask "
+            "the user to confirm the proposed values."
+        )
+    else:
+        instruction = "This turn has no profile mutation authority."
+    return f"<profile-mutation-policy>\n{instruction}\n</profile-mutation-policy>"
 
 
 def _project_context_block(

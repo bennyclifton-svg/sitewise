@@ -1,5 +1,6 @@
 import pytest
 
+from app.agent.mutation_intent import classify_mutation_intent
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
 from app.config import settings
 
@@ -143,3 +144,23 @@ def test_multiline_history_messages_are_flattened() -> None:
     )
 
     assert "assistant: line one line two" in prompt
+
+
+def test_ambiguous_profile_claim_prompts_for_confirmation_without_authority() -> None:
+    user_text = "The report says this may be a residential refurbishment."
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Harbour House",
+        archetype=None,
+        user_role=None,
+        state="NSW",
+        phase=None,
+        building_class=None,
+        work_type=None,
+        history=[],
+        mutation_intent=classify_mutation_intent(user_text),
+    )
+
+    assert "does not authorize a direct profile mutation" in prompt
+    assert "ask the user to confirm" in prompt

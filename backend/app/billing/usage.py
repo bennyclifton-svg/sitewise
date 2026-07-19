@@ -91,6 +91,9 @@ async def reserve_agent_turn(
     user_message_id: str,
     runtime: str,
     model: str | None,
+    user_message_hash: str | None = None,
+    mutation_scopes: list[str] | None = None,
+    mutation_intent: dict | None = None,
     now: datetime | None = None,
 ) -> tuple[AgentTurn, AgentUsageState, bool]:
     """Atomically reserve one quota slot; retries of a message reuse its row."""
@@ -121,6 +124,9 @@ async def reserve_agent_turn(
         user_id=user_id,
         thread_id=thread_id,
         user_message_id=user_message_id,
+        user_message_hash=user_message_hash,
+        mutation_scopes=mutation_scopes or [],
+        mutation_intent=mutation_intent or {},
         state="active",
         runtime=runtime,
         model=model,
@@ -147,7 +153,13 @@ async def revoke_agent_turn(session: AsyncSession, turn_id: uuid.UUID) -> bool:
 
 
 async def require_active_mutation_turn(
-    session: AsyncSession, *, turn_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID
+    session: AsyncSession,
+    *,
+    turn_id: uuid.UUID,
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+    required_scope: str | None = None,
+    requested_profile_patch: dict | None = None,
 ) -> AgentTurn:
     """Acquire the commit lock and re-read durable capability state."""
     await _advisory_lock(session, f"agent-turn:{turn_id}")
@@ -165,6 +177,12 @@ async def require_active_mutation_turn(
         raise PermissionError(
             "Hermes mutations are disabled until a non-argv prompt transport is verified"
         )
+    if required_scope is not None and required_scope not in (turn.mutation_scopes or []):
+        raise PermissionError(f"agent turn lacks required mutation scope: {required_scope}")
+    if requested_profile_patch is not None:
+        bound_patch = (turn.mutation_intent or {}).get("profile_patch", {})
+        if bound_patch != requested_profile_patch:
+            raise PermissionError("profile mutation does not match bound user intent")
     return turn
 
 
