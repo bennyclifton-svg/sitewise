@@ -62,7 +62,7 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 - [x] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
 - [x] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
 - [x] **Phase 6** — Expectations/silence/benchmarks via anchor cells
-- [ ] **Phase 7** — Report overhaul + golden fixtures/eval gates + E2E MERRICK acceptance
+- [x] **Phase 7** — Report overhaul + golden fixtures/eval gates (E2E MERRICK acceptance deferred — see Task 7.4 / run report)
 
 > **Migration renumber (2026-07-19):** Stages 3–6 already claimed `029`–`033` on
 > `main`. This plan’s former `029`/`030`/`031` are implemented as
@@ -533,10 +533,16 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 # Phase 7 — Report, golden fixtures, eval gates, E2E acceptance
 
 **Todo:**
-- [ ] 7.1 Report: trade matrix + reconciliation strip + full ledger appendix
-- [ ] 7.2 MERRICK golden fixtures + annotations
-- [ ] 7.3 Eval metrics + completeness runner + gates
-- [ ] 7.4 Final E2E acceptance run
+- [x] 7.1 Report: trade matrix + reconciliation strip + full ledger appendix
+- [x] 7.2 MERRICK golden fixtures + annotations
+- [x] 7.3 Eval metrics + completeness runner + gates
+- [ ] 7.4 Final E2E acceptance run — **deferred 2026-07-20** (no live authenticated UI run this session; unit/report/eval DoD green — see `docs/plans/2026-07-20-tender-completeness-phase7-run-report.md`)
+
+**DoD notes (2026-07-20):**
+- Report: trades when present; recon strip + cost-plus note; ledger appendix; `mixed` glyph present.
+- Goldens: Coastal 36 cats = $3,547,495; Montique lump + **42** PS $ lines (PDF count); Toussaint 77 sections + GST identities verified.
+- Completeness gates: recall ≥ 0.99, `counted_sum_reconciles` True for three MERRICK docs.
+- Live E2E checklist left open for a follow-up authenticated run / PR description.
 
 ### Task 7.1: Report
 
