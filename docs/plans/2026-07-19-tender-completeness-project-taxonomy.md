@@ -60,7 +60,7 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 - [x] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel` (unit/API green; live MERRICK smoke deferred)
 - [x] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
 - [x] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
-- [ ] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
+- [x] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
 - [ ] **Phase 6** — Expectations/silence/benchmarks via anchor cells
 - [ ] **Phase 7** — Report overhaul + golden fixtures/eval gates + E2E MERRICK acceptance
 
@@ -498,7 +498,7 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 # Phase 5 — Ex-GST comparison surfaced (UI)
 
 **Todo:**
-- [ ] 5.1 Reconciliation strip + basis badges + non-comparable flag
+- [x] 5.1 Reconciliation strip + basis badges + non-comparable flag
 
 **Files:** Modify: `frontend/src/components/project/tender/TenderMatrix.tsx` (header ~380-400, `MatrixTotalsRow` ~436-473, `TotalReconciliation` ~475-499), `frontend/src/components/project/tender/format.ts`, `frontend/src/lib/types/tender.ts`
 
@@ -507,6 +507,8 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 3. Cost-plus / `non_comparable` columns get a persistent amber badge: "Cost-plus — excludes builder's margin; not directly comparable" (copy text may live in `data/tender/report_language.yaml` — follow existing report-language key pattern).
 4. Fix today's header-vs-footer inconsistency: header quote figure = stated native (labelled), footer = computed ex-GST (labelled).
 5. `pnpm build`; manual visual check; commit.
+
+**DoD (2026-07-20):** Matrix header shows labelled stated-native; footer row is "Total (ex GST)" with labelled computed totals + reconciliation strip; cost-plus columns show amber non-comparable badge (`report.labels.cost_plus_non_comparable`). `pnpm exec tsc --noEmit` + `pnpm build` clean; TenderMatrix vitest green.
 
 ---
 
