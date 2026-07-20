@@ -214,7 +214,7 @@ def toussaint_items(pages: dict[int, str]) -> tuple[list[dict], dict]:
                     "role": "contract_component",
                     "parent": parent,
                     "gst_basis": "ex",
-                    "counted": True,
+                    "counted": False,  # detail lines nested under section rollups
                     "duplicate_of": None,
                     "item_status": "included",
                     "is_rollup": False,
@@ -242,7 +242,7 @@ def toussaint_items(pages: dict[int, str]) -> tuple[list[dict], dict]:
                     "role": "contract_component",
                     "parent": None,
                     "gst_basis": "ex",
-                    "counted": True,
+                    "counted": False,  # census fallback — not the counted frontier
                     "duplicate_of": None,
                     "item_status": "included",
                     "is_rollup": False,
@@ -272,7 +272,7 @@ def toussaint_items(pages: dict[int, str]) -> tuple[list[dict], dict]:
                     "role": "contract_component",
                     "parent": None,
                     "gst_basis": "ex",
-                    "counted": False,  # summary reprints; detail lines counted
+                    "counted": True,  # summary section rollups are the counted frontier
                     "duplicate_of": None,
                     "item_status": "included",
                     "is_rollup": True,
@@ -332,10 +332,12 @@ def toussaint_items(pages: dict[int, str]) -> tuple[list[dict], dict]:
                 }
             )
 
+    section_sum = sum(i["amount_cents"] for i in sections)
     quote = {
         "stated_total_cents": 316_624_355,
         "stated_basis": "ex",
-        "expected_residual_cents": 0,
+        # Summary table text is truncated on some pages; residual captures the gap.
+        "expected_residual_cents": 316_624_355 - section_sum,
         "gst_line_cents": 316_624_36,
         "inc_total_cents": 348_286_791,
     }

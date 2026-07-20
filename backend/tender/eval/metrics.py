@@ -55,6 +55,124 @@ class MetricCounts:
         self.silence_true_positive.update(other.silence_true_positive)
 
 
+@dataclass
+class CompletenessCounts:
+    annotation_figures: int = 0
+    matched_figures: int = 0
+    counted_sum_reconciles: bool = False
+    dedup_predicted: int = 0
+    dedup_correct: int = 0
+    role_compared: int = 0
+    role_correct: int = 0
+
+    def add(self, other: "CompletenessCounts") -> None:
+        self.annotation_figures += other.annotation_figures
+        self.matched_figures += other.matched_figures
+        self.counted_sum_reconciles = (
+            self.counted_sum_reconciles and other.counted_sum_reconciles
+            if self.annotation_figures or other.annotation_figures
+            else other.counted_sum_reconciles
+        )
+        self.dedup_predicted += other.dedup_predicted
+        self.dedup_correct += other.dedup_correct
+        self.role_compared += other.role_compared
+        self.role_correct += other.role_correct
+
+
+def evaluate_completeness(
+    expected: GoldenAnnotation,
+    predicted: GoldenAnnotation,
+) -> CompletenessCounts:
+    """Score completeness: figure recall on (cents, page), roles, dedup, recon."""
+    expected_figures = [
+        item
+        for item in expected.line_items
+        if item.amount_cents is not None
+    ]
+    predicted_keys = Counter(
+        (item.amount_cents, item.page)
+        for item in predicted.line_items
+        if item.amount_cents is not None
+    )
+    matched = 0
+    for item in expected_figures:
+        key = (item.amount_cents, item.page)
+        if predicted_keys[key] > 0:
+            predicted_keys[key] -= 1
+            matched += 1
+
+    expected_by_key = _items_by_figure_key(expected.line_items)
+    predicted_by_key = _items_by_figure_key(predicted.line_items)
+    role_compared = 0
+    role_correct = 0
+    for key, expected_items in expected_by_key.items():
+        for expected_item, predicted_item in zip(
+            expected_items, predicted_by_key.get(key, [])
+        ):
+            if expected_item.role is None:
+                continue
+            role_compared += 1
+            if predicted_item.role == expected_item.role:
+                role_correct += 1
+
+    dedup_predicted = 0
+    dedup_correct = 0
+    for key, predicted_items in predicted_by_key.items():
+        for predicted_item in predicted_items:
+            if not predicted_item.duplicate_of:
+                continue
+            dedup_predicted += 1
+            expected_items = expected_by_key.get(key, [])
+            if any(item.duplicate_of for item in expected_items):
+                dedup_correct += 1
+
+    return CompletenessCounts(
+        annotation_figures=len(expected_figures),
+        matched_figures=matched,
+        counted_sum_reconciles=counted_sum_reconciles(expected),
+        dedup_predicted=dedup_predicted,
+        dedup_correct=dedup_correct,
+        role_compared=role_compared,
+        role_correct=role_correct,
+    )
+
+
+def counted_sum_reconciles(annotation: GoldenAnnotation) -> bool:
+    quote = annotation.quote
+    if quote is None or quote.stated_total_cents is None:
+        return False
+    counted = sum(
+        item.amount_cents or 0
+        for item in annotation.line_items
+        if item.counted and item.amount_cents is not None and not item.duplicate_of
+    )
+    residual = quote.stated_total_cents - counted
+    expected_residual = quote.expected_residual_cents
+    if expected_residual is None:
+        return residual == 0
+    return residual == expected_residual
+
+
+def summarize_completeness(counts: CompletenessCounts) -> dict[str, object]:
+    return {
+        "printed_figure_recall": _rate(counts.matched_figures, counts.annotation_figures),
+        "counted_sum_reconciles": counts.counted_sum_reconciles,
+        "dedup_precision": _rate(counts.dedup_correct, counts.dedup_predicted),
+        "role_accuracy": _rate(counts.role_correct, counts.role_compared),
+        "annotation_figure_count": counts.annotation_figures,
+        "matched_figure_count": counts.matched_figures,
+    }
+
+
+def _items_by_figure_key(
+    items: Iterable[GoldenLineItem],
+) -> dict[tuple[int | None, int], list[GoldenLineItem]]:
+    by_key: dict[tuple[int | None, int], list[GoldenLineItem]] = defaultdict(list)
+    for item in items:
+        by_key[(item.amount_cents, item.page)].append(item)
+    return by_key
+
+
 def evaluate_document(
     expected: GoldenAnnotation, predicted: GoldenAnnotation
 ) -> MetricCounts:

@@ -14,6 +14,22 @@ CONTEXT_BLOCKLIST = re.compile(
 )
 
 
+def despace_letter_spaced_text(text: str) -> str:
+    """Collapse letter/digit spacing seen in some PDF text extractions."""
+    out = text or ""
+    out = re.sub(r"(?<=\d)\s+(?=[\d,.])", "", out)
+    out = re.sub(r"(?<=[$,.])\s+(?=\d)", "", out)
+    prev = None
+    while prev != out:
+        prev = out
+        out = re.sub(
+            r"(?<![A-Za-z0-9])([A-Za-z0-9])(?:\s+([A-Za-z0-9]))+(?![A-Za-z0-9])",
+            lambda m: m.group(0).replace(" ", ""),
+            out,
+        )
+    return out
+
+
 @dataclass(frozen=True)
 class CensusToken:
     page_no: int
@@ -31,7 +47,7 @@ def census_page(text: str, page_no: int) -> list[CensusToken]:
             continue
         digits = match.group(1)
         cents = currency_to_cents(digits)
-        if cents is None or cents == 0:
+        if cents is None:
             continue
         out.append(
             CensusToken(
