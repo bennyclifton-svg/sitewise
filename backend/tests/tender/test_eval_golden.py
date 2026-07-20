@@ -13,6 +13,9 @@ def test_repo_manifest_loads() -> None:
         "enmore",
         "kaposi",
         "nexusbuilt",
+        "coastal",
+        "montique",
+        "toussaint",
     }
     assert manifest.targets["real_documents_min"] == 30
 

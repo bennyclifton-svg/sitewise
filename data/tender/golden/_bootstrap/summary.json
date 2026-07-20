@@ -1,0 +1,17 @@
+{
+  "coastal": {
+    "categories": 36,
+    "sum_cents": 354749500,
+    "pc_ps": 17
+  },
+  "montique": {
+    "items": 43,
+    "ps": 42
+  },
+  "toussaint": {
+    "items": 191,
+    "top_sections": 77,
+    "stated_ex": 316624355,
+    "gst": 31662436
+  }
+}

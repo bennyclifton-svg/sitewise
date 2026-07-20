@@ -32,6 +32,13 @@ class GoldenLineItem:
     amount_cents: int | None = None
     item_status: str | None = None
     allowance_cents: int | None = None
+    role: str | None = None
+    parent: str | None = None
+    gst_basis: str | None = None
+    counted: bool | None = None
+    duplicate_of: str | None = None
+    is_rollup: bool | None = None
+    suspect_format: bool | None = None
     mappings: tuple[GoldenMapping, ...] = ()
 
 
@@ -43,9 +50,18 @@ class GoldenCellStatus:
 
 
 @dataclass(frozen=True)
+class GoldenQuote:
+    stated_total_cents: int | None = None
+    stated_basis: str | None = None
+    expected_residual_cents: int | None = None
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class GoldenAnnotation:
     line_items: tuple[GoldenLineItem, ...] = ()
     cell_status: tuple[GoldenCellStatus, ...] = ()
+    quote: GoldenQuote | None = None
 
 
 @dataclass(frozen=True)
@@ -129,9 +145,24 @@ def _parse_annotation(data: Mapping[str, Any], document_id: str) -> GoldenAnnota
         raise ValueError(f"{document_id}.ground_truth.line_items must be a list")
     if not isinstance(cell_status, list):
         raise ValueError(f"{document_id}.ground_truth.cell_status must be a list")
+    quote_raw = truth.get("quote")
+    quote = _parse_quote(quote_raw, document_id) if quote_raw is not None else None
     return GoldenAnnotation(
         line_items=tuple(_parse_line_item(item, document_id) for item in line_items),
         cell_status=tuple(_parse_cell_status(item, document_id) for item in cell_status),
+        quote=quote,
+    )
+
+
+def _parse_quote(raw: Any, document_id: str) -> GoldenQuote:
+    item = _mapping(raw, f"{document_id}.quote")
+    known = {"stated_total_cents", "stated_basis", "expected_residual_cents"}
+    extra = {key: value for key, value in item.items() if key not in known}
+    return GoldenQuote(
+        stated_total_cents=_optional_int(item.get("stated_total_cents")),
+        stated_basis=_optional_str(item.get("stated_basis")),
+        expected_residual_cents=_optional_int(item.get("expected_residual_cents")),
+        extra=extra,
     )
 
 
@@ -148,6 +179,13 @@ def _parse_line_item(raw: Any, document_id: str) -> GoldenLineItem:
         amount_cents=_optional_int(item.get("amount_cents")),
         item_status=_optional_str(item.get("item_status")),
         allowance_cents=_optional_int(item.get("allowance_cents")),
+        role=_optional_str(item.get("role")),
+        parent=_optional_str(item.get("parent")),
+        gst_basis=_optional_str(item.get("gst_basis")),
+        counted=_optional_bool(item.get("counted")),
+        duplicate_of=_optional_str(item.get("duplicate_of")),
+        is_rollup=_optional_bool(item.get("is_rollup")),
+        suspect_format=_optional_bool(item.get("suspect_format")),
         mappings=tuple(_parse_mapping(mapping, document_id) for mapping in mappings),
     )
 
@@ -200,6 +238,20 @@ def _optional_str(value: Any) -> str | None:
         return None
     text = str(value)
     return text or None
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    return bool(value)
 
 
 def _read_yaml(path: Path) -> Mapping[str, Any]:
