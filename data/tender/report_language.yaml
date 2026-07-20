@@ -13,6 +13,7 @@ report:
     risk_notes: "Risk notes"
     questions: "Questions to ask each builder"
     methodology: "Methodology & limits"
+    quote_ledgers: "Quote ledgers"
   default_narratives:
     executive_summary_intro: "This draft compares the submitted tender documents on a like-for-like basis."
     risk_notes_intro: "These notes highlight document gaps and allowances to clarify before signing."
@@ -34,6 +35,17 @@ report:
     amount: "Amount"
     flag: "Flag"
     question: "Question"
+    stated_native: "Stated (native)"
+    counted: "Counted"
+    residual: "Residual"
+    page: "Page"
+    role: "Role"
+    description: "Description"
+    native_amount: "Native"
+    ex_gst: "Ex GST"
+    reprint: "reprint"
+    rollup: "rollup"
+    ledger_status: "Status"
 
 status_phrases:
   excluded_explicit: "Excluded (stated, p. {page})"

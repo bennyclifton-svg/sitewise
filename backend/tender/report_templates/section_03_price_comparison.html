@@ -17,6 +17,22 @@
         <td>{{ total.stated_total }}</td>
         <td>{{ total.variance }}</td>
       </tr>
+      {% if total.non_comparable %}
+      <tr>
+        <td colspan="4" class="muted">{{ labels.cost_plus_non_comparable }}</td>
+      </tr>
+      {% endif %}
+      <tr class="reconciliation-strip">
+        <td colspan="4" class="muted">
+          {% if total.has_stated_native %}
+          {{ labels.stated_native }}: {{ total.stated_native }}
+          · {{ labels.counted }}: {{ total.counted }}
+          · <span{% if total.residual_nonzero %} class="residual"{% endif %}>{{ labels.residual }}: {{ total.residual }}</span>
+          {% else %}
+          {{ labels.total_not_stated }}
+          {% endif %}
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>

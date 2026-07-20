@@ -52,3 +52,21 @@ th {
   transform: translate(-50%, -50%) rotate(-24deg);
   z-index: -1;
 }
+
+.residual {
+  color: #92400e;
+  font-weight: 600;
+}
+
+.marker {
+  background: #eef2f7;
+  border-radius: 2px;
+  font-size: 10px;
+  margin-left: 4px;
+  padding: 1px 4px;
+}
+
+.reconciliation-strip td {
+  border-top: none;
+  font-size: 11px;
+}

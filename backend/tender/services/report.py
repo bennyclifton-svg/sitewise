@@ -24,12 +24,14 @@ from tender.models import (
     TenderComparison,
     TenderFlag,
     TenderJob,
+    TenderProjectTrade,
     TenderQuote,
     TenderReport,
 )
-from tender.schemas import MatrixQuoteTotal
+from tender.schemas import LedgerItem, MatrixQuoteTotal, QuoteLedgerResponse
 from tender.services import qa
 from tender.services.artefact_publisher import tender_artefact_publisher
+from tender.services.ledger import build_quote_ledger
 from tender.services.totals import load_quote_totals
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "report_templates"
@@ -101,6 +103,7 @@ class ReportData:
     flags: list[ReportFlag]
     questions: list[str]
     totals: list[MatrixQuoteTotal] = field(default_factory=list)
+    quote_ledgers: list[QuoteLedgerResponse] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -309,6 +312,12 @@ async def load_report_data(
     matrix = await _report_matrix(session, comparison_id=comparison_id)
     flags = await _report_flags(session, comparison_id=comparison_id)
     totals = await load_quote_totals(session, comparison_id)
+    quote_ledgers = [
+        await build_quote_ledger(
+            session, comparison_id=comparison_id, quote_id=quote.id
+        )
+        for quote in quotes
+    ]
     return ReportData(
         comparison_id=comparison_id,
         project_title=project.title,
@@ -319,6 +328,7 @@ async def load_report_data(
         flags=flags,
         questions=analysis.questions if analysis is not None else [],
         totals=totals,
+        quote_ledgers=quote_ledgers,
     )
 
 
@@ -417,6 +427,9 @@ def render_draft_markdown(
         "",
         f"## {section_titles['methodology']}",
         str(language_value(language, "report.legal.disclaimer")),
+        "",
+        f"## {section_titles['quote_ledgers']}",
+        _quote_ledgers_markdown(view, labels),
     ]
     return "\n".join(lines).strip() + "\n"
 
@@ -453,6 +466,7 @@ def render_report_html(
         questions=view["questions"],
         totals=view["totals"],
         totals_by_quote=view["totals_by_quote"],
+        quote_ledgers=view["quote_ledgers"],
     )
 
 
@@ -524,6 +538,9 @@ def report_view(
         "narratives": dict(narratives),
         "totals": totals,
         "totals_by_quote": {total["quote_id"]: total for total in totals},
+        "quote_ledgers": [
+            _quote_ledger_view(ledger, language) for ledger in data.quote_ledgers
+        ],
     }
 
 
@@ -549,13 +566,16 @@ def _total_view(
     total: MatrixQuoteTotal,
     builder_by_id: Mapping[uuid.UUID, str],
     language: Mapping[str, Any],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     if total.reconciliation == "match":
         variance = str(language_value(language, "report.labels.matches_stated"))
     elif total.reconciliation == "not_stated":
         variance = str(language_value(language, "report.labels.total_not_stated"))
     else:
         variance = signed_money(total.delta_cents)
+    stated_native = total.stated_native_cents
+    residual = total.residual_cents
+    counted = None if stated_native is None else stated_native - residual
     return {
         "quote_id": str(total.quote_id),
         "builder_name": builder_by_id.get(total.quote_id, ""),
@@ -563,6 +583,61 @@ def _total_view(
         "stated_total": money(total.stated_total_cents),
         "reconciliation": total.reconciliation,
         "variance": variance,
+        "non_comparable": total.non_comparable,
+        "stated_native": money(stated_native),
+        "counted": money(counted),
+        "residual": money(residual),
+        "residual_nonzero": residual != 0,
+        "has_stated_native": stated_native is not None,
+    }
+
+
+def _quote_ledger_view(
+    ledger: QuoteLedgerResponse,
+    language: Mapping[str, Any],
+) -> dict[str, Any]:
+    labels = _labels(language)
+    nested = [
+        _ledger_item_view(item, labels=labels, depth=0) for item in ledger.items
+    ]
+    return {
+        "quote_id": str(ledger.quote_id),
+        "builder_name": ledger.builder_name,
+        "stated_total": money(ledger.stated_total_cents),
+        "stated_basis": ledger.stated_basis or "",
+        "status": ledger.status,
+        "residual": money(ledger.residual_cents),
+        "residual_nonzero": ledger.residual_cents != 0,
+        "computed_ex_gst": money(ledger.computed_ex_gst_cents),
+        "rows": _flatten_ledger_items(nested),
+    }
+
+
+def _ledger_item_view(
+    item: LedgerItem,
+    *,
+    labels: Mapping[str, str],
+    depth: int,
+) -> dict[str, Any]:
+    markers: list[str] = []
+    if item.duplicate_of_id is not None:
+        markers.append(labels["reprint"])
+    if item.is_rollup:
+        markers.append(labels["rollup"])
+    return {
+        "description": item.description_raw,
+        "page": item.page_no,
+        "role": item.role or "",
+        "amount": money(item.amount_cents),
+        "amount_ex_gst": money(item.amount_ex_gst_cents),
+        "counted": item.counted_in_total,
+        "duplicate": item.duplicate_of_id is not None,
+        "markers": markers,
+        "depth": depth,
+        "children": [
+            _ledger_item_view(child, labels=labels, depth=depth + 1)
+            for child in item.children
+        ],
     }
 
 
@@ -670,6 +745,16 @@ def _totals_markdown(view: Mapping[str, Any], labels: Mapping[str, str]) -> str:
             f"| {total['builder_name']} | {total['computed_total']} | "
             f"{total['stated_total']} | {total['variance']} |"
         )
+        if total.get("non_comparable"):
+            rows.append(f"|  | {labels['cost_plus_non_comparable']} |  |  |")
+        if total.get("has_stated_native"):
+            rows.append(
+                f"|  | {labels['stated_native']}: {total['stated_native']} · "
+                f"{labels['counted']}: {total['counted']} · "
+                f"{labels['residual']}: {total['residual']} |  |  |"
+            )
+        elif total.get("reconciliation") == "not_stated":
+            rows.append(f"|  | {labels['total_not_stated']} |  |  |")
     return "\n".join(rows)
 
 
@@ -698,6 +783,51 @@ def _matrix_markdown(view: Mapping[str, Any]) -> str:
             values.append(f"{status['glyph']} {status['display']}" if status else "")
         rows.append(f"| {cell['name']} | " + " | ".join(values) + " |")
     return "\n".join(rows)
+
+
+def _quote_ledgers_markdown(
+    view: Mapping[str, Any], labels: Mapping[str, str]
+) -> str:
+    blocks: list[str] = []
+    for ledger in view["quote_ledgers"]:
+        blocks.append(f"### {ledger['builder_name']}")
+        blocks.append(
+            f"{labels['ledger_status']}: {ledger['status']} · "
+            f"{labels['stated_total']}: {ledger['stated_total']}"
+            + (
+                f" ({ledger['stated_basis']})"
+                if ledger.get("stated_basis")
+                else ""
+            )
+        )
+        blocks.append(
+            f"| {labels['description']} | {labels['page']} | {labels['role']} | "
+            f"{labels['native_amount']} | {labels['ex_gst']} |"
+        )
+        blocks.append("| --- | --- | --- | --- | --- |")
+        for item in ledger["rows"]:
+            indent = "  " * int(item["depth"])
+            marker = (
+                f" ({', '.join(item['markers'])})" if item["markers"] else ""
+            )
+            blocks.append(
+                f"| {indent}{item['description']}{marker} | "
+                f"{item['page'] if item['page'] is not None else ''} | "
+                f"{item['role']} | {item['amount']} | {item['amount_ex_gst']} |"
+            )
+        blocks.append(
+            f"{labels['residual']}: {ledger['residual']}"
+        )
+        blocks.append("")
+    return "\n".join(blocks).strip()
+
+
+def _flatten_ledger_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    flat: list[dict[str, Any]] = []
+    for item in items:
+        flat.append(item)
+        flat.extend(_flatten_ledger_items(item.get("children") or []))
+    return flat
 
 
 def _flags_markdown(view: Mapping[str, Any]) -> str:
@@ -775,6 +905,59 @@ async def _report_matrix(
     *,
     comparison_id: uuid.UUID,
 ) -> list[ReportMatrixCell]:
+    trade_result = await session.execute(
+        select(TenderProjectTrade)
+        .where(TenderProjectTrade.comparison_id == comparison_id)
+        .order_by(TenderProjectTrade.sort_order, TenderProjectTrade.code)
+    )
+    trades = list(trade_result.scalars())
+    if trades:
+        return await _report_trade_matrix(
+            session, comparison_id=comparison_id, trades=trades
+        )
+    return await _report_cell_matrix(session, comparison_id=comparison_id)
+
+
+async def _report_trade_matrix(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    trades: list[TenderProjectTrade],
+) -> list[ReportMatrixCell]:
+    status_result = await session.execute(
+        select(TenderCellStatus).where(
+            TenderCellStatus.comparison_id == comparison_id,
+            TenderCellStatus.project_trade_id.is_not(None),
+        )
+    )
+    cells: dict[uuid.UUID, ReportMatrixCell] = {}
+    for trade in trades:
+        cells[trade.id] = ReportMatrixCell(
+            code=trade.code,
+            name=trade.name,
+            group=trade.group_label or "Other",
+        )
+    for status in status_result.scalars():
+        report_cell = cells.get(status.project_trade_id)  # type: ignore[arg-type]
+        if report_cell is None:
+            continue
+        report_cell.statuses.append(
+            ReportCellStatus(
+                quote_id=status.quote_id,
+                status=status.status,
+                amount_cents=status.amount_cents,
+                evidence=status.evidence or {},
+                parent_name=status.bundled_into_cell,
+            )
+        )
+    return list(cells.values())
+
+
+async def _report_cell_matrix(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+) -> list[ReportMatrixCell]:
     result = await session.execute(
         select(TenderCellStatus, TaxonomyCell)
         .join(TaxonomyCell, TaxonomyCell.code == TenderCellStatus.cell_code)
@@ -805,26 +988,54 @@ async def _report_flags(
     comparison_id: uuid.UUID,
 ) -> list[ReportFlag]:
     result = await session.execute(
-        select(TenderFlag, TenderQuote, TaxonomyCell)
+        select(TenderFlag, TenderQuote)
         .join(TenderQuote, TenderQuote.id == TenderFlag.quote_id)
-        .join(TaxonomyCell, TaxonomyCell.code == TenderFlag.cell_code)
         .where(
             TenderFlag.comparison_id == comparison_id,
             TenderFlag.include_in_report.is_(True),
         )
     )
-    return [
-        ReportFlag(
-            builder_name=quote.builder_name,
-            cell_name=cell.name,
-            flag_type=flag.flag_type,
-            severity=flag.severity,
-            headline=flag.headline,
-            detail=flag.detail,
-            evidence=flag.evidence or {},
+    rows = list(result.all())
+    trade_result = await session.execute(
+        select(TenderProjectTrade).where(
+            TenderProjectTrade.comparison_id == comparison_id
         )
-        for flag, quote, cell in result.all()
-    ]
+    )
+    trade_name_by_code = {
+        trade.code: trade.name for trade in trade_result.scalars()
+    }
+    taxonomy_codes = {
+        flag.cell_code
+        for flag, _quote in rows
+        if flag.cell_code and flag.cell_code not in trade_name_by_code
+    }
+    cell_name_by_code: dict[str, str] = {}
+    if taxonomy_codes:
+        cell_result = await session.execute(
+            select(TaxonomyCell).where(TaxonomyCell.code.in_(taxonomy_codes))
+        )
+        cell_name_by_code = {cell.code: cell.name for cell in cell_result.scalars()}
+
+    flags: list[ReportFlag] = []
+    for flag, quote in rows:
+        cell_name = ""
+        if flag.cell_code:
+            cell_name = trade_name_by_code.get(
+                flag.cell_code,
+                cell_name_by_code.get(flag.cell_code, flag.cell_code),
+            )
+        flags.append(
+            ReportFlag(
+                builder_name=quote.builder_name,
+                cell_name=cell_name,
+                flag_type=flag.flag_type,
+                severity=flag.severity,
+                headline=flag.headline,
+                detail=flag.detail,
+                evidence=flag.evidence or {},
+            )
+        )
+    return flags
 
 
 async def _store_artifacts(

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tender.schemas import MatrixQuoteTotal
+from tender.schemas import LedgerItem, MatrixQuoteTotal, QuoteLedgerResponse
 from tender.services import report
 
 COMPARISON_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -34,6 +34,35 @@ def test_render_report_html_uses_language_phrases_glyphs_and_watermark() -> None
     assert "◷" in artifacts.html
     assert "This report is information and document analysis only." in artifacts.html
     assert artifacts.pdf_bytes.startswith(b"%PDF")
+
+
+def test_report_includes_recon_strip_non_comparable_and_ledger_appendix() -> None:
+    language = report.load_report_language_yaml(_language_path())
+    artifacts = report.assemble_report_artifacts(
+        _report_data(non_comparable_b=True),
+        language=language,
+        draft=True,
+        pdf_renderer=lambda html: b"%PDF recon",
+    )
+
+    assert "Stated (native)" in artifacts.html
+    assert "Counted" in artifacts.html
+    assert "Residual" in artifacts.html
+    assert "Cost-plus" in artifacts.html
+    assert "not directly comparable" in artifacts.html
+    assert "Quote ledgers" in artifacts.html
+    assert "Joinery package" in artifacts.html
+    assert "reprint" in artifacts.html
+    assert "Unexplained difference vs stated total" in artifacts.html
+    assert "\u25d1" in artifacts.html
+    assert "Cabinetry" in artifacts.html
+    assert "Stated (native)" in artifacts.markdown
+    assert "Quote ledgers" in artifacts.markdown
+
+
+def test_mixed_glyph_is_registered() -> None:
+    assert report.GLYPHS["mixed"] == "\u25d1"
+    assert report.glyph_for_status("mixed") == "\u25d1"
 
 
 def test_rebuild_preserves_narratives_and_regenerates_tables() -> None:
@@ -148,9 +177,40 @@ def _report_data(
     *,
     pc_amount_cents: int = 200_000,
     excluded_page: int | None = None,
+    non_comparable_b: bool = False,
 ) -> report.ReportData:
     status = "excluded_explicit" if excluded_page is not None else "silent_ambiguous"
     evidence = {"page_refs": [{"page": excluded_page}]} if excluded_page is not None else {}
+    child = LedgerItem(
+        figure_key="joinery-child",
+        page_no=4,
+        description_raw="Kitchen cabinets",
+        amount_cents=80_000_00,
+        amount_ex_gst_cents=72_727_27,
+        role="line_item",
+        counted_in_total=True,
+    )
+    duplicate = LedgerItem(
+        figure_key="joinery-reprint",
+        page_no=12,
+        description_raw="Joinery package",
+        amount_cents=120_000_00,
+        role="category",
+        is_rollup=True,
+        counted_in_total=False,
+        duplicate_of_id=QUOTE_A,
+    )
+    root = LedgerItem(
+        figure_key="joinery",
+        page_no=3,
+        description_raw="Joinery package",
+        amount_cents=120_000_00,
+        amount_ex_gst_cents=109_090_91,
+        role="category",
+        is_rollup=True,
+        counted_in_total=True,
+        children=[child],
+    )
     return report.ReportData(
         comparison_id=COMPARISON_ID,
         project_title="Walsh Residence",
@@ -176,6 +236,23 @@ def _report_data(
             }
         ],
         matrix=[
+            report.ReportMatrixCell(
+                code="PT.CABINETRY",
+                name="Cabinetry",
+                group="Finishes",
+                statuses=[
+                    report.ReportCellStatus(
+                        quote_id=QUOTE_A,
+                        status="included",
+                        amount_cents=500_000,
+                    ),
+                    report.ReportCellStatus(
+                        quote_id=QUOTE_B,
+                        status="mixed",
+                        amount_cents=pc_amount_cents,
+                    ),
+                ],
+            ),
             report.ReportMatrixCell(
                 code="18.01",
                 name="Cooktop",
@@ -226,6 +303,8 @@ def _report_data(
                 quote_id=QUOTE_A,
                 computed_total_cents=500_000,
                 stated_total_cents=1_000_000_00,
+                stated_native_cents=1_000_000_00,
+                residual_cents=0,
                 stated_total_source="manual",
                 delta_cents=-99_500_000,
                 delta_ratio=0.995,
@@ -235,11 +314,35 @@ def _report_data(
                 quote_id=QUOTE_B,
                 computed_total_cents=pc_amount_cents,
                 stated_total_cents=950_000_00,
+                stated_native_cents=950_000_00,
+                residual_cents=12_500_00,
                 stated_total_source="manual",
+                non_comparable=non_comparable_b,
                 delta_cents=pc_amount_cents - 950_000_00,
                 delta_ratio=(950_000_00 - pc_amount_cents) / 950_000_00,
                 reconciliation="mismatch",
             ),
+        ],
+        quote_ledgers=[
+            QuoteLedgerResponse(
+                quote_id=QUOTE_A,
+                builder_name="A Homes",
+                stated_total_cents=1_000_000_00,
+                stated_basis="inc",
+                status="residual",
+                residual_cents=5_000_00,
+                computed_ex_gst_cents=904_545_45,
+                items=[
+                    root,
+                    duplicate,
+                    LedgerItem(
+                        figure_key="residual",
+                        description_raw="Unexplained difference vs stated total",
+                        amount_cents=5_000_00,
+                        counted_in_total=True,
+                    ),
+                ],
+            )
         ],
     )
 

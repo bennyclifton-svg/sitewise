@@ -1,0 +1,40 @@
+<section id="quote-ledgers">
+  <h2>{{ section_titles.quote_ledgers }}</h2>
+  {% for ledger in quote_ledgers %}
+  <h3>{{ ledger.builder_name }}</h3>
+  <p class="muted">
+    {{ labels.ledger_status }}: {{ ledger.status }}
+    · {{ labels.stated_total }}: {{ ledger.stated_total }}{% if ledger.stated_basis %} ({{ ledger.stated_basis }}){% endif %}
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ labels.description }}</th>
+        <th>{{ labels.page }}</th>
+        <th>{{ labels.role }}</th>
+        <th>{{ labels.native_amount }}</th>
+        <th>{{ labels.ex_gst }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in ledger.rows %}
+      <tr{% if not item.counted or item.duplicate %} class="muted"{% endif %}>
+        <td style="padding-left: {{ (item.depth * 12) + 8 }}px">
+          {{ item.description }}
+          {% for marker in item.markers %}
+          <span class="marker">{{ marker }}</span>
+          {% endfor %}
+        </td>
+        <td>{% if item.page is not none %}{{ item.page }}{% endif %}</td>
+        <td>{{ item.role }}</td>
+        <td>{{ item.amount }}</td>
+        <td>{{ item.amount_ex_gst }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p{% if ledger.residual_nonzero %} class="residual"{% else %} class="muted"{% endif %}>
+    {{ labels.residual }}: {{ ledger.residual }}
+  </p>
+  {% endfor %}
+</section>
