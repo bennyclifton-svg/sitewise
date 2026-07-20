@@ -88,6 +88,14 @@ class MappedCellItem:
 
 
 @dataclass(frozen=True)
+class TradeExpectationTarget:
+    """Project trade row for expectation adaptation (Phase 6)."""
+
+    trade_id: uuid.UUID
+    anchor_cell_codes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class CellStatusDraft:
     comparison_id: uuid.UUID
     quote_id: uuid.UUID
@@ -172,16 +180,19 @@ def build_cell_status_grid(
     quote_ids: Sequence[uuid.UUID],
     fired_rules: Sequence[FiredRule],
     mapped_items: Sequence[MappedCellItem] = (),
+    trades: Sequence[TradeExpectationTarget] | None = None,
     trade_ids: Sequence[uuid.UUID] | None = None,
 ) -> list[CellStatusDraft]:
     # Trade mode: key by project_trade_id (cell_code NULL). Fired cell rules
-    # stay unused until Phase 6 anchor expectations.
-    if trade_ids is not None:
+    # adapt onto trades via anchor_cell_codes (Phase 6).
+    trade_targets = _coerce_trade_targets(trades=trades, trade_ids=trade_ids)
+    if trade_targets is not None:
         return _build_trade_status_grid(
             comparison_id=comparison_id,
             quote_ids=quote_ids,
+            fired_rules=fired_rules,
             mapped_items=mapped_items,
-            trade_ids=trade_ids,
+            trades=trade_targets,
         )
 
     expected_by_cell: dict[str, list[FiredRule]] = defaultdict(list)
@@ -217,48 +228,104 @@ def build_cell_status_grid(
                     _silent_status_draft(
                         comparison_id,
                         quote_id,
-                        cell_code,
-                        expected_by_cell[cell_code],
+                        cell_code=cell_code,
+                        rules=expected_by_cell[cell_code],
                     )
                 )
     return drafts
+
+
+def _coerce_trade_targets(
+    *,
+    trades: Sequence[TradeExpectationTarget] | None,
+    trade_ids: Sequence[uuid.UUID] | None,
+) -> list[TradeExpectationTarget] | None:
+    if trades is not None:
+        return list(trades)
+    if trade_ids is not None:
+        return [TradeExpectationTarget(trade_id=trade_id) for trade_id in trade_ids]
+    return None
+
+
+def expected_trades_from_fired_cells(
+    fired_rules: Sequence[FiredRule],
+    trades: Sequence[TradeExpectationTarget],
+) -> dict[uuid.UUID, list[FiredRule]]:
+    """Map fired cell-code rules onto trades whose anchors contain those cells."""
+    rules_by_cell: dict[str, list[FiredRule]] = defaultdict(list)
+    for rule in fired_rules:
+        rules_by_cell[rule.cell_code].append(rule)
+
+    expected: dict[uuid.UUID, list[FiredRule]] = {}
+    for trade in trades:
+        matched: list[FiredRule] = []
+        seen: set[str] = set()
+        for cell_code in trade.anchor_cell_codes:
+            for rule in rules_by_cell.get(cell_code, []):
+                if rule.rule_code in seen:
+                    continue
+                matched.append(rule)
+                seen.add(rule.rule_code)
+        if matched:
+            expected[trade.trade_id] = matched
+    return expected
 
 
 def _build_trade_status_grid(
     *,
     comparison_id: uuid.UUID,
     quote_ids: Sequence[uuid.UUID],
+    fired_rules: Sequence[FiredRule],
     mapped_items: Sequence[MappedCellItem],
-    trade_ids: Sequence[uuid.UUID],
+    trades: Sequence[TradeExpectationTarget],
 ) -> list[CellStatusDraft]:
+    known_trades = {trade.trade_id: trade for trade in trades}
+    expected_by_trade = expected_trades_from_fired_cells(fired_rules, trades)
+
     mapped_by_key: dict[tuple[uuid.UUID, uuid.UUID], list[MappedCellItem]] = defaultdict(
         list
     )
     for item in mapped_items:
         if item.project_trade_id is None:
             continue
+        if item.project_trade_id not in known_trades:
+            continue
         mapped_by_key[(item.quote_id, item.project_trade_id)].append(item)
 
-    known_trades = set(trade_ids)
+    # Anchor-independent: priced in ≥1 quote → expect presence in every quote.
+    trades_priced_anywhere = {trade_id for _quote_id, trade_id in mapped_by_key}
+
     drafts: list[CellStatusDraft] = []
     for quote_id in quote_ids:
-        trade_keys = {
-            trade_id
-            for item_quote_id, trade_id in mapped_by_key
-            if item_quote_id == quote_id and trade_id in known_trades
-        }
-        for trade_id in sorted(trade_keys, key=str):
+        relevant = set(expected_by_trade) | trades_priced_anywhere
+        for item_quote_id, trade_id in mapped_by_key:
+            if item_quote_id == quote_id:
+                relevant.add(trade_id)
+
+        for trade_id in sorted(relevant, key=str):
             mapped = mapped_by_key.get((quote_id, trade_id), [])
-            if not mapped:
+            if mapped:
+                active = [item for item in mapped if item.counted_in_total] or list(
+                    mapped
+                )
+                drafts.append(
+                    _mapped_status_draft(
+                        comparison_id,
+                        quote_id,
+                        None,
+                        active,
+                        project_trade_id=trade_id,
+                    )
+                )
                 continue
-            active = [item for item in mapped if item.counted_in_total] or list(mapped)
             drafts.append(
-                _mapped_status_draft(
+                _silent_status_draft(
                     comparison_id,
                     quote_id,
-                    None,
-                    active,
+                    cell_code=None,
+                    rules=expected_by_trade.get(trade_id, ()),
                     project_trade_id=trade_id,
+                    cross_quote_presence=trade_id in trades_priced_anywhere,
                 )
             )
     return drafts
@@ -328,7 +395,13 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
         .where(TenderProjectTrade.comparison_id == job.comparison_id)
         .order_by(TenderProjectTrade.sort_order, TenderProjectTrade.code),
     )
-    trade_ids = [trade.id for trade in trade_rows] or None
+    trades = [
+        TradeExpectationTarget(
+            trade_id=trade.id,
+            anchor_cell_codes=tuple(trade.anchor_cell_codes or ()),
+        )
+        for trade in trade_rows
+    ] or None
     mapped_items = await _mapped_items_for_comparison(session, job.comparison_id)
     existing_models = await _scalars(
         session,
@@ -345,7 +418,7 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
             quote_ids=quote_ids,
             fired_rules=fired,
             mapped_items=mapped_items,
-            trade_ids=trade_ids,
+            trades=trades,
         ),
     )
 
@@ -358,16 +431,23 @@ async def run_expectations(session: AsyncSession, job: TenderJob) -> None:
         silence_jobs_by_quote[draft.quote_id].append(draft)
 
     for quote_id, drafts in silence_jobs_by_quote.items():
+        cell_codes = sorted(draft.cell_code for draft in drafts if draft.cell_code)
+        project_trade_ids = sorted(
+            str(draft.project_trade_id)
+            for draft in drafts
+            if draft.project_trade_id is not None
+        )
+        payload: dict[str, Any] = {}
+        if cell_codes:
+            payload["cell_codes"] = cell_codes
+        if project_trade_ids:
+            payload["project_trade_ids"] = project_trade_ids
         session.add(
             TenderJob(
                 kind="infer_silence_batch",
                 comparison_id=job.comparison_id,
                 quote_id=quote_id,
-                payload={
-                    "cell_codes": sorted(
-                        draft.cell_code for draft in drafts if draft.cell_code
-                    ),
-                },
+                payload=payload,
             )
         )
     comparison.status = "processing"
@@ -569,27 +649,37 @@ def _mapped_status_draft(
 def _silent_status_draft(
     comparison_id: uuid.UUID,
     quote_id: uuid.UUID,
-    cell_code: str,
+    *,
+    cell_code: str | None,
     rules: Sequence[FiredRule],
+    project_trade_id: uuid.UUID | None = None,
+    cross_quote_presence: bool = False,
 ) -> CellStatusDraft:
+    evidence: dict[str, Any] = {
+        "expected_because": [rule.rule_code for rule in rules],
+        "expectation_rules": [
+            {
+                "rule_code": rule.rule_code,
+                "severity": rule.severity,
+                "rationale": rule.rationale,
+            }
+            for rule in rules
+        ],
+    }
+    if cross_quote_presence:
+        evidence["cross_quote_presence"] = True
+        evidence["cross_quote_note"] = (
+            "Trade is priced in at least one other quote but absent here."
+        )
     return CellStatusDraft(
         comparison_id=comparison_id,
         quote_id=quote_id,
         cell_code=cell_code,
+        project_trade_id=project_trade_id,
         status="silent_ambiguous",
         amount_cents=None,
         bundled_into_cell=None,
-        evidence={
-            "expected_because": [rule.rule_code for rule in rules],
-            "expectation_rules": [
-                {
-                    "rule_code": rule.rule_code,
-                    "severity": rule.severity,
-                    "rationale": rule.rationale,
-                }
-                for rule in rules
-            ],
-        },
+        evidence=evidence,
         confidence=None,
         qa_state="needs_review",
         queue_silence=True,

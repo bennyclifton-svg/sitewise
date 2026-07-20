@@ -257,7 +257,7 @@ def test_trade_mode_grid_keys_by_project_trade_id() -> None:
                 rule_code="SITE.RETAINING.SHOULD",
                 cell_code="03.05",
                 severity="should",
-                rationale="Ignored in trade mode until Phase 6 anchors.",
+                rationale="Anchored expectation for trade_a only.",
             )
         ],
         mapped_items=[
@@ -282,7 +282,10 @@ def test_trade_mode_grid_keys_by_project_trade_id() -> None:
                 counted_in_total=True,
             ),
         ],
-        trade_ids=[trade_a, trade_b],
+        trades=[
+            expectations.TradeExpectationTarget(trade_a, ("03.05",)),
+            expectations.TradeExpectationTarget(trade_b, ()),
+        ],
     )
 
     assert len(drafts) == 2
