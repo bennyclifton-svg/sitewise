@@ -202,6 +202,99 @@ def test_worker_registers_infer_silence_handler() -> None:
     assert worker.HANDLERS["infer_silence_batch"] is silence.infer_silence_batch
 
 
+def test_silence_cell_from_anchors_unions_synonyms_and_parents() -> None:
+    cell = silence.silence_cell_from_anchors(
+        trade_code="PT.01",
+        trade_name="Cabinetry",
+        expected_because=["JOINERY.MUST"],
+        anchors=[
+            silence.AnchorCellParts(
+                code="18.01",
+                name="Kitchen joinery",
+                synonyms=(
+                    silence.SilenceSynonym("kitchen cabinets"),
+                    silence.SilenceSynonym("joinery"),
+                ),
+                bundling_parents=("18.00",),
+                benchmark_key="joinery.kitchen",
+            ),
+            silence.AnchorCellParts(
+                code="18.02",
+                name="Laundry joinery",
+                synonyms=(
+                    silence.SilenceSynonym("laundry cabinets"),
+                    silence.SilenceSynonym("Joinery"),  # dupe after normalize
+                ),
+                bundling_parents=("18.00", "17.01"),
+                benchmark_key="joinery.laundry",
+            ),
+        ],
+    )
+
+    assert cell.code == "PT.01"
+    assert cell.name == "Cabinetry"
+    assert cell.anchor_cell_codes == ("18.01", "18.02")
+    assert [s.phrase for s in cell.synonyms] == [
+        "kitchen cabinets",
+        "joinery",
+        "laundry cabinets",
+    ]
+    assert cell.bundling_parents == ("18.00", "17.01")
+    # Multi-anchor: do not inherit a single benchmark/applicability in v1.
+    assert cell.benchmark_key is None
+    assert cell.applicability is None
+
+
+def test_silence_cell_from_single_anchor_inherits_benchmark() -> None:
+    cell = silence.silence_cell_from_anchors(
+        trade_code="PT.02",
+        trade_name="Retaining",
+        expected_because=["SITE.RETAINING.SHOULD"],
+        anchors=[
+            silence.AnchorCellParts(
+                code="03.05",
+                name="Retaining walls",
+                synonyms=(silence.SilenceSynonym("retaining wall"),),
+                bundling_parents=("03.01",),
+                benchmark_key="site.retaining",
+                applicability={"field": "slope_class", "eq": "steep"},
+            )
+        ],
+    )
+
+    assert cell.benchmark_key == "site.retaining"
+    assert cell.applicability == {"field": "slope_class", "eq": "steep"}
+    assert cell.bundling_parents == ("03.01",)
+
+
+def test_unanchored_trade_skips_llm_and_keeps_silent_ambiguous() -> None:
+    row = TenderCellStatus(
+        id=uuid.uuid4(),
+        comparison_id=uuid.uuid4(),
+        quote_id=uuid.uuid4(),
+        cell_code=None,
+        project_trade_id=uuid.uuid4(),
+        status="silent_ambiguous",
+        evidence={
+            "expected_because": [],
+            "cross_quote_presence": True,
+            "cross_quote_note": "Trade is priced in at least one other quote but absent here.",
+        },
+        qa_state="needs_review",
+    )
+
+    decision = silence.unanchored_silence_decision(row)
+    silence.apply_silence_decision(row, decision)
+
+    assert decision.status == "silent_ambiguous"
+    assert row.status == "silent_ambiguous"
+    assert row.qa_state == "needs_review"
+    assert row.evidence["silence_skip"] == "unanchored_trade"
+    assert row.evidence["adjudication"]["source"] == "unanchored_trade_skip"
+    assert row.evidence["cross_quote_presence"] is True
+    assert "absent here" in row.evidence["cross_quote_note"]
+
+
 class FakeSilenceClient:
     def __init__(self, outcome: str, *, confidence: float) -> None:
         self.outcome = outcome

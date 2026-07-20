@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,7 @@ from tender.models import (
     TenderCellStatus,
     TenderLineItem,
     TenderJob,
+    TenderProjectTrade,
 )
 from tender.schemas import ProjectContext
 from tender.seeds.load import normalize_phrase
@@ -48,6 +50,7 @@ class SilenceCell:
     bundling_parents: Sequence[str] = ()
     benchmark_key: str | None = None
     applicability: Mapping[str, Any] | None = None
+    anchor_cell_codes: Sequence[str] = ()
 
 
 @dataclass(frozen=True)
@@ -90,6 +93,95 @@ class SilenceDecision:
     confidence: float | None
     bundled_into_cell: str | None
     evidence: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class AnchorCellParts:
+    """One taxonomy cell contribution to a trade's silence evidence union."""
+
+    code: str
+    name: str
+    synonyms: Sequence[SilenceSynonym] = ()
+    bundling_parents: Sequence[str] = ()
+    benchmark_key: str | None = None
+    applicability: Mapping[str, Any] | None = None
+
+
+def silence_cell_from_anchors(
+    *,
+    trade_code: str,
+    trade_name: str,
+    expected_because: Sequence[str],
+    anchors: Sequence[AnchorCellParts],
+) -> SilenceCell:
+    """Build a SilenceCell whose synonyms/parents are the union of anchor cells."""
+    synonym_by_phrase: dict[str, SilenceSynonym] = {}
+    parents: list[str] = []
+    seen_parents: set[str] = set()
+    for anchor in anchors:
+        for synonym in anchor.synonyms:
+            key = normalize_phrase(synonym.phrase)
+            if key and key not in synonym_by_phrase:
+                synonym_by_phrase[key] = synonym
+        for parent in anchor.bundling_parents:
+            if parent not in seen_parents:
+                parents.append(parent)
+                seen_parents.add(parent)
+
+    benchmark_key: str | None = None
+    applicability: Mapping[str, Any] | None = None
+    if len(anchors) == 1:
+        benchmark_key = anchors[0].benchmark_key
+        applicability = anchors[0].applicability
+
+    return SilenceCell(
+        code=trade_code,
+        name=trade_name,
+        expected_because=tuple(expected_because),
+        synonyms=tuple(synonym_by_phrase.values()),
+        bundling_parents=tuple(parents),
+        benchmark_key=benchmark_key,
+        applicability=applicability,
+        anchor_cell_codes=tuple(anchor.code for anchor in anchors),
+    )
+
+
+def unanchored_silence_decision(
+    row: TenderCellStatus,
+) -> SilenceDecision:
+    """Keep silent_ambiguous; unanchored trades skip LLM (Phase 6)."""
+    prior = dict(row.evidence or {})
+    prior.setdefault("cross_quote_presence", True)
+    prior.setdefault(
+        "cross_quote_note",
+        "Trade is priced in at least one other quote but absent here.",
+    )
+    prior["silence_skip"] = "unanchored_trade"
+    return SilenceDecision(
+        status="silent_ambiguous",
+        qa_state="needs_review",
+        confidence=None,
+        bundled_into_cell=None,
+        evidence={
+            **prior,
+            "adjudication": {
+                "outcome": "ambiguous",
+                "stored_status": "silent_ambiguous",
+                "confidence": None,
+                "rationale": (
+                    "Unanchored trade skipped LLM silence; cross-quote presence "
+                    "remains the only expectation signal."
+                ),
+                "model": None,
+                "prompt_version": None,
+                "request_id": None,
+                "cites": [],
+                "downgraded": False,
+                "source": "unanchored_trade_skip",
+                "review_reason": "unanchored_trade",
+            },
+        },
+    )
 
 
 def assemble_evidence_packet(
@@ -193,11 +285,28 @@ async def infer_silence(
 ) -> None:
     if job.comparison_id is None or job.quote_id is None:
         raise ValueError("infer_silence job requires comparison_id and quote_id")
-    cell_code = (job.payload or {}).get("cell_code")
-    if not isinstance(cell_code, str) or not cell_code:
-        raise ValueError("infer_silence job payload requires cell_code")
+    payload = job.payload or {}
+    cell_code = payload.get("cell_code")
+    project_trade_id = _parse_optional_uuid(payload.get("project_trade_id"))
 
-    row = await _cell_status_row(session, job.comparison_id, job.quote_id, cell_code)
+    if project_trade_id is not None:
+        row = await _cell_status_row_by_trade(
+            session, job.comparison_id, job.quote_id, project_trade_id
+        )
+    elif isinstance(cell_code, str) and cell_code:
+        row = await _cell_status_row(session, job.comparison_id, job.quote_id, cell_code)
+    else:
+        raise ValueError(
+            "infer_silence job payload requires cell_code or project_trade_id"
+        )
+
+    if row.project_trade_id is not None:
+        trade = await _project_trade(session, row.project_trade_id)
+        if not (trade.anchor_cell_codes or []):
+            apply_silence_decision(row, unanchored_silence_decision(row))
+            await session.flush()
+            return
+
     context = await _context_for_quote(session, job.quote_id)
     packet = await _packet_from_db(session, row, context)
     await infer_silence_from_packet(
@@ -217,44 +326,89 @@ async def infer_silence_batch(
 ) -> None:
     if job.comparison_id is None or job.quote_id is None:
         raise ValueError("infer_silence_batch job requires comparison_id and quote_id")
-    cell_codes = (job.payload or {}).get("cell_codes")
-    if (
-        not isinstance(cell_codes, list)
-        or not cell_codes
-        or not all(isinstance(cell_code, str) and cell_code for cell_code in cell_codes)
-    ):
-        raise ValueError("infer_silence_batch job payload requires cell_codes")
+    payload = job.payload or {}
+    cell_codes = payload.get("cell_codes")
+    project_trade_ids = payload.get("project_trade_ids")
 
-    unique_cell_codes = tuple(dict.fromkeys(cell_codes))
-    rows_by_code = await _cell_status_rows(
-        session,
-        job.comparison_id,
-        job.quote_id,
-        unique_cell_codes,
+    has_cells = (
+        isinstance(cell_codes, list)
+        and cell_codes
+        and all(isinstance(code, str) and code for code in cell_codes)
     )
+    has_trades = (
+        isinstance(project_trade_ids, list)
+        and project_trade_ids
+        and all(isinstance(value, str) and value for value in project_trade_ids)
+    )
+    if not has_cells and not has_trades:
+        raise ValueError(
+            "infer_silence_batch job payload requires cell_codes or project_trade_ids"
+        )
+
     context = await _context_for_quote(session, job.quote_id)
     line_items = await _line_items(session, job.quote_id)
     mapped_cells = await _mapped_cells(session, job.comparison_id, job.quote_id)
     pending: list[tuple[TenderCellStatus, EvidencePacket]] = []
 
-    for cell_code in unique_cell_codes:
-        row = rows_by_code[cell_code]
-        packet = await _packet_from_db(
-            session,
-            row,
-            context,
-            line_items=line_items,
-            mapped_cells=mapped_cells,
+    if has_trades:
+        trade_uuids = tuple(
+            dict.fromkeys(uuid.UUID(value) for value in project_trade_ids)
         )
-        if packet.explicit_exclusion is not None:
-            decision = _explicit_exclusion_decision(packet)
-            apply_silence_decision(row, decision)
-            continue
-        deterministic = deterministic_silence_decision(packet)
-        if deterministic is not None:
-            apply_silence_decision(row, deterministic)
-            continue
-        pending.append((row, packet))
+        rows_by_trade = await _cell_status_rows_by_trade(
+            session,
+            job.comparison_id,
+            job.quote_id,
+            trade_uuids,
+        )
+        trades_by_id = await _project_trades(session, trade_uuids)
+        for trade_id in trade_uuids:
+            row = rows_by_trade[trade_id]
+            trade = trades_by_id[trade_id]
+            if not (trade.anchor_cell_codes or []):
+                apply_silence_decision(row, unanchored_silence_decision(row))
+                continue
+            packet = await _packet_from_db(
+                session,
+                row,
+                context,
+                line_items=line_items,
+                mapped_cells=mapped_cells,
+                trade=trade,
+            )
+            if packet.explicit_exclusion is not None:
+                apply_silence_decision(row, _explicit_exclusion_decision(packet))
+                continue
+            deterministic = deterministic_silence_decision(packet)
+            if deterministic is not None:
+                apply_silence_decision(row, deterministic)
+                continue
+            pending.append((row, packet))
+
+    if has_cells:
+        unique_cell_codes = tuple(dict.fromkeys(cell_codes))
+        rows_by_code = await _cell_status_rows(
+            session,
+            job.comparison_id,
+            job.quote_id,
+            unique_cell_codes,
+        )
+        for cell_code in unique_cell_codes:
+            row = rows_by_code[cell_code]
+            packet = await _packet_from_db(
+                session,
+                row,
+                context,
+                line_items=line_items,
+                mapped_cells=mapped_cells,
+            )
+            if packet.explicit_exclusion is not None:
+                apply_silence_decision(row, _explicit_exclusion_decision(packet))
+                continue
+            deterministic = deterministic_silence_decision(packet)
+            if deterministic is not None:
+                apply_silence_decision(row, deterministic)
+                continue
+            pending.append((row, packet))
 
     if pending:
         decisions = await adjudicate_silence_packets(
@@ -640,6 +794,22 @@ async def _cell_status_row(
     return result.scalar_one()
 
 
+async def _cell_status_row_by_trade(
+    session: AsyncSession,
+    comparison_id: Any,
+    quote_id: Any,
+    project_trade_id: uuid.UUID,
+) -> TenderCellStatus:
+    result = await session.execute(
+        select(TenderCellStatus).where(
+            TenderCellStatus.comparison_id == comparison_id,
+            TenderCellStatus.quote_id == quote_id,
+            TenderCellStatus.project_trade_id == project_trade_id,
+        )
+    )
+    return result.scalar_one()
+
+
 async def _cell_status_rows(
     session: AsyncSession,
     comparison_id: Any,
@@ -660,6 +830,30 @@ async def _cell_status_rows(
     return rows
 
 
+async def _cell_status_rows_by_trade(
+    session: AsyncSession,
+    comparison_id: Any,
+    quote_id: Any,
+    trade_ids: Sequence[uuid.UUID],
+) -> dict[uuid.UUID, TenderCellStatus]:
+    result = await session.execute(
+        select(TenderCellStatus).where(
+            TenderCellStatus.comparison_id == comparison_id,
+            TenderCellStatus.quote_id == quote_id,
+            TenderCellStatus.project_trade_id.in_(list(trade_ids)),
+        )
+    )
+    rows = {
+        row.project_trade_id: row
+        for row in result.scalars()
+        if row.project_trade_id is not None
+    }
+    missing = [str(trade_id) for trade_id in trade_ids if trade_id not in rows]
+    if missing:
+        raise ValueError(f"missing tender trade statuses: {', '.join(missing)}")
+    return rows
+
+
 async def _context_for_quote(session: AsyncSession, quote_id: Any) -> ProjectContext:
     return await context_for_quote(session, quote_id)
 
@@ -671,9 +865,8 @@ async def _packet_from_db(
     *,
     line_items: Sequence[SilenceLineItem] | None = None,
     mapped_cells: Sequence[SilenceMappedCell] | None = None,
+    trade: TenderProjectTrade | None = None,
 ) -> EvidencePacket:
-    cell_model = await _taxonomy_cell(session, row.cell_code)
-    synonyms = await _synonyms(session, row.cell_code)
     if line_items is None:
         line_items = await _line_items(session, row.quote_id)
     else:
@@ -682,20 +875,44 @@ async def _packet_from_db(
         mapped_cells = await _mapped_cells(session, row.comparison_id, row.quote_id)
     else:
         mapped_cells = tuple(mapped_cells)
-    parent_cells = await _parent_cells(session, cell_model.bundling_parents or ())
-    cells_by_code = {
-        row.cell_code: _silence_cell_from_model(
+
+    expected_because = tuple((row.evidence or {}).get("expected_because", ()))
+
+    if row.project_trade_id is not None:
+        if trade is None:
+            trade = await _project_trade(session, row.project_trade_id)
+        cell = await _silence_cell_for_trade(
+            session,
+            trade,
+            expected_because=expected_because,
+        )
+        parent_cells = await _parent_cells(session, cell.bundling_parents)
+        cells_by_code = {cell.code: cell, **parent_cells}
+        # Also index anchor cells for parent benchmark lookups.
+        for anchor_code in cell.anchor_cell_codes:
+            if anchor_code not in cells_by_code:
+                anchor_model = await _taxonomy_cell(session, anchor_code)
+                cells_by_code[anchor_code] = _silence_cell_from_model(
+                    anchor_model,
+                    expected_because=(),
+                    synonyms=(),
+                )
+    else:
+        cell_model = await _taxonomy_cell(session, row.cell_code)
+        synonyms = await _synonyms(session, row.cell_code)
+        cell = _silence_cell_from_model(
             cell_model,
-            expected_because=tuple((row.evidence or {}).get("expected_because", ())),
+            expected_because=expected_because,
             synonyms=synonyms,
         )
-    }
-    cells_by_code.update(parent_cells)
+        parent_cells = await _parent_cells(session, cell_model.bundling_parents or ())
+        cells_by_code = {row.cell_code: cell, **parent_cells}
+
     benchmark_keys = [
-        cell.benchmark_key for cell in cells_by_code.values() if cell.benchmark_key
+        item.benchmark_key for item in cells_by_code.values() if item.benchmark_key
     ]
     return assemble_evidence_packet(
-        cell=cells_by_code[row.cell_code],
+        cell=cell,
         context=context,
         line_items=line_items,
         mapped_cells=mapped_cells,
@@ -703,6 +920,64 @@ async def _packet_from_db(
         benchmarks=await _benchmarks(session, benchmark_keys),
         ps_similarity_threshold=_silence_ps_similarity(),
     )
+
+
+async def _silence_cell_for_trade(
+    session: AsyncSession,
+    trade: TenderProjectTrade,
+    *,
+    expected_because: Sequence[str],
+) -> SilenceCell:
+    anchor_codes = list(trade.anchor_cell_codes or [])
+    if not anchor_codes:
+        return SilenceCell(
+            code=trade.code,
+            name=trade.name,
+            expected_because=tuple(expected_because),
+            anchor_cell_codes=(),
+        )
+    anchors: list[AnchorCellParts] = []
+    for code in anchor_codes:
+        cell = await _taxonomy_cell(session, code)
+        synonyms = await _synonyms(session, code)
+        anchors.append(
+            AnchorCellParts(
+                code=cell.code,
+                name=cell.name,
+                synonyms=synonyms,
+                bundling_parents=tuple(cell.bundling_parents or ()),
+                benchmark_key=cell.benchmark_key,
+                applicability=cell.applicability,
+            )
+        )
+    return silence_cell_from_anchors(
+        trade_code=trade.code,
+        trade_name=trade.name,
+        expected_because=expected_because,
+        anchors=anchors,
+    )
+
+
+async def _project_trade(
+    session: AsyncSession, project_trade_id: uuid.UUID
+) -> TenderProjectTrade:
+    result = await session.execute(
+        select(TenderProjectTrade).where(TenderProjectTrade.id == project_trade_id)
+    )
+    return result.scalar_one()
+
+
+async def _project_trades(
+    session: AsyncSession, trade_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, TenderProjectTrade]:
+    result = await session.execute(
+        select(TenderProjectTrade).where(TenderProjectTrade.id.in_(list(trade_ids)))
+    )
+    trades = {trade.id: trade for trade in result.scalars()}
+    missing = [str(trade_id) for trade_id in trade_ids if trade_id not in trades]
+    if missing:
+        raise ValueError(f"missing project trades: {', '.join(missing)}")
+    return trades
 
 
 async def _taxonomy_cell(session: AsyncSession, cell_code: str) -> TaxonomyCell:
@@ -754,10 +1029,40 @@ async def _mapped_cells(
             TenderCellStatus.quote_id == quote_id,
         )
     )
-    return tuple(
-        SilenceMappedCell(cell_code=status.cell_code, amount_cents=status.amount_cents)
-        for status in result.scalars()
+    statuses = list(result.scalars())
+    mapped: list[SilenceMappedCell] = []
+    trade_ids = list(
+        dict.fromkeys(
+            status.project_trade_id
+            for status in statuses
+            if status.project_trade_id is not None and status.amount_cents is not None
+        )
     )
+    trades_by_id: dict[uuid.UUID, TenderProjectTrade] = {}
+    if trade_ids:
+        trade_result = await session.execute(
+            select(TenderProjectTrade).where(TenderProjectTrade.id.in_(trade_ids))
+        )
+        trades_by_id = {trade.id: trade for trade in trade_result.scalars()}
+
+    for status in statuses:
+        if status.cell_code:
+            mapped.append(
+                SilenceMappedCell(
+                    cell_code=status.cell_code, amount_cents=status.amount_cents
+                )
+            )
+            continue
+        if status.project_trade_id is None or status.amount_cents is None:
+            continue
+        trade = trades_by_id.get(status.project_trade_id)
+        if trade is None:
+            continue
+        for anchor in trade.anchor_cell_codes or []:
+            mapped.append(
+                SilenceMappedCell(cell_code=anchor, amount_cents=status.amount_cents)
+            )
+    return tuple(mapped)
 
 
 async def _parent_cells(
@@ -811,7 +1116,18 @@ def _silence_cell_from_model(
         bundling_parents=tuple(cell.bundling_parents or ()),
         benchmark_key=cell.benchmark_key,
         applicability=cell.applicability,
+        anchor_cell_codes=(cell.code,),
     )
+
+
+def _parse_optional_uuid(value: Any) -> uuid.UUID | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, uuid.UUID):
+        return value
+    if isinstance(value, str):
+        return uuid.UUID(value)
+    raise ValueError(f"expected UUID, got {type(value).__name__}")
 
 
 def _prompt_text() -> str:
