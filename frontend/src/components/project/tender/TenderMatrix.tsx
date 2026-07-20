@@ -30,6 +30,8 @@ import type {
 import { cn } from "@/lib/utils";
 
 import {
+  COST_PLUS_NON_COMPARABLE_LABEL,
+  formatStatedGstBasis,
   formatTenderMoney,
   formatTenderStatus,
   tenderStatusCellTint,
@@ -419,30 +421,47 @@ export function TenderMatrix({
             style={{ gridTemplateColumns: gridColumns(quotes.length) }}
           >
             <div className="px-3 py-2">Line item</div>
-            {quotes.map((quote) => (
-              <div key={quote.id} className="border-l px-2 py-2">
-                <span className="block truncate" title={quote.builderName}>
-                  {quote.builderName}
-                </span>
-                <span className="block font-mono text-[0.68rem] font-normal tabular-nums">
-                  {formatTenderMoney(quote.totalCents)}
-                  {lowestTotal !== null && quote.totalCents === lowestTotal ? (
-                    <span className="ml-1.5 font-sans text-[var(--ok-text)]">Lowest</span>
+            {quotes.map((quote) => {
+              const total = totalsByQuote.get(quote.id);
+              const statedNative =
+                total?.stated_native_cents ?? quote.totalCents;
+              const nonComparable = total?.non_comparable ?? false;
+              return (
+                <div key={quote.id} className="border-l px-2 py-2">
+                  <span className="block truncate" title={quote.builderName}>
+                    {quote.builderName}
+                  </span>
+                  <span className="mt-0.5 block text-[0.65rem] font-normal text-muted-foreground">
+                    Stated (native)
+                  </span>
+                  <span className="block font-mono text-[0.68rem] font-normal tabular-nums">
+                    {formatTenderMoney(statedNative)}
+                    <span className="ml-1 font-sans text-muted-foreground">
+                      {formatStatedGstBasis(quote.gstTreatment)}
+                    </span>
+                    {lowestTotal !== null && statedNative === lowestTotal ? (
+                      <span className="ml-1.5 font-sans text-[var(--ok-text)]">Lowest</span>
+                    ) : null}
+                  </span>
+                  {nonComparable ? (
+                    <span className="mt-1 inline-flex rounded-sm bg-[var(--warn-bg)] px-1 py-0.5 text-[0.65rem] font-medium leading-snug text-[var(--warn-text)]">
+                      {COST_PLUS_NON_COMPARABLE_LABEL}
+                    </span>
                   ) : null}
-                </span>
-                <button
-                  type="button"
-                  className="mt-0.5 text-[0.65rem] font-normal text-foreground underline-offset-2 hover:underline"
-                  onClick={() =>
-                    setLedgerQuoteId((current) =>
-                      current === quote.id ? null : quote.id,
-                    )
-                  }
-                >
-                  Ledger
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    className="mt-0.5 block text-[0.65rem] font-normal text-foreground underline-offset-2 hover:underline"
+                    onClick={() =>
+                      setLedgerQuoteId((current) =>
+                        current === quote.id ? null : quote.id,
+                      )
+                    }
+                  >
+                    Ledger
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           <div ref={scrollRef} className="h-[42rem] overflow-auto [scrollbar-gutter:stable]">
@@ -514,10 +533,21 @@ function MatrixTotalsRow({
           <div key={quote.id} className="border-l px-2 py-2">
             {total ? (
               <>
+                <span className="block text-[0.65rem] text-muted-foreground">
+                  Computed (ex GST)
+                </span>
                 <span className="block font-mono text-sm font-semibold tabular-nums">
                   {formatTenderMoney(total.computed_total_cents)}
                 </span>
-                <TotalReconciliation total={total} />
+                <TotalReconciliation
+                  total={total}
+                  gstTreatment={quote.gstTreatment}
+                />
+                {total.non_comparable ? (
+                  <span className="mt-1 inline-flex rounded-sm bg-[var(--warn-bg)] px-1 py-0.5 text-[0.65rem] font-medium leading-snug text-[var(--warn-text)]">
+                    {COST_PLUS_NON_COMPARABLE_LABEL}
+                  </span>
+                ) : null}
               </>
             ) : (
               <span className="block text-xs text-muted-foreground">
@@ -531,28 +561,41 @@ function MatrixTotalsRow({
   );
 }
 
-function TotalReconciliation({ total }: { total: TenderMatrixQuoteTotal }) {
-  if (total.reconciliation === "match") {
+function TotalReconciliation({
+  total,
+  gstTreatment,
+}: {
+  total: TenderMatrixQuoteTotal;
+  gstTreatment: string;
+}) {
+  if (
+    total.reconciliation === "not_stated" ||
+    total.stated_native_cents == null
+  ) {
     return (
-      <span className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-[var(--ok-bg)] px-1 py-0.5 text-[0.68rem] font-medium text-[var(--ok-text)]">
-        <Check className="size-3 shrink-0" aria-hidden />
-        Matches stated total
+      <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
+        Not stated in quote
       </span>
     );
   }
-  if (total.reconciliation === "mismatch") {
-    const delta = total.delta_cents ?? 0;
-    const sign = delta > 0 ? "+" : "-";
-    return (
-      <span className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-[var(--alert-bg)] px-1 py-0.5 text-[0.68rem] font-medium text-[var(--alert-text)]">
-        <AlertCircle className="size-3 shrink-0" aria-hidden />
-        {`Stated ${formatTenderMoney(total.stated_total_cents)} (${sign}${formatTenderMoney(Math.abs(delta))})`}
-      </span>
-    );
-  }
+
+  const residual = total.residual_cents ?? 0;
+  const counted = total.stated_native_cents - residual;
+  const residualTone =
+    residual !== 0
+      ? "font-medium text-[var(--alert-text)]"
+      : "text-muted-foreground";
+
   return (
-    <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
-      Not stated in quote
+    <span className="mt-0.5 block text-[0.65rem] leading-snug text-muted-foreground">
+      Stated (native): {formatTenderMoney(total.stated_native_cents)}{" "}
+      {formatStatedGstBasis(gstTreatment)}
+      {" · "}
+      Counted: {formatTenderMoney(counted)}
+      {" · "}
+      <span className={residualTone}>
+        Residual: {formatTenderMoney(residual)}
+      </span>
     </span>
   );
 }
@@ -716,10 +759,11 @@ type MatrixQuote = {
   id: string;
   builderName: string;
   totalCents: number | null;
+  gstTreatment: string;
 };
 
 function gridColumns(quoteCount: number): string {
-  return `16rem repeat(${quoteCount}, minmax(9.5rem, 1fr))`;
+  return `16rem repeat(${quoteCount}, minmax(11rem, 1fr))`;
 }
 
 function cellNameIndex(matrix: TenderMatrixResponse | null): Map<string, string> {
@@ -830,6 +874,7 @@ function quoteColumns(
       id: quote.id,
       builderName: quote.builder_name,
       totalCents: quote.stated_total_cents,
+      gstTreatment: quote.gst_treatment,
     }));
   }
   const ids = new Set<string>();
@@ -838,5 +883,10 @@ function quoteColumns(
       for (const quoteId of Object.keys(cell.quotes)) ids.add(quoteId);
     }
   }
-  return [...ids].map((id) => ({ id, builderName: id, totalCents: null }));
+  return [...ids].map((id) => ({
+    id,
+    builderName: id,
+    totalCents: null,
+    gstTreatment: "unclear",
+  }));
 }

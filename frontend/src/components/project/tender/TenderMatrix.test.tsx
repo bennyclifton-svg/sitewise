@@ -28,6 +28,7 @@ vi.mock("@/lib/api", () => ({
     getTenderComparison: vi.fn(),
     getTenderQaQueue: vi.fn(),
     getTenderTaxonomy: vi.fn(),
+    getTenderTrades: vi.fn(),
     searchTenderTaxonomy: vi.fn(),
     acceptAllTenderQa: vi.fn(),
     resolveTenderQaItem: vi.fn(),
@@ -41,6 +42,10 @@ describe("TenderMatrix", () => {
     vi.mocked(api.getTenderComparison).mockResolvedValue(comparison);
     vi.mocked(api.getTenderQaQueue).mockResolvedValue({ items: [] });
     vi.mocked(api.getTenderTaxonomy).mockResolvedValue([]);
+    vi.mocked(api.getTenderTrades).mockResolvedValue({
+      comparison_id: "comparison-1",
+      trades: [],
+    });
     vi.mocked(api.searchTenderTaxonomy).mockResolvedValue([]);
     vi.mocked(api.resolveTenderQaItem).mockResolvedValue({
       id: "mapping-1",
@@ -77,10 +82,10 @@ describe("TenderMatrix", () => {
     expect(api.getTenderQaQueue).toHaveBeenCalledTimes(2);
   });
 
-  it("shows the computed total with a match badge when it reconciles", async () => {
+  it("labels totals as ex GST and shows a reconciliation strip", async () => {
     vi.mocked(api.getTenderMatrix).mockResolvedValue({
       ...matrix,
-      totals: [quoteTotal({ reconciliation: "match" })],
+      totals: [quoteTotal({ reconciliation: "match", residual_cents: 0 })],
     });
 
     render(
@@ -89,19 +94,24 @@ describe("TenderMatrix", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Matches stated total")).toBeInTheDocument();
-    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(await screen.findByText("Total (ex GST)")).toBeInTheDocument();
+    expect(screen.getByText("Computed (ex GST)")).toBeInTheDocument();
+    expect(screen.getByText(/Stated \(native\):/)).toBeInTheDocument();
+    expect(screen.getByText(/Counted:/)).toBeInTheDocument();
+    expect(screen.getByText(/Residual:/)).toBeInTheDocument();
   });
 
-  it("shows the stated total and delta when the computed total mismatches", async () => {
+  it("highlights a non-zero residual and shows the cost-plus badge", async () => {
     vi.mocked(api.getTenderMatrix).mockResolvedValue({
       ...matrix,
       totals: [
         quoteTotal({
           computed_total_cents: 110_000_00,
+          residual_cents: 10_000_00,
           delta_cents: -10_000_00,
           delta_ratio: 0.0833,
           reconciliation: "mismatch",
+          non_comparable: true,
         }),
       ],
     });
@@ -112,8 +122,14 @@ describe("TenderMatrix", () => {
       </MemoryRouter>,
     );
 
-    const badge = await screen.findByText(/Stated .*120,000.*10,000/);
-    expect(badge).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Residual:.*10,000/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        /Cost-plus — excludes builder's margin; not directly comparable/,
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("saves an inline cell status correction and refetches the matrix", async () => {
@@ -143,7 +159,7 @@ describe("TenderMatrix", () => {
     );
 
     const cell = await screen.findByRole("button", {
-      name: /Included .* question .* Retaining walls, Apex Homes/,
+      name: /Included .* Retaining walls, Apex Homes/,
     });
     await user.click(cell);
     await user.click(await screen.findByRole("button", { name: /Adjudicate/ }));
@@ -250,6 +266,7 @@ describe("TenderMatrix", () => {
       ...matrix,
       totals: [
         quoteTotal({
+          stated_native_cents: null,
           stated_total_cents: null,
           stated_total_source: null,
           delta_cents: null,
@@ -267,6 +284,21 @@ describe("TenderMatrix", () => {
 
     expect(await screen.findByText("Not stated in quote")).toBeInTheDocument();
   });
+
+  it("labels the header figure as stated native", async () => {
+    vi.mocked(api.getTenderMatrix).mockResolvedValue({
+      ...matrix,
+      totals: [quoteTotal({})],
+    });
+
+    render(
+      <MemoryRouter>
+        <TenderMatrix projectId="project-1" comparisonId="comparison-1" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findAllByText("Stated (native)")).not.toHaveLength(0);
+  });
 });
 
 function quoteTotal(
@@ -275,8 +307,14 @@ function quoteTotal(
   return {
     quote_id: "quote-1",
     computed_total_cents: 120_000_00,
+    basis: "ex",
+    residual_cents: 0,
+    unallocated_cents: 0,
+    not_itemised_cents: 0,
+    stated_native_cents: 120_000_00,
     stated_total_cents: 120_000_00,
     stated_total_source: "extracted",
+    non_comparable: false,
     delta_cents: 0,
     delta_ratio: 0,
     reconciliation: "match",

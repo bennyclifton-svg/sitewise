@@ -274,15 +274,19 @@ export type TenderMatrixGroup = {
 
 export type TenderMatrixQuoteTotal = {
   quote_id: string;
+  /** Conserved matrix column total on the comparison basis (always ex-GST). */
   computed_total_cents: number;
-  basis?: "ex";
-  residual_cents?: number;
-  unallocated_cents?: number;
-  not_itemised_cents?: number;
-  stated_native_cents?: number | null;
+  basis: "ex";
+  /** Native-basis residual: stated_native − Σ counted items (I2). */
+  residual_cents: number;
+  unallocated_cents: number;
+  not_itemised_cents: number;
+  /** Quote's stated total on its native GST basis (header figure). */
+  stated_native_cents: number | null;
   stated_total_cents: number | null;
   stated_total_source: "manual" | "extracted" | null;
-  non_comparable?: boolean;
+  /** Cost-plus / excluded-margin columns are flagged, never adjusted. */
+  non_comparable: boolean;
   delta_cents: number | null;
   delta_ratio: number | null;
   reconciliation: "match" | "mismatch" | "not_stated";

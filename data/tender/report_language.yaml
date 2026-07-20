@@ -27,6 +27,7 @@ report:
     matches_stated: "Matches stated total"
     total_not_stated: "Not stated in quote"
     comparable_adjustment: "Comparable adjustment"
+    cost_plus_non_comparable: "Cost-plus — excludes builder's margin; not directly comparable"
     provenance: "Provenance"
     item: "Item"
     status: "Status"
