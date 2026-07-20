@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -41,6 +41,16 @@ class PricedBenchmark:
     @property
     def can_price(self) -> bool:
         return self.skip_reason_key is None
+
+
+def inherit_benchmark_key(
+    anchor_cell_codes: Sequence[str],
+    benchmark_key_by_cell: Mapping[str, str | None],
+) -> str | None:
+    """Single-anchor trades inherit the cell's benchmark_key; multi/unanchored skip (v1)."""
+    if len(anchor_cell_codes) != 1:
+        return None
+    return benchmark_key_by_cell.get(anchor_cell_codes[0])
 
 
 def benchmark_row_from_model(benchmark: Benchmark) -> BenchmarkRow:
