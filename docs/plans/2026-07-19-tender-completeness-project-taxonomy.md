@@ -61,7 +61,7 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 - [x] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
 - [x] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
 - [x] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
-- [ ] **Phase 6** — Expectations/silence/benchmarks via anchor cells
+- [x] **Phase 6** — Expectations/silence/benchmarks via anchor cells
 - [ ] **Phase 7** — Report overhaul + golden fixtures/eval gates + E2E MERRICK acceptance
 
 > **Migration renumber (2026-07-19):** Stages 3–6 already claimed `029`–`033` on
@@ -515,9 +515,9 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 # Phase 6 — Expectations / silence / benchmarks via anchors
 
 **Todo:**
-- [ ] 6.1 Expectation → trade adapter
-- [ ] 6.2 Silence over trades
-- [ ] 6.3 Benchmarks/analysis retarget
+- [x] 6.1 Expectation → trade adapter
+- [x] 6.2 Silence over trades
+- [x] 6.3 Benchmarks/analysis retarget
 
 **Files:** Modify: `backend/tender/services/expectations.py` (`evaluate_rules` consumers, `_silent_status_draft` ~452), `backend/tender/services/silence.py` (`SilenceCell` construction), `backend/tender/services/analysis.py` (`_analysis_inputs`, gap matrix keys), `backend/tender/services/benchmarks.py`; Tests: `test_expectations.py`, `test_infer_silence.py`, `test_analysis_flags.py`, `test_benchmarks.py` (extend)
 
@@ -525,6 +525,8 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 2. `infer_silence` evidence packet: union of anchor cells' synonyms/bundling parents; unanchored trades skip LLM silence (status stays `silent_ambiguous` with cross-quote evidence note).
 3. Benchmarks: single-anchor trades inherit `benchmark_key`; multi/unanchored skip (v1). Gap matrix + ledgers keyed by trade code.
 4. Tests per piece; commit per task.
+
+**DoD (2026-07-20):** Fired cell rules adapt onto trades via `anchor_cell_codes`; expected-but-unmapped + cross-quote absence → `silent_ambiguous`. Silence evidence unions anchor synonyms/parents; unanchored trades skip LLM. Single-anchor trades inherit `benchmark_key`; gap/analysis keyed by trade code. Targeted pytest files green (`test_expectations`, `test_infer_silence`, `test_benchmarks`, `test_analysis_flags`).
 
 ---
 
