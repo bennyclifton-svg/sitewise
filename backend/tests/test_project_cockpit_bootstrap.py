@@ -61,7 +61,14 @@ def client(mock_session: AsyncMock) -> TestClient:
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
     with (
-        patch("app.api.projects.get_project_snapshot", new=AsyncMock(return_value=object())),
+        patch(
+            "app.api.projects.get_project_snapshot",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    model_dump=lambda **_kwargs: {"next_actions": []}
+                )
+            ),
+        ),
         patch("app.api.projects.workflow_capabilities", return_value=_capabilities()),
         TestClient(app) as test_client,
     ):

@@ -135,3 +135,42 @@ def test_snapshot_tool_returns_shared_snapshot_version(monkeypatch) -> None:
     assert result["schema_version"] == 1
     assert result["content_fingerprint"] == "snapshot-fingerprint"
     assert read.await_args.kwargs["owner_user_id"] == owner_user_id
+
+
+def test_next_actions_tool_returns_the_snapshot_projection(monkeypatch) -> None:
+    from app.mcp_bridge import server
+
+    session = _Session()
+    owner_user_id = uuid.uuid4()
+    authorization = SimpleNamespace(
+        project=SimpleNamespace(id=PROJECT_ID, owner_user_id=owner_user_id),
+        claims=SimpleNamespace(user_id=owner_user_id, turn_id=uuid.uuid4()),
+    )
+    action = {
+        "code": "create_project_plan",
+        "label": "Create Project Plan",
+        "reason": "No Project Plan artefact exists yet.",
+        "blocking_fact": "latest_project_plan:none",
+        "route": f"/projects/{PROJECT_ID}",
+        "tool": "start_create_project_plan",
+    }
+    monkeypatch.setattr(server, "get_session_factory", lambda: lambda: session)
+    monkeypatch.setattr(server, "get_http_headers", lambda **_kwargs: {})
+    monkeypatch.setattr(
+        server,
+        "authorize_project_access_with_claims",
+        AsyncMock(return_value=authorization),
+    )
+    monkeypatch.setattr(
+        server,
+        "read_project_snapshot",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                next_actions=[SimpleNamespace(model_dump=lambda **_kwargs: action)]
+            )
+        ),
+    )
+
+    result = _call(server, "get_project_next_actions", {"project_id": str(PROJECT_ID)})
+
+    assert result == [action]

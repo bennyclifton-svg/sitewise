@@ -15,6 +15,9 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
+from app.cost_plan.calculations import resolved_budget
+from app.cost_plan.schemas import CostPlanState
+
 SUMMARY_HEADERS = (
     "Cost Code",
     "Category",
@@ -103,8 +106,55 @@ def build_cost_plan_workbook(
     version: int,
     generated_at: datetime | None = None,
 ) -> CostPlanWorkbook:
+    """Legacy adapter retained until the Phase 8.5 cutover gate."""
     generated_at = generated_at or datetime.now(UTC)
     items, warnings = parse_cost_breakdown(markdown)
+
+    return _build_workbook(
+        project_title=project_title,
+        items=items,
+        version=version,
+        generated_at=generated_at,
+        warnings=warnings,
+    )
+
+
+def build_typed_cost_plan_workbook(
+    *,
+    project_title: str,
+    state: CostPlanState,
+    generated_at: datetime | None = None,
+) -> CostPlanWorkbook:
+    """Render a workbook directly from canonical typed state without Markdown parsing."""
+    items = [
+        CostPlanLine(
+            cost_code=item.cost_code,
+            category=item.category,
+            cost_item=item.item,
+            budget=resolved_budget(item),
+            approved_contract=item.committed,
+            status=item.status,
+            basis=item.basis,
+        )
+        for item in state.items
+    ]
+    return _build_workbook(
+        project_title=project_title,
+        items=items,
+        version=state.version,
+        generated_at=generated_at or datetime.now(UTC),
+        warnings=[],
+    )
+
+
+def _build_workbook(
+    *,
+    project_title: str,
+    items: list[CostPlanLine],
+    version: int,
+    generated_at: datetime,
+    warnings: list[str],
+) -> CostPlanWorkbook:
 
     wb = Workbook()
     summary = wb.active
@@ -190,7 +240,9 @@ def parse_cost_breakdown(markdown: str) -> tuple[list[CostPlanLine], list[str]]:
         )
 
     if not rows:
-        warnings.append("Cost breakdown table did not contain any workbook cost item rows.")
+        warnings.append(
+            "Cost breakdown table did not contain any workbook cost item rows."
+        )
     return rows, warnings
 
 
@@ -206,7 +258,9 @@ def workbook_preview_from_bytes(content: bytes) -> WorkbookPreview:
 
     expected = ["Summary", "Invoices", "Variations"]
     if workbook.sheetnames[:3] != expected:
-        warnings.append("Workbook tabs differ from the expected Summary, Invoices, Variations layout.")
+        warnings.append(
+            "Workbook tabs differ from the expected Summary, Invoices, Variations layout."
+        )
 
     return WorkbookPreview(sheets=sheets, warnings=warnings)
 
@@ -238,7 +292,9 @@ def _build_summary_sheet(
         cell = worksheet.cell(row=4, column=column, value=header)
         cell.fill = fills["header"]
         cell.font = Font(color="FFFFFF", bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.alignment = Alignment(
+            horizontal="center", vertical="center", wrap_text=True
+        )
 
     grouped = _group_cost_items(items)
     row_number = 5
@@ -251,7 +307,9 @@ def _build_summary_sheet(
             _write_summary_item_row(worksheet, row_number, item)
             row_number += 1
         subtotal_rows.append(row_number)
-        _write_summary_total_row(worksheet, row_number, category, start_row, row_number - 1)
+        _write_summary_total_row(
+            worksheet, row_number, category, start_row, row_number - 1
+        )
         row_number += 2
 
     _write_summary_grand_total_row(worksheet, row_number, subtotal_rows)
@@ -360,7 +418,9 @@ def _write_summary_total_row(
     worksheet.cell(row=row, column=3, value="Subtotal")
     for column in range(4, 13):
         letter = get_column_letter(column)
-        worksheet.cell(row=row, column=column, value=f"=SUM({letter}{start_row}:{letter}{end_row})")
+        worksheet.cell(
+            row=row, column=column, value=f"=SUM({letter}{start_row}:{letter}{end_row})"
+        )
 
 
 def _write_summary_grand_total_row(
@@ -391,7 +451,9 @@ def _write_summary_lookup_columns(
 
     anchor = _month_start(generated_at.date())
     for index, month_offset in enumerate(range(-12, 48), start=2):
-        cell = worksheet.cell(row=index, column=14, value=_add_months(anchor, month_offset))
+        cell = worksheet.cell(
+            row=index, column=14, value=_add_months(anchor, month_offset)
+        )
         cell.number_format = "mmm-yy"
 
     worksheet.column_dimensions["M"].hidden = True
@@ -414,7 +476,9 @@ def _add_defined_names(workbook: Workbook, last_lookup_row: int) -> None:
 
 
 def _add_summary_validations(worksheet: Worksheet) -> None:
-    _add_list_validation(worksheet, "K2", "InvoiceBillingMonths", "Invalid Billing Month")
+    _add_list_validation(
+        worksheet, "K2", "InvoiceBillingMonths", "Invalid Billing Month"
+    )
 
 
 def _add_list_validation(
@@ -498,7 +562,9 @@ def _style_title_rows(worksheet: Worksheet, final_column: str) -> None:
 def _style_register_headers(worksheet: Worksheet, column_count: int) -> None:
     fills = _fills()
     border = _thin_border()
-    for row in worksheet.iter_rows(min_row=4, max_row=500, min_col=1, max_col=column_count):
+    for row in worksheet.iter_rows(
+        min_row=4, max_row=500, min_col=1, max_col=column_count
+    ):
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(
@@ -509,7 +575,9 @@ def _style_register_headers(worksheet: Worksheet, column_count: int) -> None:
     for cell in worksheet[4]:
         cell.fill = fills["header"]
         cell.font = Font(color="FFFFFF", bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.alignment = Alignment(
+            horizontal="center", vertical="center", wrap_text=True
+        )
     worksheet.row_dimensions[4].height = 32
 
 
@@ -578,9 +646,15 @@ def _sheet_preview(
         for column in range(1, worksheet.max_column + 1)
         if not worksheet.column_dimensions[get_column_letter(column)].hidden
     ]
-    last_row = min(_last_visible_row(worksheet, visible_columns, rollup), PREVIEW_MAX_ROWS)
-    last_column_index = _last_visible_column(worksheet, visible_columns, last_row, rollup)
-    visible_columns = [column for column in visible_columns if column <= last_column_index]
+    last_row = min(
+        _last_visible_row(worksheet, visible_columns, rollup), PREVIEW_MAX_ROWS
+    )
+    last_column_index = _last_visible_column(
+        worksheet, visible_columns, last_row, rollup
+    )
+    visible_columns = [
+        column for column in visible_columns if column <= last_column_index
+    ]
 
     rows: list[list[str]] = []
     styles: list[list[dict[str, Any]]] = []
@@ -678,7 +752,9 @@ def _summary_rollup_values(workbook: Workbook) -> dict[tuple[str, int, int], Any
     return rollup
 
 
-def _invoice_amounts_by_cost_item(worksheet: Worksheet) -> dict[str, list[tuple[date, float]]]:
+def _invoice_amounts_by_cost_item(
+    worksheet: Worksheet,
+) -> dict[str, list[tuple[date, float]]]:
     amounts: dict[str, list[tuple[date, float]]] = defaultdict(list)
     for row in range(5, worksheet.max_row + 1):
         cost_item = _cell_text(worksheet.cell(row=row, column=6).value)
@@ -689,8 +765,12 @@ def _invoice_amounts_by_cost_item(worksheet: Worksheet) -> dict[str, list[tuple[
     return amounts
 
 
-def _variation_amounts_by_cost_item(worksheet: Worksheet) -> dict[str, dict[str, float]]:
-    amounts: dict[str, dict[str, float]] = defaultdict(lambda: {"forecast": 0.0, "approved": 0.0})
+def _variation_amounts_by_cost_item(
+    worksheet: Worksheet,
+) -> dict[str, dict[str, float]]:
+    amounts: dict[str, dict[str, float]] = defaultdict(
+        lambda: {"forecast": 0.0, "approved": 0.0}
+    )
     for row in range(5, worksheet.max_row + 1):
         cost_item = _cell_text(worksheet.cell(row=row, column=2).value)
         if not cost_item:
@@ -722,7 +802,9 @@ def _summary_number(
     row: int,
     column: int,
 ) -> float:
-    value = rollup.get(("Summary", row, column), worksheet.cell(row=row, column=column).value)
+    value = rollup.get(
+        ("Summary", row, column), worksheet.cell(row=row, column=column).value
+    )
     return _number(value) or 0
 
 
@@ -734,7 +816,12 @@ def _last_visible_row(
     last_row = 1
     for row in range(1, worksheet.max_row + 1):
         if any(
-            _cell_text(rollup.get((worksheet.title, row, column), worksheet.cell(row=row, column=column).value))
+            _cell_text(
+                rollup.get(
+                    (worksheet.title, row, column),
+                    worksheet.cell(row=row, column=column).value,
+                )
+            )
             for column in columns
         ):
             last_row = row
@@ -750,7 +837,12 @@ def _last_visible_column(
     last_column = columns[0] if columns else 1
     for column in columns:
         if any(
-            _cell_text(rollup.get((worksheet.title, row, column), worksheet.cell(row=row, column=column).value))
+            _cell_text(
+                rollup.get(
+                    (worksheet.title, row, column),
+                    worksheet.cell(row=row, column=column).value,
+                )
+            )
             for row in range(1, last_row + 1)
         ):
             last_column = column
@@ -868,7 +960,11 @@ def _is_separator_row(cells: list[str]) -> bool:
 
 def _is_total_row(cost_code: str, category: str, cost_item: str) -> bool:
     text = f"{cost_code} {category} {cost_item}".lower()
-    return "subtotal" in text or "grand total" in text or text.strip() in {"total", "total ex gst"}
+    return (
+        "subtotal" in text
+        or "grand total" in text
+        or text.strip() in {"total", "total ex gst"}
+    )
 
 
 def _normalise_category(value: str) -> str:
@@ -886,7 +982,9 @@ def _normalise_category(value: str) -> str:
     return value or "Construction"
 
 
-def _group_cost_items(items: list[CostPlanLine]) -> list[tuple[str, list[CostPlanLine]]]:
+def _group_cost_items(
+    items: list[CostPlanLine],
+) -> list[tuple[str, list[CostPlanLine]]]:
     grouped: dict[str, list[CostPlanLine]] = defaultdict(list)
     for item in items:
         grouped[item.category].append(item)
@@ -917,7 +1015,9 @@ def _parse_money(value: str) -> float | None:
 
 def _status_marks_approved(status: str) -> bool:
     lower = status.lower()
-    return any(word in lower for word in ("approved", "locked", "contracted", "engaged"))
+    return any(
+        word in lower for word in ("approved", "locked", "contracted", "engaged")
+    )
 
 
 def _month_start(value: date) -> date:

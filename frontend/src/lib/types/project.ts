@@ -234,6 +234,8 @@ export type WorkflowCapability = {
   status: "supported" | "needs_input" | "unsupported";
   reasons: string[];
   required_fields: string[];
+  required_confirmations?: string[];
+  reference_coverage?: string[];
 };
 
 export type WorkflowCapabilityMatrix = {
@@ -241,6 +243,61 @@ export type WorkflowCapabilityMatrix = {
   snapshot_schema_version: 1;
   snapshot_content_fingerprint: string;
   capabilities: Record<string, WorkflowCapability>;
+};
+
+export type ProjectNextAction = {
+  code: string;
+  label: string;
+  reason: string;
+  blocking_fact: string;
+  route: string;
+  tool: string;
+};
+
+export type ProjectSnapshot = {
+  schema_version: 1;
+  generated_at: string;
+  content_fingerprint: string;
+  evidence: {
+    active_count: number;
+    ingest_failure_count: number;
+  };
+  purpose_selections: { purpose: string; revision: number }[];
+  latest_artefacts: {
+    artefact_id: string;
+    workflow_type: string;
+    title: string;
+    version: number;
+    status: string;
+    is_stale: boolean;
+    stale_reason: string | null;
+  }[];
+  active_workflow_runs: {
+    run_id: string;
+    workflow_type: string;
+    state: string;
+    error_class: string | null;
+  }[];
+  failed_workflow_runs: {
+    run_id: string;
+    workflow_type: string;
+    state: string;
+    error_class: string | null;
+  }[];
+  tender: {
+    status: "not_started" | "draft" | "qa_required" | "approved";
+    report_id: string | null;
+    report_version: number | null;
+    open_qa_count: number;
+    qs_gate_passed: boolean;
+  };
+  budget: {
+    status: "not_available" | "proposed" | "accepted";
+    version: number | null;
+    total: string | null;
+    gst_treatment: string | null;
+  };
+  next_actions: ProjectNextAction[];
 };
 
 export type WorkflowRunState =
@@ -407,6 +464,7 @@ export type ProjectCockpitBootstrap = {
   workspace_tree: ProjectWorkspaceTree;
   platform_knowledge: PlatformKnowledgeStatus;
   latest_drafts: Record<string, DraftArtifactSummary | null>;
+  snapshot: ProjectSnapshot;
   timings_ms: Record<string, number>;
 };
 

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 from app.config import Settings
-from app.sitewise.cost_plan_evidence_validation import cost_plan_evidence_grounded_violations
+from app.cost_plan.import_legacy import parse_legacy_draft
+from app.sitewise.cost_plan_evidence_validation import (
+    cost_plan_evidence_grounded_violations,
+)
 from app.sitewise.cost_plan_sources import required_section_headings
 from app.workflows.create_cost_plan import (
     RUNTIME_HYBRID_NAME,
@@ -24,6 +28,10 @@ from tests.workflows.hybrid_cost_plan_fixtures import (
     mock_cost_plan_draft,
     platform_passages_for_cost_plan,
 )
+
+
+def _typed_import(draft):
+    return replace(parse_legacy_draft(draft), typed_version_id=draft.id)
 
 
 def _harrison_clarke_source_texts() -> list[str]:
@@ -47,7 +55,9 @@ def _section_headings(markdown: str) -> list[str]:
     ]
 
 
-def assert_hybrid_cost_plan_acceptance_criteria(markdown: str, *, project_slug: str) -> None:
+def assert_hybrid_cost_plan_acceptance_criteria(
+    markdown: str, *, project_slug: str
+) -> None:
     lower = markdown.lower()
     source_texts = _harrison_clarke_source_texts()
     evidence_refs = [
@@ -57,7 +67,9 @@ def assert_hybrid_cost_plan_acceptance_criteria(markdown: str, *, project_slug: 
         "03-owner-project-brief-chen-residence.md#chunk=0",
     ]
 
-    assert _section_headings(markdown) == list(required_section_headings("architect-pm"))
+    assert _section_headings(markdown) == list(
+        required_section_headings("architect-pm")
+    )
     assert (
         cost_plan_evidence_grounded_violations(
             markdown,
@@ -137,6 +149,10 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
             new=AsyncMock(return_value=draft),
         ) as create_draft,
         patch(
+            "app.workflows.create_cost_plan.import_legacy_draft",
+            new=AsyncMock(return_value=_typed_import(draft)),
+        ),
+        patch(
             "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
             new=AsyncMock(return_value=draft.workspace_path),
         ),
@@ -162,10 +178,17 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
         CostPlanDraftOutput(
             title="Project Cost Plan",
             markdown=markdown,
-            seed_consulted=[p.relative_path for p in platform_passages if p.source_type == "reference"],
-            evidence_refs=[f"project_evidence:{p.relative_path}#chunk=0" for p in cost_passages],
+            seed_consulted=[
+                p.relative_path
+                for p in platform_passages
+                if p.source_type == "reference"
+            ],
+            evidence_refs=[
+                f"project_evidence:{p.relative_path}#chunk=0" for p in cost_passages
+            ],
             context_refs=[
-                f"{p.source_type}:{p.relative_path}#chunk={p.chunk_id}" for p in platform_passages
+                f"{p.source_type}:{p.relative_path}#chunk={p.chunk_id}"
+                for p in platform_passages
             ],
         ),
         "evidence_grounded",
@@ -178,7 +201,9 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
     assert provenance["compiler"] == "hybrid"
     assert create_draft.await_args.kwargs["runtime"] == RUNTIME_HYBRID_NAME
     steps = {event.step for event in result.trace}
-    assert {"extract", "scaffold", "narrative", "assemble", "validation"}.issubset(steps)
+    assert {"extract", "scaffold", "narrative", "assemble", "validation"}.issubset(
+        steps
+    )
 
 
 def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
@@ -201,9 +226,13 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
     legacy_output = CostPlanDraftOutput(
         title="Project Cost Plan",
         markdown=legacy_markdown,
-        seed_consulted=[p.relative_path for p in platform_passages if p.source_type == "reference"],
+        seed_consulted=[
+            p.relative_path for p in platform_passages if p.source_type == "reference"
+        ],
         evidence_refs=evidence_refs,
-        context_refs=[f"{p.source_type}:{p.relative_path}#chunk=0" for p in platform_passages],
+        context_refs=[
+            f"{p.source_type}:{p.relative_path}#chunk=0" for p in platform_passages
+        ],
     )
     draft = mock_cost_plan_draft(runtime=RUNTIME_NAME)
     workbook_metadata = {
@@ -223,7 +252,9 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
             "app.workflows.create_cost_plan.locked_selections",
             new=AsyncMock(return_value={}),
         ),
-        patch("app.workflows.create_cost_plan.settings.cost_plan_hybrid_compiler", False),
+        patch(
+            "app.workflows.create_cost_plan.settings.cost_plan_hybrid_compiler", False
+        ),
         patch(
             "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
             new=AsyncMock(return_value=[]),
@@ -234,7 +265,9 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
         ),
         patch(
             "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
-            new=AsyncMock(return_value=harrison_clarke_cost_passages(project_slug=project.slug)),
+            new=AsyncMock(
+                return_value=harrison_clarke_cost_passages(project_slug=project.slug)
+            ),
         ),
         patch(
             "app.workflows.create_cost_plan.load_platform_documents_by_paths",
@@ -256,6 +289,10 @@ def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:
             "app.workflows.create_cost_plan.create_draft_artifact",
             new=AsyncMock(return_value=draft),
         ) as create_draft,
+        patch(
+            "app.workflows.create_cost_plan.import_legacy_draft",
+            new=AsyncMock(return_value=_typed_import(draft)),
+        ),
         patch(
             "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
             new=AsyncMock(return_value=draft.workspace_path),
@@ -345,6 +382,10 @@ def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
             new=AsyncMock(return_value=draft),
         ),
         patch(
+            "app.workflows.create_cost_plan.import_legacy_draft",
+            new=AsyncMock(return_value=_typed_import(draft)),
+        ),
+        patch(
             "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
             new=AsyncMock(return_value=draft.workspace_path),
         ),
@@ -365,7 +406,9 @@ def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
     assert result.status == "complete"
     assert narrative_mock.await_count == 2
     retry_events = [
-        event for event in result.trace if event.step == "validation" and event.status == "retry"
+        event
+        for event in result.trace
+        if event.step == "validation" and event.status == "retry"
     ]
     assert len(retry_events) == 1
     assert "next_steps item 3" in retry_events[0].message

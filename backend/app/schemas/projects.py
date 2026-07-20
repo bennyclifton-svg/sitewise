@@ -437,6 +437,7 @@ class ProjectCockpitBootstrapResponse(BaseModel):
     workspace_tree: ProjectWorkspaceTreeResponse
     platform_knowledge: PlatformKnowledgeStatus
     latest_drafts: dict[str, DraftArtifactSummary | None]
+    snapshot: dict[str, Any]
     timings_ms: dict[str, int] = Field(default_factory=dict)
 
 

@@ -9,6 +9,9 @@ from app.schemas.workflow_capabilities import (
 CREATE_PMP = "create_pmp"
 UPDATE_PMP = "update_pmp"
 CREATE_COST_PLAN = "create_cost_plan"
+REFRESH_COST_PLAN = "refresh_cost_plan"
+EDIT_COST_PLAN = "edit_cost_plan"
+APPROVED_TENDER_HANDOFF = "approved_tender_cost_handoff"
 TENDER_COMPARISON = "tender_comparison"
 CONSULTANT_PROCUREMENT = "consultant_procurement"
 
@@ -26,7 +29,12 @@ def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix
     capabilities = {
         CREATE_PMP: plan,
         UPDATE_PMP: plan.model_copy(deep=True),
-        CREATE_COST_PLAN: _cost_plan_capability(snapshot),
+        CREATE_COST_PLAN: _cost_plan_capability(snapshot, action="create"),
+        REFRESH_COST_PLAN: _cost_plan_capability(snapshot, action="refresh"),
+        EDIT_COST_PLAN: _cost_plan_capability(snapshot, action="row_edit"),
+        APPROVED_TENDER_HANDOFF: _cost_plan_capability(
+            snapshot, action="tender_handoff"
+        ),
         TENDER_COMPARISON: _tender_capability(snapshot),
         CONSULTANT_PROCUREMENT: _required_profile_capability(
             snapshot,
@@ -87,14 +95,14 @@ def _tender_capability(snapshot: ProjectSnapshot) -> WorkflowCapability:
         )
 
     profile = snapshot.profile
-    subclasses = {
-        _subclass_value(item) for item in getattr(profile, "subclasses", [])
-    }
+    subclasses = {_subclass_value(item) for item in getattr(profile, "subclasses", [])}
     reasons: list[str] = []
     if profile.building_class != "residential" or not subclasses.issubset(
         _TENDER_CLASS_1A_SUBCLASSES
     ):
-        reasons.append("Tender Comparison supports Class 1a houses and townhouses only.")
+        reasons.append(
+            "Tender Comparison supports Class 1a houses and townhouses only."
+        )
     if profile.state not in _TENDER_STATES:
         reasons.append("Tender Comparison supports projects in NSW, VIC, or QLD only.")
     if profile.work_type not in _TENDER_WORK_TYPES:
@@ -105,32 +113,56 @@ def _tender_capability(snapshot: ProjectSnapshot) -> WorkflowCapability:
         return WorkflowCapability(status="unsupported", reasons=reasons)
     return WorkflowCapability(
         status="supported",
-        reasons=["The confirmed profile is within Tender Comparison's Class 1a coverage."],
+        reasons=[
+            "The confirmed profile is within Tender Comparison's Class 1a coverage."
+        ],
     )
 
 
-def _cost_plan_capability(snapshot: ProjectSnapshot) -> WorkflowCapability:
+def _cost_plan_capability(
+    snapshot: ProjectSnapshot, *, action: str
+) -> WorkflowCapability:
     missing = _missing_profile_fields(snapshot, _PROJECT_PLAN_FIELDS)
     if missing:
         return WorkflowCapability(
             status="needs_input",
             reasons=["Cost Plan requires confirmed project and role context."],
             required_fields=missing,
+            reference_coverage=["NSW residential architect-PM reference set"],
         )
 
     profile = snapshot.profile
     reasons: list[str] = []
     if profile.building_class != "residential":
-        reasons.append("Cost Plan reference-data coverage is currently residential only.")
+        reasons.append(
+            "Cost Plan reference-data coverage is currently residential only."
+        )
     if profile.state != "NSW":
         reasons.append("Cost Plan reference-data coverage is currently NSW only.")
     if profile.user_role != "architect-pm":
-        reasons.append("Cost Plan rendering currently supports the architect-PM role only.")
+        reasons.append(
+            "Cost Plan rendering currently supports the architect-PM role only."
+        )
     if reasons:
         return WorkflowCapability(status="unsupported", reasons=reasons)
+    confirmations = {
+        "create": ["confirm_reference_coverage"],
+        "refresh": ["expected_base_version", "confirm_refresh_proposal"],
+        "row_edit": ["expected_base_version"],
+        "tender_handoff": [
+            "approved_frozen_qs_passed_tender",
+            "selected_quote_and_package",
+            "confirm_apply_as_proposal",
+        ],
+    }[action]
     return WorkflowCapability(
         status="supported",
-        reasons=["The confirmed profile is within current NSW residential Cost Plan coverage."],
+        reasons=[
+            "The confirmed profile is within current NSW residential Cost Plan coverage; "
+            "missing reference data must be confirmed, never filled from general model knowledge."
+        ],
+        required_confirmations=confirmations,
+        reference_coverage=["NSW residential architect-PM reference set"],
     )
 
 

@@ -37,6 +37,7 @@ import type {
   ProjectDetail,
   ProjectEvent,
   ProjectSummary,
+  ProjectSnapshot,
   SortFilesResponse,
   WorkspaceTreeNode,
   WorkflowRunStartInput,
@@ -132,6 +133,7 @@ export function ProjectCockpitPage() {
   );
   const [platformStatus, setPlatformStatus] =
     useState<PlatformKnowledgeStatus | null>(null);
+  const [snapshot, setSnapshot] = useState<ProjectSnapshot | null>(null);
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [latestDraft, setLatestDraft] = useState<DraftArtifactSummary | null>(null);
@@ -223,6 +225,7 @@ export function ProjectCockpitPage() {
         });
         setBootstrapLoaded(true);
         setPlatformStatus(data.platform_knowledge);
+        setSnapshot(data.snapshot);
         setLatestDraft(data.latest_drafts.create_pmp ?? null);
         setLatestCostPlanDraft(data.latest_drafts.create_cost_plan ?? null);
         setLatestDraftsMap(data.latest_drafts);
@@ -610,6 +613,53 @@ export function ProjectCockpitPage() {
     }
   }
 
+  async function runRefreshCostPlan() {
+    if (!project) return;
+    setIsRunningCostPlan(true);
+    setCostPlanWorkflowError(null);
+    try {
+      if (!latestCostPlanDraft) {
+        throw new WorkflowRunError("Create a Cost Plan before refreshing it.");
+      }
+      const queued = await api.startWorkflowRun(
+        project.id,
+        "cost-plan/refresh",
+        {
+          ...workflowRunInput(project, thread?.id, latestCostPlanDraft.version),
+          parameters: { proposed_items: [] },
+        },
+      );
+      setCostPlanRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(
+          run.error_message ?? `Refresh Cost Plan ${run.state}.`,
+        );
+      }
+      const response = await api.getWorkflowResult(project.id, run.id);
+      workflowPayload<Record<string, unknown>>(
+        response.result,
+        "Refresh Cost Plan completed without a result.",
+      );
+      setCostPlanWorkflowResult({
+        status: "complete",
+        gate: project.overlay_status,
+        trace: [],
+        draft: null,
+        message: "Cost Plan refresh proposal is ready.",
+      });
+      refreshLatestDraftInBackground("create_cost_plan");
+      refreshWorkflowSurfaces();
+    } catch (runError) {
+      setCostPlanWorkflowError(
+        formatApiError(runError, "Refresh Cost Plan could not run."),
+      );
+    } finally {
+      setCostPlanRunId(null);
+      setIsRunningCostPlan(false);
+    }
+  }
+
   async function runUpdatePmp() {
     if (!project) return;
     setIsRunningWorkflow(true);
@@ -918,6 +968,7 @@ export function ProjectCockpitPage() {
       {activeView === "workbench" ? (
         <ProjectControlBoard
           project={project}
+          nextActions={snapshot?.next_actions ?? []}
           evidence={evidence}
           latestDraft={latestDraft}
           latestCostPlanDraft={latestCostPlanDraft}
@@ -932,6 +983,7 @@ export function ProjectCockpitPage() {
           onRunCreatePmp={() => void runCreatePmp()}
           onRunUpdatePmp={() => void runUpdatePmp()}
           onRunCreateCostPlan={() => void runCreateCostPlan()}
+          onRunRefreshCostPlan={() => void runRefreshCostPlan()}
           onRunSortFiles={() => void runSortFiles()}
           onCancelWorkflow={() => {
             if (workflowRunId) void api.cancelWorkflowRun(project.id, workflowRunId);

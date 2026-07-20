@@ -15,6 +15,7 @@ from app.database.project_profile_proposal import ProjectProfileProposal
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
 from app.projects.profile import read_profile
+from app.projects.project_intelligence import enrich_project_snapshot
 from app.schemas.profile_proposals import ProjectProfileProposalView
 from app.schemas.project_snapshot import (
     EvidenceIngestFailure,
@@ -203,6 +204,11 @@ async def get_project_snapshot(
         decisions=ProjectSnapshotDecisions(
             set_revision=project.decision_set_revision,
             items=snapshot_decisions,
+            open_count=sum(
+                1
+                for row in decision_rows
+                if row.evidence_conflict or row.agent_suggestion is not None
+            ),
             complete=decisions_complete,
         ),
         evidence=ProjectSnapshotEvidence(
@@ -231,6 +237,7 @@ async def get_project_snapshot(
         ],
         open_profile_proposals_complete=proposals_complete,
     )
-    return snapshot.model_copy(
-        update={"content_fingerprint": snapshot_content_fingerprint(snapshot)}
+    enriched = await enrich_project_snapshot(session, snapshot)
+    return enriched.model_copy(
+        update={"content_fingerprint": snapshot_content_fingerprint(enriched)}
     )

@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import type {
   EvidencePreview,
   OverlayIssue,
   ProjectDetail,
+  ProjectNextAction,
   SortFilesResponse,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
@@ -59,6 +61,7 @@ import { cn } from "@/lib/utils";
 
 export function ProjectControlBoard({
   project,
+  nextActions = [],
   evidence,
   latestDraft,
   latestCostPlanDraft,
@@ -73,6 +76,7 @@ export function ProjectControlBoard({
   onRunCreatePmp,
   onRunUpdatePmp,
   onRunCreateCostPlan,
+  onRunRefreshCostPlan,
   onRunSortFiles,
   onCancelWorkflow,
   onCancelCostPlan,
@@ -87,6 +91,7 @@ export function ProjectControlBoard({
   onProjectUpdated,
 }: {
   project: ProjectDetail;
+  nextActions?: ProjectNextAction[];
   evidence: EvidencePreview[];
   latestDraft: DraftArtifactSummary | null;
   latestCostPlanDraft: DraftArtifactSummary | null;
@@ -101,6 +106,7 @@ export function ProjectControlBoard({
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
+  onRunRefreshCostPlan?: () => void;
   onRunSortFiles: () => void;
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
@@ -139,6 +145,8 @@ export function ProjectControlBoard({
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
       <RiskFlagChips flags={project.risk_flags} />
 
+      {nextActions.length ? <ProjectNextActions actions={nextActions} /> : null}
+
       <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
         <WorkflowDetail
           tile={selectedTile}
@@ -156,6 +164,7 @@ export function ProjectControlBoard({
           onRunCreatePmp={onRunCreatePmp}
           onRunUpdatePmp={onRunUpdatePmp}
           onRunCreateCostPlan={onRunCreateCostPlan}
+          onRunRefreshCostPlan={onRunRefreshCostPlan}
           onRunSortFiles={onRunSortFiles}
           onCancelWorkflow={onCancelWorkflow}
           onCancelCostPlan={onCancelCostPlan}
@@ -171,6 +180,34 @@ export function ProjectControlBoard({
         />
       </section>
     </div>
+  );
+}
+
+function ProjectNextActions({ actions }: { actions: ProjectNextAction[] }) {
+  return (
+    <section aria-labelledby="project-next-actions" className="rounded-lg border bg-card p-4">
+      <h2 id="project-next-actions" className="font-semibold">
+        Next actions
+      </h2>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {actions.map((action) => (
+          <article key={`${action.code}-${action.blocking_fact}`} className="rounded-md border p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">{action.label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{action.reason}</p>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link to={action.route}>Open</Link>
+              </Button>
+            </div>
+            <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+              {action.tool} · {action.blocking_fact}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -573,6 +610,7 @@ function WorkflowDetail({
   onRunCreatePmp,
   onRunUpdatePmp,
   onRunCreateCostPlan,
+  onRunRefreshCostPlan,
   onRunSortFiles,
   onCancelWorkflow,
   onCancelCostPlan,
@@ -600,6 +638,7 @@ function WorkflowDetail({
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
+  onRunRefreshCostPlan?: () => void;
   onRunSortFiles: () => void;
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
@@ -797,6 +836,23 @@ function WorkflowDetail({
                   Cancel
                 </Button>
               ) : null}
+              <Button
+                variant="outline"
+                onClick={onRunRefreshCostPlan}
+                disabled={
+                  !onRunRefreshCostPlan ||
+                  isRunningCostPlan ||
+                  !project.overlay_status.ready ||
+                  !activeDraft
+                }
+              >
+                {isRunningCostPlan ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <RefreshCw className="size-4" aria-hidden />
+                )}
+                Refresh cost plan
+              </Button>
               <Button variant="secondary" onClick={onOpenDraft} disabled={!activeDraft}>
                 <Bot className="size-4" aria-hidden />
                 Review draft

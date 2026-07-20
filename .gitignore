@@ -30,6 +30,9 @@ pnpm-debug.log*
 # Data / artifacts (downloaded corpus files are large, never check in)
 /data/downloads/*
 !/data/downloads/.gitkeep
+/data/real-project-data/
+/backend/_meridian_pdfs/
+*.blend1
 *.parquet
 
 # Sample project-evidence corpus (payload-heavy, kept out of git per README)

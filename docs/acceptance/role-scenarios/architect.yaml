@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "role": "architect",
+  "seed_profile": {"building_class": "residential", "subclasses": ["house"], "work_type": "refurb", "user_role": "architect-pm", "state": "NSW"},
+  "decisions": [{"id": "procurement-route", "selected": "traditional", "locked": true}, {"id": "design-authority", "selected": "architect", "locked": true}],
+  "files": ["project-brief.md"],
+  "quote_groups": [],
+  "commands": [
+    {"id": "profile", "tool": "update_project_profile", "expected": "complete"},
+    {"id": "pmp", "tool": "start_create_project_plan", "expected": "complete"},
+    {"id": "decisions", "tool": "list_project_decisions", "expected": "complete"},
+    {"id": "consultants", "tool": "start_consultant_procurement", "expected": "complete"},
+    {"id": "refresh", "tool": "start_refresh_project_plan", "expected": "complete"},
+    {"id": "cost-impact", "tool": "get_project_next_actions", "expected": "complete"}
+  ],
+  "expected": {"locked_decisions_preserved": true, "project_plan_pages_min": 2, "project_plan_pages_max": 4, "consultant_route_exact": true, "evidence_status_present": true},
+  "forbidden": ["cross_project_read", "cross_project_write", "locked_decision_overwrite", "silent_budget_acceptance"],
+  "timing_boundaries": ["upload_to_first_usable_artefact", "profile_event_to_visible_ui", "workflow_enqueue_acknowledgement"]
+}

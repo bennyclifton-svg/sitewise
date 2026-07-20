@@ -1,11 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
-import type { ProjectDetail, TaxonomyCatalog } from "@/lib/types/project";
+import type {
+  ProjectDetail,
+  ProjectNextAction,
+  TaxonomyCatalog,
+} from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -154,6 +159,31 @@ describe("ProjectControlBoard project profile", () => {
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
+  });
+
+  it("renders deterministic next-action reasons and routes", () => {
+    const actions: ProjectNextAction[] = [
+      {
+        code: "select_tender_quotes",
+        label: "Select tender quotes",
+        reason: "No persisted Tender Comparison quote selection exists.",
+        blocking_fact: "tender_selection:none",
+        route: `/projects/${project.id}/tender`,
+        tool: "replace_tender_quote_selection",
+      },
+    ];
+
+    render(
+      <MemoryRouter>{profileBoard(project, vi.fn(), actions)}</MemoryRouter>,
+    );
+
+    expect(screen.getByText("Next actions")).toBeInTheDocument();
+    expect(screen.getByText(actions[0].reason)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      actions[0].route,
+    );
+    expect(screen.getByText(/replace_tender_quote_selection/)).toBeInTheDocument();
   });
 
   it("updates clean controls when a newer server revision arrives", () => {
@@ -349,10 +379,12 @@ const blockedProject: ProjectDetail = {
 function profileBoard(
   projectValue: ProjectDetail,
   onProjectUpdated = vi.fn(),
+  nextActions: ProjectNextAction[] = [],
 ) {
   return (
     <ProjectControlBoard
       project={projectValue}
+      nextActions={nextActions}
       evidence={[]}
       latestDraft={null}
       latestCostPlanDraft={null}

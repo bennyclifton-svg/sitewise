@@ -24,6 +24,7 @@ SUPPORTED_WORKFLOWS = frozenset(
         "create_project_plan",
         "refresh_project_plan",
         "create_cost_plan",
+        "refresh_cost_plan",
         "sort_project_files",
         "consultant_procurement",
     }
@@ -46,9 +47,7 @@ class WorkflowRunCapabilityConflict(RuntimeError):
     pass
 
 
-def canonical_request_hash(
-    workflow_type: str, request: WorkflowRunStartRequest
-) -> str:
+def canonical_request_hash(workflow_type: str, request: WorkflowRunStartRequest) -> str:
     payload = {
         "schema_version": 1,
         "workflow_type": workflow_type,
@@ -89,12 +88,17 @@ async def start_workflow_run(
         return existing, False
 
     _validate_expected_snapshot(snapshot, request)
-    if workflow_type == "refresh_project_plan":
+    if workflow_type in {"refresh_project_plan", "refresh_cost_plan"}:
+        artefact_workflow = (
+            "create_pmp"
+            if workflow_type == "refresh_project_plan"
+            else "create_cost_plan"
+        )
         latest_result = await session.execute(
             select(DraftArtifact)
             .where(
                 DraftArtifact.project_id == project.id,
-                DraftArtifact.workflow_type == "create_pmp",
+                DraftArtifact.workflow_type == artefact_workflow,
             )
             .order_by(DraftArtifact.version.desc())
             .limit(1)
@@ -103,7 +107,7 @@ async def start_workflow_run(
         if latest is None or request.expected_artefact_version != latest.version:
             current = latest.version if latest is not None else 0
             raise WorkflowRunCapabilityConflict(
-                "Project Plan base changed: "
+                f"{artefact_workflow} base changed: "
                 f"expected v{request.expected_artefact_version}, current v{current}"
             )
     run = WorkflowRun(
@@ -354,7 +358,9 @@ async def lock_run_for_publish(
 ) -> WorkflowRun:
     run = await _lock_project_then_run(session, run_id)
     if run is None or run.state != "running" or run.lock_owner != worker_id:
-        raise WorkflowRunConflict("Workflow run lease is no longer owned by this worker")
+        raise WorkflowRunConflict(
+            "Workflow run lease is no longer owned by this worker"
+        )
     if run.cancel_requested:
         raise WorkflowRunCancelled(str(run.id))
     return run
@@ -418,7 +424,9 @@ async def fail_workflow_run(
 ) -> WorkflowRun:
     run = await _lock_project_then_run(session, run_id)
     if run.lock_owner != worker_id or run.state != "running":
-        raise WorkflowRunConflict("Workflow run lease is no longer owned by this worker")
+        raise WorkflowRunConflict(
+            "Workflow run lease is no longer owned by this worker"
+        )
     now = datetime.now(UTC)
     run.error_class = type(error).__name__[:255]
     run.error_message = str(error)[:4000] or type(error).__name__
@@ -432,7 +440,7 @@ async def fail_workflow_run(
         action = "cancelled"
     elif run.attempt < run.max_attempts:
         run.state = "queued"
-        run.run_after = now + timedelta(seconds=min(60, 2 ** run.attempt))
+        run.run_after = now + timedelta(seconds=min(60, 2**run.attempt))
         run.progress = {"stage": "retry_scheduled", "percent": 0}
         action = "retry_scheduled"
     else:
@@ -477,7 +485,10 @@ async def cancel_workflow_run(
         run.progress = {"stage": "cancelled", "percent": 100}
         action = "cancelled"
     else:
-        run.progress = {"stage": "cancelling", "percent": run.progress.get("percent", 1)}
+        run.progress = {
+            "stage": "cancelling",
+            "percent": run.progress.get("percent", 1),
+        }
     # Commit the cooperative flag before taking the project-event cursor lock.
     # A workflow may already hold an FK key-share lock while preparing an
     # artefact; reversing that order would make cancellation wait for publish.
@@ -504,7 +515,9 @@ async def mark_cancelled_after_rollback(
 ) -> WorkflowRun:
     run = await _lock_project_then_run(session, run_id)
     if run.lock_owner != worker_id or run.state != "running":
-        raise WorkflowRunConflict("Workflow run lease is no longer owned by this worker")
+        raise WorkflowRunConflict(
+            "Workflow run lease is no longer owned by this worker"
+        )
     run.state = "cancelled"
     run.cancel_requested = True
     run.progress = {"stage": "cancelled", "percent": 100}

@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -55,7 +55,9 @@ class ProjectContext(BaseModel):
         ]
         if missing:
             joined = ", ".join(missing)
-            raise ValueError(f"manual project context missing required fields: {joined}")
+            raise ValueError(
+                f"manual project context missing required fields: {joined}"
+            )
         return self
 
 
@@ -460,3 +462,44 @@ def currency_to_cents(value: object) -> int | None:
         return int((Decimal(cleaned) * 100).quantize(Decimal("1")))
     except InvalidOperation as exc:
         raise ValueError(f"invalid currency value: {value}") from exc
+
+
+class ApprovedTenderCostItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_key: str
+    cost_code: str
+    category: str
+    item: str
+    amount_cents: int = Field(ge=0)
+    allowance_type: Literal["none", "pc", "ps"] = "none"
+    source_refs: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ApprovedTenderCostHandoff(BaseModel):
+    """Immutable TCM-owned projection; it makes no builder recommendation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    project_id: uuid.UUID
+    comparison_id: uuid.UUID
+    report_id: uuid.UUID
+    report_version: int = Field(ge=1)
+    report_frozen: bool
+    mandatory_qa_resolved: bool
+    qs_gate_passed: bool
+    operator_approved_by: uuid.UUID
+    selected_quote_id: uuid.UUID
+    package_scope: str = Field(min_length=1)
+    comparison_version: str
+    quote_version: str
+    source_documents: list[dict[str, Any]]
+    mapped_items: list[ApprovedTenderCostItem] = Field(min_length=1)
+    stated_total_cents: int | None = None
+    comparable_total_cents: int = Field(ge=0)
+    gst_treatment: Literal["inclusive", "exclusive", "unclear"]
+    alternates: list[dict[str, Any]] = Field(default_factory=list)
+    allowances: list[dict[str, Any]] = Field(default_factory=list)
+    exclusions: list[str] = Field(default_factory=list)
+    qualifications: list[str] = Field(default_factory=list)
+    idempotency_key: str = Field(min_length=1, max_length=255)

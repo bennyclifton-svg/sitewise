@@ -171,11 +171,19 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         f"{key}={value.value if value.status == 'confirmed' else _NOT_DECLARED}"
         for key, value in sorted(snapshot.confirmed_inputs.items())
     ]
+    next_action_lines = [
+        (
+            f"next_action.{action.code}=reason:{action.reason}; "
+            f"blocking_fact:{action.blocking_fact}; route:{action.route}; tool:{action.tool}"
+        )
+        for action in snapshot.next_actions[:20]
+    ]
     lines = [
         '<project-snapshot schema-version="1">',
         f"content_fingerprint: {snapshot.content_fingerprint}",
         f"profile_revision: {snapshot.profile.profile_revision}",
         f"decision_set_revision: {snapshot.decisions.set_revision}",
+        f"open_decision_count: {snapshot.decisions.open_count}",
         f"evidence_fingerprint: {snapshot.evidence.fingerprint}",
         f"active_evidence_count: {snapshot.evidence.active_count}",
         f"ingest_failure_count: {snapshot.evidence.ingest_failure_count}",
@@ -183,6 +191,7 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         *capability_lines,
         *input_lines,
         *decision_lines,
+        *next_action_lines,
         "</project-snapshot>",
     ]
     return "\n".join(lines)

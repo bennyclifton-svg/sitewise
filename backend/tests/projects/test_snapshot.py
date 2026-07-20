@@ -94,6 +94,10 @@ def _session(*, content_hash: str = "abc") -> AsyncMock:
         _Result(rows=[]),
         _Result(rows=[evidence]),
         _Result(rows=[failure]),
+        _Result(rows=[]),
+        _Result(rows=[]),
+        _Result(rows=[]),
+        _Result(value=None),
     ]
     return session
 

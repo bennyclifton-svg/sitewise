@@ -1,0 +1,11 @@
+SYNTHETIC TENDER FIXTURE - GREY AREA CONSTRUCTION
+
+Tender total: $990,000
+GST: refer to cover email (not supplied)
+Demolition allowance: 40,000
+Alternate A - retain existing windows: deduct $18,500
+Provisional sum - rock excavation: $25,000 plus GST
+
+The document intentionally leaves the headline total's GST treatment ambiguous.
+The system must not guess whether $990,000 includes GST or silently combine
+unconfirmed totals.

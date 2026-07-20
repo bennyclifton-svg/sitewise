@@ -6,7 +6,20 @@ from datetime import datetime
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +55,11 @@ from app.database.draft_artifact import DraftArtifact
 from app.database.project_decision import ProjectDecision
 from app.database.source_document import SourceDocument
 from app.database.users import ensure_user_exists
-from app.schemas.chat import MessageResponse, ProjectChatBootstrapResponse, ThreadResponse
+from app.schemas.chat import (
+    MessageResponse,
+    ProjectChatBootstrapResponse,
+    ThreadResponse,
+)
 from app.config import settings
 from app.schemas.projects import (
     CreateCostPlanRequest,
@@ -121,6 +138,7 @@ from app.schemas.document_selections import (
     TenderQuoteSelection,
 )
 from app.projects.workflow_capabilities import capability_for, workflow_capabilities
+from app.cost_plan.schemas import CostItemInput
 from app.projects.artefact_adapters import (
     accept_workflow_artefact,
     revise_workflow_artefact,
@@ -130,7 +148,7 @@ from app.projects.artefact_revisions import (
     ArtefactRevisionConflict,
 )
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
-from app.schemas.project_snapshot import ProjectSnapshot
+from app.schemas.project_snapshot import ProjectNextAction, ProjectSnapshot
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 from app.schemas.workflow_runs import (
     WorkflowRunResult,
@@ -146,7 +164,10 @@ from app.inbox.split_service import (
     split_staged_pdf,
 )
 from app.database.workspace_file import WorkspaceFile
-from app.database.workspace_files import get_workspace_file_by_path, list_workspace_files_for_project
+from app.database.workspace_files import (
+    get_workspace_file_by_path,
+    list_workspace_files_for_project,
+)
 from app.inbox.paths import is_inbox_workspace_path
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.taxonomy import (
@@ -200,11 +221,11 @@ async def get_tender_quote_selection(
 ) -> TenderQuoteSelection:
     _require_project_owner(await get_project(session, project_id), user.id)
     try:
-        return await read_selection(
-            session, project_id=project_id, revision=revision
-        )
+        return await read_selection(session, project_id=project_id, revision=revision)
     except SelectionValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.put(
@@ -231,10 +252,16 @@ async def put_tender_quote_selection(
     except SelectionRevisionConflict as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "selection_revision_conflict", "expected_revision": exc.expected, "current_revision": exc.current},
+            detail={
+                "code": "selection_revision_conflict",
+                "expected_revision": exc.expected,
+                "current_revision": exc.current,
+            },
         ) from exc
     except SelectionValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
 
 def _require_project_owner(project, user_id: uuid.UUID):
@@ -302,11 +329,7 @@ def _register_title_from_fields(
     metadata = metadata if isinstance(metadata, dict) else {}
     if document_class == "specification":
         return _filename_title(filename)
-    return (
-        _metadata_text(metadata, "title")
-        or document_type
-        or filename
-    )
+    return _metadata_text(metadata, "title") or document_type or filename
 
 
 def _is_xlsx_filename(filename: str) -> bool:
@@ -379,9 +402,7 @@ def _append_unindexed_inbox_workspace_files(
     previews: list[EvidencePreview],
     workspace_files: list[WorkspaceFile],
 ) -> list[EvidencePreview]:
-    indexed_paths = {
-        preview.relative_path.replace("\\", "/") for preview in previews
-    }
+    indexed_paths = {preview.relative_path.replace("\\", "/") for preview in previews}
     for record in workspace_files:
         path = record.workspace_path.replace("\\", "/")
         if not _is_inbox_path(path) or path in indexed_paths:
@@ -395,7 +416,11 @@ def _evidence_preview_from_document(
     *,
     include_content: bool = False,
 ) -> EvidencePreview:
-    metadata = document.document_metadata if isinstance(document.document_metadata, dict) else {}
+    metadata = (
+        document.document_metadata
+        if isinstance(document.document_metadata, dict)
+        else {}
+    )
     excerpt_source = document.normalized_content or ""
     return _evidence_preview_from_values(
         document_id=document.id,
@@ -426,7 +451,8 @@ def _filter_stale_inbox_documents(
         for document in documents
         if not (
             _is_inbox_path(document.relative_path)
-            and document.relative_path.replace("\\", "/") not in normalised_workspace_paths
+            and document.relative_path.replace("\\", "/")
+            not in normalised_workspace_paths
         )
     ]
 
@@ -507,7 +533,9 @@ async def _ensure_consultant_procurement_workspace_files(
         )
         if draft is None:
             continue
-        await sync_consultant_procurement_draft_workspace(session, project=project, draft=draft)
+        await sync_consultant_procurement_draft_workspace(
+            session, project=project, draft=draft
+        )
         changed = True
 
     if not changed:
@@ -578,10 +606,7 @@ async def _list_project_evidence_previews(
         .order_by(SourceDocument.relative_path.asc())
     )
     result = await session.execute(stmt)
-    normalised_workspace_paths = {
-        path.replace("\\", "/")
-        for path in workspace_paths
-    }
+    normalised_workspace_paths = {path.replace("\\", "/") for path in workspace_paths}
     previews: list[EvidencePreview] = []
     workspace_by_path = {
         record.workspace_path.replace("\\", "/"): record.id
@@ -605,7 +630,9 @@ async def _list_project_evidence_previews(
                 source_type=row.source_type,
                 document_class=row.document_class,
                 excerpt_source=row.content_excerpt or "",
-                workspace_file_id=workspace_by_path.get(relative_path.replace("\\", "/")),
+                workspace_file_id=workspace_by_path.get(
+                    relative_path.replace("\\", "/")
+                ),
             )
         )
     if workspace_files:
@@ -695,7 +722,9 @@ def _metadata_taxonomy(metadata: dict | None) -> dict[str, Any]:
     return taxonomy if isinstance(taxonomy, dict) else {}
 
 
-def _project_taxonomy_metadata(body: CreateProjectRequest | PatchProjectRequest) -> dict | None:
+def _project_taxonomy_metadata(
+    body: CreateProjectRequest | PatchProjectRequest,
+) -> dict | None:
     return _taxonomy_metadata_from_values(
         subclasses=body.subclasses,
         scale=body.scale,
@@ -743,10 +772,7 @@ def _subclass_values(
 ) -> list[str] | None:
     if not subclasses:
         return None
-    values = [
-        item if isinstance(item, str) else item.value
-        for item in subclasses
-    ]
+    values = [item if isinstance(item, str) else item.value for item in subclasses]
     return values or None
 
 
@@ -776,7 +802,9 @@ def _activity_references_from_metadata(
         value = metadata.get(key)
         if not isinstance(value, list):
             return []
-        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+        return [
+            item.strip() for item in value if isinstance(item, str) and item.strip()
+        ]
 
     references = ProjectActivityReferences(
         seed_consulted=string_list("seed_consulted"),
@@ -784,9 +812,7 @@ def _activity_references_from_metadata(
         context_refs=string_list("context_refs"),
     )
     if not (
-        references.seed_consulted
-        or references.evidence_refs
-        or references.context_refs
+        references.seed_consulted or references.evidence_refs or references.context_refs
     ):
         return None
     return references
@@ -798,7 +824,9 @@ async def get_projects(
     session: AsyncSession = Depends(get_db),
 ) -> ProjectListResponse:
     projects = await list_projects(session, user.id)
-    return ProjectListResponse(projects=[_project_summary(project) for project in projects])
+    return ProjectListResponse(
+        projects=[_project_summary(project) for project in projects]
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -937,6 +965,23 @@ async def get_project_workflow_capabilities(
     return workflow_capabilities(snapshot)
 
 
+@router.get("/{project_id}/next-actions")
+async def get_project_next_actions_view(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[ProjectNextAction]:
+    try:
+        snapshot = await get_project_snapshot(
+            session,
+            project_id=project_id,
+            owner_user_id=user.id,
+        )
+    except ProjectSnapshotNotFound as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    return snapshot.next_actions
+
+
 @router.get("/{project_id}")
 async def get_project_detail(
     project_id: uuid.UUID,
@@ -993,7 +1038,9 @@ async def get_project_cockpit_bootstrap(
     timings_ms["draft_summaries"] = _elapsed_ms(step_start)
 
     step_start = time.perf_counter()
-    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    workspace_files = await list_workspace_files_for_project(
+        session, project_id=project.id
+    )
     workspace_path_list = _workspace_paths_for_tree(
         workspace_files,
         draft_summaries=all_draft_summaries,
@@ -1051,6 +1098,7 @@ async def get_project_cockpit_bootstrap(
         workspace_tree=workspace_tree,
         platform_knowledge=platform_knowledge,
         latest_drafts=_merge_draft_summaries(latest_drafts, consultant_drafts),
+        snapshot=snapshot.model_dump(mode="json"),
         timings_ms=timings_ms,
     )
 
@@ -1091,7 +1139,9 @@ async def get_project_workspace_tree(
     session: AsyncSession = Depends(get_db),
 ) -> ProjectWorkspaceTreeResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    workspace_files = await list_workspace_files_for_project(
+        session, project_id=project.id
+    )
     draft_rows = await get_latest_draft_artifact_summaries(
         session,
         project_id=project.id,
@@ -1224,7 +1274,9 @@ async def get_project_workspace_file_preview(
             detail="Workspace preview is only available for Excel workbooks",
         )
 
-    content = await asyncio.to_thread(download_project_file, storage_key=record.storage_key)
+    content = await asyncio.to_thread(
+        download_project_file, storage_key=record.storage_key
+    )
     preview = workbook_preview_from_bytes(content)
     return WorkbookPreviewResponse(
         filename=record.filename,
@@ -1261,7 +1313,9 @@ async def download_project_workspace_file(
             detail="Workspace file not found",
         )
 
-    content = await asyncio.to_thread(download_project_file, storage_key=record.storage_key)
+    content = await asyncio.to_thread(
+        download_project_file, storage_key=record.storage_key
+    )
     media_type, _ = mimetypes.guess_type(record.filename)
     return Response(
         content=content,
@@ -1318,7 +1372,9 @@ async def get_project_evidence(
     session: AsyncSession = Depends(get_db),
 ) -> dict[str, list[EvidencePreview]]:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    workspace_files = await list_workspace_files_for_project(session, project_id=project.id)
+    workspace_files = await list_workspace_files_for_project(
+        session, project_id=project.id
+    )
     workspace_paths = {record.workspace_path for record in workspace_files}
     previews = await _list_project_evidence_previews(
         session,
@@ -1474,7 +1530,9 @@ async def post_inbox_analyze(
     )
 
 
-@router.post("/{project_id}/inbox/{staging_id}/split", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{project_id}/inbox/{staging_id}/split", status_code=status.HTTP_201_CREATED
+)
 async def post_inbox_split(
     project_id: uuid.UUID,
     staging_id: str,
@@ -1492,7 +1550,9 @@ async def post_inbox_split(
     return _upload_results(outcomes)
 
 
-@router.post("/{project_id}/inbox/{staging_id}/commit", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{project_id}/inbox/{staging_id}/commit", status_code=status.HTTP_201_CREATED
+)
 async def post_inbox_commit_single(
     project_id: uuid.UUID,
     staging_id: str,
@@ -1951,6 +2011,7 @@ _ASYNC_CAPABILITIES = {
     "create_project_plan": "create_pmp",
     "refresh_project_plan": "update_pmp",
     "create_cost_plan": "create_cost_plan",
+    "refresh_cost_plan": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
 }
 
@@ -1981,19 +2042,44 @@ async def _start_core_workflow(
                     "required_fields": capability.required_fields,
                 },
             )
-    if workflow_type == "consultant_procurement" and not str(
-        body.parameters.get("discipline", "")
-    ).strip():
+    if (
+        workflow_type == "consultant_procurement"
+        and not str(body.parameters.get("discipline", "")).strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="parameters.discipline is required",
         )
-    if workflow_type == "refresh_project_plan":
+    if workflow_type == "refresh_cost_plan":
+        proposed_items = body.parameters.get("proposed_items")
+        if not isinstance(proposed_items, list):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="parameters.proposed_items must be a list",
+            )
+        try:
+            body.parameters["proposed_items"] = [
+                CostItemInput.model_validate(item).model_dump(mode="json")
+                for item in proposed_items
+            ]
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=exc.errors(),
+            ) from exc
+    if workflow_type in {"refresh_project_plan", "refresh_cost_plan"}:
+        artefact_workflow = (
+            "create_pmp"
+            if workflow_type == "refresh_project_plan"
+            else "create_cost_plan"
+        )
         latest = await get_latest_draft_artifact(
-            session, project_id=project.id, workflow_type="create_pmp"
+            session, project_id=project.id, workflow_type=artefact_workflow
         )
         if latest is None:
-            raise HTTPException(status_code=409, detail="Project Plan does not exist")
+            raise HTTPException(
+                status_code=409, detail=f"{artefact_workflow} does not exist"
+            )
         if body.expected_artefact_version != latest.version:
             raise HTTPException(
                 status_code=409,
@@ -2065,6 +2151,25 @@ async def post_cost_plan_run(
         session,
         project_id=project_id,
         workflow_type="create_cost_plan",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/cost-plan/refresh",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_cost_plan_refresh_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="refresh_cost_plan",
         body=body,
         user=user,
     )
@@ -2148,9 +2253,7 @@ async def post_cancel_core_workflow_run(
 ) -> WorkflowRunView:
     _require_project_owner(await get_project(session, project_id), user.id)
     try:
-        run = await cancel_workflow_run(
-            session, project_id=project_id, run_id=run_id
-        )
+        run = await cancel_workflow_run(session, project_id=project_id, run_id=run_id)
     except WorkflowRunNotFound as exc:
         raise HTTPException(status_code=404, detail="Workflow run not found") from exc
     return WorkflowRunView.model_validate(run)

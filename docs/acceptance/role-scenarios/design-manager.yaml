@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "role": "design-manager",
+  "seed_profile": {"building_class": "residential", "subclasses": ["house"], "work_type": "refurb", "user_role": "architect-pm", "state": "NSW"},
+  "decisions": [{"id": "procurement-route", "selected": "traditional", "locked": true}],
+  "files": ["project-brief.md"],
+  "quote_groups": [],
+  "commands": [
+    {"id": "snapshot", "tool": "get_project_snapshot", "expected": "complete"},
+    {"id": "actions", "tool": "get_project_next_actions", "expected": "complete"},
+    {"id": "decisions", "tool": "list_project_decisions", "expected": "complete"},
+    {"id": "capabilities", "tool": "get_workflow_capabilities", "expected": "complete"}
+  ],
+  "expected": {"all_seeded_blockers_named": true, "routes_and_tools_exact": true, "stale_reasons_match_roots": true, "unsupported_workflows_absent": true},
+  "forbidden": ["cross_project_read", "cross_project_write", "unsupported_workflow_recommendation", "silent_acceptance_transition"],
+  "timing_boundaries": ["cockpit_bootstrap", "cached_workflow_tab_transition", "profile_event_to_visible_ui"]
+}

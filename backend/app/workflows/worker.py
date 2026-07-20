@@ -19,11 +19,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.database.models  # noqa: F401
 from app.config import settings
 from app.database.project import Project
+from app.database.draft_artifact import DraftArtifact
 from app.database.session import get_session_factory
 from app.logging import configure_logging, get_logger
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.workflows.consultant_procurement import draft_consultant_procurement_artifact
 from app.workflows.create_cost_plan import run_create_cost_plan_workflow
+from app.cost_plan.dependencies import dependency_snapshot
+from app.cost_plan.schemas import CostItemInput
+from app.cost_plan.service import refresh_cost_plan
 from app.workflows.create_pmp import run_create_pmp_workflow
 from app.workflows.runs import (
     WorkflowRunCancelled,
@@ -85,6 +89,24 @@ async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
         result = await run_create_cost_plan_workflow(
             **common, chat_model=chat_model, snapshot=snapshot
         )
+    elif run.workflow_type == "refresh_cost_plan":
+        result = await refresh_cost_plan(
+            session,
+            project=project,
+            author_user_id=run.requested_by_user_id,
+            expected_base_version=run.frozen_artefact_version,
+            current_snapshot=snapshot,
+            proposed_items=[
+                CostItemInput.model_validate(item)
+                for item in parameters.get("proposed_items", [])
+            ],
+            dependency_snapshot=dependency_snapshot(
+                snapshot,
+                model_version=chat_model,
+                prompt_version="typed-refresh-v1",
+                runtime_version="clerk-typed-cost-plan-refresh-v1",
+            ),
+        )
     elif run.workflow_type == "sort_project_files":
         result = await run_sort_files_workflow(**common, auto_commit=False)
     elif run.workflow_type == "consultant_procurement":
@@ -100,6 +122,40 @@ async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
     else:
         raise ValueError(f"Unknown workflow type: {run.workflow_type}")
     return _json_result(result)
+
+
+async def _stamp_result_dependencies(
+    session: AsyncSession, run, result: dict[str, Any]
+) -> None:
+    draft_value = result.get("draft")
+    if not isinstance(draft_value, dict) or not draft_value.get("id"):
+        return
+    draft = await session.get(DraftArtifact, uuid.UUID(str(draft_value["id"])))
+    if draft is None:
+        return
+    metadata = dict(draft.provenance_metadata or {})
+    if isinstance(metadata.get("dependency_snapshot"), dict):
+        return
+    upstream: list[dict[str, Any]] = []
+    if run.frozen_artefact_version is not None:
+        upstream.append(
+            {
+                "type": "base_revision",
+                "workflow_type": draft.workflow_type,
+                "version": run.frozen_artefact_version,
+            }
+        )
+    metadata["dependency_snapshot"] = {
+        "profile_revision": run.frozen_profile_revision,
+        "evidence_fingerprint": run.frozen_evidence_fingerprint,
+        "decision_set_revision": run.frozen_decision_set_revision,
+        "upstream_artefacts": upstream,
+        "model_version": draft.model,
+        "prompt_version": metadata.get("prompt_version"),
+        "runtime_version": draft.runtime,
+    }
+    draft.provenance_metadata = metadata
+    await session.flush()
 
 
 def _json_result(result: Any) -> dict[str, Any]:
@@ -124,10 +180,14 @@ def _json_result(result: Any) -> dict[str, Any]:
             }
         raw.setdefault("status", "complete")
         return raw
-    raise TypeError(f"Workflow returned unsupported result type: {type(result).__name__}")
+    raise TypeError(
+        f"Workflow returned unsupported result type: {type(result).__name__}"
+    )
 
 
-async def _heartbeat_loop(session_factory, run_id: uuid.UUID, worker_id: str, stop: asyncio.Event) -> None:
+async def _heartbeat_loop(
+    session_factory, run_id: uuid.UUID, worker_id: str, stop: asyncio.Event
+) -> None:
     interval = max(1.0, settings.workflow_worker_lease_seconds / 3)
     while not stop.is_set():
         try:
@@ -166,6 +226,7 @@ async def run_once(session_factory, worker_id: str) -> bool:
     try:
         async with session_factory() as work_session:
             result = await _dispatch(work_session, run)
+            await _stamp_result_dependencies(work_session, run, result)
             owned_run = await lock_run_for_publish(
                 work_session, run_id=run.id, worker_id=worker_id
             )
@@ -210,7 +271,9 @@ async def _idle_wait(shutdown_event: asyncio.Event) -> None:
         pass
 
 
-async def run_lane(session_factory, worker_id: str, shutdown_event: asyncio.Event) -> None:
+async def run_lane(
+    session_factory, worker_id: str, shutdown_event: asyncio.Event
+) -> None:
     while not shutdown_event.is_set():
         try:
             processed = await run_once(session_factory, worker_id)
@@ -221,7 +284,9 @@ async def run_lane(session_factory, worker_id: str, shutdown_event: asyncio.Even
             await _idle_wait(shutdown_event)
 
 
-async def run_pool(session_factory, worker_id: str, *, shutdown_event: asyncio.Event, concurrency: int) -> None:
+async def run_pool(
+    session_factory, worker_id: str, *, shutdown_event: asyncio.Event, concurrency: int
+) -> None:
     await asyncio.gather(
         *(
             run_lane(session_factory, f"{worker_id}#{index}", shutdown_event)

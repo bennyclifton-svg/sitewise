@@ -101,7 +101,7 @@ def _snapshot():
         schema_version=1,
         content_fingerprint="snapshot-fingerprint",
         profile=SimpleNamespace(profile_revision=1),
-        decisions=SimpleNamespace(set_revision=1, items=[]),
+        decisions=SimpleNamespace(set_revision=1, items=[], open_count=0),
         evidence=SimpleNamespace(
             fingerprint="evidence-fingerprint",
             active_count=0,
@@ -109,6 +109,7 @@ def _snapshot():
         ),
         confirmed_inputs={},
         open_profile_proposals=[],
+        next_actions=[],
     )
 
 
@@ -254,7 +255,9 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     assistant_session = AsyncMock()
     seen: dict[str, str] = {}
 
-    async def fake_create_message(session, *, thread_id, role, content, message_data=None):
+    async def fake_create_message(
+        session, *, thread_id, role, content, message_data=None
+    ):
         return ChatMessage(
             id=uuid.uuid4(),
             thread_id=thread_id,
@@ -353,7 +356,9 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         lambda: _SessionFactory(assistant_session),
     )
 
-    with client.stream("POST", "/chat/agent/stream", json=BODY_WITH_AGENT_MODEL) as response:
+    with client.stream(
+        "POST", "/chat/agent/stream", json=BODY_WITH_AGENT_MODEL
+    ) as response:
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
@@ -388,10 +393,10 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "answering. Only call apply_consultant_fee_forecast when the user asks to apply,\n"
         "write, update, or save the forecast into the cost plan.\n"
         "For consultant procurement drafting requests, call\n"
-        "start_consultant_procurement. This includes phrases like \"draft a\n"
-        "request for fee proposal\", \"draft consultant procurement\", \"prepare an RFP for\n"
-        "the structural engineer\", \"get me a fee proposal request for the hydraulic\n"
-        "consultant\", and \"prepare scope for BASIX assessor\". Do not answer these as\n"
+        'start_consultant_procurement. This includes phrases like "draft a\n'
+        'request for fee proposal", "draft consultant procurement", "prepare an RFP for\n'
+        'the structural engineer", "get me a fee proposal request for the hydraulic\n'
+        'consultant", and "prepare scope for BASIX assessor". Do not answer these as\n'
         "free text only; queue the artefact, return its run id, and use the workflow\n"
         "status/result tools for follow-up.\n"
         "Generated artefacts are not independent project evidence unless they point to an\n"
@@ -399,25 +404,29 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "Do not inspect repository files, run shell commands, or query the database directly\n"
         "to answer questions about uploaded source documents.\n"
         "Only use OCR or document-conversion skills when these tools report text is unavailable,\n"
-            "or when the ingested text is clearly garbled or insufficient for the user's question.\n"
-            "</document-access>\n"
-            "\n"
-            '<project-snapshot schema-version="1">\n'
-            "content_fingerprint: snapshot-fingerprint\n"
-            "profile_revision: 1\n"
-            "decision_set_revision: 1\n"
-            "evidence_fingerprint: evidence-fingerprint\n"
-            "active_evidence_count: 0\n"
-                "ingest_failure_count: 0\n"
-                "open_profile_proposals: 0\n"
-                "workflow.consultant_procurement=needs_input; required_fields=building_class,work_type,user_role; reasons=Complete the required project profile fields.\n"
-                "workflow.create_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
-                "workflow.create_pmp=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Complete the required project profile fields.\n"
-                "workflow.tender_comparison=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Tender Comparison requires confirmed Class 1a project context.\n"
-                "workflow.update_pmp=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Complete the required project profile fields.\n"
-                "</project-snapshot>\n"
-            "\n"
-            "<recent-conversation>\n"
+        "or when the ingested text is clearly garbled or insufficient for the user's question.\n"
+        "</document-access>\n"
+        "\n"
+        '<project-snapshot schema-version="1">\n'
+        "content_fingerprint: snapshot-fingerprint\n"
+        "profile_revision: 1\n"
+        "decision_set_revision: 1\n"
+        "open_decision_count: 0\n"
+        "evidence_fingerprint: evidence-fingerprint\n"
+        "active_evidence_count: 0\n"
+        "ingest_failure_count: 0\n"
+        "open_profile_proposals: 0\n"
+        "workflow.approved_tender_cost_handoff=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
+        "workflow.consultant_procurement=needs_input; required_fields=building_class,work_type,user_role; reasons=Complete the required project profile fields.\n"
+        "workflow.create_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
+        "workflow.create_pmp=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Complete the required project profile fields.\n"
+        "workflow.edit_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
+        "workflow.refresh_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
+        "workflow.tender_comparison=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Tender Comparison requires confirmed Class 1a project context.\n"
+        "workflow.update_pmp=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Complete the required project profile fields.\n"
+        "</project-snapshot>\n"
+        "\n"
+        "<recent-conversation>\n"
         "user: What quotes do we have?\n"
         "assistant: Three structural quotes are on file.\n"
         "</recent-conversation>\n"
@@ -591,7 +600,9 @@ def test_agent_stream_pi_runtime_receives_project_context(
     assistant_session = AsyncMock()
     seen: dict[str, str] = {}
 
-    async def fake_create_message(session, *, thread_id, role, content, message_data=None):
+    async def fake_create_message(
+        session, *, thread_id, role, content, message_data=None
+    ):
         return ChatMessage(
             id=uuid.uuid4(),
             thread_id=thread_id,
@@ -668,7 +679,9 @@ def test_agent_stream_pi_runtime_receives_project_context(
         lambda: _SessionFactory(assistant_session),
     )
 
-    with client.stream("POST", "/chat/agent/stream", json=BODY_WITH_PI_RUNTIME) as response:
+    with client.stream(
+        "POST", "/chat/agent/stream", json=BODY_WITH_PI_RUNTIME
+    ) as response:
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
@@ -688,8 +701,13 @@ def test_agent_stream_pi_runtime_receives_project_context(
     calls = chat_api.create_message.await_args_list
     assert calls[1].kwargs["content"] == "Walsh Reno is a residential refurbishment."
     assert calls[1].kwargs["message_data"]["agent"]["runtime"] == "pi"
-    assert calls[1].kwargs["message_data"]["agent"]["sourceTrace"]["context"]["used"] is True
-    assert calls[1].kwargs["message_data"]["agent"]["sourceTrace"]["model"]["used"] is True
+    assert (
+        calls[1].kwargs["message_data"]["agent"]["sourceTrace"]["context"]["used"]
+        is True
+    )
+    assert (
+        calls[1].kwargs["message_data"]["agent"]["sourceTrace"]["model"]["used"] is True
+    )
 
 
 def test_agent_cancel_requires_thread_owner_and_cancels(

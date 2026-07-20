@@ -12,6 +12,8 @@ class WorkflowCapability(BaseModel):
     status: WorkflowCapabilityStatus
     reasons: list[str] = Field(default_factory=list)
     required_fields: list[str] = Field(default_factory=list)
+    required_confirmations: list[str] = Field(default_factory=list)
+    reference_coverage: list[str] = Field(default_factory=list)
 
 
 class WorkflowCapabilityMatrix(BaseModel):

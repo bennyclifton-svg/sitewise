@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
+from app.cost_plan.service import accept_cost_plan_version
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
@@ -39,8 +40,12 @@ async def revise_workflow_artefact(
         raise ArtefactPolicyViolation("artefact does not belong to project")
     if draft.workflow_type == "tender_report":
         raise ArtefactPolicyViolation("Tender reports can only be revised by TCM")
+    if is_cost_plan_workflow(draft.workflow_type):
+        raise ArtefactPolicyViolation(
+            "Cost Plans are canonical typed state; use the row, contingency, assumption, or refresh actions"
+        )
 
-    if is_pmp_workflow(draft.workflow_type) or is_cost_plan_workflow(draft.workflow_type):
+    if is_pmp_workflow(draft.workflow_type):
         locked = await locked_selections(session, project_id=project.id)
         content_markdown = restamp_decisions(content_markdown, locked)
 
@@ -125,6 +130,11 @@ async def accept_workflow_artefact(
             workflow_type=draft.workflow_type,
         )
     elif is_cost_plan_workflow(draft.workflow_type):
+        await accept_cost_plan_version(
+            session,
+            project_id=project.id,
+            artefact_revision_id=draft.id,
+        )
         await sync_cost_plan_revision_artifacts(
             session, project=project, draft=draft, markdown=draft.content_markdown
         )

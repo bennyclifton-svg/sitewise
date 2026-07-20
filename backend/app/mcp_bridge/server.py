@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import re
 import uuid
+from decimal import Decimal
 from collections import Counter
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -88,6 +90,16 @@ from app.projects.workflow_capabilities import (
     capability_block_message,
     workflow_capabilities,
 )
+from app.cost_plan.dependencies import dependency_snapshot as cost_dependency_snapshot
+from app.cost_plan.schemas import CostItemInput
+from app.cost_plan.service import (
+    apply_external_proposal,
+    get_cost_plan as read_typed_cost_plan,
+    set_contingency as persist_cost_contingency,
+    set_cost_plan_assumption as persist_cost_assumption,
+    upsert_cost_item as persist_cost_item,
+)
+from app.mcp_bridge.tender_cost_handoff import map_tender_handoff
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
 from app.schemas.workflow_runs import WorkflowRunStartRequest, WorkflowRunView
@@ -135,6 +147,10 @@ from tender.services.project_context_adapter import (
     ProjectContextAdapter,
 )
 from tender.schemas import TenderIntakeRequest
+from tender.services.cost_handoff import (
+    TenderCostHandoffError,
+    approved_tender_cost_handoff,
+)
 
 mcp = FastMCP("clerk")
 
@@ -918,6 +934,25 @@ async def get_project_snapshot(project_id: str) -> dict:
 
 
 @mcp.tool
+async def get_project_next_actions(project_id: str) -> list[dict[str, Any]]:
+    """Return deterministic next actions with blocking facts and exact routes/tools."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        snapshot = await read_project_snapshot(
+            session,
+            project_id=pid,
+            owner_user_id=authorization.project.owner_user_id,
+        )
+        return [item.model_dump(mode="json") for item in snapshot.next_actions]
+
+
+@mcp.tool
 async def get_workflow_capabilities(project_id: str) -> dict:
     """Return authoritative workflow support, missing inputs, and coverage limits."""
     pid = uuid.UUID(project_id)
@@ -940,6 +975,7 @@ _MCP_WORKFLOW_CAPABILITIES = {
     "create_project_plan": "create_pmp",
     "refresh_project_plan": "update_pmp",
     "create_cost_plan": "create_cost_plan",
+    "refresh_cost_plan": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
 }
 
@@ -993,7 +1029,11 @@ async def _start_mcp_workflow(
             await session.commit()
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
-        except (ValidationError, WorkflowRunConflict, WorkflowRunCapabilityConflict) as exc:
+        except (
+            ValidationError,
+            WorkflowRunConflict,
+            WorkflowRunCapabilityConflict,
+        ) as exc:
             raise ToolError(f"workflow_run_conflict: {exc}") from exc
     await agent_turn_status_bus.publish(
         _turn_id(authorization),
@@ -1061,7 +1101,7 @@ async def start_cost_plan(
     expected_decision_set_revision: int,
     chat_model: str | None = None,
 ) -> dict:
-    """Queue Cost Plan creation; Cost Plan refresh is intentionally unavailable."""
+    """Queue Cost Plan creation from an exact frozen project snapshot."""
     return await _start_mcp_workflow(
         project_id=project_id,
         workflow_type="create_cost_plan",
@@ -1071,6 +1111,218 @@ async def start_cost_plan(
         expected_decision_set_revision=expected_decision_set_revision,
         chat_model=chat_model,
     )
+
+
+@mcp.tool
+async def refresh_cost_plan(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    expected_artefact_version: int,
+    proposed_items: list[dict],
+) -> dict:
+    """Queue a proposed typed Cost Plan refresh; locked/manual rows are preserved."""
+    validated_items = [
+        CostItemInput.model_validate(item).model_dump(mode="json")
+        for item in proposed_items
+    ]
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="refresh_cost_plan",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        expected_artefact_version=expected_artefact_version,
+        parameters={"proposed_items": validated_items},
+    )
+
+
+@mcp.tool
+async def get_cost_plan(project_id: str, version: int | None = None) -> dict:
+    """Read one canonical typed Cost Plan version for the authorized project."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            state = await read_typed_cost_plan(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+                version=version,
+            )
+        except (ToolAuthError, ValueError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return state.model_dump(mode="json")
+
+
+@mcp.tool
+async def upsert_cost_item(
+    project_id: str,
+    expected_base_version: int,
+    item: dict,
+) -> dict:
+    """Create a proposed revision changing only one validated typed cost item."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            snapshot = await read_project_snapshot(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+            )
+            result = await persist_cost_item(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                item=CostItemInput.model_validate(item),
+                current_snapshot=snapshot,
+            )
+            await session.commit()
+        except (
+            ToolAuthError,
+            ValidationError,
+            ValueError,
+            RuntimeError,
+            LookupError,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+@mcp.tool
+async def set_contingency(
+    project_id: str,
+    expected_base_version: int,
+    percent: str,
+) -> dict:
+    """Create a proposed revision with a new deterministic contingency percentage."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            snapshot = await read_project_snapshot(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+            )
+            result = await persist_cost_contingency(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                percent=Decimal(percent),
+                current_snapshot=snapshot,
+            )
+            await session.commit()
+        except (ToolAuthError, ValueError, RuntimeError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+@mcp.tool
+async def set_cost_plan_assumption(
+    project_id: str,
+    expected_base_version: int,
+    key: str,
+    value: str,
+) -> dict:
+    """Create a proposed revision changing one explicit Cost Plan assumption."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            snapshot = await read_project_snapshot(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+            )
+            result = await persist_cost_assumption(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                key=key,
+                value=value,
+                current_snapshot=snapshot,
+            )
+            await session.commit()
+        except (ToolAuthError, ValueError, RuntimeError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+@mcp.tool
+async def apply_approved_tender_to_cost_plan(
+    project_id: str,
+    comparison_id: str,
+    selected_quote_id: str,
+    package_scope: str,
+    expected_base_version: int,
+    confirm_apply_as_proposal: bool,
+) -> dict:
+    """Apply an explicitly selected, R3-approved Tender as a proposed Cost revision."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            handoff = await approved_tender_cost_handoff(
+                session,
+                comparison_id=uuid.UUID(comparison_id),
+                selected_quote_id=uuid.UUID(selected_quote_id),
+                package_scope=package_scope,
+                operator_user_id=authorization.claims.user_id,
+            )
+            proposal = map_tender_handoff(handoff)
+            snapshot = await read_project_snapshot(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+            )
+            state = await apply_external_proposal(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                proposal=proposal,
+                confirmed=confirm_apply_as_proposal,
+                dependency_snapshot=cost_dependency_snapshot(
+                    snapshot,
+                    upstream_artefacts=[
+                        {
+                            "id": str(handoff.report_id),
+                            "version": handoff.report_version,
+                            "type": "tender_report",
+                        }
+                    ],
+                    runtime_version="clerk-tender-cost-handoff-v1",
+                ),
+            )
+            await session.commit()
+        except (
+            ToolAuthError,
+            TenderCostHandoffError,
+            ValidationError,
+            ValueError,
+            RuntimeError,
+            LookupError,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return state.model_dump(mode="json")
 
 
 @mcp.tool
@@ -1753,7 +2005,9 @@ async def find_candidate_tender_documents(project_id: str) -> list[dict]:
 
 
 @mcp.tool
-async def get_tender_quote_selection(project_id: str, revision: int | None = None) -> dict:
+async def get_tender_quote_selection(
+    project_id: str, revision: int | None = None
+) -> dict:
     """Return the exact ordered, revisioned Tender quote-group selection."""
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
@@ -1782,7 +2036,9 @@ async def replace_tender_quote_selection(
             authorization = await authorize_project_mutation_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
-            candidates = [QuoteCandidateInput.model_validate(value) for value in quote_candidates]
+            candidates = [
+                QuoteCandidateInput.model_validate(value) for value in quote_candidates
+            ]
             selection = await persist_document_selection(
                 session,
                 project_id=pid,
@@ -1792,7 +2048,12 @@ async def replace_tender_quote_selection(
                 actor_source="agent",
             )
             await session.commit()
-        except (ToolAuthError, SelectionRevisionConflict, SelectionValidationError, ValidationError) as exc:
+        except (
+            ToolAuthError,
+            SelectionRevisionConflict,
+            SelectionValidationError,
+            ValidationError,
+        ) as exc:
             raise ToolError(str(exc)) from exc
         return selection.model_dump(mode="json")
 

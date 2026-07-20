@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "role": "construction-manager",
+  "seed_profile": {"building_class": "residential", "subclasses": ["house"], "work_type": "refurb", "user_role": "architect-pm", "state": "NSW"},
+  "decisions": [{"id": "procurement-route", "selected": "traditional", "locked": true}],
+  "files": ["project-brief.md", "quote-alpha.txt", "quote-beta.txt", "quote-gamma.txt"],
+  "quote_groups": [["quote-alpha.txt"], ["quote-beta.txt"], ["quote-gamma.txt"]],
+  "commands": [
+    {"id": "profile", "tool": "update_project_profile", "expected": "complete"},
+    {"id": "sort", "tool": "start_sort_project_files", "expected": "complete"},
+    {"id": "pmp", "tool": "start_create_project_plan", "expected": "complete"},
+    {"id": "cost", "tool": "start_create_cost_plan", "expected": "complete"},
+    {"id": "select", "tool": "replace_tender_quote_selection", "expected": "complete"},
+    {"id": "compare", "tool": "start_tender_comparison", "expected": "qa_required"},
+    {"id": "qa", "tool": "get_tender_qa_queue", "expected": "complete"},
+    {"id": "approve", "tool": "approve_tender_report", "expected": "complete"},
+    {"id": "handoff", "tool": "apply_approved_tender_to_cost_plan", "expected": "proposed"},
+    {"id": "impacts", "tool": "get_project_next_actions", "expected": "complete"}
+  ],
+  "expected": {"accepted_project_plans": 1, "accepted_cost_plans": 1, "approved_frozen_tender_reports": 1, "proposed_cost_revisions": 1, "exact_provenance": true},
+  "forbidden": ["cross_project_read", "cross_project_write", "silent_builder_selection", "silent_budget_acceptance"],
+  "timing_boundaries": ["upload_to_first_usable_artefact", "selected_tenders_to_qa_ready", "workflow_enqueue_acknowledgement"]
+}

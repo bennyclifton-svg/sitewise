@@ -26,6 +26,7 @@ from app.database.stripe_subscription import StripeSubscription
 from app.database.user import User
 from app.database.workspace_file import WorkspaceFile
 from app.database.workflow_run import WorkflowRun
+from app.cost_plan.models import CostPlanItem, CostPlanVersion
 
 __all__ = [
     "Base",
@@ -54,4 +55,6 @@ __all__ = [
     "User",
     "WorkspaceFile",
     "WorkflowRun",
+    "CostPlanItem",
+    "CostPlanVersion",
 ]

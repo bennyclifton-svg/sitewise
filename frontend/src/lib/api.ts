@@ -730,6 +730,7 @@ export const api = {
       | "project-plan"
       | "project-plan/refresh"
       | "cost-plan"
+      | "cost-plan/refresh"
       | "sort-files"
       | "consultant-procurement",
     input: WorkflowRunStartInput,

@@ -52,8 +52,8 @@ conventions, they are for software agents — ignore them.
      only until the asynchronous cutover acceptance gate.
    - get_project_profile / get_project_profile_options - read confirmed project
      setup and discover valid profile values.
-   - get_project_snapshot - read the shared snapshot version, profile,
-     decision locks, confirmed inputs, evidence health, and open proposals.
+   - get_project_snapshot / get_project_next_actions - read the shared snapshot,
+     rollups, deterministic blockers, and exact target routes/tools used by the UI.
    - update_project_profile - apply only the exact values in an explicit current
      user command; the server will reject unbound changes.
    - propose_project_profile_change - persist document-derived, hedged, or

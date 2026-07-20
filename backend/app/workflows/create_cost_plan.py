@@ -19,7 +19,12 @@ from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
-from app.projects.workflow_capabilities import CREATE_COST_PLAN, capability_block_message
+from app.projects.workflow_capabilities import (
+    CREATE_COST_PLAN,
+    capability_block_message,
+)
+from app.cost_plan.import_legacy import import_legacy_draft
+from app.cost_plan.schemas import CostPlanState, DependencySnapshot
 from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
@@ -27,7 +32,11 @@ from app.storage.project_files import upload_project_file
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
-from app.schemas.projects import CreateCostPlanResponse, DraftArtifactResponse, WorkflowTraceEvent
+from app.schemas.projects import (
+    CreateCostPlanResponse,
+    DraftArtifactResponse,
+    WorkflowTraceEvent,
+)
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.cost_plan_brief import (
     build_greenfield_brief,
@@ -44,7 +53,10 @@ from app.sitewise.cost_plan_evidence_validation import (
     cost_plan_evidence_grounded_violations,
     ensure_evidence_grounded_cost_plan_scaffold,
 )
-from app.sitewise.cost_plan_workbook import build_cost_plan_workbook
+from app.sitewise.cost_plan_workbook import (
+    build_cost_plan_workbook,
+    build_typed_cost_plan_workbook,
+)
 from app.sitewise.cost_plan_sources import (
     document_title_for_role,
     required_platform_paths,
@@ -155,9 +167,18 @@ _COST_EVIDENCE_RESERVATIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("fee", ("fee-proposal", "fee_proposal")),
     (
         "brief",
-        ("owner-project-brief", "owner_project_brief", "owner-brief", "project-brief", "03-owner-project-brief"),
+        (
+            "owner-project-brief",
+            "owner_project_brief",
+            "owner-brief",
+            "project-brief",
+            "03-owner-project-brief",
+        ),
     ),
-    ("planning", ("planning-pathway", "planning_pathway", "09-planning-pathway", "09-planning")),
+    (
+        "planning",
+        ("planning-pathway", "planning_pathway", "09-planning-pathway", "09-planning"),
+    ),
     ("geotech", ("geotechnical", "geotech", "06-geotechnical")),
     ("programme", ("master-programme", "master_programme", "11-master-programme")),
     ("certifier", ("certifier-appointment", "12-certifier", "certifier")),
@@ -273,7 +294,9 @@ def _cost_path_priority(relative_path: str) -> int:
 
 def _path_matches_cost_evidence(relative_path: str) -> bool:
     path_lower = relative_path.lower().replace("\\", "/")
-    return any(marker.replace("\\", "/") in path_lower for marker in COST_EVIDENCE_PATH_MARKERS)
+    return any(
+        marker.replace("\\", "/") in path_lower for marker in COST_EVIDENCE_PATH_MARKERS
+    )
 
 
 def select_cost_evidence_paths(relative_paths: list[str], *, limit: int) -> list[str]:
@@ -332,9 +355,9 @@ async def load_cost_project_evidence_documents(
             session,
             project_id=project_id,
         )
-    merged_paths = list(
-        dict.fromkeys(semantic_relative_paths + marker_paths)
-    )[:CREATE_COST_PLAN_MAX_EVIDENCE_DOCS]
+    merged_paths = list(dict.fromkeys(semantic_relative_paths + marker_paths))[
+        :CREATE_COST_PLAN_MAX_EVIDENCE_DOCS
+    ]
     if not merged_paths:
         return []
 
@@ -514,7 +537,9 @@ async def run_create_cost_plan_model(
         )
     prompt = "\n\n".join(prompt_parts)
     resolved_model = resolve_chat_model(chat_model)
-    result = await run_agent_with_retry(create_cost_plan_agent, prompt, model=resolved_model)
+    result = await run_agent_with_retry(
+        create_cost_plan_agent, prompt, model=resolved_model
+    )
     return result.output
 
 
@@ -570,7 +595,9 @@ def _required_evidence_fact_issues(
             "evidenced architect/PM fee is missing from cost plan "
             f"({_money_variants(pack.fee_total_ex_gst)})"
         )
-    if pack.contingency_amount and not _contains_money(markdown, pack.contingency_amount):
+    if pack.contingency_amount and not _contains_money(
+        markdown, pack.contingency_amount
+    ):
         issues.append(
             "evidenced owner contingency is missing from cost plan "
             f"({_money_variants(pack.contingency_amount)})"
@@ -598,15 +625,21 @@ def validate_cost_plan_output(
     source_texts: list[str] | None = None,
 ) -> None:
     if not output.seed_consulted:
-        raise WorkflowValidationError("Create Cost Plan output did not identify seed consulted.")
+        raise WorkflowValidationError(
+            "Create Cost Plan output did not identify seed consulted."
+        )
     if not output.context_refs:
         raise WorkflowValidationError(
             "Create Cost Plan output did not identify doctrine or seed context references."
         )
     if draft_mode == "evidence_grounded" and not output.evidence_refs:
-        raise WorkflowValidationError("Create Cost Plan output did not identify evidence references.")
+        raise WorkflowValidationError(
+            "Create Cost Plan output did not identify evidence references."
+        )
     if "# " not in output.markdown and "## " not in output.markdown:
-        raise WorkflowValidationError("Create Cost Plan output is not structured as Markdown.")
+        raise WorkflowValidationError(
+            "Create Cost Plan output is not structured as Markdown."
+        )
 
     missing_seeds = seed_consulted_includes_required(
         output.seed_consulted,
@@ -796,13 +829,22 @@ async def save_cost_plan_workbook_artifact(
     project: Project,
     draft: DraftArtifact,
     markdown: str,
+    typed_state: CostPlanState | None = None,
 ) -> dict:
     generated_at = datetime.now(UTC)
-    workbook = build_cost_plan_workbook(
-        project_title=project.title,
-        markdown=markdown,
-        version=draft.version,
-        generated_at=generated_at,
+    workbook = (
+        build_typed_cost_plan_workbook(
+            project_title=project.title,
+            state=typed_state,
+            generated_at=generated_at,
+        )
+        if typed_state is not None
+        else build_cost_plan_workbook(
+            project_title=project.title,
+            markdown=markdown,
+            version=draft.version,
+            generated_at=generated_at,
+        )
     )
     workspace_path = workbook_workspace_path(project, draft.version)
     storage_key = build_storage_key(str(project.id), workspace_path)
@@ -860,7 +902,9 @@ def _evidence_refs_from_passages(
 
 
 def _context_refs_from_passages(passages: list[SourcePassage]) -> list[str]:
-    return [_source_ref(passage) for passage in passages if _is_platform_passage(passage)]
+    return [
+        _source_ref(passage) for passage in passages if _is_platform_passage(passage)
+    ]
 
 
 def _seed_consulted_from_passages(passages: list[SourcePassage]) -> list[str]:
@@ -1042,7 +1086,9 @@ async def run_create_cost_plan_workflow(
             trace=trace,
             status="blocked",
         )
-        return CreateCostPlanResponse(status="blocked", gate=gate, trace=trace, message=message)
+        return CreateCostPlanResponse(
+            status="blocked", gate=gate, trace=trace, message=message
+        )
 
     capability_message = (
         capability_block_message(snapshot, CREATE_COST_PLAN)
@@ -1094,7 +1140,9 @@ async def run_create_cost_plan_workflow(
             trace=trace,
             status="failed",
         )
-        return CreateCostPlanResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreateCostPlanResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     if missing_paths:
         message = (
@@ -1121,7 +1169,9 @@ async def run_create_cost_plan_workflow(
             trace=trace,
             status="failed",
         )
-        return CreateCostPlanResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreateCostPlanResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     retrieval_message = (
         f"Loaded {project_count} project cost evidence document(s) and "
@@ -1164,7 +1214,9 @@ async def run_create_cost_plan_workflow(
             trace=trace,
             status="failed",
         )
-        return CreateCostPlanResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreateCostPlanResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     project_source_texts = _project_source_texts(passages, project_id=project.id)
     use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
@@ -1246,7 +1298,9 @@ async def run_create_cost_plan_workflow(
             trace=trace,
             status="failed",
         )
-        return CreateCostPlanResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreateCostPlanResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     trace.append(
         _trace(
@@ -1287,6 +1341,26 @@ async def run_create_cost_plan_workflow(
             "platform_passages": platform_count,
             "platform_retrieval": "overlay_mandatory_paths",
         },
+        "dependency_snapshot": DependencySnapshot(
+            profile_revision=(
+                snapshot.profile.profile_revision
+                if snapshot is not None
+                else (project.profile_revision or 1)
+            ),
+            evidence_fingerprint=(
+                snapshot.evidence.fingerprint
+                if snapshot is not None
+                else "legacy-synchronous-workflow"
+            ),
+            decision_set_revision=(
+                snapshot.decisions.set_revision
+                if snapshot is not None
+                else (project.decision_set_revision or 1)
+            ),
+            model_version=resolved_model,
+            prompt_version="create_cost_plan_instructions.md",
+            runtime_version=runtime_name,
+        ).model_dump(mode="json"),
     }
 
     persistence_started = time.perf_counter()
@@ -1304,6 +1378,26 @@ async def run_create_cost_plan_workflow(
         expected_base_version=existing_version - 1,
         actor_source="cost_plan_workflow",
         provenance_metadata=provenance_metadata,
+    )
+    typed_import = await import_legacy_draft(
+        session,
+        draft=draft,
+        apply=True,
+        require_accepted=False,
+    )
+    typed_state = CostPlanState(
+        id=typed_import.typed_version_id,
+        project_id=project.id,
+        artefact_revision_id=draft.id,
+        version=draft.version,
+        dependency_snapshot=DependencySnapshot.model_validate(
+            provenance_metadata["dependency_snapshot"]
+        ),
+        assumptions={
+            "typed_source": "Validated Cost Plan workflow output",
+            "gst": "Exclusive until explicitly changed",
+        },
+        items=list(typed_import.items),
     )
     await sync_decisions_from_markdown(
         session,
@@ -1334,6 +1428,7 @@ async def run_create_cost_plan_workflow(
         project=project,
         draft=draft,
         markdown=output.markdown,
+        typed_state=typed_state,
     )
     trace.append(
         _trace(
@@ -1353,9 +1448,7 @@ async def run_create_cost_plan_workflow(
     await session.flush()
     await session.refresh(draft)
 
-    content = (
-        f"Create Cost Plan completed. Draft v{draft.version} is ready for review: {draft.title}"
-    )
+    content = f"Create Cost Plan completed. Draft v{draft.version} is ready for review: {draft.title}"
     await _persist_trace_message(
         session,
         project_id=project.id,

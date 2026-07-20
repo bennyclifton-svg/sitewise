@@ -841,70 +841,149 @@ and QS approval required for customer exposure and downstream handoff.
 Objective: make typed cost state canonical, arithmetic deterministic, row edits
 safe, and Tender-to-Cost handoff explicit, proposed, and reversible.
 
-- [ ] **7.1 — Extend capabilities for typed Cost Plan actions**
+- [x] **7.1 — Extend capabilities for typed Cost Plan actions**
   - Dependencies: 1.9, workflow contracts.
   - Gate: UI and agent share exact create/refresh/edit/handoff capability and
     unsupported reference coverage is explicit.
-- [ ] **7.2A — Add canonical Cost Plan schema**
+- [x] **7.2A — Add canonical Cost Plan schema**
   - Dependencies: 3.2A, 4.1, migration safety.
   - Gate: immutable versions, Decimal-safe fields, constraints, tenancy,
     upgrade/downgrade, and two-owner isolation pass.
-- [ ] **7.2B — Import existing Cost Plan drafts once**
+- [x] **7.2B — Import existing Cost Plan drafts once**
   - Dependencies: 7.2A.
   - Gate: dry-run is default, warnings are explicit, totals reconcile, source
     drafts remain audit evidence, and apply is idempotent.
-- [ ] **7.2C — Implement deterministic Cost Plan arithmetic**
+- [x] **7.2C — Implement deterministic Cost Plan arithmetic**
   - Dependencies: 7.2A and explicit financial rules.
   - Gate: exact fixtures cover rounding, GST, allowances, contingency,
     escalation, variance, and invalid inputs with no float/model arithmetic.
-- [ ] **7.3A — Render Cost Plan markdown from typed state**
+- [x] **7.3A — Render Cost Plan markdown from typed state**
   - Dependencies: 7.2C, Artefact Revision.
   - Gate: rendered rows/totals exactly match fixtures and retain provenance.
-- [ ] **7.3B — Render the workbook from typed state**
+- [x] **7.3B — Render the workbook from typed state**
   - Dependencies: 7.3A.
   - Gate: workbook and markdown agree exactly and no markdown reparsing remains.
-- [ ] **7.4A — Add narrow Cost Plan read/edit tools**
+- [x] **7.4A — Add narrow Cost Plan read/edit tools**
   - Dependencies: 7.2C, 7.3A–B.
   - Gate: expected-base mutations change only typed targets, recalculate in
     Python, regenerate exports, enforce tenancy, and never rank builders.
-- [ ] **7.4B — Add the approved-Tender Cost handoff**
+- [!] **7.4B — Add the approved-Tender Cost handoff**
   - Dependencies: 3.2E, R3 customer, 7.2–7.3.
   - Gate: only approved/frozen/QS-passed/operator-approved results cross through
     immutable DTOs after explicit quote/package choice; apply is idempotent and
     creates only a proposed Cost revision.
-- [ ] **7.4C — Add safe Cost Plan refresh**
+- [x] **7.4C — Add safe Cost Plan refresh**
   - Dependencies: typed state, Workflow Run, Artefact Revision.
   - Gate: refresh uses frozen/current typed inputs plus expected base, preserves
     locked items, and returns exact conflicts/proposals without auto-acceptance.
-- [ ] **7.5 — Add dependency snapshots and stale reasons**
+- [~] **7.5 — Add dependency snapshots and stale reasons**
   - Dependencies: profile, evidence, decisions, artefact, and handoff revisions.
   - Gate: deterministic stale reasons identify affected outputs; dependency
     cycles are rejected; historical Tender context remains frozen.
 
 ### R4 release record
 
-- [ ] Typed schema/import/arithmetic/rendering gates pass.
-- [ ] Row tools and refresh pass revision, conflict, provenance, and tenancy tests.
+- [x] Typed schema/import/arithmetic/rendering gates pass.
+- [x] Row tools and refresh pass revision, conflict, provenance, and tenancy tests.
 - [ ] Approved-Tender handoff passes R3 customer prerequisites.
-- [ ] No budget or builder decision is silently accepted.
-- [ ] Proposed revisions are visibly reversible.
+- [x] No budget or builder decision is silently accepted.
+- [x] Proposed revisions are visibly reversible.
 - [ ] Rollback to the prior accepted Cost Plan version has been exercised.
+
+### Stage 8 implementation record — 2026-07-19
+
+Status: implemented and validated except for the predecessor-blocked approved-
+Tender activation and the dependent final stale-impact path.
+
+Owner/agent: Codex
+
+Branch/worktree: existing `main` working tree; unrelated untracked assets and
+project data were preserved.
+
+Commit/PR: uncommitted for review.
+
+Started: 2026-07-19
+
+Completed: 2026-07-19 for 7.1, 7.2A-C, 7.3A-B, 7.4A, and 7.4C.
+
+Predecessors verified: 1.9, 3.2A, 3.2C, 3.2E, and 4.1 are present in the
+tracker and repository history. R3 customer, 6.4, and 6.5 remain incomplete;
+therefore 7.4B activation and the Tender-dependent portion of 7.5 remain
+blocked without weakening the QS gate.
+
+Implementation:
+
+- `034_typed_cost_plans` adds Decimal-safe immutable Cost Plan versions/items,
+  project/user/artefact FKs, uniqueness/check constraints, owner RLS, reviewed
+  grants, indexes, and downgrade support.
+- accepted Markdown Cost Plans have a dry-run-by-default, idempotent operator
+  importer with explicit unparsed-row and reconciliation warnings; new Cost
+  Plan creation registers canonical typed state before rendering its workbook.
+- Python `Decimal` calculations own budget, commitment, forecast, paid,
+  variance, allowances, contingency, escalation, GST, and totals. Floats,
+  incomplete unit/rate triples, and inconsistent quantity/rate budgets fail.
+- Markdown and workbook render directly from typed state. The Markdown parser
+  remains only as the explicitly retained legacy-import adapter until the
+  Phase 8.5 cutover gate.
+- MCP exposes `get_cost_plan`, `upsert_cost_item`, `set_contingency`, and
+  `set_cost_plan_assumption`; every mutation uses an expected base version and
+  creates a proposed Artefact Revision with pending Markdown/workbook exports.
+- HTTP, MCP, and the project UI share the durable `refresh_cost_plan` Workflow
+  Run path. Locked/manual rows survive and changed rows/conflicts are explicit.
+- core workflow artefacts and typed Cost revisions record frozen dependency
+  snapshots; deterministic stale reasons and cycle rejection are covered.
+- TCM owns `ApprovedTenderCostHandoff`; the MCP composition adapter maps it to
+  a generic immutable external Cost proposal. The runtime rejects use unless
+  the frozen report provenance contains resolved mandatory QA and a passed QS
+  gate, so current reports cannot bypass the unfinished R3 customer gate.
+
+Validation commands and exact results:
+
+- `backend/.venv/Scripts/python.exe -m pytest -q` — 1,175 passed, 6 skipped,
+  23 deselected in 209.66 s; three pre-existing AsyncMock warnings.
+- focused typed Cost Plan/project/workbook/workflow suite — 40 passed,
+  2 integration tests deselected in 6.81 s.
+- MCP and project database suite — 72 passed in 12.07 s.
+- disposable pgvector PostgreSQL: `alembic upgrade head`; typed constraint,
+  idempotency, and two-owner isolation acceptance — 1 passed; `alembic
+  downgrade 033_remove_unused_hermes_session`; `alembic upgrade head` — passed.
+- `backend/.venv/Scripts/python.exe -m alembic heads` — one head,
+  `034_typed_cost_plans`.
+- `backend/.venv/Scripts/python.exe -m ruff check .` — passed. The repository's
+  pre-existing full-tree format baseline remains non-green; all changed Python
+  files pass `ruff format --check`.
+- `pnpm test -- --run` — 31 files / 113 tests passed.
+- `pnpm exec tsc --noEmit` — passed.
+- `pnpm lint` — 0 errors, one existing TanStack Virtual compatibility warning.
+- `pnpm build` — passed; enforced initial cockpit bundle 246,856 bytes gzip
+  (budget 256,000), and zero Three.js outside the style demo.
+
+Rollout result: not performed.
+
+Rollback result or procedure verified: the additive typed-schema downgrade and
+re-upgrade passed on disposable PostgreSQL. Production data/application rollback
+and rollback to a prior accepted Cost Plan version were not exercised.
+
+Remaining risks/notes: 7.4B must remain blocked until the Stage 7 corpus,
+evaluation, QS acceptance, and frozen quality provenance are complete. That
+same prerequisite blocks the `tender_approved_after_cost_plan` end-to-end 7.5
+gate and R4. No production migration or legacy deletion was performed.
 
 ## Stage 9 — Project intelligence, production acceptance, and cutover
 
 Objective: provide one deterministic project overview, prove role journeys in
 production, test recovery/rollback, and only then remove legacy paths.
 
-- [ ] **8.1 — Enrich Project Snapshot with rollups and next actions**
+- [x] **8.1 — Enrich Project Snapshot with rollups and next actions**
   - Dependencies: R1–R4 components as applicable.
   - Gate: UI and agent share one snapshot; every next action names its blocking
     fact and target route/tool; unsupported workflows are never recommended.
-- [ ] **8.2 — Role-based product acceptance**
+- [~] **8.2 — Role-based product acceptance**
   - Dependencies: 8.1 and complete isolated fixtures/harness.
   - Gate: construction manager, architect, and design manager scenarios achieve
     100% required assertions and expected typed outcomes with zero cross-project
     access or silent acceptance.
-- [ ] **8.3 — Production gate and legacy cutover**
+- [!] **8.3 — Production gate and legacy cutover**
   - Dependencies: all prior applicable gates.
   - [ ] Validate DB, storage, Hermes/Pi, MCP, SSE, both workers, ODL, Stripe,
     isolation, cancellation, recovery, the full role journey, bundles, and
@@ -915,6 +994,70 @@ production, test recovery/rollback, and only then remove legacy paths.
     completion ledgers.
   - Gate: all production acceptance and rollback requirements pass before any
     legacy deletion begins.
+
+### Stage 9 local implementation record — 2026-07-20
+
+Status: 8.1 complete in code and focused local acceptance; 8.2 manifests and
+fixture-contract harness complete but role journeys remain pending; 8.3 blocked.
+
+Owner/agent: Codex
+
+Branch/worktree: existing `main` working tree; Stage 8 and unrelated user files
+were preserved.
+
+Commit/PR: uncommitted for review.
+
+Predecessors verified: the local Stage 8 implementation and focused tests are
+present. Stage 7 customer Tender evaluation/QS acceptance, production rollout,
+live SLOs, and earlier runtime/rollback gates remain open and were not bypassed.
+
+Implementation:
+
+- the canonical Project Snapshot now includes purpose selections, latest
+  artefacts and stale reasons, active/failed workflow runs, a core-owned Tender
+  projection, open-decision count, and the latest typed Cost Plan budget summary;
+- deterministic next actions include an exact blocking fact, route, and MCP
+  tool and are filtered through the shared capability matrix, so unsupported
+  workflows are not recommended;
+- HTTP cockpit bootstrap, the dedicated HTTP read, MCP snapshot/next-action
+  tools, agent turn context, and cockpit UI consume that shared result;
+- the three role manifests, anonymised synthetic fixture set, and an offline
+  manifest/fixture contract harness were added;
+- `docs/runbooks/stage-9-production-acceptance.md` records the live acceptance,
+  recovery, rollback, reconciliation, and cutover procedure.
+
+Validation commands and exact results:
+
+- `backend/.venv/Scripts/python.exe -m pytest -q
+  tests/acceptance/test_role_scenarios.py
+  tests/projects/test_project_intelligence.py tests/projects/test_snapshot.py
+  tests/mcp_bridge/test_decision_tools.py tests/agent/test_agent_chat_api.py
+  tests/test_project_cockpit_bootstrap.py` — 31 passed, one pytest import-order
+  warning, in 35.10 s.
+- `backend/.venv/Scripts/python.exe -m ruff check <Stage 9 changed Python
+  files>` — passed.
+- `pnpm test -- --run
+  src/components/project/ProjectControlBoard.test.tsx
+  src/pages/ProjectCockpitPage.test.tsx` — 2 files / 10 tests passed.
+- `pnpm tsc --noEmit` — passed.
+- `pnpm lint` — 0 errors; one existing TanStack Virtual React Compiler warning.
+- `backend/.venv/Scripts/python.exe -m pytest -q` — 1,184 passed, 6 skipped,
+  23 deselected, 3 warnings in 209.86 s.
+- `pnpm build` — production build and enforced budgets passed; initial cockpit
+  JavaScript is 247,099 bytes gzip, Tender entry is 23,495 bytes gzip, and
+  Three.js is absent outside the style demo.
+
+Rollout result: not performed. No production credentials, protected Tender
+corpus/QS approval, named live acceptance environment, backup/restore window,
+or release approver were supplied.
+
+Rollback result or procedure verified: procedure documented, not exercised.
+
+Remaining risks/notes: 8.2 cannot pass until the explicit commands in all three
+manifests run against the isolated application harness and then the named live
+environment with 100 percent assertions and SLO evidence. 8.3 and every Phase
+8.5 deletion remain blocked by all open predecessor, production, and rollback
+gates. No legacy code was deleted.
 
 ### Final production release record
 
@@ -955,7 +1098,7 @@ Record the dated report link and result for every hard gate.
 | Cross-project evidence/mutation isolation | 100% | Pass in disposable DB; production pending | `tests/stage01/test_database_gates.py`; `docs/runbooks/evidence-uuid-tenancy-rollout.md` |
 | Orphan child processes after cancel/timeout | 0 | Pass on Windows and Linux | `tests/agent/test_process_tree.py` |
 | Production TypeScript build | 0 errors | Pass | `docs/performance/2026-07-19-stage-0-baseline.md` |
-| Initial JavaScript | ≤250 kB gzip | Pass — 246,609 bytes | `docs/performance/2026-07-19-stage-6-performance.md` |
+| Initial JavaScript | ≤250 kB gzip | Pass — 247,099 bytes | Stage 9 `pnpm build`; `docs/performance/2026-07-19-stage-6-performance.md` |
 | Three.js on non-demo routes | 0 bytes | Pass | `docs/performance/2026-07-19-stage-6-performance.md` |
 | Warm cockpit bootstrap | p95 ≤500 ms; zero writes | Pending |  |
 | Critical calls before composer usable | ≤2 | Pending |  |
@@ -984,10 +1127,14 @@ cutover requirements.
 
 ## Current next action
 
-Stage 0/1 code and disposable acceptance are present in the working tree. Next:
-report the minimized Hermes ACP Windows workspace-probe hang and both prompt-log
-sites upstream when maintainer-authorized, then verify the released fix with
-Clerk's MCP configuration. Separately perform the approved production backup,
-read-only audit, expand/repair/contract rollout, post-rollout two-owner checks,
-and rollback rehearsal. Hermes mutations remain disabled and the Stage 0/1
-programme exits remain incomplete until those gates pass.
+Stage 9 project intelligence and the role-manifest contract are present in the
+working tree. Next: complete Stage 7's protected Tender corpus, evaluation, QS
+acceptance, and frozen quality provenance; rerun the 7.4B/7.5 gates; then run
+every explicit role-manifest command against an isolated application database.
+Before any production acceptance, dry-run and reconcile the Cost Plan importer,
+back up production, deploy `034_typed_cost_plans` additively, and exercise both
+application and accepted-version rollback. Only after all predecessor and live
+checks pass should an approver execute
+`docs/runbooks/stage-9-production-acceptance.md`. The earlier Hermes transport
+and production UUID-tenancy rollout blockers remain open. No Phase 8.5 deletion
+is authorized.

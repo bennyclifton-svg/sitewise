@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -6,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.database.project import Project
+from app.cost_plan.import_legacy import parse_legacy_draft
 from app.retrieval.schemas import SourcePassage
 from app.sitewise.cost_plan_evidence_validation import (
     claim_first_violations,
@@ -24,7 +26,12 @@ from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
-WALSH_FIXTURE_DIR = Path(__file__).resolve().parents[3] / "data" / "synthetic-mobilisation-evidence" / "walsh-renovation"
+WALSH_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[3]
+    / "data"
+    / "synthetic-mobilisation-evidence"
+    / "walsh-renovation"
+)
 
 
 def _project(**overrides) -> Project:
@@ -57,7 +64,10 @@ def _valid_seed_consulted() -> list[str]:
 
 
 def _walsh_source_texts() -> list[str]:
-    return [path.read_text(encoding="utf-8") for path in sorted(WALSH_FIXTURE_DIR.glob("[0-9]*.md"))]
+    return [
+        path.read_text(encoding="utf-8")
+        for path in sorted(WALSH_FIXTURE_DIR.glob("[0-9]*.md"))
+    ]
 
 
 def _cost_breakdown_section() -> str:
@@ -153,7 +163,9 @@ def _valid_cost_plan_markdown() -> str:
             "- **Recommendations**\n- Review markdown before workbook export.\n"
         ),
     }
-    body = "\n\n".join(sections[heading] for heading in required_section_headings("architect-pm"))
+    body = "\n\n".join(
+        sections[heading] for heading in required_section_headings("architect-pm")
+    )
     return f"# Project Cost Plan\n\n{body}"
 
 
@@ -223,7 +235,9 @@ def _passage(*, project: str, source_type: str, relative_path: str) -> SourcePas
         document_class="reference_guide" if source_type == "reference" else source_type,
         filename=relative_path.split("/")[-1],
         relative_path=relative_path,
-        document_metadata={"knowledge_scope": "platform"} if source_type == "reference" else None,
+        document_metadata={"knowledge_scope": "platform"}
+        if source_type == "reference"
+        else None,
         chunk_metadata={"whole_document": True},
         score=1.0,
     )
@@ -282,7 +296,10 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
         markdown=_valid_cost_plan_markdown(),
         seed_consulted=_valid_seed_consulted(),
         evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md", "reference:seed/cost-management-principles.md"],
+        context_refs=[
+            "doctrine:docs/clerk-brief.md",
+            "reference:seed/cost-management-principles.md",
+        ],
     )
     draft = AsyncMock()
     draft.id = uuid.uuid4()
@@ -316,6 +333,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
         source_type="reference",
         relative_path="seed/cost-management-principles.md",
     )
+    typed_import = replace(parse_legacy_draft(draft), typed_version_id=draft.id)
 
     with (
         patch(
@@ -351,6 +369,10 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
             new=AsyncMock(return_value=draft),
         ) as create_draft,
         patch(
+            "app.workflows.create_cost_plan.import_legacy_draft",
+            new=AsyncMock(return_value=typed_import),
+        ),
+        patch(
             "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
             new=AsyncMock(return_value=draft.workspace_path),
         ) as sync_markdown,
@@ -373,9 +395,17 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     create_draft.assert_awaited_once()
     sync_markdown.assert_awaited_once()
     save_workbook.assert_awaited_once()
-    assert create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"] == "platform_seeded"
-    assert create_draft.await_args.kwargs["workspace_path"].endswith("01-cost/cost_plan_v01.md")
-    assert result.draft.provenance_metadata["workbook"]["file_name"] == "Cost_Plan_v01.draft.xlsx"
+    assert (
+        create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"]
+        == "platform_seeded"
+    )
+    assert create_draft.await_args.kwargs["workspace_path"].endswith(
+        "01-cost/cost_plan_v01.md"
+    )
+    assert (
+        result.draft.provenance_metadata["workbook"]["file_name"]
+        == "Cost_Plan_v01.draft.xlsx"
+    )
 
 
 def test_validate_cost_plan_output_accepts_platform_seeded() -> None:
@@ -486,7 +516,9 @@ def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
     )
 
 
-def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figures() -> None:
+def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figures() -> (
+    None
+):
     output = CostPlanDraftOutput(
         title="Project Cost Plan",
         markdown=_valid_evidence_grounded_cost_plan_markdown(),
@@ -538,7 +570,9 @@ def test_cost_plan_evidence_grounded_violations_empty_without_refs() -> None:
     assert cost_plan_evidence_grounded_violations(_valid_cost_plan_markdown(), []) == []
 
 
-def test_ensure_evidence_grounded_cost_plan_scaffold_injects_missing_map_and_facts() -> None:
+def test_ensure_evidence_grounded_cost_plan_scaffold_injects_missing_map_and_facts() -> (
+    None
+):
     markdown = _valid_cost_plan_markdown()
     refs = ["project_evidence:demo/01-cost/budget.md#chunk=0"]
     violations_before = cost_plan_evidence_grounded_violations(markdown, refs)
@@ -553,7 +587,9 @@ def test_ensure_evidence_grounded_cost_plan_scaffold_injects_missing_map_and_fac
     assert "- **Facts**" in repaired
 
 
-def test_ensure_evidence_grounded_cost_plan_scaffold_normalizes_audit_headings() -> None:
+def test_ensure_evidence_grounded_cost_plan_scaffold_normalizes_audit_headings() -> (
+    None
+):
     markdown = _replace_section(
         _valid_cost_plan_markdown(),
         "Internal audit layer",
@@ -565,7 +601,9 @@ def test_ensure_evidence_grounded_cost_plan_scaffold_normalizes_audit_headings()
     assert "- **Facts**" in repaired
 
 
-def test_retrieve_create_cost_plan_sources_platform_seeded_when_no_project_evidence() -> None:
+def test_retrieve_create_cost_plan_sources_platform_seeded_when_no_project_evidence() -> (
+    None
+):
     platform_passage = _passage(
         project="seed",
         source_type="reference",
@@ -648,7 +686,9 @@ def test_retrieve_create_cost_plan_sources_uses_taxonomy_when_archetype_empty() 
     assert passages == [platform_passage]
     assert "seed/cost-management-principles.md" in loaded_paths
     assert "seed/role-architect-pm.md" in loaded_paths
-    assert "skills/reference/nsw-residential-cost-breakdown-reference.md" in loaded_paths
+    assert (
+        "skills/reference/nsw-residential-cost-breakdown-reference.md" in loaded_paths
+    )
 
 
 def test_retrieve_create_cost_plan_sources_supplements_with_semantic_search() -> None:
