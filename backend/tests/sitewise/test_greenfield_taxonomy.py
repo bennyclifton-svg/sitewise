@@ -44,10 +44,14 @@ def _project(
         state="NSW",
         project_metadata={
             "taxonomy": {
-                "subclasses": subclasses or ["office"],
-                "scale": scale or {"nla_sqm": 1200, "storeys": 3},
-                "complexity": complexity or {"operational_constraints": "live_environment"},
-                "work_scope": work_scope or ["fire_services"],
+                "subclasses": ["office"] if subclasses is None else subclasses,
+                "scale": {"nla_sqm": 1200, "storeys": 3} if scale is None else scale,
+                "complexity": (
+                    {"operational_constraints": "live_environment"}
+                    if complexity is None
+                    else complexity
+                ),
+                "work_scope": ["fire_services"] if work_scope is None else work_scope,
                 "budget": "$1,000,000",
             }
         },
@@ -78,7 +82,7 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
         target_words=target_words,
     )
 
-    assert "Compliance and approvals (~" in brief
+    assert "Planning and Compliance (~" in brief
     assert "AS 2419.1 hydrant systems" in brief
     assert "AS 2941 pumpsets" in brief
     assert FIRE_REFS["compliance-approvals"][0] in brief
@@ -101,10 +105,15 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
         "platform_seeded",
         seed_section_refs=FIRE_REFS,
     )
+    headings = markdown_section_headings(markdown)
 
-    assert markdown_section_headings(markdown) == list(
-        required_section_headings("architect-pm", project=project)
-    )
+    assert headings == list(required_section_headings("architect-pm", project=project))
+    assert headings[-1] == "Citation key"
+    assert "| Field | Current PMP position | Citation |" in markdown
+    assert "| Expected consultants |" not in markdown
+    assert "## Consultants" in markdown
+    assert "Fire Engineer" in _section_body(markdown, "Consultants")
+    assert "| Expected consultants |" not in _section_body(markdown, "Brief")
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
     assert "User provided" in markdown
     assert "Assumption" in markdown
@@ -129,11 +138,12 @@ def test_commercial_fire_scaffold_is_compliance_heavy_and_not_residential() -> N
     )
     counts = dict(_section_word_counts(markdown))
 
-    assert counts["Compliance and approvals"] > counts["Scope and client requirements"]
-    assert counts["Compliance and approvals"] > counts["Risks and mitigations"]
+    assert counts["Planning and Compliance"] > counts["Brief"]
+    assert counts["Planning and Compliance"] > counts["Risks and mitigations"]
     assert "AS 2419.1" in markdown
     assert "AS 2941" in markdown
-    assert "Fire Engineer" in markdown
+    assert "Fire Engineer" in _section_body(markdown, "Consultants")
+    assert "| Expected consultants |" not in _section_body(markdown, "Brief")
     assert "BASIX" not in markdown
     assert "HBCF" not in markdown
     assert _risk_table_row_count(markdown) <= 8
@@ -154,11 +164,12 @@ def test_residential_new_scaffold_is_scope_heavy_and_covers_finishes() -> None:
     markdown = render_pmp_scaffold(project, MobilisationEvidencePack(), "platform_seeded")
     counts = dict(_section_word_counts(markdown))
 
-    assert counts["Scope and client requirements"] > counts["Compliance and approvals"]
-    assert counts["Scope and client requirements"] > counts["Risks and mitigations"]
+    assert counts["Brief"] > counts["Planning and Compliance"]
+    assert counts["Brief"] > counts["Risks and mitigations"]
     assert "finishes" in markdown.lower()
     assert "fixtures" in markdown.lower()
     assert "owner selections" in markdown.lower()
+    assert markdown_section_headings(markdown)[-1] == "Citation key"
 
 
 @pytest.mark.parametrize(
@@ -237,10 +248,12 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
     )
     context = pmp_taxonomy_context(project)
     assert context is not None
+    headings = markdown_section_headings(markdown)
 
-    assert markdown_section_headings(markdown) == list(
-        required_section_headings(project.user_role, project=project)
-    )
+    assert headings == list(required_section_headings(project.user_role, project=project))
+    assert headings[-1] == "Citation key"
+    assert "| Field | Current PMP position | Citation |" in markdown
+    assert "| Expected consultants |" not in markdown
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
     assert "Grounded" not in markdown
     assert markdown.count("```pmp-decision") >= 4
@@ -250,7 +263,7 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
         (
             (section_id, weight)
             for section_id, weight in context.section_weights.items()
-            if section_id != "snapshot"
+            if section_id not in {"snapshot", "citation-key"}
         ),
         key=lambda item: item[1],
     )[0]
@@ -260,15 +273,16 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
     assert all(
         top_count >= count
         for heading, count in counts.items()
-        if heading != "Project snapshot"
+        if heading not in {"Project Summary", "Citation key"}
     )
 
     if context.work_scope:
-        assert "consultants" in markdown.lower()
+        assert "## Consultants" in markdown
     if "fire_services" in context.work_scope:
         assert "AS 2419.1" in markdown
         assert "AS 2941" in markdown
         assert "seed/as-standards-reference.md#as-2419" in markdown
+        assert "Fire Engineer" in _section_body(markdown, "Consultants")
     if context.building_class == "commercial":
         assert "BASIX" not in markdown
         assert "HBCF" not in markdown
@@ -283,6 +297,15 @@ def _section_word_counts(markdown: str) -> list[tuple[str, int]]:
         for section in split_sections(markdown)
         if section.level == 2
     ]
+
+
+def _section_body(markdown: str, heading: str) -> str:
+    from app.sitewise.markdown_sections import split_sections
+
+    for section in split_sections(markdown):
+        if section.level == 2 and section.heading == heading:
+            return section.content
+    return ""
 
 
 def _risk_table_row_count(markdown: str) -> int:

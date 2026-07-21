@@ -18,6 +18,11 @@ from app.sitewise.mobilisation_evidence import (
     has_fee_proposal_evidence,
     pack_has_gap,
 )
+from app.sitewise.pmp_citations import (
+    CitationIndex,
+    build_citation_index,
+    format_citation_key_lines,
+)
 from app.sitewise.pmp_greenfield_brief import (
     ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE,
     RISK_REGISTER_TABLE,
@@ -964,11 +969,33 @@ def _top_weighted_section_id(project: Project) -> str | None:
     candidates = [
         (section_id, weight)
         for section_id, weight in context.section_weights.items()
-        if section_id != "snapshot"
+        if section_id not in {"snapshot", "citation-key"}
     ]
     if not candidates:
         return None
     return max(candidates, key=lambda item: item[1])[0]
+
+
+def _citation_index_from_pack(pack: MobilisationEvidencePack | None) -> CitationIndex:
+    if pack is None or not pack.evidence_refs:
+        return build_citation_index([])
+    return build_citation_index([(ref, "on file") for ref in pack.evidence_refs])
+
+
+def _engagement_citation_token(
+    pack: MobilisationEvidencePack,
+    citation_index: CitationIndex,
+) -> str:
+    """Prefer engagement letter, then fee proposal, else dash."""
+    for ref in pack.evidence_refs:
+        normalised = ref.replace("\\", "/").lower()
+        if "engagement-letter" in normalised or "engagement_letter" in normalised:
+            return citation_index.token_for(ref)
+    for ref in pack.evidence_refs:
+        normalised = ref.replace("\\", "/").lower()
+        if "fee-proposal" in normalised or "fee_proposal" in normalised:
+            return citation_index.token_for(ref)
+    return "—"
 
 
 def _emphasis_note(project: Project, section_id: str) -> str:
@@ -981,43 +1008,40 @@ def _emphasis_note(project: Project, section_id: str) -> str:
     )
 
 
-def _evidence_status_table() -> str:
-    return "\n".join(
-        [
-            "| Topic | Status | Basis | Next action |",
-            "| --- | --- | --- | --- |",
-            "| Project setup | User provided | Project title and taxonomy fields | Confirm missing details |",
-            "| Current corpus | Not evidenced | No uploaded project documents used in this scaffold | Upload brief, approvals, programme, and cost records |",
-            "| Seed doctrine | Assumption | Curated platform seed sections | Replace assumptions as evidence arrives |",
-        ]
-    )
+def _snapshot_position(value: str, status: str) -> str:
+    return f"{value} — {status}"
 
 
-def _render_taxonomy_snapshot(project: Project) -> str:
+def _render_taxonomy_snapshot(
+    project: Project,
+    *,
+    citation_index: CitationIndex | None = None,
+) -> str:
+    del citation_index  # reserved for grounded summary fields; user-provided rows use —
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     fields = context.user_provided_fields
+    taxonomy_value = f"{context.building_class} / {context.work_type or 'TBC'}"
+    dash = "—"
     rows = [
-        "| Field | Value | Evidence status |",
+        "| Field | Current PMP position | Citation |",
         "| --- | --- | --- |",
-        f"| Project | {_metadata_value(project.title)} | User provided |",
-        f"| Site / address | {_metadata_value(fields.get('site_address'))} | User provided / Not evidenced |",
-        f"| Client | {_metadata_value(fields.get('client'))} | User provided / Not evidenced |",
-        f"| State | {_metadata_value(project.state or 'NSW')} | User provided |",
-        f"| Taxonomy | {context.building_class} / {context.work_type or 'TBC'} | User provided |",
-        f"| Subclass and scale | {_taxonomy_scale_summary(project)} | User provided |",
-        f"| Budget | {_metadata_value(fields.get('budget'))} | User provided / Assumption |",
-        f"| Timeframe | {_metadata_value(fields.get('timeframe'))} | User provided / Assumption |",
-        f"| Procurement route | {_metadata_value(fields.get('procurement_route'))} | User provided / Assumption |",
+        f"| Project | {_snapshot_position(_metadata_value(project.title), 'User provided')} | {dash} |",
+        f"| Site / address | {_snapshot_position(_metadata_value(fields.get('site_address')), 'User provided / Not evidenced')} | {dash} |",
+        f"| Client | {_snapshot_position(_metadata_value(fields.get('client')), 'User provided / Not evidenced')} | {dash} |",
+        f"| State | {_snapshot_position(_metadata_value(project.state or 'NSW'), 'User provided')} | {dash} |",
+        f"| Taxonomy | {_snapshot_position(taxonomy_value, 'User provided')} | {dash} |",
+        f"| Subclass and scale | {_snapshot_position(_taxonomy_scale_summary(project), 'User provided')} | {dash} |",
+        f"| Budget | {_snapshot_position(_metadata_value(fields.get('budget')), 'User provided / Assumption')} | {dash} |",
+        f"| Timeframe | {_snapshot_position(_metadata_value(fields.get('timeframe')), 'User provided / Assumption')} | {dash} |",
+        f"| Procurement route | {_snapshot_position(_metadata_value(fields.get('procurement_route')), 'User provided / Assumption')} | {dash} |",
     ]
     return "\n".join(
         [
             f"## {heading_for_section_id('snapshot', work_type=context.work_type)}",
             "",
             "\n".join(rows),
-            "",
-            _evidence_status_table(),
             "",
             "Scaffold status: this PMP is useful immediately from setup inputs, but every "
             "project-specific delivery claim remains open until current project documents "
@@ -1031,41 +1055,195 @@ def _render_taxonomy_scope(project: Project) -> str:
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     scope_items = work_scope_items_for(context.work_type, context.work_scope)
-    roster = [
-        "| Scope item | Expected consultants | Evidence status |",
-        "| --- | --- | --- |",
-    ]
-    if scope_items:
-        for item in scope_items:
-            roster.append(
-                f"| {item.label} | {', '.join(item.consultants) or 'TBC'} | Assumption |"
-            )
-    else:
-        roster.append("| Scope selection | Architect-PM / Project Manager | Assumption |")
+    inclusions = [
+        f"- {item.label}"
+        for item in scope_items
+    ] or ["- Scope selection pending — confirm inclusions with the client."]
+    brief_is_emphasis = _top_weighted_section_id(project) == "scope-client-requirements"
 
-    residential_note = (
-        "For residential new work, confirm finishes, fixtures, wet-area scope, kitchen/bathroom "
-        "allowances, appliance and tapware selections, flooring, joinery, external works, "
-        "landscaping, utility connections, owner selections, and owner-supplied items before procurement. "
-        "Keep finishes/fixtures explicit because this is where budget and expectation gaps "
-        "usually appear."
-        if context.building_class == "residential" and context.work_type == "new"
-        else "Confirm the scope boundary, exclusions, interfaces, and client acceptance criteria before procurement or advisory delivery."
-    )
+    if context.building_class == "residential" and context.work_type == "new":
+        residential_note = (
+            "For residential new work, confirm finishes, fixtures, wet-area scope, kitchen/bathroom "
+            "allowances, appliance and tapware selections, flooring, joinery, external works, "
+            "landscaping, utility connections, owner selections, and owner-supplied items before procurement. "
+            "Keep finishes/fixtures explicit because this is where budget and expectation gaps "
+            "usually appear."
+        )
+    elif brief_is_emphasis:
+        residential_note = (
+            "Confirm the scope boundary, exclusions, interfaces, finishes/fixtures where relevant, "
+            "and client acceptance criteria before procurement or advisory delivery."
+        )
+    else:
+        residential_note = (
+            "Confirm inclusions, exclusions, interfaces, and acceptance criteria before procurement."
+        )
+
+    lines = [
+        f"## {heading_for_section_id('scope-client-requirements', work_type=context.work_type)}",
+        "",
+        f"Class/type/subclass: **User provided** {context.building_class} / {context.work_type or 'TBC'} / {', '.join(context.subclasses) or 'TBC'}.",
+        f"Scale summary: **User provided** {_taxonomy_scale_summary(project)}.",
+        residential_note,
+        "Project-specific scope without current corpus support remains **Assumption**.",
+        _emphasis_note(project, "scope-client-requirements"),
+        "",
+        "**Inclusions (work scope):**",
+        "\n".join(inclusions),
+    ]
+    if brief_is_emphasis or (
+        context.building_class == "residential" and context.work_type == "new"
+    ):
+        lines.extend(
+            [
+                "",
+                "**Exclusions / interfaces:** Assumption — confirm out-of-scope items and interfaces "
+                "with the client, adjacent tenants, or separate packages.",
+                "",
+                "**Acceptance criteria / brief lock:** Assumption — lock client acceptance criteria "
+                "before design freeze or tender.",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "",
+                "**Exclusions / interfaces / acceptance:** Assumption — confirm before tender.",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _render_taxonomy_consultants(
+    project: Project,
+    pack: MobilisationEvidencePack | None = None,
+    *,
+    citation_index: CitationIndex | None = None,
+) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    index = citation_index or build_citation_index([])
+    pack = pack or MobilisationEvidencePack()
+    rows = [
+        "| Discipline | Firm | Scope / services | Fee | Status | Citation |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+
+    role = (project.user_role or "architect-pm").strip().lower()
+    if role in {"architect-pm", ""}:
+        engaged = has_engagement_evidence(pack)
+        fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
+        if engaged:
+            firm = pack.appointee or "Architect-PM"
+            scope = (
+                "; ".join(pack.scope_bullets[:3])
+                if pack.scope_bullets
+                else "Per engagement letter"
+            )
+            fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
+            status = "Partial"
+            citation = _engagement_citation_token(pack, index)
+        else:
+            firm = pack.appointee or "TBC"
+            scope = "Assumption — engagement scope TBC"
+            fee = "TBC"
+            status = "Assumption"
+            citation = "—"
+        rows.append(
+            f"| Architect / PM | {firm} | {scope} | {fee} | {status} | {citation} |"
+        )
+
+    seen: set[str] = set()
+    for item in work_scope_items_for(context.work_type, context.work_scope):
+        for consultant in item.consultants:
+            key = consultant.strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            rows.append(
+                f"| {consultant} | TBC | Assumption — services not yet appointed | TBC | "
+                f"Not evidenced | — |"
+            )
+    if len(rows) == 2:
+        rows.append(
+            "| Discipline roster | TBC | Assumption — confirm required appointments | TBC | "
+            "Not evidenced | — |"
+        )
+
     return "\n".join(
         [
-            f"## {heading_for_section_id('scope-client-requirements', work_type=context.work_type)}",
+            f"## {heading_for_section_id('consultants', work_type=context.work_type)}",
             "",
-            f"Class/type/subclass: **User provided** {context.building_class} / {context.work_type or 'TBC'} / {', '.join(context.subclasses) or 'TBC'}.",
-            f"Scale summary: **User provided** {_taxonomy_scale_summary(project)}.",
-            residential_note,
-            "Any project-specific scope not yet supported by current corpus documents remains **Assumption** until uploaded evidence confirms it.",
-            "Use this section as the control point for scope drift: record inclusions, "
-            "exclusions, interfaces, owner/client decisions, and consultant information "
-            "requests before procurement or service delivery starts.",
-            _emphasis_note(project, "scope-client-requirements"),
+            "Appointment register for Architect-PM engagement and taxonomy-expected disciplines. "
+            "Missing appointment evidence stays Assumption / Not evidenced until engagement letters "
+            "or fee proposals are filed.",
+            _emphasis_note(project, "consultants"),
             "",
-            "\n".join(roster),
+            "\n".join(rows),
+        ]
+    )
+
+
+def _taxonomy_section_evidence_rows(
+    project: Project,
+) -> list[str]:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    status_by_id = {
+        "snapshot": "User provided",
+        "scope-client-requirements": "User provided / Assumption",
+        "consultants": "Assumption / Not evidenced",
+        "compliance-approvals": "Assumption",
+        "programme": "Assumption / Not evidenced",
+        "cost-budget": "User provided / Assumption",
+        "procurement-delivery": "Assumption / Not evidenced",
+        "risks": "Assumption",
+        "actions-decisions": "Assumption",
+    }
+    rows = [
+        "| Section | Evidence status | Citation |",
+        "| --- | --- | --- |",
+    ]
+    for section_id, _weight in context.section_weights.items():
+        if section_id == "citation-key":
+            continue
+        heading = heading_for_section_id(section_id, work_type=context.work_type)
+        status = status_by_id.get(section_id, "Assumption")
+        rows.append(f"| {heading} | {status} | — |")
+    return rows
+
+
+def _render_taxonomy_citation_key(
+    project: Project,
+    *,
+    version: int = 1,
+    citation_index: CitationIndex | None = None,
+) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    index = citation_index or build_citation_index([])
+    if index.documents:
+        doc_block = "\n".join(format_citation_key_lines(index))
+    else:
+        doc_block = (
+            "No project evidence documents are cited yet. Upload brief, engagement, "
+            "approvals, programme, and cost records to populate numbered citations."
+        )
+    evidence_rows = _taxonomy_section_evidence_rows(project)
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('citation-key', work_type=context.work_type)}",
+            "",
+            "**Documents cited:**",
+            doc_block,
+            "",
+            "\n".join(evidence_rows),
+            "",
+            f"Document control: draft v{version:02d}, review-only. "
+            "Supersede under `00-brief-pmp/` when new evidence arrives.",
         ]
     )
 
@@ -1090,6 +1268,16 @@ def _render_taxonomy_compliance(project: Project, seed_section_refs: dict[str, t
             ]
         )
     ref_line = f"Loaded seed sections: {', '.join(refs)}." if refs else "Loaded seed sections: TBC."
+    emphasis = _emphasis_note(project, "compliance-approvals")
+    depth = ""
+    if _top_weighted_section_id(project) == "compliance-approvals":
+        depth = (
+            f"Planning emphasis for this {context.building_class} {context.work_type or 'project'}: "
+            "confirm the authority pathway, certifier engagement, inspection hold points, "
+            "essential safety measures, and any live-environment or operational constraints that "
+            "change lodgement sequencing. Keep seed-backed references visible and mark missing "
+            "approval evidence as Not evidenced rather than inventing pathway detail."
+        )
     return "\n".join(
         [
             f"## {heading_for_section_id('compliance-approvals', work_type=context.work_type)}",
@@ -1099,7 +1287,8 @@ def _render_taxonomy_compliance(project: Project, seed_section_refs: dict[str, t
             "The approval pathway, certifier position, authority inputs, and inspection or "
             "commissioning hold points are **Not evidenced** until the current corpus "
             "contains approval records, consultant advice, or authority correspondence.",
-            _emphasis_note(project, "compliance-approvals"),
+            depth,
+            emphasis,
             "",
             "\n".join(rows),
         ]
@@ -1114,7 +1303,7 @@ def _render_taxonomy_programme(project: Project) -> str:
         [
             f"## {heading_for_section_id('programme', work_type=context.work_type)}",
             "",
-            "| Milestone | Status | Evidence basis | Next action |",
+            "| Milestone | Status | Basis | Next action |",
             "| --- | --- | --- | --- |",
             "| Setup / brief confirmation | User provided | Taxonomy setup | Confirm scope and budget lock |",
             "| Authority pathway | Assumption | Seed doctrine | Confirm approval route and lead times |",
@@ -1192,17 +1381,22 @@ def _render_taxonomy_risks(project: Project) -> str:
     rows = ["| Risk | Owner | Status | Next action | Due |", "| --- | --- | --- | --- | --- |"]
     for risk, owner, status, action, due in _taxonomy_risk_rows(project):
         rows.append(f"| {risk} | {owner} | {status} | {action} | {due} |")
+    trailer = [
+        "Primary risk register is capped at 8 rows; detail belongs in a companion annexure.",
+    ]
+    if _top_weighted_section_id(project) == "risks":
+        trailer.append(
+            "Risk status is conservative in scaffold mode: complexity options create rows, "
+            "but severity and mitigation need recalibration when consultant advice, authority "
+            "records, or cost evidence arrive."
+        )
     return "\n".join(
         [
             f"## {heading_for_section_id('risks', work_type=context.work_type)}",
             "",
             "\n".join(rows),
             "",
-            "Primary risk register is capped at 8 rows. Full risk detail belongs in a companion annexure.",
-            "Risk status is deliberately conservative in scaffold mode: selected complexity "
-            "options create risk rows, but severity and mitigation should be recalibrated "
-            "when the current corpus contains consultant advice, authority records, or cost "
-            "evidence.",
+            *trailer,
             _emphasis_note(project, "risks"),
         ]
     )
@@ -1234,24 +1428,31 @@ def _render_taxonomy_actions(project: Project) -> str:
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     actions = [
-        "| Action / decision | Owner | Status | Next action |",
+        "| Item | Owner | Status | Next |",
         "| --- | --- | --- | --- |",
-        "| Confirm scope boundary and exclusions | Owner | User provided / Assumption | Lock client requirements before procurement |",
-        "| Confirm approval pathway | Architect-PM | Assumption | Test NCC/authority path with certifier |",
-        "| Confirm budget and contingency basis | Owner | Assumption | Provide budget or cost plan evidence |",
-        "| Confirm consultant roster | Architect-PM | Assumption | Appoint required disciplines from work-scope list |",
+        "| Scope boundary | Owner | Assumption | Lock brief |",
+        "| Approval pathway | Architect-PM | Assumption | Certifier |",
+        "| Budget basis | Owner | Assumption | Cost evidence |",
+        "| Consultant roster | Architect-PM | Assumption | Appoint |",
     ]
+    emphasis = _emphasis_note(project, "actions-decisions")
+    depth = ""
+    if _top_weighted_section_id(project) == "actions-decisions":
+        depth = (
+            "Decision blocks below are placeholders for the user to lock the PMP basis. "
+            "Locked decisions should survive refreshes; conflicting uploaded evidence should "
+            "create a visible action rather than silently changing the taxonomy or section "
+            "weighting. For advisory work, prioritise reliance limits, evidence requests, "
+            "and deliverable acceptance gates before expanding the physical works brief."
+        )
     return "\n".join(
         [
             f"## {heading_for_section_id('actions-decisions', work_type=context.work_type)}",
             "",
             "\n".join(actions),
             "",
-            "Decision blocks below are placeholders for the user to lock the PMP basis. "
-            "Locked decisions should survive refreshes; conflicting uploaded evidence should "
-            "create a visible action rather than silently changing the taxonomy or section "
-            "weighting.",
-            _emphasis_note(project, "actions-decisions"),
+            depth,
+            emphasis,
             "",
             _decision_block("scope-boundary", "Scope boundary", "Confirm the scope boundary and exclusions."),
             "",
@@ -1266,21 +1467,28 @@ def _render_taxonomy_actions(project: Project) -> str:
 
 def _render_taxonomy_platform_scaffold(
     project: Project,
+    pack: MobilisationEvidencePack | None = None,
     *,
+    version: int = 1,
     seed_section_refs: dict[str, tuple[str, ...]] | None = None,
+    citation_index: CitationIndex | None = None,
 ) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
+    pack = pack or MobilisationEvidencePack()
+    index = citation_index or _citation_index_from_pack(pack)
     sections = [
-        _render_taxonomy_snapshot(project),
+        _render_taxonomy_snapshot(project, citation_index=index),
         _render_taxonomy_scope(project),
+        _render_taxonomy_consultants(project, pack, citation_index=index),
         _render_taxonomy_compliance(project, seed_section_refs),
         _render_taxonomy_programme(project),
         _render_taxonomy_cost(project),
         _render_taxonomy_procurement(project),
         _render_taxonomy_risks(project),
         _render_taxonomy_actions(project),
+        _render_taxonomy_citation_key(project, version=version, citation_index=index),
     ]
     rendered_headings = {
         line.strip()[3:].strip().lower()
@@ -1315,6 +1523,8 @@ def render_pmp_scaffold(
     if draft_mode == "platform_seeded" and project_has_taxonomy(project):
         return _render_taxonomy_platform_scaffold(
             project,
+            pack,
+            version=version,
             seed_section_refs=seed_section_refs,
         )
 
