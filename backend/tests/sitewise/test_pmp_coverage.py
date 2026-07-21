@@ -48,15 +48,15 @@ def test_meridian_coverage_requirements_capture_dates_values_and_scope() -> None
 
 
 _SPARSE_MARKDOWN = """
-## Project snapshot
+## Project Summary
 
 Evidence on file: planning advice, engagement letter, fee proposal.
 
-## Scope and client requirements
+## Brief
 
 The scope includes a commercial office fit-out with a legal library and partner offices.
 
-## Compliance and approvals
+## Planning and Compliance
 
 SSD is the primary pathway.
 """
@@ -84,7 +84,7 @@ def test_meridian_coverage_rejects_missing_files_and_scope_facts() -> None:
 
 
 _COMPLETE_MARKDOWN = """
-## Project snapshot
+## Project Summary
 
 Evidence on file: all five Meridian current-corpus files.
 Class 5 commercial office tower. SSD primary pathway; CDC not assumed.
@@ -92,7 +92,7 @@ Target possession 1 November 2026; rent-free period 1 February 2027 to 30 June 2
 firm occupation 1 July 2027; target SSD lodgement September 2026;
 SSD assessment 10-14 weeks; CC 4-6 weeks; occupancy load increases from 98 to 142 persons.
 
-## Scope and client requirements
+## Brief
 
 Scope: 180 m2 open-plan legal library, 42 workstations, 8 partner offices,
 6 meeting rooms, 4 x 8-person meeting rooms, 2 x 16-person meeting rooms, 60-seat breakout,
@@ -100,17 +100,23 @@ secure records room and comms room, amenities 2 male, 2 female, 1 accessible WC
 and shower on Level 4. Levels 2 and 5 remain partially occupied and after-hours
 access is required. Level 4 mezzanine 185 m2. Budget aspiration $1.35M-$1.55M.
 
-## Compliance and approvals
+## Consultants
+
+| Discipline | Firm | Scope / services | Fee | Status | Citation |
+| --- | --- | --- | --- | --- | --- |
+| Architect-PM | Form & Function Studio | Fit-out design and CA | $118,500 ex GST | Grounded | [3] |
+
+## Planning and Compliance
 
 Maintain NABERS 4.5 stars. Supplementary sprinklers and tenant smoke control
 remain tenant scope. Fire engineering performance solution required.
 Tenant works cannot start until SSD consent and fit-out consent deed.
 
-## Programme and milestones
+## Programme
 
 Programme ROM 22-26 weeks. After-hours works 10:00 pm-6:00 am, no Sunday works.
 
-## Cost and budget
+## Cost Planning
 
 Professional fee $118,500 ex GST; engagement dated 24 February 2026 and accepted
 28/02/2026; fee proposal dated 10 February 2026; CA phase assumed 7 months.
@@ -118,12 +124,20 @@ Landlord HVAC contribution $180,000. Existing 400 kVA switchboard
 upgrades to 500 kVA. ROM range $1,280,000 to $1,520,000. After-hours labour risk
 $180k to $240k.
 
-## Procurement and delivery
+## Procurement and Delivery
 
 Two invited builders. Tender evaluation includes after-hours and services-capacity risk.
 Architect-PM is not Superintendent, Certifier, PCA, or builder. Fortnightly reporting.
 Core drilling 7am to 5pm. Acoustic partitions, landlord approval of slab penetrations,
 and Apex is not a related party to Form & Function.
+
+## Citation key
+
+[1] 01-email-tenant-fitout-brief-to-landlord.md — on file
+[2] 02-planning-advice-parramatta-ssd.md — on file
+[3] 03-engagement-letter-form-function-studio.md — on file
+[4] 04-fee-proposal-form-function-studio.md — on file
+[5] 05-email-landlord-base-building-and-builder-rom.md — on file
 """
 
 

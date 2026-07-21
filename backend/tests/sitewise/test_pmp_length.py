@@ -24,7 +24,7 @@ def test_pmp_word_count_counts_selected_decision_label_only() -> None:
 def test_pmp_word_count_excludes_annexure_and_collapsed_details() -> None:
     markdown = """# PMP
 
-## Project snapshot
+## Project Summary
 
 Visible table text.
 

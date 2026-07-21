@@ -64,6 +64,23 @@ def _project(**overrides) -> Project:
     return Project(**values)
 
 
+def test_create_pmp_instructions_teach_taxonomy_citation_contract() -> None:
+    instructions = (
+        Path(__file__).resolve().parents[2]
+        / "app"
+        / "workflows"
+        / "create_pmp_instructions.md"
+    ).read_text(encoding="utf-8")
+    compact = " ".join(instructions.split())
+    assert "| Field | Current PMP position | Citation |" in instructions
+    assert "**Brief** is physical/client brief only" in instructions
+    assert "**Consultants** is the appointment register" in instructions
+    assert "Close with **Citation key** only" in instructions
+    assert "Do not open taxonomy drafts with Evidence basis" in compact
+    assert "Do not write **Grounded** in" in instructions
+    assert "compact snapshot metadata table" not in instructions
+
+
 def test_draft_workspace_path_uses_stable_pmp_md() -> None:
     assert (
         draft_workspace_path(_project(), version=3)
@@ -470,7 +487,7 @@ def test_create_pmp_taxonomy_sweeps_current_corpus_for_coverage() -> None:
     output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=(
-            "## Project snapshot\n\nEvidence on file. "
+            "## Project Summary\n\nEvidence on file. "
             + "Current corpus coverage placeholder. " * 12
         ),
         seed_consulted=["seed/commercial-construction-guide.md"],
@@ -583,30 +600,36 @@ def test_create_pmp_repairs_taxonomy_engagement_status_before_validation() -> No
         title="Project Management Plan",
         markdown="""# Project Management Plan
 
-## Project snapshot
+## Project Summary
 
-| Field | Value | Evidence status |
+| Field | Current PMP position | Citation |
 | --- | --- | --- |
-| Client | Michael and Sarah Chen | Grounded |
-| Appointment and fee | Harrison Clarke Studio | Grounded |
+| Client | Michael and Sarah Chen — Grounded | — |
+| Appointment and fee | Harrison Clarke Studio — Grounded | — |
 
-## Scope and client requirements
+## Brief
 
 Commercial office refurbishment scope is being confirmed from setup inputs and current evidence.
 
-## Compliance and approvals
+## Consultants
+
+| Discipline | Firm | Scope / services | Fee | Status | Citation |
+| --- | --- | --- | --- | --- | --- |
+| Architect-PM | Harrison Clarke Studio | Appointment | TBC | Grounded | — |
+
+## Planning and Compliance
 
 Approval pathway remains an Assumption pending authority records.
 
-## Programme and milestones
+## Programme
 
 Programme milestones remain Assumption until a current programme is uploaded.
 
-## Cost and budget
+## Cost Planning
 
 Budget basis remains Assumption pending cost plan evidence.
 
-## Procurement and delivery
+## Procurement and Delivery
 
 Procurement responsibilities remain Assumption pending appointment and tender records.
 
@@ -621,6 +644,14 @@ Procurement responsibilities remain Assumption pending appointment and tender re
 | Action / decision | Owner | Status | Next action |
 | --- | --- | --- | --- |
 | Confirm scope boundary | Owner | Assumption | Lock client requirements |
+
+## Citation key
+
+No project evidence documents numbered yet.
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Project Summary | Partial | — |
 
 ## Internal audit layer
 

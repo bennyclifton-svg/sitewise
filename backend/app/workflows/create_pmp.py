@@ -732,10 +732,14 @@ def build_create_pmp_prompt(
                     "Use evidenced=false and placeholder language only when Sources are silent."
                 ),
                 (
-                    "Taxonomy PMP rules: primary document is 2-4 A4 pages; use a compact "
-                    "snapshot metadata table; cite specific AS/NCC refs from loaded seed "
-                    "sections; keep risks and actions to top ~8 rows each; do not use "
-                    "pretrained domain content where a required seed section is missing."
+                    "Taxonomy PMP rules: primary document is 2-4 A4 pages; open with "
+                    "Project Summary using | Field | Current PMP position | Citation | "
+                    "([n] or —); Brief is physical/client only and Consultants is the "
+                    "appointment register; close with Citation key (shared [n] numbers) "
+                    "and do not open with Evidence basis; cite specific AS/NCC refs from "
+                    "loaded seed sections; keep risks and actions to top ~8 rows each; "
+                    "do not use pretrained domain content where a required seed section "
+                    "is missing; do not write Grounded in platform_seeded drafts."
                 ),
             ]
         )

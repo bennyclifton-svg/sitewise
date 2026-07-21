@@ -19,8 +19,26 @@ When the prompt includes an **Adaptive taxonomy PMP content contract**, it super
 the legacy role/archetype scaffold:
 - The primary PMP is a 2-4 A4 page control document. Treat word budgets as guides;
   deepen project-specific high-weight sections and cut generic prose first.
-- Use the universal `##` headings supplied in the prompt exactly.
-- Start with a compact snapshot metadata table.
+- Use the universal `##` headings supplied in the prompt exactly (e.g. **Project
+  Summary**, **Brief**, **Consultants**, **Planning and Compliance**, **Programme**,
+  **Cost Planning**, **Procurement and Delivery**, **Risks and mitigations**,
+  **Actions and decisions**, **Citation key**).
+- Open with **Project Summary** using columns
+  `| Field | Current PMP position | Citation |`. Middle cell = value plus status
+  label; Citation cell = `[n]` or `—` only (no document titles).
+- **Brief** is physical/client brief only (inclusions, exclusions, interfaces,
+  finishes/fixtures, acceptance criteria). Do not put consultant rosters or
+  engagement/fee content in Brief.
+- **Consultants** is the appointment register:
+  `| Discipline | Firm | Scope / services | Fee | Status | Citation |`.
+  Architect-PM engagement is the first row when that role applies; expected
+  disciplines without appointment evidence stay Assumption / Not evidenced with `—`.
+- Use one shared `[n]` number per active project evidence document across Summary,
+  Consultants, body refs, and **Citation key**. Do not invent citations for
+  user-provided or assumption-only facts.
+- Close with **Citation key** only (numbered docs, section evidence-status table,
+  short document-control note). Do **not** open the body with **Evidence basis and
+  document control**.
 - Use condensed registers only: top ~8 risks and top ~8 actions/decisions in the
   primary PMP. Preserve overflow detail as companion artifacts or annexures, not
   long inline prose.
@@ -50,7 +68,14 @@ evidence to upgrade specific facts; keep Assumption rows where evidence is silen
 
 ### Evidence-grounded rules (Create and Update when project evidence is supplied)
 
-When engagement letter, fee proposal, or other project evidence appears in **Sources**:
+When the prompt includes an **Adaptive taxonomy PMP content contract**, the taxonomy
+**Citation key** + shared `[n]` citation rules above supersede front-loaded
+**Evidence basis and document control**. Do not open taxonomy drafts with Evidence
+basis; put numbered document list, section evidence-status table, and document-control
+note under **Citation key** at the end.
+
+When engagement letter, fee proposal, or other project evidence appears in **Sources**
+on the legacy (non-taxonomy) 14-section path:
 
 1. **Document control honesty** — Under **Evidence basis and document control**, state what is
    **Evidence on file** (with dates/status). Never write "project evidence (none yet)" or label

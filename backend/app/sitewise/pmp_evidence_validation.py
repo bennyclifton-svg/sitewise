@@ -68,12 +68,14 @@ ENGAGEMENT_STATUS_MARKERS: tuple[str, ...] = (
 APPOINTMENT_STATUS_SECTION_HEADINGS: tuple[str, ...] = (
     "Evidence basis and document control",
     "Project overview",
+    "Project Summary",
     "Project snapshot",
     "Architect-PM role and appointment",
 )
 
 APPOINTMENT_STATUS_INSERT_HEADINGS: tuple[str, ...] = (
     "Evidence basis and document control",
+    "Project Summary",
     "Project snapshot",
 )
 
