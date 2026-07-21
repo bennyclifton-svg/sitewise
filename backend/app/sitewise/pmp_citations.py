@@ -24,7 +24,7 @@ class CitationIndex:
     _numbers: dict[str, int]
 
     def number_for(self, path_or_label: str) -> int | None:
-        return self._numbers.get(path_or_label)
+        return self._numbers.get(_normalize_path(path_or_label))
 
     def token_for(self, path_or_label: str) -> str:
         return citation_or_dash(self.number_for(path_or_label))
@@ -33,8 +33,19 @@ class CitationIndex:
 def build_citation_index(
     documents: list[tuple[str, str]] | tuple[tuple[str, str], ...],
 ) -> CitationIndex:
-    """Number documents by ascending path/label. Empty corpus → empty map."""
-    ordered = tuple(sorted(documents, key=lambda item: item[0]))
+    """Number documents by ascending path/label. Empty corpus → empty map.
+
+    Duplicate paths keep the first occurrence. Backslashes are normalised to ``/``.
+    """
+    seen: set[str] = set()
+    unique: list[tuple[str, str]] = []
+    for path, date_or_status in documents:
+        normalised = _normalize_path(path)
+        if normalised in seen:
+            continue
+        seen.add(normalised)
+        unique.append((normalised, date_or_status))
+    ordered = tuple(sorted(unique, key=lambda item: item[0]))
     numbers = {path: index for index, (path, _) in enumerate(ordered, start=1)}
     return CitationIndex(documents=ordered, _numbers=numbers)
 
@@ -47,5 +58,9 @@ def format_citation_key_lines(index: CitationIndex) -> list[str]:
     ]
 
 
+def _normalize_path(path_or_label: str) -> str:
+    return path_or_label.replace("\\", "/")
+
+
 def _basename(path_or_label: str) -> str:
-    return PurePosixPath(path_or_label).name
+    return PurePosixPath(_normalize_path(path_or_label)).name
