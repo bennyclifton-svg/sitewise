@@ -957,6 +957,33 @@ def test_build_create_pmp_prompt_puts_static_knowledge_first_and_volatile_last()
     assert date_index < coverage_index < evidence_index < feedback_index
 
 
+def test_taxonomy_evidence_grounded_prompt_targets_citation_key_not_evidence_basis() -> None:
+    from datetime import date
+
+    from app.workflows.create_pmp import build_create_pmp_prompt
+
+    prompt = build_create_pmp_prompt(
+        project=_taxonomy_project(),
+        passages=[
+            _prompt_platform_passage(),
+            _passage(
+                project="greenfield-demo",
+                source_type="project_evidence",
+                relative_path="04-projects/greenfield-demo/_inbox/tenant-brief.md",
+                whole_document=True,
+                content="Tenant brief evidence content.",
+            ),
+        ],
+        draft_mode="evidence_grounded",
+        run_date=date(2026, 7, 8),
+    )
+
+    assert "In **Citation key**," in prompt
+    assert "In **Project Summary**," in prompt
+    assert "In **Evidence basis and document control**," not in prompt
+    assert "In **Project overview**," not in prompt
+
+
 def test_build_create_pmp_prompt_shares_prefix_across_volatile_changes() -> None:
     import os
     from datetime import date

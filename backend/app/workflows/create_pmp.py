@@ -640,6 +640,31 @@ def _role_drafting_note(
             "Keep the primary document inside the 2-4 page band. Leave evidence_refs "
             "empty and do not write Grounded claims."
         )
+    elif draft_mode == "evidence_grounded" and project_has_taxonomy(project):
+        evidence_note = (
+            "Project evidence is available. Follow the taxonomy section scaffold below "
+            "(tables, checklists, registers). Ground factual project statements in "
+            "evidence_refs where evidence exists. Where evidence is silent, keep "
+            "**Assumption**-labelled scaffold rows. Do NOT replace the PMP with an "
+            "engagement summary or narrow consultant memo. "
+            "If engagement letter or fee proposal appears in Sources, do NOT label them "
+            "missing or 'not yet filed'. State Evidence on file under **Citation key**, "
+            "include the section evidence-status table with `[n]` / `—` citations, "
+            "upgrade Facts in the internal audit layer, and omit false workflow warnings "
+            "(e.g. 'no engagement letter found'). "
+            "Never write these phrases anywhere in Internal audit Assumptions or "
+            "Workflow warnings when the document is in Sources: "
+            "'no engagement letter', 'engagement instruments gap', "
+            "'pre-brief / pre-engagement', 'project evidence (none yet)'. "
+            "In **Citation key**, list numbered project evidence documents "
+            "`[n] filename — date/status`, a `| Section | Evidence status | Citation |` "
+            "table, and a short document-control note. Do not open with "
+            "**Evidence basis and document control**. "
+            "In **Internal audit layer**, list at least two **Facts** bullets "
+            "grounded in Sources (not Assumptions). "
+            "In **Project Summary**, ground owner names, site address, and dwelling "
+            "type from Sources — do not label them Assumption when the evidence states them."
+        )
 
     state_note = (
         f"State is {state}. Apply NSW-deep-default guidance with inline non-NSW gap "
