@@ -662,6 +662,19 @@ def sync_document_control_version(markdown: str, version: int) -> str:
     )
 
 
+def _section_has_markdown_table(section: str) -> bool:
+    """True when the section body already uses a pipe table (taxonomy Summary shape)."""
+    lines = [line.strip() for line in section.splitlines() if line.strip()]
+    for index, line in enumerate(lines):
+        if not line.startswith("|"):
+            continue
+        if index + 1 < len(lines) and re.match(r"^\|[\s|:-]+$", lines[index + 1]):
+            return True
+        if line.count("|") >= 2:
+            return True
+    return False
+
+
 def sanitize_evidence_grounded_markdown(
     markdown: str,
     evidence_refs: list[str],
@@ -710,7 +723,9 @@ def sanitize_evidence_grounded_markdown(
         overview = _markdown_section(updated, overview_heading)
         if not overview:
             continue
-        if source_texts:
+        # Taxonomy Summary/snapshot tables must stay table-shaped; only inject
+        # grounding prose into freeform overview-like sections.
+        if source_texts and not _section_has_markdown_table(overview):
             repaired_overview = _inject_project_overview_grounding(overview, source_texts)
             if repaired_overview != overview:
                 updated = _replace_markdown_section(
@@ -776,25 +791,26 @@ def evidence_map_claim_violations(
     source_texts: list[str],
 ) -> list[str]:
     """Flag evidence-map rows whose Grounded/Partial claim cites an absent document."""
-    evidence_basis = _markdown_section(markdown, "Evidence basis and document control")
-    if not evidence_basis:
-        return []
     corpus_lower = "\n".join(source_texts).lower()
     violations: list[str] = []
-    for match in _EVIDENCE_MAP_ROW_PATTERN.finditer(evidence_basis):
-        status = match.group("status").strip().lower()
-        ref = match.group("ref").strip().lower()
-        if status in {"evidence status", "---", "not evidenced"}:
+    for heading in CORPUS_DOWNGRADE_MAP_HEADINGS:
+        evidence_map = _markdown_section(markdown, heading)
+        if not evidence_map:
             continue
-        markers = _EVIDENCE_MAP_REF_MARKERS.get(ref)
-        if markers is None:
-            continue
-        if not any(marker in corpus_lower for marker in markers):
-            violations.append(
-                f"evidence map row {match.group('section').strip()!r} claims "
-                f"{match.group('status').strip()!r} via {ref!r} but no such document "
-                "is in the indexed evidence"
-            )
+        for match in _EVIDENCE_MAP_ROW_PATTERN.finditer(evidence_map):
+            status = match.group("status").strip().lower()
+            ref = match.group("ref").strip().lower()
+            if status in {"evidence status", "---", "not evidenced"}:
+                continue
+            markers = _EVIDENCE_MAP_REF_MARKERS.get(ref)
+            if markers is None:
+                continue
+            if not any(marker in corpus_lower for marker in markers):
+                violations.append(
+                    f"evidence map row {match.group('section').strip()!r} claims "
+                    f"{match.group('status').strip()!r} via {ref!r} but no such document "
+                    "is in the indexed evidence"
+                )
     return violations
 
 

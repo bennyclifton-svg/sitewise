@@ -2,6 +2,7 @@ from app.sitewise.pmp_evidence_validation import (
     _audit_label_items,
     apply_corpus_evidence_downgrades,
     evidence_grounded_violations,
+    evidence_map_claim_violations,
     evidence_refs_include_engagement_letter,
     evidence_refs_include_fee_proposal,
     extract_grounding_anchors,
@@ -486,3 +487,67 @@ def test_apply_corpus_evidence_downgrades_recognizes_brief_heading() -> None:
     )
     assert "Not evidenced" in updated
     assert meta["downgraded"]
+
+
+def test_evidence_map_claim_violations_reads_citation_key() -> None:
+    markdown = """## Citation key
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Consultants | Grounded | engagement letter |
+| Brief | Not evidenced | — |
+"""
+    violations = evidence_map_claim_violations(
+        markdown,
+        ["Site survey notes with no appointment instruments."],
+    )
+    assert any(
+        "Consultants" in issue and "engagement letter" in issue for issue in violations
+    )
+    assert not any("Brief" in issue for issue in violations)
+
+
+def test_apply_corpus_downgrades_uses_citation_key_claim_violations() -> None:
+    markdown = """## Citation key
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Consultants | Grounded | engagement letter |
+"""
+    updated, meta = apply_corpus_evidence_downgrades(
+        markdown,
+        removed_paths={"04-projects/demo/unrelated-survey.md"},
+        current_source_texts=["Site survey notes with no appointment instruments."],
+    )
+    assert "| Consultants | Not evidenced | engagement letter |" in updated
+    assert "Consultants" in meta["downgraded"]
+
+
+def test_sanitize_keeps_project_summary_table_intact() -> None:
+    markdown = """# Project Management Plan
+
+## Project Summary
+
+| Field | Current PMP position | Citation |
+| --- | --- | --- |
+| Client | Confirmation pending — Assumption | — |
+| Site | Address pending — Assumption | — |
+
+## Citation key
+
+Evidence on file.
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Project Summary | Assumption | — |
+"""
+    cleaned = sanitize_evidence_grounded_markdown(
+        markdown,
+        [ENGAGEMENT_REF],
+        source_texts=_project_source_texts(),
+    )
+    assert "| Field | Current PMP position | Citation |" in cleaned
+    assert "| Client | Confirmation pending — Assumption | — |" in cleaned
+    assert "Owners (evidence):" not in cleaned
+    assert "Site (evidence):" not in cleaned
+    assert "- Owners (evidence)" not in cleaned
