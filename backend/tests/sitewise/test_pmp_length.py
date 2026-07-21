@@ -44,7 +44,7 @@ def test_length_violation_names_oversized_section_budget() -> None:
     compliance_words = " ".join(["compliance"] * 620)
     markdown = f"""# PMP
 
-## Compliance and approvals
+## Planning and Compliance
 
 {compliance_words}
 """
@@ -55,17 +55,18 @@ def test_length_violation_names_oversized_section_budget() -> None:
         max_words=1800,
     )
     assert any(
-        "Compliance and approvals is 623 words, budget ~330 - condense" in issue
+        "Planning and Compliance is 623 words, budget ~330 - condense" in issue
         for issue in issues
     )
 
 
 def test_length_violation_tells_model_which_section_to_deepen() -> None:
-    markdown = "# PMP\n\n## Scope and client requirements\n\nshort draft\n"
+    markdown = "# PMP\n\n## Brief\n\nshort draft\n"
     issues = length_violations(
         markdown,
         weights={
             "snapshot": 0.1,
+            "citation-key": 0.5,
             "scope-client-requirements": 0.3,
             "compliance-approvals": 0.2,
         },
@@ -73,6 +74,7 @@ def test_length_violation_tells_model_which_section_to_deepen() -> None:
         max_words=1800,
     )
     assert any(
-        "minimum 800 - deepen Scope and client requirements" in issue
+        "minimum 800 - deepen Brief" in issue
         for issue in issues
     )
+    assert not any("Citation key" in issue for issue in issues)

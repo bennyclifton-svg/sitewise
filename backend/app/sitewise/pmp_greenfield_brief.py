@@ -813,6 +813,22 @@ def _section_refs(
     return seed_section_refs.get(section_id, ())
 
 
+def _taxonomy_consultant_labels(
+    work_type: str | None,
+    work_scope: tuple[str, ...],
+) -> tuple[str, ...]:
+    seen: set[str] = set()
+    labels: list[str] = []
+    for item in work_scope_items_for(work_type, work_scope):
+        for consultant in item.consultants:
+            key = consultant.strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            labels.append(consultant)
+    return tuple(labels)
+
+
 def _contract_focus_line(
     section_id: str,
     *,
@@ -827,14 +843,26 @@ def _contract_focus_line(
         )
     if section_id == "scope-client-requirements":
         focus = (
-            "cover class/type/subclass, selected work scope, client requirements, "
-            "scale fields, budget basis, and project-specific assumptions"
+            "cover the physical brief only: class/type/subclass, selected work-scope "
+            "inclusions/exclusions, interfaces, finishes/fixtures where relevant, "
+            "client requirements, scale fields, budget basis, and acceptance criteria"
         )
         if "fire_services" in work_scope:
             focus += "; keep fire-services scope precise rather than generic services prose"
         else:
-            focus += "; for residential new work, include finishes, fixtures, wet areas, and owner selections from seeds where loaded"
+            focus += (
+                "; for residential new work, deepen finishes, fixtures, wet areas, "
+                "and owner selections from seeds where loaded"
+            )
         return focus
+    if section_id == "consultants":
+        disciplines = _taxonomy_consultant_labels(work_type, work_scope)
+        roster = ", ".join(disciplines) if disciplines else "taxonomy-expected disciplines"
+        return (
+            "cover the appointment register with Architect-PM first, then "
+            f"{roster}; keep firm/fee/status/citation columns and mark missing "
+            "appointments as Assumption / Not evidenced"
+        )
     if section_id == "compliance-approvals":
         focus = (
             "cover DtS/performance pathway, NCC/authority gates, essential safety measures, "
@@ -859,6 +887,11 @@ def _contract_focus_line(
         return "show a condensed top-risk register only; full detail belongs in companion annexures"
     if section_id == "actions-decisions":
         return "show top open decisions/actions only with owner, status, due basis, and next action"
+    if section_id == "citation-key":
+        return (
+            "keep short: numbered document citations, section status table, "
+            "and document-control notes only"
+        )
     return "cover only project-specific content supported by setup inputs or loaded seeds"
 
 
@@ -915,9 +948,15 @@ def _adaptive_greenfield_brief(
         setup_rows.append(f"- User provided {key}: {_format_value(value)}")
 
     scope_rows = [
-        f"- {item.label}: consultants {', '.join(item.consultants) or 'TBC'}"
+        f"- {item.label}"
         for item in work_scope_items
-    ] or ["- No work-scope items selected; list expected consultants as Assumption."]
+    ] or ["- No work-scope items selected; confirm physical brief inclusions with the client."]
+    consultant_labels = _taxonomy_consultant_labels(work_type, work_scope)
+    consultant_rows = (
+        [f"- {label}" for label in consultant_labels]
+        if consultant_labels
+        else ["- No taxonomy consultant roster yet; keep Architect-PM first and mark other disciplines as Assumption."]
+    )
     risk_rows = [
         f"- {flag.severity.upper()}: {flag.title} - {flag.description}"
         for flag in risk_flags
@@ -944,6 +983,9 @@ def _adaptive_greenfield_brief(
             "",
             "### Selected work-scope items",
             *scope_rows,
+            "",
+            "### Consultants roster (appointment register — not Brief)",
+            *consultant_rows,
             "",
             "### Derived risk flags",
             *risk_rows,

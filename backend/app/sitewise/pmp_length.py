@@ -154,7 +154,13 @@ def _section_word_counts(markdown: str) -> list[tuple[str, int]]:
 
 
 def _highest_weighted_section(weights: dict[str, float]) -> str:
-    candidates = [(section, weight) for section, weight in weights.items() if section != "snapshot"]
+    # Snapshot and Citation key stay short; do not ask the model to deepen them.
+    excluded = {"snapshot", "citation-key"}
+    candidates = [
+        (section, weight)
+        for section, weight in weights.items()
+        if section not in excluded
+    ]
     if not candidates:
         candidates = list(weights.items())
     return max(candidates, key=lambda item: item[1])[0]

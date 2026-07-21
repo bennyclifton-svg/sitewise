@@ -87,7 +87,29 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
     assert "AS 2941 pumpsets" in brief
     assert FIRE_REFS["compliance-approvals"][0] in brief
     assert "Fire Services" in brief
-    assert "consultants Fire Engineer" in brief
+
+    brief_line = next(
+        line for line in brief.splitlines() if line.startswith("- Brief (~")
+    )
+    assert "finishes" in brief_line.lower() or "physical" in brief_line.lower()
+    assert "expected consultant" not in brief_line.lower()
+    assert "Fire Engineer" not in brief_line
+
+    consultants_line = next(
+        line for line in brief.splitlines() if line.startswith("- Consultants (~")
+    )
+    assert "appointment" in consultants_line.lower() or "Architect-PM" in consultants_line
+    assert "Fire Engineer" in consultants_line or "Fire Engineer" in brief
+
+    citation_line = next(
+        line for line in brief.splitlines() if line.startswith("- Citation key (~")
+    )
+    citation_lower = citation_line.lower()
+    assert (
+        "numbered" in citation_lower
+        or "section status" in citation_lower
+        or "document control" in citation_lower
+    )
 
     budgets = []
     for line in brief.splitlines():
