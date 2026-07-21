@@ -99,7 +99,12 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
         line for line in brief.splitlines() if line.startswith("- Consultants (~")
     )
     assert "appointment" in consultants_line.lower() or "Architect-PM" in consultants_line
-    assert "Fire Engineer" in consultants_line or "Fire Engineer" in brief
+    assert "Fire Engineer" in consultants_line
+
+    roster_header = "### Consultants roster (appointment register — not Brief)"
+    assert roster_header in brief
+    roster_body = brief.split(roster_header, 1)[1].split("### ", 1)[0]
+    assert "Fire Engineer" in roster_body
 
     citation_line = next(
         line for line in brief.splitlines() if line.startswith("- Citation key (~")
