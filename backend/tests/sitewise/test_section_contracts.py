@@ -10,7 +10,19 @@ from app.sitewise.taxonomy import building_classes
 
 
 def test_universal_skeleton_is_identical_across_classes() -> None:
-    expected = tuple(PMP_SECTION_HEADINGS.values())
+    expected = (
+        "Project Summary",
+        "Brief",
+        "Consultants",
+        "Planning and Compliance",
+        "Programme",
+        "Cost Planning",
+        "Procurement and Delivery",
+        "Risks and mitigations",
+        "Actions and decisions",
+        "Citation key",
+    )
+    assert tuple(PMP_SECTION_HEADINGS.values()) == expected
     for building_class in building_classes():
         assert (
             required_section_headings(
@@ -26,8 +38,10 @@ def test_advisory_label_variants_share_skeleton_slots() -> None:
     headings = pmp_section_headings(work_type="advisory")
     assert "Services and deliverables" in headings
     assert "Programme of services" in headings
-    assert "Procurement and delivery" not in headings
-    assert "Programme and milestones" not in headings
+    assert "Procurement and Delivery" not in headings
+    assert "Programme" not in headings
+    assert "Consultants" in headings
+    assert "Citation key" in headings
     assert document_title("architect-pm", "advisory") == "Advisory Services Plan"
 
 

@@ -5,14 +5,16 @@ from __future__ import annotations
 from app.sitewise.taxonomy import PMP_CORE_SECTIONS
 
 PMP_SECTION_HEADINGS: dict[str, str] = {
-    "snapshot": "Project snapshot",
-    "scope-client-requirements": "Scope and client requirements",
-    "compliance-approvals": "Compliance and approvals",
-    "programme": "Programme and milestones",
-    "cost-budget": "Cost and budget",
-    "procurement-delivery": "Procurement and delivery",
+    "snapshot": "Project Summary",
+    "scope-client-requirements": "Brief",
+    "consultants": "Consultants",
+    "compliance-approvals": "Planning and Compliance",
+    "programme": "Programme",
+    "cost-budget": "Cost Planning",
+    "procurement-delivery": "Procurement and Delivery",
     "risks": "Risks and mitigations",
     "actions-decisions": "Actions and decisions",
+    "citation-key": "Citation key",
 }
 
 WORK_TYPE_HEADING_VARIANTS: dict[str, dict[str, str]] = {
