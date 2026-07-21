@@ -188,10 +188,10 @@ def test_sanitize_evidence_grounded_markdown_repairs_project_overview() -> None:
     )
 
 
-def test_sanitize_taxonomy_snapshot_injects_engagement_status() -> None:
+def test_sanitize_taxonomy_project_summary_injects_engagement_status() -> None:
     markdown = """# Project Management Plan
 
-## Project snapshot
+## Project Summary
 
 | Field | Value | Evidence status |
 | --- | --- | --- |
