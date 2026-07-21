@@ -1,5 +1,6 @@
 from app.sitewise.pmp_evidence_validation import (
     _audit_label_items,
+    apply_corpus_evidence_downgrades,
     evidence_grounded_violations,
     evidence_refs_include_engagement_letter,
     evidence_refs_include_fee_proposal,
@@ -7,6 +8,7 @@ from app.sitewise.pmp_evidence_validation import (
     extract_project_grounding_facts,
     sanitize_evidence_grounded_markdown,
     sync_document_control_version,
+    taxonomy_provenance_violations,
 )
 from tests.workflows.test_create_pmp import (
     _project_source_texts,
@@ -373,3 +375,114 @@ def test_sanitize_repairs_v15_like_draft_without_evidence_refs() -> None:
         [],
         source_texts=["AS 2870-2011 Site Classification: H1 (highly reactive clay)"],
     ) == []
+
+
+def _taxonomy_citation_key_markdown() -> str:
+    return """# Project Management Plan
+
+## Project Summary
+
+| Field | Current PMP position | Citation |
+| --- | --- | --- |
+| Client | Michael and Sarah Chen — User provided | — |
+| Site | 14 Wattle Grove, Lindfield NSW 2070 — User provided | — |
+
+## Brief
+
+Physical scope is User provided from setup. Finishes remain Assumption.
+
+## Consultants
+
+| Discipline | Firm | Scope / services | Fee | Status | Citation |
+| --- | --- | --- | --- | --- | --- |
+| Architect-PM | Harrison Clarke Studio | Appointment | TBC | Assumption | — |
+
+## Citation key
+
+[1] engagement-letter.md — on file
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Project Summary | User provided | — |
+| Brief | Assumption | — |
+| Consultants | Not evidenced | — |
+
+Document control: draft v01, review-only.
+"""
+
+
+def test_taxonomy_provenance_accepts_citation_key_without_evidence_basis() -> None:
+    markdown = _taxonomy_citation_key_markdown()
+    assert "Evidence basis and document control" not in markdown
+    assert "## Citation key" in markdown
+
+    assert taxonomy_provenance_violations(markdown, draft_mode="platform_seeded") == []
+    assert not any(
+        "evidence basis" in issue.lower()
+        for issue in taxonomy_provenance_violations(
+            markdown,
+            draft_mode="platform_seeded",
+        )
+    )
+
+
+def test_taxonomy_provenance_still_rejects_grounded_in_platform_seeded() -> None:
+    markdown = _taxonomy_citation_key_markdown().replace(
+        "User provided from setup",
+        "Grounded from setup",
+    )
+    violations = taxonomy_provenance_violations(markdown, draft_mode="platform_seeded")
+    assert any("must not contain Grounded" in issue for issue in violations)
+
+
+def test_sanitize_strips_contradictions_from_brief_and_project_summary() -> None:
+    markdown = """# Project Management Plan
+
+## Project Summary
+
+- **Assumption**: site address, dwelling type, budget, and owner identity not yet evidenced.
+- Client remains pending.
+
+## Brief
+
+- Engagement instruments gap: fee proposal, executed engagement letter.
+- Physical brief inclusions remain open.
+
+## Citation key
+
+Evidence on file.
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Project Summary | Partial | engagement-letter.md |
+"""
+    refs = [ENGAGEMENT_REF, FEE_REF]
+    cleaned = sanitize_evidence_grounded_markdown(
+        markdown,
+        refs,
+        source_texts=_project_source_texts(),
+    )
+    assert "not yet evidenced" not in cleaned.lower()
+    assert "engagement instruments gap" not in cleaned.lower()
+    assert "wattle grove" in cleaned.lower() or "michael" in cleaned.lower()
+
+
+def test_apply_corpus_evidence_downgrades_recognizes_brief_heading() -> None:
+    markdown = """## Brief
+
+- Site area: **Grounded** from 01-engagement-letter.md
+- Finishes: Assumption pending owner confirmation.
+
+## Citation key
+
+| Section | Evidence status | Citation |
+| --- | --- | --- |
+| Brief | Grounded | 01-engagement-letter.md |
+"""
+    updated, meta = apply_corpus_evidence_downgrades(
+        markdown,
+        removed_paths={"04-projects/demo/01-engagement-letter.md"},
+        current_source_texts=[],
+    )
+    assert "Not evidenced" in updated
+    assert meta["downgraded"]

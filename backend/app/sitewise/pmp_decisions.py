@@ -387,7 +387,7 @@ def decision_option_sets_for_project(
             continue
         sets[decision_id] = {
             "label": dimension.label,
-            "section": "Project snapshot",
+            "section": "Project Summary",
             "options": [
                 {"value": option.value, "label": option.label}
                 for option in dimension.options

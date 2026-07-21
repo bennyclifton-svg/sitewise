@@ -88,11 +88,43 @@ EVIDENCE_MAP_MARKERS: tuple[str, ...] = (
 # Sections where contradictory filing/mobilisation language is stripped during sanitize.
 EVIDENCE_SANITIZE_SECTION_HEADINGS: tuple[str, ...] = (
     "Evidence basis and document control",
+    "Citation key",
     "Project overview",
+    "Project Summary",
+    "Project snapshot",
+    "Brief",
+    "Scope and client requirements",
+    "Scope & client requirements",
+    "Consultants",
+    "Consultant coordination",
     "Architect-PM role and appointment",
     "Two-brief discipline",
-    "Consultant coordination",
     "Internal audit layer",
+)
+
+# Taxonomy + legacy headings that may hold inline Grounded/Partial status rows.
+CORPUS_DOWNGRADE_INLINE_HEADINGS: tuple[str, ...] = (
+    "Project overview",
+    "Project Summary",
+    "Project snapshot",
+    "Brief",
+    "Scope & client requirements",
+    "Scope and client requirements",
+    "Consultants",
+)
+
+# Sections that may hold the evidence-status map table.
+CORPUS_DOWNGRADE_MAP_HEADINGS: tuple[str, ...] = (
+    "Evidence basis and document control",
+    "Citation key",
+)
+
+_OVERVIEW_LIKE_HEADINGS = frozenset(
+    {
+        "project overview",
+        "project summary",
+        "project snapshot",
+    }
 )
 
 _VERSION_PATTERN = re.compile(r"\bVersion v\d+\b", re.IGNORECASE)
@@ -647,7 +679,7 @@ def sanitize_evidence_grounded_markdown(
         section = _markdown_section(updated, heading)
         if not section or not phrases:
             continue
-        if heading == "Project overview":
+        if heading.lower() in _OVERVIEW_LIKE_HEADINGS:
             cleaned = _strip_overview_contradictions(section)
             cleaned = _strip_contradictory_lines(cleaned, phrases)
         elif heading == "Internal audit layer":
@@ -674,15 +706,22 @@ def sanitize_evidence_grounded_markdown(
         if cleaned != section:
             updated = _replace_markdown_section(updated, heading, cleaned)
 
-    overview = _markdown_section(updated, "Project overview")
-    if overview and source_texts:
-        repaired_overview = _inject_project_overview_grounding(overview, source_texts)
-        if repaired_overview != overview:
-            updated = _replace_markdown_section(updated, "Project overview", repaired_overview)
-    elif overview:
-        cleaned_overview = _strip_overview_contradictions(overview)
-        if cleaned_overview != overview:
-            updated = _replace_markdown_section(updated, "Project overview", cleaned_overview)
+    for overview_heading in ("Project overview", "Project Summary", "Project snapshot"):
+        overview = _markdown_section(updated, overview_heading)
+        if not overview:
+            continue
+        if source_texts:
+            repaired_overview = _inject_project_overview_grounding(overview, source_texts)
+            if repaired_overview != overview:
+                updated = _replace_markdown_section(
+                    updated, overview_heading, repaired_overview
+                )
+        else:
+            cleaned_overview = _strip_overview_contradictions(overview)
+            if cleaned_overview != overview:
+                updated = _replace_markdown_section(
+                    updated, overview_heading, cleaned_overview
+                )
 
     updated = _inject_engagement_appointment_status(
         updated,
@@ -887,24 +926,23 @@ def apply_corpus_evidence_downgrades(
             if match:
                 violating_sections.add(match.group(1))
 
-    evidence_basis = _markdown_section(updated, "Evidence basis and document control")
-    if evidence_basis:
-        repaired_basis, basis_downgraded, basis_conflicted = _downgrade_evidence_map_rows(
-            evidence_basis,
+    empty_corpus = current_source_texts is not None and not current_source_texts
+    for map_heading in CORPUS_DOWNGRADE_MAP_HEADINGS:
+        evidence_map = _markdown_section(updated, map_heading)
+        if not evidence_map:
+            continue
+        repaired_map, map_downgraded, map_conflicted = _downgrade_evidence_map_rows(
+            evidence_map,
             removed_paths=removed_paths,
             violating_sections=violating_sections,
-            empty_corpus=current_source_texts is not None and not current_source_texts,
+            empty_corpus=empty_corpus,
         )
-        if repaired_basis != evidence_basis:
-            updated = _replace_markdown_section(
-                updated,
-                "Evidence basis and document control",
-                repaired_basis,
-            )
-        downgraded.extend(basis_downgraded)
-        conflicted.extend(basis_conflicted)
+        if repaired_map != evidence_map:
+            updated = _replace_markdown_section(updated, map_heading, repaired_map)
+        downgraded.extend(map_downgraded)
+        conflicted.extend(map_conflicted)
 
-    for heading in ("Project overview", "Scope & client requirements", "Scope and client requirements"):
+    for heading in CORPUS_DOWNGRADE_INLINE_HEADINGS:
         section = _markdown_section(updated, heading)
         if not section:
             continue
