@@ -128,6 +128,36 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     ) == []
 
 
+def test_taxonomy_consultants_cites_natural_engagement_filename() -> None:
+    """Non-slug engagement filenames must still resolve to shared [n] citations."""
+    engagement_ref = "02-evidence/Letter of Engagement.pdf"
+    pack = MobilisationEvidencePack(
+        engagement_executed_date="2026-03-01",
+        appointee="Studio Example",
+        roles="Architect-PM",
+        scope_bullets=["PMP", "governance", "procurement advice"],
+        fee_total_ex_gst="$12,000",
+        evidence_refs=[engagement_ref, "02-evidence/site-survey.pdf"],
+    )
+    markdown = render_pmp_scaffold(
+        _project(),
+        pack,
+        "platform_seeded",
+        version=3,
+        seed_section_refs=FIRE_REFS,
+    )
+    consultants = _section_body(markdown, "Consultants")
+    citation_key = _section_body(markdown, "Citation key")
+
+    architect_row = next(
+        line for line in consultants.splitlines() if line.startswith("| Architect / PM |")
+    )
+    assert architect_row.rstrip().endswith("| [1] |")
+    assert "[1] Letter of Engagement.pdf — on file" in citation_key
+    assert "draft v03" in citation_key
+    assert "| Consultants | Partial | [1] |" in citation_key
+
+
 def test_commercial_fire_scaffold_is_compliance_heavy_and_not_residential() -> None:
     project = _project()
     markdown = render_pmp_scaffold(

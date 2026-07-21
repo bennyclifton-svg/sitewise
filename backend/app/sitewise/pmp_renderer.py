@@ -982,19 +982,84 @@ def _citation_index_from_pack(pack: MobilisationEvidencePack | None) -> Citation
     return build_citation_index([(ref, "on file") for ref in pack.evidence_refs])
 
 
+_ENGAGEMENT_REF_PATTERNS: tuple[str, ...] = (
+    "letter of engagement",
+    "letter-of-engagement",
+    "letter_of_engagement",
+    "engagement letter",
+    "engagement-letter",
+    "engagement_letter",
+    "letter of appointment",
+    "letter-of-appointment",
+    "letter_of_appointment",
+    "appointment letter",
+    "appointment-letter",
+    "appointment_letter",
+)
+
+_FEE_REF_PATTERNS: tuple[str, ...] = (
+    "fee proposal",
+    "fee-proposal",
+    "fee_proposal",
+    "fees proposal",
+    "fee quote",
+    "fee-quote",
+    "fee_quote",
+)
+
+
+def _ref_match_key(ref: str) -> str:
+    return ref.replace("\\", "/").lower()
+
+
+def _best_ref_for_patterns(
+    refs: list[str],
+    patterns: tuple[str, ...],
+) -> str | None:
+    """Return the highest-scoring ref for the given patterns, or None."""
+    best_ref: str | None = None
+    best_score = 0
+    for ref in refs:
+        key = _ref_match_key(ref)
+        for index, pattern in enumerate(patterns):
+            if pattern not in key:
+                continue
+            # Earlier / more specific patterns score higher.
+            score = len(patterns) - index
+            if score > best_score:
+                best_score = score
+                best_ref = ref
+    return best_ref
+
+
 def _engagement_citation_token(
     pack: MobilisationEvidencePack,
     citation_index: CitationIndex,
 ) -> str:
-    """Prefer engagement letter, then fee proposal, else dash."""
-    for ref in pack.evidence_refs:
-        normalised = ref.replace("\\", "/").lower()
-        if "engagement-letter" in normalised or "engagement_letter" in normalised:
-            return citation_index.token_for(ref)
-    for ref in pack.evidence_refs:
-        normalised = ref.replace("\\", "/").lower()
-        if "fee-proposal" in normalised or "fee_proposal" in normalised:
-            return citation_index.token_for(ref)
+    """Prefer engagement/appointment letter, then fee proposal, else dash.
+
+    Matches real filenames such as ``Letter of Engagement.pdf`` and
+    ``letter-of-appointment.pdf``, not only kebab-slug forms.
+    """
+    refs = list(pack.evidence_refs)
+    if not refs:
+        return "—"
+
+    engagement_ref = _best_ref_for_patterns(refs, _ENGAGEMENT_REF_PATTERNS)
+    if engagement_ref is not None:
+        return citation_index.token_for(engagement_ref)
+
+    fee_ref = _best_ref_for_patterns(refs, _FEE_REF_PATTERNS)
+    if fee_ref is not None:
+        return citation_index.token_for(fee_ref)
+
+    # Last resort when engagement facts exist: any plausible engagement/fee hint.
+    if has_engagement_evidence(pack):
+        for ref in refs:
+            key = _ref_match_key(ref)
+            if "engagement" in key or "appointment" in key or "fee" in key:
+                return citation_index.token_for(ref)
+
     return "—"
 
 
@@ -1187,20 +1252,33 @@ def _render_taxonomy_consultants(
 
 def _taxonomy_section_evidence_rows(
     project: Project,
+    pack: MobilisationEvidencePack | None = None,
+    citation_index: CitationIndex | None = None,
 ) -> list[str]:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
+    consultants_status = "Assumption / Not evidenced"
+    consultants_citation = "—"
+    if pack is not None and has_engagement_evidence(pack):
+        consultants_status = "Partial"
+        if citation_index is not None:
+            token = _engagement_citation_token(pack, citation_index)
+            if token != "—":
+                consultants_citation = token
     status_by_id = {
         "snapshot": "User provided",
         "scope-client-requirements": "User provided / Assumption",
-        "consultants": "Assumption / Not evidenced",
+        "consultants": consultants_status,
         "compliance-approvals": "Assumption",
         "programme": "Assumption / Not evidenced",
         "cost-budget": "User provided / Assumption",
         "procurement-delivery": "Assumption / Not evidenced",
         "risks": "Assumption",
         "actions-decisions": "Assumption",
+    }
+    citation_by_id = {
+        "consultants": consultants_citation,
     }
     rows = [
         "| Section | Evidence status | Citation |",
@@ -1211,12 +1289,14 @@ def _taxonomy_section_evidence_rows(
             continue
         heading = heading_for_section_id(section_id, work_type=context.work_type)
         status = status_by_id.get(section_id, "Assumption")
-        rows.append(f"| {heading} | {status} | — |")
+        citation = citation_by_id.get(section_id, "—")
+        rows.append(f"| {heading} | {status} | {citation} |")
     return rows
 
 
 def _render_taxonomy_citation_key(
     project: Project,
+    pack: MobilisationEvidencePack | None = None,
     *,
     version: int = 1,
     citation_index: CitationIndex | None = None,
@@ -1232,7 +1312,7 @@ def _render_taxonomy_citation_key(
             "No project evidence documents are cited yet. Upload brief, engagement, "
             "approvals, programme, and cost records to populate numbered citations."
         )
-    evidence_rows = _taxonomy_section_evidence_rows(project)
+    evidence_rows = _taxonomy_section_evidence_rows(project, pack, index)
     return "\n".join(
         [
             f"## {heading_for_section_id('citation-key', work_type=context.work_type)}",
@@ -1488,7 +1568,9 @@ def _render_taxonomy_platform_scaffold(
         _render_taxonomy_procurement(project),
         _render_taxonomy_risks(project),
         _render_taxonomy_actions(project),
-        _render_taxonomy_citation_key(project, version=version, citation_index=index),
+        _render_taxonomy_citation_key(
+            project, pack, version=version, citation_index=index
+        ),
     ]
     rendered_headings = {
         line.strip()[3:].strip().lower()
