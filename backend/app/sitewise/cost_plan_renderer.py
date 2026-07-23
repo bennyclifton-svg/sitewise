@@ -22,16 +22,26 @@ from app.sitewise.pmp_citations import (
 
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
+CoverageFamily = Literal["residential", "industrial_warehouse"]
+
 NARRATIVE_PLACEHOLDER = "[Pending cost plan narrative generation]"
 
-_FEE_ROWS: tuple[tuple[str, str], ...] = (
+# Structure-only disclosure for industrial coverage: there is no NSW industrial rate
+# pack (see data/skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md),
+# so every construction line is a lump-sum TBC rather than a benchmark % split.
+_INDUSTRIAL_NO_RATE_PACK_DISCLOSURE = (
+    "No NSW industrial rate pack exists yet — this is a structure-only scaffold; "
+    "every construction line is a lump-sum TBC pending head-builder tender."
+)
+
+_RESIDENTIAL_FEE_ROWS: tuple[tuple[str, str], ...] = (
     ("2", "DA and CC authority fees"),
     ("3", "BASIX certificate fee"),
     ("4", "Sydney Water / infrastructure"),
     ("5", "Levies and statutory"),
 )
 
-_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+_RESIDENTIAL_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
     ("6", "Structural engineer"),
     ("7", "Geotechnical engineer"),
     ("8", "Surveyor"),
@@ -40,7 +50,7 @@ _CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
     ("11", "Principal certifier"),
 )
 
-_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+_RESIDENTIAL_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
     ("12", "Preliminaries"),
     ("13", "Siteworks and demolition"),
     ("14", "Footings and slab"),
@@ -53,8 +63,8 @@ _CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
 )
 
 # Practice-benchmark elemental split (Assumption — not market-rate advice).
-# Labels MUST match _CONSTRUCTION_ROWS; integer percents sum to 100.
-_CONSTRUCTION_BENCHMARK_PCT: tuple[tuple[str, int], ...] = (
+# Labels MUST match _RESIDENTIAL_CONSTRUCTION_ROWS; integer percents sum to 100.
+_RESIDENTIAL_CONSTRUCTION_BENCHMARK_PCT: tuple[tuple[str, int], ...] = (
     ("Preliminaries", 8),
     ("Siteworks and demolition", 7),
     ("Footings and slab", 12),
@@ -66,14 +76,90 @@ _CONSTRUCTION_BENCHMARK_PCT: tuple[tuple[str, int], ...] = (
     ("Finishes and external works", 7),
 )
 
-_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
+_RESIDENTIAL_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
     ("21", "Kitchen joinery PC"),
     ("22", "Wet area / sanitary PC"),
     ("23", "Floor coverings PC"),
     ("24", "Lighting fittings PC"),
 )
 
-_CONTINGENCY_CODE = "25"
+_RESIDENTIAL_CONTINGENCY_CODE = "25"
+
+# NSW industrial warehouse/logistics (Class 7b) taxonomy — no BASIX or residential
+# kitchen/joinery language; see nsw-industrial-warehouse-cost-breakdown-reference.md.
+_INDUSTRIAL_FEE_ROWS: tuple[tuple[str, str], ...] = (
+    ("2", "DA and CC authority fees"),
+    ("3", "Sydney Water / infrastructure"),
+    ("4", "Levies and statutory"),
+)
+
+_INDUSTRIAL_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("5", "Structural engineer"),
+    ("6", "Geotechnical engineer"),
+    ("7", "Surveyor"),
+    ("8", "Civil engineer"),
+    ("9", "Fire engineer"),
+    ("10", "Principal certifier"),
+)
+
+# No benchmark % split exists for this family (see _INDUSTRIAL_NO_RATE_PACK_DISCLOSURE);
+# every row — including the specialist-systems scope gap — is a lump-sum TBC.
+_INDUSTRIAL_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("11", "Preliminaries"),
+    ("12", "Siteworks and earthworks"),
+    ("13", "Substructure and slabs"),
+    ("14", "Structural steel and frame"),
+    ("15", "Roof cladding and envelope"),
+    ("16", "Dock hardstand and yard"),
+    ("17", "Office fitout (ancillary)"),
+    ("18", "Building services"),
+    ("19", "External works and stormwater"),
+    ("20", "Specialist systems (racking, cool rooms, dock automation) — scope gap"),
+)
+
+# Industrial has no PC-allowance workbook group (see reference doc's Workbook-Ready
+# Groups); the specialist-systems gap row above stands in for it.
+_INDUSTRIAL_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = ()
+
+_INDUSTRIAL_CONTINGENCY_CODE = "21"
+
+_FEE_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
+    "residential": _RESIDENTIAL_FEE_ROWS,
+    "industrial_warehouse": _INDUSTRIAL_FEE_ROWS,
+}
+_CONSULTANT_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
+    "residential": _RESIDENTIAL_CONSULTANT_ROWS,
+    "industrial_warehouse": _INDUSTRIAL_CONSULTANT_ROWS,
+}
+_CONSTRUCTION_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
+    "residential": _RESIDENTIAL_CONSTRUCTION_ROWS,
+    "industrial_warehouse": _INDUSTRIAL_CONSTRUCTION_ROWS,
+}
+# Only residential has a benchmark % split; industrial is TBC-only (no rate pack).
+_CONSTRUCTION_BENCHMARK_PCT_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, int], ...] | None] = {
+    "residential": _RESIDENTIAL_CONSTRUCTION_BENCHMARK_PCT,
+    "industrial_warehouse": None,
+}
+_PC_ALLOWANCE_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
+    "residential": _RESIDENTIAL_PC_ALLOWANCE_ROWS,
+    "industrial_warehouse": _INDUSTRIAL_PC_ALLOWANCE_ROWS,
+}
+_CONTINGENCY_CODE_BY_FAMILY: dict[CoverageFamily, str] = {
+    "residential": _RESIDENTIAL_CONTINGENCY_CODE,
+    "industrial_warehouse": _INDUSTRIAL_CONTINGENCY_CODE,
+}
+
+
+def _coverage_family(project: Project) -> CoverageFamily:
+    """Map a project's building class to its Cost Plan renderer taxonomy family.
+
+    Capability gating (``app/projects/workflow_capabilities.py``) already blocks any
+    building class/state/role combination this renderer does not support, so this is
+    a simple two-way split rather than a full validity check.
+    """
+    if project.building_class == "industrial":
+        return "industrial_warehouse"
+    return "residential"
 
 _STANDING_ASSUMPTIONS: tuple[str, ...] = (
     "Construction trade pricing TBC pending head-builder tender.",
@@ -236,8 +322,8 @@ def _body(rendered_section: str) -> str:
     return rendered_section.split("\n", 1)[1].lstrip() if "\n" in rendered_section else ""
 
 
-def _cost_breakdown_table(pack: CostPlanEvidencePack) -> str:
-    lines = _render_cost_breakdown(pack).splitlines()
+def _cost_breakdown_table(project: Project, pack: CostPlanEvidencePack) -> str:
+    lines = _render_cost_breakdown(project, pack).splitlines()
     start = next(
         index for index, line in enumerate(lines) if line.startswith("| Cost Code |")
     )
@@ -289,7 +375,9 @@ def _render_summary(
     return "\n".join(lines)
 
 
-def _render_budget_and_breakdown(pack: CostPlanEvidencePack, citations: CitationIndex) -> str:
+def _render_budget_and_breakdown(
+    project: Project, pack: CostPlanEvidencePack, citations: CitationIndex
+) -> str:
     brief = _citation_for_markers(
         pack, citations, "owner-project-brief", "owner_project_brief", "owner-brief", "project-brief", "00-brief-pmp"
     )
@@ -308,6 +396,12 @@ def _render_budget_and_breakdown(pack: CostPlanEvidencePack, citations: Citation
         ),
         "| Head contract | TBC | Not tendered | — |",
     ]
+    family = _coverage_family(project)
+    breakdown_intro = (
+        _INDUSTRIAL_NO_RATE_PACK_DISCLOSURE
+        if family == "industrial_warehouse"
+        else "Construction rows are an indicative benchmark split until a tendered trade schedule is available."
+    )
     return "\n".join(
         [
             "## Budget reconciliation and cost breakdown",
@@ -315,14 +409,16 @@ def _render_budget_and_breakdown(pack: CostPlanEvidencePack, citations: Citation
             *rows,
             "",
             "### Cost breakdown",
-            "Construction rows are an indicative benchmark split until a tendered trade schedule is available.",
+            breakdown_intro,
             "",
-            _cost_breakdown_table(pack),
+            _cost_breakdown_table(project, pack),
         ]
     )
 
 
-def _render_commitments_allowances(pack: CostPlanEvidencePack, citations: CitationIndex) -> str:
+def _render_commitments_allowances(
+    project: Project, pack: CostPlanEvidencePack, citations: CitationIndex
+) -> str:
     engagement = _citation_for_markers(
         pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
     )
@@ -339,6 +435,12 @@ def _render_commitments_allowances(pack: CostPlanEvidencePack, citations: Citati
             f"| {pack.certifier_name} principal certifier | {_money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else 'Owner-direct'} | Appointed | "
             f"{_citation_for_markers(pack, citations, 'certifier-appointment', '12-certifier')} |"
         )
+    family = _coverage_family(project)
+    construction_rows_note = (
+        "- Construction rows are lump-sum TBC placeholders, not tendered prices."
+        if family == "industrial_warehouse"
+        else "- Construction benchmark rows are assumptions, not tendered prices."
+    )
     lines = [
         "## Commitments, allowances and exclusions",
         "",
@@ -346,7 +448,7 @@ def _render_commitments_allowances(pack: CostPlanEvidencePack, citations: Citati
         "",
         f"- Contingency: {_money(pack.contingency_amount) if pack.contingency_amount else 'TBC'} {brief}.",
         "- PC allowances, authority fees and unappointed consultants remain TBC until tender or appointment.",
-        "- Construction benchmark rows are assumptions, not tendered prices.",
+        construction_rows_note,
     ]
     if pack.owner_supplied_items:
         lines.append("- Owner-supplied items (outside builder contract): " + "; ".join(
@@ -649,7 +751,16 @@ def _render_gst_basis(pack: CostPlanEvidencePack) -> str:
     return "\n".join(lines)
 
 
-def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
+def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
+    family = _coverage_family(project)
+    is_industrial = family == "industrial_warehouse"
+    fee_rows = _FEE_ROWS_BY_FAMILY[family]
+    consultant_rows = _CONSULTANT_ROWS_BY_FAMILY[family]
+    construction_rows = _CONSTRUCTION_ROWS_BY_FAMILY[family]
+    benchmark_pct = _CONSTRUCTION_BENCHMARK_PCT_BY_FAMILY[family]
+    pc_allowance_rows = _PC_ALLOWANCE_ROWS_BY_FAMILY[family]
+    contingency_code = _CONTINGENCY_CODE_BY_FAMILY[family]
+
     mob = pack.mobilisation
     fee = _money(mob.fee_total_ex_gst)
     fee_label = f"{_appointee_label(pack)} architect / PM fee"
@@ -668,11 +779,11 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
         "| --- | --- | --- | --- | --- | --- |",
         f"| 1 | Fees and charges | {fee_label} | {fee} | Approved | Engagement letter |",
     ]
-    for code, label in _FEE_ROWS:
+    for code, label in fee_rows:
         rows.append(
             f"| {code} | Fees and charges | {label} | TBC | Assumption | Benchmark |"
         )
-    for code, label in _CONSULTANT_ROWS:
+    for code, label in consultant_rows:
         if label == "Principal certifier" and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
             fee = _money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else "Owner-direct"
             name = pack.certifier_name or "appointed"
@@ -685,11 +796,11 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
             f"| {code} | Consultants | {label} | TBC | Assumption | Not yet appointed |"
         )
     ceiling = _parse_amount(pack.construction_budget_ceiling)
-    if ceiling is not None:
-        pct_by_label = dict(_CONSTRUCTION_BENCHMARK_PCT)
+    if benchmark_pct is not None and ceiling is not None:
+        pct_by_label = dict(benchmark_pct)
         running = 0
-        last_index = len(_CONSTRUCTION_ROWS) - 1
-        for index, (code, label) in enumerate(_CONSTRUCTION_ROWS):
+        last_index = len(construction_rows) - 1
+        for index, (code, label) in enumerate(construction_rows):
             if index == last_index:
                 amount = ceiling - running
             else:
@@ -701,17 +812,22 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
             )
         construction_subtotal = f"${ceiling:,}"
     else:
-        for code, label in _CONSTRUCTION_ROWS:
-            rows.append(
-                f"| {code} | Construction | {label} | TBC | Assumption | Pending head-builder tender |"
-            )
+        # Industrial has no benchmark % split (no rate pack) — every row is a lump-sum
+        # TBC regardless of whether a construction ceiling is evidenced.
+        basis = (
+            "Structure only — no rate pack; pending head-builder tender"
+            if is_industrial
+            else "Pending head-builder tender"
+        )
+        for code, label in construction_rows:
+            rows.append(f"| {code} | Construction | {label} | TBC | Assumption | {basis} |")
         construction_subtotal = "TBC"
-    for code, label in _PC_ALLOWANCE_ROWS:
+    for code, label in pc_allowance_rows:
         rows.append(
             f"| {code} | PC allowances | {label} | TBC | Assumption | Selection pending — contract PC schedule |"
         )
     rows.append(
-        f"| {_CONTINGENCY_CODE} | Contingency / allowances | Owner-held contingency | {contingency} | "
+        f"| {contingency_code} | Contingency / allowances | Owner-held contingency | {contingency} | "
         f"{cont_status} | {cont_basis} |"
     )
 
@@ -725,17 +841,21 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
     ]
     itemised_total = sum(amount for amount in subtotal_amounts if amount is not None)
     grand_total = f"${itemised_total:,}" if itemised_total else "TBC"
-    grand_basis = "Sum of itemised subtotals — construction is benchmark % of ceiling, consultants/PC TBC"
-    rows.extend(
-        [
-            f"| | | **Subtotal — Fees and charges** | {fee_subtotal} | | |",
-            "| | | **Subtotal — Consultants** | TBC | | |",
-            f"| | | **Subtotal — Construction** | {construction_subtotal} | | |",
-            "| | | **Subtotal — PC allowances** | TBC | | |",
-            f"| | | **Subtotal — Contingency / allowances** | {contingency} | | |",
-            f"| | | **Grand total (ex GST)** | {grand_total} | Assumption | {grand_basis} |",
-        ]
+    grand_basis = (
+        "Sum of itemised subtotals — construction is a lump-sum TBC (no rate pack), consultants TBC"
+        if is_industrial
+        else "Sum of itemised subtotals — construction is benchmark % of ceiling, consultants/PC TBC"
     )
+    subtotal_rows = [
+        f"| | | **Subtotal — Fees and charges** | {fee_subtotal} | | |",
+        "| | | **Subtotal — Consultants** | TBC | | |",
+        f"| | | **Subtotal — Construction** | {construction_subtotal} | | |",
+    ]
+    if pc_allowance_rows:
+        subtotal_rows.append("| | | **Subtotal — PC allowances** | TBC | | |")
+    subtotal_rows.append(f"| | | **Subtotal — Contingency / allowances** | {contingency} | | |")
+    subtotal_rows.append(f"| | | **Grand total (ex GST)** | {grand_total} | Assumption | {grand_basis} |")
+    rows.extend(subtotal_rows)
     owner_lines = _owner_supplied_lines(pack.owner_supplied_items)
     cost_driver_lines: list[str] = []
     if mob.builder_rom:
@@ -746,15 +866,34 @@ def _render_cost_breakdown(pack: CostPlanEvidencePack) -> str:
         )
     if mob.heritage_approval_advice:
         cost_driver_lines.append(f"Heritage cost/programme driver: {mob.heritage_approval_advice}")
+
+    if is_industrial:
+        workbook_groups_line = (
+            "Workbook-ready groups: Fees and charges → Consultants → Construction → "
+            "Contingency / allowances."
+        )
+        taxonomy_line = (
+            "Construction rows follow the NSW industrial warehouse/logistics (Class 7b) "
+            "taxonomy structure only — no rate pack."
+        )
+        benchmark_line = _INDUSTRIAL_NO_RATE_PACK_DISCLOSURE
+    else:
+        workbook_groups_line = (
+            "Workbook-ready groups: Fees and charges → Consultants → Construction → PC allowances → "
+            "Contingency / allowances."
+        )
+        taxonomy_line = "Construction rows follow NSW residential taxonomy."
+        benchmark_line = (
+            "Construction rows are an indicative benchmark split of the owner ceiling (Assumption) "
+            "until head-builder tender returns a priced schedule."
+        )
     return "\n".join(
         [
             "## Cost breakdown by category",
             "",
-            "Workbook-ready groups: Fees and charges → Consultants → Construction → PC allowances → "
-            "Contingency / allowances.",
-            "Construction rows follow NSW residential taxonomy.",
-            "Construction rows are an indicative benchmark split of the owner ceiling (Assumption) "
-            "until head-builder tender returns a priced schedule.",
+            workbook_groups_line,
+            taxonomy_line,
+            benchmark_line,
             *cost_driver_lines,
             "",
             *rows,
@@ -1033,8 +1172,8 @@ def render_cost_plan_scaffold(
     citations = _citation_index(pack)
     sections = [
         _render_summary(project, pack, citations),
-        _render_budget_and_breakdown(pack, citations),
-        _render_commitments_allowances(pack, citations),
+        _render_budget_and_breakdown(project, pack, citations),
+        _render_commitments_allowances(project, pack, citations),
         _render_risks_gates_actions(pack),
         _render_sources_and_audit(pack, citations),
     ]
