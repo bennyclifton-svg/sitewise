@@ -25,7 +25,7 @@ Return typed `CostPlanNarrativeOutput` with:
 8. Principal certifier recommendations must align with post-DA appointment unless the pack states otherwise.
 9. Return next steps as plain sentences only — do not prefix with numbering (the assembler adds numbers).
 10. Architect fee is **outside** the construction ceiling — never describe it as exceeding or overrunning the ceiling.
-11. Keep output concise — target roughly 600–1,200 tokens total across all fields.
+11. Keep output concise — target roughly 300–500 tokens total across all fields.
 12. Each `risk_rows` owner MUST be a specific accountable party — `Owner`, `Architect-PM`,
     `Structural Engineer`, `Certifier`, or `Builder`. Never use a generic owner such as
     "Project Team", "Team", "Project", or "Various".

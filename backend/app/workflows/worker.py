@@ -24,6 +24,7 @@ from app.database.session import get_session_factory
 from app.logging import configure_logging, get_logger
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.workflows.consultant_procurement import draft_consultant_procurement_artifact
+from app.workflows.contractor_procurement import draft_contractor_eoi_artifact
 from app.workflows.create_cost_plan import run_create_cost_plan_workflow
 from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.schemas import CostItemInput
@@ -115,6 +116,16 @@ async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
             project=project,
             user_id=run.requested_by_user_id,
             discipline=str(parameters["discipline"]),
+            max_pages=int(parameters.get("max_pages", 1)),
+            instructions=parameters.get("instructions"),
+            auto_commit=False,
+        )
+    elif run.workflow_type == "contractor_eoi":
+        result = await draft_contractor_eoi_artifact(
+            session,
+            project=project,
+            user_id=run.requested_by_user_id,
+            package=str(parameters.get("package", "Main Works")),
             max_pages=int(parameters.get("max_pages", 1)),
             instructions=parameters.get("instructions"),
             auto_commit=False,

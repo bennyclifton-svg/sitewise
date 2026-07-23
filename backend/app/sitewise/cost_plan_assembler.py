@@ -23,9 +23,7 @@ def _strip_narrative_placeholder(text: str) -> str:
 
 
 def _merge_internal_audit(scaffold: str, narrative: CostPlanNarrativeOutput) -> str:
-    section = _markdown_section(scaffold, "Internal audit layer")
-    parts = re.split(r"(?=\n- \*\*Judgements\*\*)", section, maxsplit=1)
-    preserved = parts[0].rstrip() if parts else section.rstrip()
+    section = _markdown_section(scaffold, "Source evidence and audit trail")
     narrative_block = "\n".join(
         [
             "- **Judgements**",
@@ -34,22 +32,37 @@ def _merge_internal_audit(scaffold: str, narrative: CostPlanNarrativeOutput) -> 
             *[f"  - {item}" for item in narrative.recommendations],
         ]
     )
-    tail = parts[1] if len(parts) > 1 else ""
-    if "**Cost evidence conflicts**" in tail:
-        conflict = tail[tail.index("- **Cost evidence conflicts**") :]
-        merged_body = f"{preserved}\n{narrative_block}\n{conflict.rstrip()}"
+    marker = "- **Cost evidence conflicts**"
+    if marker in section:
+        merged_body = section.replace(marker, f"{narrative_block}\n{marker}", 1)
     else:
-        merged_body = f"{preserved}\n{narrative_block}"
-    return _replace_markdown_section_body(scaffold, "Internal audit layer", merged_body)
+        merged_body = f"{section.rstrip()}\n{narrative_block}"
+    return _replace_markdown_section_body(
+        scaffold, "Source evidence and audit trail", merged_body
+    )
+
+
+def _replace_subsection_body(section: str, heading: str, body: str) -> str:
+    pattern = re.compile(
+        rf"(^###\s+{re.escape(heading)}\s*$).*?(?=^###\s+|\Z)",
+        re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    return pattern.sub(
+        f"### {heading}\n\n{body.strip()}\n\n", section, count=1
+    ).rstrip()
 
 
 def _merge_risks_section(scaffold: str, narrative: CostPlanNarrativeOutput) -> str:
-    section = _markdown_section(scaffold, "Risks and review questions")
+    section = _markdown_section(scaffold, "Risks, delivery gates and next actions")
     if narrative.risk_rows:
-        body = format_risk_rows_table(narrative.risk_rows)
+        body = _replace_subsection_body(
+            section, "Risk register", format_risk_rows_table(narrative.risk_rows)
+        )
     else:
         body = _strip_narrative_placeholder(section)
-    return _replace_markdown_section_body(scaffold, "Risks and review questions", body)
+    return _replace_markdown_section_body(
+        scaffold, "Risks, delivery gates and next actions", body
+    )
 
 
 def _normalize_next_step(step: str) -> str:
@@ -61,8 +74,11 @@ def _merge_recommended_next_steps(scaffold: str, narrative: CostPlanNarrativeOut
         f"{index}. {_normalize_next_step(step)}"
         for index, step in enumerate(narrative.next_steps, start=1)
     ]
-    body = "\n".join(lines)
-    return _replace_markdown_section_body(scaffold, "Recommended next steps", body)
+    section = _markdown_section(scaffold, "Risks, delivery gates and next actions")
+    body = _replace_subsection_body(section, "Next actions", "\n".join(lines))
+    return _replace_markdown_section_body(
+        scaffold, "Risks, delivery gates and next actions", body
+    )
 
 
 def assemble_cost_plan_markdown(

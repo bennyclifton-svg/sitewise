@@ -22,24 +22,21 @@ This is an operational cost plan (Fees, Consultants, Construction, Contingency) 
 
 Use these exact `##` headings (validator-enforced):
 
-1. Project name and location
-2. Source evidence used
-3. Budget reconciliation and control decision
-4. Total approved or indicative budget
-5. GST basis
-6. Cost breakdown by category
-7. Known locked contract and appointment values
-8. Allowances and contingency
-9. PM fee treatment
-10. Assumptions and exclusions
-11. Risks and review questions
-12. Authority, compliance and procurement gates
-13. Recommended next steps
-14. Internal audit layer
+1. Cost plan summary and control decision
+2. Budget reconciliation and cost breakdown
+3. Commitments, allowances and exclusions
+4. Risks, delivery gates and next actions
+5. Source evidence and audit trail
+
+Target 1,200-1,400 words. Keep the cost breakdown table detailed, but do not
+repeat its figures in prose, risk rows, or audit notes.
+
+For evidence-grounded drafts, cite project facts with `[n]` and place the
+numbered citation key at the end in `Source evidence and audit trail`.
 
 ## GST
 
-Create Cost Plan v1 uses **ex-GST figures** in tables. State this explicitly in GST basis.
+Create Cost Plan v1 uses **ex-GST figures** in tables. State this explicitly in Cost plan summary and control decision.
 Note where owners typically think inc GST — translate if helpful.
 
 ## Cost breakdown structure
@@ -60,12 +57,12 @@ When progress claims, payment claims, schedule of values, or contract trade sche
 - Adopt the latest reliable trade/work-package breakdown into Construction at useful granularity
 - Reconcile to revised contract sum and variations as far as evidence allows
 - Do NOT collapse Construction to one "Construction contract" line unless source evidence has no breakdown
-- Record conflicts in Internal audit layer under **Cost evidence conflicts**
+- Record conflicts in Source evidence and audit trail under **Cost evidence conflicts**
 
 ## Budget reconciliation (mandatory)
 
 When multiple budget figures exist (owner expectation, PMP note, QS report, fee proposal, builder ballpark):
-- List each figure with source, amount, GST basis, and adoption decision BEFORE the breakdown
+- List each figure with source, amount, GST basis, citation and adoption decision before the breakdown
 - State the cost-control reference figure
 - Frame affordability gaps as owner decisions
 
@@ -84,12 +81,12 @@ No project evidence available. Draft from doctrine and seeds only.
 ## evidence_grounded mode
 
 Project evidence available. Ground factual amounts and labels from Sources.
-- Include **Evidence on file:** and evidence map table in Source evidence used
+- Include an evidence map, `[n]` citations and a final `### Citation key` in Source evidence and audit trail
 - Upgrade budget, appointments, and claim rows from evidence where present
-- Internal audit **Facts** must cite concrete evidenced items
-- Minimum 3 **Recommendations** with owner asks and due dates
+- Audit **Facts** must cite concrete evidenced items
+- Keep owner asks and due dates within `### Next actions`
 
-## Internal audit layer
+## Source evidence and audit trail
 
 Use bullet lists labelled **Facts**, **Assumptions**, **Judgements**, **Recommendations** — not ### subheadings.
 Include **Cost evidence conflicts** when claim schedules and variations disagree.

@@ -9,16 +9,30 @@ retrieval and no LLM calls.
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
-from app.agent.mutation_intent import MutationIntent
+from app.agent.mutation_intent import MutationIntent, is_profile_proposal_confirmation
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.projects.workflow_capabilities import workflow_capabilities
 from app.sitewise.taxonomy import scale_fields_for, subclasses_for
 
 _NOT_DECLARED = "(not declared)"
+_PROFILE_ENRICHMENT_VERBS = (
+    "update",
+    "complete",
+    "fill",
+    "populate",
+    "enrich",
+    "check",
+    "review",
+    "correct",
+    "fix",
+    "audit",
+)
 _DOCUMENT_ACCESS_GUIDANCE = """<document-access>
 For questions about uploaded source documents, use project document tools before OCR:
 find_document_text is the first choice for simple keyword or phrase lookups.
@@ -34,8 +48,18 @@ start_consultant_procurement. This includes phrases like "draft a
 request for fee proposal", "draft consultant procurement", "prepare an RFP for
 the structural engineer", "get me a fee proposal request for the hydraulic
 consultant", and "prepare scope for BASIX assessor". Do not answer these as
-free text only; queue the artefact, return its run id, and use the workflow
-status/result tools for follow-up.
+free text only; queue the artefact. Confirm briefly what is being prepared and
+that the draft will appear when ready. Do not lead with internal run ids or
+workflow type names; use get_project_workflow_status / get_project_workflow_result
+only when the user asks about progress or the result.
+For a main works contractor, head contractor, or builder EOI, call
+start_contractor_eoi. This capability is separate from Tender Comparison and
+does not use Tender Comparison's Class 1a coverage gate. Use the
+workflow.contractor_eoi capability result only; never copy an unsupported reason
+from workflow.tender_comparison. An EOI is unpriced and is not an RFT.
+When asked to add a site address, client, or owners onto an RFP/EOI or the
+project profile, search project documents first with find_document_text /
+search_documents. Propose evidence-backed values; do not invent them.
 Generated artefacts are not independent project evidence unless they point to an
 ingested source_document_id.
 Do not inspect repository files, run shell commands, or query the database directly
@@ -65,12 +89,36 @@ Ground every answer in project evidence and platform knowledge:
   request for fee proposal", "draft consultant procurement", "prepare an RFP for
   the structural engineer", "get me a fee proposal request for the hydraulic
   consultant", and "prepare scope for BASIX assessor". Do not answer with only
-  free text; queue the artefact and report its run id.
+  free text; queue the artefact. Confirm briefly what is being prepared and that
+  the draft will appear when ready. Do not lead with internal run ids or
+  workflow type names.
+- For a main works contractor, head contractor, or builder EOI, call
+  start_contractor_eoi. This capability is separate from Tender Comparison and
+  does not use Tender Comparison's Class 1a coverage gate. Use only the
+  workflow.contractor_eoi capability result; never copy an unsupported reason
+  from workflow.tender_comparison. Treat the EOI as unpriced and distinct from
+  an RFT.
+- For project identity facts used in RFPs and EOIs (site_address, client /
+  owners): read get_project_profile / get_project_snapshot first. If the field
+  is missing, search project documents with find_document_text or
+  search_documents before asking the user. When evidence supports a value,
+  propose_project_profile_change with evidence_references and ask the user to
+  confirm. Only call update_project_profile for an explicit user set/change/
+  update/save of the exact address or client text. After the profile accepts
+  the value, re-queue start_consultant_procurement (or start_contractor_eoi)
+  with a new idempotency key so the next draft includes it. Never invent an
+  address or client name.
 - Read project setup with get_project_profile and discover valid values with
   get_project_profile_options. Only call update_project_profile for the exact
   values in an explicit user set/change/update/save command. Document-derived,
   quoted, hedged, or inferred facts must use propose_project_profile_change;
   never mutate the profile directly from evidence.
+- When the user explicitly confirms a pending profile proposal, call
+  accept_project_profile_proposal instead of update_project_profile. Proposal
+  acceptance is authorized by that confirmation and does not require a
+  profile_mutation scope. Use the proposal id and current profile revision from
+  the project snapshot; call get_project_snapshot if they are not available in
+  the current turn. Ask only when more than one pending proposal could match.
 - Use get_project_snapshot when a workflow or answer needs the shared profile,
   decision locks, confirmed inputs, evidence health, and open proposals together.
 - Use get_workflow_capabilities before advertising or starting a workflow. Never
@@ -81,10 +129,54 @@ Ground every answer in project evidence and platform knowledge:
 Label platform knowledge as guidance, not project evidence. General model
 knowledge is the last resort when project evidence and platform guidance do
 not answer the question.
-If a <project-context> field reads "(not declared)", ask the user to declare
-it instead of guessing. Write plain, direct answers for construction
-professionals and name the documents your answer relies on.
+When the user asks what the project needs — consultants, approvals, reports,
+or next steps — do not answer with an undifferentiated textbook checklist.
+Frame every recommendation against this project's <project-context> and
+snapshot: name the specific project fact that drives each item (e.g. added
+storeys/structure → structural + geotech; heritage locality → heritage
+consultant; tight urban site → stormwater), lead with the set to act on now,
+and separate those from generically-optional items the project can defer.
+If a <project-context> field reads "(not declared)", search project documents
+for that fact when it is a project identity field (site address, client /
+owners). Only ask the user to declare it when evidence does not support a
+clear value. Write plain, direct answers for construction professionals and
+name the documents your answer relies on.
 </persona>"""
+
+_PROFILE_ENRICHMENT_GUIDANCE = """<profile-enrichment-request>
+The user has asked for a best-effort Project Profile update without supplying
+specific values. Treat this as a request to discover the facts from the uploaded
+project documents, not as a reason to ask which fields they mean. First read
+get_project_profile and get_project_profile_options. Review every unset or
+incomplete profile field, including classification, subclasses, work scope,
+scale, complexity, state, user role, site address, and client / owners. Search
+project documents for those facts using find_document_text and search_documents
+before replying; use targeted searches rather than relying only on the current
+profile summary.
+
+For each evidence-derived value that would improve the profile, call
+propose_project_profile_change with evidence_references and a confidence value.
+Use lower confidence for a plausible but tentative interpretation; make reasonable
+taxonomy mappings from the evidence, group compatible values when appropriate,
+and label uncertainty plainly so the user can correct it. Do not directly mutate
+evidence-derived values and never invent a fact. Only leave a field unset after
+the document pass cannot support it. Do not reply that
+the profile is already up to date, or ask the user to tell you to search, before
+completing this enrichment pass. End with a concise summary of the proposals
+created and any fields still unresolved.
+</profile-enrichment-request>"""
+
+_PROFILE_PROPOSAL_CONFIRMATION_GUIDANCE = """<profile-proposal-confirmation>
+The user has explicitly confirmed a pending Project Profile proposal. Accept
+the matching proposal now with accept_project_profile_proposal; this does not
+require a profile_mutation scope. Do not call update_project_profile or report
+that the action is blocked. Use the proposal id and current profile revision
+from the current project snapshot. If the id is not shown there, call
+get_project_snapshot, match the confirmed fields to one pending proposal, then
+accept it. Ask a clarifying question only if multiple pending proposals could
+reasonably match this confirmation. Report the accepted fields after the tool
+succeeds.
+</profile-proposal-confirmation>"""
 
 
 @dataclass(frozen=True)
@@ -108,6 +200,7 @@ def build_agent_prompt(
     project_metadata: dict | None = None,
     mutation_intent: MutationIntent | None = None,
     snapshot: ProjectSnapshot | None = None,
+    confirmed_profile_values: dict[str, Any] | None = None,
 ) -> str:
     """Wrap the user's message with the agent role, project overlays, and history.
 
@@ -138,6 +231,20 @@ def build_agent_prompt(
         mutation_intent.scopes or mutation_intent.requires_confirmation
     ):
         blocks.append(_mutation_policy_block(mutation_intent))
+    if _is_profile_enrichment_request(user_text, mutation_intent):
+        blocks.append(_PROFILE_ENRICHMENT_GUIDANCE)
+    if confirmed_profile_values:
+        values_json = json.dumps(confirmed_profile_values, sort_keys=True)
+        blocks.append(
+            "<profile-proposal-confirmed>\n"
+            "Clerk has already accepted the user-confirmed profile proposal. "
+            f"Verified updated values: {values_json}. "
+            "Do not call a profile mutation tool or say the action is blocked; "
+            "report these saved values concisely.\n"
+            "</profile-proposal-confirmed>"
+        )
+    elif _is_profile_proposal_confirmation_request(user_text, mutation_intent):
+        blocks.append(_PROFILE_PROPOSAL_CONFIRMATION_GUIDANCE)
 
     window = _bounded_history(history)
     if window:
@@ -148,6 +255,29 @@ def build_agent_prompt(
 
     blocks.append(user_text)
     return "\n\n".join(blocks)
+
+
+def _is_profile_enrichment_request(
+    user_text: str,
+    mutation_intent: MutationIntent | None,
+) -> bool:
+    """Recognize broad profile-completion requests that carry no exact patch."""
+    if mutation_intent is not None and mutation_intent.scopes:
+        return False
+    normalized = " ".join(user_text.lower().split())
+    return "profile" in normalized and any(
+        re.search(rf"\b{verb}\b", normalized) for verb in _PROFILE_ENRICHMENT_VERBS
+    )
+
+
+def _is_profile_proposal_confirmation_request(
+    user_text: str,
+    mutation_intent: MutationIntent | None,
+) -> bool:
+    """Recognize confirmation of a profile proposal without an exact direct patch."""
+    if mutation_intent is not None and mutation_intent.scopes:
+        return False
+    return is_profile_proposal_confirmation(user_text)
 
 
 def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
@@ -171,6 +301,19 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         f"{key}={value.value if value.status == 'confirmed' else _NOT_DECLARED}"
         for key, value in sorted(snapshot.confirmed_inputs.items())
     ]
+    identity = getattr(snapshot, "identity", None)
+    site_value = getattr(identity, "site_address", None) if identity is not None else None
+    client_value = getattr(identity, "client", None) if identity is not None else None
+    identity_lines = [
+        (
+            "site_address="
+            f"{site_value.value if getattr(site_value, 'status', None) == 'confirmed' else _NOT_DECLARED}"
+        ),
+        (
+            "client="
+            f"{client_value.value if getattr(client_value, 'status', None) == 'confirmed' else _NOT_DECLARED}"
+        ),
+    ]
     next_action_lines = [
         (
             f"next_action.{action.code}=reason:{action.reason}; "
@@ -189,6 +332,7 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         f"ingest_failure_count: {snapshot.evidence.ingest_failure_count}",
         f"open_profile_proposals: {len(snapshot.open_profile_proposals)}",
         *capability_lines,
+        *identity_lines,
         *input_lines,
         *decision_lines,
         *next_action_lines,
@@ -199,12 +343,15 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
 
 def _mutation_policy_block(intent: MutationIntent) -> str:
     if intent.scopes:
-        targets = ", ".join(
-            f"{field}={value}" for field, value in intent.profile_patch.items()
-        )
+        patch_json = json.dumps(dict(intent.profile_patch), sort_keys=True)
         instruction = (
-            "This turn has a server-bound profile_mutation scope for exactly: "
-            f"{targets}. Do not mutate any other profile field."
+            "This turn has a server-bound profile_mutation scope. Call "
+            "update_project_profile with changes exactly equal to this JSON object "
+            f"and the current expected_revision: {patch_json}. "
+            "Do not omit nested scale/subclasses values, do not add other profile "
+            "fields, and never claim that scale fields such as storeys, gfa_sqm, "
+            "bedrooms, or garage_spaces are missing when they appear here or as "
+            "(not declared) in project-context."
         )
     elif intent.requires_confirmation:
         instruction = (
@@ -271,11 +418,20 @@ def _project_context_block(
             ]
         )
 
+    site_address = _clean(taxonomy.get("site_address"))
+    if site_address is None and isinstance(project_metadata, dict):
+        site_address = _clean(project_metadata.get("site_address"))
+    client = _clean(taxonomy.get("client"))
+    if client is None and isinstance(project_metadata, dict):
+        client = _clean(project_metadata.get("client"))
+
     lines.extend(
         [
             f"phase: {phase or _NOT_DECLARED}",
             f"user_role: {user_role or _NOT_DECLARED}",
             f"state: {state or _NOT_DECLARED}",
+            f"site_address: {site_address or _NOT_DECLARED}",
+            f"client: {client or _NOT_DECLARED}",
             "</project-context>",
         ]
     )
@@ -334,13 +490,27 @@ def _format_scale(
     subclass_values: tuple[str, ...],
     value: Any,
 ) -> str | None:
-    if not isinstance(value, dict):
-        return None
     labels: dict[str, str] = {}
     for subclass in subclass_values:
         for field in scale_fields_for(building_class or "", subclass):
             labels.setdefault(field.key, field.label)
-    return _format_mapping(value, labels=labels)
+    if not labels:
+        if not isinstance(value, dict):
+            return None
+        return _format_mapping(value)
+    current = value if isinstance(value, dict) else {}
+    parts = []
+    for key, label in labels.items():
+        item = current.get(key)
+        if item in (None, "", [], {}):
+            parts.append(f"{label}={_NOT_DECLARED}")
+        else:
+            parts.append(f"{label}={_format_scalar(item)}")
+    for key, item in current.items():
+        if key in labels or item in (None, "", [], {}):
+            continue
+        parts.append(f"{key}={_format_scalar(item)}")
+    return ", ".join(parts) or None
 
 
 def _format_mapping(value: Any, *, labels: dict[str, str] | None = None) -> str | None:

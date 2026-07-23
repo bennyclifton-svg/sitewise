@@ -5,7 +5,7 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 import app.database.models  # noqa: F401 — register all SQLAlchemy mappers before API routes
 from app.api.auth import router as auth_router
@@ -81,14 +81,28 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+@fastapi_app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    log.exception("database_integrity_error", path=request.url.path, error=str(exc))
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": "Database constraint conflict while saving. Retry the workflow.",
+        },
+    )
+
+
 @fastapi_app.exception_handler(SQLAlchemyError)
 async def database_error_handler(request: Request, exc: SQLAlchemyError):
     log.exception("database_error", path=request.url.path, error=str(exc))
+    detail = (
+        "Database unavailable. Check DATABASE_URL and network access."
+        if isinstance(exc, OperationalError)
+        else "Database error while processing the request."
+    )
     return JSONResponse(
         status_code=503,
-        content={
-            "detail": "Database unavailable. Check DATABASE_URL and network access.",
-        },
+        content={"detail": detail},
     )
 
 

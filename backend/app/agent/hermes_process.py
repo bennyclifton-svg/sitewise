@@ -221,13 +221,29 @@ def _write_platform_key_config(hermes_home: Path, *, mcp_url: str) -> None:
     (hermes_home / "config.yaml").write_text(config, encoding="utf-8")
 
 
+def _provider_needs_local_credentials(provider: str | None) -> bool:
+    if provider is None:
+        return False
+    return provider.strip().lower() in {"openai-codex", "xai-oauth", "codex"}
+
+
 def _write_hermes_config(
     hermes_home: Path,
     *,
     mcp_url: str,
     source_home: Path | None,
+    provider: str | None = None,
 ) -> None:
     hermes_home.mkdir(parents=True, exist_ok=True)
+    use_local_credentials = _provider_needs_local_credentials(provider)
+
+    if use_local_credentials and source_home is not None:
+        source_config = (source_home / "config.yaml").read_text(encoding="utf-8")
+        base_config = _strip_top_level_yaml_block(source_config, "mcp_servers")
+        config = f"{base_config}\n{_mcp_config_block(mcp_url=mcp_url)}"
+        (hermes_home / "config.yaml").write_text(config, encoding="utf-8")
+        _copy_hermes_credentials(source_home, hermes_home)
+        return
 
     if settings.agent_platform_api_key or source_home is None:
         _write_platform_key_config(hermes_home, mcp_url=mcp_url)
@@ -245,15 +261,21 @@ def _build_env(
     mcp_url: str,
     turn_token: str,
     hermes_home: Path,
+    provider: str | None = None,
 ) -> dict[str, str]:
     env = os.environ.copy()
     source_home = _existing_hermes_home(env)
     env["HERMES_HOME"] = str(hermes_home)
     env["AGENT_TURN_TOKEN"] = turn_token
     env["CLERK_MCP_TOKEN"] = turn_token
-    if settings.agent_platform_api_key:
+    if settings.agent_platform_api_key and not _provider_needs_local_credentials(provider):
         env["OPENAI_API_KEY"] = settings.agent_platform_api_key
-    _write_hermes_config(hermes_home, mcp_url=mcp_url, source_home=source_home)
+    _write_hermes_config(
+        hermes_home,
+        mcp_url=mcp_url,
+        source_home=source_home,
+        provider=provider,
+    )
     return env
 
 
@@ -285,6 +307,22 @@ async def _read_stderr(stream: _Stream | None, tail: deque[str]) -> None:
         tail.append(raw.decode(errors="replace").rstrip())
 
 
+_QUERY_ECHO_TERMINATORS = (
+    "Initializing agent",
+    "No Codex credentials",
+    "No API key found",
+    "Error:",
+    "Traceback",
+)
+
+
+def _ends_query_echo(cleaned: str) -> bool:
+    return any(
+        cleaned.startswith(marker) or marker in cleaned
+        for marker in _QUERY_ECHO_TERMINATORS
+    )
+
+
 async def _iter_stdout(stream: _Stream | None) -> AsyncIterator[str]:
     if stream is None:
         return
@@ -299,9 +337,11 @@ async def _iter_stdout(stream: _Stream | None) -> AsyncIterator[str]:
             skipping_query_echo = True
             continue
         if skipping_query_echo:
+            if not _ends_query_echo(cleaned):
+                continue
+            skipping_query_echo = False
             if cleaned.startswith("Initializing agent"):
-                skipping_query_echo = False
-            continue
+                continue
         text = clean_hermes_output_line(line)
         if text:
             yield text
@@ -333,6 +373,7 @@ async def stream_hermes_turn(
             mcp_url=mcp_url,
             turn_token=turn_token,
             hermes_home=Path(hermes_home),
+            provider=provider,
         )
         process = await spawn(argv=argv, env=env, cwd=str(cwd))
         stderr_task = asyncio.create_task(_read_stderr(process.stderr, stderr_tail))

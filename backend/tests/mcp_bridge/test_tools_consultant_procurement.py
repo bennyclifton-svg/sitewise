@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
+from openai import OpenAIError
 
 from app.agent.status_bus import agent_turn_status_bus
 from app.config import settings
@@ -223,3 +224,18 @@ def test_draft_consultant_procurement_publishes_status_and_artefact(monkeypatch)
     assert artefact["kind"] == "artefact"
     assert artefact["draftId"] == str(DRAFT_ID)
     assert artefact["workflowType"] == "consultant_procurement_structural_engineer"
+
+
+def test_draft_consultant_procurement_reports_upstream_model_failure(monkeypatch) -> None:
+    session = _Session(project=_project())
+    server, run_workflow = _install(monkeypatch, session)
+    run_workflow.side_effect = OpenAIError("model request failed")
+
+    with pytest.raises(ToolError, match="could not draft the RFP"):
+        _call(
+            server,
+            {
+                "project_id": str(PROJECT_ID),
+                "discipline": "structural engineer",
+            },
+        )

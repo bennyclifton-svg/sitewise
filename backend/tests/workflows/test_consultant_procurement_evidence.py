@@ -1,10 +1,8 @@
 """Unit tests for consultant-procurement evidence handling.
 
-Covers three generator fixes:
-- Fix 1: label "Information to review" by the document's own identity, not the
-  retrieval query bucket that surfaced it.
-- Fix 2: exclude consultant fee proposals from RFP evidence (leakage guard).
-- Fix 4: reconcile the parametric fee benchmark against a received
+Covers two generator fixes:
+- Exclude consultant fee proposals from RFP evidence (leakage guard).
+- Reconcile the parametric fee benchmark against a received
   same-discipline fee proposal already in the corpus.
 """
 
@@ -58,73 +56,6 @@ def test_is_consultant_fee_proposal_false_for_owner_brief() -> None:
         relative_path="04-projects/walsh/00-brief-pmp/03-owner-project-brief-walsh-house.md",
     )
     assert workflow._is_consultant_fee_proposal(item) is False
-
-
-# --- Fix 1: label by document identity ------------------------------------
-
-
-def test_document_kind_labels_engagement_letter() -> None:
-    # Real regression: this was misfiled under /hydraulic/ and labelled
-    # "Project brief" because the project-brief query bucket surfaced it.
-    item = _item(
-        filename="01-engagement-letter-atelier-north.md",
-        relative_path="04-projects/walsh/02-consultant/hydraulic/01-engagement-letter-atelier-north.md",
-        role_label="Project brief",
-    )
-    assert workflow._document_kind(item) == "Engagement letter"
-
-
-def test_document_kind_none_for_ambiguous_document() -> None:
-    item = _item(filename="pathway.pdf", relative_path="04-projects/walsh/02-planning/pathway.pdf")
-    assert workflow._document_kind(item) is None
-
-
-def test_information_to_review_excludes_fee_proposals() -> None:
-    evidence = [
-        _item(
-            filename="03-owner-project-brief-walsh-house.md",
-            relative_path="a/03-owner-project-brief-walsh-house.md",
-            role_label="Project brief",
-        ),
-        _item(
-            filename="p02-02-fee-proposal-cascade-hydraulic.md",
-            relative_path="a/p02-02-fee-proposal-cascade-hydraulic.md",
-            role_label="Project brief",
-        ),
-    ]
-
-    lines = workflow._information_to_review(evidence)
-
-    assert not any("fee-proposal" in line for line in lines)
-    assert any("03-owner-project-brief-walsh-house.md" in line for line in lines)
-
-
-def test_information_to_review_relabels_by_document_identity() -> None:
-    evidence = [
-        _item(
-            filename="01-engagement-letter-atelier-north.md",
-            relative_path="a/01-engagement-letter-atelier-north.md",
-            role_label="Project brief",
-        )
-    ]
-
-    lines = workflow._information_to_review(evidence)
-
-    assert lines == ["Engagement letter: a/01-engagement-letter-atelier-north.md"]
-
-
-def test_information_to_review_falls_back_to_role_label_when_unknown() -> None:
-    evidence = [
-        _item(
-            filename="pathway.pdf",
-            relative_path="a/pathway.pdf",
-            role_label="Planning pathway",
-        )
-    ]
-
-    lines = workflow._information_to_review(evidence)
-
-    assert lines == ["Planning pathway: a/pathway.pdf"]
 
 
 # --- Fix 4: reconcile benchmark with received proposal --------------------

@@ -4,9 +4,14 @@ from datetime import UTC, datetime
 
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
-from app.workflows.runs import canonical_request_hash
+from app.workflows.runs import SUPPORTED_WORKFLOWS, canonical_request_hash
 from app.workflows.worker import _json_result
 from app.workflows.consultant_procurement import ConsultantProcurementResult
+from app.workflows.contractor_procurement import ContractorEoiResult
+from app.workflows import worker as workflow_worker
+from tests.conftest import run_async
+from unittest.mock import AsyncMock
+import uuid
 from types import SimpleNamespace
 
 
@@ -96,6 +101,10 @@ def test_snapshot_fixture_carries_all_frozen_revision_inputs() -> None:
     assert snapshot.evidence.fingerprint == "b" * 64
 
 
+def test_contractor_eoi_is_supported_by_durable_run_boundary() -> None:
+    assert "contractor_eoi" in SUPPORTED_WORKFLOWS
+
+
 def test_consultant_result_serialization_does_not_copy_sqlalchemy_state() -> None:
     draft = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000010",
@@ -117,3 +126,52 @@ def test_consultant_result_serialization_does_not_copy_sqlalchemy_state() -> Non
 
     assert payload["status"] == "complete"
     assert payload["draft"]["id"] == draft.id
+
+
+def test_dispatches_contractor_eoi_to_durable_draft(monkeypatch) -> None:
+    draft = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000010",
+        project_id="00000000-0000-0000-0000-000000000001",
+        workflow_type="contractor_eoi_main_works",
+        version=1,
+        status="draft",
+        title="Expression of Interest - Main Works",
+        workspace_path=(
+            "04-projects/test/02-procurement/contractor_eoi_main_works_v01.draft.md"
+        ),
+    )
+    run = SimpleNamespace(
+        workflow_type="contractor_eoi",
+        requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        requested_by_thread_id=None,
+        frozen_artefact_version=None,
+        run_brief={
+            "snapshot": _snapshot().model_dump(mode="json"),
+            "project": {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "owner_user_id": "00000000-0000-0000-0000-000000000002",
+                "slug": "test",
+                "title": "Test",
+                "workspace_path": "04-projects/test",
+                "phase": "procurement",
+                "status": "active",
+            },
+            "parameters": {"package": "Main Works", "max_pages": 1},
+        },
+    )
+    draft_eoi = AsyncMock(
+        return_value=ContractorEoiResult(
+            draft=draft,
+            package="Main Works",
+            source_trace={"project_documents": []},
+        )
+    )
+    monkeypatch.setattr(workflow_worker, "draft_contractor_eoi_artifact", draft_eoi)
+
+    payload = run_async(workflow_worker._dispatch(AsyncMock(), run))
+
+    assert payload["draft"]["workflow_type"] == "contractor_eoi_main_works"
+    assert payload["draft"]["workspace_path"].endswith(
+        "/02-procurement/contractor_eoi_main_works_v01.draft.md"
+    )
+    assert draft_eoi.await_args.kwargs["auto_commit"] is False

@@ -380,17 +380,13 @@ async def retrieve_create_cost_plan_sources(
         user_role=project.user_role or "",
         project=project,
     )
-    (
-        (platform_passages, missing_paths),
-        marker_paths,
-    ) = await asyncio.gather(
-        load_platform_documents_by_paths(
-            session,
-            mandatory_paths,
-            content_chars=CREATE_COST_PLAN_PLATFORM_CONTENT_CHARS,
-        ),
-        list_cost_evidence_paths(session, project_id=project.id),
+    # AsyncSession is not safe for concurrent awaits on the same instance.
+    platform_passages, missing_paths = await load_platform_documents_by_paths(
+        session,
+        mandatory_paths,
+        content_chars=CREATE_COST_PLAN_PLATFORM_CONTENT_CHARS,
     )
+    marker_paths = await list_cost_evidence_paths(session, project_id=project.id)
 
     semantic_paths: list[str] = []
     if len(marker_paths) < CREATE_COST_PLAN_MIN_MARKER_PATHS_SKIP_SEMANTIC:
@@ -941,7 +937,7 @@ async def run_create_cost_plan_hybrid(
     from app.workflows.cost_plan_narrative import run_cost_plan_narrative_model
 
     user_role = project.user_role or ""
-    evidence_refs = _evidence_refs_from_passages(passages, project.slug)
+    evidence_refs = _evidence_refs_from_passages(passages, project.id)
     pack = extract_cost_plan_evidence_pack(project_source_texts, evidence_refs)
     trace.append(
         _trace(

@@ -1077,6 +1077,35 @@ def _snapshot_position(value: str, status: str) -> str:
     return f"{value} — {status}"
 
 
+def render_project_summary_table(
+    project: Project,
+    *,
+    site_address: str | None = None,
+    client: str | None = None,
+) -> str:
+    """Render the shared project-summary table used by PMP-derived artefacts."""
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("project summary requires project taxonomy")
+    fields = context.user_provided_fields
+    taxonomy_value = f"{context.building_class} / {context.work_type or 'TBC'}"
+    dash = "—"
+    rows = [
+        "| Field | Current PMP position | Citation |",
+        "| --- | --- | --- |",
+        f"| Project | {_snapshot_position(_metadata_value(project.title), 'User provided')} | {dash} |",
+        f"| Site / address | {_snapshot_position(site_address or _metadata_value(fields.get('site_address')), 'User provided / Not evidenced')} | {dash} |",
+        f"| Client | {_snapshot_position(client or _metadata_value(fields.get('client')), 'User provided / Not evidenced')} | {dash} |",
+        f"| State | {_snapshot_position(_metadata_value(project.state or 'NSW'), 'User provided')} | {dash} |",
+        f"| Taxonomy | {_snapshot_position(taxonomy_value, 'User provided')} | {dash} |",
+        f"| Subclass and scale | {_snapshot_position(_taxonomy_scale_summary(project), 'User provided')} | {dash} |",
+        f"| Budget | {_snapshot_position(_metadata_value(fields.get('budget')), 'User provided / Assumption')} | {dash} |",
+        f"| Timeframe | {_snapshot_position(_metadata_value(fields.get('timeframe')), 'User provided / Assumption')} | {dash} |",
+        f"| Procurement route | {_snapshot_position(_metadata_value(fields.get('procurement_route')), 'User provided / Assumption')} | {dash} |",
+    ]
+    return "\n".join(rows)
+
+
 def _render_taxonomy_snapshot(
     project: Project,
     *,

@@ -11,7 +11,8 @@ PROFILE_MUTATION_SCOPE = "profile_mutation"
 _DIRECT_IMPERATIVE = re.compile(r"\b(?:set|change|make)\b", re.IGNORECASE)
 _SAVE_IMPERATIVE = re.compile(r"\b(?:update|save)\b", re.IGNORECASE)
 _PROFILE_CONTEXT = re.compile(
-    r"\b(?:profile|classification|project setup|project (?:to|as))\b", re.IGNORECASE
+    r"\b(?:profile|classification|project setup|project (?:to|as)|scale)\b",
+    re.IGNORECASE,
 )
 _EVIDENCE_ASSERTION = re.compile(
     r"\b(?:report|document|drawing|email|quote|proposal|assessment)\b.{0,30}"
@@ -19,6 +20,9 @@ _EVIDENCE_ASSERTION = re.compile(
     re.IGNORECASE,
 )
 _HEDGE = re.compile(r"\b(?:may|might|possibly|probably|appears? to|could be)\b", re.IGNORECASE)
+_PROFILE_PROPOSAL_CONFIRMATION = re.compile(
+    r"\b(?:confirm|accept|approve)\b", re.IGNORECASE
+)
 
 _BUILDING_CLASSES = {
     "residential": "residential",
@@ -66,11 +70,58 @@ _ROLES = {
     "owner-builder": "owner-builder",
     "architect project manager": "architect-pm",
     "architect pm": "architect-pm",
+    "architect/pm": "architect-pm",
     "architect-pm": "architect-pm",
     "design and construct": "d-and-c",
     "d&c": "d-and-c",
     "builder": "builder",
 }
+_SUBCLASSES = {
+    "townhouses": "townhouses",
+    "townhouse": "townhouses",
+    "apartments": "apartments",
+    "apartment": "apartments",
+    "house": "house",
+    "class 1a": "house",
+    "class1a": "house",
+}
+_STOREY_WORDS = {
+    "single": 1,
+    "one": 1,
+    "1": 1,
+    "two": 2,
+    "2": 2,
+    "three": 3,
+    "3": 3,
+    "four": 4,
+    "4": 4,
+}
+_STOREYS_RE = re.compile(
+    r"\b("
+    + "|".join(re.escape(word) for word in sorted(_STOREY_WORDS, key=len, reverse=True))
+    + r")[\s-]*(?:storey|storeys|story|stories)\b",
+    re.IGNORECASE,
+)
+_GFA_RE = re.compile(
+    r"\b(\d+(?:\.\d+)?)\s*(?:m(?:2|²)|sqm|m\^2)\b(?:\s*gfa)?|\bgfa\b[^\d]{0,12}(\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_BEDROOMS_RE = re.compile(r"\b(\d+)\s*(?:bedrooms?|beds?)\b", re.IGNORECASE)
+_GARAGE_RE = re.compile(
+    r"\b(\d+)\s*(?:garage(?:/car)?\s*spaces?|garage\s*spaces?|car\s*spaces?|garages?)\b"
+    r"|\b(?:no|zero)\s+garage\b",
+    re.IGNORECASE,
+)
+_SITE_ADDRESS_RE = re.compile(
+    r"\b(?:set|change|update|save)\b.{0,80}?\b(?:project\s+|site\s+)?address\b"
+    r".{0,40}?\b(?:to|as)\s*:?\s*[\"'“‘]?(.+?)[\"'”’]?\s*$",
+    re.IGNORECASE,
+)
+_CLIENT_RE = re.compile(
+    r"\b(?:set|change|update|save)\b.{0,80}?\b(?:client|owners?|owner names?)\b"
+    r".{0,40}?\b(?:to|as)\s*:?\s*[\"'“‘]?(.+?)[\"'”’]?\s*$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +144,27 @@ class MutationIntent:
 
 def hash_user_message(user_text: str) -> str:
     return hashlib.sha256(user_text.encode("utf-8")).hexdigest()
+
+
+def materialize_profile_patch(
+    intent: MutationIntent,
+    *,
+    current_scale: Mapping[str, Any] | None = None,
+) -> MutationIntent:
+    """Merge partial scale updates onto the current profile scale for binding."""
+    patch = dict(intent.profile_patch)
+    requested_scale = patch.get("scale")
+    if isinstance(requested_scale, Mapping):
+        merged = dict(current_scale or {})
+        merged.update(dict(requested_scale))
+        patch["scale"] = merged
+    return MutationIntent(
+        user_message_hash=intent.user_message_hash,
+        scopes=intent.scopes,
+        profile_patch=MappingProxyType(patch),
+        requires_confirmation=intent.requires_confirmation,
+        reason=intent.reason,
+    )
 
 
 def classify_mutation_intent(user_text: str) -> MutationIntent:
@@ -134,18 +206,62 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
     )
 
 
-def _profile_targets(text: str) -> dict[str, str]:
-    lowered = " ".join(text.lower().replace("_", " ").split())
-    targets: dict[str, str] = {}
+def is_profile_proposal_confirmation(user_text: str) -> bool:
+    """Return whether the user explicitly confirms a profile proposal."""
+    normalized = " ".join(user_text.lower().split())
+    if not _PROFILE_PROPOSAL_CONFIRMATION.search(normalized):
+        return False
+    return any(
+        phrase in normalized
+        for phrase in ("profile", "site address", "client", "owner")
+    )
+
+
+def _profile_targets(text: str) -> dict[str, Any]:
+    address = _match_site_address(text)
+    client = _match_client(text)
+    working = text
+    if address:
+        working = working.replace(address, " ")
+    if client:
+        working = working.replace(client, " ")
+    lowered = " ".join(working.lower().replace("_", " ").split())
+    targets: dict[str, Any] = {}
     _match_alias(targets, "building_class", lowered, _BUILDING_CLASSES)
     _match_alias(targets, "work_type", lowered, _WORK_TYPES)
     _match_alias(targets, "state", lowered, _STATES)
     _match_alias(targets, "user_role", lowered, _ROLES)
+    subclass = _match_subclass(lowered)
+    if subclass is not None:
+        targets["subclasses"] = [subclass]
+    scale = _match_scale(lowered)
+    if scale:
+        targets["scale"] = scale
+    if address is not None:
+        targets["site_address"] = address
+    if client is not None:
+        targets["client"] = client
     return targets
 
 
+def _match_site_address(text: str) -> str | None:
+    match = _SITE_ADDRESS_RE.search(" ".join(text.strip().split()))
+    if not match:
+        return None
+    value = match.group(1).strip(" .")
+    return value or None
+
+
+def _match_client(text: str) -> str | None:
+    match = _CLIENT_RE.search(" ".join(text.strip().split()))
+    if not match:
+        return None
+    value = match.group(1).strip(" .")
+    return value or None
+
+
 def _match_alias(
-    targets: dict[str, str],
+    targets: dict[str, Any],
     field: str,
     text: str,
     aliases: dict[str, str],
@@ -154,6 +270,40 @@ def _match_alias(
         if re.search(rf"(?<![\w-]){re.escape(alias)}(?![\w-])", text):
             targets[field] = aliases[alias]
             return
+
+
+def _match_subclass(text: str) -> str | None:
+    if "townhouse" in text:
+        return "townhouses"
+    if "apartment" in text:
+        return "apartments"
+    if re.search(r"\bhouse\b", text) or re.search(r"\bclass\s*1a\b", text):
+        return "house"
+    for alias in sorted(_SUBCLASSES, key=len, reverse=True):
+        if re.search(rf"(?<![\w-]){re.escape(alias)}(?![\w-])", text):
+            return _SUBCLASSES[alias]
+    return None
+
+
+def _match_scale(text: str) -> dict[str, int]:
+    scale: dict[str, int] = {}
+    storeys = _STOREYS_RE.search(text)
+    if storeys:
+        scale["storeys"] = _STOREY_WORDS[storeys.group(1).lower()]
+    gfa = _GFA_RE.search(text)
+    if gfa:
+        raw = gfa.group(1) or gfa.group(2)
+        scale["gfa_sqm"] = int(float(raw))
+    bedrooms = _BEDROOMS_RE.search(text)
+    if bedrooms:
+        scale["bedrooms"] = int(bedrooms.group(1))
+    garage = _GARAGE_RE.search(text)
+    if garage:
+        if garage.group(1) is None:
+            scale["garage_spaces"] = 0
+        else:
+            scale["garage_spaces"] = int(garage.group(1))
+    return scale
 
 
 def _is_quoted_instruction(text: str) -> bool:

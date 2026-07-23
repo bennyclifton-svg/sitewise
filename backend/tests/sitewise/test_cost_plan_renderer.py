@@ -44,13 +44,31 @@ def test_render_cost_plan_scaffold_includes_all_sections() -> None:
         assert heading.lower() in headings
 
 
+def test_rendered_cost_plan_is_compact_and_uses_numbered_evidence_citations() -> None:
+    markdown = render_cost_plan_scaffold(
+        _harrison_clarke_project(), _pack(), "evidence_grounded"
+    )
+    headings = [
+        line.strip()[3:].strip()
+        for line in markdown.splitlines()
+        if line.strip().startswith("## ")
+    ]
+
+    assert headings == list(required_section_headings("architect-pm"))
+    assert len(headings) == 5
+    assert headings[-1] == "Source evidence and audit trail"
+    assert "[1]" in markdown
+    assert "### Citation key" in markdown
+    assert len(markdown.split()) <= 1_400
+
+
 def test_render_cost_plan_scaffold_surfaces_owner_brief_ceiling() -> None:
     markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded").lower()
     assert "1,850,000" in markdown
     assert "120,000" in markdown
     assert "148,500" in markdown
     assert "chen residence" in markdown or "14 wattle grove" in markdown
-    assert "| section | evidence status | ref |" in markdown
+    assert "| cost-plan area | evidence status | ref |" in markdown
     assert "- **facts**" in markdown
     assert "da and cc authority fees" in markdown
     assert "geotechnical engineer" in markdown
@@ -58,7 +76,7 @@ def test_render_cost_plan_scaffold_surfaces_owner_brief_ceiling() -> None:
     assert "indicative total project cost" in markdown
     assert "inc gst" in markdown
     assert "owner-held contingency" in markdown
-    assert "pendant lights: $8,000 (owner-supplied" in markdown
+    assert "pendant lights" in markdown
     assert "$$" not in markdown
 
 
@@ -71,19 +89,15 @@ def test_render_cost_plan_scaffold_walsh_surfaces_all_cost_drivers() -> None:
 
     assert "atelier north" in lowered
     assert "hcs architect" not in lowered
-    assert "project profile / role / state:** residential / refurb, architect-pm, nsw" in lowered
-    assert "archetype / role / state:** none" not in lowered
+    assert "**profile:** residential / refurb, architect-pm, nsw" in lowered
     assert "$96,500" in markdown
     assert "$980,000 ex GST** is **outside" not in markdown
     assert "$920,000" in markdown
     assert "$85,000" in markdown
     assert "$880,000" in markdown and "$980,000" in markdown
     assert "not a tender" in lowered
-    assert "live occupation" in lowered
-    assert "$25" in markdown and "40k" in lowered
     assert "heritage impact statement" in lowered
     assert "6-8 weeks" in lowered or "6–8 weeks" in lowered
-    assert "not related parties" in lowered
 
 
 def test_certifier_row_is_grounded_when_appointed() -> None:
@@ -102,7 +116,7 @@ def test_owner_supplied_items_do_not_assert_gst_basis() -> None:
 
 def test_render_cost_plan_scaffold_fee_stages_have_single_dollar_prefix() -> None:
     markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded")
-    assert "| Mobilisation & concept | Engagement signed | $22,000 |" in markdown
+    assert "$148,500 | Locked |" in markdown
     assert "$$" not in markdown
 
 
@@ -138,7 +152,7 @@ def _breakdown_section(markdown: str) -> str:
     out, collecting = [], False
     for line in markdown.splitlines():
         s = line.strip().lower()
-        if s.startswith("## ") and s[3:].strip() == "cost breakdown by category":
+        if s.startswith("## ") and s[3:].strip() == "budget reconciliation and cost breakdown":
             collecting = True
             continue
         if collecting and s.startswith("## "):

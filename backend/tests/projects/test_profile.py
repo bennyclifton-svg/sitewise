@@ -50,7 +50,68 @@ def test_read_profile_normalizes_columns_and_taxonomy_metadata() -> None:
         "work_scope": ["fire_services"],
         "user_role": "architect-pm",
         "state": "NSW",
+        "site_address": None,
+        "client": None,
     }
+
+
+def test_validate_profile_patch_persists_site_address_and_client() -> None:
+    project = _orm_project(profile_revision=1)
+    session = _Session()
+
+    change = asyncio.run(
+        apply_profile_patch(
+            session,
+            project=project,
+            patch=ProjectProfilePatch(
+                expected_revision=1,
+                site_address="82 Queen Street, Petersham NSW 2049",
+                client="Walsh Family",
+            ),
+            actor_source="user",
+        )
+    )
+
+    assert change.changed_fields == ["site_address", "client"]
+    assert project.project_metadata["taxonomy"]["site_address"] == (
+        "82 Queen Street, Petersham NSW 2049"
+    )
+    assert project.project_metadata["taxonomy"]["client"] == "Walsh Family"
+    assert read_profile(project).site_address == "82 Queen Street, Petersham NSW 2049"
+    assert read_profile(project).client == "Walsh Family"
+
+
+def test_write_profile_preserves_identity_when_other_fields_change() -> None:
+    project = _orm_project(
+        profile_revision=2,
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["house"],
+                "scale": {},
+                "complexity": {},
+                "work_scope": [],
+                "site_address": "14 Wattle Grove, Lindfield NSW 2070",
+                "client": "Demo Owners",
+                "budget": "1.2m",
+            }
+        },
+    )
+    session = _Session()
+
+    asyncio.run(
+        apply_profile_patch(
+            session,
+            project=project,
+            patch=ProjectProfilePatch(expected_revision=2, state="VIC"),
+            actor_source="user",
+        )
+    )
+
+    taxonomy = project.project_metadata["taxonomy"]
+    assert taxonomy["site_address"] == "14 Wattle Grove, Lindfield NSW 2070"
+    assert taxonomy["client"] == "Demo Owners"
+    assert taxonomy["budget"] == "1.2m"
+    assert project.state == "VIC"
 
 
 def test_profile_options_uses_the_backend_taxonomy_source_of_truth() -> None:

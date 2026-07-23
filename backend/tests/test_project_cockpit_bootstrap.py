@@ -40,6 +40,8 @@ def _project() -> Project:
         user_role="architect-pm",
         state="NSW",
         status="active",
+        profile_revision=2,
+        decision_set_revision=14,
         project_metadata={},
         created_at=NOW,
         updated_at=NOW,
@@ -162,7 +164,10 @@ def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
     assert response.status_code == 200
     payload = response.json()
     assert payload["project"]["id"] == str(PROJECT_ID)
+    assert payload["project"]["profile_revision"] == 2
+    assert payload["project"]["decision_set_revision"] == 14
     assert payload["projects"][0]["id"] == str(PROJECT_ID)
+    assert payload["projects"][0]["decision_set_revision"] == 14
     assert payload["workspace_tree"]["tree"]
     assert payload["evidence"][0]["id"] == str(EVIDENCE_ID)
     assert payload["evidence"][0]["content"] is None
@@ -323,15 +328,15 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
         patch(
             "app.api.projects._ensure_pmp_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
-        ),
+        ) as ensure_pmp,
         patch(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
-        ),
+        ) as ensure_cost_plan,
         patch(
             "app.api.projects._ensure_consultant_procurement_workspace_files",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, consultant_draft_summaries: workspace_files),
-        ),
+        ) as ensure_consultant,
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -344,6 +349,15 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
     consultant_node = next(node for node in tree if node["name"] == "02-consultant")
     file_names = [child["name"] for child in consultant_node["children"] if child["kind"] == "file"]
     assert "consultant_procurement_structural_engineer_v01.draft.md" in file_names
+
+    # Regression guard: these self-heal syncs must actually run on every
+    # bootstrap so a draft_artifacts row can never outlive its workspace file
+    # (and storage object) without repair. They were silently dropped from
+    # this endpoint once before (stage-4 revisions refactor) while these same
+    # tests kept passing, because nothing asserted the calls happened.
+    ensure_pmp.assert_awaited_once()
+    ensure_cost_plan.assert_awaited_once()
+    ensure_consultant.assert_awaited_once()
 
 
 def test_project_activity_returns_grouped_runs(

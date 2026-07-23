@@ -17,7 +17,7 @@ def test_assemble_cost_plan_markdown_replaces_narrative_placeholders() -> None:
     assert "- **judgements**" in lower
     assert "2026-06-28" in markdown
     assert "| risk | owner | status | next action | due |" in lower
-    assert "## recommended next steps" in lower
+    assert "### next actions" in lower
     assert "1. 1." not in markdown
 
 

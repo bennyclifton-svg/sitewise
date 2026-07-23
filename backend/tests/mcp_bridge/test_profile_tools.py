@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 from fastmcp import Client
@@ -311,6 +311,8 @@ def test_accept_and_reject_tools_delegate_to_revisioned_proposal_services(
     project = _project()
     session = _Session(project)
     server, _, _ = _install(monkeypatch, session)
+    publish = AsyncMock()
+    monkeypatch.setattr(server.agent_turn_status_bus, "publish", publish)
     proposal = _proposal(project)
     accepted_change = ProjectProfileChange(
         profile=ProjectProfileView(
@@ -362,6 +364,18 @@ def test_accept_and_reject_tools_delegate_to_revisioned_proposal_services(
     assert rejected["proposal"]["state"] == "rejected"
     assert accept.await_args.kwargs["expected_profile_revision"] == 1
     assert reject.await_args.kwargs["expected_profile_revision"] == 1
+    publish.assert_awaited_once_with(
+        ANY,
+        kind="resource",
+        message="Updated project profile",
+        projectId=str(PROJECT_ID),
+        resourceType="project_profile",
+        resourceId=str(PROJECT_ID),
+        action="updated",
+        revision=2,
+        changedFields=["state"],
+        clearedFields=[],
+    )
 
 
 def test_cross_project_token_fails_before_profile_read(monkeypatch) -> None:

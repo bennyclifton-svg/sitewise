@@ -14,10 +14,12 @@ EDIT_COST_PLAN = "edit_cost_plan"
 APPROVED_TENDER_HANDOFF = "approved_tender_cost_handoff"
 TENDER_COMPARISON = "tender_comparison"
 CONSULTANT_PROCUREMENT = "consultant_procurement"
+CONTRACTOR_EOI = "contractor_eoi"
 
 _PROJECT_PLAN_FIELDS = ("building_class", "work_type", "user_role", "state")
 _TENDER_FIELDS = ("building_class", "subclasses", "work_type", "state")
 _CONSULTANT_FIELDS = ("building_class", "work_type", "user_role")
+_CONTRACTOR_FIELDS = ("building_class", "work_type", "state")
 _TENDER_STATES = frozenset({"NSW", "VIC", "QLD"})
 _TENDER_WORK_TYPES = frozenset({"new", "refurb", "extend"})
 _TENDER_CLASS_1A_SUBCLASSES = frozenset({"house", "townhouses"})
@@ -39,6 +41,10 @@ def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix
         CONSULTANT_PROCUREMENT: _required_profile_capability(
             snapshot,
             _CONSULTANT_FIELDS,
+        ),
+        CONTRACTOR_EOI: _required_profile_capability(
+            snapshot,
+            _CONTRACTOR_FIELDS,
         ),
     }
     return WorkflowCapabilityMatrix(

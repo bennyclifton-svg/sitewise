@@ -26,7 +26,13 @@ from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.turn_context import HistoryMessage, build_agent_prompt
 from app.projects.snapshot import get_project_snapshot
-from app.agent.mutation_intent import classify_mutation_intent
+from app.projects.profile_proposals import accept_profile_proposal
+from app.agent.mutation_intent import (
+    MutationIntent,
+    classify_mutation_intent,
+    is_profile_proposal_confirmation,
+    materialize_profile_patch,
+)
 from app.agent.workspace_instructions import ensure_workspace_instructions
 from app.agent.workspace_paths import project_workspace_root
 from app.billing.entitlements import require_active_entitlement
@@ -65,6 +71,8 @@ from app.database.users import ensure_user_exists
 from app.grounding.validator import GroundingError
 from app.logging import get_logger
 from app.mcp_bridge.tokens import TurnTokenConfigurationError, mint_turn_token
+from app.schemas.profile_proposals import ProjectProfileProposalView
+from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.chat import (
     CreateThreadRequest,
     MessageListResponse,
@@ -463,6 +471,44 @@ def _agent_workspace(project_id: uuid.UUID) -> str:
     return str(path)
 
 
+def _project_scale(project: Project | Any) -> dict[str, Any]:
+    metadata = getattr(project, "project_metadata", None)
+    if not isinstance(metadata, dict):
+        return {}
+    taxonomy = metadata.get("taxonomy")
+    if not isinstance(taxonomy, dict):
+        return {}
+    scale = taxonomy.get("scale")
+    return dict(scale) if isinstance(scale, dict) else {}
+
+
+def _profile_proposal_to_accept(
+    *,
+    user_text: str,
+    mutation_intent: MutationIntent,
+    snapshot: ProjectSnapshot,
+) -> ProjectProfileProposalView | None:
+    """Return the one pending proposal explicitly confirmed by this message."""
+    if mutation_intent.scopes or not is_profile_proposal_confirmation(user_text):
+        return None
+    normalized = " ".join(user_text.lower().split())
+    requested_fields = {
+        field
+        for field, phrases in {
+            "site_address": ("site address", "address"),
+            "client": ("client", "owner", "owners"),
+        }.items()
+        if any(phrase in normalized for phrase in phrases)
+    }
+    candidates = [
+        proposal
+        for proposal in snapshot.open_profile_proposals
+        if not requested_fields
+        or set(proposal.proposed_values) == requested_fields
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 @router.post("/agent/stream")
 async def post_agent_stream(
     body: StreamChatRequest,
@@ -500,7 +546,10 @@ async def post_agent_stream(
     prior_messages = await list_messages(
         session, thread.id, limit=settings.agent_history_message_limit
     )
-    mutation_intent = classify_mutation_intent(user_text)
+    mutation_intent = materialize_profile_patch(
+        classify_mutation_intent(user_text),
+        current_scale=_project_scale(project),
+    )
     snapshot = await get_project_snapshot(
         session,
         project_id=project.id,
@@ -550,6 +599,51 @@ async def post_agent_stream(
         ),
     )
     turn_id = turn.id
+    confirmed_profile_change = None
+    if reserved:
+        proposal = _profile_proposal_to_accept(
+            user_text=user_text,
+            mutation_intent=mutation_intent,
+            snapshot=snapshot,
+        )
+        if proposal is not None:
+            resolution = await accept_profile_proposal(
+                session,
+                project=project,
+                proposal_id=proposal.id,
+                expected_profile_revision=proposal.profile_revision,
+                actor_source="agent",
+            )
+            confirmed_profile_change = resolution.profile_change
+            if confirmed_profile_change is not None:
+                snapshot = await get_project_snapshot(
+                    session,
+                    project_id=project.id,
+                    owner_user_id=user.id,
+                )
+                confirmed_values = {
+                    field: getattr(confirmed_profile_change.profile, field)
+                    for field in confirmed_profile_change.changed_fields
+                }
+                agent_prompt = build_agent_prompt(
+                    user_text,
+                    project_id=str(thread.project_id),
+                    title=project.title,
+                    archetype=project.archetype,
+                    user_role=project.user_role,
+                    state=project.state,
+                    phase=project.phase,
+                    building_class=project.building_class,
+                    work_type=project.work_type,
+                    project_metadata=getattr(project, "project_metadata", None),
+                    history=[
+                        HistoryMessage(role=message.role, content=message.content)
+                        for message in prior_messages
+                    ],
+                    mutation_intent=mutation_intent,
+                    snapshot=snapshot,
+                    confirmed_profile_values=confirmed_values,
+                )
     quota_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms - prompt_build_ms
     try:
         turn_token = mint_turn_token(
@@ -630,6 +724,18 @@ async def post_agent_stream(
                         usedTurns=quota_state.used_turns,
                         quota=quota_state.quota,
                         percent=quota_state.percent,
+                    )
+                if confirmed_profile_change is not None:
+                    yield clerk_status_event(
+                        "Updated project profile",
+                        kind="resource",
+                        projectId=str(thread.project_id),
+                        resourceType="project_profile",
+                        resourceId=str(thread.project_id),
+                        action="updated",
+                        revision=confirmed_profile_change.new_revision,
+                        changedFields=list(confirmed_profile_change.changed_fields),
+                        clearedFields=list(confirmed_profile_change.cleared_fields),
                     )
                 async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
                     traced_statuses = _capture_status_events(statuses, tool_status_events)

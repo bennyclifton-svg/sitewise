@@ -74,6 +74,37 @@ async def _latest_revision(
     return result.scalar_one_or_none()
 
 
+async def _reclaim_export_storage_keys(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    storage_keys: Sequence[str],
+) -> int:
+    """Delete same-project export rows that already own these storage keys.
+
+    Stable workspace paths (PMP.md) reuse one storage_key across revisions.
+    ``artefact_exports.storage_key`` is globally unique, so a new revision must
+    reclaim the key before inserting its export job.
+    """
+    keys = [key for key in storage_keys if key]
+    if not keys:
+        return 0
+    result = await session.execute(
+        select(ArtefactExport).where(ArtefactExport.storage_key.in_(keys))
+    )
+    removed = 0
+    for old in result.scalars().all():
+        if old.project_id != project_id:
+            raise ArtefactPolicyViolation(
+                f"storage_key {old.storage_key!r} belongs to another project"
+            )
+        await session.delete(old)
+        removed += 1
+    if removed:
+        await session.flush()
+    return removed
+
+
 async def publish(
     session: AsyncSession,
     *,
@@ -131,6 +162,12 @@ async def publish(
     )
     session.add(revision)
     await session.flush()
+
+    await _reclaim_export_storage_keys(
+        session,
+        project_id=project_id,
+        storage_keys=[spec.storage_key for spec in exports],
+    )
 
     jobs: list[ArtefactExport] = []
     seen_types: set[str] = set()

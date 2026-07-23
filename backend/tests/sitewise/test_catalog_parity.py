@@ -1,4 +1,5 @@
 import itertools
+from types import SimpleNamespace
 
 import pytest
 
@@ -9,6 +10,7 @@ from app.sitewise.cost_plan_sources import (
     RESIDENTIAL_ARCHETYPES,
 )
 from app.sitewise.knowledge_catalog import file_catalog, select_required_paths
+from app.workflows.procurement_request import _required_guidance_paths
 from app.sitewise.pmp_sources import (
     ARCHETYPE_SEED_PATHS,
     DOCTRINE_PATH,
@@ -214,3 +216,35 @@ def test_catalog_covers_all_seed_files() -> None:
         assert entry.summary
     assert "seed/commercial-construction-guide.md" in entries
     assert "seed/remediation-due-diligence-guide.md" in entries
+
+
+def test_head_contractor_procurement_paths_are_specific_and_class_aware() -> None:
+    residential = select_required_paths(
+        workflow="head-contractor-procurement",
+        archetype="",
+        user_role="architect-pm",
+        building_class="residential",
+        work_type="refurb",
+    )
+    commercial = select_required_paths(
+        workflow="head-contractor-procurement",
+        archetype="",
+        user_role="architect-pm",
+        building_class="commercial",
+        work_type="new",
+    )
+
+    assert "seed/as-standards-reference.md" in residential
+    assert "seed/procurement-tendering-guide.md" in commercial
+
+    guidance = _required_guidance_paths(
+        SimpleNamespace(
+            archetype=None,
+            user_role="architect-pm",
+            building_class="residential",
+            work_type="refurb",
+        ),
+        knowledge_workflow="head-contractor-procurement",
+    )
+    assert DOCTRINE_PATH not in guidance
+    assert "seed/as-standards-reference.md" in guidance

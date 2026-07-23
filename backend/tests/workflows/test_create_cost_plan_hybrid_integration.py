@@ -90,7 +90,7 @@ def assert_hybrid_cost_plan_acceptance_criteria(
     assert "principal certifier appointed" in lower
     assert "1,500,000" not in markdown
     assert "feasibility study" not in lower
-    assert "- **judgements**" in lower
+    assert "- **assumptions**" in lower
     assert "| cost code | category | cost items | budget | status | basis |" in lower
 
 
@@ -100,7 +100,10 @@ def test_cost_plan_hybrid_compiler_defaults_to_enabled() -> None:
 
 def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
     project = harrison_clarke_cost_project()
-    cost_passages = harrison_clarke_cost_passages(project_slug=project.slug)
+    cost_passages = [
+        passage.model_copy(update={"project_id": project.id})
+        for passage in harrison_clarke_cost_passages(project_slug=project.slug)
+    ]
     platform_passages = platform_passages_for_cost_plan(project)
     draft = mock_cost_plan_draft()
     workbook_metadata = {

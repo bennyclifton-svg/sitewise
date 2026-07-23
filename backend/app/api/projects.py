@@ -292,6 +292,8 @@ def _project_summary(project) -> ProjectSummary:
             "user_role": project.user_role,
             "state": project.state,
             "profile_revision": getattr(project, "profile_revision", None) or 1,
+            "decision_set_revision": getattr(project, "decision_set_revision", None)
+            or 1,
             "status": project.status,
             "overlay_status": project_overlay_summary(project),
             "updated_at": project.updated_at,
@@ -1041,6 +1043,24 @@ async def get_project_cockpit_bootstrap(
     workspace_files = await list_workspace_files_for_project(
         session, project_id=project.id
     )
+    workspace_files = await _ensure_pmp_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=latest_drafts,
+    )
+    workspace_files = await _ensure_cost_plan_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=latest_drafts,
+    )
+    workspace_files = await _ensure_consultant_procurement_workspace_files(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        consultant_draft_summaries=consultant_drafts,
+    )
     workspace_path_list = _workspace_paths_for_tree(
         workspace_files,
         draft_summaries=all_draft_summaries,
@@ -1161,6 +1181,24 @@ async def get_project_workspace_tree(
     )
     consultant_drafts = _consultant_procurement_draft_summaries(consultant_draft_rows)
     all_draft_summaries = _merge_draft_summaries(draft_summaries, consultant_drafts)
+    workspace_files = await _ensure_pmp_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=draft_summaries,
+    )
+    workspace_files = await _ensure_cost_plan_workspace_file(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        draft_summaries=draft_summaries,
+    )
+    workspace_files = await _ensure_consultant_procurement_workspace_files(
+        session,
+        project=project,
+        workspace_files=workspace_files,
+        consultant_draft_summaries=consultant_drafts,
+    )
     return ProjectWorkspaceTreeResponse(
         project_id=project.id,
         root_path=project.workspace_path,

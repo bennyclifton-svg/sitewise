@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.api import chat as chat_api
+from app.agent.mutation_intent import classify_mutation_intent
 from app.agent.turn_context import _ROLE_GUIDANCE
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.config import settings
@@ -78,6 +79,47 @@ def test_terminal_event_persistence_is_ordered_and_sanitized() -> None:
     assert events[0]["draftId"] == "draft-2"
     assert "token" not in events[0]
     assert "prompt" not in events[0]
+
+
+def test_explicit_confirmation_selects_the_matching_pending_profile_proposal() -> None:
+    proposal = SimpleNamespace(
+        proposed_values={
+            "site_address": "42 Hargrave Street, Paddington NSW 2021",
+            "client": "David and Emma Walsh",
+        }
+    )
+    snapshot = SimpleNamespace(open_profile_proposals=[proposal])
+    intent = classify_mutation_intent(
+        "Confirm and set that site address and client on the profile."
+    )
+
+    assert (
+        chat_api._profile_proposal_to_accept(
+            user_text="Confirm and set that site address and client on the profile.",
+            mutation_intent=intent,
+            snapshot=snapshot,
+        )
+        is proposal
+    )
+
+
+def test_confirmation_does_not_auto_accept_an_ambiguous_profile_proposal() -> None:
+    snapshot = SimpleNamespace(
+        open_profile_proposals=[
+            SimpleNamespace(proposed_values={"site_address": "42 Hargrave Street"}),
+            SimpleNamespace(proposed_values={"site_address": "40 Hargrave Street"}),
+        ]
+    )
+    intent = classify_mutation_intent("Confirm that site address on the profile.")
+
+    assert (
+        chat_api._profile_proposal_to_accept(
+            user_text="Confirm that site address on the profile.",
+            mutation_intent=intent,
+            snapshot=snapshot,
+        )
+        is None
+    )
 
 
 def _thread(
@@ -376,10 +418,12 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "building_class: residential\n"
         "work_type: refurb\n"
         "subclasses: House (Class 1a)\n"
-        "scale: GFA sqm=200\n"
+        "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)\n"
         "phase: brief-planning\n"
         "user_role: architect-pm\n"
         "state: NSW\n"
+        "site_address: (not declared)\n"
+        "client: (not declared)\n"
         "</project-context>\n"
         "\n"
         "<document-access>\n"
@@ -397,8 +441,18 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         'request for fee proposal", "draft consultant procurement", "prepare an RFP for\n'
         'the structural engineer", "get me a fee proposal request for the hydraulic\n'
         'consultant", and "prepare scope for BASIX assessor". Do not answer these as\n'
-        "free text only; queue the artefact, return its run id, and use the workflow\n"
-        "status/result tools for follow-up.\n"
+        "free text only; queue the artefact. Confirm briefly what is being prepared and\n"
+        "that the draft will appear when ready. Do not lead with internal run ids or\n"
+            "workflow type names; use get_project_workflow_status / get_project_workflow_result\n"
+            "only when the user asks about progress or the result.\n"
+            "For a main works contractor, head contractor, or builder EOI, call\n"
+            "start_contractor_eoi. This capability is separate from Tender Comparison and\n"
+            "does not use Tender Comparison's Class 1a coverage gate. Use the\n"
+            "workflow.contractor_eoi capability result only; never copy an unsupported reason\n"
+            "from workflow.tender_comparison. An EOI is unpriced and is not an RFT.\n"
+            "When asked to add a site address, client, or owners onto an RFP/EOI or the\n"
+        "project profile, search project documents first with find_document_text /\n"
+        "search_documents. Propose evidence-backed values; do not invent them.\n"
         "Generated artefacts are not independent project evidence unless they point to an\n"
         "ingested source_document_id.\n"
         "Do not inspect repository files, run shell commands, or query the database directly\n"
@@ -418,12 +472,15 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "open_profile_proposals: 0\n"
         "workflow.approved_tender_cost_handoff=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
         "workflow.consultant_procurement=needs_input; required_fields=building_class,work_type,user_role; reasons=Complete the required project profile fields.\n"
+        "workflow.contractor_eoi=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
         "workflow.create_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
         "workflow.create_pmp=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Complete the required project profile fields.\n"
         "workflow.edit_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
         "workflow.refresh_cost_plan=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Cost Plan requires confirmed project and role context.\n"
         "workflow.tender_comparison=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Tender Comparison requires confirmed Class 1a project context.\n"
         "workflow.update_pmp=needs_input; required_fields=building_class,work_type,user_role,state; reasons=Complete the required project profile fields.\n"
+        "site_address=(not declared)\n"
+        "client=(not declared)\n"
         "</project-snapshot>\n"
         "\n"
         "<recent-conversation>\n"
@@ -692,7 +749,10 @@ def test_agent_stream_pi_runtime_receives_project_context(
     assert "building_class: residential" in seen["prompt"]
     assert "work_type: refurb" in seen["prompt"]
     assert "subclasses: House (Class 1a)" in seen["prompt"]
-    assert "scale: GFA sqm=200" in seen["prompt"]
+    assert (
+        "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), "
+        "Garage spaces=(not declared)"
+    ) in seen["prompt"]
     assert "what can you tell me about the project" in seen["prompt"]
     assert seen["mcp_url"] == "http://testserver/mcp"
     assert seen["turn_token"] == "turn-token"

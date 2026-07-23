@@ -33,12 +33,30 @@ from app.sitewise.cost_plan_consultant_forecast import (
     FORECAST_STATUS,
     forecast_consultant_fees_for_markdown,
 )
+from app.sitewise.pmp_citations import CitationIndex
+from app.sitewise.rfp_evidence_validation import validate_rfp_output
+from app.sitewise.rfp_renderer import (
+    BACKGROUND_PLACEHOLDER,
+    INFORMATION_TO_REVIEW_PLACEHOLDER,
+    build_rfp_citation_index,
+    render_rfp_scaffold,
+)
+from app.projects.identity import resolve_project_identity
 from app.workflows.create_cost_plan import WORKFLOW_TYPE as CREATE_COST_PLAN_WORKFLOW_TYPE
+from app.workflows.create_pmp import WorkflowValidationError
+from app.workflows.procurement_request import (
+    EvidenceQuery,
+    ProcurementDocument,
+    ProcurementTarget,
+    draft_procurement_request,
+)
+from app.workflows.rfp_narrative import RfpNarrativeOutput, run_rfp_narrative_model
 
 WORKFLOW_TYPE_PREFIX = "consultant_procurement"
 RUNTIME_NAME = "clerk-consultant-procurement"
 # Knowledge-catalog workflow key: seeds opt in via `required_by: {consultant-procurement: N}`.
 KNOWLEDGE_WORKFLOW = "consultant-procurement"
+RFP_NARRATIVE_MAX_ATTEMPTS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,13 +66,6 @@ class DisciplineProfile:
     benchmark_terms: tuple[str, ...]
     requested_services: tuple[str, ...]
     deliverables: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class EvidenceQuery:
-    key: str
-    label: str
-    query: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,6 +198,62 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
             "Exclusions, statutory fees, disbursements, and additional hourly rates.",
         ),
     ),
+    _normalise_key("town planner"): _profile(
+        "Town planner",
+        benchmark_terms=("town planning", "planning"),
+        requested_services=(
+            "Review the project brief, site constraints, zoning (LEP/DCP), and proposed works.",
+            "Advise on permitted use, FSR, height, setbacks, and any merit-based variations required.",
+            "Confirm the planning pathway (CDC/DA) and any State-level (SEPP) referral requirements.",
+        ),
+        deliverables=(
+            "Planning report / statement of environmental effects fee proposal.",
+            "Assumptions on council pre-lodgement meetings and authority response timeframes.",
+            "Hourly rates for RFIs, design changes, and section 4.55 modifications.",
+        ),
+    ),
+    _normalise_key("heritage consultant"): _profile(
+        "Heritage consultant",
+        benchmark_terms=("heritage",),
+        requested_services=(
+            "Review heritage listing / conservation area status, existing fabric, and proposed works.",
+            "Advise on heritage impact, sympathetic design responses, and the applicable approval pathway.",
+            "Coordinate documentation with the design team and identify authority consultation needs.",
+        ),
+        deliverables=(
+            "Heritage impact statement fee proposal.",
+            "Assumptions on site access, archival recording, and photographic survey scope.",
+            "Hourly rates for additional advice or authority responses.",
+        ),
+    ),
+    _normalise_key("fire engineer"): _profile(
+        "Fire engineer",
+        benchmark_terms=("fire engineering", "fire safety"),
+        requested_services=(
+            "Review the project brief, building classification, proposed works, and fire-safety constraints.",
+            "Advise on performance solutions, fire-safety measures, and the approval pathway where required.",
+            "Coordinate fire-engineering documentation with the design team, certifier, and relevant authorities.",
+        ),
+        deliverables=(
+            "Fire-engineering fee proposal with the assessment, report, and certification scope.",
+            "Assumptions on performance solutions, authority consultation, and required design inputs.",
+            "Hourly rates for design revisions, meetings, authority responses, and construction-stage advice.",
+        ),
+    ),
+    _normalise_key("acoustic consultant"): _profile(
+        "Acoustic consultant",
+        benchmark_terms=("acoustic", "noise"),
+        requested_services=(
+            "Review the project brief, site context, planning conditions, and proposed building fabric.",
+            "Advise on acoustic assessment, noise and vibration controls, and compliance requirements.",
+            "Coordinate acoustic documentation with the design team and identify authority or testing requirements.",
+        ),
+        deliverables=(
+            "Acoustic consultancy fee proposal with assessment, report, and documentation scope.",
+            "Assumptions on site measurements, testing, authority requirements, and required inputs.",
+            "Hourly rates for design revisions, meetings, additional testing, and construction-stage advice.",
+        ),
+    ),
     _normalise_key("landscape architect"): _profile(
         "Landscape architect",
         requested_services=(
@@ -261,11 +328,44 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("nathers assessor"): _normalise_key("BASIX / energy assessor"),
     _normalise_key("principal certifier"): _normalise_key("certifier"),
     _normalise_key("pca"): _normalise_key("certifier"),
+    _normalise_key("building certifier"): _normalise_key("certifier"),
+    _normalise_key("building certifier / pca"): _normalise_key("certifier"),
+    _normalise_key("building certifier pca"): _normalise_key("certifier"),
+    _normalise_key("principal certifying authority"): _normalise_key("certifier"),
     _normalise_key("hydraulic consultant"): _normalise_key("hydraulic engineer"),
     _normalise_key("civil engineer"): _normalise_key("civil / stormwater engineer"),
     _normalise_key("stormwater engineer"): _normalise_key("civil / stormwater engineer"),
     _normalise_key("stormwater consultant"): _normalise_key("civil / stormwater engineer"),
+    _normalise_key("town planning"): _normalise_key("town planner"),
+    _normalise_key("town planning consultant"): _normalise_key("town planner"),
+    _normalise_key("planning consultant"): _normalise_key("town planner"),
 }
+
+_NON_CONSULTANT_TERMS = (
+    "main contractor",
+    "main works",
+    "head contractor",
+    "principal contractor",
+    "builder",
+    "design and construct",
+    "d and c contractor",
+    "subcontractor",
+    "sub contractor",
+    "trade contractor",
+    "trade package",
+)
+
+
+class NonConsultantDiscipline(ValueError):
+    """Raised when a procurement target is a contractor, not a consultant."""
+
+    def __init__(self, discipline: str) -> None:
+        self.discipline = discipline
+        super().__init__(
+            f"{discipline!r} is a construction contractor, not a consultant "
+            "discipline. Use the head-contractor procurement path (EOI/RFT), not "
+            "consultant procurement, which only produces a request for fee proposal."
+        )
 
 
 def consultant_procurement_workflow_type(discipline: str) -> str:
@@ -368,6 +468,8 @@ def normalise_discipline(discipline: str) -> DisciplineProfile:
     if not cleaned:
         raise ValueError("discipline is required")
     key = _normalise_key(cleaned)
+    if any(term in key for term in _NON_CONSULTANT_TERMS):
+        raise NonConsultantDiscipline(cleaned)
     aliased = DISCIPLINE_ALIASES.get(key, key)
     if aliased in DISCIPLINE_PROFILES:
         return DISCIPLINE_PROFILES[aliased]
@@ -386,6 +488,150 @@ def normalise_discipline(discipline: str) -> DisciplineProfile:
     )
 
 
+async def run_validated_rfp_narrative(
+    *,
+    project: Project,
+    target: DisciplineProfile,
+    project_evidence: list[dict[str, Any]],
+    platform_knowledge: list[dict[str, Any]],
+    citation_index: CitationIndex,
+) -> RfpNarrativeOutput:
+    """Run and validate the bounded RFP narrative, retrying invalid output twice."""
+    validation_feedback: str | None = None
+    for attempt in range(RFP_NARRATIVE_MAX_ATTEMPTS):
+        output = await run_rfp_narrative_model(
+            project=project,
+            target=target,
+            project_evidence=project_evidence,
+            platform_knowledge=platform_knowledge,
+            citation_index=citation_index,
+            validation_feedback=validation_feedback,
+        )
+        try:
+            validate_rfp_output(output, citation_index=citation_index)
+            return output
+        except WorkflowValidationError as exc:
+            if attempt == RFP_NARRATIVE_MAX_ATTEMPTS - 1:
+                raise
+            validation_feedback = str(exc)
+
+    raise RuntimeError("RFP narrative retry loop exited unexpectedly")
+
+
+class ConsultantDocument(ProcurementDocument):
+    document_key = WORKFLOW_TYPE_PREFIX
+    workspace_subfolder = "02-consultant"
+    filename_stem = "consultant_procurement"
+    knowledge_workflow = KNOWLEDGE_WORKFLOW
+    runtime_name = RUNTIME_NAME
+    provenance_target_key = "discipline"
+    trace_tool_name = "draft_consultant_procurement_artifact"
+    trace_generation_purpose = "Generated and saved the consultant procurement artefact."
+    trace_evidence_purpose = "Gathered active-project evidence for the RFP basis."
+    trace_guidance_purpose = "Gathered SiteWise consultant procurement guidance."
+    load_required_seed_content = True
+
+    def resolve_target(self, raw: str) -> ProcurementTarget:
+        return normalise_discipline(raw)
+
+    def title(self, target: ProcurementTarget) -> str:
+        return f"Request for Fee Proposal - {target.name}"
+
+    def evidence_queries(
+        self, target: ProcurementTarget
+    ) -> tuple[EvidenceQuery, ...]:
+        return _evidence_queries(target)
+
+    def platform_query(self, target: ProcurementTarget) -> str:
+        return (
+            f"consultant procurement request for fee proposal {target.name} "
+            "scope deliverables exclusions fee response programme"
+        )
+
+    async def forecast(
+        self,
+        session: AsyncSession,
+        *,
+        project_id: uuid.UUID,
+        target: ProcurementTarget,
+    ) -> dict[str, Any]:
+        forecast = await _forecast_for_discipline(
+            session,
+            project_id=project_id,
+            profile=target,
+        )
+        return forecast
+
+    def reconcile_forecast(
+        self,
+        forecast: dict[str, Any],
+        evidence: list[dict[str, Any]],
+        target: ProcurementTarget,
+    ) -> dict[str, Any]:
+        return _reconcile_forecast_with_received(forecast, evidence, target)
+
+    def assumptions_and_missing(
+        self,
+        *,
+        project: Project,
+        evidence: list[dict[str, Any]],
+        forecast: dict[str, Any],
+        target: ProcurementTarget,
+    ) -> tuple[list[str], list[str]]:
+        return _assumptions_and_missing_inputs(
+            project=project,
+            evidence=evidence,
+            forecast=forecast,
+        )
+
+    async def render(
+        self,
+        *,
+        project: Project,
+        target: ProcurementTarget,
+        project_evidence: list[dict[str, Any]],
+        platform_knowledge: list[dict[str, Any]],
+        forecast: dict[str, Any],
+        assumptions: list[str],
+        missing_inputs: list[str],
+        max_pages: int,
+        instructions: str | None,
+    ) -> str:
+        rfp_evidence = _reviewable_evidence(project_evidence)
+        citation_index = build_rfp_citation_index(rfp_evidence)
+        scaffold = render_rfp_scaffold(
+            project=project,
+            target=target,
+            citation_index=citation_index,
+            forecast=forecast,
+            max_pages=max_pages,
+            instructions=instructions,
+            assumptions=assumptions,
+            project_evidence=rfp_evidence,
+        )
+        narrative = await run_validated_rfp_narrative(
+            project=project,
+            target=target,
+            project_evidence=rfp_evidence,
+            platform_knowledge=platform_knowledge,
+            citation_index=citation_index,
+        )
+        information_to_review = "\n".join(
+            f"- {line}" for line in narrative.information_to_review
+        )
+        return (
+            scaffold.replace(BACKGROUND_PLACEHOLDER, narrative.background)
+            .replace(INFORMATION_TO_REVIEW_PLACEHOLDER, information_to_review)
+        )
+
+
+CONSULTANT_DOCUMENT = ConsultantDocument()
+
+
+async def _sync_for_engine(session: AsyncSession, *, document, **kwargs) -> str:
+    return await sync_consultant_procurement_draft_workspace(session, **kwargs)
+
+
 async def draft_consultant_procurement_artifact(
     session: AsyncSession,
     *,
@@ -396,91 +642,24 @@ async def draft_consultant_procurement_artifact(
     instructions: str | None = None,
     auto_commit: bool = True,
 ) -> ConsultantProcurementResult:
-    profile = normalise_discipline(discipline)
-    pages = max(1, min(max_pages, 3))
-    retriever = DocumentRetriever(session)
-    project_evidence = await _retrieve_project_evidence(
-        retriever,
-        project=project,
-        profile=profile,
-    )
-    platform_knowledge = await _retrieve_platform_knowledge(
-        retriever,
-        profile=profile,
-    )
-    platform_knowledge = _merge_required_guidance(platform_knowledge, project)
-    forecast = await _forecast_for_discipline(
+    result = await draft_procurement_request(
         session,
-        project_id=project.id,
-        profile=profile,
-    )
-    forecast = _reconcile_forecast_with_received(forecast, project_evidence, profile)
-    assumptions, missing_inputs = _assumptions_and_missing_inputs(
         project=project,
-        evidence=project_evidence,
-        forecast=forecast,
-    )
-    source_trace = _source_trace(
-        project_evidence=project_evidence,
-        platform_knowledge=platform_knowledge,
-        forecast=forecast,
-        assumptions=assumptions,
-        missing_inputs=missing_inputs,
-    )
-    markdown = _render_markdown(
-        project=project,
-        profile=profile,
-        project_evidence=project_evidence,
-        platform_knowledge=platform_knowledge,
-        forecast=forecast,
-        assumptions=assumptions,
-        missing_inputs=missing_inputs,
-        max_pages=pages,
+        user_id=user_id,
+        document=CONSULTANT_DOCUMENT,
+        raw_target=discipline,
+        max_pages=max_pages,
         instructions=instructions,
+        auto_commit=auto_commit,
+        retriever_factory=DocumentRetriever,
+        next_version=next_draft_version,
+        create_draft=create_draft_artifact,
+        sync_workspace=_sync_for_engine,
     )
-
-    workflow_type = consultant_procurement_workflow_type(profile.name)
-    version_hint = await next_draft_version(
-        session,
-        project_id=project.id,
-        workflow_type=workflow_type,
-    )
-    draft = await create_draft_artifact(
-        session,
-        project_id=project.id,
-        workflow_type=workflow_type,
-        title=f"Request for Fee Proposal - {profile.name}",
-        workspace_path=consultant_procurement_workspace_path(
-            project,
-            discipline_slug=profile.slug,
-            version=version_hint,
-        ),
-        author_user_id=user_id,
-        content_markdown=markdown,
-        model=None,
-        runtime=RUNTIME_NAME,
-        expected_base_version=version_hint - 1,
-        actor_source="consultant_procurement_workflow",
-        provenance_metadata={
-            "workflow": WORKFLOW_TYPE_PREFIX,
-            "discipline": profile.name,
-            "max_pages": pages,
-            "instructions": instructions,
-            "source_trace": source_trace,
-        },
-    )
-    await sync_consultant_procurement_draft_workspace(
-        session,
-        project=project,
-        draft=draft,
-        markdown=markdown,
-    )
-    if auto_commit:
-        await session.commit()
     return ConsultantProcurementResult(
-        draft=draft,
-        discipline=profile.name,
-        source_trace=source_trace,
+        draft=result.draft,
+        discipline=result.target_name,
+        source_trace=result.source_trace,
     )
 
 
@@ -739,6 +918,11 @@ def _assumptions_and_missing_inputs(
         missing.append("Previous consultant correspondence for this discipline.")
     if not getattr(project, "state", None):
         missing.append("Project state / jurisdiction.")
+    identity = resolve_project_identity(project, evidence=evidence)
+    if not identity.get("site_address"):
+        missing.append("Confirmed site address.")
+    if not identity.get("client"):
+        missing.append("Client / owner name for the RFP.")
     missing.extend(
         [
             "Preferred fee response date.",
@@ -799,110 +983,6 @@ def _source_trace(
     }
 
 
-def _render_markdown(
-    *,
-    project: Project,
-    profile: DisciplineProfile,
-    project_evidence: list[dict[str, Any]],
-    platform_knowledge: list[dict[str, Any]],
-    forecast: dict[str, Any],
-    assumptions: list[str],
-    missing_inputs: list[str],
-    max_pages: int,
-    instructions: str | None,
-) -> str:
-    service_limit = 4 if max_pages == 1 else 8
-    deliverable_limit = 4 if max_pages == 1 else 8
-    info_to_review = _information_to_review(project_evidence)
-    forecast_line = (
-        f"- Internal benchmark: {forecast['label']}"
-        if forecast.get("used")
-        else "- No internal fee benchmark is available for issue; consultant to price from scope."
-    )
-    if forecast.get("received_proposal_on_file"):
-        amount = forecast.get("received_proposal_amount")
-        amount_text = f" ({_money(amount)} ex GST)" if amount else ""
-        forecast_line += (
-            f"\n- Note: a received {profile.name} fee proposal is on file"
-            f"{amount_text}; reconcile the internal benchmark against it before relying on it."
-        )
-    instruction_lines = _instruction_lines(instructions)
-
-    sections = [
-        f"# Request for Fee Proposal - {profile.name}",
-        "",
-        "## Project",
-        f"- Project: {project.title}",
-        f"- State / phase: {getattr(project, 'state', None) or 'TBC'} / {getattr(project, 'phase', None) or 'TBC'}",
-        f"- Consultant discipline: {profile.name}",
-        "",
-        "## Background",
-        _background(project, project_evidence),
-        "",
-        "## Requested services",
-        *_bullets(profile.requested_services[:service_limit]),
-        "",
-        "## Information to review",
-        *_bullets(info_to_review),
-        "",
-        "## Required deliverables",
-        *_bullets(profile.deliverables[:deliverable_limit]),
-        "",
-        "## Programme / response date",
-        "- Provide earliest availability, key programme assumptions, and duration for each stage.",
-        "- Fee response date: TBC by client before issue.",
-        "",
-        "## Fee response requirements",
-        "- Submit a lump-sum fee excluding GST, with GST shown separately.",
-        "- Break the fee down by project stage and identify optional services, disbursements, and hourly rates.",
-        "- State assumptions, exclusions, client inputs, authority fees, and validity period.",
-        forecast_line,
-        "",
-        "## Exclusions / assumptions",
-        *_bullets(assumptions[:4]),
-        *_bullets(instruction_lines),
-        "",
-        "## Site visit / clarifications",
-        "- Confirm whether a site visit is required and list any preconditions for attendance.",
-        "- Submit clarification questions before pricing where information is incomplete.",
-        "",
-        "## Submission instructions",
-        "- Submit the fee proposal to the client-nominated contact in PDF format.",
-        "- Include company details, insurances, proposed personnel, and any terms requiring acceptance.",
-        "",
-        _basis_footer(project_evidence, platform_knowledge, forecast, missing_inputs),
-    ]
-    return "\n".join(sections).rstrip() + "\n"
-
-
-def _background(project: Project, evidence: list[dict[str, Any]]) -> str:
-    reviewable = _reviewable_evidence(evidence)
-    if not reviewable:
-        return (
-            "Prepare this RFP from the declared project context only. Confirm the project brief, "
-            "approval pathway, current design status, and consultant interfaces before issuing."
-        )
-    names = _unique_display_names(reviewable, limit=3)
-    return (
-        f"Prepare this RFP for {project.title} using the current project corpus, "
-        f"including {', '.join(names)}."
-    )
-
-
-def _information_to_review(evidence: list[dict[str, Any]]) -> list[str]:
-    reviewable = _reviewable_evidence(evidence)
-    if not reviewable:
-        return [
-            "Project brief, current drawings, planning pathway, programme, and consultant tracker to be issued when available."
-        ]
-    lines = []
-    for item in _unique_by_path(reviewable)[:6]:
-        label = _document_kind(item) or item["role_label"]
-        path = item["relative_path"] or item["filename"]
-        lines.append(f"{label}: {path}")
-    return lines
-
-
 _FEE_PROPOSAL_MARKERS = ("fee-proposal", "fee_proposal")
 
 
@@ -917,26 +997,6 @@ def _is_consultant_fee_proposal(item: dict[str, Any]) -> bool:
         return True
     snippet = str(item.get("snippet") or "").lstrip().lower().lstrip("# ").strip()
     return snippet.startswith("fee proposal")
-
-
-def _document_kind(item: dict[str, Any]) -> str | None:
-    """Label a document by its own identity, not the query that surfaced it.
-
-    Returns ``None`` when the identity cannot be determined confidently, so the
-    caller can fall back to the retrieval role label.
-    """
-    if _is_consultant_fee_proposal(item):
-        return "Consultant fee proposal"
-    text = f"{item.get('filename') or ''} {item.get('relative_path') or ''}".lower()
-    if any(token in text for token in ("engagement-letter", "engagement_letter", "letter-of-engagement")):
-        return "Engagement letter"
-    if any(token in text for token in ("owner-project-brief", "owner_project_brief", "project-brief", "project_brief")):
-        return "Owner project brief"
-    if any(token in text for token in ("cost-plan", "cost_plan", "pmp")):
-        return "Cost plan / PMP"
-    if "heritage" in text:
-        return "Heritage advice"
-    return None
 
 
 def _reviewable_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -992,63 +1052,6 @@ def _reconcile_forecast_with_received(
         item.get("relative_path") or item.get("filename") for item in received
     ]
     return forecast
-
-
-def _basis_footer(
-    evidence: list[dict[str, Any]],
-    knowledge: list[dict[str, Any]],
-    forecast: dict[str, Any],
-    missing_inputs: list[str],
-) -> str:
-    doc_names = ", ".join(_unique_display_names(_reviewable_evidence(evidence), limit=3)) or "none found"
-    knowledge_names = ", ".join(
-        item["title"] for item in knowledge[:2] if item.get("title")
-    ) or "none found"
-    forecast_text = forecast["label"] if forecast.get("used") else forecast.get("reason", "not used")
-    missing = "; ".join(missing_inputs[:4])
-    return (
-        "Basis used: "
-        f"project docs: {doc_names}. "
-        f"Platform guidance: {knowledge_names}. "
-        f"Forecast: {forecast_text}. "
-        f"Missing inputs: {missing}."
-    )
-
-
-def _instruction_lines(instructions: str | None) -> list[str]:
-    if not instructions or not instructions.strip():
-        return []
-    return [f"Additional instruction: {' '.join(instructions.split())}"]
-
-
-def _bullets(items: tuple[str, ...] | list[str]) -> list[str]:
-    return [f"- {item}" for item in items]
-
-
-def _unique_by_path(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen: set[str] = set()
-    unique: list[dict[str, Any]] = []
-    for item in items:
-        key = str(item.get("relative_path") or item.get("filename") or item.get("chunk_id"))
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(item)
-    return unique
-
-
-def _unique_display_names(items: list[dict[str, Any]], *, limit: int) -> list[str]:
-    names: list[str] = []
-    seen: set[str] = set()
-    for item in _unique_by_path(items):
-        name = item.get("filename") or item.get("relative_path")
-        if not name or name in seen:
-            continue
-        seen.add(name)
-        names.append(str(name))
-        if len(names) >= limit:
-            break
-    return names
 
 
 def _platform_title(passage: Any, metadata: dict[str, Any]) -> str:

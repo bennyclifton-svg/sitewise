@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -71,7 +72,7 @@ def _walsh_source_texts() -> list[str]:
 
 
 def _cost_breakdown_section() -> str:
-    return """## Cost breakdown by category
+    return """## Budget reconciliation and cost breakdown
 
 | Cost Code | Category | Cost Items | Budget | Status | Basis |
 | --- | --- | --- | --- | --- | --- |
@@ -90,7 +91,8 @@ def _cost_breakdown_section() -> str:
 def _valid_cost_plan_markdown() -> str:
     greenfield_terms = (
         "Fees and charges and Consultants groups with construction contingency 5-10%. "
-        "All figures exclude GST. Recommendation: owner confirm working budget by 2026-07-01."
+        "All figures exclude GST. Latent conditions remain an assumption. "
+        "Recommendation: owner confirm working budget by 2026-07-01."
     )
     sections = {
         "Project name and location": (
@@ -163,6 +165,32 @@ def _valid_cost_plan_markdown() -> str:
             "- **Recommendations**\n- Review markdown before workbook export.\n"
         ),
     }
+    sections.update(
+        {
+            "Cost plan summary and control decision": (
+                "## Cost plan summary and control decision\n\n"
+                "Greenfield Demo - Assumption: 1 Example Street, Sydney NSW 2000. "
+                f"{greenfield_terms}"
+            ),
+            "Budget reconciliation and cost breakdown": _cost_breakdown_section(),
+            "Commitments, allowances and exclusions": (
+                "## Commitments, allowances and exclusions\n\n"
+                "- Benchmark construction rates - verify before commitment."
+            ),
+            "Risks, delivery gates and next actions": (
+                "## Risks, delivery gates and next actions\n\n"
+                "| Risk | Owner | Next action |\n"
+                "| --- | --- | --- |\n"
+                "| Budget not evidenced | Owner | Confirm ceiling by 2026-07-01 |"
+            ),
+            "Source evidence and audit trail": (
+                "## Source evidence and audit trail\n\n"
+                "### Citation key\n\nDoctrine and seeds only.\n\n"
+                "- **Facts**\n- Platform-seeded scaffold only.\n"
+                "- **Assumptions**\n- All construction lines are benchmark."
+            ),
+        }
+    )
     body = "\n\n".join(
         sections[heading] for heading in required_section_headings("architect-pm")
     )
@@ -171,6 +199,32 @@ def _valid_cost_plan_markdown() -> str:
 
 def _valid_evidence_grounded_cost_plan_markdown() -> str:
     markdown = _valid_cost_plan_markdown()
+    return _replace_section(
+        markdown,
+        "Source evidence and audit trail",
+        """## Source evidence and audit trail
+
+### Citation key
+
+[1] claim-03.md - May 2026
+[2] fee-proposal.md - on file
+
+| Cost-plan area | Evidence status | Ref |
+| --- | --- | --- |
+| Construction breakdown | Grounded | [1] |
+| PM fee | Partial | [2] |
+
+- **Facts**
+- Progress claim #3 includes trade schedule with preliminaries, slab, frame rows.
+- Architect fee proposal on file at $148,500 ex GST.
+- **Assumptions**
+- Owner budget ceiling not evidenced.
+- **Judgements**
+- Adopt claim schedule for construction breakdown pending reconciliation.
+- **Recommendations**
+- Reconcile claim total to contract sum by 2026-07-01.
+""",
+    )
     source_section = """## Source evidence used
 
 Evidence on file: progress claim #3 (May 2026); architect fee proposal.
@@ -442,7 +496,9 @@ def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
 
 
 def test_validate_cost_plan_output_fails_when_section_missing() -> None:
-    markdown = _valid_cost_plan_markdown().replace("## GST basis", "## GST")
+    markdown = _valid_cost_plan_markdown().replace(
+        "## Cost plan summary and control decision", "## Cost plan summary"
+    )
     output = CostPlanDraftOutput(
         title="Project Cost Plan",
         markdown=markdown,
@@ -543,7 +599,7 @@ def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figu
 def test_claim_first_violations_detects_collapsed_construction() -> None:
     collapsed = _valid_cost_plan_markdown().replace(
         _cost_breakdown_section(),
-        """## Cost breakdown by category
+        """## Budget reconciliation and cost breakdown
 
 | Cost Code | Category | Cost Items | Budget | Status | Basis |
 | --- | --- | --- | --- | --- | --- |
@@ -582,8 +638,8 @@ def test_ensure_evidence_grounded_cost_plan_scaffold_injects_missing_map_and_fac
     violations_after = cost_plan_evidence_grounded_violations(repaired, refs)
     assert not any("evidence map" in issue for issue in violations_after)
     assert not any("Facts" in issue for issue in violations_after)
-    assert "Evidence on file:" in repaired
-    assert "| Section | Evidence status | Ref |" in repaired
+    assert "Citation key" in repaired
+    assert "| Cost-plan area | Evidence status | Ref |" in repaired
     assert "- **Facts**" in repaired
 
 
@@ -592,8 +648,8 @@ def test_ensure_evidence_grounded_cost_plan_scaffold_normalizes_audit_headings()
 ):
     markdown = _replace_section(
         _valid_cost_plan_markdown(),
-        "Internal audit layer",
-        "## Internal audit layer\n\n### Facts\n- Claim schedule on file.\n",
+        "Source evidence and audit trail",
+        "## Source evidence and audit trail\n\n### Facts\n- Claim schedule on file.\n",
     )
     refs = ["project_evidence:demo/01-cost/budget.md#chunk=0"]
     repaired = ensure_evidence_grounded_cost_plan_scaffold(markdown, refs)
@@ -637,6 +693,50 @@ def test_retrieve_create_cost_plan_sources_platform_seeded_when_no_project_evide
     assert draft_mode == "platform_seeded"
     assert missing == []
     assert passages == [platform_passage]
+
+
+def test_retrieve_create_cost_plan_sources_uses_session_sequentially() -> None:
+    """AsyncSession forbids concurrent awaits; gather on one session is illegal."""
+    in_flight = 0
+    max_in_flight = 0
+
+    async def _load_platform(_session, _paths, *, content_chars):
+        nonlocal in_flight, max_in_flight
+        in_flight += 1
+        max_in_flight = max(max_in_flight, in_flight)
+        await asyncio.sleep(0.02)
+        in_flight -= 1
+        return ([], [])
+
+    async def _list_markers(_session, *, project_id):
+        nonlocal in_flight, max_in_flight
+        in_flight += 1
+        max_in_flight = max(max_in_flight, in_flight)
+        await asyncio.sleep(0.02)
+        in_flight -= 1
+        return []
+
+    with (
+        patch(
+            "app.workflows.create_cost_plan.load_platform_documents_by_paths",
+            new=AsyncMock(side_effect=_load_platform),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.list_cost_evidence_paths",
+            new=AsyncMock(side_effect=_list_markers),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        run_async(retrieve_create_cost_plan_sources(AsyncMock(), project=_project()))
+
+    assert max_in_flight == 1
 
 
 def test_retrieve_create_cost_plan_sources_uses_taxonomy_when_archetype_empty() -> None:

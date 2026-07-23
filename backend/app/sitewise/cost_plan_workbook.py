@@ -181,18 +181,47 @@ def _build_workbook(
     )
 
 
-def parse_cost_breakdown(markdown: str) -> tuple[list[CostPlanLine], list[str]]:
-    section = _markdown_section(markdown, "Cost breakdown by category")
-    if not section:
-        return [], ["Cost breakdown by category section was not found."]
+_COST_BREAKDOWN_REQUIRED_HEADERS = ("cost code", "category", "cost items", "budget")
 
-    table = [line.strip() for line in section if _is_markdown_table_line(line)]
-    if len(table) < 2:
-        return [], ["Cost breakdown by category table was not found."]
+
+def _cost_breakdown_table_block(markdown: str) -> list[str] | None:
+    """Find the cost-items table by its header row, not by an enclosing heading.
+
+    The renderer's enclosing heading has been renamed before ("Cost breakdown
+    by category" -> "Budget reconciliation and cost breakdown", with the table
+    now nested under a "### Cost breakdown" sub-heading alongside an unrelated
+    summary table). Matching on the required columns instead of heading text
+    finds the right table regardless of what it's nested under, and survives
+    future renames.
+    """
+    block: list[str] = []
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if _is_markdown_table_line(stripped):
+            block.append(stripped)
+            continue
+        if block:
+            if len(block) >= 2 and _table_block_has_required_headers(block[0]):
+                return block
+            block = []
+    if block and len(block) >= 2 and _table_block_has_required_headers(block[0]):
+        return block
+    return None
+
+
+def _table_block_has_required_headers(header_row: str) -> bool:
+    headers = {_normalise_header(cell) for cell in _split_markdown_row(header_row)}
+    return all(header in headers for header in _COST_BREAKDOWN_REQUIRED_HEADERS)
+
+
+def parse_cost_breakdown(markdown: str) -> tuple[list[CostPlanLine], list[str]]:
+    table = _cost_breakdown_table_block(markdown)
+    if not table:
+        return [], ["Cost breakdown by category section was not found."]
 
     headers = [_normalise_header(cell) for cell in _split_markdown_row(table[0])]
     header_index = {header: index for index, header in enumerate(headers)}
-    required = ("cost code", "category", "cost items", "budget")
+    required = _COST_BREAKDOWN_REQUIRED_HEADERS
     missing = [header for header in required if header not in header_index]
     if missing:
         return [], [f"Cost breakdown table is missing columns: {', '.join(missing)}."]

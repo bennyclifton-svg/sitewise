@@ -228,6 +228,95 @@ def test_mapping_review_item_payload_includes_quote_id() -> None:
     assert item.payload["cell_code"] == "03.01"
 
 
+def test_list_review_items_batch_loads_payloads() -> None:
+    session = FakeBatchQASession()
+
+    items = run_async(qa.list_review_items(session, comparison_id=COMPARISON_ID))
+
+    assert len(items) == 2
+    assert items[0].entity_type == "cell_status"
+    assert items[0].payload["cell_code"] == "18.01"
+    assert items[1].entity_type == "mapping"
+    assert items[1].payload["quote_id"] == str(session.line_item.quote_id)
+    # One queue query + one select per entity table touched (cell, mapping, line item).
+    assert session.execute_count == 4
+
+
+class FakeBatchQASession:
+    def __init__(self) -> None:
+        self.cell_status = TenderCellStatus(
+            id=ITEM_ID,
+            comparison_id=COMPARISON_ID,
+            quote_id=uuid.uuid4(),
+            cell_code="18.01",
+            status="silent_ambiguous",
+            amount_cents=250_000,
+            bundled_into_cell=None,
+            evidence={},
+            confidence=0.61,
+            qa_state="needs_review",
+        )
+        self.mapping = TenderMapping(
+            id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+            line_item_id=uuid.uuid4(),
+            cell_code="03.01",
+            tier="t1_embedding",
+            confidence=0.58,
+            qa_state="needs_review",
+        )
+        self.line_item = TenderLineItem(
+            id=self.mapping.line_item_id,
+            quote_id=uuid.uuid4(),
+            document_id=uuid.uuid4(),
+            page_no=2,
+            description_raw="Retaining WALL allowance",
+            item_status="included",
+            amount_cents=500_000,
+        )
+        self.execute_count = 0
+
+    async def execute(self, statement: Any) -> Any:
+        self.execute_count += 1
+        entity = None
+        try:
+            entity = statement.column_descriptions[0].get("entity")
+        except (AttributeError, IndexError, KeyError, TypeError):
+            entity = None
+        if entity is TenderCellStatus:
+            return FakeScalarsResult([self.cell_status])
+        if entity is TenderMapping:
+            return FakeScalarsResult([self.mapping])
+        if entity is TenderLineItem:
+            return FakeScalarsResult([self.line_item])
+        return FakeMappingsResult(
+            [
+                {
+                    "item_id": self.cell_status.id,
+                    "entity_type": "cell_status",
+                    "report_impact_cents": 250_000,
+                    "confidence": 0.61,
+                },
+                {
+                    "item_id": self.mapping.id,
+                    "entity_type": "mapping",
+                    "report_impact_cents": 500_000,
+                    "confidence": 0.58,
+                },
+            ]
+        )
+
+
+class FakeScalarsResult:
+    def __init__(self, items: list[Any]) -> None:
+        self.items = items
+
+    def scalars(self) -> "FakeScalarsResult":
+        return self
+
+    def all(self) -> list[Any]:
+        return self.items
+
+
 class FakeQASession:
     def __init__(self, *, cell_status: bool = False, mapping: bool = False) -> None:
         self.cell_status = TenderCellStatus(

@@ -26,10 +26,13 @@ from app.workflows.pmp_narrative import RiskRow, format_risk_rows_table
 _INSTRUCTIONS_PATH = Path(__file__).with_name("cost_plan_narrative_instructions.md")
 _ISO_DATE_PATTERN = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
 
+# Only flag fee-vs-ceiling misreads. Generic "exceed the construction ceiling"
+# language about tender/works is legitimate and must not trip this check.
 _FEE_CEILING_MISREAD_PATTERNS: tuple[str, ...] = (
     r"architect fees?.*exceed",
     r"fee[s]?\s+(?:outlined\s+at\s+)?\$?[\d,]+\s+exceed",
-    r"exceed(?:ing|s)?\s+(?:the\s+)?(?:allocated\s+)?(?:construction\s+)?ceiling",
+    r"(?:architect\s+)?fees?\b.{0,60}exceed(?:ing|s)?\s+(?:the\s+)?(?:allocated\s+)?(?:construction\s+)?ceiling",
+    r"exceed(?:ing|s)?\s+(?:the\s+)?(?:allocated\s+)?(?:construction\s+)?ceiling.{0,60}(?:architect\s+)?fees?",
 )
 
 _FORBIDDEN_BUDGET_PHRASES: tuple[str, ...] = (

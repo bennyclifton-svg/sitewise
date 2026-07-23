@@ -109,35 +109,37 @@ class WorkflowValidationError(Exception):
     """Raised when a workflow output is not safe to persist."""
 
 
-def _upstream_failure_message(exc: Exception, *, operation: str) -> str:
+def _upstream_failure_message(
+    exc: Exception, *, operation: str, workflow_name: str = "Create PMP"
+) -> str:
     status_code = getattr(exc, "status_code", None)
     if status_code == 401:
         return (
-            f"Create PMP could not {operation} because OpenAI authentication failed. "
+            f"{workflow_name} could not {operation} because OpenAI authentication failed. "
             "Check OPENAI_API_KEY on the backend."
         )
     if status_code == 429:
         return (
-            f"Create PMP could not {operation} because OpenAI rate limit or quota was reached. "
+            f"{workflow_name} could not {operation} because OpenAI rate limit or quota was reached. "
             "Wait a moment and try again."
         )
     if status_code in {500, 502, 503, 504}:
         return (
-            f"Create PMP could not {operation} because OpenAI is temporarily unavailable. "
+            f"{workflow_name} could not {operation} because OpenAI is temporarily unavailable. "
             "Try again shortly."
         )
     if status_code == 400:
         return (
-            f"Create PMP could not {operation} because OpenAI rejected the request. "
+            f"{workflow_name} could not {operation} because OpenAI rejected the request. "
             "Check the configured model and prompt size."
         )
     if isinstance(exc, UnexpectedModelBehavior):
         return (
-            f"Create PMP could not {operation} because the language model returned an "
+            f"{workflow_name} could not {operation} because the language model returned an "
             "unexpected response. Try again, and check the configured chat model if it persists."
         )
     return (
-        f"Create PMP could not {operation} because the OpenAI request failed. "
+        f"{workflow_name} could not {operation} because the OpenAI request failed. "
         "Check backend model configuration and network access."
     )
 

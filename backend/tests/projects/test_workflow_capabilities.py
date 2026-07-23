@@ -100,3 +100,27 @@ def test_consultant_procurement_requires_role_and_taxonomy_context() -> None:
 
     assert capability.status == "needs_input"
     assert capability.required_fields == ["building_class", "user_role"]
+
+
+def test_contractor_eoi_capability() -> None:
+    capability = workflow_capabilities(_snapshot()).capabilities["contractor_eoi"]
+
+    assert capability.status == "supported"
+    assert set(capability.required_fields) == set()
+
+
+def test_contractor_eoi_requires_project_and_jurisdiction_context() -> None:
+    capability = workflow_capabilities(
+        _snapshot(building_class=None, work_type=None, state=None)
+    ).capabilities["contractor_eoi"]
+
+    assert capability.status == "needs_input"
+    assert set(capability.required_fields) == {"building_class", "work_type", "state"}
+
+
+def test_contractor_eoi_supports_class_2_apartment_projects() -> None:
+    capability = workflow_capabilities(
+        _snapshot(subclasses=["apartments"])
+    ).capabilities["contractor_eoi"]
+
+    assert capability.status == "supported"

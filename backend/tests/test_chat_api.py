@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 from app.api.chat import require_thread_owner
 from app.auth.dependencies import CurrentUser, get_current_user
@@ -201,7 +201,7 @@ def test_database_errors_return_cors_503() -> None:
     path = f"/__test_database_error_{uuid.uuid4().hex}"
 
     async def raise_database_error() -> None:
-        raise SQLAlchemyError("database unavailable")
+        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
 
     app.add_api_route(path, raise_database_error, methods=["GET"])
     with TestClient(cors_app, raise_server_exceptions=False) as test_client:
@@ -211,4 +211,21 @@ def test_database_errors_return_cors_503() -> None:
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
     assert response.json() == {
         "detail": "Database unavailable. Check DATABASE_URL and network access.",
+    }
+
+
+def test_integrity_errors_return_cors_409() -> None:
+    path = f"/__test_integrity_error_{uuid.uuid4().hex}"
+
+    async def raise_integrity_error() -> None:
+        raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+
+    app.add_api_route(path, raise_integrity_error, methods=["GET"])
+    with TestClient(cors_app, raise_server_exceptions=False) as test_client:
+        response = test_client.get(path, headers={"Origin": "http://localhost:5173"})
+
+    assert response.status_code == 409
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.json() == {
+        "detail": "Database constraint conflict while saving. Retry the workflow.",
     }

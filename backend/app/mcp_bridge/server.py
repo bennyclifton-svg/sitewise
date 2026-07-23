@@ -15,7 +15,9 @@ from typing import Any
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
+from openai import OpenAIError
 from pydantic import ValidationError
+from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
 from sqlalchemy import func, or_, select
 
 from app.agent.workspace_paths import (
@@ -124,8 +126,11 @@ from app.workflows.create_cost_plan import (
     sync_cost_plan_revision_artifacts,
 )
 from app.workflows.consultant_procurement import (
+    NonConsultantDiscipline,
     draft_consultant_procurement_artifact as run_consultant_procurement_artifact,
+    normalise_discipline as _normalise_consultant_discipline,
 )
+from app.workflows.create_pmp import _upstream_failure_message
 from app.workflows.runs import (
     WorkflowRunCapabilityConflict,
     WorkflowRunConflict,
@@ -977,6 +982,7 @@ _MCP_WORKFLOW_CAPABILITIES = {
     "create_cost_plan": "create_cost_plan",
     "refresh_cost_plan": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
+    "contractor_eoi": "contractor_eoi",
 }
 
 
@@ -1356,6 +1362,14 @@ async def start_consultant_procurement(
     instructions: str | None = None,
 ) -> dict:
     """Queue a durable consultant request-for-fee-proposal artefact."""
+    try:
+        _normalise_consultant_discipline(discipline)
+    except NonConsultantDiscipline as exc:
+        return {
+            "kind": "blocked",
+            "reason": str(exc),
+            "redirect": "start_contractor_eoi",
+        }
     return await _start_mcp_workflow(
         project_id=project_id,
         workflow_type="consultant_procurement",
@@ -1365,6 +1379,33 @@ async def start_consultant_procurement(
         expected_decision_set_revision=expected_decision_set_revision,
         parameters={
             "discipline": discipline,
+            "max_pages": max_pages,
+            "instructions": instructions,
+        },
+    )
+
+
+@mcp.tool
+async def start_contractor_eoi(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    package: str = "Main Works",
+    max_pages: int = 1,
+    instructions: str | None = None,
+) -> dict:
+    """Queue a durable client-issued head-contractor Expression of Interest."""
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="contractor_eoi",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        parameters={
+            "package": package,
             "max_pages": max_pages,
             "instructions": instructions,
         },
@@ -1732,6 +1773,20 @@ async def accept_project_profile_proposal(
                 actor_source="agent",
             )
             await session.commit()
+            if resolution.profile_change is not None:
+                change = resolution.profile_change
+                await agent_turn_status_bus.publish(
+                    _turn_id(authorization),
+                    kind="resource",
+                    message="Updated project profile",
+                    projectId=str(pid),
+                    resourceType="project_profile",
+                    resourceId=str(pid),
+                    action="updated",
+                    revision=change.new_revision,
+                    changedFields=list(change.changed_fields),
+                    clearedFields=list(change.cleared_fields),
+                )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         except (
@@ -2320,14 +2375,23 @@ async def draft_consultant_procurement_artifact(
             done="Created consultant procurement draft",
             error="Consultant procurement draft failed",
         ) as extra:
-            result = await run_consultant_procurement_artifact(
-                session,
-                project=authorization.project,
-                user_id=authorization.claims.user_id,
-                discipline=discipline,
-                max_pages=max_pages,
-                instructions=instructions,
-            )
+            try:
+                result = await run_consultant_procurement_artifact(
+                    session,
+                    project=authorization.project,
+                    user_id=authorization.claims.user_id,
+                    discipline=discipline,
+                    max_pages=max_pages,
+                    instructions=instructions,
+                )
+            except (ModelAPIError, UnexpectedModelBehavior, OpenAIError) as exc:
+                raise ToolError(
+                    _upstream_failure_message(
+                        exc,
+                        operation="draft the RFP",
+                        workflow_name="RFP drafting",
+                    )
+                ) from exc
             extra.update(_consultant_procurement_status_metadata(result.source_trace))
             extra["workflowType"] = result.draft.workflow_type
             extra["draftId"] = str(result.draft.id)

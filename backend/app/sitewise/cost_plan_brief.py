@@ -12,9 +12,9 @@ from app.sitewise.pmp_greenfield_brief import (
 )
 
 COST_BREAKDOWN_TABLE = """
-Include this cost breakdown table under **Cost breakdown by category** using workbook-ready groups.
+Include this cost breakdown table under **Budget reconciliation and cost breakdown** using workbook-ready groups.
 Use short stable **Cost Item** labels (2–5 words) suitable for future Excel lookup — not long sentences.
-All figures ex GST unless the GST basis section states otherwise.
+All figures ex GST unless the summary states otherwise.
 
 | Cost Code | Category | Cost Items | Budget | Status | Basis |
 | --- | --- | --- | --- | --- | --- |
@@ -53,7 +53,7 @@ When multiple budget figures exist (or in platform_seeded mode as a scaffold), i
 """
 
 AUTHORITY_GATES_TABLE = """
-Include under **Authority, compliance and procurement gates**:
+Include under **Risks, delivery gates and next actions** as `### Delivery gates`:
 
 | Gate | Status | Cost impact | Next action |
 | --- | --- | --- | --- |
@@ -133,6 +133,32 @@ SECTION_BRIEFS: dict[str, str] = {
 """,
 }
 
+COMPACT_SECTION_BRIEFS: dict[str, str] = {
+    "Cost plan summary and control decision": """
+- State project, profile and ex-GST basis.
+- State the adopted construction reference, major fee treatment, contingency and one control decision.
+- Do not repeat the detailed table figures in prose.
+""",
+    "Budget reconciliation and cost breakdown": """
+- Use the budget-reconciliation table, followed by the detailed workbook-ready cost table.
+- Preserve trade/work-package detail when a claim or schedule of values is available.
+- State why the control reference is adopted or qualified.
+""",
+    "Commitments, allowances and exclusions": """
+- Table only material locked appointments or contracts with supplier, amount and source citation.
+- Consolidate PC sums, contingency, owner-supplied items and open exclusions into short bullets.
+""",
+    "Risks, delivery gates and next actions": """
+- Use `### Risk register`, `### Delivery gates` and `### Next actions` subheadings.
+- Keep risks and gates decision-focused; include owner asks and due dates only where supported.
+""",
+    "Source evidence and audit trail": """
+- This must be the final section.
+- Include the evidence map, `### Citation key`, `- **Facts**`, `- **Assumptions**`, and cost-evidence conflicts.
+- Cite project evidence as `[n]`; do not use raw evidence references in the body.
+""",
+}
+
 GREENFIELD_QUALITY_MARKERS: dict[tuple[str, str], tuple[str, ...]] = {
     ("new-dwelling", "architect-pm"): (
         "contingency",
@@ -185,7 +211,9 @@ def greenfield_structure_violations(
     _user_role: str = "",
 ) -> list[str]:
     issues: list[str] = []
-    breakdown = _markdown_section(markdown, "Cost breakdown by category").lower()
+    breakdown = _markdown_section(
+        markdown, "Budget reconciliation and cost breakdown"
+    ).lower()
     if breakdown and "fees and charges" not in breakdown:
         issues.append("Cost breakdown must include Fees and charges group")
     if breakdown and "consultants" not in breakdown:
@@ -194,9 +222,11 @@ def greenfield_structure_violations(
         issues.append("Cost breakdown must include Construction group")
     if breakdown and "contingency" not in breakdown:
         issues.append("Cost breakdown must include Contingency / allowances group")
-    gst = _markdown_section(markdown, "GST basis").lower()
-    if gst and "gst" not in gst:
-        issues.append("GST basis section must state GST treatment explicitly")
+    summary = _markdown_section(
+        markdown, "Cost plan summary and control decision"
+    ).lower()
+    if summary and "gst" not in summary:
+        issues.append("Cost plan summary must state GST treatment explicitly")
     return issues
 
 
@@ -220,31 +250,30 @@ def _markdown_section(markdown: str, heading: str) -> str:
 EVIDENCE_GROUNDED_CONTRACT = """
 ## Evidence-grounded content contract (MUST follow)
 
-Ground budget figures, appointments, and claim rows from Sources. Include **Evidence on file:** and the
-evidence map table in Source evidence used. Apply the claim-first rule when progress claims or SOV appear
+Use the five required top-level sections. Ground budget figures, appointments and
+claim rows from Sources. Apply the claim-first rule when progress claims or SOV appear
 in Sources — preserve trade/work-package granularity in Construction.
 
 Use workbook-ready cost breakdown groups: Fees and charges, Consultants, Construction, Contingency / allowances.
-Table columns: Cost Code | Category | Cost Items | Budget | Status | Basis.
+Table columns: Cost Code | Category | Cost Items | Budget | Status | Basis. State GST
+treatment in Cost plan summary and control decision.
 
-Internal audit layer: bullet lists **Facts**, **Assumptions**, **Judgements**, **Recommendations** (min 3).
-Label unknown values as **Assumption** only where Sources are silent.
+End with Source evidence and audit trail. Use inline `[n]` citations and a
+`### Citation key`. Label unknown values as **Assumption** only where Sources are silent.
 
 Use these exact blocks in evidence_grounded mode (copy the structure; fill from Sources):
 
-**Source evidence used**
-**Evidence on file:** [comma-separated list of project documents from Sources]
+**Source evidence and audit trail**
+**Citation key:** [numbered project documents from Sources]
 
-| Section | Evidence status | Ref |
+| Cost-plan area | Evidence status | Ref |
 | --- | --- | --- |
-| Cost breakdown by category | Grounded / Partial / Not evidenced | [source ref] |
+| Cost breakdown | Grounded / Partial / Not evidenced | [n] |
 
 **Internal audit layer** — use `- **Facts**` as a bullet label (NOT `### Facts`):
 - **Facts**
 - [concrete evidenced bullet from Sources]
 - **Assumptions**
-- **Judgements**
-- **Recommendations**
 """
 
 
@@ -290,7 +319,7 @@ def build_greenfield_brief(
         "Label unknown values as **Assumption**. Cost Items must stay short and stable.",
         "",
     ]
-    for heading, brief in SECTION_BRIEFS.items():
+    for heading, brief in COMPACT_SECTION_BRIEFS.items():
         parts.append(f"### Section: {heading}")
         parts.append(brief.strip())
         parts.append("")

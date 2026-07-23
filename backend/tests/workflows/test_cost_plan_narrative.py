@@ -29,14 +29,15 @@ def _walsh_pack():
     return extract_cost_plan_evidence_pack(_read_walsh(), [])
 
 
-def test_validate_cost_plan_narrative_rejects_fee_exceeding_ceiling_misread() -> None:
-    pack = _full_chen_pack()
-    output = CostPlanNarrativeOutput(
-        judgements=[
-            "Architect fees at $148,500 exceed the construction ceiling.",
-            "DA + CC pathway is adopted.",
-        ],
-        recommendations=[
+def _narrative(
+    *,
+    judgements: list[str],
+    recommendations: list[str] | None = None,
+) -> CostPlanNarrativeOutput:
+    return CostPlanNarrativeOutput(
+        judgements=judgements,
+        recommendations=recommendations
+        or [
             "Prepare tender docs by 2026-07-05.",
             "Monitor programme to September 2026 by 2026-07-05.",
             "Declare Linden conflict by 2026-07-05.",
@@ -55,8 +56,36 @@ def test_validate_cost_plan_narrative_rejects_fee_exceeding_ceiling_misread() ->
         ],
     )
 
+
+def test_validate_cost_plan_narrative_rejects_fee_exceeding_ceiling_misread() -> None:
+    pack = _full_chen_pack()
+    output = _narrative(
+        judgements=[
+            "Architect fees at $148,500 exceed the construction ceiling.",
+            "DA + CC pathway is adopted.",
+        ],
+    )
+
     with pytest.raises(WorkflowValidationError, match="not exceeding it"):
         validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
+
+
+def test_validate_cost_plan_narrative_allows_tender_not_exceeding_ceiling() -> None:
+    """Generic ceiling-control language must not be treated as a fee misread."""
+    pack = _full_chen_pack()
+    output = _narrative(
+        judgements=[
+            "Tender returns must not exceed the construction ceiling.",
+            "Architect fee of $148,500 is additional to the construction ceiling.",
+        ],
+        recommendations=[
+            "Reconcile tender pricing so works do not exceed the construction ceiling by 2026-07-05.",
+            "Monitor programme to September 2026 by 2026-07-05.",
+            "Declare Linden conflict by 2026-07-05.",
+        ],
+    )
+
+    validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
 
 
 def test_validate_cost_plan_narrative_rejects_geotech_commission_when_on_file() -> None:

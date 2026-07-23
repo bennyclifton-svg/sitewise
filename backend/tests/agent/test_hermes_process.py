@@ -229,6 +229,70 @@ def test_rich_chrome_and_ansi_lines_are_stripped(tmp_path: Path) -> None:
     assert chunks == ["Useful answer"]
 
 
+def test_query_echo_skip_ends_on_credential_error(tmp_path: Path) -> None:
+    from app.agent.hermes_process import stream_hermes_turn
+
+    async def spawn(**_kwargs: Any) -> _FakeProcess:
+        return _FakeProcess(
+            stdout=[
+                "Query: <persona>\n",
+                "long prompt line\n",
+                "No Codex credentials stored. Run `hermes auth` to authenticate.\n",
+            ]
+        )
+
+    chunks = _collect(
+        stream_hermes_turn(
+            prompt="<persona>\nlong prompt line",
+            mcp_url="http://test/mcp",
+            turn_token="token",
+            cwd=tmp_path,
+            spawn=spawn,
+        )
+    )
+
+    assert chunks == [
+        "No Codex credentials stored. Run `hermes auth` to authenticate."
+    ]
+
+
+def test_codex_override_copies_auth_even_with_platform_key(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    from app.agent.hermes_process import stream_hermes_turn
+
+    source_home = tmp_path / "source-hermes"
+    source_home.mkdir()
+    (source_home / "config.yaml").write_text(
+        "model:\n  provider: openai-codex\n  default: gpt-5.5\n",
+        encoding="utf-8",
+    )
+    (source_home / "auth.json").write_text('{"codex": true}', encoding="utf-8")
+    monkeypatch.setattr(settings, "agent_platform_api_key", "platform-key")
+    monkeypatch.setenv("HERMES_HOME", str(source_home))
+    seen: dict[str, Any] = {}
+
+    async def spawn(**kwargs: Any) -> _FakeProcess:
+        seen["hermes_home"] = Path(kwargs["env"]["HERMES_HOME"])
+        seen["auth"] = (seen["hermes_home"] / "auth.json").read_text(encoding="utf-8")
+        return _FakeProcess(stdout=["ok\n"])
+
+    _collect(
+        stream_hermes_turn(
+            prompt="Use Codex",
+            mcp_url="http://test/mcp",
+            turn_token="turn-token",
+            cwd=tmp_path,
+            provider="openai-codex",
+            model="gpt-5.5",
+            spawn=spawn,
+        )
+    )
+
+    assert seen["auth"] == '{"codex": true}'
+
+
 def test_non_zero_exit_raises_with_stderr_tail(tmp_path: Path) -> None:
     from app.agent.hermes_process import HermesTurnError, stream_hermes_turn
 

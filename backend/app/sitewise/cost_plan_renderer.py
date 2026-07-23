@@ -14,6 +14,11 @@ from app.sitewise.mobilisation_evidence import (
     FeeStage,
     pack_has_gap,
 )
+from app.sitewise.pmp_citations import (
+    CitationIndex,
+    build_citation_index,
+    format_citation_key_lines,
+)
 
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
@@ -209,6 +214,209 @@ def _project_profile_label(project: Project) -> str:
     else:
         profile = building_class or project.archetype or "TBC"
     return f"{profile}, {project.user_role or 'TBC'}, {project.state or 'TBC'}"
+
+
+def _evidence_path(ref: str) -> str:
+    path = ref.split(":", 1)[-1].split("#", 1)[0]
+    return path.replace("\\", "/")
+
+
+def _citation_index(pack: CostPlanEvidencePack) -> CitationIndex:
+    return build_citation_index([(_evidence_path(ref), "on file") for ref in pack.evidence_refs])
+
+
+def _citation_for_markers(
+    pack: CostPlanEvidencePack, citations: CitationIndex, *markers: str
+) -> str:
+    ref = _ref_for_markers(pack.evidence_refs, *markers)
+    return citations.token_for(_evidence_path(ref)) if ref != "—" else "—"
+
+
+def _body(rendered_section: str) -> str:
+    return rendered_section.split("\n", 1)[1].lstrip() if "\n" in rendered_section else ""
+
+
+def _cost_breakdown_table(pack: CostPlanEvidencePack) -> str:
+    lines = _render_cost_breakdown(pack).splitlines()
+    start = next(
+        index for index, line in enumerate(lines) if line.startswith("| Cost Code |")
+    )
+    return "\n".join(lines[start:])
+
+
+def _render_summary(
+    project: Project, pack: CostPlanEvidencePack, citations: CitationIndex
+) -> str:
+    brief = _citation_for_markers(
+        pack,
+        citations,
+        "owner-project-brief",
+        "owner_project_brief",
+        "owner-brief",
+        "project-brief",
+        "00-brief-pmp",
+    )
+    engagement = _citation_for_markers(
+        pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
+    )
+    construction = _money(pack.construction_budget_ceiling) if pack.construction_budget_ceiling else "TBC"
+    lines = [
+        "## Cost plan summary and control decision",
+        "",
+        f"**Project:** {pack.project_name or project.title} — {pack.site_address or 'site not evidenced'}.",
+        f"**Owners:** {pack.owners or 'TBC'}.",
+        f"**Profile:** {_project_profile_label(project)}. All figures below are ex GST.",
+        f"**Construction cost-control reference:** {construction} {brief}.",
+        (
+            f"**Architect / PM fee:** {_money(pack.fee_total_ex_gst)} {engagement}; "
+            "additional to the construction ceiling."
+        ),
+    ]
+    if pack.contingency_amount:
+        lines.append(
+            f"**Owner-held contingency:** {_money(pack.contingency_amount)} "
+            f"({pack.contingency_percent or 'TBC'}%) {brief}; do not treat it as scope money."
+        )
+    indicative_total = _known_indicative_total_ex_gst(pack)
+    if indicative_total is not None:
+        lines.append(
+            f"**Indicative total project cost (known buckets):** ${indicative_total:,} ex GST "
+            f"/ ${_inc_gst(indicative_total):,} inc GST."
+        )
+    lines.append(
+        "**Decision:** reconcile tendered construction pricing to the control reference before any scope or contingency drawdown."
+    )
+    return "\n".join(lines)
+
+
+def _render_budget_and_breakdown(pack: CostPlanEvidencePack, citations: CitationIndex) -> str:
+    brief = _citation_for_markers(
+        pack, citations, "owner-project-brief", "owner_project_brief", "owner-brief", "project-brief", "00-brief-pmp"
+    )
+    engagement = _citation_for_markers(
+        pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
+    )
+    rows = [
+        "| Figure | Amount (ex GST) | Control treatment | Ref |",
+        "| --- | --- | --- | --- |",
+        f"| Construction ceiling | {_money(pack.construction_budget_ceiling)} | Cost-control reference | {brief} |",
+        f"| Architect / PM fee | {_money(pack.fee_total_ex_gst)} | Additional to construction | {engagement} |",
+        (
+            f"| Owner contingency | {_money(pack.contingency_amount)} | Owner-held, outside contract sum | {brief} |"
+            if pack.contingency_amount
+            else "| Owner contingency | TBC | Assumption | — |"
+        ),
+        "| Head contract | TBC | Not tendered | — |",
+    ]
+    return "\n".join(
+        [
+            "## Budget reconciliation and cost breakdown",
+            "",
+            *rows,
+            "",
+            "### Cost breakdown",
+            "Construction rows are an indicative benchmark split until a tendered trade schedule is available.",
+            "",
+            _cost_breakdown_table(pack),
+        ]
+    )
+
+
+def _render_commitments_allowances(pack: CostPlanEvidencePack, citations: CitationIndex) -> str:
+    engagement = _citation_for_markers(
+        pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
+    )
+    brief = _citation_for_markers(
+        pack, citations, "owner-project-brief", "owner_project_brief", "owner-brief", "project-brief", "00-brief-pmp"
+    )
+    rows = [
+        "| Commitment / allowance | Amount (ex GST) | Status | Ref |",
+        "| --- | --- | --- | --- |",
+        f"| {_appointee_label(pack)} architect / PM | {_money(pack.fee_total_ex_gst)} | Locked | {engagement} |",
+    ]
+    if pack.certifier_name and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
+        rows.append(
+            f"| {pack.certifier_name} principal certifier | {_money(pack.certifier_fee_ex_gst) if pack.certifier_fee_ex_gst else 'Owner-direct'} | Appointed | "
+            f"{_citation_for_markers(pack, citations, 'certifier-appointment', '12-certifier')} |"
+        )
+    lines = [
+        "## Commitments, allowances and exclusions",
+        "",
+        *rows,
+        "",
+        f"- Contingency: {_money(pack.contingency_amount) if pack.contingency_amount else 'TBC'} {brief}.",
+        "- PC allowances, authority fees and unappointed consultants remain TBC until tender or appointment.",
+        "- Construction benchmark rows are assumptions, not tendered prices.",
+    ]
+    if pack.owner_supplied_items:
+        lines.append("- Owner-supplied items (outside builder contract): " + "; ".join(
+            f"{item.label} {_money(item.amount_ex_gst) if item.amount_ex_gst else 'TBC'}"
+            for item in pack.owner_supplied_items
+        ) + ".")
+    if pack.mobilisation.builder_rom:
+        lines.append(
+            f"- Builder ROM {_builder_rom_amount(pack)} is a market signal only, not a tender."
+        )
+    return "\n".join(lines)
+
+
+def _render_risks_gates_actions(pack: CostPlanEvidencePack) -> str:
+    return "\n".join(
+        [
+            "## Risks, delivery gates and next actions",
+            "",
+            "### Risk register",
+            NARRATIVE_PLACEHOLDER,
+            "",
+            "### Delivery gates",
+            _body(_render_authority_gates(pack)),
+            "",
+            "### Next actions",
+            NARRATIVE_PLACEHOLDER,
+        ]
+    )
+
+
+def _render_sources_and_audit(pack: CostPlanEvidencePack, citations: CitationIndex) -> str:
+    brief = _citation_for_markers(
+        pack, citations, "owner-project-brief", "owner_project_brief", "owner-brief", "project-brief", "00-brief-pmp"
+    )
+    engagement = _citation_for_markers(
+        pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
+    )
+    map_rows = [
+        "| Cost-plan area | Evidence status | Ref |",
+        "| --- | --- | --- |",
+        f"| Cost-control reference | {'Grounded' if pack.construction_budget_ceiling else 'Not evidenced'} | {brief} |",
+        f"| Architect / PM fee | Grounded | {engagement} |",
+        f"| Construction breakdown | {'Partial' if pack.construction_budget_ceiling else 'Not evidenced'} | {brief} |",
+    ]
+    facts = [
+        f"Construction control reference {_money(pack.construction_budget_ceiling) if pack.construction_budget_ceiling else 'TBC'} {brief}.",
+        f"Architect / PM fee {_money(pack.fee_total_ex_gst)} {engagement} is outside the construction ceiling.",
+    ]
+    if not pack_has_gap(pack.mobilisation, GAP_GEOTECHNICAL):
+        facts.append("Geotechnical investigation report on file.")
+    if not pack_has_gap(pack.mobilisation, GAP_MASTER_PROGRAMME):
+        facts.append("Master programme on file.")
+    return "\n".join(
+        [
+            "## Source evidence and audit trail",
+            "",
+            *map_rows,
+            "",
+            "### Citation key",
+            *format_citation_key_lines(citations),
+            "",
+            "### Audit trail",
+            "- **Facts**",
+            *[f"  - {fact}" for fact in facts],
+            "- **Assumptions**",
+            "  - Construction trade pricing, PC allowances, authority fees and unappointed consultant fees remain TBC unless stated above.",
+            "- **Cost evidence conflicts**",
+            "  - None identified; reconcile any tender or claim variance to the control reference.",
+        ]
+    )
 
 
 def _render_project_name_location(project: Project, pack: CostPlanEvidencePack) -> str:
@@ -822,21 +1030,13 @@ def render_cost_plan_scaffold(
         msg = f"Cost plan scaffold renderer supports architect-pm role only (got {user_role!r})"
         raise ValueError(msg)
 
+    citations = _citation_index(pack)
     sections = [
-        _render_project_name_location(project, pack),
-        _render_source_evidence(pack),
-        _render_budget_reconciliation(pack),
-        _render_total_budget(pack),
-        _render_gst_basis(pack),
-        _render_cost_breakdown(pack),
-        _render_locked_appointments(pack),
-        _render_allowances_contingency(pack),
-        _render_pm_fee_treatment(pack),
-        _render_assumptions_exclusions(pack),
-        _render_risks_skeleton(pack),
-        _render_authority_gates(pack),
-        _render_recommended_next_steps(),
-        _render_internal_audit(pack),
+        _render_summary(project, pack, citations),
+        _render_budget_and_breakdown(pack, citations),
+        _render_commitments_allowances(pack, citations),
+        _render_risks_gates_actions(pack),
+        _render_sources_and_audit(pack, citations),
     ]
 
     headings = required_section_headings(user_role)

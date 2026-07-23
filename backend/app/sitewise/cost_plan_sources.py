@@ -13,20 +13,11 @@ NSW_RESIDENTIAL_COST_REFERENCE = "skills/reference/nsw-residential-cost-breakdow
 COST_PLAN_MANDATORY_SEED = "seed/cost-management-principles.md"
 
 COST_PLAN_SECTIONS: tuple[str, ...] = (
-    "Project name and location",
-    "Source evidence used",
-    "Budget reconciliation and control decision",
-    "Total approved or indicative budget",
-    "GST basis",
-    "Cost breakdown by category",
-    "Known locked contract and appointment values",
-    "Allowances and contingency",
-    "PM fee treatment",
-    "Assumptions and exclusions",
-    "Risks and review questions",
-    "Authority, compliance and procurement gates",
-    "Recommended next steps",
-    "Internal audit layer",
+    "Cost plan summary and control decision",
+    "Budget reconciliation and cost breakdown",
+    "Commitments, allowances and exclusions",
+    "Risks, delivery gates and next actions",
+    "Source evidence and audit trail",
 )
 
 COST_PLAN_DOCUMENT_TITLE = "Project Cost Plan"

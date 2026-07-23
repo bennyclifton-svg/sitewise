@@ -136,7 +136,51 @@ async def list_review_items(
 ) -> list[QAReviewItem]:
     result = await session.execute(review_queue_statement(comparison_id))
     rows = result.mappings().all()
-    return [await _review_item_from_row(session, row) for row in rows]
+    if not rows:
+        return []
+
+    ids_by_type: dict[str, list[uuid.UUID]] = {}
+    for row in rows:
+        ids_by_type.setdefault(row["entity_type"], []).append(row["item_id"])
+
+    cell_statuses = await _entities_by_id(
+        session, TenderCellStatus, ids_by_type.get("cell_status", [])
+    )
+    mappings = await _entities_by_id(
+        session, TenderMapping, ids_by_type.get("mapping", [])
+    )
+    flags = await _entities_by_id(session, TenderFlag, ids_by_type.get("flag", []))
+    documents = await _entities_by_id(
+        session, TenderDocument, ids_by_type.get("document_classification", [])
+    )
+    line_items = await _entities_by_id(
+        session,
+        TenderLineItem,
+        [mapping.line_item_id for mapping in mappings.values()],
+    )
+
+    return [
+        _review_item_from_loaded(
+            row,
+            cell_statuses=cell_statuses,
+            mappings=mappings,
+            flags=flags,
+            documents=documents,
+            line_items=line_items,
+        )
+        for row in rows
+    ]
+
+
+async def _entities_by_id(
+    session: AsyncSession,
+    model: type[Any],
+    ids: list[uuid.UUID],
+) -> dict[uuid.UUID, Any]:
+    if not ids:
+        return {}
+    result = await session.execute(select(model).where(model.id.in_(ids)))
+    return {entity.id: entity for entity in result.scalars().all()}
 
 
 async def get_item_comparison_id(
@@ -253,12 +297,19 @@ async def assert_no_pending_review(
         raise PendingReviewError("Comparison has QA items still needing review")
 
 
-async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem:
+def _review_item_from_loaded(
+    row: Any,
+    *,
+    cell_statuses: dict[uuid.UUID, TenderCellStatus],
+    mappings: dict[uuid.UUID, TenderMapping],
+    flags: dict[uuid.UUID, TenderFlag],
+    documents: dict[uuid.UUID, TenderDocument],
+    line_items: dict[uuid.UUID, TenderLineItem],
+) -> QAReviewItem:
     item_id = row["item_id"]
     entity_type = row["entity_type"]
-    payload: dict[str, Any] = {}
     if entity_type == "cell_status":
-        entity = await session.get(TenderCellStatus, item_id)
+        entity = cell_statuses[item_id]
         payload = {
             "quote_id": str(entity.quote_id),
             "cell_code": entity.cell_code,
@@ -267,8 +318,8 @@ async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem
             "evidence": entity.evidence or {},
         }
     elif entity_type == "mapping":
-        entity = await session.get(TenderMapping, item_id)
-        line_item = await session.get(TenderLineItem, entity.line_item_id)
+        entity = mappings[item_id]
+        line_item = line_items[entity.line_item_id]
         payload = {
             "line_item_id": str(entity.line_item_id),
             "quote_id": str(line_item.quote_id),
@@ -277,7 +328,7 @@ async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem
             "description_raw": line_item.description_raw,
         }
     elif entity_type == "flag":
-        entity = await session.get(TenderFlag, item_id)
+        entity = flags[item_id]
         payload = {
             "quote_id": str(entity.quote_id) if entity.quote_id else None,
             "cell_code": entity.cell_code,
@@ -287,7 +338,7 @@ async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem
             "detail": entity.detail,
         }
     else:
-        entity = await session.get(TenderDocument, item_id)
+        entity = documents[item_id]
         payload = {
             "quote_id": str(entity.quote_id),
             "filename": entity.original_filename,
@@ -299,6 +350,46 @@ async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem
         report_impact_cents=row["report_impact_cents"] or 0,
         confidence=row["confidence"],
         payload=payload,
+    )
+
+
+async def _review_item_from_row(session: AsyncSession, row: Any) -> QAReviewItem:
+    """Single-row helper retained for unit tests; production uses batch loading."""
+    item_id = row["item_id"]
+    entity_type = row["entity_type"]
+    cell_statuses: dict[uuid.UUID, TenderCellStatus] = {}
+    mappings: dict[uuid.UUID, TenderMapping] = {}
+    flags: dict[uuid.UUID, TenderFlag] = {}
+    documents: dict[uuid.UUID, TenderDocument] = {}
+    line_items: dict[uuid.UUID, TenderLineItem] = {}
+
+    if entity_type == "cell_status":
+        entity = await session.get(TenderCellStatus, item_id)
+        if entity is not None:
+            cell_statuses[item_id] = entity
+    elif entity_type == "mapping":
+        entity = await session.get(TenderMapping, item_id)
+        if entity is not None:
+            mappings[item_id] = entity
+            line_item = await session.get(TenderLineItem, entity.line_item_id)
+            if line_item is not None:
+                line_items[line_item.id] = line_item
+    elif entity_type == "flag":
+        entity = await session.get(TenderFlag, item_id)
+        if entity is not None:
+            flags[item_id] = entity
+    else:
+        entity = await session.get(TenderDocument, item_id)
+        if entity is not None:
+            documents[item_id] = entity
+
+    return _review_item_from_loaded(
+        row,
+        cell_statuses=cell_statuses,
+        mappings=mappings,
+        flags=flags,
+        documents=documents,
+        line_items=line_items,
     )
 
 

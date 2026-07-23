@@ -4,7 +4,18 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
+import pytest
+
 from app.workflows import consultant_procurement as workflow
+from app.workflows import procurement_request
+from app.workflows.consultant_procurement import (
+    NonConsultantDiscipline,
+    normalise_discipline,
+    run_validated_rfp_narrative,
+)
+from app.sitewise.rfp_renderer import build_rfp_citation_index
+from app.workflows.create_pmp import WorkflowValidationError
+from app.workflows.rfp_narrative import RfpNarrativeOutput
 from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -39,16 +50,23 @@ class _StubRetriever:
         return []
 
 
-def _project() -> SimpleNamespace:
-    return SimpleNamespace(
-        id=PROJECT_ID,
-        owner_user_id=USER_ID,
-        slug="demo",
-        title="Walsh Renovation",
-        workspace_path="04-projects/walsh-renovation",
-        phase="procurement",
-        state="NSW",
-    )
+def _project(**overrides: Any) -> SimpleNamespace:
+    values = {
+        "id": PROJECT_ID,
+        "owner_user_id": USER_ID,
+        "slug": "demo",
+        "title": "Walsh Renovation",
+        "workspace_path": "04-projects/walsh-renovation",
+        "phase": "procurement",
+        "state": "NSW",
+        "building_class": "residential",
+        "work_type": "refurb",
+        "user_role": "architect-pm",
+        "profile_revision": 1,
+        "project_metadata": {},
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
 
 
 def _passage(
@@ -96,6 +114,11 @@ def _install(
 ) -> tuple[AsyncMock, AsyncMock]:
     monkeypatch.setattr(workflow, "DocumentRetriever", lambda session: retriever)
     monkeypatch.setattr(
+        procurement_request,
+        "load_sections",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
         workflow,
         "next_draft_version",
         AsyncMock(return_value=version),
@@ -128,6 +151,22 @@ def _install(
     monkeypatch.setattr(workflow, "create_draft_artifact", create_draft)
     sync_workspace = AsyncMock(side_effect=lambda session, **kwargs: kwargs["draft"].workspace_path)
     monkeypatch.setattr(workflow, "sync_consultant_procurement_draft_workspace", sync_workspace)
+
+    async def _narrative(**kwargs: Any) -> RfpNarrativeOutput:
+        evidence = kwargs["project_evidence"]
+        if not evidence:
+            return RfpNarrativeOutput(
+                background="Confirm the project brief, approval pathway, and current design status before issue.",
+            )
+        citation_index = kwargs["citation_index"]
+        path = evidence[0]["relative_path"]
+        token = citation_index.token_for(path)
+        return RfpNarrativeOutput(
+            background=f"The current project evidence defines the consultant briefing basis. {token}",
+            information_to_review=[f"Review the current project evidence before pricing. {token}"],
+        )
+
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", _narrative)
     return create_draft, sync_workspace
 
 
@@ -137,11 +176,12 @@ def _run(
     discipline: str,
     max_pages: int = 1,
     instructions: str | None = None,
+    project: Any | None = None,
 ):
     return run_async(
         workflow.draft_consultant_procurement_artifact(
             session,
-            project=_project(),
+            project=project or _project(),
             user_id=USER_ID,
             discipline=discipline,
             max_pages=max_pages,
@@ -200,7 +240,17 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
         "consultant_procurement_structural_engineer_v01.draft.md"
     )
     assert "# Request for Fee Proposal - Structural engineer" in result.draft.content_markdown
+    assert "## Project Summary" in result.draft.content_markdown
+    assert "| Field | Current PMP position | Citation |" in result.draft.content_markdown
     assert "client-issued request for fee proposal" in result.draft.content_markdown
+    assert "## Citation key" in result.draft.content_markdown
+    assert "[1]" in result.draft.content_markdown
+    assert "| Site / address | TBC — User provided / Not evidenced | — |" in (
+        result.draft.content_markdown
+    )
+    assert "| Client | TBC — User provided / Not evidenced | — |" in (
+        result.draft.content_markdown
+    )
     assert result.source_trace["project_documents"]
     assert result.source_trace["platform_knowledge"][0]["path"] == (
         "seed/consultant-procurement.md"
@@ -208,6 +258,19 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     assert result.source_trace["forecast"]["used"] is True
     assert result.source_trace["forecast"]["status"] == "Judgement"
     assert create_draft.await_args.kwargs["runtime"] == "clerk-consultant-procurement"
+    assert result.draft.provenance_metadata["seed_consulted"] == [
+        "seed/consultant-procurement.md",
+        "seed/procurement-quoting-guide.md",
+    ]
+    assert result.draft.provenance_metadata["evidence_refs"] == [
+        "04-projects/walsh-renovation/00-brief/project-brief.pdf",
+        "04-projects/walsh-renovation/02-planning/pathway.pdf",
+        "04-projects/walsh-renovation/03-design/markups.pdf",
+    ]
+    assert result.draft.provenance_metadata["context_refs"] == [
+        "seed/consultant-procurement.md",
+        "seed/procurement-quoting-guide.md",
+    ]
     sync_workspace.assert_awaited_once()
     assert sync_workspace.await_args.kwargs["markdown"] == result.draft.content_markdown
     session.commit.assert_awaited_once()
@@ -245,6 +308,54 @@ def test_auto_versioning_path_names_use_next_workflow_version(monkeypatch) -> No
     )
 
 
+def test_rfp_includes_confirmed_site_address_and_client(monkeypatch) -> None:
+    retriever = _StubRetriever()
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+    session = _Session()
+    project = _project(
+        project_metadata={
+            "taxonomy": {
+                "site_address": "82 Queen Street, Petersham NSW 2049",
+                "client": "Walsh Family",
+            }
+        }
+    )
+
+    result = _run(session=session, discipline="structural engineer", project=project)
+
+    assert "| Site / address | 82 Queen Street, Petersham NSW 2049" in (
+        result.draft.content_markdown
+    )
+    assert "| Client | Walsh Family" in result.draft.content_markdown
+    assert "Confirmed site address." not in result.source_trace["missing_inputs"]
+
+
+def test_rfp_falls_back_to_evidence_address_when_profile_empty(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="project-brief.pdf",
+                    path="04-projects/walsh-renovation/00-brief/project-brief.pdf",
+                    content=(
+                        "Project brief for proposed new dwelling at "
+                        "14 Wattle Grove, Lindfield NSW 2070 for the owners "
+                        "Jane and John Walsh."
+                    ),
+                )
+            ],
+        }
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+    session = _Session()
+
+    result = _run(session=session, discipline="structural engineer")
+
+    assert "| Site / address | 14 Wattle Grove, Lindfield NSW 2070" in (
+        result.draft.content_markdown
+    )
+
+
 def test_no_evidence_still_creates_draft_with_assumptions(monkeypatch) -> None:
     retriever = _StubRetriever()
     _install(monkeypatch, retriever=retriever, cost_plan=None)
@@ -252,7 +363,7 @@ def test_no_evidence_still_creates_draft_with_assumptions(monkeypatch) -> None:
 
     result = _run(session=session, discipline="arborist")
 
-    assert "No project evidence was found" in result.draft.content_markdown
+    assert "Confirm the project brief, approval pathway" in result.draft.content_markdown
     assert "Project brief or owner scope brief." in result.source_trace["missing_inputs"]
     assert result.source_trace["forecast"] == {
         "used": False,
@@ -310,7 +421,7 @@ def test_fee_proposals_excluded_from_inputs_and_reconciled(monkeypatch) -> None:
     # Leakage guard: the competing structural fee proposal is not circulated.
     assert "p02-01-fee-proposal-southline-structural.md" not in md
     # Reconciliation: the parametric benchmark no longer overrides real evidence silently.
-    assert "received Structural engineer fee proposal is on file" in md
+    assert "received consultant fee proposal is on file" in md
     assert "$20,150 ex GST" in md
     assert "reconcile the internal benchmark against it" in md
     forecast = result.source_trace["forecast"]
@@ -350,6 +461,51 @@ def test_platform_guidance_resolved_from_catalog_when_semantic_search_empty(monk
     assert "Platform guidance: none found" not in result.draft.content_markdown
 
 
+def test_required_seed_content_is_loaded_into_rfp_context(monkeypatch) -> None:
+    retriever = _StubRetriever()
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+    full_seed = "# Procurement guidance\n\nUse staged fees and explicit exclusions."
+    monkeypatch.setattr(
+        procurement_request,
+        "load_sections",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                passage=_passage(
+                    filename="procurement-quoting-guide.md",
+                    path="seed/procurement-quoting-guide.md",
+                    content=full_seed,
+                    source_type="reference",
+                )
+            )
+        ),
+    )
+    project = _project(archetype="renovation")
+    seen_platform_knowledge: list[dict[str, Any]] = []
+
+    async def _capture_narrative(**kwargs: Any) -> RfpNarrativeOutput:
+        seen_platform_knowledge.extend(kwargs["platform_knowledge"])
+        return RfpNarrativeOutput(background="Confirm the project context before issue.")
+
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", _capture_narrative)
+
+    result = _run(
+        session=_Session(),
+        discipline="town planner",
+        project=project,
+    )
+
+    seed = next(
+        item
+        for item in result.source_trace["platform_knowledge"]
+        if item["path"] == "seed/procurement-quoting-guide.md"
+    )
+    assert seed["snippet"] == full_seed
+    assert any(item["snippet"] == full_seed for item in seen_platform_knowledge)
+    assert "seed/procurement-quoting-guide.md" in result.draft.provenance_metadata[
+        "seed_consulted"
+    ]
+
+
 def test_source_documents_are_referenced_not_written_over(monkeypatch) -> None:
     source_path = "04-projects/walsh-renovation/02-consultant/existing-email.pdf"
     retriever = _StubRetriever(
@@ -374,3 +530,187 @@ def test_source_documents_are_referenced_not_written_over(monkeypatch) -> None:
         "/consultant_procurement_structural_engineer_v01.draft.md"
     )
     assert result.source_trace["project_documents"][0]["relative_path"] == source_path
+
+
+@pytest.mark.parametrize(
+    "discipline",
+    [
+        "main contractor",
+        "main_contractor",
+        "main works",
+        "head contractor",
+        "principal contractor",
+        "builder",
+        "design and construct",
+        "subcontractor",
+        "sub contractor",
+        "trade contractor",
+        "trade package",
+    ],
+)
+def test_contractor_disciplines_are_rejected(discipline: str) -> None:
+    with pytest.raises(NonConsultantDiscipline):
+        normalise_discipline(discipline)
+
+
+@pytest.mark.parametrize(
+    ("discipline", "name", "slug"),
+    [
+        ("town planner", "Town planner", "town_planner"),
+        ("heritage consultant", "Heritage consultant", "heritage_consultant"),
+        ("fire engineer", "Fire engineer", "fire_engineer"),
+        ("acoustic consultant", "Acoustic consultant", "acoustic_consultant"),
+    ],
+)
+def test_known_consultant_profiles_do_not_use_generic_fallback(
+    discipline: str, name: str, slug: str
+) -> None:
+    profile = normalise_discipline(discipline)
+
+    assert profile.name == name
+    assert profile.slug == slug
+
+
+def test_unknown_consultant_still_falls_through() -> None:
+    profile = normalise_discipline("facade consultant")
+    assert profile.name == "facade consultant"
+    assert profile.slug == "facade_consultant"
+
+
+@pytest.mark.parametrize(
+    "discipline",
+    [
+        "Town planning",
+        "Town planning consultant",
+        "Planning consultant",
+    ],
+)
+def test_town_planning_phrasings_alias_to_town_planner(discipline: str) -> None:
+    """A discipline phrased as "town planning" (not "town planner") must resolve
+    to the same curated profile/slug, not spin up a second, generically-templated
+    workflow lineage. Regression for Walsh Two producing both
+    consultant_procurement_town_planner_* and consultant_procurement_town_planning_*
+    drafts for what should be a single discipline.
+    """
+    profile = normalise_discipline(discipline)
+
+    assert profile.name == "Town planner"
+    assert profile.slug == "town_planner"
+    assert profile.requested_services
+    assert profile.benchmark_terms
+
+
+@pytest.mark.parametrize(
+    "discipline",
+    [
+        "Building certifier",
+        "Building certifier / PCA",
+        "Building certifier/PCA",
+        "Principal certifying authority",
+    ],
+)
+def test_building_certifier_phrasings_alias_to_certifier(discipline: str) -> None:
+    """Same class of bug as town planning/town planner: a user (or the chat
+    agent parsing their words) is far more likely to say "building certifier"
+    or "building certifier / PCA" than the bare canonical "certifier", and
+    without an alias that phrasing falls through to the generic fallback
+    profile instead of the curated certifier one.
+    """
+    profile = normalise_discipline(discipline)
+
+    assert profile.name == "Certifier"
+    assert profile.slug == "certifier"
+    assert profile.requested_services
+    assert profile.benchmark_terms
+
+
+def _rfp_evidence() -> list[dict[str, str]]:
+    return [
+        {"relative_path": "docs/brief.pdf", "snippet": "Project brief."},
+        {"relative_path": "docs/site-plan.pdf", "snippet": "Site plan."},
+        {"relative_path": "docs/survey.pdf", "snippet": "Survey."},
+    ]
+
+
+def test_rfp_narrative_retries_after_invalid_citation(monkeypatch) -> None:
+    evidence = _rfp_evidence()
+    citation_index = build_rfp_citation_index(evidence)
+    invalid = RfpNarrativeOutput(
+        background="The project brief identifies the scope. [99]",
+        information_to_review=["Review the site plan. [2]"],
+    )
+    valid = RfpNarrativeOutput(
+        background="The project brief identifies the scope. [1]",
+        information_to_review=["Review the site plan. [2]"],
+    )
+    run_narrative = AsyncMock(side_effect=[invalid, valid])
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
+
+    output = run_async(
+        run_validated_rfp_narrative(
+            project=_project(),
+            target=normalise_discipline("town planner"),
+            project_evidence=evidence,
+            platform_knowledge=[],
+            citation_index=citation_index,
+        )
+    )
+
+    assert output == valid
+    assert run_narrative.await_count == 2
+    assert "[99]" in run_narrative.await_args_list[1].kwargs["validation_feedback"]
+
+
+def test_rfp_narrative_reraises_after_three_invalid_attempts(monkeypatch) -> None:
+    evidence = _rfp_evidence()
+    citation_index = build_rfp_citation_index(evidence)
+    invalid = RfpNarrativeOutput(
+        background="The project brief identifies the scope. [99]",
+        information_to_review=["Review the site plan. [2]"],
+    )
+    run_narrative = AsyncMock(return_value=invalid)
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
+
+    with pytest.raises(WorkflowValidationError, match=r"\[99\]"):
+        run_async(
+            run_validated_rfp_narrative(
+                project=_project(),
+                target=normalise_discipline("town planner"),
+                project_evidence=evidence,
+                platform_knowledge=[],
+                citation_index=citation_index,
+            )
+        )
+
+    assert run_narrative.await_count == 3
+
+
+def test_rfp_draft_retries_invalid_narrative_before_persisting(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="project-brief.pdf",
+                    path="04-projects/walsh-renovation/00-brief/project-brief.pdf",
+                    content="Owner wants a two-storey renovation.",
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+    invalid = RfpNarrativeOutput(
+        background="The project brief defines the scope. [99]",
+        information_to_review=["Review the brief. [1]"],
+    )
+    valid = RfpNarrativeOutput(
+        background="The project brief defines the scope. [1]",
+        information_to_review=["Review the brief. [1]"],
+    )
+    run_narrative = AsyncMock(side_effect=[invalid, valid])
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
+
+    result = _run(session=_Session(), discipline="town planner")
+
+    assert "[99]" not in result.draft.content_markdown
+    assert "The project brief defines the scope. [1]" in result.draft.content_markdown
+    assert run_narrative.await_count == 2

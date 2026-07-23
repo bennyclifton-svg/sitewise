@@ -5,14 +5,17 @@ from __future__ import annotations
 import re
 
 EVIDENCE_MAP_MARKERS: tuple[str, ...] = (
-    "| section |",
+    "| cost-plan area |",
     "| evidence status |",
     "evidence status | ref",
 )
 
 EVIDENCE_GROUNDED_MARKERS: tuple[str, ...] = (
-    "evidence on file",
+    "citation key",
 )
+
+_SOURCE_AUDIT_HEADING = "Source evidence and audit trail"
+_BREAKDOWN_HEADING = "Budget reconciliation and cost breakdown"
 
 _PROGRESS_CLAIM_MARKERS: tuple[str, ...] = (
     "progress-claim",
@@ -111,8 +114,8 @@ def _replace_markdown_section_body(markdown: str, heading: str, body: str) -> st
 
 
 def _audit_label_items(markdown: str, label: str) -> list[str]:
-    """Return non-empty bullet lines under a **Label** marker in Internal audit layer."""
-    audit = _markdown_section(markdown, "Internal audit layer")
+    """Return non-empty bullet lines under a **Label** marker in the audit trail."""
+    audit = _markdown_section(markdown, _SOURCE_AUDIT_HEADING)
     if not audit:
         return []
 
@@ -168,7 +171,7 @@ def _has_evidence_on_file_marker(section: str) -> bool:
 
 
 def _normalize_audit_layer_format(markdown: str) -> str:
-    audit = _markdown_section(markdown, "Internal audit layer")
+    audit = _markdown_section(markdown, _SOURCE_AUDIT_HEADING)
     if not audit:
         return markdown
 
@@ -196,7 +199,7 @@ def _normalize_audit_layer_format(markdown: str) -> str:
     if updated_audit != audit:
         return _replace_markdown_section_body(
             markdown,
-            "Internal audit layer",
+            _SOURCE_AUDIT_HEADING,
             updated_audit,
         )
     return markdown
@@ -212,13 +215,13 @@ def _evidence_on_file_summary(evidence_refs: list[str]) -> str:
 
 def _default_evidence_map_table(evidence_refs: list[str]) -> str:
     rows = [
-        "| Section | Evidence status | Ref |",
+        "| Cost-plan area | Evidence status | Ref |",
         "| --- | --- | --- |",
     ]
     section_refs = [
-        ("Cost breakdown by category", evidence_refs[0] if evidence_refs else "—"),
-        ("Budget reconciliation and control decision", evidence_refs[1] if len(evidence_refs) > 1 else "—"),
-        ("PM fee treatment", evidence_refs[0] if evidence_refs else "—"),
+        ("Cost breakdown", evidence_refs[0] if evidence_refs else "—"),
+        ("Budget reconciliation", evidence_refs[1] if len(evidence_refs) > 1 else "—"),
+        ("Architect / PM fee", evidence_refs[0] if evidence_refs else "—"),
     ]
     for section_name, ref in section_refs:
         status = "Grounded" if ref != "—" else "Not evidenced"
@@ -232,7 +235,7 @@ def _default_facts_block(evidence_refs: list[str]) -> str:
     ]
     for ref in evidence_refs[:3]:
         path = ref.split(":", 1)[-1].split("#")[0]
-        bullets.append(f"- Evidence on file: `{path}`.")
+        bullets.append(f"- Citation evidence on file: `{path}`.")
     return "\n".join(["- **Facts**", *bullets])
 
 
@@ -246,13 +249,13 @@ def ensure_evidence_grounded_cost_plan_scaffold(
 
     updated = _normalize_audit_layer_format(markdown)
 
-    source_section = _markdown_section(updated, "Source evidence used")
+    source_section = _markdown_section(updated, _SOURCE_AUDIT_HEADING)
     if source_section:
         source_body = source_section
         if not _has_evidence_on_file_marker(source_body):
             source_body = (
                 f"{source_body.rstrip()}\n\n"
-                f"**Evidence on file:** {_evidence_on_file_summary(evidence_refs)}."
+                f"### Citation key\n\n{_evidence_on_file_summary(evidence_refs)}."
             )
         if not _has_evidence_map_table(source_body):
             source_body = (
@@ -261,17 +264,17 @@ def ensure_evidence_grounded_cost_plan_scaffold(
         if source_body != source_section:
             updated = _replace_markdown_section_body(
                 updated,
-                "Source evidence used",
+                _SOURCE_AUDIT_HEADING,
                 source_body,
             )
 
     if not _audit_label_items(updated, "Facts"):
-        audit_section = _markdown_section(updated, "Internal audit layer")
+        audit_section = _markdown_section(updated, _SOURCE_AUDIT_HEADING)
         facts_block = _default_facts_block(evidence_refs)
         audit_body = f"{facts_block}\n\n{audit_section.lstrip()}" if audit_section else facts_block
         updated = _replace_markdown_section_body(
             updated,
-            "Internal audit layer",
+            _SOURCE_AUDIT_HEADING,
             audit_body,
         )
 
@@ -321,9 +324,9 @@ def claim_first_violations(
     if source_texts and not source_texts_include_trade_breakdown(source_texts):
         return []
 
-    breakdown = _markdown_section(markdown, "Cost breakdown by category")
+    breakdown = _markdown_section(markdown, _BREAKDOWN_HEADING)
     if not breakdown:
-        return ["Cost breakdown by category section is missing"]
+        return ["Budget reconciliation and cost breakdown section is missing"]
 
     if _has_collapsed_construction(breakdown):
         return [
@@ -351,23 +354,23 @@ def cost_plan_evidence_grounded_violations(
         return []
 
     violations: list[str] = []
-    source_section = _markdown_section(markdown, "Source evidence used")
+    source_section = _markdown_section(markdown, _SOURCE_AUDIT_HEADING)
 
     if source_section and not _has_evidence_on_file_marker(source_section):
         violations.append(
             "evidence_grounded draft must state what evidence is on file "
-            "(e.g. 'Evidence on file:' in Source evidence used)"
+            "(via a Citation key in Source evidence and audit trail)"
         )
 
     if source_section and not _has_evidence_map_table(source_section):
         violations.append(
-            "Source evidence used must include an evidence map table "
-            "(| Section | Evidence status | Ref |)"
+            "Source evidence and audit trail must include an evidence map table "
+            "(| Cost-plan area | Evidence status | Ref |)"
         )
 
     if not _audit_label_items(markdown, "Facts"):
         violations.append(
-            "Internal audit layer must include a **Facts** bullet list when evidence_refs is populated"
+            "Source evidence and audit trail must include a **Facts** bullet list when evidence_refs is populated"
         )
 
     violations.extend(
