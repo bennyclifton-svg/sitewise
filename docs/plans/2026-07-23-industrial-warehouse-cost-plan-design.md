@@ -134,3 +134,20 @@ Start endpoints already return 409 with structured detail; keep that shape.
 - Warehouse rate / indicative % pack once a trusted reference exists  
 - Widen to other Class 7b / Class 8 subclasses  
 - Optional catalog `applies_to_subclasses` to stop industrial seed selection for unsupported subclasses at catalog layer  
+- Industrial-specific authority-gate wording in hybrid scaffold (today still includes a residential HBCF/HOW row)
+
+---
+
+## Verified (2026-07-23)
+
+Branch: `feat/industrial-warehouse-cost-plan` (worktree). Commits through `cb87cb98`.
+
+| Check | Result |
+|---|---|
+| Live project Industrial (`warehouse`, NSW, architect-pm) capability via worktree code | `supported` with warehouse/logistics structure-only `reference_coverage` |
+| Manufacturing industrial subclass | `unsupported` |
+| Catalog paths for industrial | Includes industrial warehouse ref; excludes residential breakdown |
+| Platform re-ingest | Forced persist of both cost-breakdown reference seeds; DB frontmatter `applies_to_classes` correct |
+| Focused automated suites (Segments 0–4) | Green |
+
+**Runtime UI Create** still requires restarting the FastAPI process from this branch/worktree (port 8000 was serving `D:\AI Projects\clerk\backend`, not the feature worktree). After restart + frontend on this branch, Create Cost Plan on Industrial should succeed without 409.
