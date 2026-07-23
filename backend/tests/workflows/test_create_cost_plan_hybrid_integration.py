@@ -10,7 +10,10 @@ from app.cost_plan.import_legacy import parse_legacy_draft
 from app.sitewise.cost_plan_evidence_validation import (
     cost_plan_evidence_grounded_violations,
 )
-from app.sitewise.cost_plan_sources import required_section_headings
+from app.sitewise.cost_plan_sources import (
+    required_platform_paths,
+    required_section_headings,
+)
 from app.workflows.create_cost_plan import (
     RUNTIME_HYBRID_NAME,
     RUNTIME_NAME,
@@ -20,6 +23,7 @@ from app.workflows.create_cost_plan import (
 )
 from tests.conftest import run_async
 from tests.sitewise.test_cost_plan_evidence import FIXTURE_DIR
+from tests.sitewise.test_cost_plan_renderer import _warehouse_cost_pack, _warehouse_project
 from tests.workflows.hybrid_cost_plan_fixtures import (
     USER_ID,
     harrison_clarke_cost_narrative,
@@ -28,6 +32,7 @@ from tests.workflows.hybrid_cost_plan_fixtures import (
     mock_cost_plan_draft,
     platform_passages_for_cost_plan,
 )
+from tests.workflows.hybrid_pmp_fixtures import evidence_passage, platform_passage
 
 
 def _typed_import(draft):
@@ -415,3 +420,118 @@ def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
     ]
     assert len(retry_events) == 1
     assert "next_steps item 3" in retry_events[0].message
+
+
+def test_hybrid_industrial_warehouse_cost_plan_smoke_excludes_residential_content() -> None:
+    """Segment 4 smoke: an NSW industrial warehouse hybrid run must never leak
+    residential-only kitchen/BASIX taxonomy into the assembled Cost Plan.
+
+    Reuses the deterministic warehouse evidence pack from
+    tests/sitewise/test_cost_plan_renderer.py (already exercised at the scaffold
+    level) instead of building a second warehouse markdown-fixture corpus, since
+    extract_cost_plan_evidence_pack is regex-driven off Chen-Residence-shaped
+    prose and duplicating that fixture infrastructure for one smoke test isn't
+    worth it.
+    """
+    project = _warehouse_project()
+    warehouse_pack = _warehouse_cost_pack()
+    platform_paths = required_platform_paths(
+        archetype=project.archetype or "",
+        user_role=project.user_role or "",
+        project=project,
+    )
+    platform_passages = [
+        platform_passage(path, "doctrine" if path.startswith("docs/") else "reference")
+        for path in platform_paths
+    ]
+    cost_passages = [
+        evidence_passage(
+            f"{project.slug}/00-brief-pmp/00-owner-project-brief-placeholder.md",
+            "Owner project brief placeholder for Eastern Creek Distribution Centre.",
+            project_slug=project.slug,
+        )
+    ]
+    draft = mock_cost_plan_draft(
+        project_id=project.id,
+        workspace_path=f"{project.workspace_path}/01-cost/cost_plan_v01.md",
+    )
+    workbook_metadata = {
+        "file_name": "Cost_Plan_v01.draft.xlsx",
+        "workspace_path": f"{project.workspace_path}/01-cost/Cost_Plan_v01.draft.xlsx",
+        "version": 1,
+        "content_hash": "abc123",
+        "size_bytes": 1234,
+        "row_count": 9,
+        "cost_item_lookup_count": 9,
+        "warnings": [],
+        "generated_at": "2026-07-01T00:00:00+00:00",
+    }
+
+    with (
+        patch(
+            "app.workflows.create_cost_plan.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.list_cost_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
+            new=AsyncMock(return_value=cost_passages),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_platform_documents_by_paths",
+            new=AsyncMock(return_value=(platform_passages, [])),
+        ),
+        patch(
+            "app.sitewise.cost_plan_evidence.extract_cost_plan_evidence_pack",
+            return_value=warehouse_pack,
+        ),
+        patch(
+            "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
+            new=AsyncMock(return_value=harrison_clarke_cost_narrative()),
+        ),
+        patch(
+            "app.workflows.create_cost_plan._next_version_hint",
+            new=AsyncMock(return_value=1),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.create_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ) as create_draft,
+        patch(
+            "app.workflows.create_cost_plan.import_legacy_draft",
+            new=AsyncMock(return_value=_typed_import(draft)),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value=draft.workspace_path),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(return_value=workbook_metadata),
+        ),
+    ):
+        result = run_async(
+            run_create_cost_plan_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+            )
+        )
+
+    assert result.status == "complete"
+    markdown = create_draft.await_args.kwargs["content_markdown"]
+    provenance = create_draft.await_args.kwargs["provenance_metadata"]
+    assert provenance["compiler"] == "hybrid"
+    lowered = markdown.lower()
+    assert "kitchen" not in lowered
+    assert "basix" not in lowered
+    assert "structural steel" in lowered
+    assert "dock hardstand" in lowered

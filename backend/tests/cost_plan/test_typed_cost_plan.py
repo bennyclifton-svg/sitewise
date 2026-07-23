@@ -125,6 +125,47 @@ def _snapshot() -> ProjectSnapshot:
     )
 
 
+def _industrial_warehouse_snapshot() -> ProjectSnapshot:
+    return ProjectSnapshot.model_validate(
+        {
+            "generated_at": datetime.now(UTC),
+            "content_fingerprint": "snapshot-v2-industrial",
+            "identity": {
+                "project_id": PROJECT_ID,
+                "title": "Warehouse",
+                "slug": "warehouse",
+                "workspace_path": "projects/warehouse",
+                "phase": "construction",
+                "status": "active",
+                "site_address": {"status": "needs_input"},
+                "client": {"status": "needs_input"},
+            },
+            "profile": {
+                "project_id": PROJECT_ID,
+                "profile_revision": 2,
+                "building_class": "industrial",
+                "work_type": "new",
+                "subclasses": ["warehouse"],
+                "scale": {},
+                "complexity": {},
+                "work_scope": [],
+                "user_role": "architect-pm",
+                "state": "NSW",
+            },
+            "decisions": {"set_revision": 3, "items": []},
+            "evidence": {
+                "fingerprint": "evidence-v2",
+                "active_count": 1,
+                "fingerprint_complete": True,
+                "ingest_failure_count": 0,
+                "ingest_failures": [],
+            },
+            "confirmed_inputs": {},
+            "open_profile_proposals": [],
+        }
+    )
+
+
 @pytest.mark.parametrize(
     ("gst_treatment", "gst", "exclusive", "inclusive"),
     [
@@ -256,6 +297,24 @@ def test_capability_matrix_publishes_all_typed_cost_actions() -> None:
         "selected_quote_and_package",
         "confirm_apply_as_proposal",
     ]
+
+
+def test_capability_matrix_publishes_industrial_warehouse_reference_coverage() -> None:
+    """NSW warehouse/logistics industrial coverage must publish alongside
+    residential, never replace it."""
+    matrix = workflow_capabilities(_industrial_warehouse_snapshot())
+    for name in (
+        CREATE_COST_PLAN,
+        REFRESH_COST_PLAN,
+        EDIT_COST_PLAN,
+        APPROVED_TENDER_HANDOFF,
+    ):
+        capability = matrix.capabilities[name]
+        assert capability.status == "supported"
+        assert any(
+            "warehouse/logistics" in item for item in capability.reference_coverage
+        )
+        assert not any("residential" in item for item in capability.reference_coverage)
 
 
 def test_tender_handoff_maps_financial_qualifiers_without_ranking() -> None:
