@@ -7,3 +7,4 @@ Reference material can be loaded by system skills or app workflows when it is pa
 ## Index
 
 - `nsw-residential-cost-breakdown-reference.md` - practice-level NSW residential cost taxonomy used by `../systems/cost-plan-system.md` and `../systems/cost-report-system.md`.
+- `nsw-industrial-warehouse-cost-breakdown-reference.md` - practice-level NSW Class 7b warehouse/logistics cost taxonomy used by `../systems/cost-plan-system.md` and `../systems/cost-report-system.md`.

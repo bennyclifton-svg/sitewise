@@ -6,6 +6,7 @@ import pytest
 from app.sitewise import cost_plan_sources, pmp_sources
 from app.sitewise.cost_plan_sources import (
     COST_PLAN_MANDATORY_SEED,
+    NSW_INDUSTRIAL_WAREHOUSE_COST_REFERENCE,
     NSW_RESIDENTIAL_COST_REFERENCE,
     RESIDENTIAL_ARCHETYPES,
 )
@@ -205,6 +206,36 @@ def test_taxonomy_create_pmp_paths_are_class_aware(
         )
         == expected
     )
+
+
+def test_create_cost_plan_taxonomy_residential_excludes_industrial_ref() -> None:
+    paths = select_required_paths(
+        workflow="create-cost-plan",
+        archetype="new-dwelling",
+        user_role="architect-pm",
+        building_class="residential",
+        work_type="new",
+    )
+    assert NSW_RESIDENTIAL_COST_REFERENCE in paths
+    assert NSW_INDUSTRIAL_WAREHOUSE_COST_REFERENCE not in paths
+    assert DOCTRINE_PATH in paths
+    assert COST_PLAN_MANDATORY_SEED in paths
+    assert ROLE_SEED_PATHS["architect-pm"] in paths
+
+
+def test_create_cost_plan_taxonomy_industrial_excludes_residential_ref() -> None:
+    paths = select_required_paths(
+        workflow="create-cost-plan",
+        archetype="new-dwelling",
+        user_role="architect-pm",
+        building_class="industrial",
+        work_type="new",
+    )
+    assert NSW_INDUSTRIAL_WAREHOUSE_COST_REFERENCE in paths
+    assert NSW_RESIDENTIAL_COST_REFERENCE not in paths
+    assert DOCTRINE_PATH in paths
+    assert COST_PLAN_MANDATORY_SEED in paths
+    assert ROLE_SEED_PATHS["architect-pm"] in paths
 
 
 def test_catalog_covers_all_seed_files() -> None:

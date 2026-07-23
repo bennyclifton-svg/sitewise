@@ -9,6 +9,9 @@ RESIDENTIAL_ARCHETYPES: frozenset[str] = frozenset(
 )
 
 NSW_RESIDENTIAL_COST_REFERENCE = "skills/reference/nsw-residential-cost-breakdown-reference.md"
+NSW_INDUSTRIAL_WAREHOUSE_COST_REFERENCE = (
+    "skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md"
+)
 
 COST_PLAN_MANDATORY_SEED = "seed/cost-management-principles.md"
 
