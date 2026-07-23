@@ -42,6 +42,44 @@ describe("project event reconciliation", () => {
     });
   });
 
+  it("invalidates project detail when evidence changes", () => {
+    const queryClient = client();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    applyDurableProjectEvent(
+      queryClient,
+      event({ resource_type: "project_evidence" }),
+    );
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: projectKeys.detail("project-1"),
+      exact: true,
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: projectKeys.evidence("project-1"),
+      exact: true,
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: projectKeys.workspaceTree("project-1"),
+      exact: true,
+    });
+  });
+
+  it("invalidates project detail when a workflow run completes", () => {
+    const queryClient = client();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    applyDurableProjectEvent(
+      queryClient,
+      event({ resource_type: "workflow_run" }),
+    );
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: projectKeys.detail("project-1"),
+      exact: true,
+    });
+  });
+
   it("writes an HTTP project response to the exact detail key immediately", () => {
     const queryClient = client();
     const project = { id: "project-1", profile_revision: 4 } as ProjectDetail;
@@ -135,7 +173,9 @@ function setVisibility(value: "visible" | "hidden") {
   });
 }
 
-function event(): ProjectEvent {
+function event(
+  overrides: Partial<ProjectEvent> = {},
+): ProjectEvent {
   return {
     id: "event-1",
     sequence: 1,
@@ -149,5 +189,6 @@ function event(): ProjectEvent {
     payload: { changed_fields: ["state"] },
     deduplication_key: null,
     created_at: "2026-07-19T00:00:00Z",
+    ...overrides,
   };
 }

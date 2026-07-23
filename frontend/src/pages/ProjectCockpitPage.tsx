@@ -176,9 +176,12 @@ export function ProjectCockpitPage() {
     (event: ProjectEvent) => {
       if (event.resource_type !== "artefact_revision" || !projectId) return;
       const workflowType = event.payload.workflow_type;
-      if (workflowType !== "create_pmp" && workflowType !== "create_cost_plan") {
-        return;
-      }
+      if (typeof workflowType !== "string") return;
+      const tracked =
+        workflowType === "create_pmp" ||
+        workflowType === "create_cost_plan" ||
+        workflowType.startsWith("consultant_procurement");
+      if (!tracked) return;
       void api.getLatestDraft(projectId, workflowType).then((draft) => {
         if (!draft) return;
         setLatestDraftsMap((current) => ({
@@ -186,7 +189,7 @@ export function ProjectCockpitPage() {
           [workflowType]: draft,
         }));
         if (workflowType === "create_cost_plan") setLatestCostPlanDraft(draft);
-        else setLatestDraft(draft);
+        else if (workflowType === "create_pmp") setLatestDraft(draft);
       });
     },
     [projectId],
@@ -301,7 +304,11 @@ export function ProjectCockpitPage() {
       setLatestDraftsMap((current) => ({ ...current, [draft.workflow_type]: draft }));
       setSelectedWorkspacePath(draft.workspace_path);
       setSelectedWorkflowId(
-        draft.workflow_type === "create_cost_plan" ? "cost-plan" : "create-pmp",
+        draft.workflow_type === "create_cost_plan"
+          ? "cost-plan"
+          : draft.workflow_type.startsWith("consultant_procurement")
+            ? "procurement"
+            : "create-pmp",
       );
       setChatPanelCollapsed(true);
       setActiveView("draft");
@@ -387,7 +394,26 @@ export function ProjectCockpitPage() {
       refreshMessages(),
       refreshWorkspaceTree(),
       refreshActivity(),
+      projectId
+        ? queryClient.invalidateQueries({
+            queryKey: projectKeys.detail(projectId),
+            exact: true,
+          })
+        : Promise.resolve(),
     ]);
+  }
+
+  async function freshWorkflowRunInput(
+    expectedArtefactVersion?: number,
+  ): Promise<WorkflowRunStartInput> {
+    if (!projectId) {
+      throw new WorkflowRunError("Project workflow inputs are still loading.");
+    }
+    const fresh = await queryClient.fetchQuery({
+      queryKey: projectKeys.detail(projectId),
+      queryFn: () => api.getProject(projectId),
+    });
+    return workflowRunInput(fresh, thread?.id, expectedArtefactVersion);
   }
 
   function refreshLatestDraftInBackground(
@@ -505,7 +531,7 @@ export function ProjectCockpitPage() {
       const queued = await api.startWorkflowRun(
         project.id,
         "sort-files",
-        workflowRunInput(project, thread?.id),
+        await freshWorkflowRunInput(),
       );
       setSortFilesRunId(queued.id);
       const run = await waitForWorkflowRun(queryClient, project.id, queued);
@@ -543,7 +569,7 @@ export function ProjectCockpitPage() {
       const queued = await api.startWorkflowRun(
         project.id,
         "project-plan",
-        workflowRunInput(project, thread?.id),
+        await freshWorkflowRunInput(),
       );
       setWorkflowRunId(queued.id);
       const run = await waitForWorkflowRun(queryClient, project.id, queued);
@@ -582,7 +608,7 @@ export function ProjectCockpitPage() {
       const queued = await api.startWorkflowRun(
         project.id,
         "cost-plan",
-        workflowRunInput(project, thread?.id),
+        await freshWorkflowRunInput(),
       );
       setCostPlanRunId(queued.id);
       const run = await waitForWorkflowRun(queryClient, project.id, queued);
@@ -625,7 +651,7 @@ export function ProjectCockpitPage() {
         project.id,
         "cost-plan/refresh",
         {
-          ...workflowRunInput(project, thread?.id, latestCostPlanDraft.version),
+          ...(await freshWorkflowRunInput(latestCostPlanDraft.version)),
           parameters: { proposed_items: [] },
         },
       );
@@ -673,7 +699,7 @@ export function ProjectCockpitPage() {
       const queued = await api.startWorkflowRun(
         project.id,
         "project-plan/refresh",
-        workflowRunInput(project, thread?.id, latestDraft.version),
+        await freshWorkflowRunInput(latestDraft.version),
       );
       setWorkflowRunId(queued.id);
       const run = await waitForWorkflowRun(queryClient, project.id, queued);

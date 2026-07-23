@@ -85,6 +85,8 @@ describe("ProjectControlBoard project profile", () => {
         work_scope: [],
         user_role: project.user_role,
         state: project.state,
+        site_address: null,
+        client: null,
       },
       previous_revision: 1,
       new_revision: 2,
@@ -104,6 +106,8 @@ describe("ProjectControlBoard project profile", () => {
           scale: {},
           complexity: { operational_constraints: "live_environment" },
           work_scope: [],
+          site_address: null,
+          client: null,
         },
       },
     };
@@ -156,6 +160,8 @@ describe("ProjectControlBoard project profile", () => {
         complexity: { operational_constraints: "live_environment" },
         user_role: "architect-pm",
         state: "NSW",
+        site_address: null,
+        client: null,
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
@@ -251,6 +257,8 @@ describe("ProjectControlBoard project profile", () => {
         work_scope: [],
         user_role: "owner-builder",
         state: "QLD",
+        site_address: null,
+        client: null,
       },
       previous_revision: 2,
       new_revision: 3,
@@ -270,6 +278,8 @@ describe("ProjectControlBoard project profile", () => {
         complexity: { operational_constraints: "live_environment" },
         user_role: "owner-builder",
         state: "QLD",
+        site_address: null,
+        client: null,
       }),
     );
   });

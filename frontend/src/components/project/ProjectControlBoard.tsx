@@ -22,6 +22,7 @@ import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
@@ -297,6 +298,8 @@ function ProjectProfilePanel({
         ...compactTaxonomyValue(form.profile),
         user_role: form.userRole || null,
         state: form.state || null,
+        site_address: form.siteAddress || null,
+        client: form.client || null,
       });
       onProjectUpdated({
         ...project,
@@ -313,6 +316,8 @@ function ProjectProfilePanel({
             scale: updated.profile.scale,
             complexity: updated.profile.complexity,
             work_scope: updated.profile.work_scope,
+            site_address: updated.profile.site_address,
+            client: updated.profile.client,
           },
         },
         overlay_status: updated.overlay_status,
@@ -396,6 +401,32 @@ function ProjectProfilePanel({
           disabled={saving || !onProjectUpdated}
         />
       </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor={`project-site-address-${project.id}`}>Site address</Label>
+          <Input
+            id={`project-site-address-${project.id}`}
+            value={form.siteAddress}
+            onChange={(event) =>
+              updateDraft({ ...form, siteAddress: event.target.value })
+            }
+            placeholder="Street, suburb STATE postcode"
+            disabled={saving || !onProjectUpdated}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor={`project-client-${project.id}`}>Client / owners</Label>
+          <Input
+            id={`project-client-${project.id}`}
+            value={form.client}
+            onChange={(event) =>
+              updateDraft({ ...form, client: event.target.value })
+            }
+            placeholder="Client or owner name"
+            disabled={saving || !onProjectUpdated}
+          />
+        </div>
+      </div>
       <TaxonomyPicker
         catalog={taxonomyQuery.data}
         value={form.profile}
@@ -437,12 +468,16 @@ type ProfileFormValue = {
   profile: TaxonomyPickerValue;
   userRole: string;
   state: string;
+  siteAddress: string;
+  client: string;
 };
 
 type ProfileFormField =
   | keyof TaxonomyPickerValue
   | "user_role"
-  | "state";
+  | "state"
+  | "site_address"
+  | "client";
 
 const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
   "building_class",
@@ -453,13 +488,27 @@ const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
   "work_scope",
   "user_role",
   "state",
+  "site_address",
+  "client",
 ];
 
 function profileFormFromProject(project: ProjectDetail): ProfileFormValue {
+  const taxonomy = project.metadata?.taxonomy;
+  const siteAddress =
+    (typeof taxonomy?.site_address === "string" && taxonomy.site_address) ||
+    (typeof project.metadata?.site_address === "string" &&
+      project.metadata.site_address) ||
+    "";
+  const client =
+    (typeof taxonomy?.client === "string" && taxonomy.client) ||
+    (typeof project.metadata?.client === "string" && project.metadata.client) ||
+    "";
   return {
     profile: taxonomyValueFromProject(project),
     userRole: project.user_role ?? "",
     state: project.state ?? "",
+    siteAddress,
+    client,
   };
 }
 
@@ -484,6 +533,8 @@ function profileFormFieldEqual(
 function profileFormField(form: ProfileFormValue, field: ProfileFormField) {
   if (field === "user_role") return form.userRole;
   if (field === "state") return form.state;
+  if (field === "site_address") return form.siteAddress;
+  if (field === "client") return form.client;
   return form.profile[field];
 }
 
@@ -496,6 +547,8 @@ function rebaseProfileForm(
     profile: { ...latest.profile },
     userRole: latest.userRole,
     state: latest.state,
+    siteAddress: latest.siteAddress,
+    client: latest.client,
   };
   for (const field of changedFields) {
     switch (field) {
@@ -504,6 +557,12 @@ function rebaseProfileForm(
         break;
       case "state":
         rebased.state = draft.state;
+        break;
+      case "site_address":
+        rebased.siteAddress = draft.siteAddress;
+        break;
+      case "client":
+        rebased.client = draft.client;
         break;
       case "building_class":
         rebased.profile.building_class = draft.profile.building_class;

@@ -100,6 +100,8 @@ export type ProjectTaxonomyMetadata = {
   scale?: Record<string, TaxonomyScalar>;
   complexity?: Record<string, string>;
   work_scope?: string[];
+  site_address?: string | null;
+  client?: string | null;
 };
 
 export type ProjectMetadata = Record<string, unknown> & {
@@ -153,6 +155,8 @@ export type UpdateProjectInput = ProjectTaxonomyInput & {
   expected_revision: number;
   user_role?: string | null;
   state?: string | null;
+  site_address?: string | null;
+  client?: string | null;
   clear_incompatible?: boolean;
 };
 
@@ -167,6 +171,8 @@ export type ProjectProfileView = {
   work_scope: string[];
   user_role: string | null;
   state: string | null;
+  site_address: string | null;
+  client: string | null;
 };
 
 export type ProjectProfileChange = {
@@ -182,6 +188,8 @@ export type ProjectProfileChange = {
     | "work_scope"
     | "user_role"
     | "state"
+    | "site_address"
+    | "client"
   >;
   cleared_fields: ProjectProfileChange["changed_fields"];
   overlay_status: OverlayStatus;

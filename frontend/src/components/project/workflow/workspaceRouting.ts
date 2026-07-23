@@ -18,6 +18,12 @@ export function isConsultantProcurementWorkspaceFile(path: string): boolean {
   return /\/02-consultant\/consultant_procurement_.+_v\d+\.draft\.md$/i.test(normalised);
 }
 
+/** True when the explorer path points at a contractor EOI draft. */
+export function isContractorEoiWorkspaceFile(path: string): boolean {
+  const normalised = path.replaceAll("\\", "/");
+  return /\/02-procurement\/contractor_eoi_.+_v\d+\.draft\.md$/i.test(normalised);
+}
+
 export function findDraftByWorkspacePath(
   drafts: Record<string, DraftArtifactSummary | null>,
   path: string,

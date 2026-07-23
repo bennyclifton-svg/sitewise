@@ -6,6 +6,7 @@ const WORKFLOW_SLUG_TO_TILE: Record<string, string> = {
   update_pmp: "create-pmp",
   create_cost_plan: "cost-plan",
   consultant_procurement: "design",
+  contractor_eoi: "procurement",
   design_review: "design",
   rft: "procurement",
   tender_evaluation: "procurement",

@@ -33,9 +33,11 @@ import {
   artefactsFromMessage,
   resourceFromPart,
   toolStatusesFromMessage,
+  workflowRunsFromMessage,
   type ArtefactEvent,
   type ResourceEvent,
   type ToolStatusEvent,
+  type WorkflowRunRef,
 } from "@/lib/chat-events";
 import {
   classifyChatError,
@@ -254,23 +256,28 @@ export function ChatPanel({
     return () => cancelAnimationFrame(frame);
   }, [collapsed, scrollToBottom]);
 
-  const { artefactsByMessageId, toolEventsByMessageId } = useMemo(() => {
-    const nextTools = new Map<string, ToolStatusEvent[]>();
-    const nextArtefacts = new Map<string, ArtefactEvent[]>();
+  const { artefactsByMessageId, toolEventsByMessageId, workflowRunsByMessageId } =
+    useMemo(() => {
+      const nextTools = new Map<string, ToolStatusEvent[]>();
+      const nextArtefacts = new Map<string, ArtefactEvent[]>();
+      const nextRuns = new Map<string, WorkflowRunRef[]>();
 
-    for (const message of messages) {
-      if (message.role !== "assistant") continue;
-      const toolEvents = toolStatusesFromMessage(message);
-      const artefacts = artefactsFromMessage(message);
-      if (toolEvents.length > 0) nextTools.set(message.id, toolEvents);
-      if (artefacts.length > 0) nextArtefacts.set(message.id, artefacts);
-    }
+      for (const message of messages) {
+        if (message.role !== "assistant") continue;
+        const toolEvents = toolStatusesFromMessage(message);
+        const artefacts = artefactsFromMessage(message);
+        const workflowRuns = workflowRunsFromMessage(message);
+        if (toolEvents.length > 0) nextTools.set(message.id, toolEvents);
+        if (artefacts.length > 0) nextArtefacts.set(message.id, artefacts);
+        if (workflowRuns.length > 0) nextRuns.set(message.id, workflowRuns);
+      }
 
-    return {
-      artefactsByMessageId: nextArtefacts,
-      toolEventsByMessageId: nextTools,
-    };
-  }, [messages]);
+      return {
+        artefactsByMessageId: nextArtefacts,
+        toolEventsByMessageId: nextTools,
+        workflowRunsByMessageId: nextRuns,
+      };
+    }, [messages]);
 
   async function handleSubmit() {
     const text = input.trim();
@@ -331,6 +338,7 @@ export function ChatPanel({
                       messageData={persistedMessageData.get(message.id)}
                       toolEvents={toolEventsByMessageId.get(message.id)}
                       artefacts={artefactsByMessageId.get(message.id)}
+                      workflowRuns={workflowRunsByMessageId.get(message.id)}
                       agentMode={agentMode}
                       projectId={projectId}
                       selectedCitationId={activeCitationId}

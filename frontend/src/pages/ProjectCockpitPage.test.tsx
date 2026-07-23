@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   api: {
     createProjectThread: vi.fn(),
     getLatestDraft: vi.fn(),
+    getProject: vi.fn(),
     getProjectCockpitBootstrap: vi.fn(),
     getThreadMessages: vi.fn(),
     listThreads: vi.fn(),
@@ -37,18 +38,21 @@ vi.mock("@/lib/queries/workflow-runs", () => ({
   waitForWorkflowRun: mocks.waitForWorkflowRun,
 }));
 
-vi.mock("@/lib/queries/project-data", () => ({
-  projectKeys: {
-    evidence: (projectId: string) => ["project", projectId, "evidence"],
-  },
-  reloadProjectWorkspaceTree: mocks.reloadProjectWorkspaceTree,
-  seedProjectData: mocks.seedProjectData,
-  setProjectDetail: mocks.setProjectDetail,
-  useProjectDetail: () => ({ data: project }),
-  useProjectEventCursor: () => ({ applyResource: vi.fn(), pollNow: vi.fn() }),
-  useProjectEvidence: () => ({ data: [] }),
-  useProjectWorkspaceTree: () => ({ data: [] }),
-}));
+vi.mock("@/lib/queries/project-data", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/queries/project-data")>(
+    "@/lib/queries/project-data",
+  );
+  return {
+    ...actual,
+    reloadProjectWorkspaceTree: mocks.reloadProjectWorkspaceTree,
+    seedProjectData: mocks.seedProjectData,
+    setProjectDetail: mocks.setProjectDetail,
+    useProjectDetail: () => ({ data: project }),
+    useProjectEventCursor: () => ({ applyResource: vi.fn(), pollNow: vi.fn() }),
+    useProjectEvidence: () => ({ data: [] }),
+    useProjectWorkspaceTree: () => ({ data: [] }),
+  };
+});
 
 vi.mock("@/components/project/DocumentRepositoryPanel", () => ({
   DocumentRepositoryPanel: () => <div data-testid="repository" />,
@@ -166,6 +170,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     mocks.api.listThreads.mockResolvedValue([thread]);
     mocks.api.getThreadMessages.mockResolvedValue([]);
     mocks.api.getLatestDraft.mockResolvedValue(costPlanSummary);
+    mocks.api.getProject.mockResolvedValue(project);
     mocks.api.startWorkflowRun.mockResolvedValue({
       id: "run-1",
       project_id: project.id,

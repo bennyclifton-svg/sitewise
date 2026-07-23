@@ -1,7 +1,12 @@
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
 
-import { resourceFromPart, toolStatusFromPart } from "@/lib/chat-events";
+import {
+  resourceFromPart,
+  toolStatusFromPart,
+  workflowRunFromPart,
+  workflowRunsFromMessage,
+} from "@/lib/chat-events";
 
 type MessagePart = UIMessage["parts"][number];
 
@@ -108,5 +113,99 @@ describe("resourceFromPart", () => {
       changedFields: ["state"],
       clearedFields: [],
     });
+  });
+
+  it("keeps workflowType on queued workflow_run resources", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "resource",
+        projectId: "project-1",
+        resourceType: "workflow_run",
+        resourceId: "run-1",
+        action: "queued",
+        workflowType: "consultant_procurement",
+        changedFields: [],
+        clearedFields: [],
+      },
+    } as MessagePart;
+
+    expect(resourceFromPart(part)).toEqual({
+      kind: "resource",
+      projectId: "project-1",
+      resourceType: "workflow_run",
+      resourceId: "run-1",
+      action: "queued",
+      changedFields: [],
+      clearedFields: [],
+      workflowType: "consultant_procurement",
+    });
+  });
+});
+
+describe("workflowRunFromPart", () => {
+  it("extracts a queued consultant procurement run", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "resource",
+        projectId: "project-1",
+        resourceType: "workflow_run",
+        resourceId: "run-99",
+        action: "queued",
+        workflowType: "consultant_procurement",
+      },
+    } as MessagePart;
+
+    expect(workflowRunFromPart(part)).toEqual({
+      kind: "workflow_run",
+      projectId: "project-1",
+      runId: "run-99",
+      workflowType: "consultant_procurement",
+      action: "queued",
+    });
+  });
+});
+
+describe("workflowRunsFromMessage", () => {
+  it("dedupes run refs from assistant message parts", () => {
+    const message = {
+      id: "m1",
+      role: "assistant",
+      parts: [
+        {
+          type: "data-clerk-status",
+          data: {
+            kind: "resource",
+            projectId: "project-1",
+            resourceType: "workflow_run",
+            resourceId: "run-1",
+            action: "queued",
+            workflowType: "consultant_procurement",
+          },
+        },
+        {
+          type: "data-clerk-status",
+          data: {
+            kind: "resource",
+            projectId: "project-1",
+            resourceType: "workflow_run",
+            resourceId: "run-1",
+            action: "queued",
+            workflowType: "consultant_procurement",
+          },
+        },
+      ],
+    } as UIMessage;
+
+    expect(workflowRunsFromMessage(message)).toEqual([
+      {
+        kind: "workflow_run",
+        projectId: "project-1",
+        runId: "run-1",
+        workflowType: "consultant_procurement",
+        action: "queued",
+      },
+    ]);
   });
 });

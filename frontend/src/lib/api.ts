@@ -410,6 +410,8 @@ export const api = {
   ): Promise<TenderQaAcceptAllResponse> =>
     api.post<TenderQaAcceptAllResponse>(
       `/api/tender/comparisons/${comparisonId}/qa/accept-all`,
+      undefined,
+      { timeoutMs: WORKFLOW_TIMEOUT_MS },
     ),
 
   getTenderTaxonomy: async (): Promise<TenderTaxonomyCell[]> => {

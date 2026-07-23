@@ -38,6 +38,15 @@ export type ResourceEvent = {
   revision?: number;
   changedFields: string[];
   clearedFields: string[];
+  workflowType?: string;
+};
+
+export type WorkflowRunRef = {
+  kind: "workflow_run";
+  projectId: string;
+  runId: string;
+  workflowType?: string;
+  action?: string;
 };
 
 function isRecord(value: unknown): value is RecordLike {
@@ -116,7 +125,58 @@ export function resourceFromPart(part: MessagePart): ResourceEvent | null {
     revision: typeof data.revision === "number" ? data.revision : undefined,
     changedFields: stringArray(data.changedFields),
     clearedFields: stringArray(data.clearedFields),
+    workflowType:
+      typeof data.workflowType === "string" ? data.workflowType : undefined,
   };
+}
+
+export function workflowRunFromPart(part: MessagePart): WorkflowRunRef | null {
+  const data = clerkStatusData(part);
+  if (!data) return null;
+
+  if (data.kind === "resource" && data.resourceType === "workflow_run") {
+    if (
+      typeof data.projectId !== "string" ||
+      typeof data.resourceId !== "string"
+    ) {
+      return null;
+    }
+    return {
+      kind: "workflow_run",
+      projectId: data.projectId,
+      runId: data.resourceId,
+      workflowType:
+        typeof data.workflowType === "string" ? data.workflowType : undefined,
+      action: typeof data.action === "string" ? data.action : undefined,
+    };
+  }
+
+  if (data.kind === "run") {
+    const runId =
+      typeof data.runId === "string"
+        ? data.runId
+        : typeof data.resourceId === "string"
+          ? data.resourceId
+          : null;
+    const projectId =
+      typeof data.projectId === "string" ? data.projectId : null;
+    if (!runId || !projectId) return null;
+    return {
+      kind: "workflow_run",
+      projectId,
+      runId,
+      workflowType:
+        typeof data.workflowType === "string" ? data.workflowType : undefined,
+      action:
+        typeof data.action === "string"
+          ? data.action
+          : typeof data.status === "string"
+            ? data.status
+            : undefined,
+    };
+  }
+
+  return null;
 }
 
 export function toolStatusesFromMessage(message: UIMessage): ToolStatusEvent[] {
@@ -129,6 +189,18 @@ export function artefactsFromMessage(message: UIMessage): ArtefactEvent[] {
   return message.parts
     .map((part) => artefactFromPart(part))
     .filter((event): event is ArtefactEvent => event !== null);
+}
+
+export function workflowRunsFromMessage(message: UIMessage): WorkflowRunRef[] {
+  const seen = new Set<string>();
+  const runs: WorkflowRunRef[] = [];
+  for (const part of message.parts) {
+    const run = workflowRunFromPart(part);
+    if (!run || seen.has(run.runId)) continue;
+    seen.add(run.runId);
+    runs.push(run);
+  }
+  return runs;
 }
 
 function stringArray(value: unknown): string[] {

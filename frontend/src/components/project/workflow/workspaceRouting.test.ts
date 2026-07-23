@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   findDraftByWorkspacePath,
   isConsultantProcurementWorkspaceFile,
+  isContractorEoiWorkspaceFile,
 } from "@/components/project/workflow/workspaceRouting";
 import type { DraftArtifactSummary } from "@/lib/types/project";
 
@@ -36,6 +37,22 @@ describe("isConsultantProcurementWorkspaceFile", () => {
       isConsultantProcurementWorkspaceFile(
         "04-projects/walsh-reno/02-consultant/architect/02-fee-proposal-atelier-north.md",
       ),
+    ).toBe(false);
+  });
+});
+
+describe("isContractorEoiWorkspaceFile", () => {
+  it("matches contractor EOI draft paths", () => {
+    expect(
+      isContractorEoiWorkspaceFile(
+        "04-projects/walsh-reno/02-procurement/contractor_eoi_main_works_v01.draft.md",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not match consultant procurement paths", () => {
+    expect(
+      isContractorEoiWorkspaceFile(structuralDraft.workspace_path),
     ).toBe(false);
   });
 });

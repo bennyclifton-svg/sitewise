@@ -98,12 +98,7 @@ export function useDeleteEvidence(projectId: string) {
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({
-        queryKey: projectKeys.evidence(projectId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: projectKeys.workspaceTree(projectId),
-      });
+      invalidateAfterEvidenceChange(queryClient, projectId);
     },
   });
 }
@@ -144,10 +139,19 @@ export function useBatchDeleteEvidence(projectId: string) {
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: projectKeys.evidence(projectId) });
-      void queryClient.invalidateQueries({ queryKey: projectKeys.workspaceTree(projectId) });
+      invalidateAfterEvidenceChange(queryClient, projectId);
     },
   });
+}
+
+/** Evidence changes alter the snapshot fingerprint used by workflow OCC. */
+function invalidateAfterEvidenceChange(
+  queryClient: QueryClient,
+  projectId: string,
+) {
+  for (const queryKey of invalidationKeys(projectId, "project_evidence")) {
+    void queryClient.invalidateQueries({ queryKey, exact: true });
+  }
 }
 
 /** Fetch the latest workspace tree and write it into the query cache. */
@@ -312,12 +316,20 @@ function invalidationKeys(projectId: string, resourceType: string) {
       return [projectKeys.detail(projectId)];
     case "source_document":
     case "project_evidence":
-      return [projectKeys.evidence(projectId), projectKeys.workspaceTree(projectId)];
+      // Detail holds decision_set_revision + snapshot_content_fingerprint for
+      // workflow start OCC; evidence deletes change the fingerprint.
+      return [
+        projectKeys.detail(projectId),
+        projectKeys.evidence(projectId),
+        projectKeys.workspaceTree(projectId),
+      ];
     case "workspace_file":
     case "draft_artifact":
     case "artefact_revision":
       return [projectKeys.workspaceTree(projectId), projectActivityKeys.root(projectId)];
     case "workflow_run":
+      // Create/refresh workflows sync decisions and bump decision_set_revision.
+      return [projectKeys.detail(projectId), projectActivityKeys.root(projectId)];
     case "tender_job":
       return [projectActivityKeys.root(projectId)];
     default:

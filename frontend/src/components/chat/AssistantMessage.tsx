@@ -5,13 +5,18 @@ import { ArtefactCard } from "@/components/chat/ArtefactCard";
 import { CitationChip } from "@/components/chat/CitationChip";
 import { InsufficientEvidenceBanner } from "@/components/chat/InsufficientEvidenceBanner";
 import { ToolCallChip } from "@/components/chat/ToolCallChip";
+import { WorkflowRunCard } from "@/components/chat/WorkflowRunCard";
 import {
   assistantMetaFromMessageData,
   citationFromSourcePart,
   citationsFromMessageData,
   dedupeCitations,
 } from "@/lib/citations";
-import type { ArtefactEvent, ToolStatusEvent } from "@/lib/chat-events";
+import type {
+  ArtefactEvent,
+  ToolStatusEvent,
+  WorkflowRunRef,
+} from "@/lib/chat-events";
 import type { Citation } from "@/lib/types/citation";
 
 type AssistantMessageProps = {
@@ -19,6 +24,7 @@ type AssistantMessageProps = {
   messageData?: Record<string, unknown> | null;
   toolEvents?: ToolStatusEvent[];
   artefacts?: ArtefactEvent[];
+  workflowRuns?: WorkflowRunRef[];
   agentMode?: boolean;
   projectId?: string | null;
   selectedCitationId: string | null;
@@ -45,6 +51,7 @@ export function AssistantMessage({
   messageData,
   toolEvents = [],
   artefacts = [],
+  workflowRuns = [],
   agentMode = false,
   projectId,
   selectedCitationId,
@@ -92,6 +99,14 @@ export function AssistantMessage({
         <ArtefactCard
           key={`${artefact.workflowType ?? "artefact"}-${artefact.draftId ?? index}`}
           artefact={artefact}
+          projectId={projectId}
+        />
+      ))}
+
+      {workflowRuns.map((runRef) => (
+        <WorkflowRunCard
+          key={runRef.runId}
+          runRef={runRef}
           projectId={projectId}
         />
       ))}
