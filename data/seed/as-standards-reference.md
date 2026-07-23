@@ -11,6 +11,7 @@ doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §esca
 seed_type: compliance
 state_default: NSW
 agents_anchors: [§1, §2, §8]
+required_by: {head-contractor-procurement: 2}
 ---
 
 # Australian Standards reference — residential

@@ -9,6 +9,7 @@ state_default: NSW
 summary: "Role overlay for the D&C contractor: inherits the builder's obligations and adds design responsibility, the design responsibility matrix, consultant procurement, PI insurance posture and certifier submission control."
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style, §owner-communication]
 agents_anchors: [§1, §2, §3, §5, §6, §8, §9, §11]
+required_by: {head-contractor-procurement: 3}
 ---
 
 # Role overlay - D&C contractor

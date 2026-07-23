@@ -9,6 +9,7 @@ state_default: NSW
 summary: "Role overlay for the head-contract builder: statutory instruments (licence, HOW/HBCF, LSL), head-contract administration, progress-claim and variation issuance, EOT, subcontractor management and the builder mobilisation checklist."
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style]
 agents_anchors: [§1, §2, §3, §6, §9]
+required_by: {head-contractor-procurement: 3}
 ---
 
 # Role overlay — Builder (head contractor)

@@ -16,6 +16,19 @@ than two poll intervals should alert.
 Only local development may set `WORKFLOW_WORKER_INPROC_ENABLED=true`. Production
 keeps it false so API restarts cannot own or lose workflow execution.
 
+## Local development
+
+Chat-queued Project Plan, Cost Plan, file sort, and consultant RFP runs stay
+`queued` until a core worker claims them. For local API-only development:
+
+1. Set `WORKFLOW_WORKER_INPROC_ENABLED=true` in `backend/.env` (see
+   `.env.example`), then restart the API; or
+2. Run a separate worker: `cd backend && uv run python -m app.workflows.worker`.
+
+Without one of those, agent replies that queue an RFP will never produce a
+draft. The in-process worker covers every `consultant_procurement` discipline
+(named profiles and generic fallbacks alike).
+
 ## Graceful shutdown and recovery
 
 SIGTERM stops new claims and lets active lanes finish. Each active run renews a
