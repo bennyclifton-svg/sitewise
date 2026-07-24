@@ -307,9 +307,7 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
         patch(
             "app.workflows.update_pmp.overlay_status",
             return_value=overlay_status(
-                archetype="new-dwelling",
-                user_role="architect-pm",
-                state="NSW",
+                archetype="new-dwelling",                state="NSW",
             ),
         ),
         patch(
@@ -490,9 +488,7 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
         patch(
             "app.workflows.update_pmp.overlay_status",
             return_value=overlay_status(
-                archetype="new-dwelling",
-                user_role="architect-pm",
-                state="NSW",
+                archetype="new-dwelling",                state="NSW",
             ),
         ),
         patch(

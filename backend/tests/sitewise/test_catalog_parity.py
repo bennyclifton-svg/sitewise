@@ -1,4 +1,3 @@
-import itertools
 from types import SimpleNamespace
 
 import pytest
@@ -26,7 +25,7 @@ ARCHETYPES = (
     "ancillary",
     "small-commercial",
 )
-USER_ROLES = ("owner-builder", "architect-pm", "builder", "d-and-c")
+ROLE_SEED = ROLE_SEED_PATHS["architect-pm"]
 
 
 def _deduped(paths: list[str]) -> list[str]:
@@ -39,22 +38,22 @@ def _deduped(paths: list[str]) -> list[str]:
     return ordered
 
 
-def _expected_pmp_paths(archetype: str, user_role: str) -> list[str]:
+def _expected_pmp_paths(archetype: str) -> list[str]:
     return _deduped(
         [
             DOCTRINE_PATH,
             ARCHETYPE_SEED_PATHS[archetype],
-            ROLE_SEED_PATHS[user_role],
+            ROLE_SEED,
             *PMP_CROSS_CUTTING_SEED_PATHS,
         ]
     )
 
 
-def _expected_cost_plan_paths(archetype: str, user_role: str) -> list[str]:
+def _expected_cost_plan_paths(archetype: str) -> list[str]:
     paths = [
         DOCTRINE_PATH,
         ARCHETYPE_SEED_PATHS[archetype],
-        ROLE_SEED_PATHS[user_role],
+        ROLE_SEED,
         COST_PLAN_MANDATORY_SEED,
     ]
     if archetype in RESIDENTIAL_ARCHETYPES:
@@ -62,47 +61,38 @@ def _expected_cost_plan_paths(archetype: str, user_role: str) -> list[str]:
     return _deduped(paths)
 
 
-@pytest.mark.parametrize(("archetype", "user_role"), itertools.product(ARCHETYPES, USER_ROLES))
-def test_create_pmp_paths_match_frozen_contract(archetype: str, user_role: str) -> None:
-    expected = _expected_pmp_paths(archetype, user_role)
+@pytest.mark.parametrize("archetype", ARCHETYPES)
+def test_create_pmp_paths_match_frozen_contract(archetype: str) -> None:
+    expected = _expected_pmp_paths(archetype)
     assert (
-        select_required_paths(
-            workflow="create-pmp", archetype=archetype, user_role=user_role
-        )
+        select_required_paths(workflow="create-pmp", archetype=archetype)
         == expected
     )
     assert (
-        pmp_sources.required_platform_paths(archetype=archetype, user_role=user_role)
+        pmp_sources.required_platform_paths(archetype=archetype)
         == expected
     )
 
 
-@pytest.mark.parametrize(("archetype", "user_role"), itertools.product(ARCHETYPES, USER_ROLES))
-def test_create_cost_plan_paths_match_frozen_contract(
-    archetype: str, user_role: str
-) -> None:
-    expected = _expected_cost_plan_paths(archetype, user_role)
+@pytest.mark.parametrize("archetype", ARCHETYPES)
+def test_create_cost_plan_paths_match_frozen_contract(archetype: str) -> None:
+    expected = _expected_cost_plan_paths(archetype)
     assert (
-        select_required_paths(
-            workflow="create-cost-plan", archetype=archetype, user_role=user_role
-        )
+        select_required_paths(workflow="create-cost-plan", archetype=archetype)
         == expected
     )
     assert (
-        cost_plan_sources.required_platform_paths(
-            archetype=archetype, user_role=user_role
-        )
+        cost_plan_sources.required_platform_paths(archetype=archetype)
         == expected
     )
 
 
 @pytest.mark.parametrize(
-    ("building_class", "work_type", "user_role", "expected"),
+    ("building_class", "work_type", "expected"),
     [
         (
             "commercial",
             "new",
-            "architect-pm",
             [
                 "docs/clerk-brief.md",
                 "seed/commercial-construction-guide.md",
@@ -117,11 +107,10 @@ def test_create_cost_plan_paths_match_frozen_contract(
         (
             "industrial",
             "new",
-            "d-and-c",
             [
                 "docs/clerk-brief.md",
                 "seed/commercial-construction-guide.md",
-                "seed/role-d-and-c.md",
+                "seed/role-architect-pm.md",
                 "seed/setup-and-commission-guide.md",
                 "seed/contract-administration-guide.md",
                 "seed/cost-management-principles.md",
@@ -132,7 +121,6 @@ def test_create_cost_plan_paths_match_frozen_contract(
         (
             "institution",
             "refurb",
-            "architect-pm",
             [
                 "docs/clerk-brief.md",
                 "seed/commercial-construction-guide.md",
@@ -147,7 +135,6 @@ def test_create_cost_plan_paths_match_frozen_contract(
         (
             "commercial",
             "advisory",
-            "architect-pm",
             [
                 "docs/clerk-brief.md",
                 "seed/role-architect-pm.md",
@@ -161,7 +148,6 @@ def test_create_cost_plan_paths_match_frozen_contract(
         (
             "mixed",
             "new",
-            "architect-pm",
             [
                 "docs/clerk-brief.md",
                 "seed/commercial-construction-guide.md",
@@ -177,7 +163,6 @@ def test_create_cost_plan_paths_match_frozen_contract(
         (
             "infrastructure",
             "new",
-            "architect-pm",
             [
                 "docs/clerk-brief.md",
                 "seed/role-architect-pm.md",
@@ -193,14 +178,12 @@ def test_create_cost_plan_paths_match_frozen_contract(
 def test_taxonomy_create_pmp_paths_are_class_aware(
     building_class: str,
     work_type: str,
-    user_role: str,
     expected: list[str],
 ) -> None:
     assert (
         select_required_paths(
             workflow="create-pmp",
             archetype="",
-            user_role=user_role,
             building_class=building_class,
             work_type=work_type,
         )
@@ -253,14 +236,12 @@ def test_head_contractor_procurement_paths_are_specific_and_class_aware() -> Non
     residential = select_required_paths(
         workflow="head-contractor-procurement",
         archetype="",
-        user_role="architect-pm",
         building_class="residential",
         work_type="refurb",
     )
     commercial = select_required_paths(
         workflow="head-contractor-procurement",
         archetype="",
-        user_role="architect-pm",
         building_class="commercial",
         work_type="new",
     )
@@ -271,7 +252,6 @@ def test_head_contractor_procurement_paths_are_specific_and_class_aware() -> Non
     guidance = _required_guidance_paths(
         SimpleNamespace(
             archetype=None,
-            user_role="architect-pm",
             building_class="residential",
             work_type="refurb",
         ),

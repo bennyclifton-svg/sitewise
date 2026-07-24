@@ -16,9 +16,9 @@ TENDER_COMPARISON = "tender_comparison"
 CONSULTANT_PROCUREMENT = "consultant_procurement"
 CONTRACTOR_EOI = "contractor_eoi"
 
-_PROJECT_PLAN_FIELDS = ("building_class", "work_type", "user_role", "state")
+_PROJECT_PLAN_FIELDS = ("building_class", "work_type", "state")
 _TENDER_FIELDS = ("building_class", "subclasses", "work_type", "state")
-_CONSULTANT_FIELDS = ("building_class", "work_type", "user_role")
+_CONSULTANT_FIELDS = ("building_class", "work_type")
 _CONTRACTOR_FIELDS = ("building_class", "work_type", "state")
 _TENDER_STATES = frozenset({"NSW", "VIC", "QLD"})
 _TENDER_WORK_TYPES = frozenset({"new", "refurb", "extend"})
@@ -133,9 +133,9 @@ def _cost_plan_capability(
     if missing:
         return WorkflowCapability(
             status="needs_input",
-            reasons=["Cost Plan requires confirmed project and role context."],
+            reasons=["Cost Plan requires confirmed project context."],
             required_fields=missing,
-            reference_coverage=["NSW residential architect-PM reference set"],
+            reference_coverage=["NSW residential reference set"],
         )
 
     profile = snapshot.profile
@@ -154,10 +154,6 @@ def _cost_plan_capability(
         reasons: list[str] = []
         if profile.state != "NSW":
             reasons.append("Cost Plan reference-data coverage is currently NSW only.")
-        if profile.user_role != "architect-pm":
-            reasons.append(
-                "Cost Plan rendering currently supports the architect-PM role only."
-            )
         if reasons:
             return WorkflowCapability(status="unsupported", reasons=reasons)
         return WorkflowCapability(
@@ -168,17 +164,13 @@ def _cost_plan_capability(
                 "from general model knowledge."
             ],
             required_confirmations=confirmations,
-            reference_coverage=["NSW residential architect-PM reference set"],
+            reference_coverage=["NSW residential reference set"],
         )
 
     if profile.building_class == "industrial":
         reasons = []
         if profile.state != "NSW":
             reasons.append("Cost Plan reference-data coverage is currently NSW only.")
-        if profile.user_role != "architect-pm":
-            reasons.append(
-                "Cost Plan rendering currently supports the architect-PM role only."
-            )
         if not _profile_subclasses(snapshot) & _INDUSTRIAL_WAREHOUSE_SUBCLASSES:
             reasons.append(
                 "Cost Plan industrial coverage is currently NSW warehouse / "

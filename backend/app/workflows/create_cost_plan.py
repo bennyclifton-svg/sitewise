@@ -58,7 +58,7 @@ from app.sitewise.cost_plan_workbook import (
     build_typed_cost_plan_workbook,
 )
 from app.sitewise.cost_plan_sources import (
-    document_title_for_role,
+    document_title,
     required_platform_paths,
     required_section_headings,
     seed_consulted_includes_required,
@@ -243,8 +243,8 @@ def _format_sources(passages: list[SourcePassage]) -> str:
     return "\n\n---\n\n".join(blocks)
 
 
-def _format_required_sections(user_role: str) -> str:
-    return "\n".join(f"- {heading}" for heading in required_section_headings(user_role))
+def _format_required_sections() -> str:
+    return "\n".join(f"- {heading}" for heading in required_section_headings())
 
 
 def _format_mandatory_seeds(paths: list[str]) -> str:
@@ -377,7 +377,6 @@ async def retrieve_create_cost_plan_sources(
 ) -> tuple[list[SourcePassage], int, int, DraftMode, list[str]]:
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=project.user_role or "",
         project=project,
     )
     # AsyncSession is not safe for concurrent awaits on the same instance.
@@ -461,10 +460,8 @@ async def run_create_cost_plan_model(
     chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
 ) -> CostPlanDraftOutput:
-    user_role = project.user_role or ""
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=user_role,
         project=project,
     )
 
@@ -474,7 +471,6 @@ async def run_create_cost_plan_model(
         (
             "Overlays: "
             f"archetype={project.archetype}, "
-            f"user_role={project.user_role}, "
             f"state={project.state}"
         ),
         (
@@ -482,13 +478,13 @@ async def run_create_cost_plan_model(
             "due dates (2–4 weeks forward or relative phrasing; never past years)."
         ),
         f"Draft mode: {draft_mode}",
-        f"Required document title: {document_title_for_role(user_role)}",
+        f"Required document title: {document_title()}",
         _role_drafting_note(
             draft_mode=draft_mode,
             state=project.state or "NSW",
         ),
         "Required cost plan sections (use these exact ## headings):",
-        _format_required_sections(user_role),
+        _format_required_sections(),
         "Mandatory seed paths (must all appear in seed_consulted):",
         _format_mandatory_seeds(mandatory_paths),
         format_decision_option_sets(project, include_cost_only=True),
@@ -501,7 +497,6 @@ async def run_create_cost_plan_model(
         ),
         build_greenfield_brief(
             archetype=project.archetype or "",
-            user_role=user_role,
             state=project.state or "NSW",
             draft_mode=draft_mode,
         ),
@@ -509,7 +504,6 @@ async def run_create_cost_plan_model(
     if draft_mode == "platform_seeded":
         depth_markers = greenfield_quality_markers(
             archetype=project.archetype or "",
-            user_role=user_role,
         )
         marker_list = ", ".join(depth_markers)
         prompt_parts.append(
@@ -616,7 +610,6 @@ def validate_cost_plan_output(
     draft_mode: DraftMode,
     *,
     archetype: str,
-    user_role: str,
     project: Project | None = None,
     source_texts: list[str] | None = None,
 ) -> None:
@@ -640,7 +633,6 @@ def validate_cost_plan_output(
     missing_seeds = seed_consulted_includes_required(
         output.seed_consulted,
         archetype=archetype,
-        user_role=user_role,
         project=project,
     )
     if missing_seeds:
@@ -651,7 +643,7 @@ def validate_cost_plan_output(
 
     missing_sections = [
         heading
-        for heading in required_section_headings(user_role)
+        for heading in required_section_headings()
         if not _markdown_has_section(output.markdown, heading)
     ]
     if missing_sections:
@@ -664,7 +656,6 @@ def validate_cost_plan_output(
         missing_markers = greenfield_markers_missing(
             output.markdown,
             archetype=archetype,
-            user_role=user_role,
         )
         if missing_markers:
             joined = ", ".join(missing_markers)
@@ -673,11 +664,7 @@ def validate_cost_plan_output(
                 f"{joined}"
             )
 
-    structure_issues = greenfield_structure_violations(
-        output.markdown,
-        _archetype=archetype,
-        _user_role=user_role,
-    )
+    structure_issues = greenfield_structure_violations(output.markdown)
     if structure_issues:
         joined = "; ".join(structure_issues)
         raise WorkflowValidationError(
@@ -917,7 +904,6 @@ def _should_use_hybrid_compiler(project: Project, draft_mode: DraftMode) -> bool
     return (
         settings.cost_plan_hybrid_compiler
         and draft_mode == "evidence_grounded"
-        and (project.user_role or "") == "architect-pm"
     )
 
 
@@ -936,7 +922,6 @@ async def run_create_cost_plan_hybrid(
     from app.sitewise.cost_plan_renderer import render_cost_plan_scaffold
     from app.workflows.cost_plan_narrative import run_cost_plan_narrative_model
 
-    user_role = project.user_role or ""
     evidence_refs = _evidence_refs_from_passages(passages, project.id)
     pack = extract_cost_plan_evidence_pack(project_source_texts, evidence_refs)
     trace.append(
@@ -1006,7 +991,7 @@ async def run_create_cost_plan_hybrid(
         )
 
         output = CostPlanDraftOutput(
-            title=document_title_for_role(user_role),
+            title=document_title(),
             markdown=markdown,
             seed_consulted=_seed_consulted_from_passages(passages),
             evidence_refs=evidence_refs,
@@ -1017,7 +1002,6 @@ async def run_create_cost_plan_hybrid(
                 output,
                 draft_mode,
                 archetype=project.archetype or "",
-                user_role=user_role,
                 project=project,
                 source_texts=project_source_texts,
             )
@@ -1065,7 +1049,6 @@ async def run_create_cost_plan_workflow(
 
     gate = overlay_status(
         archetype=project.archetype,
-        user_role=project.user_role,
         state=project.state,
         building_class=project.building_class,
         work_type=project.work_type,
@@ -1186,7 +1169,6 @@ async def run_create_cost_plan_workflow(
             mandatory_seed_count=len(
                 required_platform_paths(
                     archetype=project.archetype or "",
-                    user_role=project.user_role or "",
                     project=project,
                 )
             ),
@@ -1265,7 +1247,6 @@ async def run_create_cost_plan_workflow(
                         output,
                         draft_mode,
                         archetype=project.archetype or "",
-                        user_role=project.user_role or "",
                         project=project,
                         source_texts=project_source_texts,
                     )

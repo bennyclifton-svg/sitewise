@@ -1,5 +1,7 @@
 # PMP 2.0 — Phase 4: Adaptive 2–4 Page PMP for the Full Matrix
 
+> **Superseded in part (2026-07-24):** references to a user-selectable `user_role` reflect the pre-collapse four-role model. Role is now a single pinned constant. See `docs/plans/2026-07-24-adr-collapse-user-role.md`.
+
 > **For Claude (implementing agent):** REQUIRED SUB-SKILL: Use superpowers:executing-plans to work this phase task-by-task.
 > **Required reading first:** [../2026-07-05-pmp2-live-interactive-pmp.md](../2026-07-05-pmp2-live-interactive-pmp.md) — goal, current-state file map, design decisions D1–D13 (D6-D13 are the contract for this phase), test commands, recorded baseline test failures.
 > **Depends on:** [Phase 1](01-phase-1-taxonomy-foundation.md) and [Phase 3](03-phase-3-knowledge-expansion.md). **Parallel-safe with:** Phases 2, 5.

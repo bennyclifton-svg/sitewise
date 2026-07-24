@@ -57,9 +57,6 @@ def render_rfp_scaffold(
     ]
     if classification:
         project_lines.append(f"- Project type: {classification}")
-    if getattr(project, "user_role", None):
-        issuer = str(project.user_role).replace("-", " ").replace("_", " ")
-        project_lines.append(f"- Issued by: {issuer}")
 
     assumption_lines = assumptions if assumptions is not None else [
         "This is a client-issued request for fee proposal, not a consultant-issued fee proposal.",

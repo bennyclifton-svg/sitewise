@@ -728,9 +728,6 @@ def _required_guidance_paths(project: Project) -> list[str]:
     the procurement guidance specifically. Returns ``[]`` when project overlays
     are incomplete (guidance cannot be resolved).
     """
-    user_role = getattr(project, "user_role", None)
-    if not user_role:
-        return []
     archetype = getattr(project, "archetype", None)
     building_class = getattr(project, "building_class", None)
     work_type = getattr(project, "work_type", None)
@@ -740,7 +737,6 @@ def _required_guidance_paths(project: Project) -> list[str]:
         resolved = select_required_paths(
             workflow=KNOWLEDGE_WORKFLOW,
             archetype=archetype or "",
-            user_role=user_role,
             building_class=building_class,
             work_type=work_type,
         )

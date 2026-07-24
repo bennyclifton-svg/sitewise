@@ -66,7 +66,7 @@ def _render_harrison_clarke_scaffold() -> str:
 def test_render_pmp_scaffold_includes_all_architect_pm_sections() -> None:
     markdown = _render_harrison_clarke_scaffold()
     assert markdown.startswith("# Project Management Plan")
-    assert markdown_section_headings(markdown) == list(required_section_headings("architect-pm"))
+    assert markdown_section_headings(markdown) == list(required_section_headings())
 
 
 def test_render_pmp_scaffold_surfaces_harrison_clarke_pack_facts() -> None:
@@ -271,7 +271,6 @@ def test_render_pmp_scaffold_passes_structure_validation() -> None:
     violations = greenfield_structure_violations(
         markdown,
         archetype="new-dwelling",
-        user_role="architect-pm",
     )
     assert violations == []
 

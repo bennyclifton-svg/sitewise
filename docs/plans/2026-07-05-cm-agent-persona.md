@@ -1,5 +1,7 @@
 # Construction-Management Agent Persona Implementation Plan
 
+> **Superseded in part (2026-07-24):** references to a user-selectable `user_role` reflect the pre-collapse four-role model. Role is now a single pinned constant and is no longer user-facing. See `docs/plans/2026-07-24-adr-collapse-user-role.md`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Give the project chat agent (Pi and Hermes runtimes) a construction-management identity so it answers questions like "what is Test Project 112 about?" from project data — instead of reciting the repo's coding-agent `AGENTS.md`.

@@ -78,9 +78,7 @@ def test_validate_update_pmp_output_preserves_baseline_headings() -> None:
         validate_update_pmp_output(
             output,
             baseline_markdown=baseline,
-            archetype="new-dwelling",
-            user_role="architect-pm",
-            has_evidence_delta=True,
+            archetype="new-dwelling",            has_evidence_delta=True,
         )
     except Exception as exc:
         assert "removed baseline sections" in str(exc)
@@ -108,9 +106,7 @@ def test_validate_update_pmp_output_rejects_evidence_contradictions() -> None:
         validate_update_pmp_output(
             output,
             baseline_markdown=baseline,
-            archetype="new-dwelling",
-            user_role="architect-pm",
-            has_evidence_delta=True,
+            archetype="new-dwelling",            has_evidence_delta=True,
         )
     except Exception as exc:
         assert "evidence_grounded fidelity" in str(exc)
@@ -134,9 +130,7 @@ def test_validate_update_pmp_output_accepts_valid_output_without_coverage_refs()
     validate_update_pmp_output(
         output,
         baseline_markdown=baseline,
-        archetype="new-dwelling",
-        user_role="architect-pm",
-        has_evidence_delta=True,
+        archetype="new-dwelling",        has_evidence_delta=True,
     )
 
 
@@ -153,9 +147,7 @@ def test_update_pmp_fails_without_baseline() -> None:
         patch(
             "app.workflows.update_pmp.overlay_status",
             return_value=overlay_status(
-                archetype="new-dwelling",
-                user_role="architect-pm",
-                state="NSW",
+                archetype="new-dwelling",                state="NSW",
             ),
         ),
         patch(

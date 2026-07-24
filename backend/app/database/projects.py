@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.project import Project
-from app.sitewise.gate import overlay_status
+from app.sitewise.gate import DEFAULT_USER_ROLE, overlay_status
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +28,7 @@ DEFAULT_SITEWISE_PROJECT = ProjectSeed(
     workspace_path="data/procurement-blockb",
     phase="procurement",
     archetype="small-commercial",
-    user_role="architect-pm",
+    user_role=DEFAULT_USER_ROLE,
     state="NSW",
     status="active",
     metadata={
@@ -64,7 +64,6 @@ async def create_project(
     title: str,
     slug: str | None,
     archetype: str | None,
-    user_role: str | None,
     state: str | None,
     phase: str,
     building_class: str | None = None,
@@ -87,7 +86,8 @@ async def create_project(
         archetype=archetype,
         building_class=building_class,
         work_type=work_type,
-        user_role=user_role,
+        # Role is pinned server-side; it is never taken from the client request.
+        user_role=DEFAULT_USER_ROLE,
         state=state,
         status="active",
         project_metadata=project_metadata,
@@ -105,12 +105,10 @@ async def update_project_taxonomy(
     building_class: str | None,
     work_type: str | None,
     taxonomy: dict | None,
-    user_role: str | None = None,
     state: str | None = None,
 ) -> Project:
     project.building_class = building_class
     project.work_type = work_type
-    project.user_role = user_role
     project.state = state
     project_metadata = dict(project.project_metadata or {})
     if taxonomy is None:
@@ -177,7 +175,6 @@ def user_owns_project(project: Project | None, user_id: uuid.UUID) -> bool:
 def project_overlay_summary(project: Project) -> dict:
     return overlay_status(
         archetype=project.archetype,
-        user_role=project.user_role,
         state=project.state,
         building_class=project.building_class,
         work_type=project.work_type,

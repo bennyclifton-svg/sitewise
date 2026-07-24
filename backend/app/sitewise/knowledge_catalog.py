@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.source_document import SourceDocument
 from app.retrieval.schemas import SourcePassage
+from app.sitewise.gate import DEFAULT_USER_ROLE
 from app.retrieval.whole_document import (
     _document_columns,
     _platform_scope_filter,
@@ -168,7 +169,6 @@ def _applies(
     entry: CatalogEntry,
     *,
     archetype: str | None,
-    user_role: str,
 ) -> bool:
     if entry.applies_to_archetypes is None and entry.applies_to_classes is not None:
         return False
@@ -176,8 +176,6 @@ def _applies(
         entry.applies_to_archetypes is not None
         and archetype not in entry.applies_to_archetypes
     ):
-        return False
-    if entry.applies_to_roles is not None and user_role not in entry.applies_to_roles:
         return False
     return True
 
@@ -193,22 +191,19 @@ def _applies_to_taxonomy(
     *,
     building_class: str | None,
     work_type: str | None,
-    user_role: str,
 ) -> bool:
-    if entry.applies_to_roles is not None and user_role not in entry.applies_to_roles:
-        return False
     return _matches_axis(
         entry.applies_to_classes, building_class
     ) and _matches_axis(entry.applies_to_work_types, work_type)
 
 
-def _role_entry(entries: tuple[CatalogEntry, ...], user_role: str) -> CatalogEntry | None:
+def _role_entry(entries: tuple[CatalogEntry, ...]) -> CatalogEntry | None:
     return next(
         (
             entry
             for entry in entries
             if entry.tier == "role-overlay"
-            and entry.loaded_by == f"user_role: {user_role}"
+            and entry.loaded_by == f"user_role: {DEFAULT_USER_ROLE}"
         ),
         None,
     )
@@ -238,42 +233,35 @@ def _topic_match(entry: CatalogEntry, topics: list[str] | None) -> bool:
 def applicable_entries(
     *,
     archetype: str | None = None,
-    user_role: str | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
     topics: list[str] | None = None,
 ) -> tuple[CatalogEntry, ...]:
     entries: list[CatalogEntry] = []
+    role_loaded_by = f"user_role: {DEFAULT_USER_ROLE}"
     for entry in file_catalog():
         if not _topic_match(entry, topics):
             continue
-        if building_class is not None and user_role is not None:
+        if building_class is not None:
             if entry.tier == "archetype":
                 continue
-            if (
-                entry.tier == "role-overlay"
-                and entry.loaded_by != f"user_role: {user_role}"
-            ):
+            if entry.tier == "role-overlay" and entry.loaded_by != role_loaded_by:
                 continue
             if not _applies_to_taxonomy(
                 entry,
                 building_class=building_class,
                 work_type=work_type,
-                user_role=user_role,
             ):
                 continue
-        elif user_role is not None:
+        else:
             if (
                 entry.tier == "archetype"
                 and entry.loaded_by != f"archetype: {archetype}"
             ):
                 continue
-            if (
-                entry.tier == "role-overlay"
-                and entry.loaded_by != f"user_role: {user_role}"
-            ):
+            if entry.tier == "role-overlay" and entry.loaded_by != role_loaded_by:
                 continue
-            if not _applies(entry, archetype=archetype, user_role=user_role):
+            if not _applies(entry, archetype=archetype):
                 continue
         entries.append(entry)
     return tuple(entries)
@@ -282,7 +270,6 @@ def applicable_entries(
 def required_paths_by_workflow(
     *,
     archetype: str | None,
-    user_role: str,
     building_class: str | None = None,
     work_type: str | None = None,
     workflows: tuple[str, ...] = WORKFLOWS,
@@ -291,7 +278,6 @@ def required_paths_by_workflow(
         workflow: select_required_paths(
             workflow=workflow,
             archetype=archetype,
-            user_role=user_role,
             building_class=building_class,
             work_type=work_type,
         )
@@ -306,7 +292,6 @@ def required_workflows_for_path(required: dict[str, list[str]], path: str) -> li
 def applicable_platform_paths(
     *,
     archetype: str | None,
-    user_role: str,
     building_class: str | None = None,
     work_type: str | None = None,
     topics: list[str] | None = None,
@@ -316,7 +301,6 @@ def applicable_platform_paths(
         entry.path
         for entry in applicable_entries(
             archetype=archetype,
-            user_role=user_role,
             building_class=building_class,
             work_type=work_type,
             topics=topics,
@@ -325,7 +309,6 @@ def applicable_platform_paths(
     if include_required:
         for required_paths in required_paths_by_workflow(
             archetype=archetype,
-            user_role=user_role,
             building_class=building_class,
             work_type=work_type,
         ).values():
@@ -337,18 +320,16 @@ def select_required_paths(
     *,
     workflow: str,
     archetype: str,
-    user_role: str,
     building_class: str | None = None,
     work_type: str | None = None,
 ) -> list[str]:
     entries = file_catalog()
     if building_class is not None:
-        role_entry = _role_entry(entries, user_role)
+        role_entry = _role_entry(entries)
         if role_entry is None:
             msg = (
                 "Unsupported taxonomy overlay combination: "
-                f"building_class={building_class!r}, work_type={work_type!r}, "
-                f"user_role={user_role!r}"
+                f"building_class={building_class!r}, work_type={work_type!r}"
             )
             raise ValueError(msg)
         ranked_paths: list[tuple[int, str]] = [(0, DOCTRINE_PATH), (2, role_entry.path)]
@@ -360,7 +341,6 @@ def select_required_paths(
                 entry,
                 building_class=building_class,
                 work_type=work_type,
-                user_role=user_role,
             )
         )
         return _dedupe([path for _, path in sorted(ranked_paths)])
@@ -374,12 +354,9 @@ def select_required_paths(
         ),
         None,
     )
-    role_entry = _role_entry(entries, user_role)
+    role_entry = _role_entry(entries)
     if archetype_entry is None or role_entry is None:
-        msg = (
-            f"Unsupported overlay combination: archetype={archetype!r}, "
-            f"user_role={user_role!r}"
-        )
+        msg = f"Unsupported overlay combination: archetype={archetype!r}"
         raise ValueError(msg)
 
     workflow_entries = sorted(
@@ -387,7 +364,7 @@ def select_required_paths(
             entry
             for entry in entries
             if workflow in entry.required_by
-            and _applies(entry, archetype=archetype, user_role=user_role)
+            and _applies(entry, archetype=archetype)
         ),
         key=lambda entry: entry.required_by[workflow],
     )
@@ -411,7 +388,6 @@ async def list_platform_knowledge(
     session: AsyncSession,
     *,
     archetype: str | None = None,
-    user_role: str | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
     topics: list[str] | None = None,
@@ -420,7 +396,6 @@ async def list_platform_knowledge(
     listing: list[dict] = []
     for entry in applicable_entries(
         archetype=archetype,
-        user_role=user_role,
         building_class=building_class,
         work_type=work_type,
         topics=topics,

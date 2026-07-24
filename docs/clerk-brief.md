@@ -2,7 +2,7 @@
 
 This is the practice's concise AI-readable doctrine for **residential** project management work. It is the **judgement layer** — what to think and do. Workspace mechanics (where files live, when to load what, how to write outputs) live in `../AGENTS.md`, not here.
 
-SiteWise serves four user roles across one shared lifecycle: owner-builder, architect-PM (client-side advisory), builder (head contractor), and D&C contractor. The doctrine spine is abstract — **"the project lead"** — and covers the ~80% of obligations common across all four roles. The ~20% of role-divergent content (who takes out HOW, who pays LSL, who issues vs assesses progress claims, etc.) lives in the four role overlay seeds in `../01-seed/`, loaded based on the `user_role:` declaration.
+SiteWise serves the residential project lifecycle through a single abstract role — **"the project lead"**, the client-side advisory (architect-PM) position — covering the obligations of managing a residential project. Role is no longer a user declaration: every project loads the one project-lead overlay seed (`role-architect-pm.md`) in `../01-seed/`. (Position-specific statutory divergence — who takes out HOW, who pays LSL, who issues vs assesses progress claims — is derived from project evidence such as the executed head contract, not from a declared role.)
 
 ## Authority stack
 
@@ -16,7 +16,7 @@ If project evidence conflicts with doctrine, project evidence wins. If evidence 
 
 ## The project lead role
 
-The **project lead** is the user of the harness — the abstraction across owner-builder, architect-PM, builder, and D&C. The project lead carries the time, cost, scope, quality, risk, and compliance position of the project. Specific obligations vary by role (see role overlay seeds), but the abstract responsibilities hold across all four.
+The **project lead** is the user of the harness — the client-side advisory (architect-PM) position managing a residential project. The project lead carries the time, cost, scope, quality, risk, and compliance position of the project. Position-specific statutory obligations are derived from project evidence (the executed head contract, engagement letter, or owner-builder permit on file), not from a declared role.
 
 The project lead must:
 - understand the brief, the commercial drivers, and the role they occupy in the contract chain;
@@ -47,14 +47,14 @@ The project lead protects the project's time, cost, scope, quality, risk, and co
 Purpose: define what is being built, on what basis, under what role configuration, with what statutory instruments and authority pathway. This folder establishes the project at mobilisation.
 
 The project lead must do:
-- declare `archetype`, `user_role`, and `state` in the project `README.md` (the three-overlay declaration is gating per `../AGENTS.md §2`);
-- record the brief in a form proportionate to the role: an owner-builder records their self-defined brief and owner-builder permit; an architect-PM records fee proposal, scope of services, PMP, and declaration of any formal role; a builder records tender response, executed contract, builder's licence, HOW evidence, LSL receipt, contract works insurance; a D&C contractor adds design fee, design programme, design responsibility matrix;
-- confirm statutory instruments required for the role × state × archetype combination are in place before construction starts;
+- declare `archetype` and `state` in the project `README.md` (the two-overlay declaration is gating per `../AGENTS.md §2`);
+- record the brief in a form proportionate to the position evidenced in the project folder — fee proposal, scope of services and PMP for a client-side advisor; and, where the project evidence shows it, the executed head contract, licence, HOW evidence, LSL receipt and contract works insurance carried by the contracting party;
+- confirm statutory instruments required for the position × state × archetype combination are in place before construction starts;
 - identify the planning pathway (CDC, DA, exempt) and authority touch-points;
 - define the high-level project stage regime in the PMP programme / staging section where a PMP is used. If project evidence does not define a more specific stage regime, use the baseline: Stage 1 - concept and schematic design to DA submission; Stage 2 - design development; Stage 3 - construction documentation and delivery. If project evidence requires more granularity, map it back to these baseline stages and state why. For multi-dwelling, apartment, staged OC or D&C-signalled projects, ratchet the PMP up to a detailed staged regime covering design/approvals, procurement, enabling, structure, envelope/services/finishes, commissioning, OC, handover and DLP.
 
 The project lead must not:
-- proceed past mobilisation with `archetype`, `user_role`, or `state` undeclared, blank, or `TBC`;
+- proceed past mobilisation with `archetype` or `state` undeclared, blank, or `TBC`;
 - silently assume a planning pathway where the brief or site has not been tested against the controls;
 - begin work without the statutory instruments the role requires (e.g. a builder beginning without HOW lodged on a contract ≥ the state's threshold).
 
@@ -486,11 +486,11 @@ For Cost Plan outputs, quality includes breadth, granularity, workbook reliabili
 
 Seed knowledge ranks above general LLM knowledge in the authority stack. The agent must consult it **deliberately, not opportunistically**.
 
-**Three-overlay declaration is gating** (per `../AGENTS.md §2`). Before any phase-gate deliverable — cost plan, programme, procurement strategy, contract setup, progress claim assessment, variation management, handover, or any system skill invocation — the agent must:
+**Two-overlay declaration is gating** (per `../AGENTS.md §2`). Before any phase-gate deliverable — cost plan, programme, procurement strategy, contract setup, progress claim assessment, variation management, handover, or any system skill invocation — the agent must:
 
-1. Confirm `archetype`, `user_role`, and `state` are declared in the project `README.md` frontmatter. **If any is missing, blank, or `TBC`, the agent stops and asks.** It does not guess from project name, address, budget, site, or any other proxy.
+1. Confirm `archetype` and `state` are declared in the project `README.md` frontmatter. **If either is missing, blank, or `TBC`, the agent stops and asks.** It does not guess from project name, address, budget, site, or any other proxy.
 2. Load the Tier 2 archetype seed (`new-dwelling-guide.md` | `renovation-guide.md` | `multi-dwelling-guide.md` | `ancillary-guide.md` | `small-commercial-guide.md`).
-3. Load the Tier 3 role overlay seed (`role-owner-builder.md` | `role-architect-pm.md` | `role-builder.md` | `role-d-and-c.md`).
+3. Load the single project-lead overlay seed (`role-architect-pm.md`), always.
 4. Use `seed-targeted-read` to identify any cross-cutting topic seeds the task needs.
 5. List in the deliverable's frontmatter the seed files actually consulted (`seed_consulted:` field). This creates an audit trail the project lead can check at review.
 
@@ -579,13 +579,13 @@ State overlay seed files (`state-VIC.md`, `state-QLD.md`, etc.) do not exist in 
 
 ---
 
-# Sub-roles, authority, and the four-role chain
+# Positions in the residential contract chain
 
-The four user roles occupy different positions in the residential contract chain. The doctrine spine is abstract, but a few cross-cutting points hold across all of them:
+The project lead is a single role, but a residential project still involves distinct **positions** in the contract chain, and the statutory obligations differ by position. The agent derives which position the project lead occupies from **project evidence** (the executed head contract, engagement letter, or owner-builder permit on file), not from a declared role. Reference points:
 
-- **Owner-builder** is principal and contractor simultaneously. HOW does not apply (the owner-builder cannot insure themselves), but statutory warranty to future buyers applies if the property sells within seven years. The owner-builder permit is in the role of "builder's licence equivalent" for the project.
-- **Architect-PM** acts client-side, advisory. Does not take out HOW (the builder does), does not pay LSL (the builder does), but must verify both before signing the construction contract on behalf of the owner. Holds PI insurance for the advisory scope. Does not hold a Superintendent or Certifier role unless expressly appointed and competent.
-- **Builder** holds the head contract with the owner. Takes out HOW, pays LSL, holds builder's licence, holds contract works insurance and public liability. Issues progress claims; assesses subcontractor claims.
-- **D&C contractor** is a builder who also carries design responsibility. All builder obligations apply, plus consultant procurement, PI insurance for design liability, design submission to certifier, design responsibility matrix maintained through the project.
+- **Owner-builder** — principal and contractor simultaneously. HOW does not apply (the owner-builder cannot insure themselves), but statutory warranty to future buyers applies if the property sells within seven years. The owner-builder permit stands in for the builder's licence for the project. Evidenced by an owner-builder permit in the project lead's name.
+- **Client-side advisor (architect-PM)** — advisory. Does not take out HOW (the builder does), does not pay LSL (the builder does), but must verify both before recommending the owner sign the construction contract. Holds PI insurance for the advisory scope. Not a Superintendent or Certifier unless expressly appointed and competent. Evidenced by an engagement letter / fee proposal with no head contract in the project lead's name.
+- **Head-contract builder** — holds the head contract with the owner. Takes out HOW, pays LSL, holds builder's licence, holds contract works insurance and public liability. Issues progress claims; assesses subcontractor claims. Evidenced by a head contract naming the project lead as contractor.
+- **D&C contractor** — a builder who also carries design responsibility. All builder obligations apply, plus consultant procurement, PI insurance for design liability, design submission to certifier, design responsibility matrix. Evidenced as builder, plus a design-responsibility matrix / design fee in the contract.
 
-Role-specific deep coverage lives in the role overlay seeds (`role-owner-builder.md`, `role-architect-pm.md`, `role-builder.md`, `role-d-and-c.md`). The agent loads the overlay matching the `user_role:` declaration; it does not load the other three for the active project.
+The single project-lead overlay seed (`role-architect-pm.md`) is always loaded. When project evidence is silent on position, state the assumption per `§evidence-discipline` and proceed — do not infer position from the project name, budget, or address.

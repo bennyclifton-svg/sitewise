@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.api.chat import require_thread_owner
 from app.auth.dependencies import CurrentUser, get_current_user

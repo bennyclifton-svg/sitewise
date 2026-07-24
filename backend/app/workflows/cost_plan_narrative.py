@@ -152,7 +152,6 @@ def build_cost_plan_narrative_prompt(
         (
             "Overlays: "
             f"archetype={project.archetype}, "
-            f"user_role={project.user_role}, "
             f"state={project.state}"
         ),
         (

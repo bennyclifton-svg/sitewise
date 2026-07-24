@@ -13,7 +13,6 @@ def test_remediation_work_type_always_pulls_remediation_guide() -> None:
         paths = select_required_paths(
             workflow="create-pmp",
             archetype="",
-            user_role="architect-pm",
             building_class=building_class,
             work_type="remediation",
         )
@@ -24,7 +23,6 @@ def test_residential_procurement_uses_quoting_not_commercial_tendering() -> None
     paths = select_required_paths(
         workflow="create-pmp",
         archetype="",
-        user_role="architect-pm",
         building_class="residential",
         work_type="new",
     )
@@ -37,7 +35,6 @@ def test_commercial_procurement_uses_tendering_not_residential_quoting() -> None
     paths = select_required_paths(
         workflow="create-pmp",
         archetype="",
-        user_role="architect-pm",
         building_class="commercial",
         work_type="new",
     )

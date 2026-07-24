@@ -191,7 +191,6 @@ def build_agent_prompt(
     project_id: str,
     title: str,
     archetype: str | None,
-    user_role: str | None,
     state: str | None,
     phase: str | None,
     building_class: str | None,
@@ -215,7 +214,6 @@ def build_agent_prompt(
             project_id=project_id,
             title=title,
             archetype=archetype,
-            user_role=user_role,
             state=state,
             phase=phase,
             building_class=building_class,
@@ -369,7 +367,6 @@ def _project_context_block(
     project_id: str,
     title: str,
     archetype: str | None,
-    user_role: str | None,
     state: str | None,
     phase: str | None,
     building_class: str | None,
@@ -428,7 +425,6 @@ def _project_context_block(
     lines.extend(
         [
             f"phase: {phase or _NOT_DECLARED}",
-            f"user_role: {user_role or _NOT_DECLARED}",
             f"state: {state or _NOT_DECLARED}",
             f"site_address: {site_address or _NOT_DECLARED}",
             f"client: {client or _NOT_DECLARED}",

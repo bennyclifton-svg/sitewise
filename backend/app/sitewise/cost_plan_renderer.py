@@ -6,7 +6,7 @@ from typing import Literal
 
 from app.database.project import Project
 from app.sitewise.cost_plan_evidence import CostPlanEvidencePack, OwnerSuppliedItem
-from app.sitewise.cost_plan_sources import document_title_for_role, required_section_headings
+from app.sitewise.cost_plan_sources import document_title, required_section_headings
 from app.sitewise.mobilisation_evidence import (
     GAP_CERTIFIER,
     GAP_GEOTECHNICAL,
@@ -299,7 +299,7 @@ def _project_profile_label(project: Project) -> str:
         profile = f"{building_class} / {work_type}"
     else:
         profile = building_class or project.archetype or "TBC"
-    return f"{profile}, {project.user_role or 'TBC'}, {project.state or 'TBC'}"
+    return f"{profile}, {project.state or 'TBC'}"
 
 
 def _evidence_path(ref: str) -> str:
@@ -1164,11 +1164,6 @@ def render_cost_plan_scaffold(
         msg = f"Cost plan scaffold renderer supports evidence_grounded mode only (got {draft_mode!r})"
         raise ValueError(msg)
 
-    user_role = project.user_role or "architect-pm"
-    if user_role != "architect-pm":
-        msg = f"Cost plan scaffold renderer supports architect-pm role only (got {user_role!r})"
-        raise ValueError(msg)
-
     citations = _citation_index(pack)
     sections = [
         _render_summary(project, pack, citations),
@@ -1178,7 +1173,7 @@ def render_cost_plan_scaffold(
         _render_sources_and_audit(pack, citations),
     ]
 
-    headings = required_section_headings(user_role)
+    headings = required_section_headings()
     rendered_headings = {
         line.strip()[3:].strip().lower()
         for section in sections
@@ -1190,6 +1185,6 @@ def render_cost_plan_scaffold(
         joined = ", ".join(missing)
         raise RuntimeError(f"Cost plan scaffold missing required sections: {joined}")
 
-    title = document_title_for_role(user_role)
+    title = document_title()
     body = "\n\n".join(sections)
     return f"# {title}\n\n{body}\n"

@@ -325,7 +325,6 @@ const project: ProjectDetail = {
   archetype: null,
   building_class: "residential",
   work_type: "refurb",
-  user_role: "architect-pm",
   state: "NSW",
   status: "active",
   overlay_status: {

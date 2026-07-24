@@ -584,7 +584,6 @@ def _find_text_snippets(
 def _project_overlay_gate(project) -> tuple[object, dict]:
     status = overlay_status(
         archetype=project.archetype,
-        user_role=project.user_role,
         state=project.state,
         building_class=project.building_class,
         work_type=project.work_type,
@@ -593,7 +592,6 @@ def _project_overlay_gate(project) -> tuple[object, dict]:
         "archetype": project.archetype,
         "building_class": project.building_class,
         "work_type": project.work_type,
-        "user_role": project.user_role,
         "state": project.state,
         "ready": status.ready,
         "issues": [issue.model_dump() for issue in status.issues],
@@ -604,7 +602,6 @@ def _project_overlay_gate(project) -> tuple[object, dict]:
 def _platform_overlay_kwargs(project) -> dict[str, str | None]:
     return {
         "archetype": project.archetype,
-        "user_role": project.user_role,
         "building_class": project.building_class,
         "work_type": project.work_type,
     }
@@ -2777,9 +2774,9 @@ async def list_platform_knowledge(
 ) -> dict:
     """Catalog SiteWise platform knowledge (doctrine + seed guides) for this project.
 
-    Applies the three-overlay gate: if the project has not declared archetype,
-    user_role, and state, no knowledge is listed — resolve the gate with the
-    user first. When the gate passes, returns the mandatory reading list per
+    Applies the overlay gate: if the project has not declared its taxonomy
+    (class/work type) and state, no knowledge is listed — resolve the gate with
+    the user first. When the gate passes, returns the mandatory reading list per
     workflow and the guides that apply to the declared overlays (metadata and
     section IDs only — load content with read_platform_knowledge). Optionally
     filter by topics (e.g. ["cost", "programme"]). Platform knowledge informs
@@ -2815,7 +2812,6 @@ async def list_platform_knowledge(
             available = await catalog_platform_knowledge(
                 session,
                 archetype=project.archetype,
-                user_role=project.user_role,
                 building_class=project.building_class,
                 work_type=project.work_type,
                 topics=topics,

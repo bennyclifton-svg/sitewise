@@ -30,7 +30,7 @@ class RoleScenario(BaseModel):
         command_ids = [command.id for command in self.commands]
         if len(command_ids) != len(set(command_ids)):
             raise ValueError("scenario command ids must be unique")
-        if not {"building_class", "work_type", "user_role", "state"}.issubset(
+        if not {"building_class", "work_type", "state"}.issubset(
             self.seed_profile
         ):
             raise ValueError("seed profile is missing a required capability field")

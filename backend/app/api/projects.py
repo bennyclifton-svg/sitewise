@@ -857,7 +857,6 @@ async def post_project(
         archetype=body.archetype,
         building_class=body.building_class,
         work_type=body.work_type,
-        user_role=body.user_role,
         state=body.state,
         phase=body.phase,
         taxonomy=_project_taxonomy_metadata(body),

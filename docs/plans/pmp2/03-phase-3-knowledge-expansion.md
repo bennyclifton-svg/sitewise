@@ -1,5 +1,7 @@
 # PMP 2.0 — Phase 3: Knowledge Layer Expansion (seed merge + class-aware selection)
 
+> **Superseded in part (2026-07-24):** references to a user-selectable `user_role` reflect the pre-collapse four-role model. Role is now a single pinned constant. See `docs/plans/2026-07-24-adr-collapse-user-role.md`.
+
 > **For Claude (implementing agent):** REQUIRED SUB-SKILL: Use superpowers:executing-plans to work this phase task-by-task.
 > **Required reading first:** [../2026-07-05-pmp2-live-interactive-pmp.md](../2026-07-05-pmp2-live-interactive-pmp.md) — goal, current-state file map, design decisions D1–D13 (especially D5 and D12), test commands, recorded baseline test failures.
 > **Knowledge-layer ground rules (from the 2026-07-04 restructure):** selection changes happen in **frontmatter, not code**; `tests/sitewise/test_catalog_parity.py` pins selection output; `search_documents` deliberately keeps `include_platform_knowledge=False` — evidence and knowledge are separate channels by design, don't "fix" that.

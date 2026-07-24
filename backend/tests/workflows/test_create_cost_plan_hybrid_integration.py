@@ -73,7 +73,7 @@ def assert_hybrid_cost_plan_acceptance_criteria(
     ]
 
     assert _section_headings(markdown) == list(
-        required_section_headings("architect-pm")
+        required_section_headings()
     )
     assert (
         cost_plan_evidence_grounded_violations(
@@ -200,9 +200,7 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
             ],
         ),
         "evidence_grounded",
-        archetype="new-dwelling",
-        user_role="architect-pm",
-        source_texts=_harrison_clarke_source_texts(),
+        archetype="new-dwelling",        source_texts=_harrison_clarke_source_texts(),
     )
 
     provenance = create_draft.await_args.kwargs["provenance_metadata"]

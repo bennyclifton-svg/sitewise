@@ -103,7 +103,6 @@ class ProjectProfilePatch(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
-    user_role: str | None = Field(default=None, max_length=64)
     state: str | None = Field(default=None, max_length=16)
     site_address: str | None = Field(default=None, max_length=256)
     client: str | None = Field(default=None, max_length=128)
@@ -112,7 +111,6 @@ class ProjectProfilePatch(BaseModel):
     @field_validator(
         "building_class",
         "work_type",
-        "user_role",
         "state",
         "site_address",
         "client",
@@ -158,7 +156,6 @@ ProjectProfileField = Literal[
     "scale",
     "complexity",
     "work_scope",
-    "user_role",
     "state",
     "site_address",
     "client",
@@ -252,7 +249,6 @@ class CreateProjectRequest(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
-    user_role: str | None = Field(default=None, max_length=64)
     state: str | None = Field(default=None, max_length=16)
     phase: str = Field(default="brief-planning", min_length=1, max_length=64)
 
@@ -269,7 +265,6 @@ class CreateProjectRequest(BaseModel):
         "archetype",
         "building_class",
         "work_type",
-        "user_role",
         "state",
     )
     @classmethod
@@ -313,10 +308,9 @@ class PatchProjectRequest(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
-    user_role: str | None = Field(default=None, max_length=64)
     state: str | None = Field(default=None, max_length=16)
 
-    @field_validator("building_class", "work_type", "user_role", "state")
+    @field_validator("building_class", "work_type", "state")
     @classmethod
     def strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:

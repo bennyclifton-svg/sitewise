@@ -102,7 +102,6 @@ def test_cost_plan_supports_nsw_warehouse_and_logistics() -> None:
                 building_class="industrial",
                 subclasses=[subclass],
                 state="NSW",
-                user_role="architect-pm",
             )
         ).capabilities["create_cost_plan"]
         assert cost_plan.status == "supported"
@@ -117,7 +116,6 @@ def test_cost_plan_rejects_other_industrial_subclasses() -> None:
             building_class="industrial",
             subclasses=["manufacturing"],
             state="NSW",
-            user_role="architect-pm",
         )
     ).capabilities["create_cost_plan"]
     assert cost_plan.status == "unsupported"
@@ -133,20 +131,19 @@ def test_cost_plan_still_rejects_interstate_industrial() -> None:
             building_class="industrial",
             subclasses=["warehouse"],
             state="VIC",
-            user_role="architect-pm",
         )
     ).capabilities["create_cost_plan"]
     assert cost_plan.status == "unsupported"
     assert any("NSW" in reason for reason in cost_plan.reasons)
 
 
-def test_consultant_procurement_requires_role_and_taxonomy_context() -> None:
+def test_consultant_procurement_requires_taxonomy_context() -> None:
     capability = workflow_capabilities(
-        _snapshot(building_class=None, user_role=None)
+        _snapshot(building_class=None)
     ).capabilities["consultant_procurement"]
 
     assert capability.status == "needs_input"
-    assert capability.required_fields == ["building_class", "user_role"]
+    assert capability.required_fields == ["building_class"]
 
 
 def test_contractor_eoi_capability() -> None:

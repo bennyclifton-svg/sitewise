@@ -170,7 +170,7 @@ async def _seed_acceptance_project() -> AcceptanceSeed:
                 workspace_path=f"projects/phase5-{run_id}",
                 phase="procurement",
                 archetype="single_dwelling",
-                user_role="client",
+                user_role="architect-pm",
                 state="NSW",
                 status="active",
                 project_metadata={"acceptance": "phase5", "run_id": run_id},

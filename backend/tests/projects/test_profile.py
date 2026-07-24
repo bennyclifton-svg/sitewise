@@ -208,7 +208,7 @@ def test_validate_profile_patch_rejects_work_scope_from_another_work_type() -> N
     assert "Unknown work_scope for 'refurb': 'demolition'" in raised.value.errors
 
 
-def test_validate_profile_patch_rejects_unknown_role_and_state() -> None:
+def test_validate_profile_patch_rejects_unknown_state() -> None:
     project = _project(profile_revision=2)
 
     with pytest.raises(ProfileValidationError) as raised:
@@ -216,12 +216,10 @@ def test_validate_profile_patch_rejects_unknown_role_and_state() -> None:
             project,
             ProjectProfilePatch(
                 expected_revision=2,
-                user_role="wizard",
                 state="XX",
             ),
         )
 
-    assert "Unknown user_role: 'wizard'" in raised.value.errors
     assert "Unknown state: 'XX'" in raised.value.errors
 
 

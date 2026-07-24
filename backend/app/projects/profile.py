@@ -14,8 +14,8 @@ from app.schemas.projects import (
     ProjectSubclassSelection,
 )
 from app.sitewise.gate import (
+    DEFAULT_USER_ROLE,
     SUPPORTED_STATES,
-    SUPPORTED_USER_ROLES,
     overlay_status,
 )
 from app.sitewise.taxonomy import (
@@ -37,7 +37,6 @@ PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
     "scale",
     "complexity",
     "work_scope",
-    "user_role",
     "state",
     "site_address",
     "client",
@@ -166,8 +165,6 @@ def validate_profile_patch(
     errors.extend(_validate_scale(after))
     errors.extend(_validate_complexity(after))
     errors.extend(_validate_work_scope(after))
-    if after.user_role is not None and after.user_role not in SUPPORTED_USER_ROLES:
-        errors.append(f"Unknown user_role: {after.user_role!r}")
     if after.state is not None and after.state not in SUPPORTED_STATES:
         errors.append(f"Unknown state: {after.state!r}")
     if errors:
@@ -371,7 +368,6 @@ def _profile_change(
             archetype=project.archetype,
             building_class=profile.building_class,
             work_type=profile.work_type,
-            user_role=profile.user_role,
             state=profile.state,
         ),
         risk_flags=[
@@ -394,7 +390,8 @@ def _optional_text(value: Any) -> str | None:
 def _write_profile(project: Project, profile: ProjectProfileView) -> None:
     project.building_class = profile.building_class
     project.work_type = profile.work_type
-    project.user_role = profile.user_role
+    # Role is not user-editable; every project is pinned to the single role.
+    project.user_role = DEFAULT_USER_ROLE
     project.state = profile.state
     metadata = dict(project.project_metadata or {})
     existing_taxonomy = metadata.get("taxonomy")

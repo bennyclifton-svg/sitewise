@@ -1,5 +1,7 @@
 # PMP 2.0 — Live Interactive PMP, Full Class Matrix, and Subclass/Scale/Complexity Taxonomy
 
+> **Superseded in part (2026-07-24):** references to a user-selectable `user_role` reflect the pre-collapse four-role model. Role is now a single pinned constant. See `docs/plans/2026-07-24-adr-collapse-user-role.md`.
+
 > **For Claude:** This is the **shared-context overview** for the PMP 2.0 work — required reading for every implementing agent, but it contains no tasks. Implementation lives in the phase documents under [pmp2/](pmp2/) (index below); each is independently hand-off-able and uses superpowers:executing-plans.
 
 **Goal:** Turn the PMP from a static markdown artifact into a live, semi-interactive, **2–4 page** document that spans the full Australian construction matrix (6 building classes × 5 work types, with subclass/scale/complexity), continuously refreshed by document sweeps over the current active project corpus, with section depth adapting to project type and risk profile. The product must work at both ends of the spectrum: a one-line/taxonomy-only project with no uploaded documents, and an evidence-rich project with up to ~100 active uploaded documents.

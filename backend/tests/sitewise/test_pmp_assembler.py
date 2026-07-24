@@ -160,7 +160,6 @@ def test_assemble_pmp_markdown_passes_evidence_and_structure_validation() -> Non
         greenfield_structure_violations(
             markdown,
             archetype="new-dwelling",
-            user_role="architect-pm",
         )
         == []
     )
