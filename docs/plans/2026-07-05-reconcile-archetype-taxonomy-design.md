@@ -1,5 +1,7 @@
 # Reconcile legacy `archetype` with the Class/Work-type taxonomy
 
+> **Superseded in part (2026-07-24):** references to a user-selectable `user_role` reflect the pre-collapse four-role model. Role is now a single pinned constant. See `docs/plans/2026-07-24-adr-collapse-user-role.md`.
+
 ## Problem
 
 The Project Profile panel shows two competing controls for "what kind of
