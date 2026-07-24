@@ -435,7 +435,6 @@ def test_hybrid_industrial_warehouse_cost_plan_smoke_excludes_residential_conten
     warehouse_pack = _warehouse_cost_pack()
     platform_paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=project.user_role or "",
         project=project,
     )
     platform_passages = [

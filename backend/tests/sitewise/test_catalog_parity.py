@@ -195,7 +195,6 @@ def test_create_cost_plan_taxonomy_residential_excludes_industrial_ref() -> None
     paths = select_required_paths(
         workflow="create-cost-plan",
         archetype="new-dwelling",
-        user_role="architect-pm",
         building_class="residential",
         work_type="new",
     )
@@ -210,7 +209,6 @@ def test_create_cost_plan_taxonomy_industrial_excludes_residential_ref() -> None
     paths = select_required_paths(
         workflow="create-cost-plan",
         archetype="new-dwelling",
-        user_role="architect-pm",
         building_class="industrial",
         work_type="new",
     )

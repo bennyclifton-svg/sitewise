@@ -290,7 +290,7 @@ def test_render_cost_plan_scaffold_industrial_warehouse_uses_industrial_taxonomy
         for line in markdown.splitlines()
         if line.strip().startswith("## ")
     }
-    for heading in required_section_headings("architect-pm"):
+    for heading in required_section_headings():
         assert heading.lower() in headings
 
     assert "Structural steel and frame" in markdown
