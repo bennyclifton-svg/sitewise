@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from app.projects.workflow_capabilities import workflow_capabilities
 from app.schemas.project_snapshot import ProjectSnapshot
 
+_WAREHOUSE_SUBCLASSES = ("warehouse", "logistics_ecommerce")
+
 
 def _snapshot(**profile_overrides: object) -> ProjectSnapshot:
     profile = {
@@ -87,10 +89,55 @@ def test_cost_plan_does_not_claim_six_class_or_interstate_coverage() -> None:
 
     assert cost_plan.status == "unsupported"
     assert cost_plan.reasons == [
-        "Cost Plan reference-data coverage is currently residential only.",
-        "Cost Plan reference-data coverage is currently NSW only.",
+        "Cost Plan reference-data coverage is currently residential and "
+        "NSW warehouse/logistics industrial only."
     ]
     assert matrix.capabilities["create_pmp"].status == "supported"
+
+
+def test_cost_plan_supports_nsw_warehouse_and_logistics() -> None:
+    for subclass in _WAREHOUSE_SUBCLASSES:
+        cost_plan = workflow_capabilities(
+            _snapshot(
+                building_class="industrial",
+                subclasses=[subclass],
+                state="NSW",
+                user_role="architect-pm",
+            )
+        ).capabilities["create_cost_plan"]
+        assert cost_plan.status == "supported"
+        assert any(
+            "warehouse/logistics" in item for item in cost_plan.reference_coverage
+        )
+
+
+def test_cost_plan_rejects_other_industrial_subclasses() -> None:
+    cost_plan = workflow_capabilities(
+        _snapshot(
+            building_class="industrial",
+            subclasses=["manufacturing"],
+            state="NSW",
+            user_role="architect-pm",
+        )
+    ).capabilities["create_cost_plan"]
+    assert cost_plan.status == "unsupported"
+    assert any(
+        "warehouse" in reason.lower() or "logistics" in reason.lower()
+        for reason in cost_plan.reasons
+    )
+
+
+def test_cost_plan_still_rejects_interstate_industrial() -> None:
+    cost_plan = workflow_capabilities(
+        _snapshot(
+            building_class="industrial",
+            subclasses=["warehouse"],
+            state="VIC",
+            user_role="architect-pm",
+        )
+    ).capabilities["create_cost_plan"]
+    assert cost_plan.status == "unsupported"
+    assert any("NSW" in reason for reason in cost_plan.reasons)
 
 
 def test_consultant_procurement_requires_role_and_taxonomy_context() -> None:

@@ -2,6 +2,7 @@
 tier: topic
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
+applies_to_classes: [residential]
 topics: [cost, taxonomy]
 summary: "Practice-level taxonomy for early NSW residential cost plans: workbook-ready groups and the construction breakdown shape. Practice guidance only — never active-project evidence, a market-rate source, or a source-of-truth cost plan."
 required_by: {create-cost-plan: 2}

@@ -45,6 +45,7 @@ import type {
   ProjectDetail,
   ProjectNextAction,
   SortFilesResponse,
+  WorkflowCapability,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
 import { api } from "@/lib/api";
@@ -717,6 +718,8 @@ function WorkflowDetail({
   const isCostPlan = tile.id === "cost-plan";
   const isDocumentIntake = tile.id === "document-intake";
   const isProcurement = tile.id === "procurement";
+  const costPlanCapability = project.workflow_capabilities?.capabilities.create_cost_plan;
+  const costPlanSupported = !costPlanCapability || costPlanCapability.status === "supported";
   const activeTrace = isDocumentIntake
     ? (sortFilesResult?.trace ?? [])
     : isCostPlan
@@ -877,10 +880,16 @@ function WorkflowDetail({
               />
             ) : null}
 
+            {!costPlanSupported ? (
+              <CapabilityGateNotice workflow="Cost Plan" capability={costPlanCapability} />
+            ) : null}
+
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={onRunCreateCostPlan}
-                disabled={isRunningCostPlan || !project.overlay_status.ready}
+                disabled={
+                  isRunningCostPlan || !project.overlay_status.ready || !costPlanSupported
+                }
               >
                 {isRunningCostPlan ? (
                   <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -902,6 +911,7 @@ function WorkflowDetail({
                   !onRunRefreshCostPlan ||
                   isRunningCostPlan ||
                   !project.overlay_status.ready ||
+                  !costPlanSupported ||
                   !activeDraft
                 }
               >
@@ -1070,6 +1080,28 @@ function OverlayGateNotice({
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function CapabilityGateNotice({
+  workflow,
+  capability,
+}: {
+  workflow: string;
+  capability?: WorkflowCapability;
+}) {
+  const reasons = capability?.reasons ?? [];
+  return (
+    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+      <p className="font-medium">{workflow} is not supported for this project yet.</p>
+      {reasons.length ? (
+        <ul className="mt-2 space-y-1 text-xs">
+          {reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

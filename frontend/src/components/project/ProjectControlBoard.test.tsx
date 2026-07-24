@@ -10,6 +10,7 @@ import type {
   ProjectDetail,
   ProjectNextAction,
   TaxonomyCatalog,
+  WorkflowCapability,
 } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -331,6 +332,40 @@ describe("ProjectControlBoard project profile", () => {
     await user.click(screen.getByRole("button", { name: /set project profile/i }));
     expect(onSelectWorkflow).toHaveBeenCalledWith("project-profile");
   });
+
+  it("disables Create/Refresh Cost Plan when the capability is unsupported even though overlays are ready", async () => {
+    const user = userEvent.setup();
+    const onRunCreateCostPlan = vi.fn();
+
+    render(costPlanBoard(costPlanUnsupportedProject, { onRunCreateCostPlan }));
+
+    expect(project.overlay_status.ready).toBe(true);
+    expect(costPlanUnsupportedProject.overlay_status.ready).toBe(true);
+    expect(
+      screen.getByText(
+        "Cost Plan reference-data coverage is currently residential only.",
+      ),
+    ).toBeInTheDocument();
+
+    const createButton = screen.getByRole("button", { name: /create cost plan/i });
+    expect(createButton).toBeDisabled();
+    await user.click(createButton);
+    expect(onRunCreateCostPlan).not.toHaveBeenCalled();
+
+    expect(screen.getByRole("button", { name: /refresh cost plan/i })).toBeDisabled();
+  });
+
+  it("keeps Create Cost Plan enabled when the capability is supported", () => {
+    render(costPlanBoard(costPlanSupportedProject));
+
+    expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
+  });
+
+  it("keeps Create Cost Plan enabled when the project has no capability matrix at all", () => {
+    render(costPlanBoard({ ...project, workflow_capabilities: null }));
+
+    expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
+  });
 });
 
 const project: ProjectDetail = {
@@ -385,6 +420,69 @@ const blockedProject: ProjectDetail = {
   metadata: {},
   risk_flags: [],
 };
+
+const unsupportedCostPlanCapability: WorkflowCapability = {
+  status: "unsupported",
+  reasons: ["Cost Plan reference-data coverage is currently residential only."],
+  required_fields: [],
+};
+
+const costPlanUnsupportedProject: ProjectDetail = {
+  ...project,
+  building_class: "industrial",
+  work_type: "new-build",
+  workflow_capabilities: {
+    schema_version: 1,
+    snapshot_schema_version: 1,
+    snapshot_content_fingerprint: "a".repeat(64),
+    capabilities: { create_cost_plan: unsupportedCostPlanCapability },
+  },
+};
+
+const costPlanSupportedProject: ProjectDetail = {
+  ...project,
+  workflow_capabilities: {
+    schema_version: 1,
+    snapshot_schema_version: 1,
+    snapshot_content_fingerprint: "a".repeat(64),
+    capabilities: {
+      create_cost_plan: { status: "supported", reasons: [], required_fields: [] },
+    },
+  },
+};
+
+function costPlanBoard(
+  projectValue: ProjectDetail,
+  overrides: { onRunCreateCostPlan?: () => void } = {},
+) {
+  return (
+    <ProjectControlBoard
+      project={projectValue}
+      evidence={[]}
+      latestDraft={null}
+      latestCostPlanDraft={null}
+      trace={[]}
+      costPlanTrace={[]}
+      workflowError={null}
+      costPlanWorkflowError={null}
+      isRunningWorkflow={false}
+      isRunningCostPlan={false}
+      selectedWorkflowId="cost-plan"
+      onRunCreatePmp={vi.fn()}
+      onRunUpdatePmp={vi.fn()}
+      onRunCreateCostPlan={overrides.onRunCreateCostPlan ?? vi.fn()}
+      onRunRefreshCostPlan={vi.fn()}
+      onRunSortFiles={vi.fn()}
+      onOpenDraft={vi.fn()}
+      onOpenTenderComparison={vi.fn()}
+      inboxCount={0}
+      sortFilesResult={null}
+      sortFilesDraft={null}
+      sortFilesError={null}
+      isRunningSortFiles={false}
+    />
+  );
+}
 
 function profileBoard(
   projectValue: ProjectDetail,

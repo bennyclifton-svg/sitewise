@@ -23,6 +23,7 @@ _CONTRACTOR_FIELDS = ("building_class", "work_type", "state")
 _TENDER_STATES = frozenset({"NSW", "VIC", "QLD"})
 _TENDER_WORK_TYPES = frozenset({"new", "refurb", "extend"})
 _TENDER_CLASS_1A_SUBCLASSES = frozenset({"house", "townhouses"})
+_INDUSTRIAL_WAREHOUSE_SUBCLASSES = frozenset({"warehouse", "logistics_ecommerce"})
 
 
 def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix:
@@ -138,19 +139,6 @@ def _cost_plan_capability(
         )
 
     profile = snapshot.profile
-    reasons: list[str] = []
-    if profile.building_class != "residential":
-        reasons.append(
-            "Cost Plan reference-data coverage is currently residential only."
-        )
-    if profile.state != "NSW":
-        reasons.append("Cost Plan reference-data coverage is currently NSW only.")
-    if profile.user_role != "architect-pm":
-        reasons.append(
-            "Cost Plan rendering currently supports the architect-PM role only."
-        )
-    if reasons:
-        return WorkflowCapability(status="unsupported", reasons=reasons)
     confirmations = {
         "create": ["confirm_reference_coverage"],
         "refresh": ["expected_base_version", "confirm_refresh_proposal"],
@@ -161,14 +149,64 @@ def _cost_plan_capability(
             "confirm_apply_as_proposal",
         ],
     }[action]
+
+    if profile.building_class == "residential":
+        reasons: list[str] = []
+        if profile.state != "NSW":
+            reasons.append("Cost Plan reference-data coverage is currently NSW only.")
+        if profile.user_role != "architect-pm":
+            reasons.append(
+                "Cost Plan rendering currently supports the architect-PM role only."
+            )
+        if reasons:
+            return WorkflowCapability(status="unsupported", reasons=reasons)
+        return WorkflowCapability(
+            status="supported",
+            reasons=[
+                "The confirmed profile is within current NSW residential Cost Plan "
+                "coverage; missing reference data must be confirmed, never filled "
+                "from general model knowledge."
+            ],
+            required_confirmations=confirmations,
+            reference_coverage=["NSW residential architect-PM reference set"],
+        )
+
+    if profile.building_class == "industrial":
+        reasons = []
+        if profile.state != "NSW":
+            reasons.append("Cost Plan reference-data coverage is currently NSW only.")
+        if profile.user_role != "architect-pm":
+            reasons.append(
+                "Cost Plan rendering currently supports the architect-PM role only."
+            )
+        if not _profile_subclasses(snapshot) & _INDUSTRIAL_WAREHOUSE_SUBCLASSES:
+            reasons.append(
+                "Cost Plan industrial coverage is currently NSW warehouse / "
+                "logistics Class 7b only."
+            )
+        if reasons:
+            return WorkflowCapability(status="unsupported", reasons=reasons)
+        return WorkflowCapability(
+            status="supported",
+            reasons=[
+                "The confirmed profile is within current NSW industrial warehouse/"
+                "logistics Cost Plan coverage; the reference set is structure only "
+                "and has no rate pack, so missing reference data must be confirmed, "
+                "never filled from general model knowledge."
+            ],
+            required_confirmations=confirmations,
+            reference_coverage=[
+                "NSW industrial warehouse/logistics Class 7b scaffold set "
+                "(structure only; no rate pack)"
+            ],
+        )
+
     return WorkflowCapability(
-        status="supported",
+        status="unsupported",
         reasons=[
-            "The confirmed profile is within current NSW residential Cost Plan coverage; "
-            "missing reference data must be confirmed, never filled from general model knowledge."
+            "Cost Plan reference-data coverage is currently residential and "
+            "NSW warehouse/logistics industrial only."
         ],
-        required_confirmations=confirmations,
-        reference_coverage=["NSW residential architect-PM reference set"],
     )
 
 
@@ -189,3 +227,9 @@ def _subclass_value(value: object) -> str:
     if isinstance(value, str):
         return value
     return str(getattr(value, "value", ""))
+
+
+def _profile_subclasses(snapshot: ProjectSnapshot) -> set[str]:
+    return {
+        _subclass_value(item) for item in getattr(snapshot.profile, "subclasses", [])
+    }

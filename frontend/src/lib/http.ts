@@ -44,13 +44,47 @@ async function parseJsonBody(response: Response): Promise<unknown> {
   return parseJsonText(await response.text());
 }
 
-function errorDetail(payload: unknown, status: number): string {
-  return typeof payload === "object" &&
-    payload !== null &&
-    "detail" in payload &&
-    typeof (payload as { detail: unknown }).detail === "string"
-    ? (payload as { detail: string }).detail
-    : `Request failed with status ${status}`;
+type StructuredErrorDetail = {
+  code?: unknown;
+  status?: unknown;
+  reasons?: unknown;
+  required_fields?: unknown;
+};
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+/**
+ * Formats a parsed error response body into a readable message. Backend 409s
+ * for workflow capability conflicts send a structured `detail` object
+ * (`{ code, status, reasons, required_fields }`) instead of a plain string;
+ * this surfaces the actual reasons instead of a bare status code.
+ */
+export function formatErrorDetail(payload: unknown, status: number): string {
+  if (typeof payload !== "object" || payload === null || !("detail" in payload)) {
+    return `Request failed with status ${status}`;
+  }
+
+  const detail = (payload as { detail: unknown }).detail;
+  if (typeof detail === "string") return detail;
+
+  if (typeof detail === "object" && detail !== null) {
+    const structured = detail as StructuredErrorDetail;
+    const reasons = stringArray(structured.reasons);
+    if (reasons.length) {
+      const requiredFields = stringArray(structured.required_fields);
+      const message = reasons.join(" ");
+      return requiredFields.length
+        ? `${message} Missing: ${requiredFields.join(", ")}.`
+        : message;
+    }
+    if (typeof structured.status === "string") {
+      return `Request failed with status ${status} (${structured.status}).`;
+    }
+  }
+
+  return `Request failed with status ${status}`;
 }
 
 export async function httpRequest<T>(
@@ -82,7 +116,7 @@ export async function httpRequest<T>(
     const payload = await parseJsonBody(response);
 
     if (!response.ok) {
-      throw new ApiError(errorDetail(payload, response.status), {
+      throw new ApiError(formatErrorDetail(payload, response.status), {
         kind: "http",
         status: response.status,
         body: payload,
@@ -164,7 +198,7 @@ export function httpUploadRequest<T>(
         return;
       }
       reject(
-        new ApiError(errorDetail(payload, xhr.status), {
+        new ApiError(formatErrorDetail(payload, xhr.status), {
           kind: "http",
           status: xhr.status,
           body: payload,

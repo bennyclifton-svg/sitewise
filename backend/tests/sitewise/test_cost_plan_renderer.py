@@ -1,11 +1,20 @@
 import time
+from datetime import datetime, timezone
 
-from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
+from app.database.project import Project
+from app.sitewise.cost_plan_evidence import CostPlanEvidencePack, extract_cost_plan_evidence_pack
 from app.sitewise.cost_plan_evidence_validation import cost_plan_evidence_grounded_violations
 from app.sitewise.cost_plan_renderer import render_cost_plan_scaffold
 from app.sitewise.cost_plan_sources import required_section_headings
+from app.sitewise.mobilisation_evidence import MobilisationEvidencePack
 from tests.sitewise.test_cost_plan_evidence import FIXTURE_DIR
-from tests.sitewise.test_pmp_renderer import REPO_ROOT, _harrison_clarke_project, _walsh_project
+from tests.sitewise.test_pmp_renderer import (
+    PROJECT_ID,
+    USER_ID,
+    REPO_ROOT,
+    _harrison_clarke_project,
+    _walsh_project,
+)
 
 
 def _read(name: str) -> str:
@@ -31,6 +40,53 @@ def _walsh_cost_pack():
     texts = [path.read_text(encoding="utf-8") for path in paths]
     refs = [f"ref:{path.name}" for path in paths]
     return extract_cost_plan_evidence_pack(texts, refs)
+
+
+def _warehouse_project() -> Project:
+    return Project(
+        id=PROJECT_ID,
+        owner_user_id=USER_ID,
+        slug="eastern-creek-distribution-centre",
+        title="Eastern Creek Distribution Centre",
+        workspace_path="04-projects/eastern-creek-distribution-centre",
+        phase="brief-planning",
+        archetype=None,
+        building_class="industrial",
+        work_type="new",
+        user_role="architect-pm",
+        state="NSW",
+        status="active",
+        project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+        created_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+    )
+
+
+def _warehouse_cost_pack() -> CostPlanEvidencePack:
+    mobilisation = MobilisationEvidencePack(
+        owners="Southern Logistics Holdings Pty Ltd",
+        site_address="12 Distribution Drive, Eastern Creek NSW 2766",
+        appointee="Meridian Industrial Architects Pty Ltd",
+        fee_total_ex_gst="$185,000",
+        engagement_executed_date="12/03/2026",
+        gaps=[
+            "Geotechnical report",
+            "Certifier appointment",
+            "Master programme on file",
+            "Owner project brief formal sign-off",
+            "Construction budget",
+        ],
+        evidence_refs=["ref:a"],
+    )
+    return CostPlanEvidencePack(
+        mobilisation=mobilisation,
+        project_name="Eastern Creek Distribution Centre",
+        construction_budget_ceiling="$6,200,000",
+        contingency_amount="$310,000",
+        contingency_percent="5",
+        owner_brief_on_file=True,
+        evidence_refs=["ref:a"],
+    )
 
 
 def test_render_cost_plan_scaffold_includes_all_sections() -> None:
@@ -216,3 +272,50 @@ def test_grand_total_includes_benchmarked_construction() -> None:
             grand = _money_to_int(line.split("|")[4])
     assert grand == sum(subtotals)
     assert grand >= 1_850_000 + 148_500 + 120_000
+
+
+NO_RATE_PACK_DISCLOSURE = (
+    "No NSW industrial rate pack exists yet — this is a structure-only scaffold; "
+    "every construction line is a lump-sum TBC pending head-builder tender."
+)
+
+
+def test_render_cost_plan_scaffold_industrial_warehouse_uses_industrial_taxonomy() -> None:
+    markdown = render_cost_plan_scaffold(
+        _warehouse_project(), _warehouse_cost_pack(), "evidence_grounded"
+    )
+
+    headings = {
+        line.strip()[3:].strip().lower()
+        for line in markdown.splitlines()
+        if line.strip().startswith("## ")
+    }
+    for heading in required_section_headings("architect-pm"):
+        assert heading.lower() in headings
+
+    assert "Structural steel and frame" in markdown
+    assert "Dock hardstand and yard" in markdown
+    assert "Kitchen and bathrooms" not in markdown
+    assert "BASIX" not in markdown
+    assert NO_RATE_PACK_DISCLOSURE in markdown
+
+
+def test_render_cost_plan_scaffold_residential_still_uses_residential_taxonomy() -> None:
+    markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded")
+
+    assert "Kitchen and bathrooms" in markdown
+    assert "BASIX" in markdown
+    assert "Structural steel and frame" not in markdown
+    assert "Dock hardstand and yard" not in markdown
+    assert NO_RATE_PACK_DISCLOSURE not in markdown
+
+
+def test_render_cost_plan_scaffold_walsh_residential_still_uses_residential_taxonomy() -> None:
+    project = _walsh_project()
+    project.building_class = "residential"
+    project.work_type = "refurb"
+    markdown = render_cost_plan_scaffold(project, _walsh_cost_pack(), "evidence_grounded")
+
+    assert "Kitchen and bathrooms" in markdown
+    assert "BASIX" in markdown
+    assert NO_RATE_PACK_DISCLOSURE not in markdown
