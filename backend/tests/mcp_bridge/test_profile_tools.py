@@ -143,7 +143,6 @@ def test_direct_update_uses_bound_scope_and_refreshes_next_prompt(monkeypatch) -
     changes = {
         "building_class": "residential",
         "work_type": "refurb",
-        "user_role": "architect-pm",
         "state": "NSW",
     }
 
@@ -174,7 +173,7 @@ def test_direct_update_uses_bound_scope_and_refreshes_next_prompt(monkeypatch) -
         "resourceId": str(PROJECT_ID),
         "action": "updated",
         "revision": 2,
-        "changedFields": ["building_class", "work_type", "user_role", "state"],
+        "changedFields": ["building_class", "work_type", "state"],
         "clearedFields": [],
     }
     prompt = build_agent_prompt(
@@ -182,7 +181,6 @@ def test_direct_update_uses_bound_scope_and_refreshes_next_prompt(monkeypatch) -
         project_id=str(project.id),
         title=project.title,
         archetype=project.archetype,
-        user_role=project.user_role,
         state=project.state,
         phase=project.phase,
         building_class=project.building_class,
@@ -192,7 +190,6 @@ def test_direct_update_uses_bound_scope_and_refreshes_next_prompt(monkeypatch) -
     )
     assert "building_class: residential" in prompt
     assert "work_type: refurb" in prompt
-    assert "user_role: architect-pm" in prompt
 
 
 def test_update_rejects_unscoped_turn_before_profile_service(monkeypatch) -> None:

@@ -1,0 +1,663 @@
+# Implementation Plan — Collapse `user_role` to a Single Role
+
+**Repo:** `bennyclifton-svg/sitewise` (Clerk)
+**Status:** Ready for execution
+**Audience:** Coding agent or developer working phase-by-phase
+**Baseline commit:** `565d433` (main, 2026-07-20)
+
+---
+
+## 0. Read First
+
+Before touching code, read `AGENTS.md`, `backend/AGENTS.md`, and `frontend/AGENTS.md`. House rules that matter for this work:
+
+- **No backwards-compat shims** unless explicitly asked. This plan asks for exactly one (a server-side default), and it is temporary.
+- **No speculative feature flags.**
+- **Validate at boundaries only.** Internal callers are trusted — this is why role parameters can be removed from internal signatures rather than defaulted.
+- **Do not touch** `backend/app/chat/orchestrator.py`, `backend/app/assistant/*`, or Polar billing. They are legacy-retained until the Phase 8.5 cutover gate.
+- **Do not touch** `backend/tender/`. Tender Comparison does not gate on `user_role` and is out of scope.
+
+---
+
+## 1. Goal
+
+Remove "Your role" as a user-facing concept. Today it is a required four-way choice (`owner-builder`, `architect-pm`, `builder`, `d-and-c`) that blocks three workflows until set, and it changes what documents the product generates. It is being removed to reduce setup friction.
+
+**Success criteria:**
+
+1. No role selector anywhere in the UI.
+2. No workflow is ever `Blocked` or `needs_input` because of role.
+3. Project Plan and Cost Plan generate one consistent document regardless of any historical role value.
+4. Backend, frontend, tests, seed data, and docs are internally consistent — no dead role branches left behind.
+5. CI green: backend ruff + pytest, frontend tsc + lint + test + build.
+
+---
+
+## 2. Decisions Already Made — Do Not Relitigate
+
+| # | Decision | Rationale |
+|---|---|---|
+| **D1** | **Collapse target is `architect-pm`.** | It is the only role Cost Plan supports today (`_cost_plan_capability` hard-rejects the other three); it is already the frontend create default; it has the deepest section-brief coverage. Every other target requires building capability that does not exist. |
+| **D2** | **Do NOT drop the `projects.user_role` DB column in this work.** | Column drops are irreversible and the win is zero. Leave it nullable and unread. A cleanup migration can come later once the code change has been in production for a release cycle. |
+| **D3** | **Role is not a request field.** The API stops accepting `user_role` on create/patch. The column is written once server-side with the constant, then never read for behaviour. | Keeps existing rows valid and avoids a data migration on the critical path. |
+| **D4** | **Retire the three non-architect role seeds from selection; do not delete the files in this pass.** *(Superseded by Phase 6 if that phase runs.)* | `data/seed/role-owner-builder.md`, `role-builder.md`, `role-d-and-c.md` stay on disk but drop out of the knowledge catalog. Deleting them is a separate change with a re-ingestion cost (see §12). |
+| **D5** | **Keep the "what kind of project" overlays** — `building_class`, `work_type`, `state`, subclasses. Only `user_role` is being collapsed. | These carry real capability meaning (Cost Plan is NSW-residential-only; Tender Comparison is Class 1a NSW/VIC/QLD-only). |
+| **D6** | **Phases ship independently.** Each phase is one commit, CI-green on its own. | Allows stopping after Phase 3 if the remaining cleanup gets deprioritised. |
+| **D7** | **If the four role seeds are merged (Phase 6), the merged role is named "project lead" — not "Construction Manager".** | "Construction Manager" is already used in this repo for the *agent* persona (`docs/plans/2026-07-05-cm-agent-persona.md`, `docs/acceptance/role-scenarios/construction-manager.yaml`), and in industry it denotes a specific procurement model rather than a generic term. "Project lead" is the doctrine's own existing abstraction in `docs/clerk-brief.md`. Full reasoning in §6.1. |
+
+---
+
+## 3. Open Questions — Answer Before Phase 1
+
+These need a human decision. Do not guess.
+
+**Q1 — Existing production projects with a non-architect role.**
+Run against production before starting:
+
+```sql
+SELECT user_role, count(*) FROM projects GROUP BY user_role ORDER BY 2 DESC;
+```
+
+- If the count of non-`architect-pm` rows is **0**, nothing further is needed.
+- If it is **small**, backfill in Phase 1 (statement provided).
+- If it is **large**, note that those projects' Project Plan output will change shape on next regeneration (see Q2). Existing saved drafts are untouched either way — drafts are versioned artefacts, not regenerated in place.
+
+**Q2 — Do the four role seed overlays get merged?**
+Pinning to `architect-pm` is mechanically cheap, but the product then keeps architect-PM framing for everyone: a section literally titled *"Architect-PM role and appointment"*, *"Two-brief discipline"*, PI-insurance placeholders, and client-side advisory voice. A builder or owner-builder gets guidance written for someone else's position — including instructions to verify statutory instruments they hold themselves.
+
+- **Answer "no"** → skip Phase 6. Output is unchanged from today's architect-PM path. Lowest risk, fastest, but the product is quietly architect-PM-shaped.
+- **Answer "yes"** → do Phase 6, now fully specified. It merges the four seeds into `role-project-lead.md` and converts role-branching into evidence-conditional guidance.
+
+**This is the only phase that is not a refactor.** It rewrites statutory content in a construction compliance product, and it carries a real failure mode: a careless merge tells an owner-builder to lodge home warranty insurance they are legally unable to hold. Phase 6 has a mandatory domain review gate (§6.8). Budget for that reviewer's time before committing to this phase, not after.
+
+**Q3 — Does anything downstream read `user_role` outside this repo?**
+Check Supabase views, exports, or reporting that select the column. If yes, D2 (keep the column) already protects them.
+
+---
+
+## 4. Scope Map
+
+Measured on the baseline commit.
+
+| Area | Files | References | Phase |
+|---|---|---|---|
+| Backend app code | 29 | ~208 | 1, 3, 4, 6 |
+| Backend tests | 49 | ~178 | 5 |
+| Frontend `src` | 7 | 29 | 2 |
+| Seed / knowledge data | 38 | 38 | 4 |
+| Docs & acceptance fixtures | 10 | — | 7 |
+
+**Out of scope:** `backend/tender/*`, `backend/app/assistant/*`, `backend/app/chat/orchestrator.py`, Polar billing, the `archetype` legacy field, dropping the DB column.
+
+---
+
+## 5. Phase Order and Dependencies
+
+```
+Phase 1 (backend: ungate + pin constant)   ← must be first
+        │
+        ├── Phase 2 (frontend: remove picker)     ← needs Phase 1 deployed
+        │
+        └── Phase 3 (backend: collapse branching) ← needs Phase 1
+                    │
+                    ├── Phase 4 (knowledge catalog + seeds)
+                    │
+                    └── Phase 5 (tests)   ← run continuously, finalise here
+                                │
+                                ├── Phase 6 (merge seeds → role-project-lead.md — only if Q2 = yes)
+                                │        └── domain review gate (§6.8) before merge
+                                │
+                                └── Phase 7 (docs)   ← if Phase 6 runs, docs must follow it
+```
+
+After **Phase 2** the user-visible goal is met. Phases 3–5 and 7 are debt cleanup.
+
+**Phase 6 is different in kind.** Phases 1–5 and 7 are refactors — mechanical, verifiable by CI, revertable by `git revert`. Phase 6 rewrites statutory guidance and cannot be validated by tests. Treat it as a separate project with its own review cycle, not as the tail of a refactor.
+
+---
+
+## Phase 1 — Backend: Ungate and Pin the Constant
+
+**Goal:** Role stops blocking anything. Every project has a role value without anyone choosing one.
+
+**Commit:** `refactor(projects): pin user_role to a single role and remove it from gating`
+
+### Files
+
+- `backend/app/sitewise/gate.py`
+- `backend/app/projects/workflow_capabilities.py`
+- `backend/app/projects/profile.py`
+- `backend/app/schemas/projects.py`
+- `backend/app/database/projects.py`
+- `backend/app/api/projects.py`
+- `backend/app/agent/mutation_intent.py`
+
+### Steps
+
+1. **Create the constant.** In `backend/app/sitewise/gate.py`, add:
+
+   ```python
+   DEFAULT_USER_ROLE = "architect-pm"
+   ```
+
+   This is the single source of truth for the collapsed role. Every other module imports it from here. Do not redefine it elsewhere.
+
+2. **`gate.py` — remove role from the overlay gate.**
+   - Delete `SUPPORTED_USER_ROLES`.
+   - In `overlay_status()`, remove `user_role` from the required-field loop (currently paired with `state` in the `for field, value, supported in (...)` block). Keep `state`.
+   - Keep the `user_role` keyword argument on `overlay_status()` for now and ignore it — Phase 3 removes it from the signature once all callers are updated. Prefix it `_user_role` so ruff does not flag it.
+
+3. **`workflow_capabilities.py` — remove role from capability gating.**
+   - Remove `"user_role"` from `_PROJECT_PLAN_FIELDS` and `_CONSULTANT_FIELDS`.
+   - In `_cost_plan_capability()`, **delete** the block that appends *"Cost Plan rendering currently supports the architect-PM role only."* This is the change that unblocks Cost Plan for every existing project.
+   - Leave the `building_class != "residential"` and `state != "NSW"` checks intact — those are real coverage limits (D5).
+
+4. **`profile.py` — stop accepting role as user input.**
+   - Remove `"user_role"` from `PROFILE_FIELDS`.
+   - Delete the validation at ~line 167 (`if after.user_role is not None and after.user_role not in SUPPORTED_USER_ROLES`).
+   - Where the profile is applied to the project (~line 374, `project.user_role = profile.user_role`), replace with an unconditional `project.user_role = DEFAULT_USER_ROLE`.
+
+5. **`schemas/projects.py` — remove role from request models, keep it on read models.**
+   - Remove `user_role` from `ProjectProfilePatch` and any other **request/patch** model (the `Field(default=None, max_length=64)` occurrences).
+   - Remove `"user_role"` from the profile-field literal/tuple definitions.
+   - **Keep** `user_role` on read/view models for now so the MCP snapshot and existing clients do not break mid-flight. It becomes a constant in every response.
+
+6. **`database/projects.py` / `api/projects.py` — default on write.**
+   - Project creation must set `user_role=DEFAULT_USER_ROLE` server-side.
+   - Ignore any `user_role` supplied by a client rather than erroring on it — the old frontend may still be live when this deploys.
+
+7. **`agent/mutation_intent.py` — stop treating role as a mutable target.**
+   - Delete the `_ROLES` alias dict (~line 64) and its `_match_alias(targets, "user_role", ...)` call (~line 143). The agent should no longer offer to change role in chat.
+
+8. **Backfill (only if Q1 says non-architect rows exist).** Run as a one-off, not an Alembic migration:
+
+   ```sql
+   UPDATE projects SET user_role = 'architect-pm' WHERE user_role IS DISTINCT FROM 'architect-pm';
+   ```
+
+### Verification
+
+```bash
+cd backend
+uv run ruff check app ingest tender tests
+uv run pytest -m "not integration and not tender_eval"
+```
+
+Expect failures in tests asserting role-gating behaviour — that is correct. Fix them **in this commit** (they belong to Phase 1's behaviour change); leave role-*branching* test failures for Phase 5.
+
+**Done when:** a project with `building_class`, `work_type`, and `state` set — and no role ever chosen — reports `overlay_status.ready == true`, and `create_pmp`, `create_cost_plan`, and `consultant_procurement` all report `supported`.
+
+---
+
+## Phase 2 — Frontend: Remove the Picker
+
+**Goal:** No role selector in the UI. This is the phase that delivers the actual UX win.
+
+**Commit:** `refactor(frontend): remove project role selection`
+
+**Prerequisite:** Phase 1 deployed. Deploying this first would leave projects with no role and a backend that still gates on it — everything would show `Blocked`.
+
+### Files
+
+- `frontend/src/lib/project-overlays.ts`
+- `frontend/src/components/project/ProjectControlBoard.tsx`
+- `frontend/src/components/project/CreateProjectPanel.tsx`
+- `frontend/src/lib/types/project.ts`
+- `frontend/src/pages/CockpitPreviewPage.tsx`
+
+### Steps
+
+1. **`project-overlays.ts`** — delete the `projectRoleOptions` export. Keep `projectStateOptions`.
+
+2. **`ProjectControlBoard.tsx`** (12 references — the main surface):
+   - Delete the `OverlaySelectField` block with `label="Your role"` (~line 381).
+   - The remaining `State` field is now alone in its `grid md:grid-cols-2` row. Either pair it with the next control or drop to a single column — do not leave a lone field in a two-column grid.
+   - Remove `userRole` from the form state type (~line 438), the field-name union (~line 444), the field-name tuple (~line 454), initialisation from `project.user_role` (~line 461), the `field === "user_role"` accessor (~line 485), and the rebase `case "user_role"` (~line 502).
+   - Remove `user_role` from the save payload (~line 298) and the post-save state update (~line 305).
+   - Update the incomplete-overlays helper text — it currently reads *"Set role, state, class, and work type here…"*. Drop "role".
+
+3. **`CreateProjectPanel.tsx`** — remove the `userRole` state (~line 30), the `user_role` payload field (~line 51), and the role control (~line 110).
+
+4. **`lib/types/project.ts`** — mark `user_role` optional or remove it from the client-facing types. If the read model still returns it (Phase 1 step 5), typing it as optional is fine; nothing should branch on it.
+
+5. **`CockpitPreviewPage.tsx`** — remove the hardcoded `user_role: "architect-pm"` fixture value (~line 36) once the type no longer requires it.
+
+6. **Tests** — update `ProjectControlBoard.test.tsx` (6 refs), `ProjectCockpitPage.test.tsx` (1), `workflowTiles.test.ts` (1). Assertions that the role field renders should be deleted, not rewritten.
+
+### Verification
+
+```bash
+cd frontend
+pnpm tsc --noEmit
+pnpm lint
+pnpm test
+pnpm build
+```
+
+Then manually: create a project, set only class / work type / state, and confirm Project Plan and Cost Plan both show **Ready** with no role prompt anywhere.
+
+**Done when:** `grep -rn "user_role\|userRole" frontend/src` returns only optional-type declarations, no UI and no logic.
+
+---
+
+## Phase 3 — Backend: Collapse the Branching
+
+**Goal:** Remove the four-way branches so there is exactly one document shape. Pure refactor — no behaviour change from Phase 1's architect-PM path.
+
+**Commit:** `refactor(sitewise): collapse role-specific PMP and cost plan paths`
+
+This is the largest phase. Work module-by-module, running tests between each.
+
+### Order of operations
+
+1. **`backend/app/sitewise/pmp_sources.py`** — the root of the branching.
+   - Collapse `ROLE_SECTION_HEADINGS` to the single `ARCHITECT_PM_PMP_SECTIONS` tuple. Delete `OWNER_BUILDER_MOBILISATION_SECTIONS`, `BUILDER_MOBILISATION_SECTIONS`, `D_AND_C_MOBILISATION_SECTIONS`.
+   - Collapse `ROLE_DOCUMENT_TITLES` to the single title `"Project Management Plan"`. Delete the three `… Mobilisation Plan` titles.
+   - Collapse `ROLE_SEED_PATHS` to `seed/role-architect-pm.md` only. *(If Phase 6 is planned, this becomes `seed/role-project-lead.md` there — do not pre-empt the rename here, Phase 6 owns it.)*
+   - Change `required_section_headings()` and `document_title_for_role()` to stop taking `user_role`. Rename `document_title_for_role` → `document_title` for honesty.
+
+2. **`backend/app/sitewise/section_contracts.py`** — `document_title(user_role, work_type)` and its `DOCUMENT_TITLES` lookup. Drop the role parameter; keep the `work_type` variation.
+
+3. **`backend/app/sitewise/pmp_greenfield_brief.py`** (26 refs):
+   - Collapse `ROLE_OVERLAYS` to the architect-PM overlay string. Delete `ROLE_OWNER_BUILDER_OVERLAY`, `ROLE_BUILDER_OVERLAY`, `ROLE_D_AND_C_OVERLAY`.
+   - Delete `BUILDER_SECTION_BRIEFS` and the `if user_role == "builder"` branch (~line 721, 744) including the instruction *"Never use architect-PM procurement language (invited builders) when user_role is builder."*
+   - `_archetype_overlay_for_role()` (~line 573) has an `if user_role != "architect-pm": return ""` early exit — the condition is now always false, so inline the architect-PM path and drop the parameter.
+   - `programme_submilestone_table(user_role)` and `greenfield_quality_markers(archetype, user_role)` — drop the role key.
+   - Remove `- User provided role: …` from the prompt context block (~line 904).
+
+4. **`backend/app/workflows/create_pmp.py`** (29 refs — highest count):
+   - Delete the `if user_role == "architect-pm": … else: …` branch at ~line 651 and keep only the architect-PM `role_note`.
+   - Delete the `(project.user_role or "") == "architect-pm"` condition at ~line 897 (always true).
+   - Remove `user_role=` from every internal call and signature: `_format_required_sections`, `build_create_pmp_prompt`, and the assembler/renderer calls at ~1257, ~1411, ~1466, ~1483, ~1549.
+   - Remove `user_role={project.user_role}` from the diagnostic strings at ~line 704.
+
+5. **`backend/app/workflows/create_cost_plan.py`** (22 refs) — same treatment. Note `cost_plan_sources.required_section_headings(_user_role)` and `document_title_for_role(_user_role)` **already ignore** the parameter (leading underscore), so this is signature cleanup only.
+
+6. **Remaining modules**, in descending reference count:
+   `sitewise/pmp_renderer.py` (10) · `workflows/update_pmp.py` (9) · `sitewise/cost_plan_brief.py` (8) · `sitewise/cost_plan_sources.py` (6) · `sitewise/cost_plan_renderer.py` (6) · `mcp_bridge/server.py` (5) · `agent/turn_context.py` (4) · `workflows/consultant_procurement.py` (3) · `workflows/worker.py`, `workflows/sort_files.py`, `workflows/pmp_narrative.py`, `workflows/cost_plan_narrative.py`, `api/chat.py` (1 each).
+
+7. **`backend/app/agent/turn_context.py`** — remove `user_role` from `build_agent_prompt()` and from the `_project_context_block` output (~line 277). The chat agent should no longer see a role line. Leave `HistoryMessage.role` alone — that is the message author (`user`/`assistant`), completely unrelated.
+
+8. **`backend/app/mcp_bridge/server.py`** — remove `user_role` from the project snapshot payloads (~582, 591, 602, 2754) and from the platform-knowledge tool docstring at ~line 2717, which currently tells the agent it needs role declared before listing knowledge.
+
+9. **`backend/app/sitewise/gate.py`** — now that no caller passes it, remove `_user_role` from the `overlay_status()` signature entirely.
+
+10. **`backend/scripts/phase5_acceptance.py`** — update the single reference.
+
+### Guardrail
+
+`HistoryMessage.role`, chat message roles, and MCP `role` fields are **not** `user_role`. Only change identifiers that are exactly `user_role` / `userRole` or that resolve to the four project-role values.
+
+### Verification
+
+```bash
+cd backend
+uv run ruff check app ingest tender tests
+uv run pytest -m "not integration and not tender_eval"
+grep -rn "owner-builder\|d-and-c" app/ | grep -v __pycache__   # expect: no hits
+```
+
+**Done when:** no function in `app/` takes a `user_role` parameter, and generated PMP output for a given project is byte-identical to the Phase 2 architect-PM output.
+
+---
+
+## Phase 4 — Knowledge Catalog and Seed Data
+
+**Goal:** The catalog stops selecting on role. Three role overlays fall out of scope.
+
+**Commit:** `refactor(sitewise): retire non-architect role overlays from the knowledge catalog`
+
+### Steps
+
+1. **`backend/app/sitewise/knowledge_catalog.py`** (27 refs):
+   - Remove the `user_role` filter from `_applies()` (~line 180) and `_applies_to_taxonomy()` (~line 198).
+   - `_role_entry()` (~line 205) currently matches `entry.loaded_by == f"user_role: {user_role}"`. Hardcode it to the architect-PM overlay, or resolve it via `ROLE_SEED_PATHS` now that the dict has one entry.
+   - Remove `user_role` from `select_required_paths()` and every public helper signature.
+   - Update the error messages at ~line 351 and ~line 381 that name `user_role={...}` when an entry cannot be resolved.
+
+2. **`data/seed/` — the four role overlays.**
+   - Keep `role-architect-pm.md` as the sole role overlay.
+   - Leave `role-owner-builder.md`, `role-builder.md`, `role-d-and-c.md` **on disk** (D4) but ensure nothing in the catalog resolves them. They are now unreferenced files.
+   - Consider adding a one-line note at the top of each: *"Retired — not loaded by the catalog as of <date>. Retained for reference."*
+   - **If Phase 6 is planned**, treat this as a holding pattern only. Phase 6 merges all four into `role-project-lead.md` and deletes the originals — do not invest in tidying files that are about to be replaced.
+
+3. **`applies_to_roles:` frontmatter across `data/seed/*.md` and `data/skills/systems/*.md`.**
+   The overwhelming majority already list all four roles, which means "applies to everyone" — those are harmless once the filter is removed and can be left alone. Only investigate files where `applies_to_roles` lists a **subset**; those were role-targeted and now apply universally. Audit with:
+
+   ```bash
+   grep -rn "applies_to_roles" data/ | grep -v "owner-builder, architect-pm, builder, d-and-c"
+   ```
+
+4. **`data/project-template/README.md`** — the three-overlay declaration block (~lines 9, 11, 20, 37, 139). Remove `user_role` from the frontmatter template and the Tier-3 loading table. This becomes a two-overlay declaration.
+
+### Verification
+
+```bash
+cd backend
+uv run pytest tests/sitewise/test_catalog_parity.py tests/sitewise/test_taxonomy_seed_selection.py
+```
+
+`test_catalog_parity.py` iterates the four roles explicitly (`USER_ROLES = ("owner-builder", "architect-pm", "builder", "d-and-c")`) — it **will** fail until Phase 5 updates it. That is expected.
+
+**Re-ingestion note:** per `AGENTS.md`, SiteWise doctrine and seeds are ingested as `sitewise-platform` reference rows with `document_metadata.knowledge_scope = platform`. Editing frontmatter in `data/` does **not** update already-ingested rows. Re-run platform ingestion after this phase, or the agent will keep retrieving stale role-scoped knowledge.
+
+---
+
+## Phase 5 — Tests
+
+**Goal:** Test suite reflects one role. No test parameterises over four.
+
+**Commit:** `test: collapse role parameterisation across backend and frontend suites`
+
+49 backend test files reference `user_role`. Most just set it in a fixture — those need a one-line edit or a deletion. A smaller set genuinely tests role divergence and must be **deleted, not rewritten**.
+
+### Priority order
+
+**Tier 1 — role-divergence tests (delete the non-architect cases):**
+- `backend/tests/sitewise/test_catalog_parity.py` — collapse the `USER_ROLES` tuple to one value, or remove the role axis from the parameterisation entirely.
+- `backend/tests/sitewise/test_pmp_sources.py` — asserts per-role section headings and titles.
+- `backend/tests/sitewise/test_pmp_greenfield_brief.py` — asserts per-role overlays.
+- `backend/tests/sitewise/test_section_contracts.py` — asserts per-role document titles.
+- `backend/tests/sitewise/test_greenfield_taxonomy.py`
+- `backend/tests/workflows/test_create_pmp.py` — role-specific prompt assertions.
+- `backend/tests/agent/test_turn_context.py` — asserts role appears in the prompt block.
+- `backend/tests/agent/test_mutation_intent.py` — asserts role is a mutation target.
+
+**Tier 2 — gating tests (update expectations):**
+- `backend/tests/sitewise/test_gate.py` — must now assert role is **not** required.
+- `backend/tests/projects/test_workflow_capabilities.py` — Cost Plan must be `supported` without role.
+- `backend/tests/projects/test_profile.py`, `test_profile_proposals.py`, `test_profile_proposals_integration.py`
+- `backend/tests/test_project_profile_contracts.py`
+- `backend/tests/mcp_bridge/test_profile_tools.py`
+
+**Tier 3 — fixture-only (mechanical removal):**
+Everything else — `hybrid_pmp_fixtures.py`, `hybrid_cost_plan_fixtures.py`, snapshot tests, workflow-run tests, etc. Strip `user_role` from fixture construction.
+
+**Frontend:** `ProjectControlBoard.test.tsx`, `ProjectCockpitPage.test.tsx`, `workflowTiles.test.ts` — already handled in Phase 2; confirm nothing regressed.
+
+### Verification
+
+```bash
+cd backend && uv run pytest -m "not integration and not tender_eval"
+cd backend && uv run pytest tests/tender/test_migrations.py -m "not integration"
+cd ../frontend && pnpm tsc --noEmit && pnpm lint && pnpm test && pnpm build
+```
+
+**Done when:** full CI green and `grep -rn "owner-builder\|d-and-c" backend/tests/` returns nothing.
+
+---
+
+## Phase 6 — Merge the Four Role Overlays into `role-project-lead.md`
+
+**Supersedes D4.** Where D4 said "retire three seeds, keep them on disk," this phase replaces all four with one merged overlay. If this phase is executed, D4's holding pattern ends here.
+
+**Commit:** `refactor(sitewise): merge role overlays into a single project-lead overlay`
+
+This is a **content rewrite of statutory guidance**, not a refactor. An agent drafts; a human with construction-domain liability approves before merge. See the review gate at the end of this phase.
+
+### 6.1 Naming — the merged role is "project lead", not "Construction Manager"
+
+Do not name it Construction Manager. Two reasons, both concrete:
+
+1. **The name is already used in this repo, for a different thing.** `docs/plans/2026-07-05-cm-agent-persona.md` gives *the chat agent* a construction-management identity. `docs/acceptance/role-scenarios/construction-manager.yaml` uses it as a test persona — and that fixture's `seed_profile` already sets `user_role: architect-pm`, so the label is a scenario name, not a role value. Reusing it for the *user's* role means the agent and the user share a title.
+2. **"Construction Manager" is a specific procurement model in industry**, not a generic term — CM contracting is distinct from head contractor and D&C. A genuine CM-contract project would then be ambiguous.
+
+**"Project lead" is already the doctrine's own abstraction.** `docs/clerk-brief.md` defines it as the spine covering "~80% of obligations common across all four roles." Merging toward it adopts existing language rather than inventing new language.
+
+**Target file:** `data/seed/role-project-lead.md`
+
+### 6.2 Do NOT merge by union
+
+The four files contradict each other on statute, deliberately. Concatenating them puts mutually exclusive instructions in the same context window and the agent will pick one at random.
+
+| Position | HBCF / HOW | LSL | Licence | Claims |
+|---|---|---|---|---|
+| Builder (head contract) | **Holds** it — NSW residential work over $20,000 | **Pays** before CC above threshold | Holds contractor licence | **Issues** to owner; assesses subcontractor claims |
+| Owner-builder | **Exempt** — cannot insure themselves | Per permit/project value rules | Owner-builder permit, not a licence | Receives and pays trade invoices |
+| Architect-PM | Holds none — **verifies** the builder's | Holds none — **verifies** | Holds PI for advisory scope only | **Assesses** builder claims, recommends payment |
+| D&C | As builder | As builder | As builder **plus** PI for design | As builder, plus design-stage claims |
+
+`role-owner-builder.md` states the trap explicitly: the setup checklist *"must **not** ask the owner-builder to lodge builder-side HBCF for their own work."* A union merge produces a checklist that does exactly that. In a compliance product that is telling someone to buy insurance they are legally unable to buy.
+
+**Equally, do not merge by keeping only `role-architect-pm.md`.** That produces guidance telling a head contractor to "verify the builder's instruments" — instruments they hold themselves.
+
+### 6.3 The method — convert role-branching to evidence-conditional
+
+The old model asked the user to declare their position, then loaded a matching file. The new model **derives position from project evidence** and writes conditional guidance inline.
+
+This is strictly better than what exists today for two reasons: users misdeclare their role, and the doctrine's own authority stack already ranks *"project evidence in the active project folder"* **above** doctrine and seeds. Deriving from evidence follows the stack; a dropdown overrode it.
+
+**Discriminator map — what replaces `user_role`:**
+
+| Question the role declaration used to answer | Evidence that answers it now | Location |
+|---|---|---|
+| Who carries HBCF / LSL / licence? | Who is named as contractor on the executed head contract | `00-brief-pmp/` |
+| Is the project lead also the owner? | Owner-builder permit in the project lead's name, or contract showing owner ≠ project lead | `00-brief-pmp/` |
+| Does the project lead carry design responsibility? | Design fee / design responsibility matrix in the contract | `00-brief-pmp/`, `03-design/` |
+| Issue claims or assess them? | Which side of the head contract the project lead sits on | `00-brief-pmp/`, `07-construction/05-progress-claims/` |
+| Where do escalations route? | Whether a separate owner exists to escalate to | derived from the above |
+| Which contract notice mechanism? | Contract form — HIA / MBA / AS | `00-brief-pmp/` |
+| Which voice register? | Folder location — **already** folder-driven, no role input | unchanged |
+
+**The conditional block pattern.** Every section that used to diverge by role becomes: *state the universal rule → give the evidence test → table the outcomes → say what to do when evidence is missing.* Worked example for the hardest case:
+
+```markdown
+### Home warranty insurance (HBCF / HOW)
+
+HBCF attaches to the party holding the head contract for residential building
+work — not to whoever is using this workspace.
+
+Check `00-brief-pmp/` for the executed head contract and any owner-builder
+permit, then apply:
+
+| Evidence found | Position | Obligation |
+|---|---|---|
+| Head contract naming the project lead as contractor | Head contractor | Hold eligibility + per-project certificate before taking a deposit or signing. NSW: residential work over $20,000 |
+| Owner-builder permit in the project lead's name | Owner-builder | **No builder-side HBCF** — the project lead cannot insure themselves. Never place builder-side HBCF on the setup checklist. Licensed trade contracts above threshold still need the trade's own certificate; track those as separate rows |
+| Engagement letter or fee proposal, no head contract in the project lead's name | Client-side advisor | Holds none. **Must verify** the builder's eligibility and certificate before recommending contract signature or site start |
+
+**If no such evidence exists:** state the assumption per §evidence-discipline,
+flag the gap in the setup checklist, and proceed. Do not infer position from
+the project name, budget, address, or the user's phrasing.
+```
+
+**Critical guardrail on the fallback.** When evidence is absent the agent flags an assumption and *continues*. It must **not** open every session by asking "are you the builder or the architect?" — that recreates the dropdown in chat and forfeits the entire point of this work. Asking is acceptable only at a genuine phase gate where the answer changes a statutory obligation, and the answer is recorded as project evidence, not as a setting.
+
+### 6.4 Section merge map
+
+Union of the four files' headings, collapsed. `C` = common spine, mostly reusable as-is. `X` = conditional block required.
+
+| # | Merged section | Sources | Type |
+|---|---|---|---|
+| 1 | What the project lead is — and is not | all four's "is/is not" sections | C + short X on contract-chain position |
+| 2 | **Establishing position from evidence** | *new* — replaces the declaration | X |
+| 3 | Statutory instruments — NSW deep default | all four | **X** — highest risk section |
+| 4 | Brief and engagement | architect-PM "two-brief discipline" + "engagement pack"; owner-builder "self-defined brief" | X |
+| 5 | Setup workflow and mobilisation checklist | all four's setup workflow + checklist | X — conditional rows |
+| 6 | Consultant coordination and design responsibility | architect-PM "consultant coordination"; D&C "design responsibility pack" + "DRM" + "PI insurance" | X |
+| 7 | Procurement posture | architect-PM "procurement posture"; builder "subcontractor management"; owner-builder "trade management" | X |
+| 8 | Claims, variations, EOT | builder issuance sections; architect-PM assessment section; owner-builder "claims, invoices, payments" | **X** — issuing vs assessing side |
+| 9 | Escalation routing | all four | **X** — self-flag queue vs owner summary vs contractual notice |
+| 10 | Voice register | all four | C — already folder-driven, minimal conditionality |
+| 11 | Failure modes | all four | C — union, deduped |
+| 12 | Agent behaviour under this overlay | all four | C |
+| 13 | See also | all four | C |
+
+Content with no generic equivalent — D&C "multi-dwelling posture", owner-builder "renovation-specific notes" — should move to the archetype/taxonomy seeds where it belongs (`multi-dwelling-guide.md`, `renovation-guide.md`), not be dropped.
+
+**Expected size:** ~1,340 lines across four files → ~450–550 lines in one. Not ~330 — the conditional tables cost back much of what deduplication saves. A merged file materially under 400 lines has almost certainly dropped statutory content; treat that as a review failure.
+
+### 6.5 Files
+
+- **Create:** `data/seed/role-project-lead.md`
+- **Delete after sign-off:** `data/seed/role-architect-pm.md`, `role-owner-builder.md`, `role-builder.md`, `role-d-and-c.md`
+- **Move content into:** `data/seed/multi-dwelling-guide.md`, `data/seed/renovation-guide.md`
+- **Update:** `backend/app/sitewise/pmp_sources.py` (`ROLE_SEED_PATHS`), `backend/app/sitewise/knowledge_catalog.py` (`_role_entry`), `backend/app/sitewise/pmp_greenfield_brief.py`, `backend/app/workflows/create_pmp.py`, `backend/app/sitewise/section_contracts.py`
+
+### 6.6 Steps
+
+1. **Draft `role-project-lead.md`** against the §6.4 map. Frontmatter changes from role-keyed to universal:
+
+   ```yaml
+   tier: role-overlay
+   seed_type: role-overlay
+   loaded_by: always
+   ```
+
+   Delete the `applies_to_roles:` key entirely. Keep `applies_to_archetypes`, `applies_to_classes`, `applies_to_work_types`, `state_default`, `doctrine_anchors`, `agents_anchors`.
+
+2. **Statutory sections first, in isolation.** Sections 3 and 8 carry the compliance risk. Draft them, get them reviewed, then do the rest. Do not draft the whole file and review it in one pass — the statutory content will get skimmed.
+
+3. **Repoint the code.** `ROLE_SEED_PATHS` → `{"project-lead": "seed/role-project-lead.md"}`, or better, replace the dict with a single `PROJECT_LEAD_SEED_PATH` constant now that there is nothing to key on. `_role_entry()` in `knowledge_catalog.py` resolves to that constant.
+
+4. **Genericise the prompt-side language** that Phase 3 left as architect-PM:
+
+   | Location | Current | Replace with |
+   |---|---|---|
+   | `pmp_sources.py` § headings | "Architect-PM role and appointment" | "Project lead role and appointment" |
+   | `pmp_greenfield_brief.py` | "Two-brief discipline" | "Brief and engagement" — keep the engagement-vs-project-brief distinction, drop the architect framing |
+   | `pmp_greenfield_brief.py` | RACI "Owner decides / Architect-PM recommends" | "Owner decides / Project lead recommends" |
+   | `pmp_greenfield_brief.py` | PI-insurance and fee-proposal placeholders | "Engagement and insurance instruments", conditional per §6.3 |
+   | `create_pmp.py` `role_note` | "owner-side governance plan with two-brief discipline" | "Project governance plan" |
+
+5. **Move the archetype-specific content** out of the retired files before deleting them.
+
+6. **Delete the four old seed files.**
+
+7. **Re-ingest platform knowledge.** Mandatory — see the Phase 4 note. Stale role-scoped rows will otherwise keep being retrieved alongside the new overlay, reintroducing the exact contradictions §6.2 exists to prevent.
+
+### 6.7 Verification
+
+```bash
+cd backend
+uv run pytest tests/sitewise/ -v
+uv run pytest -m "not integration and not tender_eval"
+grep -rn "role-owner-builder\|role-builder\|role-d-and-c\|role-architect-pm" backend/ data/ docs/   # expect: no hits
+```
+
+Then generate a Project Plan against three sample projects — one with a head contract naming the user as contractor, one with an owner-builder permit, one with only an engagement letter. **Read all three as the party in question.**
+
+Reject the draft if any of these appear:
+
+- Builder-side HBCF on an owner-builder checklist
+- "Verify the builder's licence" addressed to the head contractor
+- Escalation routed to an owner on a project where the project lead *is* the owner
+- A statutory obligation stated unconditionally that was conditional in any source file
+- Prose presupposing the reader is a client-side advisor
+
+### 6.8 Review gate
+
+**Do not merge on agent output alone.** Sections 3 (statutory instruments) and 8 (claims/variations/EOT) require sign-off from someone who carries professional liability for construction advice in NSW.
+
+Reviewer checklist:
+
+- [ ] Every statutory obligation in the four source files still appears, correctly conditioned
+- [ ] No obligation has been generalised from one position to all positions
+- [ ] Owner-builder HBCF exemption survives, stated as a prohibition on the checklist
+- [ ] LSL threshold and payer conditions intact
+- [ ] PI insurance is scoped to design responsibility, not universal
+- [ ] Non-NSW graceful-degradation callouts survive the merge (VIC DBI, CoINVEST, etc.)
+- [ ] The evidence tests are answerable from the documents a real project actually holds
+
+---
+
+## Phase 7 — Documentation
+
+**Commit:** `docs: remove user_role from the overlay model`
+
+**If Phase 6 ran, do Phase 7 after it** — the docs must describe the merged `project lead` model, not the interim architect-PM pin.
+
+1. **`docs/clerk-brief.md`** — the doctrine spine. The three-overlay declaration becomes two. The "four user roles" framing in the opening section and the "Sub-roles, authority, and the four-role chain" section at the end both need rewriting or removal. If Phase 6 ran, that closing section becomes the evidence-based position test from §6.3 rather than a four-role chain; the "project lead" abstraction is promoted from spine-behind-four-roles to the only role.
+2. **`docs/architecture.md`** — check for role references in the profile/capability description.
+3. **`docs/acceptance/role-scenarios/`** — `architect.yaml`, `construction-manager.yaml`, `design-manager.yaml`. Collapse to a single scenario file or delete the two non-architect ones.
+4. **`docs/acceptance/agent-prompt-scenarios.yaml`** — remove role-declaration prompts.
+5. **`docs/plans/*.md`** — 6 plan files reference `user_role`. These are **historical design records**; per `AGENTS.md` they are direction docs, not live spec. Do **not** rewrite history. Add a one-line superseding note at the top of each instead.
+6. **`AGENTS.md`** — if §2's three-overlay gating rule is stated there, update it.
+7. **New ADR** — add `docs/plans/<date>-collapse-user-role.md` recording D1–D6 and the Q1–Q3 answers, so the next agent understands why `projects.user_role` is a constant column.
+
+---
+
+## 8. Guardrails
+
+Things that will silently break this if done carelessly:
+
+- **`role` ≠ `user_role`.** `HistoryMessage.role`, chat message roles, and MCP message roles are `user`/`assistant`/`system`. Never touch them. Only change identifiers exactly matching `user_role` / `userRole`.
+- **Do not drop the DB column.** (D2)
+- **Do not delete `data/seed/role-architect-pm.md`.** It is the surviving overlay.
+- **Do not touch `backend/tender/`.** TCM's capability check uses `building_class`, `subclasses`, `work_type`, `state` — never role.
+- **Do not remove `building_class`, `work_type`, `state`, or subclasses.** They carry real capability meaning.
+- **Do not add a feature flag** to toggle roles back on. (`AGENTS.md`: no speculative feature flags.)
+- **Deploy order matters.** Backend Phase 1 before frontend Phase 2. Reversed, every project shows `Blocked`.
+- **Re-ingest platform knowledge after Phase 4**, or the agent retrieves stale role-scoped seed rows.
+
+---
+
+## 9. Verification Command Reference
+
+Canonical, from `.github/workflows/ci.yml`:
+
+```bash
+# Backend
+cd backend
+uv run ruff check app ingest tender tests
+uv run pytest -m "not integration and not tender_eval"
+uv run pytest tests/tender/test_migrations.py -m "not integration"
+
+# Frontend
+cd frontend
+pnpm install --frozen-lockfile
+pnpm tsc --noEmit
+pnpm lint
+pnpm test
+pnpm build
+```
+
+Progress check at any point:
+
+```bash
+grep -rn "user_role" backend/app | grep -v __pycache__ | wc -l   # 208 → 0 (except the DB column + read model)
+grep -rn "user_role\|userRole" frontend/src | wc -l               # 29 → 0
+grep -rn "owner-builder\|d-and-c" backend/ frontend/src data/     # → only retired seed files
+```
+
+---
+
+## 10. Rollback
+
+Each phase is one commit, so `git revert` per phase works cleanly.
+
+- **Phases 2–7** are pure code — revert is safe.
+- **Phase 1** includes an optional production `UPDATE`. That is not reverted by `git revert`. If Q1 found non-architect rows, **snapshot `(id, user_role)` before running the backfill**:
+
+  ```sql
+  CREATE TABLE _user_role_backup AS SELECT id, user_role FROM projects;
+  ```
+
+  Drop that table once the change has been stable for a release cycle.
+
+---
+
+## 11. Estimated Effort
+
+| Phase | Scale | Risk |
+|---|---|---|
+| 1 — Ungate + pin | ~7 files, small diffs | Low — mostly deletions |
+| 2 — Frontend | 5 source + 3 test files | Low |
+| 3 — Collapse branching | ~25 files, largest diff | **Medium** — signature churn across workflows |
+| 4 — Knowledge catalog | 1 module + data frontmatter | Medium — needs re-ingestion |
+| 5 — Tests | ~49 files, mostly mechanical | Low but tedious |
+| 6 — Merge seeds (optional) | ~1,340 lines → ~450–550, plus 5 code files | **High** — statutory rewrite, mandatory domain sign-off, not CI-verifiable |
+| 7 — Docs | ~10 files | Low |
+
+**Minimum viable:** Phases 1 + 2. That removes the picker and the blocking gate. Everything after is debt cleanup that can be scheduled independently.
+
+---
+
+## 12. Deferred Follow-Ups
+
+Not in this plan. Log them.
+
+1. **Drop the `projects.user_role` column.** Separate Alembic migration, one release cycle after Phase 1 ships.
+2. **Delete the three retired seed files** and re-ingest — *only if Phase 6 is skipped*. D4 keeps them on disk in the meantime. If Phase 6 runs, it deletes all four and this item is closed by it.
+3. **Reconsider `archetype`.** `gate.py` already treats it as a compatibility fallback superseded by `building_class` + `work_type`. It is the same class of problem as `user_role` and is a good candidate for the same treatment.
+4. **Cost Plan coverage.** It is still NSW-residential-only. Removing the role restriction does not widen the other two.

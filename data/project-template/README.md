@@ -6,18 +6,17 @@ To start a new project: copy this folder, rename it to your project slug, and po
 
 ## Project metadata (required frontmatter)
 
-Every project's `README.md` opens with the metadata block below. The agent reads this on first task in the project, before drafting any deliverable. It drives the **three-overlay declaration** (`archetype`, `user_role`, `state`) per `../AGENTS.md §2`.
+Every project's `README.md` opens with the metadata block below. The agent reads this on first task in the project, before drafting any deliverable. It drives the **two-overlay declaration** (`archetype`, `state`) per `../AGENTS.md §2`.
 
-**If `archetype`, `user_role`, or `state` is missing, blank, or `TBC`, the agent stops and asks.** It does not guess from project name, address, budget, or any other proxy. See `../00-doctrine/doctrine.md §seed-consultation-discipline`.
+**If `archetype` or `state` is missing, blank, or `TBC`, the agent stops and asks.** It does not guess from project name, address, budget, or any other proxy. See `../00-doctrine/doctrine.md §seed-consultation-discipline`.
 
 ```yaml
 ---
 project_slug:    <slug>                                # required — matches the folder name
-client:          <Client Name>                         # required — for owner-builder, the owner-builder's own name
+client:          <Client Name>                         # required — the client or owner name
 site:            <street address>                      # required
 
 archetype:       <new-dwelling | renovation | multi-dwelling | ancillary | small-commercial>  # required — drives Tier 2 seed loading
-user_role:       <owner-builder | architect-pm | builder | d-and-c>                            # required — drives Tier 3 role overlay loading
 state:           <NSW | VIC | QLD | SA | WA | TAS | NT | ACT>                                  # required — drives state-specific callouts
 
 ncc_class:       <1a | 1b | 10a | 10b | 2 | etc.>      # required — TBC permitted at mobilisation; must be confirmed by CC
@@ -29,12 +28,12 @@ phases:          [<phase>, <phase>, ...]                      # required — e.g
 ---
 ```
 
-### How the three overlays drive seed loading
+### How the overlays drive seed loading
 
 | Declaration | Tier | Loads |
 |---|---|---|
 | `archetype:` | Tier 2 | `../01-seed/{archetype}-guide.md` (one of: new-dwelling-guide, renovation-guide, multi-dwelling-guide, ancillary-guide, small-commercial-guide) |
-| `user_role:` | Tier 3 | `../01-seed/role-{role}.md` (one of: role-owner-builder, role-architect-pm, role-builder, role-d-and-c) |
+| (project lead overlay) | Tier 3 | `../01-seed/role-architect-pm.md` — the single project-lead overlay, always loaded (role is no longer a user declaration) |
 | `state:` | inline | NSW is the deep default; non-NSW triggers graceful-degradation callouts inside the loaded seeds (no separate state seed in v1) |
 
 Cross-cutting topic seeds (`cost-management-principles.md`, `program-scheduling-guide.md`, `contract-administration-guide.md`, etc.) are loaded by task subject via the `seed-targeted-read` atomic skill.
@@ -85,7 +84,7 @@ projects/<project-slug>/
   99-archive/                         # superseded or historical material
 ```
 
-Subfolders are **advisory**; small projects (especially owner-builder) need not populate all of them. Empty subfolders are fine — they signal where evidence will land when it arrives.
+Subfolders are **advisory**; small projects need not populate all of them. Empty subfolders are fine — they signal where evidence will land when it arrives.
 
 ## Folder purpose summary
 
@@ -136,8 +135,8 @@ The `seed_consulted:` field is the discipline that proves the agent loaded the r
 
 For any task in this project, the agent:
 
-1. reads the project `README.md` frontmatter and confirms `archetype`, `user_role`, `state` are declared (stops and asks if not);
-2. loads the matching Tier 2 archetype seed and Tier 3 role overlay seed;
+1. reads the project `README.md` frontmatter and confirms `archetype`, `state` are declared (stops and asks if not);
+2. loads the matching Tier 2 archetype seed and the single project-lead overlay seed;
 3. uses `seed-targeted-read` to identify cross-cutting topic seeds the task needs;
 4. reads available project evidence in the active project folder;
 5. applies `../00-doctrine/doctrine.md` as the judgement layer;

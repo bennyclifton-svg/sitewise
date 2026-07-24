@@ -53,10 +53,7 @@ import {
   compactTaxonomyValue,
   taxonomyValueFromProject,
 } from "@/lib/project-taxonomy";
-import {
-  projectRoleOptions,
-  projectStateOptions,
-} from "@/lib/project-overlays";
+import { projectStateOptions } from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
 
@@ -296,7 +293,6 @@ function ProjectProfilePanel({
       const updated = await api.updateProject(project.id, {
         expected_revision: editingRevision ?? serverRevision,
         ...compactTaxonomyValue(form.profile),
-        user_role: form.userRole || null,
         state: form.state || null,
         site_address: form.siteAddress || null,
         client: form.client || null,
@@ -305,7 +301,6 @@ function ProjectProfilePanel({
         ...project,
         building_class: updated.profile.building_class,
         work_type: updated.profile.work_type,
-        user_role: updated.profile.user_role,
         state: updated.profile.state,
         profile_revision: updated.new_revision,
         metadata: {
@@ -364,7 +359,7 @@ function ProjectProfilePanel({
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
           <p className="font-medium">Project overlays are incomplete.</p>
           <p className="mt-1 text-xs">
-            Set role, state, class, and work type here so chat, knowledge
+            Set state, class, and work type here so chat, knowledge
             tools, and workflows use the right SiteWise context.
           </p>
           <ul className="mt-2 space-y-1 text-xs">
@@ -381,16 +376,7 @@ function ProjectProfilePanel({
           <Badge variant="secondary">Saved</Badge>
         </div>
       ) : null}
-      <div className="grid gap-3 md:grid-cols-2">
-        <OverlaySelectField
-          id={`project-role-${project.id}`}
-          label="Your role"
-          value={form.userRole}
-          onChange={(userRole) => updateDraft({ ...form, userRole })}
-          options={projectRoleOptions}
-          placeholder="Select role"
-          disabled={saving || !onProjectUpdated}
-        />
+      <div className="grid gap-3">
         <OverlaySelectField
           id={`project-state-${project.id}`}
           label="State"
@@ -466,7 +452,6 @@ function ProjectProfilePanel({
 
 type ProfileFormValue = {
   profile: TaxonomyPickerValue;
-  userRole: string;
   state: string;
   siteAddress: string;
   client: string;
@@ -474,7 +459,6 @@ type ProfileFormValue = {
 
 type ProfileFormField =
   | keyof TaxonomyPickerValue
-  | "user_role"
   | "state"
   | "site_address"
   | "client";
@@ -486,7 +470,6 @@ const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
   "scale",
   "complexity",
   "work_scope",
-  "user_role",
   "state",
   "site_address",
   "client",
@@ -505,7 +488,6 @@ function profileFormFromProject(project: ProjectDetail): ProfileFormValue {
     "";
   return {
     profile: taxonomyValueFromProject(project),
-    userRole: project.user_role ?? "",
     state: project.state ?? "",
     siteAddress,
     client,
@@ -531,7 +513,6 @@ function profileFormFieldEqual(
 }
 
 function profileFormField(form: ProfileFormValue, field: ProfileFormField) {
-  if (field === "user_role") return form.userRole;
   if (field === "state") return form.state;
   if (field === "site_address") return form.siteAddress;
   if (field === "client") return form.client;
@@ -545,16 +526,12 @@ function rebaseProfileForm(
 ): ProfileFormValue {
   const rebased: ProfileFormValue = {
     profile: { ...latest.profile },
-    userRole: latest.userRole,
     state: latest.state,
     siteAddress: latest.siteAddress,
     client: latest.client,
   };
   for (const field of changedFields) {
     switch (field) {
-      case "user_role":
-        rebased.userRole = draft.userRole;
-        break;
       case "state":
         rebased.state = draft.state;
         break;

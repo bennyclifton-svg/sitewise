@@ -128,7 +128,9 @@ export type ProjectSummary = {
   archetype: string | null;
   building_class: string | null;
   work_type: string | null;
-  user_role: string | null;
+  // Role is pinned server-side and no longer user-facing; kept only because the
+  // read model still returns a constant value. Nothing should branch on it.
+  user_role?: string | null;
   state: string | null;
   profile_revision?: number;
   decision_set_revision?: number;
@@ -146,14 +148,12 @@ export type CreateProjectInput = {
   scale?: Record<string, TaxonomyScalar>;
   complexity?: Record<string, string>;
   work_scope?: string[];
-  user_role?: string;
   state?: string;
   phase?: string;
 };
 
 export type UpdateProjectInput = ProjectTaxonomyInput & {
   expected_revision: number;
-  user_role?: string | null;
   state?: string | null;
   site_address?: string | null;
   client?: string | null;
@@ -169,7 +169,7 @@ export type ProjectProfileView = {
   scale: Record<string, TaxonomyScalar>;
   complexity: Record<string, string>;
   work_scope: string[];
-  user_role: string | null;
+  user_role?: string | null;
   state: string | null;
   site_address: string | null;
   client: string | null;
@@ -186,7 +186,6 @@ export type ProjectProfileChange = {
     | "scale"
     | "complexity"
     | "work_scope"
-    | "user_role"
     | "state"
     | "site_address"
     | "client"

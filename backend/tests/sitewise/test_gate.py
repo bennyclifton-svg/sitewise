@@ -6,7 +6,6 @@ from app.sitewise.gate import format_overlay_failure, overlay_status
 def test_taxonomy_class_and_work_type_satisfy_gate() -> None:
     status = overlay_status(
         archetype=None,
-        user_role="architect-pm",
         state="NSW",
         building_class="residential",
         work_type="refurb",
@@ -18,7 +17,6 @@ def test_taxonomy_class_and_work_type_satisfy_gate() -> None:
 def test_legacy_archetype_only_still_satisfies_gate() -> None:
     status = overlay_status(
         archetype="small-commercial",
-        user_role="architect-pm",
         state="NSW",
     )
     assert status.ready
@@ -28,7 +26,6 @@ def test_legacy_archetype_only_still_satisfies_gate() -> None:
 def test_neither_taxonomy_nor_archetype_reports_class_and_work_type_missing() -> None:
     status = overlay_status(
         archetype=None,
-        user_role="architect-pm",
         state="NSW",
     )
     assert not status.ready
@@ -40,7 +37,6 @@ def test_neither_taxonomy_nor_archetype_reports_class_and_work_type_missing() ->
 def test_class_set_but_work_type_missing_reports_only_work_type() -> None:
     status = overlay_status(
         archetype=None,
-        user_role="architect-pm",
         state="NSW",
         building_class="residential",
         work_type=None,
@@ -52,7 +48,6 @@ def test_class_set_but_work_type_missing_reports_only_work_type() -> None:
 def test_unsupported_archetype_without_taxonomy_reports_taxonomy_missing() -> None:
     status = overlay_status(
         archetype="unsupported",
-        user_role="architect-pm",
         state="NSW",
     )
     assert not status.ready
@@ -61,36 +56,42 @@ def test_unsupported_archetype_without_taxonomy_reports_taxonomy_missing() -> No
 
 
 @pytest.mark.parametrize(
-    ("user_role", "state", "field", "reason"),
+    ("state", "reason"),
     [
-        ("TBC", "NSW", "user_role", "tbc"),
-        (None, "NSW", "user_role", "missing"),
-        ("architect-pm", "Mars", "state", "unsupported"),
-        ("architect-pm", None, "state", "missing"),
+        ("Mars", "unsupported"),
+        (None, "missing"),
     ],
 )
-def test_role_and_state_checks_unchanged(
-    user_role: str | None,
+def test_state_check_unchanged(
     state: str | None,
-    field: str,
     reason: str,
 ) -> None:
     status = overlay_status(
         archetype=None,
-        user_role=user_role,
         state=state,
         building_class="residential",
         work_type="refurb",
     )
     assert not status.ready
-    issue = next(issue for issue in status.issues if issue.field == field)
+    issue = next(issue for issue in status.issues if issue.field == "state")
     assert issue.reason == reason
+
+
+def test_role_is_no_longer_gated() -> None:
+    # Role is pinned server-side and never blocks the overlay gate.
+    status = overlay_status(
+        archetype=None,
+        state="NSW",
+        building_class="residential",
+        work_type="refurb",
+    )
+    assert status.ready
+    assert status.issues == []
 
 
 def test_format_overlay_failure_names_missing_taxonomy() -> None:
     status = overlay_status(
         archetype=None,
-        user_role="architect-pm",
         state="NSW",
     )
     message = format_overlay_failure(status)

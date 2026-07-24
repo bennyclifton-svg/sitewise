@@ -53,7 +53,7 @@ the legacy role/archetype scaffold:
 
 When the prompt includes a **Greenfield content contract** (Create PMP), you must:
 - Include every bullet under each section in that contract — use tables and checklists, not single generic paragraphs
-- Use the role-specific programme sub-milestone table from the contract (builder/owner-builder drafts must NOT include "invited builders" or "builder procured" rows)
+- Use the programme sub-milestone table from the contract
 - Include the archetype due diligence checklist under the planning/approvals section named in the prompt (adapt NSW-specific rows for non-NSW states)
 - Include the authority tracker table from the contract appendix
 - Surface archetype-specific due diligence, approvals, consultants, risks, and procurement posture from the loaded seeds
@@ -131,7 +131,7 @@ The prompt supplies a mobilisation run date. For register rows and recommendatio
 
 Use `##` headings exactly matching the required section list in the prompt. Stay concise and project-specific.
 
-For `user_role: architect-pm`, this is the Architect-PM PMP facet from `contract-setup-system` Step 2A:
+This is the Project Management Plan facet from `contract-setup-system` Step 2A:
 - Review-only governance plan — not an issued instruction, statutory submission, tender, or construction management plan
 - Keep the architect-PM engagement brief separate from the owner's project brief
 - Architect-PM verifies builder HOW/HBCF, LSL, licence, and insurance — does not hold them
@@ -152,20 +152,6 @@ For `user_role: architect-pm`, this is the Architect-PM PMP facet from `contract
 - For `archetype: multi-dwelling` or D&C-signalled staged OC projects, ratchet to a detailed staged regime
 - Apply archetype-specific risks and due diligence from the loaded archetype seed
 - For non-NSW `state`, flag state-coverage gaps inline — do not silently extend NSW guidance
-
-For `user_role: builder`, this is the Builder Mobilisation Plan from `setup-and-commission-guide.md`:
-- Mobilisation status is **Assumption: pre-contract mobilisation** — do not invent a construction phase (e.g. "site preparation")
-- Head contract basis — scope via tender/contract, stage payments, PC/provisional sums
-- Builder-held statutory instruments: licence, HBCF/HOW, LSL, CWI, PL, workers comp (table with filing path and next action columns)
-- Variation mechanism (MANDATORY): HIA Schedule of Variations — price and obtain owner signature before work begins; open variation register under `07-construction/06-variations/`
-- EOT mechanism: contemporaneous notice within contract window
-- HIA stage-payment milestones: slab, frame, lockup, fixing, completion — verify physical achievement before claims
-- Subcontractor register with named trades (demolition, plumbing, electrical, waterproofing, etc.) — not "Assumption" in every cell
-- Risk register as a table (Risk | Owner | Status | Next action | Due) — not a numbered prose list
-- For `archetype: renovation`: latent conditions, tie-ins, waterproofing, live-occupancy staging — contingency 5–10% and provisional sums in pricing posture
-- For non-NSW `state`, flag state-coverage gaps inline for HBCF/HOW/LSL/BASIX equivalents — do not label BASIX for Victoria
-
-For other non-architect-pm roles, draft the role-appropriate mobilisation plan using the loaded role overlay and `setup-and-commission-guide.md`.
 
 ## Internal audit layer
 

@@ -60,7 +60,7 @@ from app.sitewise.pmp_decisions import (
     restamp_decisions,
 )
 from app.sitewise.pmp_sources import (
-    document_title_for_role,
+    document_title,
     required_platform_paths,
     required_section_headings,
     seed_consulted_includes_required,
@@ -225,9 +225,9 @@ def _format_sources(passages: list[SourcePassage]) -> str:
     return "\n\n---\n\n".join(blocks)
 
 
-def _format_required_sections(user_role: str, *, project: Project | None = None) -> str:
+def _format_required_sections(*, project: Project | None = None) -> str:
     return "\n".join(
-        f"- {heading}" for heading in required_section_headings(user_role, project=project)
+        f"- {heading}" for heading in required_section_headings(project=project)
     )
 
 
@@ -495,7 +495,6 @@ async def retrieve_create_pmp_sources(
     """Load mandatory platform sources; load mobilisation project evidence whole documents."""
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=project.user_role or "",
         project=project,
     )
     platform_passages, missing_paths = await load_platform_documents_by_paths(
@@ -598,12 +597,10 @@ async def retrieve_project_evidence_delta(
 
 def _role_drafting_note(
     *,
-    user_role: str,
     draft_mode: DraftMode,
     state: str,
     project: Project | None = None,
 ) -> str:
-    title = document_title_for_role(user_role, project=project)
     if draft_mode == "platform_seeded":
         evidence_note = (
             "No project evidence is available yet. Draft from the mandatory doctrine and "
@@ -675,18 +672,11 @@ def _role_drafting_note(
         else "State is NSW (deep default in seeds)."
     )
 
-    if user_role == "architect-pm":
-        role_note = (
-            "Produce the Architect-PM PMP facet: owner-side governance plan with two-brief "
-            "discipline, role declaration placeholders, builder evidence verification, and "
-            "the baseline 3-stage programme regime unless evidence requires more detail."
-        )
-    else:
-        role_note = (
-            f"Produce a {title} using the loaded role overlay and setup-and-commission "
-            "guide. This is mobilisation/setup framing for the declared role, not an "
-            "architect-PM PMP unless user_role is architect-pm."
-        )
+    role_note = (
+        "Produce the Architect-PM PMP facet: owner-side governance plan with two-brief "
+        "discipline, role declaration placeholders, builder evidence verification, and "
+        "the baseline 3-stage programme regime unless evidence requires more detail."
+    )
 
     return "\n".join([evidence_note, state_note, role_note])
 
@@ -708,10 +698,8 @@ def build_create_pmp_prompt(
     project evidence, retry feedback) trails — so OpenAI prefix caching hits
     the heavy static prefix across runs and retries.
     """
-    user_role = project.user_role or ""
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=user_role,
         project=project,
     )
     taxonomy_context = pmp_taxonomy_context(project)
@@ -728,19 +716,17 @@ def build_create_pmp_prompt(
         (
             "Overlays: "
             f"archetype={project.archetype}, "
-            f"user_role={project.user_role}, "
             f"state={project.state}"
         ),
         f"Draft mode: {draft_mode}",
-        f"Required document title: {document_title_for_role(user_role, project=project)}",
+        f"Required document title: {document_title(project=project)}",
         _role_drafting_note(
-            user_role=user_role,
             draft_mode=draft_mode,
             state=project.state or "NSW",
             project=project,
         ),
         "Required PM-facing sections (use these exact ## headings):",
-        _format_required_sections(user_role, project=project),
+        _format_required_sections(project=project),
         "Mandatory seed paths (must all appear in seed_consulted):",
         _format_mandatory_seeds(mandatory_paths),
     ]
@@ -775,7 +761,6 @@ def build_create_pmp_prompt(
     prompt_parts.append(
         build_greenfield_brief(
             archetype=archetype,
-            user_role=user_role,
             state=state,
             draft_mode=draft_mode,
             building_class=taxonomy_context.building_class if taxonomy_context else None,
@@ -796,7 +781,6 @@ def build_create_pmp_prompt(
     if draft_mode == "platform_seeded":
         depth_markers = greenfield_quality_markers(
             archetype=archetype,
-            user_role=user_role,
         )
         marker_list = ", ".join(depth_markers)
         prompt_parts.append(
@@ -925,7 +909,6 @@ def _should_use_hybrid_compiler(project: Project, draft_mode: DraftMode) -> bool
     return (
         settings.pmp_hybrid_compiler
         and draft_mode == "evidence_grounded"
-        and (project.user_role or "") == "architect-pm"
         and not project_has_taxonomy(project)
     )
 
@@ -946,7 +929,6 @@ async def run_create_pmp_hybrid(
     from app.sitewise.pmp_renderer import render_pmp_scaffold
     from app.workflows.pmp_narrative import run_pmp_narrative_model
 
-    user_role = project.user_role or ""
     evidence_refs = _evidence_refs_from_passages(passages, project.id)
     source_labels = _project_source_labels(passages, project_id=project.id)
     pack = extract_mobilisation_evidence_pack(
@@ -1022,7 +1004,7 @@ async def run_create_pmp_hybrid(
         )
 
         output = PmpDraftOutput(
-            title=document_title_for_role(user_role, project=project),
+            title=document_title(project=project),
             markdown=markdown,
             seed_consulted=_seed_consulted_from_passages(passages),
             evidence_refs=evidence_refs,
@@ -1034,7 +1016,6 @@ async def run_create_pmp_hybrid(
                 output,
                 draft_mode,
                 archetype=project.archetype or "",
-                user_role=user_role,
                 project=project,
                 source_texts=project_source_texts,
             )
@@ -1062,7 +1043,6 @@ def validate_pmp_output(
     draft_mode: DraftMode,
     *,
     archetype: str,
-    user_role: str,
     project: Project | None = None,
     source_texts: list[str] | None = None,
 ) -> None:
@@ -1081,7 +1061,6 @@ def validate_pmp_output(
     missing_seeds = seed_consulted_includes_required(
         output.seed_consulted,
         archetype=archetype,
-        user_role=user_role,
         project=project,
     )
     if missing_seeds:
@@ -1092,7 +1071,7 @@ def validate_pmp_output(
 
     missing_sections = [
         heading
-        for heading in required_section_headings(user_role, project=project)
+        for heading in required_section_headings(project=project)
         if not _markdown_has_section(output.markdown, heading)
     ]
     if missing_sections:
@@ -1105,7 +1084,6 @@ def validate_pmp_output(
         missing_markers = greenfield_markers_missing(
             output.markdown,
             archetype=archetype,
-            user_role=user_role,
         )
         if missing_markers:
             joined = ", ".join(missing_markers)
@@ -1128,7 +1106,6 @@ def validate_pmp_output(
     structure_issues = greenfield_structure_violations(
         output.markdown,
         archetype=archetype,
-        user_role=user_role,
     )
     if structure_issues:
         joined = "; ".join(structure_issues)
@@ -1285,7 +1262,6 @@ async def run_create_pmp_workflow(
 
     gate = overlay_status(
         archetype=project.archetype,
-        user_role=project.user_role,
         state=project.state,
         building_class=project.building_class,
         work_type=project.work_type,
@@ -1439,7 +1415,6 @@ async def run_create_pmp_workflow(
             platform_retrieval="overlay_mandatory_paths",
             mandatory_seed_count=len(required_platform_paths(
                 archetype=project.archetype or "",
-                user_role=project.user_role or "",
                 project=project,
             )),
             duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
@@ -1494,7 +1469,7 @@ async def run_create_pmp_workflow(
             from app.sitewise.pmp_renderer import render_pmp_scaffold
 
             output = PmpDraftOutput(
-                title=document_title_for_role(project.user_role or "", project=project),
+                title=document_title(project=project),
                 markdown=render_pmp_scaffold(
                     project,
                     MobilisationEvidencePack(),
@@ -1511,7 +1486,6 @@ async def run_create_pmp_workflow(
                 output,
                 draft_mode,
                 archetype=project.archetype or "",
-                user_role=project.user_role or "",
                 project=project,
                 source_texts=project_source_texts,
             )
@@ -1577,7 +1551,6 @@ async def run_create_pmp_workflow(
                         output,
                         draft_mode,
                         archetype=project.archetype or "",
-                        user_role=project.user_role or "",
                         project=project,
                         source_texts=project_source_texts,
                     )

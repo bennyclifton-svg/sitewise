@@ -321,9 +321,6 @@ def _required_guidance_paths(
     *,
     knowledge_workflow: str,
 ) -> list[str]:
-    user_role = getattr(project, "user_role", None)
-    if not user_role:
-        return []
     archetype = getattr(project, "archetype", None)
     building_class = getattr(project, "building_class", None)
     work_type = getattr(project, "work_type", None)
@@ -333,7 +330,6 @@ def _required_guidance_paths(
         resolved = select_required_paths(
             workflow=knowledge_workflow,
             archetype=archetype or "",
-            user_role=user_role,
             building_class=building_class,
             work_type=work_type,
         )

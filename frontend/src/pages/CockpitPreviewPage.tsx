@@ -33,7 +33,6 @@ const previewProject: ProjectDetail = {
   archetype: "renovation",
   building_class: "residential",
   work_type: "refurb",
-  user_role: "architect-pm",
   state: "NSW",
   status: "preview",
   updated_at: new Date().toISOString(),

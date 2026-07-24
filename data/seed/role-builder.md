@@ -14,6 +14,8 @@ required_by: {head-contractor-procurement: 3}
 
 # Role overlay — Builder (head contractor)
 
+> **Retired — not loaded by the knowledge catalog as of 2026-07-24.** Role is no longer a user-facing overlay; every project uses the single `role-architect-pm.md` project-lead overlay. This file is retained for reference only.
+
 The **builder** holds the head contract with the owner. The builder is the residential head contractor — sole contractual interface to the owner for construction, sole party responsible for statutory builder instruments (licence, HOW/HBCF, LSL, insurance), and the party that issues progress claims and assesses subcontractor claims.
 
 This overlay is loaded when the project `README.md` declares `user_role: builder`. It adds builder-specific obligations on top of the abstract `project lead` doctrine in `../00-doctrine/doctrine.md`. It does **not** replace the doctrine — the doctrine still holds. Where doctrine and overlay diverge, the overlay carries role-specific weight; where the overlay is silent, the doctrine spine applies.

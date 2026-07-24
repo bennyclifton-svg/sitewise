@@ -118,60 +118,7 @@ Include this sub-milestone table under **Programme and staging regime** (status 
 | Defects liability period (DLP) | Post-OC | Assumption | Per contract |
 """
 
-BUILDER_PROGRAMME_SUBMILESTONE_TABLE = """
-Include this sub-milestone table under **Programme and staging regime** (status Assumption; durations TBC).
-The drafter IS the builder — do NOT include "builder procured" or "invited builders" rows.
-
-| Sub-milestone | Maps to stage | Status | Note |
-| --- | --- | --- | --- |
-| Mobilisation checklist complete (HBCF, LSL, CWI, licence) | Pre-start | Assumption | Per setup-and-commission-guide |
-| Head contract executed | Pre-start | Assumption | Tender/contract basis filed |
-| Planning permit / CC issued | Pre-start | Assumption | Authority gate |
-| Site due diligence complete | Pre-start | Assumption | Per archetype checklist |
-| Construction start / site possession | Construction | Assumption | Mobilisation gate |
-| Enabling works / demolition (renovation) | Construction | Assumption | Staging if live occupancy |
-| Slab / substructure | Construction | Assumption | HIA stage claim + inspection gate |
-| Frame | Construction | Assumption | HIA stage claim + inspection gate |
-| Lockup | Construction | Assumption | Envelope sealed — stage claim gate |
-| Fixing | Construction | Assumption | Internal trades — stage claim gate |
-| Practical completion (PC) | Construction | Assumption | Defects schedule |
-| OC issued | Handover | Assumption | Occupation gate |
-| Defects liability period (DLP) | Post-OC | Assumption | Per contract |
-"""
-
-OWNER_BUILDER_PROGRAMME_SUBMILESTONE_TABLE = """
-Include this sub-milestone table under **Programme and staging regime** (status Assumption; durations TBC).
-The drafter IS the owner-builder — do NOT include "builder procured" or "invited builders" rows.
-
-| Sub-milestone | Maps to stage | Status | Note |
-| --- | --- | --- | --- |
-| Owner-builder permit confirmed (if required) | Pre-start | Assumption | Gate before site start |
-| Planning permit / CC issued | Pre-start | Assumption | Authority gate |
-| Site due diligence complete | Pre-start | Assumption | Per archetype checklist |
-| Trade packages procured | Pre-start | Assumption | Per trade register |
-| Construction start / site possession | Construction | Assumption | Mobilisation gate |
-| Slab / substructure | Construction | Assumption | Inspection gate |
-| Frame | Construction | Assumption | Inspection gate |
-| Lockup | Construction | Assumption | Envelope sealed |
-| Fixing | Construction | Assumption | Internal trades |
-| Practical completion (PC) | Construction | Assumption | Defects schedule |
-| OC issued | Handover | Assumption | Occupation gate |
-| Defects liability period (DLP) | Post-OC | Assumption | Statutory warranty if sold |
-"""
-
-D_AND_C_PROGRAMME_SUBMILESTONE_TABLE = BUILDER_PROGRAMME_SUBMILESTONE_TABLE.replace(
-    "The drafter IS the builder",
-    "The drafter IS the D&C contractor",
-)
-
 PROGRAMME_SUBMILESTONE_TABLE = ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
-
-PROGRAMME_SUBMILESTONE_TABLES: dict[str, str] = {
-    "architect-pm": ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE,
-    "builder": BUILDER_PROGRAMME_SUBMILESTONE_TABLE,
-    "owner-builder": OWNER_BUILDER_PROGRAMME_SUBMILESTONE_TABLE,
-    "d-and-c": BUILDER_PROGRAMME_SUBMILESTONE_TABLE,
-}
 
 AUTHORITY_TRACKER_TABLE = """
 Include this authority tracker table under the planning/approvals section (status Assumption):
@@ -183,20 +130,6 @@ Include this authority tracker table under the planning/approvals section (statu
 | Construction Certificate / building permit | Assumption | Certifier | Issue before site start |
 | Occupation Certificate / occupancy permit | Assumption | Certifier | Issue at handover |
 | Utility connections (power, water, sewer) | Assumption | Owner / builder | Confirm capacity |
-"""
-
-SUBCONTRACTOR_REGISTER_STARTER = """
-Include this subcontractor register starter under **Procurement and subcontractor posture**
-(name at least 5 trades — do NOT fill every cell with the word "Assumption"):
-
-| Trade | Appointed | Licence verified | Insurance | Scope stage | Status |
-| --- | --- | --- | --- | --- | --- |
-| Demolition / enabling | TBC | Assumption | Assumption | Pre-start | Assumption |
-| Structural carpentry | TBC | Assumption | Assumption | Construction | Assumption |
-| Plumbing / hydraulic | TBC | Assumption | Assumption | Construction | Assumption |
-| Electrical | TBC | Assumption | Assumption | Construction | Assumption |
-| Waterproofing | TBC | Assumption | Assumption | Construction | Assumption |
-| Plaster / lining | TBC | Assumption | Assumption | Fixing | Assumption |
 """
 
 RISK_REGISTER_TABLE = """
@@ -281,90 +214,6 @@ ROLE_ARCHITECT_PM_OVERLAY = """
   5. Background (if needed)
 - Give recommendations, not option bundles without a view.
 """
-
-ROLE_OWNER_BUILDER_OVERLAY = """
-### Role overlay — owner-builder
-- Principal and contractor simultaneously — no builder-side HBCF/HOW for own work; statutory warranty to future buyers if sold within 7 years 6 months.
-- Owner-builder permit required where trigger applies — gate before certifier appointment/site start.
-- Park-for-decision queue under `08-meetings-reporting/` for self-decisions.
-- Trade register: licence, insurance, scope, HBCF (where contractor package triggers), payment checks per trade.
-"""
-
-ROLE_BUILDER_OVERLAY = """
-### Role overlay — builder
-- Head contract with owner — HOW/HBCF, LSL, licence, CWI, PL, workers comp are builder-held instruments.
-- Brief basis is accepted tender/contract — scope via drawings/specifications, exclusions, PC/provisional sums, owner-supplied items.
-- HIA stage-payment milestones link to programme: slab, frame, lockup, fixing, completion — verify physical completion before certifying claims.
-- Variation mechanism (MANDATORY): HIA Schedule of Variations or equivalent — price and obtain owner signature before work begins; maintain variation register under `07-construction/06-variations/`.
-- Renovation archetype: latent conditions are common — contingency, provisional sums, and staged investigation; do not programme as if walls are empty.
-"""
-
-BUILDER_SECTION_BRIEFS: dict[str, str] = {
-    "Evidence basis and document control": """
-- Status: draft mobilisation plan, not issued. Version v01.
-- Source hierarchy: project evidence (none yet) → doctrine → seeds in seed_consulted.
-- Document control: save under `00-brief-pmp/`; supersede when contract/tender evidence arrives.
-""",
-    "Project overview": """
-- State declared archetype, role, state, and mobilisation status: **Assumption: pre-contract mobilisation** (do not invent a construction phase).
-- One-sentence project type from archetype overlay.
-- **Assumption**: site address, contract sum, owner identity, and tender basis not yet filed.
-""",
-    "Builder role and contract basis": """
-- Head contract posture: HIA Lump Sum / Renovation or equivalent — stage payments, variation mechanism, EOT clause.
-- Scope basis: drawings, specifications, exclusions, PC/provisional sums, owner-supplied items — all **Assumption** until tender/contract filed.
-- Variation discipline: every scope change via written variation (HIA Schedule of Variations) before work begins.
-- EOT discipline: contemporaneous notice within contract window, supported by programme and evidence.
-- Owner communication: plain-English summary with contractual attachment for variations, claims, and EOT.
-""",
-    "Statutory instruments and insurance": """
-- Builder-held instruments table with columns Instrument | Status | Filing path | Next action (not Instrument | Status only).
-- Required rows: licence + QS, HBCF/HOW per-project certificate, LSL receipt, CWI, PL, workers comp.
-- For non-NSW state: inline state gap callout for HBCF/HOW/LSL equivalents — do not extend NSW silently.
-""",
-    "Planning and approvals pathway": """
-- Include the archetype due diligence checklist table (every row status = Assumption; adapt NSW-specific rows for state).
-- Planning pathway: CDC vs DA vs exempt — open decision until evidenced.
-- Include the authority tracker table (see contract appendix).
-""",
-    "Programme and staging regime": """
-- Include the role-specific sub-milestone table from the contract appendix (builder rows — no "invited builders").
-- HIA stage-payment milestones mapped to programme gates: slab, frame, lockup, fixing, completion.
-- Renovation: enabling works / demolition staging, live occupancy, temporary weatherproofing, tie-in sequencing.
-""",
-    "Procurement and subcontractor posture": """
-- Include the subcontractor register starter table (named trades — not placeholder "Assumption" in every cell).
-- Cost posture: contingency 5–10% for renovation latent conditions; PC sums and provisional sums tracked separately.
-- Subcontractor variation assessment: builder assesses subbie variations; owner variations via head contract mechanism.
-- Owner-supplied items tracked separately from contract sum.
-""",
-    "Risks, decisions and next actions": """
-- Include the risk register table (Risk | Owner | Status | Next action | Due) — minimum 5 rows, not a numbered prose list.
-- Open owner decisions table: Decision | Recommended default | Owner | Due date.
-- Renovation risks to include: latent conditions, tie-ins, waterproofing, live occupancy, approval pathway uncertainty.
-""",
-    "Internal audit layer": """
-- Use bullet lists labelled **Facts**, **Assumptions**, **Judgements**, **Recommendations** — do NOT use ### subheadings.
-- Minimum 3 Recommendations, each with an owner ask and due date.
-- Draft register rows table (ID, description, owner, status, due date, source, next action).
-- Workflow warnings: no head contract, no HBCF certificate, unsorted `_inbox/` (exact wording).
-- Repeat mandatory seed paths under "Mandatory seeds consulted".
-""",
-}
-
-ROLE_D_AND_C_OVERLAY = """
-### Role overlay — D&C
-- Inherits all builder obligations plus design responsibility: design fee/programme, design responsibility matrix, consultant PI, D&C PI, certifier submission protocol.
-- Design pack controlled before construction release — certifier must not receive stale submissions.
-- Novation/appointment evidence for design consultants must be visible at setup.
-"""
-
-ROLE_OVERLAYS: dict[str, str] = {
-    "architect-pm": ROLE_ARCHITECT_PM_OVERLAY,
-    "owner-builder": ROLE_OWNER_BUILDER_OVERLAY,
-    "builder": ROLE_BUILDER_OVERLAY,
-    "d-and-c": ROLE_D_AND_C_OVERLAY,
-}
 
 ARCHITECT_PM_SECTION_BRIEFS: dict[str, str] = {
     "Evidence basis and document control": """
@@ -563,23 +412,12 @@ ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
 }
 
 
-def programme_submilestone_table(user_role: str) -> str:
-    return PROGRAMME_SUBMILESTONE_TABLES.get(
-        user_role,
-        ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE,
-    )
+def programme_submilestone_table() -> str:
+    return ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
 
 
-def _archetype_overlay_for_role(archetype: str, user_role: str, *, state: str) -> str:
+def _archetype_overlay(archetype: str, *, state: str) -> str:
     overlay = ARCHETYPE_OVERLAYS.get(archetype, "").strip()
-    if user_role != "architect-pm":
-        filtered: list[str] = []
-        for line in overlay.splitlines():
-            lowered = line.lower()
-            if "builder procurement" in lowered or "invited builders" in lowered:
-                continue
-            filtered.append(line)
-        overlay = "\n".join(filtered).strip()
     if state != "NSW":
         overlay = overlay.replace(
             "BASIX alteration trigger (NSW ≥ $50k)",
@@ -651,7 +489,7 @@ def _architect_pm_greenfield_brief(
     state: str,
     evidence_grounded: bool = False,
 ) -> str:
-    archetype_overlay = _archetype_overlay_for_role(archetype, "architect-pm", state=state)
+    archetype_overlay = _archetype_overlay(archetype, state=state)
     due_diligence = _archetype_due_diligence_checklist(archetype, state=state)
     section_briefs = (
         ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS
@@ -675,7 +513,7 @@ def _architect_pm_greenfield_brief(
     parts.extend(
         [
             "",
-            programme_submilestone_table("architect-pm").strip(),
+            programme_submilestone_table().strip(),
             "",
             AUTHORITY_TRACKER_TABLE.strip(),
             "",
@@ -705,83 +543,6 @@ def _architect_pm_greenfield_brief(
         parts.append(f"### Section: {heading}")
         parts.append(brief.strip())
         parts.append("")
-    return "\n".join(parts)
-
-
-def _mobilisation_greenfield_brief(
-    *,
-    archetype: str,
-    user_role: str,
-    state: str,
-    evidence_grounded: bool = False,
-) -> str:
-    role_overlay = ROLE_OVERLAYS.get(user_role, "")
-    archetype_overlay = _archetype_overlay_for_role(archetype, user_role, state=state)
-    due_diligence = _archetype_due_diligence_checklist(archetype, state=state)
-    section_briefs = BUILDER_SECTION_BRIEFS if user_role == "builder" else None
-    contract_header = (
-        "## Evidence-grounded content contract (MUST follow)"
-        if evidence_grounded
-        else "## Greenfield content contract (platform_seeded — MUST follow)"
-    )
-    parts = [
-        contract_header,
-        _state_note(state),
-        GREENFIELD_DATE_RULE.strip(),
-        role_overlay.strip(),
-        archetype_overlay.strip(),
-    ]
-    if due_diligence:
-        parts.extend(["", due_diligence])
-    parts.extend(
-        [
-            "",
-            programme_submilestone_table(user_role).strip(),
-            "",
-            AUTHORITY_TRACKER_TABLE.strip(),
-        ]
-    )
-    if user_role == "builder":
-        parts.extend(
-            [
-                "",
-                SUBCONTRACTOR_REGISTER_STARTER.strip(),
-                "",
-                RISK_REGISTER_TABLE.strip(),
-            ]
-        )
-    parts.extend(
-        [
-            "",
-            "Populate every required ## section with archetype- and role-specific checklists,",
-            "statutory instrument tables (status Assumption), programme sub-milestone table,",
-            "cost/contingency posture, and at least 5 risks in table form with next actions.",
-            "",
-            "Internal audit layer must use labelled bullet lists (not ### subheadings),",
-            "draft register rows, and workflow warnings.",
-            "Never use architect-PM procurement language (invited builders) when user_role is builder.",
-        ]
-    )
-    if evidence_grounded:
-        parts.extend(
-            [
-                "",
-                "Project evidence is in Sources — upgrade factual statements from evidence_refs.",
-                "Do NOT label indexed documents as not yet filed or pre-brief / pre-engagement.",
-            ]
-        )
-    if section_briefs:
-        parts.extend(
-            [
-                "",
-                "For each required ## section below, include ALL bullets. Use tables and checklists.",
-                "",
-            ]
-        )
-        for heading, brief in section_briefs.items():
-            parts.append(f"### Section: {heading}")
-            parts.append(brief.strip())
-            parts.append("")
     return "\n".join(parts)
 
 
@@ -898,7 +659,6 @@ def _contract_focus_line(
 def _adaptive_greenfield_brief(
     *,
     archetype: str,
-    user_role: str,
     state: str,
     building_class: str,
     work_type: str | None,
@@ -934,7 +694,6 @@ def _adaptive_greenfield_brief(
     setup_rows = [
         f"- User provided project title: {_format_value(user_provided_fields.get('title'))}",
         f"- User provided state: {_format_value(state)}",
-        f"- User provided role: {_format_value(user_role)}",
         f"- User provided taxonomy: class={building_class}, work_type={work_type or 'TBC'}, "
         f"subclasses={', '.join(subclasses) or 'TBC'}",
     ]
@@ -999,7 +758,6 @@ def _adaptive_greenfield_brief(
 def build_greenfield_brief(
     *,
     archetype: str,
-    user_role: str,
     state: str,
     draft_mode: str = "platform_seeded",
     building_class: str | None = None,
@@ -1017,7 +775,6 @@ def build_greenfield_brief(
     if building_class is not None and section_weights is not None and target_words is not None:
         return _adaptive_greenfield_brief(
             archetype=archetype,
-            user_role=user_role,
             state=state,
             building_class=building_class,
             work_type=work_type,
@@ -1033,23 +790,16 @@ def build_greenfield_brief(
             draft_mode=draft_mode,
         )
     evidence_grounded = draft_mode == "evidence_grounded"
-    if user_role == "architect-pm":
-        return _architect_pm_greenfield_brief(
-            archetype=archetype,
-            state=state,
-            evidence_grounded=evidence_grounded,
-        )
-    return _mobilisation_greenfield_brief(
+    return _architect_pm_greenfield_brief(
         archetype=archetype,
-        user_role=user_role,
         state=state,
         evidence_grounded=evidence_grounded,
     )
 
 
 # Minimum terms that must appear in platform_seeded drafts (case-insensitive).
-GREENFIELD_QUALITY_MARKERS: dict[tuple[str, str], tuple[str, ...]] = {
-    ("new-dwelling", "architect-pm"): (
+GREENFIELD_QUALITY_MARKERS: dict[str, tuple[str, ...]] = {
+    "new-dwelling": (
         "basix",
         "due diligence",
         "dilapidation",
@@ -1058,97 +808,53 @@ GREENFIELD_QUALITY_MARKERS: dict[tuple[str, str], tuple[str, ...]] = {
         "hbcf",
         "principal certifier",
     ),
-    ("renovation", "architect-pm"): (
+    "renovation": (
         "latent",
         "dilapidation",
         "due diligence",
         "stage 1",
         "contingency",
     ),
-    ("multi-dwelling", "architect-pm"): (
+    "multi-dwelling": (
         "classification",
         "consent",
         "stage",
         "contingency",
     ),
-    ("ancillary", "architect-pm"): (
+    "ancillary": (
         "class",
         "cdc",
         "stage 1",
     ),
-    ("small-commercial", "architect-pm"): (
+    "small-commercial": (
         "reduced",
         "volume one",
         "licence",
     ),
-    ("new-dwelling", "owner-builder"): ("owner-builder", "permit", "contingency", "recommendation"),
-    ("renovation", "owner-builder"): ("due diligence", "permit", "park-for-decision", "recommendation"),
-    ("new-dwelling", "builder"): ("hbcf", "lsl", "stage", "recommendation"),
-    ("renovation", "builder"): (
-        "latent",
-        "hbcf",
-        "variation",
-        "contingency",
-        "eot",
-        "recommendation",
-    ),
-    ("new-dwelling", "d-and-c"): ("design responsibility", "pi", "hbcf", "recommendation"),
 }
 
 
-def greenfield_quality_markers(*, archetype: str, user_role: str) -> tuple[str, ...]:
+def greenfield_quality_markers(*, archetype: str) -> tuple[str, ...]:
     specific = GREENFIELD_QUALITY_MARKERS.get(
-        (archetype, user_role),
+        archetype,
         ("recommendation", "assumption", "stage"),
     )
-    if user_role == "architect-pm":
-        merged: list[str] = []
-        seen: set[str] = set()
-        for marker in (*specific, *ARCHITECT_PM_COMMON_MARKERS):
-            if marker not in seen:
-                seen.add(marker)
-                merged.append(marker)
-        return tuple(merged)
-    return specific
+    merged: list[str] = []
+    seen: set[str] = set()
+    for marker in (*specific, *ARCHITECT_PM_COMMON_MARKERS):
+        if marker not in seen:
+            seen.add(marker)
+            merged.append(marker)
+    return tuple(merged)
 
 
-def greenfield_markers_missing(markdown: str, *, archetype: str, user_role: str) -> list[str]:
+def greenfield_markers_missing(markdown: str, *, archetype: str) -> list[str]:
     haystack = markdown.lower()
     return [
         marker
-        for marker in greenfield_quality_markers(archetype=archetype, user_role=user_role)
+        for marker in greenfield_quality_markers(archetype=archetype)
         if marker not in haystack
     ]
-
-
-GREENFIELD_ROLE_ANTIPATTERNS: dict[str, tuple[str, ...]] = {
-    "builder": (
-        "invited builders",
-        "2–3 invited",
-        "2-3 invited",
-        "builder procured",
-    ),
-    "owner-builder": (
-        "invited builders",
-        "2–3 invited",
-        "2-3 invited",
-        "builder procured",
-    ),
-    "d-and-c": (
-        "invited builders",
-        "2–3 invited",
-        "2-3 invited",
-        "builder procured",
-    ),
-}
-
-BUILDER_TRADE_MARKERS: tuple[str, ...] = (
-    "demolition",
-    "plumbing",
-    "electrical",
-    "waterproofing",
-    "structural",
-)
 
 
 def _markdown_section(markdown: str, heading: str) -> str:
@@ -1171,18 +877,10 @@ def _markdown_section(markdown: str, heading: str) -> str:
 def greenfield_structure_violations(
     markdown: str,
     *,
-    archetype: str,
-    user_role: str,
+    archetype: str = "",
 ) -> list[str]:
     """Return structural quality issues beyond keyword depth markers."""
     violations: list[str] = []
-    lower = markdown.lower()
-
-    for pattern in GREENFIELD_ROLE_ANTIPATTERNS.get(user_role, ()):
-        if pattern.lower() in lower:
-            violations.append(
-                f"role antipattern for {user_role!r}: must not include {pattern!r}"
-            )
 
     audit_section = _markdown_section(markdown, "Internal audit layer").lower()
     if audit_section and "### facts" in audit_section:
@@ -1197,27 +895,6 @@ def greenfield_structure_violations(
         if has_prose_risks and not has_risk_table:
             violations.append(
                 "Risks section must use a risk register table (Risk | Owner | Status | Next action | Due)"
-            )
-
-    if user_role == "builder":
-        procurement = _markdown_section(
-            markdown, "Procurement and subcontractor posture"
-        ).lower()
-        if procurement:
-            trade_hits = sum(1 for trade in BUILDER_TRADE_MARKERS if trade in procurement)
-            if trade_hits < 3:
-                violations.append(
-                    "Procurement section must name at least 3 trades in the subcontractor register "
-                    "(e.g. demolition, plumbing, electrical, waterproofing)"
-                )
-            if "| assumption | assumption | assumption | assumption | assumption |" in procurement:
-                violations.append(
-                    "Subcontractor register must use named trades — not 'Assumption' in every cell"
-                )
-
-        if archetype == "renovation" and "contingency" not in lower:
-            violations.append(
-                "Renovation builder draft must state contingency posture (5–10%) for latent conditions"
             )
 
     return violations

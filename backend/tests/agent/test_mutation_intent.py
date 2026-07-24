@@ -18,7 +18,6 @@ def test_explicit_profile_imperative_grants_narrow_bound_scope() -> None:
         "building_class": "residential",
         "work_type": "refurb",
         "state": "NSW",
-        "user_role": "architect-pm",
     }
     assert intent.user_message_hash == hash_user_message(text)
     assert intent.requires_confirmation is False
@@ -93,10 +92,10 @@ def test_explicit_client_imperative_binds_identity_field() -> None:
     assert dict(intent.profile_patch) == {"client": "Walsh Family"}
 
 
-def test_class_1a_house_scale_and_slash_role_are_bound() -> None:
+def test_class_1a_house_scale_are_bound() -> None:
     text = (
         "Make this a Class 1a residential refurbishment in NSW. "
-        "I'm the architect/PM. Set it as a single-storey house around 280 m² GFA."
+        "Set it as a single-storey house around 280 m² GFA."
     )
     intent = classify_mutation_intent(text)
 
@@ -105,7 +104,6 @@ def test_class_1a_house_scale_and_slash_role_are_bound() -> None:
         "building_class": "residential",
         "work_type": "refurb",
         "state": "NSW",
-        "user_role": "architect-pm",
         "subclasses": ["house"],
         "scale": {"storeys": 1, "gfa_sqm": 280},
     }

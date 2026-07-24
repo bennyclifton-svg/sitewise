@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "role": "architect",
-  "seed_profile": {"building_class": "residential", "subclasses": ["house"], "work_type": "refurb", "user_role": "architect-pm", "state": "NSW"},
+  "seed_profile": {"building_class": "residential", "subclasses": ["house"], "work_type": "refurb", "state": "NSW"},
   "decisions": [{"id": "procurement-route", "selected": "traditional", "locked": true}, {"id": "design-authority", "selected": "architect", "locked": true}],
   "files": ["project-brief.md"],
   "quote_groups": [],

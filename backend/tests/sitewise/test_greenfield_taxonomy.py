@@ -30,7 +30,6 @@ def _project(
     scale: dict | None = None,
     complexity: dict | None = None,
     work_scope: list[str] | None = None,
-    user_role: str = "architect-pm",
 ):
     return SimpleNamespace(
         slug=title.lower().replace(" ", "-"),
@@ -40,7 +39,6 @@ def _project(
         archetype=None,
         building_class=building_class,
         work_type=work_type,
-        user_role=user_role,
         state="NSW",
         project_metadata={
             "taxonomy": {
@@ -66,7 +64,6 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
 
     brief = build_greenfield_brief(
         archetype="",
-        user_role="architect-pm",
         state="NSW",
         draft_mode="platform_seeded",
         building_class=context.building_class,
@@ -134,7 +131,7 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     )
     headings = markdown_section_headings(markdown)
 
-    assert headings == list(required_section_headings("architect-pm", project=project))
+    assert headings == list(required_section_headings(project=project))
     assert headings[-1] == "Citation key"
     assert "| Field | Current PMP position | Citation |" in markdown
     assert "| Expected consultants |" not in markdown
@@ -277,7 +274,6 @@ def test_residential_new_scaffold_is_scope_heavy_and_covers_finishes() -> None:
                 scale={"gfa_sqm": 10000, "clear_height_m": 12},
                 complexity={},
                 work_scope=["steel_frame", "internal_roads"],
-                user_role="d-and-c",
             ),
             {},
         ),
@@ -307,7 +303,7 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
     assert context is not None
     headings = markdown_section_headings(markdown)
 
-    assert headings == list(required_section_headings(project.user_role, project=project))
+    assert headings == list(required_section_headings(project=project))
     assert headings[-1] == "Citation key"
     assert "| Field | Current PMP position | Citation |" in markdown
     assert "| Expected consultants |" not in markdown

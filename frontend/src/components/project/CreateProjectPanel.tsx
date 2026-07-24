@@ -14,10 +14,7 @@ import { compactTaxonomyValue } from "@/lib/project-taxonomy";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type { ProjectDetail } from "@/lib/types/project";
 
-import {
-  projectRoleOptions,
-  projectStateOptions,
-} from "@/lib/project-overlays";
+import { projectStateOptions } from "@/lib/project-overlays";
 
 export function CreateProjectPanel({
   onCreated,
@@ -27,7 +24,6 @@ export function CreateProjectPanel({
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [taxonomy, setTaxonomy] = useState<TaxonomyPickerValue>({});
-  const [userRole, setUserRole] = useState("architect-pm");
   const [state, setState] = useState("NSW");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +44,6 @@ export function CreateProjectPanel({
         title: trimmedTitle,
         slug: slug.trim() || undefined,
         ...taxonomyInput,
-        user_role: userRole,
         state,
         phase: "brief-planning",
       });
@@ -103,14 +98,7 @@ export function CreateProjectPanel({
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <SelectField
-            id="project-role"
-            label="Role"
-            value={userRole}
-            onChange={setUserRole}
-            options={projectRoleOptions}
-          />
+        <div className="grid gap-3">
           <SelectField
             id="project-state"
             label="State"

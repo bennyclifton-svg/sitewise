@@ -26,7 +26,6 @@ def test_universal_skeleton_is_identical_across_classes() -> None:
     for building_class in building_classes():
         assert (
             required_section_headings(
-                "architect-pm",
                 building_class=building_class.value,
                 work_type="new",
             )
@@ -42,16 +41,16 @@ def test_advisory_label_variants_share_skeleton_slots() -> None:
     assert "Programme" not in headings
     assert "Consultants" in headings
     assert "Citation key" in headings
-    assert document_title("architect-pm", "advisory") == "Advisory Services Plan"
+    assert document_title("advisory") == "Advisory Services Plan"
 
 
 def test_unknown_work_type_uses_base_labels() -> None:
     assert pmp_section_headings(work_type="mystery") == tuple(PMP_SECTION_HEADINGS.values())
 
 
-def test_legacy_no_taxonomy_role_tuple_still_available() -> None:
-    headings = required_section_headings("builder")
-    assert "Statutory instruments and insurance" in headings
+def test_legacy_no_taxonomy_section_tuple_still_available() -> None:
+    headings = required_section_headings()
+    assert "Architect-PM role and appointment" in headings
     assert "Project snapshot" not in headings
 
 
@@ -61,6 +60,6 @@ def test_project_with_building_class_dispatches_to_universal_skeleton() -> None:
         work_type="refurb",
         project_metadata={"taxonomy": {"subclasses": ["office"]}},
     )
-    assert required_section_headings("architect-pm", project=project) == tuple(
+    assert required_section_headings(project=project) == tuple(
         PMP_SECTION_HEADINGS.values()
     )

@@ -9,7 +9,7 @@
       "risk_tags": ["stale-write", "provenance"],
       "channels": ["chat", "ui-parity"],
       "fixture_files": ["project-brief.md"],
-      "setup": ["Create an NSW residential project with user_role architect-pm and profile revision 3.", "Open the same project in the cockpit and chat."],
+      "setup": ["Create an NSW residential project with profile revision 3.", "Open the same project in the cockpit and chat."],
       "turns": [{"actor": "user", "prompt": "Bit of a messy one: it is still the same house refurb in NSW. I might be the PM, maybe architect too. Change only the work type to refurbishment and tell me what else you actually need before making a project plan."}],
       "assertions": [
         {"layer": "durable_state", "target": "project_profile", "operator": "changed_fields_equal", "expected": {"work_type": "refurb"}},
@@ -17,7 +17,7 @@
         {"layer": "response", "target": "needs_input", "operator": "contains_only_missing_required_facts", "expected": true},
         {"layer": "event", "target": "project.resource_changed", "operator": "emitted_once", "expected": true}
       ],
-      "forbidden": ["clear_omitted_profile_fields", "infer_or_overwrite_user_role", "start_workflow_before_capability"],
+      "forbidden": ["clear_omitted_profile_fields", "start_workflow_before_capability"],
       "evidence": ["profile revisions before/after", "event cursor", "cockpit profile state", "tool trace without prompt content"],
       "plan_gates": ["1.2", "1.3", "1.4", "1.10A"]
     },

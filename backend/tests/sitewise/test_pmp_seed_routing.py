@@ -6,11 +6,10 @@ from app.sitewise.pmp_seed_routing import load_pmp_seed_sections, resolve_seed_r
 from tests.conftest import run_async
 
 
-def _selected(building_class: str, work_type: str, user_role: str = "architect-pm"):
+def _selected(building_class: str, work_type: str):
     return select_required_paths(
         workflow="create-pmp",
         archetype="",
-        user_role=user_role,
         building_class=building_class,
         work_type=work_type,
     )
@@ -103,7 +102,6 @@ def test_archetype_fallback_selected_paths_validate_base_routes() -> None:
     selected_paths = select_required_paths(
         workflow="create-pmp",
         archetype="renovation",
-        user_role="architect-pm",
     )
     refs = _refs(
         selected_paths=selected_paths,
