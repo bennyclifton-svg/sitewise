@@ -65,17 +65,6 @@ _STATES = {
     "nt": "NT",
     "act": "ACT",
 }
-_ROLES = {
-    "owner builder": "owner-builder",
-    "owner-builder": "owner-builder",
-    "architect project manager": "architect-pm",
-    "architect pm": "architect-pm",
-    "architect/pm": "architect-pm",
-    "architect-pm": "architect-pm",
-    "design and construct": "d-and-c",
-    "d&c": "d-and-c",
-    "builder": "builder",
-}
 _SUBCLASSES = {
     "townhouses": "townhouses",
     "townhouse": "townhouses",
@@ -230,7 +219,6 @@ def _profile_targets(text: str) -> dict[str, Any]:
     _match_alias(targets, "building_class", lowered, _BUILDING_CLASSES)
     _match_alias(targets, "work_type", lowered, _WORK_TYPES)
     _match_alias(targets, "state", lowered, _STATES)
-    _match_alias(targets, "user_role", lowered, _ROLES)
     subclass = _match_subclass(lowered)
     if subclass is not None:
         targets["subclasses"] = [subclass]

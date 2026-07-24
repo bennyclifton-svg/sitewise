@@ -47,7 +47,6 @@ def harrison_clarke_cost_project(**overrides: Any) -> Project:
 def platform_passages_for_cost_plan(project: Project) -> list[SourcePassage]:
     paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=project.user_role or "",
     )
     passages: list[SourcePassage] = []
     for path in paths:

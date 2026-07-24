@@ -15,7 +15,6 @@ function projectWithCapabilities(
     archetype: null,
     building_class: "commercial",
     work_type: "new",
-    user_role: "architect-pm",
     state: "VIC",
     profile_revision: 1,
     status: "active",

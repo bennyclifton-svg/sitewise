@@ -43,7 +43,7 @@ def test_minimal_brief_scaffold_meets_phase6_contract() -> None:
     )
 
     assert markdown_section_headings(markdown) == list(
-        required_section_headings(project.user_role, project=project)
+        required_section_headings(project=project)
     )
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
     assert "Grounded" not in markdown

@@ -40,7 +40,7 @@ def test_render_cost_plan_scaffold_includes_all_sections() -> None:
         for line in markdown.splitlines()
         if line.strip().startswith("## ")
     }
-    for heading in required_section_headings("architect-pm"):
+    for heading in required_section_headings():
         assert heading.lower() in headings
 
 
@@ -54,7 +54,7 @@ def test_rendered_cost_plan_is_compact_and_uses_numbered_evidence_citations() ->
         if line.strip().startswith("## ")
     ]
 
-    assert headings == list(required_section_headings("architect-pm"))
+    assert headings == list(required_section_headings())
     assert len(headings) == 5
     assert headings[-1] == "Source evidence and audit trail"
     assert "[1]" in markdown
@@ -89,7 +89,7 @@ def test_render_cost_plan_scaffold_walsh_surfaces_all_cost_drivers() -> None:
 
     assert "atelier north" in lowered
     assert "hcs architect" not in lowered
-    assert "**profile:** residential / refurb, architect-pm, nsw" in lowered
+    assert "**profile:** residential / refurb, nsw" in lowered
     assert "$96,500" in markdown
     assert "$980,000 ex GST** is **outside" not in markdown
     assert "$920,000" in markdown

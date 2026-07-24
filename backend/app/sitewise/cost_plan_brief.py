@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.sitewise.pmp_greenfield_brief import (
     ARCHETYPE_OVERLAYS,
     GREENFIELD_DATE_RULE,
-    ROLE_OVERLAYS,
+    ROLE_ARCHITECT_PM_OVERLAY,
     _adapt_due_diligence_for_state,
     _archetype_due_diligence_checklist,
     _state_note,
@@ -159,57 +159,47 @@ COMPACT_SECTION_BRIEFS: dict[str, str] = {
 """,
 }
 
-GREENFIELD_QUALITY_MARKERS: dict[tuple[str, str], tuple[str, ...]] = {
-    ("new-dwelling", "architect-pm"): (
+GREENFIELD_QUALITY_MARKERS: dict[str, tuple[str, ...]] = {
+    "new-dwelling": (
         "contingency",
         "ex gst",
         "fees and charges",
         "construction",
         "recommendation",
     ),
-    ("renovation", "architect-pm"): (
+    "renovation": (
         "contingency",
         "latent",
         "ex gst",
         "recommendation",
     ),
-    ("multi-dwelling", "architect-pm"): (
+    "multi-dwelling": (
         "contingency",
         "classification",
         "ex gst",
     ),
-    ("ancillary", "architect-pm"): ("contingency", "cdc", "ex gst"),
-    ("small-commercial", "architect-pm"): ("contingency", "ex gst", "reduced"),
-    ("new-dwelling", "owner-builder"): ("contingency", "owner-supplied", "recommendation"),
-    ("renovation", "owner-builder"): ("contingency", "latent", "recommendation"),
-    ("new-dwelling", "builder"): ("contingency", "hbcf", "stage", "recommendation"),
-    ("renovation", "builder"): ("contingency", "variation", "latent", "recommendation"),
-    ("new-dwelling", "d-and-c"): ("contingency", "design", "recommendation"),
+    "ancillary": ("contingency", "cdc", "ex gst"),
+    "small-commercial": ("contingency", "ex gst", "reduced"),
 }
 
 
-def greenfield_quality_markers(*, archetype: str, user_role: str) -> tuple[str, ...]:
+def greenfield_quality_markers(*, archetype: str) -> tuple[str, ...]:
     return GREENFIELD_QUALITY_MARKERS.get(
-        (archetype, user_role),
+        archetype,
         ("contingency", "ex gst", "recommendation", "assumption"),
     )
 
 
-def greenfield_markers_missing(markdown: str, *, archetype: str, user_role: str) -> list[str]:
+def greenfield_markers_missing(markdown: str, *, archetype: str) -> list[str]:
     haystack = markdown.lower()
     return [
         marker
-        for marker in greenfield_quality_markers(archetype=archetype, user_role=user_role)
+        for marker in greenfield_quality_markers(archetype=archetype)
         if marker not in haystack
     ]
 
 
-def greenfield_structure_violations(
-    markdown: str,
-    *,
-    _archetype: str = "",
-    _user_role: str = "",
-) -> list[str]:
+def greenfield_structure_violations(markdown: str) -> list[str]:
     issues: list[str] = []
     breakdown = _markdown_section(
         markdown, "Budget reconciliation and cost breakdown"
@@ -280,23 +270,21 @@ Use these exact blocks in evidence_grounded mode (copy the structure; fill from 
 def build_greenfield_brief(
     *,
     archetype: str,
-    user_role: str,
     state: str,
     draft_mode: str = "platform_seeded",
 ) -> str:
     if draft_mode == "evidence_grounded":
-        role_overlay = ROLE_OVERLAYS.get(user_role, "")
         archetype_overlay = ARCHETYPE_OVERLAYS.get(archetype, "").strip()
         parts = [
             EVIDENCE_GROUNDED_CONTRACT.strip(),
             _state_note(state),
             GREENFIELD_DATE_RULE.strip(),
-            role_overlay.strip(),
+            ROLE_ARCHITECT_PM_OVERLAY.strip(),
             archetype_overlay.strip(),
         ]
         return "\n".join(part for part in parts if part.strip())
 
-    role_overlay = ROLE_OVERLAYS.get(user_role, "")
+    role_overlay = ROLE_ARCHITECT_PM_OVERLAY
     archetype_overlay = ARCHETYPE_OVERLAYS.get(archetype, "").strip()
     due_diligence = _archetype_due_diligence_checklist(archetype, state=state)
     if due_diligence:

@@ -37,7 +37,7 @@ from app.sitewise.pmp_decisions import (
     format_locked_decisions,
     missing_locked_decisions,
 )
-from app.sitewise.pmp_sources import document_title_for_role, required_platform_paths
+from app.sitewise.pmp_sources import document_title, required_platform_paths
 from app.sitewise.pmp_greenfield_brief import greenfield_structure_violations
 from app.sitewise.pmp_sources import seed_consulted_includes_required
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
@@ -77,7 +77,6 @@ def validate_update_pmp_output(
     *,
     baseline_markdown: str,
     archetype: str,
-    user_role: str,
     has_evidence_delta: bool,
     project: Project | None = None,
     source_texts: list[str] | None = None,
@@ -98,7 +97,6 @@ def validate_update_pmp_output(
     missing_seeds = seed_consulted_includes_required(
         output.seed_consulted,
         archetype=archetype,
-        user_role=user_role,
         project=project,
     )
     if missing_seeds:
@@ -110,7 +108,6 @@ def validate_update_pmp_output(
     structure_issues = greenfield_structure_violations(
         output.markdown,
         archetype=archetype,
-        user_role=user_role,
     )
     if structure_issues:
         joined = "; ".join(structure_issues)
@@ -186,10 +183,8 @@ def build_update_pmp_prompt(
     coverage list, evidence snapshot, retry feedback) trails — so OpenAI
     prefix caching hits the heavy static prefix across runs and retries.
     """
-    user_role = project.user_role or ""
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=user_role,
         project=project,
     )
     taxonomy_context = pmp_taxonomy_context(project)
@@ -204,11 +199,10 @@ def build_update_pmp_prompt(
         (
             "Overlays: "
             f"archetype={project.archetype}, "
-            f"user_role={project.user_role}, "
             f"state={project.state}"
         ),
         "Workflow: update_pmp",
-        f"Required document title: {document_title_for_role(user_role, project=project)}",
+        f"Required document title: {document_title(project=project)}",
         (
             "Revise the baseline PMP below using new project evidence. Preserve every "
             "## section heading from the baseline exactly (including user-added custom "
@@ -348,7 +342,6 @@ async def run_update_pmp_workflow(
 
     gate = overlay_status(
         archetype=project.archetype,
-        user_role=project.user_role,
         state=project.state,
         building_class=project.building_class,
         work_type=project.work_type,
@@ -614,7 +607,6 @@ async def run_update_pmp_workflow(
                     output,
                     baseline_markdown=baseline.content_markdown,
                     archetype=project.archetype or "",
-                    user_role=project.user_role or "",
                     has_evidence_delta=has_delta,
                     project=project,
                     source_texts=delta_source_texts,

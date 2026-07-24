@@ -14,6 +14,8 @@ required_by: {head-contractor-procurement: 3}
 
 # Role overlay - D&C contractor
 
+> **Retired — not loaded by the knowledge catalog as of 2026-07-24.** Role is no longer a user-facing overlay; every project uses the single `role-architect-pm.md` project-lead overlay. This file is retained for reference only.
+
 The **D&C contractor** is the head contractor and also carries responsibility for completing, coordinating, and submitting the design required to deliver the project. The role inherits the builder's construction obligations and adds design responsibility, consultant procurement, professional indemnity posture, design programme control, design responsibility matrix discipline, and certifier submission control.
 
 This overlay is loaded when the project `README.md` declares `user_role: d-and-c`. It is additive to the SiteWise project-lead doctrine and to `role-builder.md`. It does not replace project evidence, the doctrine, the declared archetype seed, or the executed contract.

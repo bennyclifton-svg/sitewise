@@ -64,7 +64,7 @@ def assert_hybrid_pmp_acceptance_criteria(markdown: str, *, project_slug: str) -
     source_texts = _harrison_clarke_source_texts()
     evidence_refs = _harrison_clarke_evidence_refs(project_slug)
 
-    assert markdown_section_headings(markdown) == list(required_section_headings("architect-pm"))
+    assert markdown_section_headings(markdown) == list(required_section_headings())
     assert (
         evidence_grounded_violations(
             markdown,
@@ -76,9 +76,7 @@ def assert_hybrid_pmp_acceptance_criteria(markdown: str, *, project_slug: str) -
     assert (
         greenfield_structure_violations(
             markdown,
-            archetype="new-dwelling",
-            user_role="architect-pm",
-        )
+            archetype="new-dwelling",        )
         == []
     )
 
@@ -162,9 +160,7 @@ def test_hybrid_harrison_clarke_integration_acceptance_criteria() -> None:
             ],
         ),
         "evidence_grounded",
-        archetype="new-dwelling",
-        user_role="architect-pm",
-        source_texts=_harrison_clarke_source_texts(),
+        archetype="new-dwelling",        source_texts=_harrison_clarke_source_texts(),
     )
 
     provenance = create_draft.await_args.kwargs["provenance_metadata"]

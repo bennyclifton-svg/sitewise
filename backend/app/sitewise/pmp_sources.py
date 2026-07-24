@@ -5,11 +5,10 @@ from __future__ import annotations
 from typing import Literal
 
 from app.sitewise.section_contracts import (
-    document_title,
+    document_title as _section_document_title,
     pmp_section_headings,
 )
 
-UserRole = Literal["owner-builder", "architect-pm", "builder", "d-and-c"]
 Archetype = Literal[
     "new-dwelling",
     "renovation",
@@ -28,11 +27,10 @@ ARCHETYPE_SEED_PATHS: dict[str, str] = {
     "small-commercial": "seed/small-commercial-guide.md",
 }
 
+# Role is collapsed to a single overlay. This is the only role seed the catalog
+# resolves; the other three role overlays are retired.
 ROLE_SEED_PATHS: dict[str, str] = {
-    "owner-builder": "seed/role-owner-builder.md",
     "architect-pm": "seed/role-architect-pm.md",
-    "builder": "seed/role-builder.md",
-    "d-and-c": "seed/role-d-and-c.md",
 }
 
 # Cross-cutting seeds required for Create PMP / mobilisation drafting.
@@ -61,57 +59,7 @@ ARCHITECT_PM_PMP_SECTIONS: tuple[str, ...] = (
     "Internal audit layer",
 )
 
-OWNER_BUILDER_MOBILISATION_SECTIONS: tuple[str, ...] = (
-    "Evidence basis and document control",
-    "Project overview",
-    "Owner-builder role and statutory posture",
-    "Project scope and self-defined brief",
-    "Planning and approvals pathway",
-    "Programme and staging regime",
-    "Cost and contingency posture",
-    "Trade procurement posture",
-    "Risks, decisions and next actions",
-    "Internal audit layer",
-)
-
-BUILDER_MOBILISATION_SECTIONS: tuple[str, ...] = (
-    "Evidence basis and document control",
-    "Project overview",
-    "Builder role and contract basis",
-    "Statutory instruments and insurance",
-    "Planning and approvals pathway",
-    "Programme and staging regime",
-    "Procurement and subcontractor posture",
-    "Risks, decisions and next actions",
-    "Internal audit layer",
-)
-
-D_AND_C_MOBILISATION_SECTIONS: tuple[str, ...] = (
-    "Evidence basis and document control",
-    "Project overview",
-    "D&C role, design responsibility and contract basis",
-    "Statutory instruments and insurance",
-    "Design pack and consultant coordination",
-    "Planning and approvals pathway",
-    "Programme and staging regime",
-    "Procurement posture",
-    "Risks, decisions and next actions",
-    "Internal audit layer",
-)
-
-ROLE_SECTION_HEADINGS: dict[str, tuple[str, ...]] = {
-    "architect-pm": ARCHITECT_PM_PMP_SECTIONS,
-    "owner-builder": OWNER_BUILDER_MOBILISATION_SECTIONS,
-    "builder": BUILDER_MOBILISATION_SECTIONS,
-    "d-and-c": D_AND_C_MOBILISATION_SECTIONS,
-}
-
-ROLE_DOCUMENT_TITLES: dict[str, str] = {
-    "architect-pm": "Project Management Plan",
-    "owner-builder": "Owner-Builder Mobilisation Plan",
-    "builder": "Builder Mobilisation Plan",
-    "d-and-c": "D&C Mobilisation Plan",
-}
+PMP_DOCUMENT_TITLE = "Project Management Plan"
 
 
 def _project_taxonomy_kwargs(project: object | None) -> dict[str, str | None]:
@@ -130,7 +78,6 @@ def _project_taxonomy_kwargs(project: object | None) -> dict[str, str | None]:
 def required_platform_paths(
     *,
     archetype: str,
-    user_role: str,
     project: object | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
@@ -151,13 +98,11 @@ def required_platform_paths(
     return select_required_paths(
         workflow="create-pmp",
         archetype=archetype,
-        user_role=user_role,
         **taxonomy_kwargs,
     )
 
 
 def required_section_headings(
-    user_role: str,
     *,
     project: object | None = None,
     building_class: str | None = None,
@@ -170,16 +115,10 @@ def required_section_headings(
         taxonomy_kwargs["work_type"] = work_type
     if taxonomy_kwargs.get("building_class") is not None:
         return pmp_section_headings(work_type=taxonomy_kwargs.get("work_type"))
-
-    headings = ROLE_SECTION_HEADINGS.get(user_role)
-    if headings is None:
-        msg = f"Unsupported user_role for Create PMP: {user_role!r}"
-        raise ValueError(msg)
-    return headings
+    return ARCHITECT_PM_PMP_SECTIONS
 
 
-def document_title_for_role(
-    user_role: str,
+def document_title(
     *,
     project: object | None = None,
     building_class: str | None = None,
@@ -191,20 +130,14 @@ def document_title_for_role(
     if work_type is not None:
         taxonomy_kwargs["work_type"] = work_type
     if taxonomy_kwargs.get("building_class") is not None:
-        return document_title(user_role, taxonomy_kwargs.get("work_type"))
-
-    title = ROLE_DOCUMENT_TITLES.get(user_role)
-    if title is None:
-        msg = f"Unsupported user_role for Create PMP: {user_role!r}"
-        raise ValueError(msg)
-    return title
+        return _section_document_title(taxonomy_kwargs.get("work_type"))
+    return PMP_DOCUMENT_TITLE
 
 
 def seed_consulted_includes_required(
     seed_consulted: list[str],
     *,
     archetype: str,
-    user_role: str,
     project: object | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
@@ -214,7 +147,6 @@ def seed_consulted_includes_required(
         path
         for path in required_platform_paths(
             archetype=archetype,
-            user_role=user_role,
             project=project,
             building_class=building_class,
             work_type=work_type,

@@ -83,7 +83,6 @@ describe("ProjectControlBoard project profile", () => {
         scale: {},
         complexity: { operational_constraints: "live_environment" },
         work_scope: [],
-        user_role: project.user_role,
         state: project.state,
         site_address: null,
         client: null,
@@ -158,7 +157,6 @@ describe("ProjectControlBoard project profile", () => {
         work_type: "refurb",
         subclasses: [{ value: "other", label: "Laboratory office" }],
         complexity: { operational_constraints: "live_environment" },
-        user_role: "architect-pm",
         state: "NSW",
         site_address: null,
         client: null,
@@ -237,13 +235,11 @@ describe("ProjectControlBoard project profile", () => {
       ...project,
       profile_revision: 2,
       state: "VIC",
-      user_role: "owner-builder",
     };
     view.rerender(profileBoard(newerProject, onProjectUpdated));
 
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByLabelText("State")).toHaveValue("QLD");
-    expect(screen.getByLabelText("Your role")).toHaveValue("owner-builder");
 
     vi.mocked(api.updateProject).mockResolvedValue({
       profile: {
@@ -255,7 +251,6 @@ describe("ProjectControlBoard project profile", () => {
         scale: {},
         complexity: { operational_constraints: "live_environment" },
         work_scope: [],
-        user_role: "owner-builder",
         state: "QLD",
         site_address: null,
         client: null,
@@ -276,7 +271,6 @@ describe("ProjectControlBoard project profile", () => {
         work_type: "refurb",
         subclasses: ["office"],
         complexity: { operational_constraints: "live_environment" },
-        user_role: "owner-builder",
         state: "QLD",
         site_address: null,
         client: null,
@@ -342,7 +336,6 @@ const project: ProjectDetail = {
   archetype: "small-commercial",
   building_class: "commercial",
   work_type: "refurb",
-  user_role: "architect-pm",
   state: "NSW",
   profile_revision: 1,
   status: "active",

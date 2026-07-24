@@ -93,13 +93,13 @@ def test_cost_plan_does_not_claim_six_class_or_interstate_coverage() -> None:
     assert matrix.capabilities["create_pmp"].status == "supported"
 
 
-def test_consultant_procurement_requires_role_and_taxonomy_context() -> None:
+def test_consultant_procurement_requires_taxonomy_context() -> None:
     capability = workflow_capabilities(
-        _snapshot(building_class=None, user_role=None)
+        _snapshot(building_class=None)
     ).capabilities["consultant_procurement"]
 
     assert capability.status == "needs_input"
-    assert capability.required_fields == ["building_class", "user_role"]
+    assert capability.required_fields == ["building_class"]
 
 
 def test_contractor_eoi_capability() -> None:

@@ -182,7 +182,7 @@ def test_listing_returns_required_paths_and_catalog(monkeypatch):
     assert data["gate"]["ready"] is True
     assert data["required"]["create-pmp"][0] == DOCTRINE
     assert data["required"]["create-pmp"][1] == "seed/new-dwelling-guide.md"
-    assert data["required"]["create-pmp"][2] == "seed/role-builder.md"
+    assert data["required"]["create-pmp"][2] == "seed/role-architect-pm.md"
     assert (
         "skills/reference/nsw-residential-cost-breakdown-reference.md"
         in data["required"]["create-cost-plan"]
@@ -191,7 +191,6 @@ def test_listing_returns_required_paths_and_catalog(monkeypatch):
     (call,) = catalog_calls
     assert call == {
         "archetype": "new-dwelling",
-        "user_role": "builder",
         "building_class": None,
         "work_type": None,
         "topics": ["cost"],

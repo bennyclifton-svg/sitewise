@@ -192,7 +192,7 @@ def _valid_cost_plan_markdown() -> str:
         }
     )
     body = "\n\n".join(
-        sections[heading] for heading in required_section_headings("architect-pm")
+        sections[heading] for heading in required_section_headings()
     )
     return f"# Project Cost Plan\n\n{body}"
 
@@ -473,9 +473,7 @@ def test_validate_cost_plan_output_accepts_platform_seeded() -> None:
     validate_cost_plan_output(
         output,
         "platform_seeded",
-        archetype="renovation",
-        user_role="architect-pm",
-    )
+        archetype="renovation",    )
 
 
 def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
@@ -490,9 +488,7 @@ def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
 
 
 def test_validate_cost_plan_output_fails_when_section_missing() -> None:
@@ -510,15 +506,13 @@ def test_validate_cost_plan_output_fails_when_section_missing() -> None:
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
 
 
 def test_validate_cost_plan_output_fails_when_greenfield_markers_missing() -> None:
     thin = "\n\n".join(
         f"## {heading}\n\nShort generic paragraph."
-        for heading in required_section_headings("architect-pm")
+        for heading in required_section_headings()
     )
     output = CostPlanDraftOutput(
         title="Project Cost Plan",
@@ -531,9 +525,7 @@ def test_validate_cost_plan_output_fails_when_greenfield_markers_missing() -> No
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
 
 
 def test_validate_cost_plan_evidence_grounded_requires_evidence_map() -> None:
@@ -548,9 +540,7 @@ def test_validate_cost_plan_evidence_grounded_requires_evidence_map() -> None:
         validate_cost_plan_output(
             output,
             "evidence_grounded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
 
 
 def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
@@ -567,9 +557,7 @@ def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
     validate_cost_plan_output(
         output,
         "evidence_grounded",
-        archetype="renovation",
-        user_role="architect-pm",
-    )
+        archetype="renovation",    )
 
 
 def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figures() -> (
@@ -590,9 +578,7 @@ def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figu
         validate_cost_plan_output(
             output,
             "evidence_grounded",
-            archetype="renovation",
-            user_role="architect-pm",
-            source_texts=_walsh_source_texts(),
+            archetype="renovation",            source_texts=_walsh_source_texts(),
         )
 
 

@@ -39,7 +39,6 @@ def _project_taxonomy_kwargs(project: object | None) -> dict[str, str | None]:
 def required_platform_paths(
     *,
     archetype: str,
-    user_role: str,
     project: object | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
@@ -60,16 +59,15 @@ def required_platform_paths(
     return select_required_paths(
         workflow="create-cost-plan",
         archetype=archetype,
-        user_role=user_role,
         **taxonomy_kwargs,
     )
 
 
-def required_section_headings(_user_role: str) -> tuple[str, ...]:
+def required_section_headings() -> tuple[str, ...]:
     return COST_PLAN_SECTIONS
 
 
-def document_title_for_role(_user_role: str) -> str:
+def document_title() -> str:
     return COST_PLAN_DOCUMENT_TITLE
 
 
@@ -77,7 +75,6 @@ def seed_consulted_includes_required(
     seed_consulted: list[str],
     *,
     archetype: str,
-    user_role: str,
     project: object | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
@@ -87,7 +84,6 @@ def seed_consulted_includes_required(
         path
         for path in required_platform_paths(
             archetype=archetype,
-            user_role=user_role,
             project=project,
             building_class=building_class,
             work_type=work_type,

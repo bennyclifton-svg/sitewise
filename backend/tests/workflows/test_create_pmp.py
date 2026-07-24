@@ -97,8 +97,8 @@ def test_canonical_pmp_workspace_path_normalises_legacy_draft_paths() -> None:
     )
 
 
-def _valid_pmp_markdown(user_role: str = "architect-pm") -> str:
-    sections = required_section_headings(user_role)
+def _valid_pmp_markdown() -> str:
+    sections = required_section_headings()
     greenfield_terms = (
         "Latent conditions and dilapidation due diligence. "
         "Stage 1 concept design. Contingency 5-10%. "
@@ -114,8 +114,8 @@ def _valid_pmp_markdown(user_role: str = "architect-pm") -> str:
     return f"# Project Management Plan\n\n{body}"
 
 
-def _valid_evidence_grounded_pmp_markdown(user_role: str = "architect-pm") -> str:
-    markdown = _valid_pmp_markdown(user_role)
+def _valid_evidence_grounded_pmp_markdown() -> str:
+    markdown = _valid_pmp_markdown()
     evidence_basis = """## Evidence basis and document control
 
 Status: draft, review-only, not issued. Version v01.
@@ -578,7 +578,6 @@ def test_create_pmp_repairs_taxonomy_engagement_status_before_validation() -> No
         )
         for path in required_platform_paths(
             archetype=project.archetype or "",
-            user_role=project.user_role or "",
             project=project,
         )
     ]
@@ -836,7 +835,7 @@ def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
 
 def test_validate_pmp_output_treats_length_as_advisory() -> None:
     project = _taxonomy_project()
-    sections = required_section_headings("architect-pm", project=project)
+    sections = required_section_headings(project=project)
     body = "\n\n".join(
         f"## {heading}\n\nAssumption content for {heading}."
         for heading in sections
@@ -847,9 +846,7 @@ def test_validate_pmp_output_treats_length_as_advisory() -> None:
         seed_consulted=_valid_seed_consulted()
         + list(
             required_platform_paths(
-                archetype="renovation",
-                user_role="architect-pm",
-                project=project,
+                archetype="renovation",                project=project,
             )
         ),
         evidence_refs=[],
@@ -875,9 +872,7 @@ def test_validate_pmp_output_treats_length_as_advisory() -> None:
         validate_pmp_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-            user_role="architect-pm",
-            project=project,
+            archetype="renovation",            project=project,
         )
 
 
@@ -1088,9 +1083,7 @@ def test_validate_pmp_output_allows_empty_evidence_refs_for_platform_seeded() ->
     validate_pmp_output(
         output,
         "platform_seeded",
-        archetype="renovation",
-        user_role="architect-pm",
-    )
+        archetype="renovation",    )
 
 
 def test_normalize_pmp_markdown_strips_bullet_prefixed_table_rows() -> None:
@@ -1100,117 +1093,10 @@ def test_normalize_pmp_markdown_strips_bullet_prefixed_table_rows() -> None:
     assert "| Col | Val |" in normalized
 
 
-def _valid_builder_pmp_markdown() -> str:
-    sections = required_section_headings("builder")
-    greenfield_terms = (
-        "Latent conditions contingency 5-10%. HBCF per-project certificate. "
-        "HIA Schedule of Variations variation register. EOT notice within contract window. "
-        "Recommendation: owner to sign head contract within 2 weeks."
-    )
-    procurement = (
-        "## Procurement and subcontractor posture\n\n"
-        "| Trade | Appointed | Licence verified | Insurance | Scope stage | Status |\n"
-        "| --- | --- | --- | --- | --- | --- |\n"
-        "| Demolition | TBC | Assumption | Assumption | Pre-start | Assumption |\n"
-        "| Plumbing | TBC | Assumption | Assumption | Construction | Assumption |\n"
-        "| Electrical | TBC | Assumption | Assumption | Construction | Assumption |\n"
-        "| Waterproofing | TBC | Assumption | Assumption | Construction | Assumption |\n"
-        f"{greenfield_terms}\n"
-    )
-    risks = (
-        "## Risks, decisions and next actions\n\n"
-        "| Risk | Owner | Status | Next action | Due |\n"
-        "| --- | --- | --- | --- | --- |\n"
-        "| Latent conditions | Builder | Assumption | Stage investigation | 2026-07-01 |\n"
-        "| Tie-ins | Builder | Assumption | Detail junction spec | 2026-07-01 |\n"
-        "| Waterproofing | Builder | Assumption | Engage specialist | 2026-07-01 |\n"
-        "| Live occupancy | Owner | Assumption | Agree staging plan | 2026-07-01 |\n"
-        "| Approval pathway | Builder | Assumption | Test CDC vs DA | 2026-07-01 |\n"
-    )
-    audit = (
-        "## Internal audit layer\n\n"
-        "- **Facts**\n- Draft mobilisation plan only.\n"
-        "- **Assumptions**\n- No contract filed.\n"
-        "- **Judgements**\n- Pre-contract mobilisation posture.\n"
-        "- **Recommendations**\n- Obtain HBCF by 2026-07-01.\n"
-    )
-    body_parts = []
-    for heading in sections:
-        if heading == "Procurement and subcontractor posture":
-            body_parts.append(procurement.strip())
-        elif heading == "Risks, decisions and next actions":
-            body_parts.append(risks.strip())
-        elif heading == "Internal audit layer":
-            body_parts.append(audit.strip())
-        else:
-            body_parts.append(
-                f"## {heading}\n\nAssumption content. {greenfield_terms}"
-            )
-    return "\n\n".join(body_parts)
-
-
-def test_validate_pmp_output_accepts_structured_builder_greenfield() -> None:
-    output = PmpDraftOutput(
-        title="Builder Mobilisation Plan",
-        markdown=_valid_builder_pmp_markdown(),
-        seed_consulted=[
-            "seed/renovation-guide.md",
-            "seed/role-builder.md",
-            "seed/setup-and-commission-guide.md",
-            "seed/contract-administration-guide.md",
-            "seed/cost-management-principles.md",
-            "seed/program-scheduling-guide.md",
-            "seed/procurement-quoting-guide.md",
-        ],
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
-    validate_pmp_output(
-        output,
-        "platform_seeded",
-        archetype="renovation",
-        user_role="builder",
-    )
-
-
-def test_validate_pmp_output_fails_builder_with_invited_builders_antipattern() -> None:
-    markdown = _valid_builder_pmp_markdown().replace(
-        "Pre-start",
-        "2-3 invited builders",
-        1,
-    )
-    output = PmpDraftOutput(
-        title="Builder Mobilisation Plan",
-        markdown=markdown,
-        seed_consulted=[
-            "seed/renovation-guide.md",
-            "seed/role-builder.md",
-            "seed/setup-and-commission-guide.md",
-            "seed/contract-administration-guide.md",
-            "seed/cost-management-principles.md",
-            "seed/program-scheduling-guide.md",
-            "seed/procurement-quoting-guide.md",
-        ],
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
-    try:
-        validate_pmp_output(
-            output,
-            "platform_seeded",
-            archetype="renovation",
-            user_role="builder",
-        )
-    except Exception as exc:
-        assert "structural issues" in str(exc)
-    else:
-        raise AssertionError("Expected validation to fail for builder antipattern")
-
-
 def test_validate_pmp_output_fails_when_greenfield_markers_missing() -> None:
     thin_markdown = "\n\n".join(
         f"## {heading}\n\nShort generic paragraph."
-        for heading in required_section_headings("architect-pm")
+        for heading in required_section_headings()
     )
     output = PmpDraftOutput(
         title="PMP",
@@ -1223,9 +1109,7 @@ def test_validate_pmp_output_fails_when_greenfield_markers_missing() -> None:
         validate_pmp_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
     except Exception as exc:
         assert "depth markers" in str(exc)
     else:
@@ -1244,9 +1128,7 @@ def test_validate_pmp_output_fails_when_mandatory_seed_missing() -> None:
         validate_pmp_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
     except Exception as exc:
         assert "mandatory seeds" in str(exc)
     else:
@@ -1272,9 +1154,7 @@ def test_validate_pmp_output_fails_evidence_grounded_contradictions() -> None:
         validate_pmp_output(
             output,
             "evidence_grounded",
-            archetype="renovation",
-            user_role="architect-pm",
-        )
+            archetype="renovation",        )
     except Exception as exc:
         assert "evidence_grounded fidelity" in str(exc)
     else:
@@ -1297,9 +1177,7 @@ def test_validate_pmp_output_accepts_evidence_grounded_faithful_draft() -> None:
     validate_pmp_output(
         output,
         "evidence_grounded",
-        archetype="renovation",
-        user_role="architect-pm",
-        source_texts=_project_source_texts(),
+        archetype="renovation",        source_texts=_project_source_texts(),
     )
 
 
@@ -1542,7 +1420,6 @@ def _evidence_passage(relative_path: str, content: str) -> SourcePassage:
 def _platform_passages_for_project(project: Project) -> list[SourcePassage]:
     paths = required_platform_paths(
         archetype=project.archetype or "",
-        user_role=project.user_role or "",
     )
     passages: list[SourcePassage] = []
     for path in paths:
@@ -1701,7 +1578,7 @@ def test_validate_update_pmp_rejects_missing_locked_decision_block() -> None:
     output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=baseline,
-        seed_consulted=list(required_platform_paths(archetype="renovation", user_role="architect-pm")),
+        seed_consulted=list(required_platform_paths(archetype="renovation")),
         evidence_refs=["engagement letter"],
         context_refs=["doctrine/core.md"],
     )
@@ -1709,9 +1586,7 @@ def test_validate_update_pmp_rejects_missing_locked_decision_block() -> None:
         validate_update_pmp_output(
             output,
             baseline_markdown=baseline_with_decision,
-            archetype="renovation",
-            user_role="architect-pm",
-            has_evidence_delta=True,
+            archetype="renovation",            has_evidence_delta=True,
             locked_ids={"procurement-route"},
         )
         raise AssertionError("expected WorkflowValidationError")

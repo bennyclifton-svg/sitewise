@@ -13,6 +13,8 @@ agents_anchors: [§1, §2, §3, §5, §6, §8, §9, §11]
 
 # Role overlay - Owner-builder
 
+> **Retired — not loaded by the knowledge catalog as of 2026-07-24.** Role is no longer a user-facing overlay; every project uses the single `role-architect-pm.md` project-lead overlay. This file is retained for reference only.
+
 The **owner-builder** is the project lead acting as both principal and builder for their own residential work. There is no separate head builder carrying the builder-side compliance pack. The owner-builder coordinates the work, engages licensed trades directly, holds the permit where required, keeps the decision record, and carries the practical risk of their own scope, timing, quality, and compliance decisions.
 
 This overlay is loaded when the project `README.md` declares `user_role: owner-builder`. It adds role-specific obligations to the SiteWise project-lead doctrine. It does not replace project evidence, the doctrine, or the declared archetype seed.

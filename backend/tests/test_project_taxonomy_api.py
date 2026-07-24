@@ -314,15 +314,14 @@ def test_patch_project_returns_conflict_for_stale_profile_revision(
     }
 
 
-def test_patch_project_persists_user_role_and_state(client: TestClient) -> None:
-    project = _project(user_role="architect-pm", state="NSW")
+def test_patch_project_persists_state(client: TestClient) -> None:
+    project = _project(state="NSW")
     change = _profile_change(
         profile={
             **_profile_change()["profile"],
-            "user_role": "builder",
             "state": "VIC",
         },
-        changed_fields=["user_role", "state"],
+        changed_fields=["state"],
     )
     apply_patch = AsyncMock(return_value=change)
 
@@ -333,15 +332,14 @@ def test_patch_project_persists_user_role_and_state(client: TestClient) -> None:
     ):
         response = client.patch(
             f"/projects/{PROJECT_ID}",
-            json={"expected_revision": 1, "user_role": "builder", "state": "VIC"},
+            json={"expected_revision": 1, "state": "VIC"},
         )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["profile"]["user_role"] == "builder"
     assert payload["profile"]["state"] == "VIC"
     body = apply_patch.await_args.kwargs["patch"]
-    assert body.model_fields_set == {"expected_revision", "user_role", "state"}
+    assert body.model_fields_set == {"expected_revision", "state"}
 
 
 def test_patch_project_taxonomy_satisfies_overlay_gate_without_archetype(

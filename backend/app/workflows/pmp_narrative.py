@@ -516,7 +516,6 @@ def build_pmp_narrative_prompt(
         (
             "Overlays: "
             f"archetype={project.archetype}, "
-            f"user_role={project.user_role}, "
             f"state={project.state}"
         ),
         (

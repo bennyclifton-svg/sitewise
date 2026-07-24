@@ -7,7 +7,9 @@ SUPPORTED_ARCHETYPES = {
     "ancillary",
     "small-commercial",
 }
-SUPPORTED_USER_ROLES = {"owner-builder", "architect-pm", "builder", "d-and-c"}
+# Role is no longer a user-facing overlay. Every project is pinned to this single
+# role server-side; the value is written once on create and never gates anything.
+DEFAULT_USER_ROLE = "architect-pm"
 SUPPORTED_STATES = {"NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"}
 
 
@@ -74,7 +76,6 @@ def _taxonomy_satisfied(
 def overlay_status(
     *,
     archetype: str | None,
-    user_role: str | None,
     state: str | None,
     building_class: str | None = None,
     work_type: str | None = None,
@@ -93,25 +94,21 @@ def overlay_status(
             if _clean(value) is None:
                 missing.append(OverlayIssue(field=field, value=value, reason="missing"))
 
-    for field, value, supported in (
-        ("user_role", user_role, SUPPORTED_USER_ROLES),
-        ("state", state, SUPPORTED_STATES),
-    ):
-        missing_issue, invalid_issue = _check_required(
-            field=field,
-            value=value,
-            supported=supported,
-        )
-        if missing_issue is not None:
-            missing.append(missing_issue)
-        if invalid_issue is not None:
-            invalid.append(invalid_issue)
+    missing_issue, invalid_issue = _check_required(
+        field="state",
+        value=state,
+        supported=SUPPORTED_STATES,
+    )
+    if missing_issue is not None:
+        missing.append(missing_issue)
+    if invalid_issue is not None:
+        invalid.append(invalid_issue)
     return OverlayStatus(ready=not missing and not invalid, missing=missing, invalid=invalid)
 
 
 def format_overlay_failure(status: OverlayStatus, *, workflow: str = "Create PMP") -> str:
     if status.ready:
-        return "The SiteWise three-overlay gate is satisfied."
+        return "The SiteWise overlay gate is satisfied."
     parts = []
     for issue in status.issues:
         label = issue.field.replace("_", " ")

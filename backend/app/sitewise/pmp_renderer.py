@@ -30,7 +30,7 @@ from app.sitewise.pmp_greenfield_brief import (
     programme_submilestone_table,
     strip_due_diligence_contract_meta,
 )
-from app.sitewise.pmp_sources import document_title_for_role, required_section_headings
+from app.sitewise.pmp_sources import document_title, required_section_headings
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
 from app.sitewise.section_contracts import heading_for_section_id, pmp_section_headings
 from app.sitewise.taxonomy import work_scope_items_for
@@ -317,7 +317,7 @@ def _render_project_overview(project: Project, pack: MobilisationEvidencePack) -
         [
             "## Project overview",
             "",
-            f"Archetype: {project.archetype or 'TBC'}. Role: {project.user_role or 'architect-pm'}. "
+            f"Archetype: {project.archetype or 'TBC'}. "
             f"State: {project.state or 'NSW'}.",
             f"Owners: {pack.owners or 'TBC'}.",
             f"Site: {pack.site_address or 'TBC'}.",
@@ -651,8 +651,8 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     return "\n".join(rows)
 
 
-def _render_programme(pack: MobilisationEvidencePack, user_role: str) -> str:
-    submilestone_block = programme_submilestone_table(user_role)
+def _render_programme(pack: MobilisationEvidencePack) -> str:
+    submilestone_block = programme_submilestone_table()
     submilestone_table = _table_lines_from_brief(submilestone_block) or _table_lines_from_brief(
         ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
     )
@@ -1224,29 +1224,27 @@ def _render_taxonomy_consultants(
         "| --- | --- | --- | --- | --- | --- |",
     ]
 
-    role = (project.user_role or "architect-pm").strip().lower()
-    if role in {"architect-pm", ""}:
-        engaged = has_engagement_evidence(pack)
-        fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
-        if engaged:
-            firm = pack.appointee or "Architect-PM"
-            scope = (
-                "; ".join(pack.scope_bullets[:3])
-                if pack.scope_bullets
-                else "Per engagement letter"
-            )
-            fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
-            status = "Partial"
-            citation = _engagement_citation_token(pack, index)
-        else:
-            firm = pack.appointee or "TBC"
-            scope = "Assumption — engagement scope TBC"
-            fee = "TBC"
-            status = "Assumption"
-            citation = "—"
-        rows.append(
-            f"| Architect / PM | {firm} | {scope} | {fee} | {status} | {citation} |"
+    engaged = has_engagement_evidence(pack)
+    fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
+    if engaged:
+        firm = pack.appointee or "Architect-PM"
+        scope = (
+            "; ".join(pack.scope_bullets[:3])
+            if pack.scope_bullets
+            else "Per engagement letter"
         )
+        fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
+        status = "Partial"
+        citation = _engagement_citation_token(pack, index)
+    else:
+        firm = pack.appointee or "TBC"
+        scope = "Assumption — engagement scope TBC"
+        fee = "TBC"
+        status = "Assumption"
+        citation = "—"
+    rows.append(
+        f"| Architect / PM | {firm} | {scope} | {fee} | {status} | {citation} |"
+    )
 
     seen: set[str] = set()
     for item in work_scope_items_for(context.work_type, context.work_scope):
@@ -1615,10 +1613,7 @@ def _render_taxonomy_platform_scaffold(
     if missing:
         joined = ", ".join(missing)
         raise RuntimeError(f"PMP scaffold missing required sections: {joined}")
-    title = document_title_for_role(
-        project.user_role or "architect-pm",
-        project=project,
-    )
+    title = document_title(project=project)
     return f"# {title}\n\n" + "\n\n".join(sections) + "\n"
 
 
@@ -1643,11 +1638,6 @@ def render_pmp_scaffold(
         msg = f"PMP scaffold renderer supports evidence_grounded mode only (got {draft_mode!r})"
         raise ValueError(msg)
 
-    user_role = project.user_role or "architect-pm"
-    if user_role != "architect-pm":
-        msg = f"PMP scaffold renderer supports architect-pm role only (got {user_role!r})"
-        raise ValueError(msg)
-
     sections = [
         _render_evidence_basis(pack, version=version),
         _render_project_overview(project, pack),
@@ -1658,14 +1648,14 @@ def render_pmp_scaffold(
         _render_fee_services(pack),
         _render_scope_change(pack),
         _render_approvals(project, pack),
-        _render_programme(pack, user_role),
+        _render_programme(pack),
         _render_cost_procurement(pack),
         _render_consultant_coordination(pack),
         _render_risks_skeleton(project, pack),
         _render_internal_audit(pack),
     ]
 
-    headings = required_section_headings(user_role, project=project)
+    headings = required_section_headings(project=project)
     rendered_headings = {
         line.strip()[3:].strip().lower()
         for section in sections
@@ -1677,6 +1667,6 @@ def render_pmp_scaffold(
         joined = ", ".join(missing)
         raise RuntimeError(f"PMP scaffold missing required sections: {joined}")
 
-    title = document_title_for_role(user_role, project=project)
+    title = document_title(project=project)
     body = "\n\n".join(sections)
     return f"# {title}\n\n{body}\n"
