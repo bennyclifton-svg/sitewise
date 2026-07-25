@@ -341,3 +341,75 @@ def test_run_sort_files_workflow_persists_manifest_draft() -> None:
     assert result.draft is not None
     assert result.draft.version == 2
     session.commit.assert_awaited()
+
+
+def _decoupled_electrical_sheet_pdf() -> bytes:
+    """Sheet whose title block is graphically decoupled from its labels.
+
+    Reading the page text in order pairs a label with the next label, so the
+    register only gets the real identity if it reads the block by position.
+    """
+    import fitz
+
+    document = fitz.open()
+    page = document.new_page(width=2384, height=1684)
+    for index in range(30):
+        page.insert_text((120 + (index % 6) * 100, 320 + (index // 6) * 70), "DL1", fontsize=9)
+
+    # Every label first, then every value — the layout CAD exports actually
+    # produce, and the reason text-order pairing reads label -> label.
+    for point, text in (
+        ((36, 90), "Drawing Title:"),
+        ((300, 90), "Drawing No:"),
+        ((37, 108), "Rev"),
+        ((37, 152), "Project Address:"),
+        ((37, 168), "DP Full Name"),
+    ):
+        page.insert_text(point, text, fontsize=8)
+    for point, text in (
+        ((92, 90), "LEVEL L0 GROUND - LIGHTING LAYOUT"),
+        ((352, 90), "E02"),
+        ((43, 130), "C1"),
+    ):
+        page.insert_text(point, text, fontsize=8)
+
+    data = document.tobytes()
+    document.close()
+    return data
+
+
+def test_sort_reads_drawing_identity_from_the_title_block_not_the_filename() -> None:
+    # E02-EL~1.PDF is a Windows 8.3 alias: it carries the sheet number and
+    # nothing else, so title and revision must come off the drawing.
+    session = AsyncMock()
+    drawing = _workspace_file(
+        workspace_path="04-projects/greenfield-demo/_inbox/ELEC/E02-EL~1.PDF",
+        filename="E02-EL~1.PDF",
+        storage_key=f"{PROJECT_ID}/elec.pdf",
+        content_hash="elec",
+    )
+    content = _decoupled_electrical_sheet_pdf()
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[drawing]),
+        ),
+        patch(
+            "app.intake.sort_service.download_project_file",
+            side_effect=lambda *, storage_key: content,
+        ),
+        patch(
+            "app.intake.sort_service.get_workspace_file_by_path",
+            new=AsyncMock(return_value=None),
+        ),
+        patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()),
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert result.counts.moved == 1
+    record = result.records[0]
+    assert record.document_number == "E02"
+    assert record.title == "LEVEL L0 GROUND - LIGHTING LAYOUT"
+    assert record.revision == "C1"
+    assert record.destination_filename == "E02 - LEVEL L0 GROUND - LIGHTING LAYOUT Rev C1.PDF"

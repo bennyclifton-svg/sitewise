@@ -295,6 +295,70 @@ def test_basix_alias_happy_path_uses_basix_scope_and_path(monkeypatch) -> None:
     assert result.source_trace["forecast"]["used"] is True
 
 
+@pytest.mark.parametrize(
+    "discipline",
+    [
+        "Mechanical engineer",
+        "Mechanical services",
+        "Mechanical consultant",
+        "HVAC engineer",
+        "Services Engineer (Mechanical)",
+    ],
+)
+def test_mechanical_phrasings_use_shared_technical_profile(
+    discipline: str,
+) -> None:
+    profile = normalise_discipline(discipline)
+
+    assert profile.name == "Mechanical Services Engineer"
+    assert profile.slug == "mechanical_engineer"
+    assert profile.knowledge_paths == ("seed/mechanical-services-guide.md",)
+    assert "ventilation" in profile.knowledge_query_terms
+    assert any("commissioning" in item.lower() for item in profile.deliverables)
+
+
+def test_mechanical_rfp_consults_technical_guide_and_targeted_evidence(
+    monkeypatch,
+) -> None:
+    retriever = _StubRetriever()
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    result = _run(
+        session=_Session(),
+        discipline="mechanical engineer",
+        max_pages=3,
+        project=_project(building_class="mixed", work_type="new"),
+    )
+
+    knowledge = result.source_trace["platform_knowledge"]
+    mechanical = next(
+        item
+        for item in knowledge
+        if item["path"] == "seed/mechanical-services-guide.md"
+    )
+    assert mechanical["source_type"] == "discipline-guidance"
+    assert "cross-lifecycle mechanical-services guidance" in mechanical[
+        "snippet"
+    ].lower()
+    assert "seed/mechanical-services-guide.md" in result.draft.provenance_metadata[
+        "seed_consulted"
+    ]
+    assert "Establish the mechanical design basis" in result.draft.content_markdown
+    assert "Commissioning plan and records" in result.draft.content_markdown
+    assert any(
+        "car park ventilation smoke control" in call["query"]
+        for call in retriever.calls
+    )
+    platform_call = next(
+        call
+        for call in retriever.calls
+        if call["filters"].platform_knowledge_only
+    )
+    assert "HVAC ventilation exhaust controls commissioning" in platform_call[
+        "query"
+    ]
+
+
 def test_auto_versioning_path_names_use_next_workflow_version(monkeypatch) -> None:
     retriever = _StubRetriever()
     _install(monkeypatch, retriever=retriever, version=12, cost_plan=None)

@@ -427,3 +427,35 @@ def test_ignores_scale_labels_misparsed_as_revision_from_pdf_title_blocks():
     assert result.canonical_file_name == "Acoustic Details Hydraulic Flooring (Preliminary).pdf"
     assert not re.search(r"[:/\\|?*]", result.canonical_file_name)
     assert not result.canonical_file_name.startswith("-")
+
+
+def test_rejects_regulated_design_record_labels_as_title_and_revision():
+    # NSW Regulated Design Record stamps print their labels in one decoupled
+    # column, so "Rev" is followed by "Project Address:" rather than a value.
+    # Real sheet: E02-EL~1.PDF (572 Parramatta Road, Petersham).
+    preview = "\n".join(
+        [
+            "Rev",
+            "Project Address:",
+            "Project Title:",
+            "Regulated Design Record",
+            "Body Corporate Reg No:",
+            "Consent No:",
+            "Date",
+            "dd.mm.yy",
+            "Description",
+            "DP Full Name",
+            "Reg No",
+            "Drawing No:",
+            "Drawing Title:",
+        ]
+    )
+    result = _parse(
+        file_name="E02-EL~1.PDF",
+        filed_path="04-projects/demo/03-design/electrical",
+        source_path="04-projects/demo/_inbox/ELEC/E02-EL~1.PDF",
+        preview_snippet=preview,
+    )
+    assert result.title == ""
+    assert result.revision == "Current"
+    assert result.document_number == "E02"

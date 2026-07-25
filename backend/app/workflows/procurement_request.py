@@ -78,6 +78,12 @@ class ProcurementDocument(ABC):
     @abstractmethod
     def platform_query(self, target: ProcurementTarget) -> str: ...
 
+    def platform_guidance_paths(
+        self, target: ProcurementTarget
+    ) -> tuple[str, ...]:
+        """Return target-specific platform guidance that must be consulted."""
+        return ()
+
     @abstractmethod
     async def forecast(
         self,
@@ -181,6 +187,7 @@ async def draft_procurement_request(
         project,
         knowledge_workflow=document.knowledge_workflow,
         load_required_seed_content=document.load_required_seed_content,
+        target_guidance_paths=document.platform_guidance_paths(target),
     )
     forecast = await document.forecast(
         session,
@@ -352,12 +359,15 @@ async def _merge_required_guidance(
     *,
     knowledge_workflow: str,
     load_required_seed_content: bool,
+    target_guidance_paths: tuple[str, ...] = (),
 ) -> list[dict[str, Any]]:
     existing = {str(item.get("path")): index for index, item in enumerate(knowledge)}
-    for path in _required_guidance_paths(
+    required_paths = _required_guidance_paths(
         project,
         knowledge_workflow=knowledge_workflow,
-    ):
+    )
+    paths = list(dict.fromkeys((*required_paths, *target_guidance_paths)))
+    for path in paths:
         entry = catalog_entry_for_path(path)
         loaded = None
         if load_required_seed_content:
@@ -374,7 +384,11 @@ async def _merge_required_guidance(
                 "section": None,
                 "snippet": loaded.passage.content,
                 "score": None,
-                "source_type": "required-doctrine",
+                "source_type": (
+                    "required-doctrine"
+                    if path in required_paths
+                    else "discipline-guidance"
+                ),
             }
         else:
             item = {
@@ -383,7 +397,11 @@ async def _merge_required_guidance(
                 "section": None,
                 "snippet": entry.summary if entry is not None else "",
                 "score": None,
-                "source_type": "required-doctrine",
+                "source_type": (
+                    "required-doctrine"
+                    if path in required_paths
+                    else "discipline-guidance"
+                ),
             }
         if path in existing:
             knowledge[existing[path]] = item

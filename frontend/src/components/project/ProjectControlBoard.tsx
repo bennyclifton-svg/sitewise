@@ -29,6 +29,7 @@ import {
   TaxonomyPicker,
   type TaxonomyPickerValue,
 } from "@/components/project/TaxonomyPicker";
+import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import {
   workflowStatusBadgeClass,
@@ -46,6 +47,7 @@ import type {
   ProjectNextAction,
   SortFilesResponse,
   WorkflowCapability,
+  WorkflowRun,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
 import { api } from "@/lib/api";
@@ -57,6 +59,11 @@ import {
 import { projectStateOptions } from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
+import {
+  workflowProgressStage,
+  workflowProgressTitle,
+  type WorkflowProgressMode,
+} from "@/lib/workflow-progress";
 
 export function ProjectControlBoard({
   project,
@@ -70,6 +77,12 @@ export function ProjectControlBoard({
   costPlanWorkflowError,
   isRunningWorkflow,
   isRunningCostPlan,
+  pmpRunMode = null,
+  costPlanRunMode = null,
+  pmpProgressKey = null,
+  costPlanProgressKey = null,
+  activeWorkflowRun = null,
+  activeCostPlanRun = null,
   selectedWorkflowId,
   onSelectWorkflow,
   onRunCreatePmp,
@@ -100,6 +113,16 @@ export function ProjectControlBoard({
   costPlanWorkflowError: string | null;
   isRunningWorkflow: boolean;
   isRunningCostPlan: boolean;
+  /** Which Project Plan action started the active run (create vs update). */
+  pmpRunMode?: WorkflowProgressMode | null;
+  /** Which Cost Plan action started the active run (create vs refresh). */
+  costPlanRunMode?: WorkflowProgressMode | null;
+  /** Stable key for the Project Plan progress strip session. */
+  pmpProgressKey?: string | null;
+  /** Stable key for the Cost Plan progress strip session. */
+  costPlanProgressKey?: string | null;
+  activeWorkflowRun?: WorkflowRun | null;
+  activeCostPlanRun?: WorkflowRun | null;
   selectedWorkflowId: string;
   onSelectWorkflow?: (workflowId: string) => void;
   onRunCreatePmp: () => void;
@@ -159,6 +182,12 @@ export function ProjectControlBoard({
           costPlanWorkflowError={costPlanWorkflowError}
           isRunningWorkflow={isRunningWorkflow}
           isRunningCostPlan={isRunningCostPlan}
+          pmpRunMode={pmpRunMode}
+          costPlanRunMode={costPlanRunMode}
+          pmpProgressKey={pmpProgressKey}
+          costPlanProgressKey={costPlanProgressKey}
+          activeWorkflowRun={activeWorkflowRun}
+          activeCostPlanRun={activeCostPlanRun}
           onSelectWorkflow={onSelectWorkflow}
           onRunCreatePmp={onRunCreatePmp}
           onRunUpdatePmp={onRunUpdatePmp}
@@ -643,6 +672,12 @@ function WorkflowDetail({
   costPlanWorkflowError,
   isRunningWorkflow,
   isRunningCostPlan,
+  pmpRunMode,
+  costPlanRunMode,
+  pmpProgressKey,
+  costPlanProgressKey,
+  activeWorkflowRun,
+  activeCostPlanRun,
   onSelectWorkflow,
   onRunCreatePmp,
   onRunUpdatePmp,
@@ -672,6 +707,12 @@ function WorkflowDetail({
   costPlanWorkflowError: string | null;
   isRunningWorkflow: boolean;
   isRunningCostPlan: boolean;
+  pmpRunMode: WorkflowProgressMode | null;
+  costPlanRunMode: WorkflowProgressMode | null;
+  pmpProgressKey: string | null;
+  costPlanProgressKey: string | null;
+  activeWorkflowRun: WorkflowRun | null;
+  activeCostPlanRun: WorkflowRun | null;
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
@@ -774,24 +815,27 @@ function WorkflowDetail({
               />
             ) : null}
 
+            {isRunningWorkflow ? (
+              <WorkflowProgressStrip
+                title={workflowProgressTitle("project_plan", pmpRunMode ?? "create")}
+                kind="project_plan"
+                runId={pmpProgressKey ?? activeWorkflowRun?.id ?? "pending-project-plan"}
+                runState={activeWorkflowRun?.state ?? "queued"}
+                progressStage={
+                  workflowProgressStage(activeWorkflowRun?.progress) ?? "queued"
+                }
+                onCancel={activeWorkflowRun ? onCancelWorkflow : undefined}
+              />
+            ) : null}
+
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={onRunCreatePmp}
                 disabled={isRunningWorkflow || !project.overlay_status.ready}
               >
-                {isRunningWorkflow ? (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Play className="size-4" aria-hidden />
-                )}
-                {isRunningWorkflow ? "Running" : "Create PMP"}
+                <Play className="size-4" aria-hidden />
+                Create PMP
               </Button>
-              {isRunningWorkflow && onCancelWorkflow ? (
-                <Button variant="outline" onClick={onCancelWorkflow}>
-                  <Square className="size-4" aria-hidden />
-                  Cancel
-                </Button>
-              ) : null}
               <Button
                 variant="outline"
                 onClick={onRunUpdatePmp}
@@ -799,11 +843,7 @@ function WorkflowDetail({
                   isRunningWorkflow || !project.overlay_status.ready || !latestDraft
                 }
               >
-                {isRunningWorkflow ? (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <RefreshCw className="size-4" aria-hidden />
-                )}
+                <RefreshCw className="size-4" aria-hidden />
                 Update PMP
               </Button>
               <Button variant="secondary" onClick={onOpenDraft} disabled={!latestDraft}>
@@ -812,7 +852,9 @@ function WorkflowDetail({
               </Button>
             </div>
 
-            <WorkflowTracePanel trace={activeTrace} isRunning={activeRunning} />
+            {!isRunningWorkflow ? (
+              <WorkflowTracePanel trace={activeTrace} isRunning={false} />
+            ) : null}
           </>
         ) : isCostPlan ? (
           <>
@@ -861,6 +903,23 @@ function WorkflowDetail({
               <CapabilityGateNotice workflow="Cost Plan" capability={costPlanCapability} />
             ) : null}
 
+            {isRunningCostPlan ? (
+              <WorkflowProgressStrip
+                title={workflowProgressTitle("cost_plan", costPlanRunMode ?? "create")}
+                kind="cost_plan"
+                runId={
+                  costPlanProgressKey ??
+                  activeCostPlanRun?.id ??
+                  "pending-cost-plan"
+                }
+                runState={activeCostPlanRun?.state ?? "queued"}
+                progressStage={
+                  workflowProgressStage(activeCostPlanRun?.progress) ?? "queued"
+                }
+                onCancel={activeCostPlanRun ? onCancelCostPlan : undefined}
+              />
+            ) : null}
+
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={onRunCreateCostPlan}
@@ -868,19 +927,9 @@ function WorkflowDetail({
                   isRunningCostPlan || !project.overlay_status.ready || !costPlanSupported
                 }
               >
-                {isRunningCostPlan ? (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Play className="size-4" aria-hidden />
-                )}
-                {isRunningCostPlan ? "Running" : "Create cost plan"}
+                <Play className="size-4" aria-hidden />
+                Create cost plan
               </Button>
-              {isRunningCostPlan && onCancelCostPlan ? (
-                <Button variant="outline" onClick={onCancelCostPlan}>
-                  <Square className="size-4" aria-hidden />
-                  Cancel
-                </Button>
-              ) : null}
               <Button
                 variant="outline"
                 onClick={onRunRefreshCostPlan}
@@ -892,11 +941,7 @@ function WorkflowDetail({
                   !activeDraft
                 }
               >
-                {isRunningCostPlan ? (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <RefreshCw className="size-4" aria-hidden />
-                )}
+                <RefreshCw className="size-4" aria-hidden />
                 Refresh cost plan
               </Button>
               <Button variant="secondary" onClick={onOpenDraft} disabled={!activeDraft}>
@@ -905,7 +950,9 @@ function WorkflowDetail({
               </Button>
             </div>
 
-            <WorkflowTracePanel trace={activeTrace} isRunning={activeRunning} />
+            {!isRunningCostPlan ? (
+              <WorkflowTracePanel trace={activeTrace} isRunning={false} />
+            ) : null}
           </>
         ) : isDocumentIntake ? (
           <>

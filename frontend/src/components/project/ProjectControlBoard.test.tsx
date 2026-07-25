@@ -11,6 +11,7 @@ import type {
   ProjectNextAction,
   TaxonomyCatalog,
   WorkflowCapability,
+  WorkflowRun,
 } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -360,6 +361,55 @@ describe("ProjectControlBoard project profile", () => {
 
     expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
   });
+
+  it("shows one progress strip while Project Plan runs and hides Clerk is working copy", () => {
+    render(
+      <ProjectControlBoard
+        project={project}
+        evidence={[]}
+        latestDraft={draftSummary}
+        latestCostPlanDraft={null}
+        trace={[{ step: "plan", status: "running", message: "working", metadata: {} }]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow
+        isRunningCostPlan={false}
+        pmpRunMode="update"
+        pmpProgressKey="pmp-session-1"
+        activeWorkflowRun={runningWorkflowRun}
+        selectedWorkflowId="create-pmp"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onCancelWorkflow={vi.fn()}
+        onOpenDraft={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+
+    expect(screen.getByTestId("workflow-progress-strip")).toHaveTextContent(
+      "Updating Project Plan",
+    );
+    expect(screen.queryByText("Clerk is working…")).not.toBeInTheDocument();
+    expect(screen.queryByText("working…")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create pmp/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /update pmp/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /create pmp/i })).toHaveTextContent(
+      "Create PMP",
+    );
+    expect(screen.getByRole("button", { name: /create pmp/i })).not.toHaveTextContent(
+      "Running",
+    );
+    expect(screen.getByRole("button", { name: /review draft/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
 });
 
 const project: ProjectDetail = {
@@ -442,6 +492,52 @@ const costPlanSupportedProject: ProjectDetail = {
       create_cost_plan: { status: "supported", reasons: [], required_fields: [] },
     },
   },
+};
+
+const draftSummary = {
+  id: "draft-1",
+  project_id: project.id,
+  workflow_type: "create_pmp",
+  version: 1,
+  status: "draft",
+  title: "Project Plan",
+  workspace_path: "04-projects/demo/project-plan.md",
+  author_user_id: "user-1",
+  model: null,
+  runtime: "workflow",
+  created_at: "2026-07-05T00:00:00.000Z",
+  updated_at: "2026-07-05T00:00:00.000Z",
+};
+
+const runningWorkflowRun: WorkflowRun = {
+  id: "run-1",
+  project_id: project.id,
+  requested_by_user_id: "user-1",
+  requested_by_thread_id: null,
+  requested_by_turn_id: null,
+  workflow_type: "create_pmp",
+  idempotency_key: "key-1",
+  schema_version: 1,
+  frozen_profile_revision: 1,
+  frozen_snapshot_fingerprint: "b".repeat(64),
+  frozen_evidence_fingerprint: "c".repeat(64),
+  frozen_decision_set_revision: 0,
+  frozen_selection_revision: null,
+  frozen_artefact_version: null,
+  state: "running",
+  attempt: 1,
+  max_attempts: 1,
+  cancel_requested: false,
+  progress: { stage: "executing", percent: 50 },
+  stage_durations_ms: {},
+  result_artefact_id: null,
+  result_reference: null,
+  error_class: null,
+  error_message: null,
+  created_at: "2026-07-05T00:00:00.000Z",
+  started_at: "2026-07-05T00:00:01.000Z",
+  completed_at: null,
+  updated_at: "2026-07-05T00:00:01.000Z",
 };
 
 function costPlanBoard(

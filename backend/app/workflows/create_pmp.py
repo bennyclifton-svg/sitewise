@@ -1118,21 +1118,6 @@ def validate_pmp_output(
             raise WorkflowValidationError(
                 f"Create PMP taxonomy provenance issues: {joined}"
             )
-        over_limit = [
-            issue
-            for issue in length_violations(
-                output.markdown,
-                weights=taxonomy_context.section_weights,
-                min_words=settings.pmp_min_words,
-                max_words=settings.pmp_max_words,
-            )
-            if " maximum " in issue
-        ]
-        if over_limit:
-            raise WorkflowValidationError(
-                "Create PMP exceeds the primary-document length limit: "
-                + "; ".join(over_limit)
-            )
         if draft_mode == "evidence_grounded":
             lowered_markdown = output.markdown.casefold()
             if (

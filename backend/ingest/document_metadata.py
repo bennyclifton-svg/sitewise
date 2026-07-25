@@ -674,7 +674,32 @@ def _read_title_block_label_value(line: str, next_line: str | None = None) -> st
     if colon_separated:
         return _clean_title(colon_separated.group(1))
 
-    return _clean_title(next_line) if next_line else ""
+    if not next_line or _is_label_line(next_line):
+        return ""
+    return _clean_title(next_line)
+
+
+# A label followed by another label is a decoupled title block, not a value.
+# NSW Regulated Design Record stamps print ~13 labels in a column, so pairing a
+# label with the following line invents values like "Rev" -> "Project Address:".
+_TRAILING_COLON_RE = re.compile(r":\s*$")
+_LABEL_ONLY_RE = re.compile(
+    r"^(?:drawing|document|report|project|job|sheet|body\s+corporate|consent|dp)?\s*"
+    r"(?:no|number|#|title|address|name|description|scale|size|date|rev|revision"
+    r"|issue|version|status|drawn|checked|approved|client|stage)\b[\s.:#]*$",
+    re.I,
+)
+
+
+def _is_label_line(line: str) -> bool:
+    candidate = line.strip()
+    if not candidate:
+        return True
+    if _TRAILING_COLON_RE.search(candidate):
+        return True
+    if _LABEL_ONLY_RE.match(candidate):
+        return True
+    return _is_title_block_noise_value(candidate)
 
 
 def _extract_label_value(text: str, patterns: list[re.Pattern[str]]) -> str | None:
@@ -702,6 +727,11 @@ _TITLE_BLOCK_LABEL_WORDS = frozenset(
         "consultant", "contractor", "plot", "designed", "design", "datum",
         "north", "dwg", "drg", "amendment", "amendments", "builder", "architect",
         "engineer",
+        # NSW Regulated Design Record stamp — a second label column on the same
+        # sheet, whose labels otherwise read as plausible values.
+        "regulated", "record", "practitioner", "practitioners", "dp", "full",
+        "name", "address", "body", "corporate", "consent", "declaration",
+        "reg", "dd", "mm", "yy",
         "at", "as", "not", "for", "use", "tbc", "tba", "nil", "none",
     }
 )

@@ -26,10 +26,10 @@ Label every project-specific claim without evidence as **Assumption**. Never pre
 
 When the prompt includes an **Adaptive taxonomy PMP content contract**, it supersedes
 the legacy role/archetype scaffold:
-- The primary PMP is a 2-4 A4 page control document and must remain within the supplied
-  maximum word count. Cut generic prose first. Put long document registers and overflow
-  detail in a compact `## Annexure` section immediately before the final Citation key
-  so it does not crowd out decisions.
+- Prefer a compact 2-4 A4 page control document. Cut generic prose first. Put long
+  document registers and overflow detail in a compact `## Annexure` section immediately
+  before the final Citation key so it does not crowd out decisions. Do not truncate
+  project-specific substance solely to hit a word count.
 - Use the universal `##` headings supplied in the prompt exactly (e.g. **Project
   Summary**, **Brief**, **Consultants**, **Planning and Compliance**, **Programme**,
   **Cost Planning**, **Procurement and Delivery**, **Risks and mitigations**,

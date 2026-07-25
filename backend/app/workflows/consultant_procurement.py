@@ -66,6 +66,9 @@ class DisciplineProfile:
     benchmark_terms: tuple[str, ...]
     requested_services: tuple[str, ...]
     deliverables: tuple[str, ...]
+    knowledge_paths: tuple[str, ...]
+    knowledge_query_terms: tuple[str, ...]
+    evidence_query_terms: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,16 +90,23 @@ def _slugify(value: str) -> str:
 def _profile(
     name: str,
     *,
+    slug: str | None = None,
     benchmark_terms: tuple[str, ...] = (),
     requested_services: tuple[str, ...],
     deliverables: tuple[str, ...],
+    knowledge_paths: tuple[str, ...] = (),
+    knowledge_query_terms: tuple[str, ...] = (),
+    evidence_query_terms: tuple[str, ...] = (),
 ) -> DisciplineProfile:
     return DisciplineProfile(
         name=name,
-        slug=_slugify(name),
+        slug=_slugify(slug or name),
         benchmark_terms=benchmark_terms,
         requested_services=requested_services,
         deliverables=deliverables,
+        knowledge_paths=knowledge_paths,
+        knowledge_query_terms=knowledge_query_terms,
+        evidence_query_terms=evidence_query_terms,
     )
 
 
@@ -140,6 +150,45 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
             "Hydraulic services fee proposal with staged design and documentation scope.",
             "Authority coordination assumptions and required client/site information.",
             "Exclusions, disbursements, hourly rates, and optional service items.",
+        ),
+    ),
+    _normalise_key("mechanical services engineer"): _profile(
+        "Mechanical Services Engineer",
+        slug="mechanical_engineer",
+        benchmark_terms=("mechanical", "hvac", "mechanical services"),
+        knowledge_paths=("seed/mechanical-services-guide.md",),
+        knowledge_query_terms=(
+            "mechanical services",
+            "HVAC",
+            "ventilation",
+            "exhaust",
+            "controls",
+            "commissioning",
+        ),
+        evidence_query_terms=(
+            "mechanical HVAC ventilation exhaust air conditioning design criteria",
+            "car park ventilation smoke control fire mode acoustic plant condenser",
+            "BASIX NatHERS Section J controls commissioning regulated design",
+        ),
+        requested_services=(
+            "Review the project brief, project profile, architectural design, approval pathway, and available fire, acoustic, energy, electrical, hydraulic, and structural information.",
+            "Establish the mechanical design basis, system options, zoning, performance criteria, spatial allowances, maintainability requirements, and design-stage programme.",
+            "Design heating, cooling, outdoor-air, transfer-air, and local-exhaust systems applicable to dwellings, common areas, car parking, plant rooms, and any commercial or specialist spaces.",
+            "Coordinate plant locations, risers, ducts, louvres, penetrations, access zones, condensate, power, controls, fire and smoke modes, acoustics, facade interfaces, and builders' work.",
+            "Address applicable energy-efficiency, ventilation, indoor-air-quality, acoustic, fire-safety, authority, and regulated-design requirements, identifying any performance solutions or specialist inputs.",
+            "Provide staged design and documentation for concept, planning, detailed design, approval, tender, construction, commissioning, and handover as required by the agreed appointment.",
+            "Allow for design meetings, coordination reviews, tender queries, construction RFIs, shop-drawing and technical-submittal review, inspections, witness testing, defects, and close-out.",
+            "Define assumptions, exclusions, optional services, client-supplied information, design responsibility, certification responsibility, programme dependencies, and variation rates.",
+        ),
+        deliverables=(
+            "Staged fee proposal and responsibility schedule covering design, documentation, approval, procurement, construction, commissioning, and handover services.",
+            "Mechanical design-basis report recording systems, design criteria, assumptions, applicable requirements, interfaces, and unresolved decisions.",
+            "Calculations and assessments appropriate to the agreed scope, including loads, ventilation, pressure relationships, equipment duties, energy, controls, and acoustic inputs.",
+            "Coordinated drawings, schematics, details, specifications, equipment and controls schedules, penetration and builders'-work requirements, and tender/construction issue registers.",
+            "Compliance matrix, regulated-design and professional-engineering deliverables where applicable, certification inputs, and a schedule of required third-party advice.",
+            "Design-review, coordination, tender-query, RFI, shop-drawing, technical-submittal, inspection, and defect-response allowances.",
+            "Commissioning plan and records, testing and balancing requirements, functional performance verification, training, O&M, warranties, and as-built review where included.",
+            "Fee breakdown by stage with personnel, meetings, site visits, disbursements, hourly rates, programme, exclusions, optional services, and required client inputs.",
         ),
     ),
     _normalise_key("geotechnical engineer"): _profile(
@@ -333,6 +382,21 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("building certifier pca"): _normalise_key("certifier"),
     _normalise_key("principal certifying authority"): _normalise_key("certifier"),
     _normalise_key("hydraulic consultant"): _normalise_key("hydraulic engineer"),
+    _normalise_key("mechanical engineer"): _normalise_key(
+        "mechanical services engineer"
+    ),
+    _normalise_key("mechanical services"): _normalise_key(
+        "mechanical services engineer"
+    ),
+    _normalise_key("mechanical consultant"): _normalise_key(
+        "mechanical services engineer"
+    ),
+    _normalise_key("hvac engineer"): _normalise_key(
+        "mechanical services engineer"
+    ),
+    _normalise_key("services engineer mechanical"): _normalise_key(
+        "mechanical services engineer"
+    ),
     _normalise_key("civil engineer"): _normalise_key("civil / stormwater engineer"),
     _normalise_key("stormwater engineer"): _normalise_key("civil / stormwater engineer"),
     _normalise_key("stormwater consultant"): _normalise_key("civil / stormwater engineer"),
@@ -543,10 +607,17 @@ class ConsultantDocument(ProcurementDocument):
         return _evidence_queries(target)
 
     def platform_query(self, target: ProcurementTarget) -> str:
-        return (
+        terms = " ".join(getattr(target, "knowledge_query_terms", ()))
+        query = (
             f"consultant procurement request for fee proposal {target.name} "
             "scope deliverables exclusions fee response programme"
         )
+        return f"{query} {terms}".strip()
+
+    def platform_guidance_paths(
+        self, target: ProcurementTarget
+    ) -> tuple[str, ...]:
+        return tuple(getattr(target, "knowledge_paths", ()))
 
     async def forecast(
         self,
@@ -834,7 +905,7 @@ async def _forecast_for_discipline(
 
 def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
     name = profile.name
-    return (
+    queries = [
         EvidenceQuery(
             "project_brief",
             "Project brief",
@@ -865,7 +936,16 @@ def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
             "Previous consultant correspondence",
             f"{name} consultant correspondence email request for fee proposal",
         ),
-    )
+    ]
+    if profile.evidence_query_terms:
+        queries.append(
+            EvidenceQuery(
+                "discipline_requirements",
+                f"{name} requirements",
+                " ".join(profile.evidence_query_terms),
+            )
+        )
+    return tuple(queries)
 
 
 def _project_evidence_item(query: EvidenceQuery, passage: Any) -> dict[str, Any]:

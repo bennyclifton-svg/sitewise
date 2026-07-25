@@ -26,7 +26,7 @@ import {
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
-import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
+import { useWorkflowRun, waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
@@ -42,6 +42,7 @@ import type {
   WorkspaceTreeNode,
   WorkflowRunStartInput,
 } from "@/lib/types/project";
+import type { WorkflowProgressMode } from "@/lib/workflow-progress";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -168,9 +169,18 @@ export function ProjectCockpitPage() {
   const [costPlanWorkflowError, setCostPlanWorkflowError] = useState<string | null>(null);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [isRunningCostPlan, setIsRunningCostPlan] = useState(false);
+  const [pmpRunMode, setPmpRunMode] = useState<WorkflowProgressMode | null>(null);
+  const [costPlanRunMode, setCostPlanRunMode] = useState<WorkflowProgressMode | null>(
+    null,
+  );
+  /** Stable strip session keys so the bar does not reset when the server run id arrives. */
+  const [pmpProgressKey, setPmpProgressKey] = useState<string | null>(null);
+  const [costPlanProgressKey, setCostPlanProgressKey] = useState<string | null>(null);
   const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
   const [costPlanRunId, setCostPlanRunId] = useState<string | null>(null);
   const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
+  const activeWorkflowRunQuery = useWorkflowRun(projectId ?? "", workflowRunId);
+  const activeCostPlanRunQuery = useWorkflowRun(projectId ?? "", costPlanRunId);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
   const reconcileArtefactEvent = useCallback(
     (event: ProjectEvent) => {
@@ -563,6 +573,8 @@ export function ProjectCockpitPage() {
 
   async function runCreatePmp() {
     if (!project) return;
+    setPmpRunMode("create");
+    setPmpProgressKey(`pmp-${Date.now()}`);
     setIsRunningWorkflow(true);
     setWorkflowError(null);
     try {
@@ -596,12 +608,16 @@ export function ProjectCockpitPage() {
       setWorkflowError(formatApiError(runError, "Create PMP could not run."));
     } finally {
       setWorkflowRunId(null);
+      setPmpRunMode(null);
+      setPmpProgressKey(null);
       setIsRunningWorkflow(false);
     }
   }
 
   async function runCreateCostPlan() {
     if (!project) return;
+    setCostPlanRunMode("create");
+    setCostPlanProgressKey(`cost-${Date.now()}`);
     setIsRunningCostPlan(true);
     setCostPlanWorkflowError(null);
     try {
@@ -635,12 +651,16 @@ export function ProjectCockpitPage() {
       setCostPlanWorkflowError(formatApiError(runError, "Create Cost Plan could not run."));
     } finally {
       setCostPlanRunId(null);
+      setCostPlanRunMode(null);
+      setCostPlanProgressKey(null);
       setIsRunningCostPlan(false);
     }
   }
 
   async function runRefreshCostPlan() {
     if (!project) return;
+    setCostPlanRunMode("update");
+    setCostPlanProgressKey(`cost-${Date.now()}`);
     setIsRunningCostPlan(true);
     setCostPlanWorkflowError(null);
     try {
@@ -682,12 +702,16 @@ export function ProjectCockpitPage() {
       );
     } finally {
       setCostPlanRunId(null);
+      setCostPlanRunMode(null);
+      setCostPlanProgressKey(null);
       setIsRunningCostPlan(false);
     }
   }
 
   async function runUpdatePmp() {
     if (!project) return;
+    setPmpRunMode("update");
+    setPmpProgressKey(`pmp-${Date.now()}`);
     setIsRunningWorkflow(true);
     setWorkflowError(null);
     try {
@@ -726,6 +750,8 @@ export function ProjectCockpitPage() {
       setWorkflowError(formatApiError(runError, "Update PMP could not run."));
     } finally {
       setWorkflowRunId(null);
+      setPmpRunMode(null);
+      setPmpProgressKey(null);
       setIsRunningWorkflow(false);
     }
   }
@@ -1004,6 +1030,12 @@ export function ProjectCockpitPage() {
           costPlanWorkflowError={costPlanWorkflowError}
           isRunningWorkflow={isRunningWorkflow}
           isRunningCostPlan={isRunningCostPlan}
+          pmpRunMode={pmpRunMode}
+          costPlanRunMode={costPlanRunMode}
+          pmpProgressKey={pmpProgressKey}
+          costPlanProgressKey={costPlanProgressKey}
+          activeWorkflowRun={activeWorkflowRunQuery.data ?? null}
+          activeCostPlanRun={activeCostPlanRunQuery.data ?? null}
           selectedWorkflowId={selectedWorkflowId}
           onSelectWorkflow={selectWorkflow}
           onRunCreatePmp={() => void runCreatePmp()}

@@ -833,7 +833,7 @@ def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
     )
 
 
-def test_validate_pmp_output_rejects_over_length_taxonomy_draft() -> None:
+def test_validate_pmp_output_allows_over_length_taxonomy_draft() -> None:
     project = _taxonomy_project()
     sections = required_section_headings(project=project)
     body = "\n\n".join(
@@ -869,16 +869,12 @@ def test_validate_pmp_output_rejects_over_length_taxonomy_draft() -> None:
             ],
         ),
     ):
-        with pytest.raises(
-            WorkflowValidationError,
-            match="exceeds the primary-document length limit",
-        ):
-            validate_pmp_output(
-                output,
-                "platform_seeded",
-                archetype="renovation",
-                project=project,
-            )
+        validate_pmp_output(
+            output,
+            "platform_seeded",
+            archetype="renovation",
+            project=project,
+        )
 
 
 def test_validate_pmp_output_rejects_empty_scope_row_in_grounded_draft() -> None:

@@ -7,21 +7,74 @@ from app.document_intake.odl_pdf import PdfDocumentExtract, extract_pdf_document
 from ingest.extractors.base import ExtractedDocument, PageText
 from ingest.extractors.pdf_drawing import extract_pdf_title_block_text
 from ingest.extractors.pdf_text import extract_pdf_text
+from ingest.title_block import extract_pdf_title_block_fields, render_title_block_preview
 
 logger = structlog.get_logger(__name__)
 
 _TEXT_LAYER_FALLBACK_MIN_CHARS = 500
 _ODL_MIN_TEXT_LAYER_RATIO = 0.6
+# OpenDataLoader runs as a Java subprocess. It dies transiently (observed: exit
+# 130 in 0.7s, where the same bytes then parse fine), so one crash must not cost
+# the whole document.
+_ODL_ATTEMPTS = 2
+
+
+def _run_odl(path: Path):
+    last_error: Exception | None = None
+    for attempt in range(1, _ODL_ATTEMPTS + 1):
+        try:
+            return extract_pdf_document(
+                path.read_bytes(),
+                hybrid=settings.tender_odl_hybrid_enabled,
+                hybrid_url=settings.tender_odl_hybrid_url,
+                hybrid_mode=settings.tender_odl_hybrid_mode,
+                hybrid_fallback=settings.tender_odl_hybrid_fallback,
+            ), None
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "pdf_odl_attempt_failed",
+                path=str(path),
+                attempt=attempt,
+                attempts=_ODL_ATTEMPTS,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+    return None, last_error
+
+
+def _text_layer_only(path: Path, odl_error: Exception) -> ExtractedDocument:
+    """Salvage a document whose ODL extraction failed outright."""
+    text_layer = _text_layer_extract(path)
+    if text_layer is None or not text_layer.normalized_content.strip():
+        raise odl_error
+    logger.warning(
+        "pdf_odl_failed_using_text_layer",
+        path=str(path),
+        text_layer_chars=len(text_layer.normalized_content.strip()),
+        error=f"{type(odl_error).__name__}: {odl_error}",
+    )
+    return ExtractedDocument(
+        normalized_content=text_layer.normalized_content,
+        page_count=text_layer.page_count,
+        pages=text_layer.pages,
+        drawing_identity=text_layer.drawing_identity,
+        extraction_metadata={
+            "pdf_extractor": "pdf_odl",
+            "pdf_extraction_source": "text_layer_after_odl_failure",
+            "odl_hybrid_requested": settings.tender_odl_hybrid_enabled,
+            "odl_character_count": 0,
+            "text_layer_character_count": len(text_layer.normalized_content.strip()),
+            "odl_error": f"{type(odl_error).__name__}: {odl_error}",
+        },
+    )
 
 
 def extract_pdf_odl(path: Path) -> ExtractedDocument:
-    document = extract_pdf_document(
-        path.read_bytes(),
-        hybrid=settings.tender_odl_hybrid_enabled,
-        hybrid_url=settings.tender_odl_hybrid_url,
-        hybrid_mode=settings.tender_odl_hybrid_mode,
-        hybrid_fallback=settings.tender_odl_hybrid_fallback,
-    )
+    document, odl_error = _run_odl(path)
+    if document is None:
+        assert odl_error is not None
+        return _with_title_block(path, _text_layer_only(path, odl_error))
+
     extracted = _document_from_odl(document)
     text_layer = _text_layer_extract(path)
     selected = extracted
@@ -59,20 +112,42 @@ def extract_pdf_odl(path: Path) -> ExtractedDocument:
             ),
         )
 
+    return _with_title_block(path, selected)
+
+
+def _with_title_block(path: Path, selected: ExtractedDocument) -> ExtractedDocument:
+    """Append the sheet's title block, identity first.
+
+    The geometry-read identity leads the section because a title block's text
+    order cannot be trusted: CAD exports emit labels and values in separate
+    groups, so downstream line pairing would otherwise read label -> label.
+    """
     try:
         title_block = extract_pdf_title_block_text(path)
     except Exception:
         logger.exception("pdf_title_block_extract_failed", path=str(path))
         title_block = ""
-    if not title_block:
+
+    identity = ""
+    try:
+        identity = render_title_block_preview(extract_pdf_title_block_fields(path)) or ""
+    except Exception:
+        logger.exception("pdf_title_block_fields_failed", path=str(path))
+
+    section = "\n\n".join(part for part in (identity, title_block) if part)
+    if not section:
         return selected
 
     return ExtractedDocument(
-        normalized_content=f"{selected.normalized_content}\n\n## Title block\n\n{title_block}",
+        normalized_content=f"{selected.normalized_content}\n\n## Title block\n\n{section}",
         page_count=selected.page_count,
         pages=selected.pages,
         drawing_identity=selected.drawing_identity,
-        extraction_metadata={**(selected.extraction_metadata or {}), "pdf_title_block_extracted": True},
+        extraction_metadata={
+            **(selected.extraction_metadata or {}),
+            "pdf_title_block_extracted": True,
+            "pdf_title_block_identity_read": bool(identity),
+        },
     )
 
 

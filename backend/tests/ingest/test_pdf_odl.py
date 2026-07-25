@@ -118,3 +118,87 @@ def test_extract_pdf_odl_falls_back_when_odl_loses_text(monkeypatch, tmp_path: P
     assert extracted.extraction_metadata["pdf_extraction_source"] == "text_layer_fallback"
     assert extracted.extraction_metadata["odl_hybrid_backend_available"] is False
     assert extracted.extraction_metadata["odl_character_count"] == len("## Page 1\n\nPRICE ESTIMATE")
+
+
+def _fake_text_layer(text: str) -> ExtractedDocument:
+    return ExtractedDocument(
+        normalized_content=text,
+        page_count=1,
+        pages=[PageText(page_number=1, text=text)],
+    )
+
+
+def test_extract_pdf_odl_retries_a_crashed_odl_subprocess(monkeypatch, tmp_path: Path) -> None:
+    # The OpenDataLoader CLI is a Java subprocess that dies transiently; the same
+    # bytes succeed on a second run, so one crash must not cost the document.
+    pdf_path = tmp_path / "drawing.pdf"
+    pdf_path.write_bytes(b"pdf-bytes")
+    attempts: list[int] = []
+
+    def flaky_extract_pdf_document(pdf_bytes: bytes, **kwargs):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise RuntimeError("returned non-zero exit status 130")
+        return SimpleNamespace(
+            pages=[SimpleNamespace(page_no=1, text="Recovered page text")],
+            hybrid_backend_available=True,
+            hybrid_mode="full",
+        )
+
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl.extract_pdf_document", flaky_extract_pdf_document
+    )
+    monkeypatch.setattr("ingest.extractors.pdf_odl._text_layer_extract", lambda path: None)
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_title_block_text", lambda path: "")
+
+    extracted = extract_pdf_odl(pdf_path)
+
+    assert len(attempts) == 2
+    assert "Recovered page text" in extracted.normalized_content
+    assert extracted.extraction_metadata["pdf_extraction_source"] == "odl"
+
+
+def test_extract_pdf_odl_falls_back_to_the_text_layer_when_odl_keeps_failing(
+    monkeypatch, tmp_path: Path
+) -> None:
+    # A dead Java subprocess must not discard a document the in-process text
+    # layer can read perfectly well.
+    pdf_path = tmp_path / "drawing.pdf"
+    pdf_path.write_bytes(b"pdf-bytes")
+
+    def always_failing(pdf_bytes: bytes, **kwargs):
+        raise RuntimeError("returned non-zero exit status 130")
+
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_document", always_failing)
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl._text_layer_extract",
+        lambda path: _fake_text_layer("E02 LEVEL L0 GROUND - LIGHTING LAYOUT"),
+    )
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_title_block_text", lambda path: "")
+
+    extracted = extract_pdf_odl(pdf_path)
+
+    assert "LEVEL L0 GROUND - LIGHTING LAYOUT" in extracted.normalized_content
+    assert extracted.extraction_metadata["pdf_extraction_source"] == "text_layer_after_odl_failure"
+    assert extracted.extraction_metadata["odl_error"]
+
+
+def test_extract_pdf_odl_raises_when_neither_odl_nor_text_layer_yields_text(
+    monkeypatch, tmp_path: Path
+) -> None:
+    pdf_path = tmp_path / "drawing.pdf"
+    pdf_path.write_bytes(b"pdf-bytes")
+
+    def always_failing(pdf_bytes: bytes, **kwargs):
+        raise RuntimeError("returned non-zero exit status 130")
+
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_document", always_failing)
+    monkeypatch.setattr("ingest.extractors.pdf_odl._text_layer_extract", lambda path: None)
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_title_block_text", lambda path: "")
+
+    try:
+        extract_pdf_odl(pdf_path)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("expected the original ODL failure to surface")

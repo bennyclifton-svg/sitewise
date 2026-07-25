@@ -27,6 +27,7 @@ from app.storage.project_files import download_project_file, move_project_file
 from ingest.document_metadata import parse_document_metadata
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 from ingest.ids import document_id
+from ingest.title_block import pdf_title_block_preview
 
 SortOutcome = Literal["moved", "already-filed", "unresolved", "skipped", "refused"]
 
@@ -76,29 +77,53 @@ def _extension(filename: str) -> str:
 _PREVIEW_BYTE_LIMIT = 4096
 
 
-async def _classification_preview(record: WorkspaceFile) -> str | None:
+@dataclass(frozen=True, slots=True)
+class _Previews:
+    """Two views of one file, because they answer different questions.
+
+    ``classification`` is the broad first-page text used to pick a lifecycle
+    folder. ``identity`` is the drawing's title block read by position; a sheet's
+    text order cannot be trusted for identity, but the broad text is still the
+    better signal for classification.
+    """
+
+    classification: str | None = None
+    identity: str | None = None
+
+    @property
+    def for_identity(self) -> str | None:
+        return self.identity or self.classification
+
+
+async def _file_previews(record: WorkspaceFile) -> _Previews:
     extension = _extension(record.filename)
     if extension not in {".md", ".txt", ".pdf", ".docx"}:
-        return None
+        return _Previews()
     try:
         content = await asyncio.to_thread(
             download_project_file,
             storage_key=record.storage_key,
         )
     except Exception:
-        return None
+        return _Previews()
     if extension == ".pdf":
+        identity = await asyncio.to_thread(pdf_title_block_preview, content)
         try:
             from app.inbox.pdf_inspect import inspect_pdf
 
             info = inspect_pdf(content)
         except Exception:
-            return None
+            return _Previews(identity=identity)
         if info.encrypted or not info.pages:
-            return None
+            return _Previews(identity=identity)
         text = info.pages[0].text.strip()
-        return text[:_PREVIEW_BYTE_LIMIT] if text else None
-    return content[:_PREVIEW_BYTE_LIMIT].decode("utf-8", errors="replace")
+        return _Previews(
+            classification=text[:_PREVIEW_BYTE_LIMIT] if text else None,
+            identity=identity,
+        )
+    return _Previews(
+        classification=content[:_PREVIEW_BYTE_LIMIT].decode("utf-8", errors="replace")
+    )
 
 
 def _inbox_prefix(project: Project) -> str:
@@ -353,12 +378,12 @@ async def sort_inbox_files(
             continue
 
         result.counts.inspected += 1
-        preview_snippet = await _classification_preview(record)
+        previews = await _file_previews(record)
         destination_folder = classify_inbox_destination(
             workspace_path=record.workspace_path,
             filename=record.filename,
             project_workspace_path=project.workspace_path,
-            preview_snippet=preview_snippet,
+            preview_snippet=previews.classification,
         )
         if destination_folder is None:
             result.records.append(
@@ -377,7 +402,7 @@ async def sort_inbox_files(
             destination_folder=destination_folder,
             filename=record.filename,
             project=project,
-            preview_snippet=preview_snippet,
+            preview_snippet=previews.for_identity,
         )
         destination_path = _destination_workspace_path(
             project,
@@ -409,7 +434,7 @@ async def sort_inbox_files(
                     source_path=record.workspace_path,
                     filed_path=destination_path,
                     filename=record.filename,
-                    preview_snippet=preview_snippet,
+                    preview_snippet=previews.for_identity,
                 )
                 result.records.append(
                     SortFileRecord(
@@ -465,7 +490,7 @@ async def sort_inbox_files(
             source_path=record.workspace_path,
             filed_path=destination_path,
             filename=destination_filename,
-            preview_snippet=preview_snippet,
+            preview_snippet=previews.for_identity,
         )
         result.records.append(
             SortFileRecord(

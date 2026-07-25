@@ -222,12 +222,17 @@ def test_create_cost_plan_taxonomy_industrial_excludes_residential_ref() -> None
 def test_catalog_covers_all_seed_files() -> None:
     entries = {entry.path: entry for entry in file_catalog()}
     seed_entries = [entry for path, entry in entries.items() if path.startswith("seed/")]
-    assert len(seed_entries) == 28
+    assert len(seed_entries) == 29
     for entry in seed_entries:
         assert entry.tier in {"archetype", "role-overlay", "topic", "overlay"}
         assert entry.summary
     assert "seed/commercial-construction-guide.md" in entries
+    assert "seed/mechanical-services-guide.md" in entries
     assert "seed/remediation-due-diligence-guide.md" in entries
+    mechanical = entries["seed/mechanical-services-guide.md"]
+    assert mechanical.loaded_by == "discipline: mechanical-services"
+    assert "mechanical-services" in mechanical.topics
+    assert "mixed" in (mechanical.applies_to_classes or ())
 
 
 def test_head_contractor_procurement_paths_are_specific_and_class_aware() -> None:
