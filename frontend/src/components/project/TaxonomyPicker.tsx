@@ -21,6 +21,7 @@ type TaxonomyPickerProps = {
   onChange: (value: TaxonomyPickerValue) => void;
   disabled?: boolean;
   idPrefix?: string;
+  workScopeMode?: "starter" | "fallback";
 };
 
 export function TaxonomyPicker({
@@ -29,6 +30,7 @@ export function TaxonomyPicker({
   onChange,
   disabled = false,
   idPrefix = "taxonomy",
+  workScopeMode = "fallback",
 }: TaxonomyPickerProps) {
   const selectedClass = catalog?.building_classes.find(
     (item) => item.value === value.building_class,
@@ -46,6 +48,10 @@ export function TaxonomyPicker({
     selectedSubclassValues.includes(subclass.value),
   ) ?? [];
   const scaleFields = uniqueScaleFields(selectedSubclasses);
+  const workScope = value.work_type
+    ? catalog?.work_scopes[value.work_type]
+    : undefined;
+  const selectedWorkScope = new Set(value.work_scope ?? []);
 
   useEffect(() => {
     if (!catalog || !selectedClassValue || !value.work_type) return;
@@ -81,6 +87,7 @@ export function TaxonomyPicker({
       ...value,
       work_type: workType,
       complexity: defaultComplexity({}, catalog?.complexity_dimensions[value.building_class ?? ""] ?? []),
+      work_scope: [],
     });
   }
 
@@ -140,6 +147,16 @@ export function TaxonomyPicker({
         ...(value.complexity ?? {}),
         [key]: optionValue,
       },
+    });
+  }
+
+  function toggleWorkScope(itemValue: string, checked: boolean) {
+    const current = value.work_scope ?? [];
+    onChange({
+      ...value,
+      work_scope: checked
+        ? [...current, itemValue]
+        : current.filter((item) => item !== itemValue),
     });
   }
 
@@ -321,7 +338,100 @@ export function TaxonomyPicker({
           </div>
         </section>
       ) : null}
+
+      {selectedClass && value.work_type && workScope?.categories.length ? (
+        workScopeMode === "starter" ? (
+          <WorkScopeFields
+            title="Starter work scope"
+            description="Use these selections to seed the brief when project documents are sparse."
+            categories={workScope.categories}
+            selected={selectedWorkScope}
+            disabled={disabled}
+            idPrefix={idPrefix}
+            onToggle={toggleWorkScope}
+          />
+        ) : (
+          <details
+            className="rounded-md border p-3"
+            open={selectedWorkScope.size > 0}
+          >
+            <summary className="cursor-pointer text-sm font-medium">
+              Fallback scope inputs
+              {selectedWorkScope.size ? ` (${selectedWorkScope.size} selected)` : ""}
+            </summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Used only where project documents do not establish the physical scope.
+            </p>
+            <div className="mt-3">
+              <WorkScopeFields
+                categories={workScope.categories}
+                selected={selectedWorkScope}
+                disabled={disabled}
+                idPrefix={idPrefix}
+                onToggle={toggleWorkScope}
+              />
+            </div>
+          </details>
+        )
+      ) : null}
     </div>
+  );
+}
+
+function WorkScopeFields({
+  title,
+  description,
+  categories,
+  selected,
+  disabled,
+  idPrefix,
+  onToggle,
+}: {
+  title?: string;
+  description?: string;
+  categories: NonNullable<TaxonomyCatalog["work_scopes"][string]>["categories"];
+  selected: ReadonlySet<string>;
+  disabled: boolean;
+  idPrefix: string;
+  onToggle: (itemValue: string, checked: boolean) => void;
+}) {
+  return (
+    <section className="grid gap-3" aria-label={title ?? "Fallback scope inputs"}>
+      {title ? <h3 className="text-sm font-medium">{title}</h3> : null}
+      {description ? (
+        <p className="text-xs text-muted-foreground">{description}</p>
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {categories.map((category) => (
+          <fieldset key={category.value} className="rounded-md border p-3">
+            <legend className="px-1 text-xs font-medium">{category.label}</legend>
+            <div className="grid gap-2">
+              {category.items.map((item) => {
+                const inputId = `${idPrefix}-work-scope-${item.value}`;
+                return (
+                  <label
+                    key={item.value}
+                    htmlFor={inputId}
+                    className="flex items-start gap-2 text-sm"
+                  >
+                    <input
+                      id={inputId}
+                      type="checkbox"
+                      checked={selected.has(item.value)}
+                      disabled={disabled}
+                      onChange={(event) =>
+                        onToggle(item.value, event.target.checked)
+                      }
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+    </section>
   );
 }
 

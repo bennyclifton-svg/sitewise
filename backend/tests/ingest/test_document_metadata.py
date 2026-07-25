@@ -95,6 +95,25 @@ def test_prefers_pdf_title_block_rows_over_hydraulic_filename_fallbacks():
     assert result.canonical_file_name == "H-104 - LEVEL 2 - DRAINAGE LAYOUT Rev 01.pdf"
 
 
+def test_parses_adp_hydraulic_title_block_with_drawing_sketch_label():
+    result = _parse(
+        file_name="Hydraulic Spatial [P1] - 01 Floor Plan.pdf",
+        filed_path="04-projects/industrial/03-design/hydraulic",
+        preview_snippet="\n".join(
+            [
+                "Title: HYDRAULICS SERVICES SPATIALS",
+                "Drawing / Sketch No. HY-SK-01",
+                "Rev. P1",
+            ]
+        ),
+    )
+
+    assert result.document_number == "HY-SK-01"
+    assert result.title == "HYDRAULICS SERVICES SPATIALS"
+    assert result.revision == "P1"
+    assert result.confidence == "high"
+
+
 def test_parses_structural_sheets_without_duplicating_drawing_number():
     result = _parse(
         file_name="S702-03.pdf",

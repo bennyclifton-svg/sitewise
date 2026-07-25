@@ -13,6 +13,7 @@ import { splitMarkdownSections, spliceMarkdownSection } from "@/lib/markdown-sec
 import type {
   DraftArtifact,
   DraftArtifactSummary,
+  ProjectDecision,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
 
@@ -46,6 +47,21 @@ export function DraftReviewPanel({
   const [actionError, setActionError] = useState<string | null>(null);
   const [sectionEditHeading, setSectionEditHeading] = useState<string | null>(null);
   const [sectionEditorValue, setSectionEditorValue] = useState("");
+  const [decisionState, setDecisionState] = useState<{
+    key: string;
+    decisions: ProjectDecision[] | null;
+    error: string | null;
+  }>({ key: "", decisions: null, error: null });
+  const decisionContextKey =
+    draft && isPmpDraft(draft.workflow_type) ? `${projectId}:${draft.id}` : "";
+  const projectDecisions =
+    decisionState.key === decisionContextKey
+      ? decisionState.decisions
+      : decisionContextKey
+        ? null
+        : [];
+  const decisionLoadError =
+    decisionState.key === decisionContextKey ? decisionState.error : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -89,6 +105,39 @@ export function DraftReviewPanel({
     }
 
     void loadDraftContent();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, draft]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!draft || !isPmpDraft(draft.workflow_type)) {
+      return;
+    }
+    const requestKey = `${projectId}:${draft.id}`;
+    async function loadDecisions() {
+      try {
+        const response = await api.listDecisions(projectId);
+        if (!cancelled) {
+          setDecisionState({
+            key: requestKey,
+            decisions: response.decisions,
+            error: null,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setDecisionState({
+            key: requestKey,
+            decisions: null,
+            error:
+              "Current decision state could not be loaded. Reload before changing a selection.",
+          });
+        }
+      }
+    }
+    void loadDecisions();
     return () => {
       cancelled = true;
     };
@@ -302,11 +351,27 @@ export function DraftReviewPanel({
               markdown={loadedDraft.content_markdown}
               version={displayDraft.version}
               projectId={projectId}
+              decisions={projectDecisions ?? undefined}
               projectTitle={displayDraft.title}
-              readOnly={isAccepted}
+              readOnly={isAccepted || projectDecisions === null}
               onDraftUpdated={(updated) => {
                 setLoadedDraft(updated);
                 onDraftUpdated(updated);
+                void api.listDecisions(projectId).then(
+                  (response) =>
+                    setDecisionState({
+                      key: decisionContextKey,
+                      decisions: response.decisions,
+                      error: null,
+                    }),
+                  () =>
+                    setDecisionState({
+                      key: decisionContextKey,
+                      decisions: null,
+                      error:
+                        "Decision saved, but current decision state could not be refreshed.",
+                    }),
+                );
               }}
               onEditSection={
                 isAccepted || isEditing ? undefined : (heading) => startSectionEdit(heading)
@@ -419,6 +484,9 @@ export function DraftReviewPanel({
         </div>
         {actionError ? (
           <p className="mt-3 text-sm text-destructive">{actionError}</p>
+        ) : null}
+        {decisionLoadError ? (
+          <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
         ) : null}
       </header>
 

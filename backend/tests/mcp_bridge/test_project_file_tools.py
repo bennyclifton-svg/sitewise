@@ -53,6 +53,7 @@ def _workspace_file(
     filename: str,
     ingest_status: str = "generated",
     source_document_id: uuid.UUID | None = None,
+    source_document: Any | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         workspace_path=workspace_path,
@@ -61,6 +62,7 @@ def _workspace_file(
         ingest_status=ingest_status,
         source_document_id=source_document_id,
         storage_key=f"{PROJECT_ID}/{workspace_path}",
+        source_document=source_document,
     )
 
 
@@ -171,6 +173,38 @@ def test_list_project_files_finds_generated_workbook(monkeypatch) -> None:
     )
 
 
+def test_list_project_files_includes_ingested_document_identity(monkeypatch) -> None:
+    session = _Session(project=_project())
+    server = _install(monkeypatch, session)
+    source_id = uuid.uuid4()
+    drawing = _workspace_file(
+        workspace_path="04-projects/walsh-reno/03-design/hydraulic/HY-SK-01.pdf",
+        filename="HY-SK-01.pdf",
+        ingest_status="ingested",
+        source_document_id=source_id,
+        source_document=SimpleNamespace(
+            document_metadata={
+                "document_number": "HY-SK-01",
+                "title": "HYDRAULICS SERVICES SPATIALS",
+                "revision": "P1",
+                "discipline": "Hydraulic",
+                "metadata_confidence": "high",
+            }
+        ),
+    )
+    monkeypatch.setattr(server, "search_workspace_files_for_project", AsyncMock(return_value=[drawing]))
+
+    result = _call(server, "list_project_files", {"project_id": str(PROJECT_ID)})
+
+    assert result.data[0]["document_metadata"] == {
+        "document_number": "HY-SK-01",
+        "title": "HYDRAULICS SERVICES SPATIALS",
+        "revision": "P1",
+        "discipline": "Hydraulic",
+        "metadata_confidence": "high",
+    }
+
+
 def test_pi_runtime_allows_project_file_tools() -> None:
     from app.agent.pi_process import PI_MCP_DIRECT_TOOLS
 
@@ -180,6 +214,18 @@ def test_pi_runtime_allows_project_file_tools() -> None:
     assert "forecast_consultant_fees" in PI_MCP_DIRECT_TOOLS
     assert "apply_consultant_fee_forecast" in PI_MCP_DIRECT_TOOLS
     assert "draft_consultant_procurement_artifact" in PI_MCP_DIRECT_TOOLS
+
+
+def test_pi_runtime_allows_project_profile_tools() -> None:
+    from app.agent.pi_process import PI_MCP_DIRECT_TOOLS
+
+    assert "get_project_profile" in PI_MCP_DIRECT_TOOLS
+    assert "get_project_profile_options" in PI_MCP_DIRECT_TOOLS
+    assert "get_project_snapshot" in PI_MCP_DIRECT_TOOLS
+    assert "propose_project_profile_change" in PI_MCP_DIRECT_TOOLS
+    assert "accept_project_profile_proposal" in PI_MCP_DIRECT_TOOLS
+    assert "reject_project_profile_proposal" in PI_MCP_DIRECT_TOOLS
+    assert "update_project_profile" in PI_MCP_DIRECT_TOOLS
 
 
 def test_read_project_workbook_returns_sheet_rows(monkeypatch) -> None:

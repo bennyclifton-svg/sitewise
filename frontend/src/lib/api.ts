@@ -56,7 +56,6 @@ import type {
   ProjectCockpitBootstrap,
   ProjectChatBootstrap,
   ProjectDetail,
-  ProjectDecision,
   ProjectDecisionListResponse,
   ProjectEventListResponse,
   ProjectProfileChange,
@@ -681,11 +680,10 @@ export const api = {
       expected_base_version: expectedBaseVersion,
     }),
 
-  listDecisions: async (projectId: string): Promise<ProjectDecision[]> => {
-    const response = await api.get<ProjectDecisionListResponse>(
+  listDecisions: async (projectId: string): Promise<ProjectDecisionListResponse> => {
+    return api.get<ProjectDecisionListResponse>(
       `/projects/${projectId}/decisions`,
     );
-    return response.decisions;
   },
 
   putDecision: async (

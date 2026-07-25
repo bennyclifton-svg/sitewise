@@ -10,7 +10,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { splitMarkdownSections } from "@/lib/markdown-sections";
-import type { DraftArtifact } from "@/lib/types/project";
+import type {
+  DraftArtifact,
+  ProjectDecision,
+} from "@/lib/types/project";
 
 const EVIDENCE_STATUSES = [
   "User provided",
@@ -89,6 +92,7 @@ function markdownComponents(
   version?: number,
   options?: {
     projectId?: string;
+    decisionsById?: ReadonlyMap<string, ProjectDecision>;
     readOnly?: boolean;
     onDraftUpdated?: (draft: DraftArtifact) => void;
     onEditSection?: (heading: string) => void;
@@ -111,10 +115,17 @@ function markdownComponents(
         child.props.className.includes("language-pmp-decision")
       ) {
         const raw = String("children" in child.props ? child.props.children : "").trim();
-        const decision = parseEmbeddedDecision(raw);
+        const embedded = parseEmbeddedDecision(raw);
+        const decision = embedded
+          ? hydrateEmbeddedDecision(
+              embedded,
+              options?.decisionsById?.get(embedded.id),
+            )
+          : null;
         if (decision && options?.projectId) {
           return (
             <DecisionControl
+              key={`${decision.id}:${decision.revision ?? 0}:${decision.set_revision ?? 0}`}
               projectId={options.projectId}
               decision={decision}
               readOnly={options.readOnly}
@@ -240,6 +251,7 @@ export function MarkdownContent({
   markdown,
   version,
   projectId,
+  decisions,
   projectTitle,
   readOnly = false,
   onDraftUpdated,
@@ -248,6 +260,7 @@ export function MarkdownContent({
   markdown: string;
   version?: number;
   projectId?: string;
+  decisions?: ProjectDecision[];
   projectTitle?: string;
   readOnly?: boolean;
   onDraftUpdated?: (draft: DraftArtifact) => void;
@@ -255,6 +268,13 @@ export function MarkdownContent({
 }) {
   const normalized = normalizeDraftMarkdown(markdown);
   const sections = useMemo(() => splitMarkdownSections(normalized), [normalized]);
+  const decisionsById = useMemo(
+    () =>
+      decisions
+        ? new Map(decisions.map((decision) => [decision.decision_id, decision]))
+        : undefined,
+    [decisions],
+  );
 
   return (
     <div
@@ -290,6 +310,7 @@ export function MarkdownContent({
             remarkPlugins={[remarkGfm]}
             components={markdownComponents(version, {
               projectId,
+              decisionsById,
               readOnly,
               onDraftUpdated,
               onEditSection,
@@ -301,6 +322,25 @@ export function MarkdownContent({
       </div>
     </div>
   );
+}
+
+function hydrateEmbeddedDecision(
+  embedded: ReturnType<typeof parseEmbeddedDecision> & {},
+  canonical: ProjectDecision | undefined,
+) {
+  if (!canonical) return embedded;
+  return {
+    ...embedded,
+    section: canonical.section || embedded.section,
+    label: canonical.label || embedded.label,
+    options: canonical.options.length ? canonical.options : embedded.options,
+    selected: canonical.selected,
+    source: canonical.source,
+    revision: canonical.revision,
+    set_revision: canonical.set_revision,
+    evidence_conflict: canonical.evidence_conflict,
+    agent_suggestion: canonical.agent_suggestion ?? undefined,
+  };
 }
 
 // Pure formatting contracts are exported for focused rendering tests.

@@ -9,7 +9,16 @@ Return a typed output with:
 
 ## Authority
 
-Use only the supplied sources. Project evidence beats doctrine; doctrine beats seed; seed beats general knowledge.
+Use only the supplied sources. Apply two separate precedence axes:
+- **Authority:** statutory approval/current authority record > current project brief or
+  discipline report for its own subject > user-provided profile > platform guidance.
+- **Version:** within the same document family, the current approved revision beats an
+  older revision. Recency alone does not make a design brief override a consent or vice versa.
+
+User-locked decisions govern choices, but cannot override a statutory fact. Platform doctrine
+and seeds are guidance, never project evidence. Where current sources disagree, retain both
+positions as a conflict, identify the governing verification action, and do not silently choose
+the newer date.
 
 Label every project-specific claim without evidence as **Assumption**. Never present assumptions as fact.
 
@@ -17,25 +26,42 @@ Label every project-specific claim without evidence as **Assumption**. Never pre
 
 When the prompt includes an **Adaptive taxonomy PMP content contract**, it supersedes
 the legacy role/archetype scaffold:
-- The primary PMP is a 2-4 A4 page control document. Treat word budgets as guides;
-  deepen project-specific high-weight sections and cut generic prose first.
+- The primary PMP is a 2-4 A4 page control document and must remain within the supplied
+  maximum word count. Cut generic prose first. Put long document registers and overflow
+  detail in a compact `## Annexure` section immediately before the final Citation key
+  so it does not crowd out decisions.
 - Use the universal `##` headings supplied in the prompt exactly (e.g. **Project
   Summary**, **Brief**, **Consultants**, **Planning and Compliance**, **Programme**,
   **Cost Planning**, **Procurement and Delivery**, **Risks and mitigations**,
   **Actions and decisions**, **Citation key**).
-- Open with **Project Summary** using columns
+- Open with **Project Summary**. Put a compact **Critical current position** table first,
+  containing the highest-consequence identity/scope conflicts, statutory departures,
+  approval gates, programme gates and unresolved client decisions. Then use columns
   `| Field | Current PMP position | Citation |`. Middle cell = value plus status
   label; Citation cell = `[n]` or `—` only (no document titles).
 - **Brief** is physical/client brief only (inclusions, exclusions, interfaces,
   finishes/fixtures, acceptance criteria). Do not put consultant rosters or
   engagement/fee content in Brief.
+- In evidence-grounded drafts, omit an empty work-scope taxonomy/fallback row. The
+  fallback selector is for sparse projects only; do not ask the client to reconfirm
+  scope already established by current documents.
+- Show exclusions as `Item | Position | Basis / source | Owner | Verification action`.
+  Distinguish a confirmed exclusion from an owner-supplied item, consultant interface,
+  design-development gap, and genuinely unverified exclusion. Never infer an exclusion
+  from silence and never leave an evidenced exclusion uncited.
 - **Consultants** is the appointment register:
   `| Discipline | Firm | Scope / services | Fee | Status | Citation |`.
+  Consultant status must distinguish appointed, proposed/required, report on file but
+  appointment unverified, and not evidenced. A report on file does not by itself prove
+  a live appointment.
   Architect-PM engagement is the first row when that role applies; expected
   disciplines without appointment evidence stay Assumption / Not evidenced with `—`.
 - Use one shared `[n]` number per active project evidence document across Summary,
   Consultants, body refs, and **Citation key**. Do not invent citations for
   user-provided or assumption-only facts.
+- A citation must support the whole adjacent claim. Never assemble a claim by matching
+  isolated tokens from separate source passages. Before citing `[n]`, ensure the named
+  quantity, party, scope, status and action are stated or faithfully paraphrased by `[n]`.
 - Close with **Citation key** only (numbered docs, section evidence-status table,
   short document-control note). Do **not** open the body with **Evidence basis and
   document control**.
@@ -98,8 +124,8 @@ on the legacy (non-taxonomy) 14-section path:
    understanding as a **draft owner project brief** pending owner formal sign-off.
 
 5. **Procurement and programme** — Surface fee proposal conflict disclosures and tender
-   assumptions (e.g. invited builder count). Surface engagement letter programme targets (e.g.
-   target DA lodgement date).
+   assumptions only when the cited project source states them. Surface engagement letter
+   programme targets (e.g. target DA lodgement date).
 
 6. **Service exclusions** — List engagement letter service exclusions under **Fee, services and
    programme relationship** (distinct from building scope exclusions).
@@ -147,7 +173,9 @@ This is the Project Management Plan facet from `contract-setup-system` Step 2A:
   3. What's happened
   4. What's next
   5. Background (if needed)
-- Head-builder procurement: typically 2–3 invited builders, evaluation criteria before tender close, tender evaluation matrix, single recommendation to owner
+- Head-builder procurement guidance may suggest 2-3 invited builders only in
+  `platform_seeded` drafts. In an evidence-grounded draft, state a builder count as project
+  fact only when the adjacent project citation supports it.
 - Give a clear recommendation in escalations — not an option bundle without a view
 - For `archetype: multi-dwelling` or D&C-signalled staged OC projects, ratchet to a detailed staged regime
 - Apply archetype-specific risks and due diligence from the loaded archetype seed
@@ -155,7 +183,8 @@ This is the Project Management Plan facet from `contract-setup-system` Step 2A:
 
 ## Internal audit layer
 
-End the markdown with `## Internal audit layer` containing:
+Include `## Internal audit layer` before the final `## Citation key` in taxonomy drafts,
+containing:
 - **Facts**, **Assumptions**, **Judgements**, **Recommendations** as separate bullet lists (do NOT use `###` subheadings)
 - Missing evidence and consequences
 - Early escalation flags for cost, programme, procurement, approvals, and compliance
@@ -192,6 +221,10 @@ Where the draft chooses among taxonomy-defined options (procurement route, contr
 Rules:
 - Use kebab-case stable ids (`procurement-route`, `approval-pathway`, `contract-form`, `staging-strategy`, or the complexity dimension key with underscores replaced by hyphens).
 - Never invent option values outside the taxonomy lists supplied in the prompt.
+- Treat procurement route and contract form as dependent but distinct decisions:
+  `design_construct` route uses an AS 4902 or reviewed bespoke D&C form; AS 4000 is
+  construct-only and is incompatible with a D&C route. Never use a route or pricing
+  mechanism (`design_construct`, `cost_plus`) as a contract-form value.
 - Preserve user-locked decisions exactly (`source: "user"`) when the prompt lists locked selections.
 - One block per open decision; place it in the relevant `##` section.
 - Always set `evidenced` (boolean). `true` when project Sources nominate or clearly imply the selected option; `false` only when Sources are silent and you are using `default_hint` or another working assumption.

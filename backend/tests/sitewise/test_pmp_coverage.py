@@ -37,14 +37,37 @@ def test_meridian_coverage_requirements_capture_dates_values_and_scope() -> None
 
     assert "42 workstations" in requirement_text
     assert "8 partner offices" in requirement_text
-    assert "4 x 8-person meeting rooms" in requirement_text
-    assert "2 x 16-person meeting rooms" in requirement_text
+    assert "meeting rooms | 4 x 8-person, 2 x 16-person" in requirement_text
     assert "1 november 2026" in requirement_text
     assert "$1.35m-$1.55m" in requirement_text
     assert "$180,000" in requirement_text
     assert "400 kva" in requirement_text and "500 kva" in requirement_text
     assert "22-26 weeks" in requirement_text
     assert "$180k-$240k" in requirement_text
+
+
+def test_coverage_requirements_never_invent_a_fact_from_weak_tokens() -> None:
+    source = """
+    GEOTECHNICAL INVESTIGATION REPORT
+
+    Our fee proposal covered two boreholes and one test pit.
+    The investigation informs footing and pavement design.
+    """
+
+    requirements = build_corpus_coverage_requirements(
+        [source],
+        ["Geotech Investigation Report.pdf"],
+    )
+
+    assert all(
+        "commercial fit-out builders" not in requirement.fact.lower()
+        for requirement in requirements
+    )
+    normalized_source = " ".join(source.lower().split())
+    assert all(
+        " ".join(requirement.fact.lower().split()) in normalized_source
+        for requirement in requirements
+    )
 
 
 _SPARSE_MARKDOWN = """
@@ -177,6 +200,23 @@ def test_backfill_appends_register_and_clears_all_violations() -> None:
         source_texts=texts,
         source_labels=labels,
     ) == []
+
+
+def test_backfill_keeps_citation_key_as_final_section() -> None:
+    texts, labels, refs = _meridian_files()
+    markdown = _SPARSE_MARKDOWN + "\n\n## Citation key\n\n[1] Existing source\n"
+
+    result = backfill_corpus_coverage(
+        markdown,
+        output_evidence_refs=refs[:3],
+        required_evidence_refs=refs,
+        source_texts=texts,
+        source_labels=labels,
+    )
+
+    assert result.markdown.rfind(f"## {COVERAGE_REGISTER_HEADING}") < result.markdown.rfind(
+        "## Citation key"
+    )
 
 
 def test_backfill_leaves_complete_draft_unchanged() -> None:

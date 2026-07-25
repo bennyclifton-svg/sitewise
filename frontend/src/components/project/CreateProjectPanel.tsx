@@ -114,6 +114,7 @@ export function CreateProjectPanel({
           onChange={setTaxonomy}
           disabled={submitting}
           idPrefix="create-project-taxonomy"
+          workScopeMode="starter"
         />
 
         {taxonomyQuery.error ? (

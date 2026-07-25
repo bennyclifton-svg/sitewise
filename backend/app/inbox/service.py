@@ -10,6 +10,7 @@ from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.workspace_files import get_workspace_file_by_path, upsert_workspace_file
 from app.inbox.paths import InboxPathError, build_inbox_workspace_path, build_storage_key, sanitize_filename
+from app.intake.sort_service import sort_inbox_files
 from app.schemas.projects import WorkflowTraceEvent
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
@@ -344,6 +345,27 @@ async def _upload_single_file(
         ingest_error=ingest_error,
         source_document_id=source_doc_id,
     )
+    if ingest_status == "ingested":
+        sorted_files = await sort_inbox_files(
+            session,
+            project=project,
+            workspace_paths={workspace_path},
+        )
+        moved = next(
+            (item for item in sorted_files.records if item.source_path == workspace_path),
+            None,
+        )
+        if moved is not None and moved.outcome == "moved" and moved.destination_path:
+            moved_record = await get_workspace_file_by_path(
+                session,
+                project_id=project.id,
+                workspace_path=moved.destination_path,
+            )
+            if moved_record is not None:
+                record = moved_record
+                workspace_path = moved.destination_path
+                filename = moved.destination_filename or moved_record.filename
+                message = "Uploaded, ingested, and filed"
     await _record_file_activity(
         session,
         project_id=project.id,

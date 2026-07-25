@@ -40,7 +40,13 @@ def _project() -> Project:
         title="Demo",
         workspace_path="04-projects/demo",
         decision_set_revision=4,
+        profile_revision=2,
         event_sequence=0,
+        project_metadata={
+            "taxonomy": {
+                "complexity": {"procurement_route": "traditional"},
+            }
+        },
     )
 
 
@@ -120,6 +126,35 @@ def test_stale_decision_revision_is_rejected_before_update() -> None:
 
     assert row.selected == "traditional"
     assert project.decision_set_revision == 4
+
+
+def test_user_procurement_decision_updates_fallback_profile_field() -> None:
+    project = _project()
+    row = _decision(locked=False)
+    session = AsyncMock()
+    session.execute.side_effect = [_Result(value=project), _Result(value=row)]
+
+    with patch("app.projects.decisions.publish_project_event", new=AsyncMock()):
+        updated, set_revision = asyncio.run(
+            update_project_decision(
+                session,
+                project_id=PROJECT_ID,
+                decision_id=row.decision_id,
+                selected="design_construct",
+                expected_revision=3,
+                expected_set_revision=4,
+                actor_source="user",
+                lock=True,
+            )
+        )
+
+    assert updated.selected == "design_construct"
+    assert set_revision == 5
+    assert project.profile_revision == 3
+    assert (
+        project.project_metadata["taxonomy"]["complexity"]["procurement_route"]
+        == "design_construct"
+    )
 
 
 def test_agent_cannot_overwrite_locked_decision() -> None:

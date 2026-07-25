@@ -41,10 +41,11 @@ PMP_CORE_DECISIONS: dict[str, dict[str, Any]] = {
         "label": "Contract form",
         "section": "Procurement & delivery",
         "options": [
-            {"value": "as4000", "label": "AS 4000"},
-            {"value": "hia", "label": "HIA"},
-            {"value": "design_construct", "label": "Design & Construct"},
-            {"value": "cost_plus", "label": "Cost Plus"},
+            {"value": "as4000", "label": "AS 4000 (construct only)"},
+            {"value": "as4902", "label": "AS 4902 (design and construct)"},
+            {"value": "hia", "label": "HIA residential building contract"},
+            {"value": "bespoke", "label": "Bespoke / amended commercial form"},
+            {"value": "other", "label": "Other - legal review required"},
         ],
     },
     "staging-strategy": {
@@ -209,6 +210,7 @@ def extract_decisions(markdown: str) -> list[PmpDecision]:
 def decision_violations(markdown: str) -> list[str]:
     violations: list[str] = []
     seen_ids: set[str] = set()
+    decisions: dict[str, PmpDecision] = {}
     for block in _iter_decision_fences(markdown):
         payload = _parse_payload(block.body)
         if payload is None:
@@ -227,12 +229,26 @@ def decision_violations(markdown: str) -> list[str]:
         if decision.id in seen_ids:
             violations.append(f"Duplicate decision id: {decision.id}.")
         seen_ids.add(decision.id)
+        decisions[decision.id] = decision
         if not decision.options:
             violations.append(f"Decision '{decision.id}' has no options.")
             continue
         if decision.selected not in _option_values(decision.options):
             violations.append(
                 f"Decision '{decision.id}' selected value is not in options."
+            )
+    route = decisions.get("procurement-route")
+    contract = decisions.get("contract-form")
+    if route is not None and contract is not None:
+        if route.selected == "design_construct" and contract.selected == "as4000":
+            violations.append(
+                "Procurement route and contract form are incompatible: "
+                "Design & Construct cannot use the construct-only AS 4000 selection."
+            )
+        if route.selected == "traditional" and contract.selected == "as4902":
+            violations.append(
+                "Procurement route and contract form are incompatible: "
+                "Traditional construct-only procurement cannot use AS 4902."
             )
     return violations
 
@@ -423,6 +439,11 @@ def format_decision_option_sets(
     include_cost_only: bool = False,
 ) -> str:
     lines = ["Available decision option sets (use only these values in pmp-decision blocks):"]
+    lines.append(
+        "Decision dependency: select procurement-route first. Traditional construct-only "
+        "may use AS 4000; Design & Construct may use AS 4902 or a legally reviewed bespoke "
+        "form. Do not treat a delivery route or pricing mechanism as a contract form."
+    )
     for decision_id, spec in sorted(
         decision_option_sets_for_project(
             project, include_cost_only=include_cost_only

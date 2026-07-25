@@ -324,6 +324,7 @@ async def sort_inbox_files(
     *,
     project: Project,
     manifest_version_hint: int = 0,
+    workspace_paths: set[str] | None = None,
 ) -> SortFilesResult:
     inbox_prefix = _inbox_prefix(project)
     inbox_files = await list_workspace_files_under_prefix(
@@ -331,6 +332,8 @@ async def sort_inbox_files(
         project_id=project.id,
         path_prefix=inbox_prefix,
     )
+    if workspace_paths is not None:
+        inbox_files = [record for record in inbox_files if record.workspace_path in workspace_paths]
 
     result = SortFilesResult()
     manifest_version = _next_manifest_version(inbox_files, manifest_version_hint)

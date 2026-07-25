@@ -1,7 +1,12 @@
 import pytest
 
 from app.agent.mutation_intent import classify_mutation_intent
-from app.agent.turn_context import HistoryMessage, build_agent_prompt
+from app.agent.turn_context import (
+    HistoryMessage,
+    build_agent_prompt,
+    turn_needs_mutation_tools,
+    turn_needs_profile_mutation_tools,
+)
 from app.config import settings
 
 PROJECT_ID = "22222222-2222-2222-2222-222222222222"
@@ -78,24 +83,42 @@ def test_broad_profile_update_runs_document_enrichment_before_replying() -> None
     assert "<profile-enrichment-request>" in prompt
     assert "get_project_profile and get_project_profile_options" in prompt
     assert "Review every unset or" in prompt
-    assert "propose_project_profile_change" in prompt
+    assert "update_project_profile" in prompt
     assert "profile is already up to date" in prompt
+    assert "profile_mutation authority" in prompt
+
+
+def test_available_facts_profile_update_needs_mutation_tools() -> None:
+    user_text = "update the project profile to reflect avaliable facts"
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_profile_mutation_tools(user_text, intent) is True
+    assert turn_needs_mutation_tools(user_text, intent) is True
+    assert intent.scopes
+
+
+def test_create_rfp_request_needs_mutation_tools() -> None:
+    user_text = "create rfp for structural engineer"
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_profile_mutation_tools(user_text, intent) is False
+    assert turn_needs_mutation_tools(user_text, intent) is True
+
+
+def test_read_only_project_question_does_not_need_mutation_tools() -> None:
+    user_text = "what is the project budget?"
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_mutation_tools(user_text, intent) is False
 
 
 def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:
-    """Regression: "check ... profile ... and change any that are incorrect or
-    empty" is how a user naturally asks for this, but it carries no explicit
-    field values, so classify_mutation_intent grants no scope and no
-    confirmation path. Without the enrichment guidance below, the agent falls
-    back to demanding exact values from the user instead of proposing
-    evidence-derived ones (which is what "the server blocked the update"
-    actually meant in practice — it had wrongly attempted update_project_profile
-    instead of propose_project_profile_change).
-    """
+    """Regression: broad check/fix phrasing grants enrichment write authority."""
     user_text = (
         "Please check the project profile attributes and change any that are "
         "incorrect or empty."
     )
+    intent = classify_mutation_intent(user_text)
     prompt = build_agent_prompt(
         user_text,
         project_id=PROJECT_ID,
@@ -105,11 +128,13 @@ def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:
         building_class=None,
         work_type=None,
         history=[],
-        mutation_intent=classify_mutation_intent(user_text),
+        mutation_intent=intent,
     )
 
+    assert intent.scopes
     assert "<profile-enrichment-request>" in prompt
-    assert "propose_project_profile_change" in prompt
+    assert "update_project_profile" in prompt
+    assert "unbound profile_mutation authority" in prompt
 
 
 def test_profile_proposal_confirmation_uses_acceptance_without_direct_mutation_scope() -> None:

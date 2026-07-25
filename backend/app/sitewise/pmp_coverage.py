@@ -13,9 +13,10 @@ class CoverageRequirement:
     category: str
     fact: str
     alternatives: tuple[tuple[str, ...], ...]
+    support: str = ""
 
 
-COVERAGE_REGISTER_HEADING = "Evidence coverage register"
+COVERAGE_REGISTER_HEADING = "Annexure A — Evidence coverage register"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +61,10 @@ def backfill_corpus_coverage(
         if not _requirement_present(body, requirement)
     ]
     if missing:
-        new_markdown = base.rstrip() + "\n\n" + _render_coverage_register(missing) + "\n"
+        new_markdown = _insert_before_citation_key(
+            base,
+            _render_coverage_register(missing),
+        )
     elif has_register:
         new_markdown = base.rstrip() + "\n"
     else:
@@ -111,6 +115,17 @@ def _render_coverage_register(requirements: Sequence[CoverageRequirement]) -> st
         fact = requirement.fact.replace("|", "/")
         lines.append(f"| {source} | {category} | {fact} |")
     return "\n".join(lines)
+
+
+def _insert_before_citation_key(markdown: str, register: str) -> str:
+    lines = markdown.rstrip().splitlines()
+    for index, line in enumerate(lines):
+        if line.strip().casefold() != "## citation key":
+            continue
+        before = "\n".join(lines[:index]).rstrip()
+        after = "\n".join(lines[index:]).lstrip()
+        return f"{before}\n\n{register}\n\n{after}\n"
+    return f"{markdown.rstrip()}\n\n{register}\n"
 
 
 def format_corpus_coverage_requirements(
@@ -257,7 +272,7 @@ def _tenant_brief_requirements(source: str, text: str) -> list[CoverageRequireme
         ),
         _req(source, "services value", "minimum 500 kVA electrical supply to tenant switchboard", "500 kVA"),
     ]
-    return [req for req in requirements if _source_supports(text, req)]
+    return _supported_requirements(text, requirements)
 
 
 def _planning_requirements(source: str, text: str) -> list[CoverageRequirement]:
@@ -270,7 +285,7 @@ def _planning_requirements(source: str, text: str) -> list[CoverageRequirement]:
         _req(source, "approval duration", "Construction Certificate 4-6 weeks after SSD", "4-6 weeks", "4 to 6 weeks"),
         _req(source, "sustainability value", "NABERS Energy rating at least 4.5 stars", ("4.5", "NABERS")),
     ]
-    return [req for req in requirements if _source_supports(text, req)]
+    return _supported_requirements(text, requirements)
 
 
 def _engagement_requirements(source: str, text: str) -> list[CoverageRequirement]:
@@ -285,7 +300,7 @@ def _engagement_requirements(source: str, text: str) -> list[CoverageRequirement
         _req(source, "programme date", "practical completion before 1 July 2027 occupation", "1 July 2027"),
         _req(source, "service value", "construction administration estimated 7 months", ("7", "months")),
     ]
-    return [req for req in requirements if _source_supports(text, req)]
+    return _supported_requirements(text, requirements)
 
 
 def _fee_proposal_requirements(source: str, text: str) -> list[CoverageRequirement]:
@@ -296,10 +311,17 @@ def _fee_proposal_requirements(source: str, text: str) -> list[CoverageRequireme
         _req(source, "scope quantity", "8 partner offices and 6 meeting rooms", ("8", "partner offices", "6 meeting rooms"), ("8 partner offices", "6 meeting rooms")),
         _req(source, "scope quantity", "Level 4 mezzanine insert about 185 m2", ("185", "mezzanine")),
         _req(source, "approval pathway", "SSD primary pathway; CDC not assumed", ("SSD", "primary"), ("CDC", "not")),
-        _req(source, "procurement value", "two experienced commercial fit-out builders to tender", "two", "2 invited builders", "two invited builders"),
+        _req(
+            source,
+            "procurement value",
+            "two experienced commercial fit-out builders to tender",
+            ("two", "experienced", "commercial fit-out", "builders", "tender"),
+            ("2", "experienced", "commercial fit-out", "builders", "tender"),
+            ("two invited builders",),
+        ),
         _req(source, "tender criterion", "tender evaluation includes after-hours methodology and services-capacity risk", ("after-hours", "services-capacity risk"), ("after-hours", "services capacity risk")),
     ]
-    return [req for req in requirements if _source_supports(text, req)]
+    return _supported_requirements(text, requirements)
 
 
 def _landlord_requirements(source: str, text: str) -> list[CoverageRequirement]:
@@ -312,7 +334,7 @@ def _landlord_requirements(source: str, text: str) -> list[CoverageRequirement]:
         _req(source, "access constraint", "no Sunday works", "no Sunday"),
         _req(source, "approval gate", "tenant works cannot commence until SSD consent and landlord fit-out consent deed", ("SSD consent", "fit-out consent deed")),
     ]
-    return [req for req in requirements if _source_supports(text, req)]
+    return _supported_requirements(text, requirements)
 
 
 def _builder_rom_requirements(source: str, text: str) -> list[CoverageRequirement]:
@@ -326,7 +348,7 @@ def _builder_rom_requirements(source: str, text: str) -> list[CoverageRequiremen
         _req(source, "landlord risk", "landlord approval delays on slab penetrations", ("landlord approval", "slab penetrations")),
         _req(source, "conflict disclosure", "Apex is not a related party to Form & Function", ("not a related party", "Form & Function"), ("not related", "Form & Function")),
     ]
-    return [req for req in requirements if _source_supports(text, req)]
+    return _supported_requirements(text, requirements)
 
 
 def _req(
@@ -349,9 +371,68 @@ def _req(
     )
 
 
-def _source_supports(text: str, requirement: CoverageRequirement) -> bool:
-    body = _normalise_text(text)
-    return _requirement_present(body, requirement)
+def _supported_requirements(
+    text: str,
+    requirements: Sequence[CoverageRequirement],
+) -> list[CoverageRequirement]:
+    """Return only facts backed by one contiguous source span.
+
+    Coverage templates identify candidate concepts, but the carried fact is
+    always the actual source sentence or table row. This prevents a weak token
+    match from turning fixture wording into a project fact.
+    """
+    supported: list[CoverageRequirement] = []
+    for requirement in requirements:
+        span = _supporting_span(text, requirement)
+        if span is None:
+            continue
+        supported.append(
+            CoverageRequirement(
+                source=requirement.source,
+                category=requirement.category,
+                fact=_clean_support_span(span),
+                alternatives=requirement.alternatives,
+                support=span,
+            )
+        )
+    return supported
+
+
+def _supporting_span(
+    text: str,
+    requirement: CoverageRequirement,
+) -> str | None:
+    for span in _candidate_support_spans(text):
+        if _requirement_present(_normalise_text(span), requirement):
+            return span
+    return None
+
+
+def _candidate_support_spans(text: str) -> list[str]:
+    spans: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        spans.append(line)
+        if "|" not in line and len(line) > 280:
+            spans.extend(
+                sentence.strip()
+                for sentence in re.split(r"(?<=[.!?])\s+", line)
+                if sentence.strip()
+            )
+    return spans
+
+
+def _clean_support_span(span: str) -> str:
+    cleaned = span.strip().strip("|").strip()
+    cleaned = re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", cleaned)
+    cleaned = cleaned.replace("**", "").replace("__", "").replace("`", "")
+    cleaned = re.sub(r"<br\s*/?>", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.replace("\u00d7", "x")
+    cleaned = cleaned.replace("\u2013", "-").replace("\u2014", "-")
+    cleaned = re.sub(r"(?<=[\dMmkK])\s*-\s*(?=\$?\d)", "-", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 def _requirement_present(normalised_body: str, requirement: CoverageRequirement) -> bool:

@@ -51,12 +51,27 @@ def test_non_profile_message_has_no_scope_or_confirmation() -> None:
     assert intent.requires_confirmation is False
 
 
-def test_broad_profile_completion_request_does_not_grant_inferred_mutation_scope() -> None:
+def test_broad_profile_completion_request_grants_unbound_enrichment_mutation_scope() -> None:
+    from app.agent.mutation_intent import PROFILE_ENRICHMENT_REASON
+
     intent = classify_mutation_intent("Update the project profile where possible.")
 
-    assert intent.scopes == ()
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
     assert dict(intent.profile_patch) == {}
     assert intent.requires_confirmation is False
+    assert intent.reason == PROFILE_ENRICHMENT_REASON
+
+
+def test_available_facts_profile_update_grants_enrichment_mutation_scope() -> None:
+    from app.agent.mutation_intent import PROFILE_ENRICHMENT_REASON
+
+    intent = classify_mutation_intent(
+        "update the project profile to reflect avaliable facts"
+    )
+
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
+    assert dict(intent.profile_patch) == {}
+    assert intent.reason == PROFILE_ENRICHMENT_REASON
 
 
 def test_profile_proposal_confirmation_is_recognized_without_a_direct_patch() -> None:

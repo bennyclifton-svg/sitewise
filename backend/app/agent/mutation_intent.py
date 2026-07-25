@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 PROFILE_MUTATION_SCOPE = "profile_mutation"
+PROFILE_ENRICHMENT_REASON = "profile_enrichment_authority"
 
 _DIRECT_IMPERATIVE = re.compile(r"\b(?:set|change|make)\b", re.IGNORECASE)
 _SAVE_IMPERATIVE = re.compile(r"\b(?:update|save)\b", re.IGNORECASE)
@@ -22,6 +23,18 @@ _EVIDENCE_ASSERTION = re.compile(
 _HEDGE = re.compile(r"\b(?:may|might|possibly|probably|appears? to|could be)\b", re.IGNORECASE)
 _PROFILE_PROPOSAL_CONFIRMATION = re.compile(
     r"\b(?:confirm|accept|approve)\b", re.IGNORECASE
+)
+_PROFILE_ENRICHMENT_VERBS = (
+    "update",
+    "complete",
+    "fill",
+    "populate",
+    "enrich",
+    "check",
+    "review",
+    "correct",
+    "fix",
+    "audit",
 )
 
 _BUILDING_CLASSES = {
@@ -156,6 +169,14 @@ def materialize_profile_patch(
     )
 
 
+def is_profile_enrichment_text(user_text: str) -> bool:
+    """True when the user asks for a best-effort profile fill without exact values."""
+    normalized = " ".join(user_text.lower().split())
+    return "profile" in normalized and any(
+        re.search(rf"\b{verb}\b", normalized) for verb in _PROFILE_ENRICHMENT_VERBS
+    )
+
+
 def classify_mutation_intent(user_text: str) -> MutationIntent:
     message_hash = hash_user_message(user_text)
     targets = _profile_targets(user_text)
@@ -179,6 +200,19 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
             profile_patch=MappingProxyType(targets),
             requires_confirmation=False,
             reason="explicit_profile_imperative",
+        )
+    if (
+        is_profile_enrichment_text(user_text)
+        and not evidence_assertion
+        and not quoted_instruction
+        and not hedged
+    ):
+        return MutationIntent(
+            user_message_hash=message_hash,
+            scopes=(PROFILE_MUTATION_SCOPE,),
+            profile_patch=MappingProxyType({}),
+            requires_confirmation=False,
+            reason=PROFILE_ENRICHMENT_REASON,
         )
     requires_confirmation = bool(targets) and (evidence_assertion or hedged or imperative)
     reason = (

@@ -18,9 +18,10 @@ from app.sitewise.mobilisation_evidence import (
     merge_evidence_packs,
 )
 from app.sitewise.pmp_corpus import CorpusListingResult, list_current_pmp_corpus_documents
+from app.sitewise.pmp_evidence_ledger import build_document_digest
 from app.sitewise.pmp_evidence_validation import apply_corpus_evidence_downgrades
 
-CREATE_PMP_EVIDENCE_DOC_CHARS = 8_000
+CREATE_PMP_EVIDENCE_DOC_CHARS = 4_500
 CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS = 8
 
 
@@ -117,7 +118,10 @@ def _normalise_section_body(body: str) -> str:
 
 
 def _document_passage(document) -> SourcePassage:
-    content = document.normalized_content[:CREATE_PMP_EVIDENCE_DOC_CHARS]
+    content = build_document_digest(
+        document.normalized_content,
+        max_chars=CREATE_PMP_EVIDENCE_DOC_CHARS,
+    )
     return SourcePassage(
         chunk_id=document.id,
         document_id=document.id,

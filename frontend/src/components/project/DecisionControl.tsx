@@ -79,7 +79,13 @@ export function DecisionControl({
       onDraftUpdated?.(result.draft);
     } catch (err) {
       setSelected(previous);
-      setError(err instanceof ApiError ? err.message : "Could not save decision.");
+      setError(
+        err instanceof ApiError && err.status === 409
+          ? "This decision changed elsewhere. Reload the PMP and try again."
+          : err instanceof ApiError
+            ? err.message
+            : "Could not save decision.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -193,6 +199,9 @@ export function parseEmbeddedDecision(raw: string): EmbeddedDecision | null {
       evidence_conflict: Boolean(payload.evidence_conflict),
       agent_suggestion:
         typeof payload.agent_suggestion === "string" ? payload.agent_suggestion : undefined,
+      revision: typeof payload.revision === "number" ? payload.revision : undefined,
+      set_revision:
+        typeof payload.set_revision === "number" ? payload.set_revision : undefined,
       evidenced: typeof payload.evidenced === "boolean" ? payload.evidenced : undefined,
     };
   } catch {

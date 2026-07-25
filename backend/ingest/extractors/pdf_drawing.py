@@ -6,7 +6,7 @@ from ingest.drawing_parse import parse_drawing_filename
 from ingest.extractors.base import ExtractedDocument
 
 
-def _title_block_text(path: Path) -> str:
+def extract_pdf_title_block_text(path: Path) -> str:
     document = fitz.open(path)
     if document.page_count == 0:
         document.close()
@@ -29,7 +29,7 @@ def _title_block_text(path: Path) -> str:
 
 def extract_pdf_drawing(path: Path) -> ExtractedDocument:
     identity = parse_drawing_filename(path.name)
-    title_block = _title_block_text(path)
+    title_block = extract_pdf_title_block_text(path)
     lines = [
         f"# Drawing register: {path.name}",
         f"Drawing number: {identity.drawing_number or 'unknown'}",

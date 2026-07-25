@@ -121,6 +121,33 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
     assert abs(sum(budgets) - target_words) <= len(budgets)
 
 
+def test_evidence_grounded_contract_omits_empty_fallback_work_scope_prompt() -> None:
+    project = _project(work_scope=[])
+    context = pmp_taxonomy_context(project)
+    assert context is not None
+
+    brief = build_greenfield_brief(
+        archetype="",
+        state="NSW",
+        draft_mode="evidence_grounded",
+        building_class=context.building_class,
+        work_type=context.work_type,
+        subclasses=context.subclasses,
+        scale=context.scale,
+        complexity=context.complexity,
+        work_scope=context.work_scope,
+        risk_flags=context.risk_flags,
+        section_weights=context.section_weights,
+        seed_section_refs={},
+        user_provided_fields=context.user_provided_fields,
+        target_words=(settings.pmp_min_words + settings.pmp_max_words) // 2,
+    )
+
+    assert "No work-scope items selected" not in brief
+    assert "confirm physical brief inclusions" not in brief
+    assert "### Selected work-scope items" not in brief
+
+
 def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance() -> None:
     project = _project()
     markdown = render_pmp_scaffold(

@@ -197,6 +197,10 @@ def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None
                     re.I,
                 ),
                 re.compile(
+                    r"(?:drawing|sketch)\s*/\s*(?:drawing|sketch)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
+                    re.I,
+                ),
+                re.compile(
                     r"(?:document|doc)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
                     re.I,
                 ),
@@ -590,6 +594,7 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
             "document_number",
             [
                 re.compile(r"^drawing\s*(?:no|number|#)\b", re.I),
+                re.compile(r"^drawing\s*/\s*sketch\s*(?:no|number|#)\b", re.I),
                 re.compile(r"^drg\s*no\b", re.I),
                 re.compile(r"^document\s*(?:no|number|#)\b", re.I),
                 re.compile(r"^reference\s*(?:no|number|#)\b", re.I),
@@ -658,7 +663,7 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
 
 def _read_title_block_label_value(line: str, next_line: str | None = None) -> str:
     inline_label = re.match(
-        r"^(?:drawing\s*(?:no|number|#)|drg\s*no|document\s*(?:no|number|#)|reference\s*(?:no|number|#)|project\s*(?:no|number|ref)|report\s*(?:no|number|#)|job\s*(?:no|number|ref)|drawing\s*title|document\s*title|report\s*title|title|description|revision|rev|issue|version)\.?\s+(.+)$",
+        r"^(?:drawing\s*(?:no|number|#)|drawing\s*/\s*sketch\s*(?:no|number|#)|drg\s*no|document\s*(?:no|number|#)|reference\s*(?:no|number|#)|project\s*(?:no|number|ref)|report\s*(?:no|number|#)|job\s*(?:no|number|ref)|drawing\s*title|document\s*title|report\s*title|title|description|revision|rev|issue|version)\.?\s+(.+)$",
         line,
         re.I,
     )

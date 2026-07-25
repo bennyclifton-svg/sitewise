@@ -134,6 +134,7 @@ async def _publish_change(
             "decision_set_revision": project.decision_set_revision,
             "locked": row.locked,
             "evidence_conflict": row.evidence_conflict,
+            "profile_revision": project.profile_revision,
         },
         locked_project=project,
     )
@@ -174,6 +175,7 @@ async def update_project_decision(
     row.evidence_conflict = False
     row.agent_suggestion = None
     row.revision += 1
+    _sync_procurement_route_to_profile(project, row)
     await _publish_change(
         session,
         project=project,
@@ -182,6 +184,25 @@ async def update_project_decision(
         action="updated_and_locked" if lock is True else "updated",
     )
     return row, project.decision_set_revision
+
+
+def _sync_procurement_route_to_profile(
+    project: Project,
+    row: ProjectDecision,
+) -> None:
+    """Keep the fallback profile field aligned with its canonical decision."""
+    if row.decision_id != "procurement-route":
+        return
+    metadata = dict(project.project_metadata or {})
+    taxonomy = dict(metadata.get("taxonomy") or {})
+    complexity = dict(taxonomy.get("complexity") or {})
+    if complexity.get("procurement_route") == row.selected:
+        return
+    complexity["procurement_route"] = row.selected
+    taxonomy["complexity"] = complexity
+    metadata["taxonomy"] = taxonomy
+    project.project_metadata = metadata
+    project.profile_revision += 1
 
 
 async def _set_lock(

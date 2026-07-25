@@ -75,7 +75,28 @@ const catalog: TaxonomyCatalog = {
     infrastructure: complexityDimensions(),
   },
   risk_flags: {},
-  work_scopes: {},
+  work_scopes: {
+    extend: {
+      categories: [
+        {
+          value: "extension_interface",
+          label: "Extension Interface",
+          items: [
+            {
+              value: "structural_tie_in",
+              label: "Structural Tie-In",
+              consultants: ["Structural Engineer"],
+            },
+            {
+              value: "services_connections",
+              label: "Services Connections",
+              consultants: ["Services Engineer"],
+            },
+          ],
+        },
+      ],
+    },
+  },
   emphasis_profiles: { sections: [], base_weights: {}, modifiers: [] },
 };
 
@@ -157,6 +178,20 @@ describe("TaxonomyPicker", () => {
     expect(screen.getByLabelText("Residential + Retail")).toBeChecked();
     expect(screen.getByLabelText("Retail + Office")).toBeChecked();
     expect(latest.subclasses).toEqual(["residential_retail", "retail_office"]);
+  });
+
+  it("shows fallback work scope in the profile and stores selections", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Industrial" }));
+    await user.click(screen.getByRole("button", { name: "Extension / addition" }));
+    await user.click(screen.getByText("Fallback scope inputs"));
+    await user.click(screen.getByLabelText("Structural Tie-In"));
+
+    expect(latest.work_scope).toEqual(["structural_tie_in"]);
   });
 });
 

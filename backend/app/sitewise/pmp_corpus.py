@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.source_document import SourceDocument
 
 SUPERSEDED_STATUS = "superseded"
+_GENERIC_DOCUMENT_NUMBERS = frozenset(
+    {"drawing", "plan", "report", "section", "sheet", "sketch"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +60,21 @@ def _document_number(document: SourceDocument) -> str | None:
     return None
 
 
+def _revision_group_key(document: SourceDocument) -> str | None:
+    number = _document_number(document)
+    if number is None:
+        return None
+    metadata = _metadata_dict(document)
+    title = metadata.get("title")
+    if (
+        number.casefold() in _GENERIC_DOCUMENT_NUMBERS
+        and isinstance(title, str)
+        and title.strip()
+    ):
+        return f"{number.casefold()}::{title.strip().casefold()}"
+    return number.casefold()
+
+
 def _dedupe_revision_groups(
     documents: list[SourceDocument],
 ) -> tuple[list[SourceDocument], int]:
@@ -64,11 +82,11 @@ def _dedupe_revision_groups(
     without_number: list[SourceDocument] = []
     grouped: dict[str, list[SourceDocument]] = {}
     for document in documents:
-        number = _document_number(document)
-        if number is None:
+        group_key = _revision_group_key(document)
+        if group_key is None:
             without_number.append(document)
             continue
-        grouped.setdefault(number, []).append(document)
+        grouped.setdefault(group_key, []).append(document)
 
     active = list(without_number)
     skipped = 0

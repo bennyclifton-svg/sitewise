@@ -374,6 +374,80 @@ describe("ChatPanel long history", () => {
     vi.mocked(api.cancelAgentTurn).mockResolvedValue(true);
   });
 
+  it("does not flip-flop scroll state when streaming grows history height", async () => {
+    // Regression: programmatic scrollTop assignment fires onScroll; if a
+    // workflow card grows scrollHeight in the same turn, the old effect
+    // (keyed on showScrollButton) exceeded React's maximum update depth.
+    const baseMessage = {
+      id: "assistant-0",
+      role: "assistant",
+      parts: [{ type: "text", text: "Queued the RFP." }],
+    };
+    mockUseChat({ messages: [baseMessage], status: "streaming" });
+
+    const { rerender } = render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+      />,
+    );
+
+    const history = screen.getByRole("log", {
+      name: /conversation history/i,
+    });
+    Object.defineProperty(history, "clientHeight", {
+      configurable: true,
+      value: 120,
+    });
+    let scrollHeight = 400;
+    Object.defineProperty(history, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeight,
+    });
+    let scrollTop = 0;
+    Object.defineProperty(history, "scrollTop", {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+        // Simulate a workflow progress card mounting and growing the log.
+        scrollHeight = value + 200;
+        fireEvent.scroll(history);
+      },
+    });
+
+    for (let index = 1; index <= 12; index += 1) {
+      mockUseChat({
+        messages: [
+          baseMessage,
+          {
+            id: `assistant-${index}`,
+            role: "assistant",
+            parts: [{ type: "text", text: `Update ${index}` }],
+          },
+        ],
+        status: "streaming",
+      });
+      rerender(
+        <ChatPanel
+          threadId="thread-1"
+          initialMessages={[]}
+          agentMode
+          projectId="project-1"
+          layout="main"
+        />,
+      );
+    }
+
+    expect(
+      screen.queryByRole("button", { name: /scroll to latest message/i }),
+    ).not.toBeInTheDocument();
+    expect(scrollTop).toBeGreaterThan(0);
+  });
+
   it("keeps the input reachable by scrolling message history inside the panel", async () => {
     const messages = Array.from({ length: 24 }, (_, index) => ({
       id: `assistant-${index}`,

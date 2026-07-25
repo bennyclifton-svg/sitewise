@@ -16,15 +16,20 @@ from app.auth.dependencies import CurrentUser, get_current_user
 from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
 from app.agent.agent_runtimes import (
     PI_RUNTIME_ID,
+    InvalidAgentRuntimeError,
     default_agent_runtime,
-    resolve_agent_runtime,
+    resolve_agent_runtime_for_turn,
 )
 from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
 from app.agent.hermes_models import resolve_hermes_model_override
 from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
-from app.agent.turn_context import HistoryMessage, build_agent_prompt
+from app.agent.turn_context import (
+    HistoryMessage,
+    build_agent_prompt,
+    turn_needs_mutation_tools,
+)
 from app.projects.snapshot import get_project_snapshot
 from app.projects.profile_proposals import accept_profile_proposal
 from app.agent.mutation_intent import (
@@ -574,7 +579,18 @@ async def post_agent_stream(
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     model_override = resolve_hermes_model_override(body.agent_model)
-    agent_runtime = resolve_agent_runtime(body.agent_runtime or default_agent_runtime())
+    try:
+        agent_runtime = resolve_agent_runtime_for_turn(
+            body.agent_runtime or default_agent_runtime(),
+            needs_mutation_tools=turn_needs_mutation_tools(
+                user_text, mutation_intent
+            ),
+        )
+    except InvalidAgentRuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
     proposed_turn_id = uuid.uuid4()
     last_message = body.messages[-1] if body.messages else {}

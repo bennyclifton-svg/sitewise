@@ -5,6 +5,7 @@ import structlog
 from app.config import settings
 from app.document_intake.odl_pdf import PdfDocumentExtract, extract_pdf_document
 from ingest.extractors.base import ExtractedDocument, PageText
+from ingest.extractors.pdf_drawing import extract_pdf_title_block_text
 from ingest.extractors.pdf_text import extract_pdf_text
 
 logger = structlog.get_logger(__name__)
@@ -23,6 +24,7 @@ def extract_pdf_odl(path: Path) -> ExtractedDocument:
     )
     extracted = _document_from_odl(document)
     text_layer = _text_layer_extract(path)
+    selected = extracted
     if text_layer is not None and _should_use_text_layer(extracted, text_layer):
         metadata = _extraction_metadata(
             source="text_layer_fallback",
@@ -36,24 +38,41 @@ def extract_pdf_odl(path: Path) -> ExtractedDocument:
             odl_chars=metadata["odl_character_count"],
             text_layer_chars=metadata["text_layer_character_count"],
         )
-        return ExtractedDocument(
+        selected = ExtractedDocument(
             normalized_content=text_layer.normalized_content,
             page_count=text_layer.page_count,
             pages=text_layer.pages,
             drawing_identity=text_layer.drawing_identity,
             extraction_metadata=metadata,
         )
-    return ExtractedDocument(
-        normalized_content=extracted.normalized_content,
-        page_count=extracted.page_count,
-        pages=extracted.pages,
-        drawing_identity=extracted.drawing_identity,
-        extraction_metadata=_extraction_metadata(
+    else:
+        selected = ExtractedDocument(
+            normalized_content=extracted.normalized_content,
+            page_count=extracted.page_count,
+            pages=extracted.pages,
+            drawing_identity=extracted.drawing_identity,
+            extraction_metadata=_extraction_metadata(
             source="odl",
             odl=extracted,
             text_layer=text_layer,
             odl_document=document,
-        ),
+            ),
+        )
+
+    try:
+        title_block = extract_pdf_title_block_text(path)
+    except Exception:
+        logger.exception("pdf_title_block_extract_failed", path=str(path))
+        title_block = ""
+    if not title_block:
+        return selected
+
+    return ExtractedDocument(
+        normalized_content=f"{selected.normalized_content}\n\n## Title block\n\n{title_block}",
+        page_count=selected.page_count,
+        pages=selected.pages,
+        drawing_identity=selected.drawing_identity,
+        extraction_metadata={**(selected.extraction_metadata or {}), "pdf_title_block_extracted": True},
     )
 
 

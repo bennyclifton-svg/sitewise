@@ -81,6 +81,10 @@ def test_upload_inbox_files_stores_and_ingests(mock_session: AsyncMock) -> None:
             patch("app.inbox.service.ingest_hosted_file", return_value=True) as mock_ingest,
             patch("app.inbox.service.source_document_id_for_path", return_value=uuid.uuid4()),
             patch(
+                "app.inbox.service.sort_inbox_files",
+                new=AsyncMock(return_value=type("SortResult", (), {"records": []})()),
+            ),
+            patch(
                 "app.inbox.service.upsert_workspace_file",
                 new=AsyncMock(
                     side_effect=lambda session, **kwargs: type(

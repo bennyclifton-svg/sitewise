@@ -769,6 +769,221 @@ def test_agent_stream_pi_runtime_receives_project_context(
     )
 
 
+def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disabled(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    thread = _thread(title=None)
+    assistant_session = AsyncMock()
+    seen_runtimes: list[str] = []
+
+    async def fake_create_message(
+        session, *, thread_id, role, content, message_data=None
+    ):
+        return ChatMessage(
+            id=uuid.uuid4(),
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            message_data=message_data,
+            created_at=NOW,
+        )
+
+    async def fake_stream_pi_turn(*, prompt, mcp_url, turn_token, cwd):
+        seen_runtimes.append("pi")
+        assert "<profile-enrichment-request>" in prompt
+        yield "Proposed evidence-backed profile updates."
+
+    async def fake_stream_hermes_turn(**_kwargs):
+        seen_runtimes.append("hermes")
+        yield "should not run"
+
+    monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
+    monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
+    monkeypatch.setattr(settings, "pi_runtime_enabled", True)
+    monkeypatch.setattr(settings, "hermes_mutations_enabled", False)
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "reserve_agent_turn",
+        AsyncMock(
+            return_value=(
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(used_turns=1, quota=100, percent=1, warning=False),
+                True,
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "require_project_owner",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                title="Industrial",
+                archetype=None,
+                user_role="architect-pm",
+                state="NSW",
+                phase="brief-planning",
+                building_class="industrial",
+                work_type="extend",
+                project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    monkeypatch.setattr(chat_api, "update_thread", AsyncMock(return_value=thread))
+    monkeypatch.setattr(
+        chat_api,
+        "create_message",
+        AsyncMock(side_effect=fake_create_message),
+    )
+    monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="turn-token"))
+    monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
+    monkeypatch.setattr(chat_api, "stream_hermes_turn", fake_stream_hermes_turn)
+    monkeypatch.setattr(
+        chat_api,
+        "get_session_factory",
+        lambda: _SessionFactory(assistant_session),
+    )
+
+    body = {
+        "threadId": str(THREAD_ID),
+        "agent_runtime": "hermes",
+        "messages": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "type": "text",
+                        "text": "update the project profile to reflect avaliable facts",
+                    }
+                ],
+            }
+        ],
+    }
+
+    with client.stream("POST", "/chat/agent/stream", json=body) as response:
+        stream_body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert seen_runtimes == ["pi"]
+    assert "Proposed evidence-backed profile updates." in stream_body
+    assert chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
+        "runtime"
+    ] == "pi"
+
+
+def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    thread = _thread(title=None)
+    assistant_session = AsyncMock()
+    seen_runtimes: list[str] = []
+
+    async def fake_create_message(
+        session, *, thread_id, role, content, message_data=None
+    ):
+        return ChatMessage(
+            id=uuid.uuid4(),
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            message_data=message_data,
+            created_at=NOW,
+        )
+
+    async def fake_stream_pi_turn(*, prompt, mcp_url, turn_token, cwd):
+        seen_runtimes.append("pi")
+        yield "Queued the Structural Engineer RFP."
+
+    async def fake_stream_hermes_turn(**_kwargs):
+        seen_runtimes.append("hermes")
+        yield "should not run"
+
+    monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
+    monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
+    monkeypatch.setattr(settings, "pi_runtime_enabled", True)
+    monkeypatch.setattr(settings, "hermes_mutations_enabled", False)
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "reserve_agent_turn",
+        AsyncMock(
+            return_value=(
+                SimpleNamespace(id=uuid.uuid4()),
+                SimpleNamespace(used_turns=1, quota=100, percent=1, warning=False),
+                True,
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "require_project_owner",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                title="Industrial",
+                archetype=None,
+                user_role="architect-pm",
+                state="NSW",
+                phase="brief-planning",
+                building_class="industrial",
+                work_type="extend",
+                project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    monkeypatch.setattr(chat_api, "update_thread", AsyncMock(return_value=thread))
+    monkeypatch.setattr(
+        chat_api,
+        "create_message",
+        AsyncMock(side_effect=fake_create_message),
+    )
+    monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="turn-token"))
+    monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
+    monkeypatch.setattr(chat_api, "stream_hermes_turn", fake_stream_hermes_turn)
+    monkeypatch.setattr(
+        chat_api,
+        "get_session_factory",
+        lambda: _SessionFactory(assistant_session),
+    )
+
+    body = {
+        "threadId": str(THREAD_ID),
+        "agent_runtime": "hermes",
+        "messages": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "type": "text",
+                        "text": "create rfp for structural engineer",
+                    }
+                ],
+            }
+        ],
+    }
+
+    with client.stream("POST", "/chat/agent/stream", json=body) as response:
+        stream_body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert seen_runtimes == ["pi"]
+    assert "Queued the Structural Engineer RFP." in stream_body
+    assert chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
+        "runtime"
+    ] == "pi"
+
+
 def test_agent_cancel_requires_thread_owner_and_cancels(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

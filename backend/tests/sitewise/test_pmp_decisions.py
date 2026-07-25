@@ -1,4 +1,5 @@
 from app.sitewise.pmp_decisions import (
+    decision_option_sets_for_project,
     decision_violations,
     extract_decisions,
     missing_locked_decisions,
@@ -72,6 +73,39 @@ def test_duplicate_id_violation() -> None:
     markdown = SAMPLE_BLOCK + "\n" + SAMPLE_BLOCK
     violations = decision_violations(markdown)
     assert any("Duplicate decision id" in item for item in violations)
+
+
+def test_procurement_route_and_contract_form_are_not_conflated() -> None:
+    option_sets = decision_option_sets_for_project(None)
+    contract_values = {
+        option["value"] for option in option_sets["contract-form"]["options"]
+    }
+
+    assert "design_construct" not in contract_values
+    assert {"as4000", "as4902"} <= contract_values
+
+
+def test_decision_validation_rejects_incompatible_route_and_contract_form() -> None:
+    markdown = SAMPLE_BLOCK + """
+```pmp-decision
+{
+  "id": "contract-form",
+  "section": "Procurement posture",
+  "label": "Contract form",
+  "options": [
+    {"value": "as4000", "label": "AS 4000"},
+    {"value": "as4902", "label": "AS 4902"}
+  ],
+  "selected": "as4902",
+  "source": "agent"
+}
+```
+"""
+
+    assert any(
+        "incompatible" in issue.lower()
+        for issue in decision_violations(markdown)
+    )
 
 
 def test_missing_locked_decisions() -> None:

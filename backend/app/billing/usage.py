@@ -180,8 +180,13 @@ async def require_active_mutation_turn(
     if required_scope is not None and required_scope not in (turn.mutation_scopes or []):
         raise PermissionError(f"agent turn lacks required mutation scope: {required_scope}")
     if requested_profile_patch is not None:
-        bound_patch = (turn.mutation_intent or {}).get("profile_patch", {})
-        if bound_patch != requested_profile_patch:
+        intent = turn.mutation_intent or {}
+        bound_patch = intent.get("profile_patch", {})
+        reason = intent.get("reason")
+        if bound_patch:
+            if bound_patch != requested_profile_patch:
+                raise PermissionError("profile mutation does not match bound user intent")
+        elif reason != "profile_enrichment_authority":
             raise PermissionError("profile mutation does not match bound user intent")
     return turn
 

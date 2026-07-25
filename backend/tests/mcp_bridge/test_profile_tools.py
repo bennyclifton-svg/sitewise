@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -249,6 +250,54 @@ def test_evidence_derived_change_creates_proposal_without_profile_mutation(
     assert "required_scope" not in mutation.await_args.kwargs
     apply_patch.assert_not_awaited()
     assert project.profile_revision == 1
+
+
+def test_profile_tools_accept_stringified_json_object_args(monkeypatch) -> None:
+    project = _project()
+    session = _Session(project)
+    server, _, mutation = _install(monkeypatch, session)
+    publish = AsyncMock()
+    monkeypatch.setattr(server.agent_turn_status_bus, "publish", publish)
+    changes = {
+        "site_address": "145-151 Arthur Street, Homebush West NSW 2140",
+        "client": "Hale c/o Engine Room VM",
+        "scale": {"gfa_sqm": 2135, "office_percent": 9.3, "dock_doors": 1},
+    }
+    applied = ProjectProfileChange(
+        profile=ProjectProfileView(
+            project_id=PROJECT_ID,
+            profile_revision=2,
+            building_class="industrial",
+            work_type="extend",
+            subclasses=["warehouse"],
+            scale=changes["scale"],
+            complexity={},
+            work_scope=[],
+            state="NSW",
+            site_address=changes["site_address"],
+            client=changes["client"],
+        ),
+        previous_revision=1,
+        new_revision=2,
+        changed_fields=["site_address", "client", "scale"],
+        cleared_fields=[],
+        overlay_status=OverlayStatus(ready=True, missing=[]),
+        risk_flags=[],
+    )
+    monkeypatch.setattr(server, "apply_profile_patch", AsyncMock(return_value=applied))
+
+    result = _call(
+        server,
+        "update_project_profile",
+        {
+            "project_id": str(PROJECT_ID),
+            "expected_revision": 1,
+            "changes": json.dumps(changes),
+        },
+    )
+
+    assert result["new_revision"] == 2
+    assert mutation.await_args.kwargs["requested_profile_patch"] == changes
 
 
 def test_profile_revision_conflict_is_stable_tool_error(monkeypatch) -> None:

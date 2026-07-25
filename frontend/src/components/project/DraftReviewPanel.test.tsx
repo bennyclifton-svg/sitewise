@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
     downloadWorkspaceFile: vi.fn(),
     getProjectDraft: vi.fn(),
     getLatestDraft: vi.fn(),
+    listDecisions: vi.fn(),
     patchDraft: vi.fn(),
   },
 }));
@@ -41,6 +42,10 @@ function draft(overrides: Partial<DraftArtifact> = {}): DraftArtifact {
 describe("DraftReviewPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.listDecisions).mockResolvedValue({
+      decisions: [],
+      set_revision: 1,
+    });
   });
 
   it("shows refresh provenance strips for update drafts", () => {
@@ -164,7 +169,7 @@ describe("DraftReviewPanel", () => {
       />,
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Edit section" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit section" })[0]!);
     const editor = screen.getByRole("textbox");
     await user.clear(editor);
     await user.type(editor, "## First\n\nGamma\n");

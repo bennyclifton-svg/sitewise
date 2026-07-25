@@ -1,7 +1,10 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/http";
 import type { WorkflowRun } from "@/lib/types/project";
+
+const STATUS_RETRY_DELAY_MS = 1_000;
 
 export const workflowRunKeys = {
   run: (projectId: string, runId: string) =>
@@ -42,7 +45,15 @@ export async function waitForWorkflowRun(
     await new Promise((resolve) =>
       window.setTimeout(resolve, run.state === "queued" ? 250 : 1_000),
     );
-    run = await api.getWorkflowRun(projectId, run.id);
+    try {
+      run = await api.getWorkflowRun(projectId, run.id);
+    } catch (error) {
+      // A workflow run is durable: a transient status-request timeout must not
+      // make its caller report the run itself as failed.
+      if (!(error instanceof ApiError) || !error.isNetworkError) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, STATUS_RETRY_DELAY_MS));
+      continue;
+    }
     queryClient.setQueryData(workflowRunKeys.run(projectId, run.id), run);
   }
   return run;

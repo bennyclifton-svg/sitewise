@@ -111,6 +111,35 @@ describe("DocumentRepositoryPanel pending uploads", () => {
     await waitFor(() => expect(screen.queryByText("notes.md")).not.toBeInTheDocument());
   });
 
+  it("queues a later drop while the current file is still ingesting", async () => {
+    const firstUpload = deferred<InboxUploadResult[]>();
+    const secondUpload = deferred<InboxUploadResult[]>();
+    vi.mocked(api.uploadInboxFiles)
+      .mockReturnValueOnce(firstUpload.promise)
+      .mockReturnValueOnce(secondUpload.promise);
+    const { container, onUploadComplete } = renderPanel();
+
+    dropFile(container, new File(["# first"], "first.md", { type: "text/markdown" }));
+    await waitFor(() => expect(api.uploadInboxFiles).toHaveBeenCalledTimes(1));
+
+    fireEvent.drop(container.firstElementChild!, {
+      dataTransfer: {
+        files: [new File(["# second"], "second.md", { type: "text/markdown" })],
+      },
+    });
+
+    expect(await screen.findByText("first.md")).toBeInTheDocument();
+    expect(screen.getByText("second.md")).toBeInTheDocument();
+    expect(screen.getByText("Queued")).toBeInTheDocument();
+    expect(api.uploadInboxFiles).toHaveBeenCalledTimes(1);
+
+    firstUpload.resolve([uploadResult({ filename: "first.md" })]);
+    await waitFor(() => expect(api.uploadInboxFiles).toHaveBeenCalledTimes(2));
+
+    secondUpload.resolve([uploadResult({ filename: "second.md" })]);
+    await waitFor(() => expect(onUploadComplete).toHaveBeenCalledTimes(2));
+  });
+
   it("ingests an analyzed PDF from staging instead of uploading it twice", async () => {
     const analyze = deferred<PdfAnalyzeResult>();
     const commit = deferred<InboxUploadResult[]>();

@@ -833,7 +833,7 @@ def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
     )
 
 
-def test_validate_pmp_output_treats_length_as_advisory() -> None:
+def test_validate_pmp_output_rejects_over_length_taxonomy_draft() -> None:
     project = _taxonomy_project()
     sections = required_section_headings(project=project)
     body = "\n\n".join(
@@ -869,10 +869,59 @@ def test_validate_pmp_output_treats_length_as_advisory() -> None:
             ],
         ),
     ):
+        with pytest.raises(
+            WorkflowValidationError,
+            match="exceeds the primary-document length limit",
+        ):
+            validate_pmp_output(
+                output,
+                "platform_seeded",
+                archetype="renovation",
+                project=project,
+            )
+
+
+def test_validate_pmp_output_rejects_empty_scope_row_in_grounded_draft() -> None:
+    project = _taxonomy_project()
+    sections = required_section_headings(project=project)
+    body = "\n\n".join(
+        (
+            f"## {heading}\n\n"
+            + (
+                "| Brief item | Current position | Citation |\n"
+                "| --- | --- | --- |\n"
+                "| Work-scope selection | No taxonomy work-scope items selected; "
+                "confirm inclusions with client. | — |"
+                if heading == "Brief"
+                else f"Grounded content for {heading}."
+            )
+        )
+        for heading in sections
+    )
+    output = PmpDraftOutput(
+        title="PMP",
+        markdown=f"# Project Management Plan\n\n{body}",
+        seed_consulted=_valid_seed_consulted()
+        + list(required_platform_paths(archetype="renovation", project=project)),
+        evidence_refs=["project_evidence:brief.pdf#chunk=1"],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+
+    with (
+        patch("app.workflows.create_pmp.taxonomy_provenance_violations", return_value=[]),
+        patch("app.workflows.create_pmp.greenfield_structure_violations", return_value=[]),
+        patch("app.workflows.create_pmp.evidence_grounded_violations", return_value=[]),
+        patch("app.workflows.create_pmp.length_violations", return_value=[]),
+        pytest.raises(
+            WorkflowValidationError,
+            match="empty fallback work-scope row",
+        ),
+    ):
         validate_pmp_output(
             output,
-            "platform_seeded",
-            archetype="renovation",            project=project,
+            "evidence_grounded",
+            archetype="renovation",
+            project=project,
         )
 
 

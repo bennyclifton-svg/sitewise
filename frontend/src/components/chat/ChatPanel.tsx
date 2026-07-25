@@ -98,6 +98,10 @@ export function ChatPanel({
   const [internalSelectedCitation, setInternalSelectedCitation] = useState<Citation | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
+  // Programmatic pin-to-bottom sets scrollTop synchronously, which fires
+  // onScroll in the same turn. Ignore that echo so it cannot flip
+  // showScrollButton and re-enter the message-scroll effect.
+  const ignoreScrollSyncRef = useRef(false);
   const persistedMessageData = useMemo(
     () => messageDataById(initialMessages),
     [initialMessages],
@@ -206,40 +210,42 @@ export function ChatPanel({
   const chatError = error ? classifyChatError(error) : null;
 
   const updateScrollButton = useCallback(() => {
+    if (ignoreScrollSyncRef.current) return;
     const history = historyRef.current;
     if (!history) return;
     const distanceFromBottom =
       history.scrollHeight - history.clientHeight - history.scrollTop;
-    setShowScrollButton(distanceFromBottom > 32);
+    const next = distanceFromBottom > 32;
+    setShowScrollButton((current) => (current === next ? current : next));
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const history = historyRef.current;
     if (!history) return;
+    ignoreScrollSyncRef.current = true;
     if (behavior === "smooth" && typeof history.scrollTo === "function") {
       history.scrollTo({ top: history.scrollHeight, behavior: "smooth" });
     } else {
       // Direct assignment jumps without animating through prior messages.
       history.scrollTop = history.scrollHeight;
     }
-    setShowScrollButton(false);
+    setShowScrollButton((current) => (current ? false : current));
+    requestAnimationFrame(() => {
+      ignoreScrollSyncRef.current = false;
+    });
   }, []);
 
   useEffect(() => {
     if (collapsed) return;
-    if (isBusy || !showScrollButton) {
+    // While streaming, keep the viewport pinned. Do not key this effect on
+    // showScrollButton — onScroll echoes from scrollTop assignment used to
+    // flip that flag and exceed React's maximum update depth.
+    if (isBusy) {
       scrollToBottom("auto");
       return;
     }
     updateScrollButton();
-  }, [
-    collapsed,
-    isBusy,
-    messages,
-    scrollToBottom,
-    showScrollButton,
-    updateScrollButton,
-  ]);
+  }, [collapsed, isBusy, messages, scrollToBottom, updateScrollButton]);
 
   const wasCollapsedRef = useRef(collapsed);
 

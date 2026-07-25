@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import uuid
 from decimal import Decimal
@@ -345,7 +346,7 @@ def _project_file_summary(record) -> dict:
         read_with = "read_project_workbook"
     else:
         read_with = "read_workspace_file"
-    return {
+    summary = {
         "kind": "project_file",
         "workspace_path": path,
         "filename": record.filename,
@@ -354,6 +355,14 @@ def _project_file_summary(record) -> dict:
         "source_document_id": source_document_id,
         "read_with": read_with,
     }
+    metadata = getattr(getattr(record, "source_document", None), "document_metadata", None) or {}
+    if metadata:
+        summary["document_metadata"] = {
+            key: metadata.get(key)
+            for key in ("document_number", "title", "revision", "discipline", "metadata_confidence")
+            if metadata.get(key)
+        }
+    return summary
 
 
 def _path_matches_prefix(path: str, prefix: str) -> bool:
@@ -396,6 +405,50 @@ async def _load_cost_plan_draft(session, *, project_id: uuid.UUID, path: str | N
 
 def _turn_id(authorization) -> str | None:
     return str(authorization.claims.turn_id) if authorization.claims.turn_id else None
+
+
+def _coerce_json_object(value: Any, *, field_name: str) -> dict[str, Any]:
+    """Accept dicts or JSON-object strings from MCP clients that stringify args."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ToolError(f"{field_name} must be a JSON object: {exc.msg}") from exc
+        if isinstance(parsed, dict):
+            return parsed
+    raise ToolError(f"{field_name} must be a JSON object")
+
+
+def _coerce_json_object_list(value: Any, *, field_name: str) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ToolError(f"{field_name} must be a JSON array: {exc.msg}") from exc
+        value = parsed
+    if not isinstance(value, list):
+        raise ToolError(f"{field_name} must be a JSON array of objects")
+    objects: list[dict[str, Any]] = []
+    for index, item in enumerate(value):
+        if isinstance(item, dict):
+            objects.append(item)
+            continue
+        if isinstance(item, str):
+            try:
+                parsed_item = json.loads(item)
+            except json.JSONDecodeError as exc:
+                raise ToolError(
+                    f"{field_name}[{index}] must be a JSON object: {exc.msg}"
+                ) from exc
+            if isinstance(parsed_item, dict):
+                objects.append(parsed_item)
+                continue
+        raise ToolError(f"{field_name}[{index}] must be a JSON object")
+    return objects
 
 
 def _profile_tool_error(exc: Exception) -> ToolError:
@@ -1642,11 +1695,12 @@ async def unlock_project_decision(
 async def update_project_profile(
     project_id: str,
     expected_revision: int,
-    changes: dict,
+    changes: dict | str,
     clear_incompatible: bool = False,
 ) -> dict:
-    """Apply exact user-authorized profile values; never use for inferred facts."""
+    """Apply user-authorized or enrichment-backed profile values."""
     pid = uuid.UUID(project_id)
+    changes = _coerce_json_object(changes, field_name="changes")
     reserved_fields = {"expected_revision", "clear_incompatible"} & set(changes)
     if reserved_fields:
         raise ToolError(
@@ -1710,16 +1764,19 @@ async def update_project_profile(
 @mcp.tool
 async def propose_project_profile_change(
     project_id: str,
-    proposed_values: dict,
-    evidence_references: list[dict] | None = None,
+    proposed_values: dict | str,
+    evidence_references: list[dict] | str | None = None,
     confidence: float | None = None,
 ) -> dict:
     """Persist inferred or evidence-derived profile facts for user confirmation."""
     pid = uuid.UUID(project_id)
+    proposed_values = _coerce_json_object(proposed_values, field_name="proposed_values")
     try:
         references = [
             ProfileEvidenceReference.model_validate(reference)
-            for reference in (evidence_references or [])
+            for reference in _coerce_json_object_list(
+                evidence_references, field_name="evidence_references"
+            )
         ]
     except ValidationError as exc:
         raise _profile_tool_error(exc) from exc

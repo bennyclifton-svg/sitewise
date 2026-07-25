@@ -38,6 +38,7 @@ def test_extract_pdf_odl_uses_hybrid_and_normalizes_pages(monkeypatch, tmp_path:
         True,
     )
     monkeypatch.setattr("ingest.extractors.pdf_odl._text_layer_extract", lambda path: None)
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_title_block_text", lambda path: "")
 
     extracted = extract_pdf_odl(pdf_path)
 
@@ -51,6 +52,31 @@ def test_extract_pdf_odl_uses_hybrid_and_normalizes_pages(monkeypatch, tmp_path:
     assert extracted.extraction_metadata["odl_hybrid_requested"] is True
     assert extracted.extraction_metadata["odl_hybrid_mode"] == "full"
     assert extracted.extraction_metadata["odl_hybrid_backend_available"] is True
+
+
+def test_extract_pdf_odl_appends_title_block_for_register_metadata(monkeypatch, tmp_path: Path) -> None:
+    pdf_path = tmp_path / "hydraulic.pdf"
+    pdf_path.write_bytes(b"pdf-bytes")
+
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl.extract_pdf_document",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            pages=[SimpleNamespace(page_no=1, text="Hydraulic drawing body")],
+            hybrid_backend_available=True,
+            hybrid_mode="full",
+        ),
+    )
+    monkeypatch.setattr("ingest.extractors.pdf_odl._text_layer_extract", lambda path: None)
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl.extract_pdf_title_block_text",
+        lambda path: "Title: HYDRAULICS SERVICES SPATIALS\nDrawing / Sketch No. HY-SK-01\nRev. P1",
+    )
+
+    extracted = extract_pdf_odl(pdf_path)
+
+    assert "## Title block" in extracted.normalized_content
+    assert "Drawing / Sketch No. HY-SK-01" in extracted.normalized_content
+    assert extracted.extraction_metadata["pdf_title_block_extracted"] is True
 
 
 def test_extract_pdf_odl_falls_back_when_odl_loses_text(monkeypatch, tmp_path: Path) -> None:

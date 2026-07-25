@@ -208,3 +208,31 @@ def test_hermes_mutations_are_blocked_until_prompt_transport_is_safe(monkeypatch
             )
         )
 
+
+def test_enrichment_authority_allows_evidence_backed_profile_patch(monkeypatch) -> None:
+    turn = _active_turn()
+    turn.mutation_intent = {
+        "profile_patch": {},
+        "reason": "profile_enrichment_authority",
+    }
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.get = AsyncMock(return_value=turn)
+
+    allowed = run_async(
+        usage.require_active_mutation_turn(
+            session,
+            turn_id=turn.id,
+            project_id=turn.project_id,
+            user_id=turn.user_id,
+            required_scope="profile_mutation",
+            requested_profile_patch={
+                "site_address": "145-151 Arthur Street, Homebush West NSW 2140",
+                "client": "Hale c/o Engine Room VM",
+                "scale": {"gfa_sqm": 2135, "office_percent": 9.3, "dock_doors": 1},
+            },
+        )
+    )
+
+    assert allowed is turn
+

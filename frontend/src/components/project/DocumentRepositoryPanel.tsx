@@ -72,6 +72,11 @@ type PendingUpload = {
   uploadPercent: number | null;
 };
 
+type UploadEntry = {
+  uid: string;
+  file: File;
+};
+
 type IngestQueueItem =
   | { kind: "file"; uid: string; file: File }
   | { kind: "staged"; uid: string; stagingId: string; filename: string };
@@ -152,6 +157,8 @@ export function DocumentRepositoryPanel({
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const estimatorRef = useRef<IngestBatchEstimator | null>(null);
+  const queuedUploadBatchesRef = useRef<UploadEntry[][]>([]);
+  const isProcessingUploadsRef = useRef(false);
   const [splitProposals, setSplitProposals] = useState<SplitProposal[]>([]);
   const [resolvingStagingId, setResolvingStagingId] = useState<string | null>(null);
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(
@@ -218,14 +225,12 @@ export function DocumentRepositoryPanel({
 
   function handleDragEnter(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
-    if (isUploading) return;
     dragDepthRef.current += 1;
     setIsDragging(true);
   }
 
   function handleDragLeave(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
-    if (isUploading) return;
     dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
     if (dragDepthRef.current === 0) {
       setIsDragging(false);
@@ -234,7 +239,6 @@ export function DocumentRepositoryPanel({
 
   function handleDragOver(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
-    if (isUploading) return;
     event.dataTransfer.dropEffect = "copy";
   }
 
@@ -242,10 +246,9 @@ export function DocumentRepositoryPanel({
     event.preventDefault();
     dragDepthRef.current = 0;
     setIsDragging(false);
-    if (isUploading) return;
     const dropped = [...event.dataTransfer.files];
     if (dropped.length) {
-      void uploadFilesBatch(dropped);
+      queueFilesForUpload(dropped);
     }
   }
 
@@ -253,7 +256,7 @@ export function DocumentRepositoryPanel({
     const selected = event.target.files ? [...event.target.files] : [];
     event.target.value = "";
     if (selected.length) {
-      void uploadFilesBatch(selected);
+      queueFilesForUpload(selected);
     }
   }
 
@@ -403,7 +406,7 @@ export function DocumentRepositoryPanel({
     }
   }
 
-  async function uploadFilesBatch(files: File[]) {
+  function queueFilesForUpload(files: File[]) {
     setUploadError(null);
 
     const { accepted, rejected } = partitionSupportedFiles(files);
@@ -414,22 +417,45 @@ export function DocumentRepositoryPanel({
     }
     if (!accepted.length) return;
 
-    // Every accepted file is acknowledged in the register immediately as a
-    // placeholder row; the batch estimator drives the progress bar and ETA.
-    const entries = accepted.map((file) => ({ uid: pendingUploadId(), file }));
+    // Every accepted file is acknowledged in the register immediately. Batches
+    // wait their turn so shared progress state always belongs to one batch.
+    const entries: UploadEntry[] = accepted.map((file) => ({ uid: pendingUploadId(), file }));
+    queuedUploadBatchesRef.current.push(entries);
+    setPendingUploads((current) => [
+      ...current,
+      ...entries.map((entry) => ({
+        id: entry.uid,
+        filename: entry.file.name,
+        stage: "queued" as const,
+        uploadPercent: null,
+      })),
+    ]);
+    void processQueuedUploadBatches();
+  }
+
+  async function processQueuedUploadBatches() {
+    if (isProcessingUploadsRef.current) return;
+
+    isProcessingUploadsRef.current = true;
+    setIsUploading(true);
+    try {
+      while (queuedUploadBatchesRef.current.length) {
+        const entries = queuedUploadBatchesRef.current.shift();
+        if (entries) await uploadFilesBatch(entries);
+      }
+    } finally {
+      isProcessingUploadsRef.current = false;
+      setIsUploading(false);
+      setUploadProgress(null);
+      estimatorRef.current = null;
+    }
+  }
+
+  async function uploadFilesBatch(entries: UploadEntry[]) {
     const estimator = new IngestBatchEstimator(
       entries.map((entry) => ({ id: entry.uid, sizeBytes: entry.file.size })),
     );
     estimatorRef.current = estimator;
-    setPendingUploads(
-      entries.map((entry) => ({
-        id: entry.uid,
-        filename: entry.file.name,
-        stage: "queued",
-        uploadPercent: null,
-      })),
-    );
-    setIsUploading(true);
 
     let total = entries.length;
     let completed = 0;
@@ -563,13 +589,11 @@ export function DocumentRepositoryPanel({
         );
       }
 
-      if (total > 0) {
+      if (total > 0 && !queuedUploadBatchesRef.current.length) {
         await sleep(COMPLETION_MESSAGE_MS);
       }
     } finally {
-      setIsUploading(false);
       setUploadProgress(null);
-      setPendingUploads([]);
       estimatorRef.current = null;
     }
   }
@@ -591,7 +615,6 @@ export function DocumentRepositoryPanel({
         className="sr-only"
         multiple
         accept={ACCEPT_ATTRIBUTE}
-        disabled={isUploading}
         onChange={handleFileInputChange}
       />
 

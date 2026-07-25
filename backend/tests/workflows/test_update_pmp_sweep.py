@@ -206,6 +206,69 @@ async def test_list_current_pmp_corpus_documents_filters_and_caps() -> None:
 
 
 @pytest.mark.anyio
+async def test_revision_dedupe_keeps_distinct_drawings_with_generic_document_number() -> None:
+    section_2 = _document(
+        relative_path="04-projects/demo/03-design/Section 2 Rev DWN.pdf",
+        metadata={
+            "document_number": "Section",
+            "title": "2",
+            "revision": "DWN",
+        },
+        updated_at=datetime(2026, 7, 24, 11, 44, tzinfo=timezone.utc),
+    )
+    section_3 = _document(
+        relative_path="04-projects/demo/03-design/Section 3 Rev DWN.pdf",
+        metadata={
+            "document_number": "Section",
+            "title": "3",
+            "revision": "DWN",
+        },
+        updated_at=datetime(2026, 7, 24, 11, 45, tzinfo=timezone.utc),
+    )
+
+    result = await list_current_pmp_corpus_documents(
+        _FakeSession([section_2, section_3]),
+        project_id=PROJECT_ID,
+    )
+
+    assert {document.filename for document in result.documents} == {
+        "Section 2 Rev DWN.pdf",
+        "Section 3 Rev DWN.pdf",
+    }
+    assert result.skipped_revision_duplicate == 0
+
+
+@pytest.mark.anyio
+async def test_revision_dedupe_keeps_latest_real_document_number_despite_title_variation() -> None:
+    old = _document(
+        relative_path="04-projects/demo/03-design/A-101 Rev A.pdf",
+        metadata={
+            "document_number": "A-101",
+            "title": "Ground floor plan",
+            "revision": "A",
+        },
+        updated_at=datetime(2026, 7, 20, tzinfo=timezone.utc),
+    )
+    current = _document(
+        relative_path="04-projects/demo/03-design/A-101 Rev B.pdf",
+        metadata={
+            "document_number": "A-101",
+            "title": "Proposed ground floor",
+            "revision": "B",
+        },
+        updated_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+    )
+
+    result = await list_current_pmp_corpus_documents(
+        _FakeSession([old, current]),
+        project_id=PROJECT_ID,
+    )
+
+    assert [document.filename for document in result.documents] == ["A-101 Rev B.pdf"]
+    assert result.skipped_revision_duplicate == 1
+
+
+@pytest.mark.anyio
 async def test_sweep_current_pmp_corpus_batches_and_emits_trace() -> None:
     engagement = _document(
         relative_path="04-projects/demo/02-consultant/architect/01-engagement-letter.md",

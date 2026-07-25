@@ -15,24 +15,17 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
-from app.agent.mutation_intent import MutationIntent, is_profile_proposal_confirmation
+from app.agent.mutation_intent import (
+    PROFILE_ENRICHMENT_REASON,
+    MutationIntent,
+    is_profile_enrichment_text,
+    is_profile_proposal_confirmation,
+)
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.projects.workflow_capabilities import workflow_capabilities
 from app.sitewise.taxonomy import scale_fields_for, subclasses_for
 
 _NOT_DECLARED = "(not declared)"
-_PROFILE_ENRICHMENT_VERBS = (
-    "update",
-    "complete",
-    "fill",
-    "populate",
-    "enrich",
-    "check",
-    "review",
-    "correct",
-    "fix",
-    "audit",
-)
 _DOCUMENT_ACCESS_GUIDANCE = """<document-access>
 For questions about uploaded source documents, use project document tools before OCR:
 find_document_text is the first choice for simple keyword or phrase lookups.
@@ -101,18 +94,18 @@ Ground every answer in project evidence and platform knowledge:
 - For project identity facts used in RFPs and EOIs (site_address, client /
   owners): read get_project_profile / get_project_snapshot first. If the field
   is missing, search project documents with find_document_text or
-  search_documents before asking the user. When evidence supports a value,
-  propose_project_profile_change with evidence_references and ask the user to
-  confirm. Only call update_project_profile for an explicit user set/change/
-  update/save of the exact address or client text. After the profile accepts
+  search_documents before asking the user. When this turn has enrichment or
+  explicit mutation authority and evidence supports a value, call
+  update_project_profile. Otherwise use propose_project_profile_change with
+  evidence_references and ask the user to confirm. After the profile accepts
   the value, re-queue start_consultant_procurement (or start_contractor_eoi)
   with a new idempotency key so the next draft includes it. Never invent an
   address or client name.
 - Read project setup with get_project_profile and discover valid values with
-  get_project_profile_options. Only call update_project_profile for the exact
-  values in an explicit user set/change/update/save command. Document-derived,
-  quoted, hedged, or inferred facts must use propose_project_profile_change;
-  never mutate the profile directly from evidence.
+  get_project_profile_options. When this turn has profile_mutation authority,
+  call update_project_profile for evidence-backed values. Quoted, hedged, or
+  single-document claims without enrichment authority must use
+  propose_project_profile_change.
 - When the user explicitly confirms a pending profile proposal, call
   accept_project_profile_proposal instead of update_project_profile. Proposal
   acceptance is authorized by that confirmation and does not require a
@@ -145,25 +138,23 @@ name the documents your answer relies on.
 
 _PROFILE_ENRICHMENT_GUIDANCE = """<profile-enrichment-request>
 The user has asked for a best-effort Project Profile update without supplying
-specific values. Treat this as a request to discover the facts from the uploaded
-project documents, not as a reason to ask which fields they mean. First read
-get_project_profile and get_project_profile_options. Review every unset or
-incomplete profile field, including classification, subclasses, work scope,
-scale, complexity, state, user role, site address, and client / owners. Search
-project documents for those facts using find_document_text and search_documents
-before replying; use targeted searches rather than relying only on the current
-profile summary.
+specific values. This turn has server-bound profile_mutation authority for that
+enrichment. Discover facts from uploaded project documents and write them with
+update_project_profile; do not stop at a proposal list unless a field is too
+conflicted to choose. First read get_project_profile and get_project_profile_options.
+Review every unset or incomplete profile field,
+including classification, subclasses, work scope, scale, complexity, state,
+site address, and client / owners. Search project documents with
+find_document_text and search_documents before replying.
 
-For each evidence-derived value that would improve the profile, call
-propose_project_profile_change with evidence_references and a confidence value.
-Use lower confidence for a plausible but tentative interpretation; make reasonable
-taxonomy mappings from the evidence, group compatible values when appropriate,
-and label uncertainty plainly so the user can correct it. Do not directly mutate
-evidence-derived values and never invent a fact. Only leave a field unset after
-the document pass cannot support it. Do not reply that
-the profile is already up to date, or ask the user to tell you to search, before
-completing this enrichment pass. End with a concise summary of the proposals
-created and any fields still unresolved.
+Call the direct tool update_project_profile (not the mcp gateway proxy) with
+expected_revision from the live profile and a changes object containing only
+evidence-backed fields. Prefer one update that groups compatible values. Use
+plain JSON numbers (2135, not "2,135"). If evidence conflicts materially, skip
+that field and report the conflict instead of inventing a compromise. Never
+invent a fact. Do not reply that the profile is already up to date, or ask the
+user to tell you to search, before completing this enrichment pass. End with a
+concise summary of fields written and any fields still unresolved.
 </profile-enrichment-request>"""
 
 _PROFILE_PROPOSAL_CONFIRMATION_GUIDANCE = """<profile-proposal-confirmation>
@@ -260,12 +251,18 @@ def _is_profile_enrichment_request(
     mutation_intent: MutationIntent | None,
 ) -> bool:
     """Recognize broad profile-completion requests that carry no exact patch."""
+    if mutation_intent is not None and mutation_intent.reason == PROFILE_ENRICHMENT_REASON:
+        return True
     if mutation_intent is not None and mutation_intent.scopes:
         return False
-    normalized = " ".join(user_text.lower().split())
-    return "profile" in normalized and any(
-        re.search(rf"\b{verb}\b", normalized) for verb in _PROFILE_ENRICHMENT_VERBS
-    )
+    return is_profile_enrichment_text(user_text)
+
+
+def is_profile_enrichment_request(
+    user_text: str,
+    mutation_intent: MutationIntent | None,
+) -> bool:
+    return _is_profile_enrichment_request(user_text, mutation_intent)
 
 
 def _is_profile_proposal_confirmation_request(
@@ -276,6 +273,57 @@ def _is_profile_proposal_confirmation_request(
     if mutation_intent is not None and mutation_intent.scopes:
         return False
     return is_profile_proposal_confirmation(user_text)
+
+
+def is_profile_proposal_confirmation_request(
+    user_text: str,
+    mutation_intent: MutationIntent | None,
+) -> bool:
+    return _is_profile_proposal_confirmation_request(user_text, mutation_intent)
+
+
+def turn_needs_profile_mutation_tools(
+    user_text: str,
+    mutation_intent: MutationIntent | None,
+) -> bool:
+    """True when the turn may call profile proposal or update MCP tools."""
+    if mutation_intent is not None and mutation_intent.scopes:
+        return True
+    return is_profile_enrichment_request(
+        user_text, mutation_intent
+    ) or is_profile_proposal_confirmation_request(user_text, mutation_intent)
+
+
+# Artefact/workflow writes also require a durable mutation turn. While Hermes
+# mutations stay disabled, these phrases must route to Pi the same way profile
+# enrichment already does.
+_WORKFLOW_MUTATION_RE = re.compile(
+    r"("
+    r"\b(create|draft|prepare|queue|generate|start|run)\b.{0,60}\b("
+    r"rfp|request\s+for\s+fee|fee\s+proposal|consultant\s+procurement|"
+    r"eoi|expression\s+of\s+interest|project\s+plan|cost\s+plan|pmp|"
+    r"sort(?:ing)?\s+(?:the\s+)?(?:project\s+)?files?"
+    r")\b"
+    r"|"
+    r"\b(apply|write|save|update)\b.{0,40}\b(consultant\s+fee\s+forecast|fee\s+forecast)\b"
+    r")",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def is_workflow_mutation_request(user_text: str) -> bool:
+    """True when the user is asking to queue or persist a mutating workflow."""
+    return bool(_WORKFLOW_MUTATION_RE.search(user_text or ""))
+
+
+def turn_needs_mutation_tools(
+    user_text: str,
+    mutation_intent: MutationIntent | None,
+) -> bool:
+    """True when the turn may call any MCP tool that requires mutation auth."""
+    return turn_needs_profile_mutation_tools(
+        user_text, mutation_intent
+    ) or is_workflow_mutation_request(user_text)
 
 
 def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
@@ -340,7 +388,15 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
 
 
 def _mutation_policy_block(intent: MutationIntent) -> str:
-    if intent.scopes:
+    if intent.scopes and intent.reason == PROFILE_ENRICHMENT_REASON:
+        instruction = (
+            "This turn has unbound profile_mutation authority for evidence-backed "
+            "enrichment. Call the direct tool update_project_profile with the live "
+            "expected_revision and only fields supported by project documents. Do "
+            "not use the mcp gateway proxy for this write. Skip materially "
+            "conflicted fields and summarize them instead of guessing."
+        )
+    elif intent.scopes:
         patch_json = json.dumps(dict(intent.profile_patch), sort_keys=True)
         instruction = (
             "This turn has a server-bound profile_mutation scope. Call "

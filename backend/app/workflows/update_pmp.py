@@ -31,6 +31,15 @@ from app.sitewise.pmp_coverage import (
     format_corpus_coverage_requirements,
 )
 from app.sitewise.pmp_length import length_violations, pmp_word_count
+from app.sitewise.pmp_evidence_ledger import (
+    build_evidence_ledger,
+    conflict_summary_violations,
+    format_evidence_ledger,
+)
+from app.sitewise.pmp_claim_support import (
+    citation_claim_support_violations,
+    exclusion_citation_violations,
+)
 from app.sitewise.pmp_decisions import (
     decision_violations,
     format_decision_option_sets,
@@ -80,6 +89,7 @@ def validate_update_pmp_output(
     has_evidence_delta: bool,
     project: Project | None = None,
     source_texts: list[str] | None = None,
+    source_labels: list[str] | None = None,
     locked_ids: set[str] | None = None,
 ) -> None:
     taxonomy_context = pmp_taxonomy_context(project) if project is not None else None
@@ -121,6 +131,44 @@ def validate_update_pmp_output(
         if provenance_issues:
             joined = "; ".join(provenance_issues)
             raise WorkflowValidationError(f"Update PMP taxonomy provenance issues: {joined}")
+        over_limit = [
+            issue
+            for issue in length_violations(
+                output.markdown,
+                weights=taxonomy_context.section_weights,
+                min_words=settings.pmp_min_words,
+                max_words=settings.pmp_max_words,
+            )
+            if " maximum " in issue
+        ]
+        if over_limit:
+            raise WorkflowValidationError(
+                "Update PMP exceeds the primary-document length limit: "
+                + "; ".join(over_limit)
+            )
+        if has_evidence_delta:
+            lowered_markdown = output.markdown.casefold()
+            if (
+                "no taxonomy work-scope items selected" in lowered_markdown
+                or "no work-scope items selected" in lowered_markdown
+            ):
+                raise WorkflowValidationError(
+                    "Update PMP exposes an empty fallback work-scope row even though "
+                    "the evidence-grounded brief must carry document scope instead."
+                )
+            conflict_issues = conflict_summary_violations(
+                output.markdown,
+                build_evidence_ledger(
+                    source_texts or [],
+                    source_labels or [],
+                ),
+            )
+            if conflict_issues:
+                raise WorkflowValidationError(
+                    "Update PMP has unresolved evidence conflicts missing from the "
+                    "Project Summary: "
+                    + "; ".join(conflict_issues)
+                )
 
     baseline_headings = markdown_section_headings(baseline_markdown)
     output_headings = {heading.lower() for heading in markdown_section_headings(output.markdown)}
@@ -163,6 +211,23 @@ def validate_update_pmp_output(
             raise WorkflowValidationError(
                 f"Update PMP evidence_grounded fidelity issues: {joined}"
             )
+        claim_issues = citation_claim_support_violations(
+            output.markdown,
+            source_texts=source_texts or [],
+            source_labels=source_labels or [],
+        )
+        if claim_issues:
+            joined = "; ".join(claim_issues)
+            raise WorkflowValidationError(
+                f"Update PMP citation support issues: {joined}"
+            )
+        if taxonomy_context is not None:
+            exclusion_issues = exclusion_citation_violations(output.markdown)
+            if exclusion_issues:
+                raise WorkflowValidationError(
+                    "Update PMP exclusion evidence issues: "
+                    + "; ".join(exclusion_issues)
+                )
 
 
 def build_update_pmp_prompt(
@@ -258,6 +323,11 @@ def build_update_pmp_prompt(
             ]
         )
     if delta_passages:
+        evidence_ledger = build_evidence_ledger(
+            [passage.content for passage in delta_passages],
+            [passage.filename or passage.relative_path for passage in delta_passages],
+        )
+        prompt_parts.append(format_evidence_ledger(evidence_ledger))
         prompt_parts.append(
             "Current active project evidence corpus snapshot "
             f"({len(delta_passages)} document(s)):"
@@ -525,6 +595,31 @@ async def run_update_pmp_workflow(
         if has_delta
         else None
     )
+    evidence_ledger = build_evidence_ledger(
+        delta_source_texts or [],
+        delta_source_labels or [],
+    )
+    if delta_source_texts:
+        trace.append(
+            _trace(
+                "evidence_ledger",
+                "complete",
+                (
+                    "Prioritised high-consequence evidence and surfaced "
+                    f"{len(evidence_ledger.conflicts)} unresolved conflict(s)."
+                ),
+                critical_fact_count=len(evidence_ledger.critical_facts),
+                conflict_count=len(evidence_ledger.conflicts),
+                conflicts=[
+                    {
+                        "subject": conflict.subject,
+                        "values": list(conflict.values),
+                        "sources": list(conflict.sources),
+                    }
+                    for conflict in evidence_ledger.conflicts
+                ],
+            )
+        )
     required_evidence_refs = (
         list(sweep_result.evidence_refs)
         if use_corpus_sweep and sweep_result is not None
@@ -610,6 +705,7 @@ async def run_update_pmp_workflow(
                     has_evidence_delta=has_delta,
                     project=project,
                     source_texts=delta_source_texts,
+                    source_labels=delta_source_labels,
                     locked_ids=locked_ids,
                 )
                 break

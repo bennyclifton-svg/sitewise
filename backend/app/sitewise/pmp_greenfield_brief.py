@@ -706,10 +706,17 @@ def _adaptive_greenfield_brief(
             continue
         setup_rows.append(f"- User provided {key}: {_format_value(value)}")
 
-    scope_rows = [
-        f"- {item.label}"
-        for item in work_scope_items
-    ] or ["- No work-scope items selected; confirm physical brief inclusions with the client."]
+    scope_rows = [f"- {item.label}" for item in work_scope_items]
+    if scope_rows:
+        scope_section = ["### Selected work-scope items", *scope_rows, ""]
+    elif draft_mode == "platform_seeded":
+        scope_section = [
+            "### Selected work-scope items",
+            "- No fallback work-scope items selected; confirm physical brief inclusions with the client.",
+            "",
+        ]
+    else:
+        scope_section = []
     consultant_labels = _taxonomy_consultant_labels(work_type, work_scope)
     consultant_rows = (
         [f"- {label}" for label in consultant_labels]
@@ -725,7 +732,7 @@ def _adaptive_greenfield_brief(
         [
             "## Adaptive taxonomy PMP content contract (MUST follow)",
             f"Draft mode: {draft_mode}. Primary PMP target: {target_words} words inside the 2-4 page band.",
-            "Length discipline: budgets are guides. Spend up to a section budget where the project warrants it; cut generic prose before project-specific facts.",
+            "Length discipline: the maximum is binding. Spend up to a section budget where the project warrants it; cut generic prose before project-specific facts.",
             "Condensed registers: top ~8 risks and top ~8 actions/decisions only. Full registers are companion artifacts/annexures.",
             "Evidence discipline: User setup facts are **User provided**. Missing current-corpus facts are **Assumption** or **Not evidenced**. Do not write **Grounded** in platform_seeded drafts.",
             "No fallback: if a required seed section is missing, state the gap for confirmation; do not fill it from pretrained domain content.",
@@ -740,9 +747,7 @@ def _adaptive_greenfield_brief(
             "### User provided setup fields",
             *setup_rows,
             "",
-            "### Selected work-scope items",
-            *scope_rows,
-            "",
+            *scope_section,
             "### Consultants roster (appointment register — not Brief)",
             *consultant_rows,
             "",

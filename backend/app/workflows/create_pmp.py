@@ -42,6 +42,11 @@ from app.sitewise.pmp_greenfield_brief import (
     greenfield_quality_markers,
     greenfield_structure_violations,
 )
+from app.sitewise.pmp_evidence_ledger import (
+    build_evidence_ledger,
+    conflict_summary_violations,
+    format_evidence_ledger,
+)
 from app.sitewise.pmp_evidence_validation import (
     evidence_grounded_violations,
     sanitize_evidence_grounded_markdown,
@@ -51,6 +56,10 @@ from app.sitewise.pmp_evidence_validation import (
 from app.sitewise.pmp_coverage import (
     backfill_corpus_coverage,
     format_corpus_coverage_requirements,
+)
+from app.sitewise.pmp_claim_support import (
+    citation_claim_support_violations,
+    exclusion_citation_violations,
 )
 from app.sitewise.pmp_length import length_violations, pmp_word_count
 from app.sitewise.pmp_decisions import (
@@ -708,6 +717,10 @@ def build_create_pmp_prompt(
     evidence_passages = [
         passage for passage in passages if not _is_platform_passage(passage)
     ]
+    evidence_ledger = build_evidence_ledger(
+        [passage.content for passage in evidence_passages],
+        [passage.filename or passage.relative_path for passage in evidence_passages],
+    )
 
     prompt_parts = [
         "Sources (platform doctrine and seed):\n" + _format_sources(platform_passages),
@@ -813,6 +826,7 @@ def build_create_pmp_prompt(
             ]
         )
     if evidence_passages:
+        prompt_parts.append(format_evidence_ledger(evidence_ledger))
         prompt_parts.append(
             "Sources (project evidence):\n" + _format_sources(evidence_passages)
         )
@@ -1018,6 +1032,7 @@ async def run_create_pmp_hybrid(
                 archetype=project.archetype or "",
                 project=project,
                 source_texts=project_source_texts,
+                source_labels=source_labels,
             )
             return output
         except WorkflowValidationError as exc:
@@ -1045,6 +1060,7 @@ def validate_pmp_output(
     archetype: str,
     project: Project | None = None,
     source_texts: list[str] | None = None,
+    source_labels: list[str] | None = None,
 ) -> None:
     taxonomy_context = pmp_taxonomy_context(project) if project is not None else None
     if not output.seed_consulted:
@@ -1102,6 +1118,44 @@ def validate_pmp_output(
             raise WorkflowValidationError(
                 f"Create PMP taxonomy provenance issues: {joined}"
             )
+        over_limit = [
+            issue
+            for issue in length_violations(
+                output.markdown,
+                weights=taxonomy_context.section_weights,
+                min_words=settings.pmp_min_words,
+                max_words=settings.pmp_max_words,
+            )
+            if " maximum " in issue
+        ]
+        if over_limit:
+            raise WorkflowValidationError(
+                "Create PMP exceeds the primary-document length limit: "
+                + "; ".join(over_limit)
+            )
+        if draft_mode == "evidence_grounded":
+            lowered_markdown = output.markdown.casefold()
+            if (
+                "no taxonomy work-scope items selected" in lowered_markdown
+                or "no work-scope items selected" in lowered_markdown
+            ):
+                raise WorkflowValidationError(
+                    "Create PMP exposes an empty fallback work-scope row even though "
+                    "the evidence-grounded brief must carry document scope instead."
+                )
+            conflict_issues = conflict_summary_violations(
+                output.markdown,
+                build_evidence_ledger(
+                    source_texts or [],
+                    source_labels or [],
+                ),
+            )
+            if conflict_issues:
+                raise WorkflowValidationError(
+                    "Create PMP has unresolved evidence conflicts missing from the "
+                    "Project Summary: "
+                    + "; ".join(conflict_issues)
+                )
 
     structure_issues = greenfield_structure_violations(
         output.markdown,
@@ -1124,6 +1178,23 @@ def validate_pmp_output(
             raise WorkflowValidationError(
                 f"Create PMP evidence_grounded fidelity issues: {joined}"
             )
+        claim_issues = citation_claim_support_violations(
+            output.markdown,
+            source_texts=source_texts or [],
+            source_labels=source_labels or [],
+        )
+        if claim_issues:
+            joined = "; ".join(claim_issues)
+            raise WorkflowValidationError(
+                f"Create PMP citation support issues: {joined}"
+            )
+        if taxonomy_context is not None:
+            exclusion_issues = exclusion_citation_violations(output.markdown)
+            if exclusion_issues:
+                raise WorkflowValidationError(
+                    "Create PMP exclusion evidence issues: "
+                    + "; ".join(exclusion_issues)
+                )
 
     decision_issues = decision_violations(output.markdown)
     if decision_issues:
@@ -1441,6 +1512,31 @@ async def run_create_pmp_workflow(
 
     project_source_texts = _project_source_texts(passages, project_id=project.id)
     project_source_labels = _project_source_labels(passages, project_id=project.id)
+    evidence_ledger = build_evidence_ledger(
+        project_source_texts,
+        project_source_labels,
+    )
+    if project_source_texts:
+        trace.append(
+            _trace(
+                "evidence_ledger",
+                "complete",
+                (
+                    "Prioritised high-consequence evidence and surfaced "
+                    f"{len(evidence_ledger.conflicts)} unresolved conflict(s)."
+                ),
+                critical_fact_count=len(evidence_ledger.critical_facts),
+                conflict_count=len(evidence_ledger.conflicts),
+                conflicts=[
+                    {
+                        "subject": conflict.subject,
+                        "values": list(conflict.values),
+                        "sources": list(conflict.sources),
+                    }
+                    for conflict in evidence_ledger.conflicts
+                ],
+            )
+        )
     required_evidence_refs = _evidence_refs_from_passages(passages, project.id)
     coverage_required_evidence_refs = (
         required_evidence_refs
@@ -1488,6 +1584,7 @@ async def run_create_pmp_workflow(
                 archetype=project.archetype or "",
                 project=project,
                 source_texts=project_source_texts,
+                source_labels=project_source_labels,
             )
             trace.append(
                 _trace(
@@ -1553,6 +1650,7 @@ async def run_create_pmp_workflow(
                         archetype=project.archetype or "",
                         project=project,
                         source_texts=project_source_texts,
+                        source_labels=project_source_labels,
                     )
                     break
                 except WorkflowValidationError as exc:
