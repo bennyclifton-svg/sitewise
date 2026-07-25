@@ -154,14 +154,19 @@ def resolve_subprocess_binary(binary: str) -> str:
     return binary
 
 
-def _build_argv(*, prompt_arg: str) -> list[str]:
+def _build_argv(
+    *,
+    prompt_arg: str,
+    provider: str | None = None,
+    model: str | None = None,
+) -> list[str]:
     return [
         resolve_subprocess_binary(settings.pi_binary_path),
         "--no-tools",
         "--provider",
-        settings.pi_model_provider,
+        provider or settings.pi_model_provider,
         "--model",
-        settings.pi_model,
+        model or settings.pi_model,
         "--thinking",
         "off",
         "--no-session",
@@ -265,6 +270,8 @@ async def stream_pi_turn(
     mcp_url: str,
     turn_token: str,
     cwd: str | Path,
+    provider: str | None = None,
+    model: str | None = None,
     spawn: Spawn = _default_spawn,
 ) -> AsyncIterator[str]:
     workspace = Path(cwd)
@@ -273,7 +280,11 @@ async def stream_pi_turn(
 
     try:
         prompt_path = _write_prompt_file(workspace, prompt=prompt)
-        argv = _build_argv(prompt_arg=_prompt_file_arg(workspace, prompt_path))
+        argv = _build_argv(
+            prompt_arg=_prompt_file_arg(workspace, prompt_path),
+            provider=provider,
+            model=model,
+        )
         env = _build_env(mcp_url=mcp_url, turn_token=turn_token, cwd=workspace)
         stderr_tail: deque[str] = deque(maxlen=20)
 

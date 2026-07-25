@@ -17,7 +17,9 @@ from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
 from app.agent.agent_runtimes import (
     PI_RUNTIME_ID,
     InvalidAgentRuntimeError,
+    InvalidPiModelError,
     default_agent_runtime,
+    resolve_pi_model_override,
     resolve_agent_runtime_for_turn,
 )
 from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
@@ -578,7 +580,6 @@ async def post_agent_stream(
         snapshot=snapshot,
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
-    model_override = resolve_hermes_model_override(body.agent_model)
     try:
         agent_runtime = resolve_agent_runtime_for_turn(
             body.agent_runtime or default_agent_runtime(),
@@ -591,6 +592,16 @@ async def post_agent_stream(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+    if agent_runtime == PI_RUNTIME_ID:
+        try:
+            model_override = resolve_pi_model_override(body.agent_model)
+        except InvalidPiModelError:
+            if body.agent_runtime == PI_RUNTIME_ID:
+                raise
+            model_override = None
+    else:
+        model_override = resolve_hermes_model_override(body.agent_model)
 
     proposed_turn_id = uuid.uuid4()
     last_message = body.messages[-1] if body.messages else {}
@@ -704,11 +715,20 @@ async def post_agent_stream(
         async def agent_chunks() -> AsyncIterator[str]:
             nonlocal completed, first_text_ms
             if agent_runtime == PI_RUNTIME_ID:
+                pi_kwargs = (
+                    {
+                        "provider": model_override.provider,
+                        "model": model_override.model,
+                    }
+                    if model_override
+                    else {}
+                )
                 stream = stream_pi_turn(
                     prompt=agent_prompt,
                     mcp_url=settings.agent_mcp_url,
                     turn_token=turn_token,
                     cwd=workspace,
+                    **pi_kwargs,
                 )
             else:
                 stream = stream_hermes_turn(

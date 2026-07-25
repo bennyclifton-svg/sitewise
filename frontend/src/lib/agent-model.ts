@@ -1,4 +1,8 @@
-const STORAGE_KEY = "clerk.agentModel";
+import type { AgentRuntimeOption } from "@/lib/agent-runtime";
+import { PI_RUNTIME_ID } from "@/lib/agent-runtime";
+
+const HERMES_STORAGE_KEY = "clerk.agentModel";
+const PI_STORAGE_KEY = "clerk.agentModel.pi";
 const CHANGE_EVENT = "clerk:agent-model-change";
 
 export const HERMES_DEFAULT_MODEL_ID = "__hermes_config__";
@@ -24,31 +28,29 @@ export type AgentConfigurationResponse = {
   legacy: import("@/lib/chat-model").ChatModelsResponse;
 };
 
-export type AgentRuntimeOption = {
-  id: string;
-  label: string;
-  enabled: boolean;
-  description?: string | null;
-  provider?: string | null;
-  model?: string | null;
-  model_label?: string | null;
-};
+function storageKeyForRuntime(runtimeId?: string | null): string {
+  return runtimeId === PI_RUNTIME_ID ? PI_STORAGE_KEY : HERMES_STORAGE_KEY;
+}
 
-export function getSelectedAgentModel(): string | null {
+export function getSelectedAgentModel(runtimeId?: string | null): string | null {
   if (typeof window === "undefined") {
     return null;
   }
-  return window.localStorage.getItem(STORAGE_KEY);
+  return window.localStorage.getItem(storageKeyForRuntime(runtimeId));
 }
 
-export function setSelectedAgentModel(modelId: string | null): void {
+export function setSelectedAgentModel(
+  modelId: string | null,
+  runtimeId?: string | null,
+): void {
   if (typeof window === "undefined") {
     return;
   }
-  if (modelId && modelId !== HERMES_DEFAULT_MODEL_ID) {
-    window.localStorage.setItem(STORAGE_KEY, modelId);
+  const storageKey = storageKeyForRuntime(runtimeId);
+  if (modelId && (runtimeId === PI_RUNTIME_ID || modelId !== HERMES_DEFAULT_MODEL_ID)) {
+    window.localStorage.setItem(storageKey, modelId);
   } else {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(storageKey);
   }
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
@@ -57,7 +59,11 @@ export function subscribeSelectedAgentModel(
   onStoreChange: () => void,
 ): () => void {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) {
+    if (
+      event.key === HERMES_STORAGE_KEY
+      || event.key === PI_STORAGE_KEY
+      || event.key === null
+    ) {
       onStoreChange();
     }
   };

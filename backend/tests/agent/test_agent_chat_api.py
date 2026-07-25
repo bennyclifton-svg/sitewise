@@ -41,6 +41,7 @@ BODY_WITH_AGENT_MODEL = {
 BODY_WITH_PI_RUNTIME = {
     **BODY,
     "agent_runtime": "pi",
+    "agent_model": "openai:gpt-5.6-sol",
     "messages": [
         {
             "role": "user",
@@ -668,13 +669,17 @@ def test_agent_stream_pi_runtime_receives_project_context(
             created_at=NOW,
         )
 
-    async def fake_stream_pi_turn(*, prompt, mcp_url, turn_token, cwd):
+    async def fake_stream_pi_turn(
+        *, prompt, mcp_url, turn_token, cwd, provider=None, model=None
+    ):
         seen.update(
             {
                 "prompt": prompt,
                 "mcp_url": mcp_url,
                 "turn_token": turn_token,
                 "cwd": cwd,
+                "provider": provider,
+                "model": model,
             }
         )
         yield "Walsh Reno is a residential refurbishment."
@@ -741,6 +746,8 @@ def test_agent_stream_pi_runtime_receives_project_context(
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
+    assert seen["provider"] == "openai"
+    assert seen["model"] == "gpt-5.6-sol"
     assert "Walsh Reno is a residential refurbishment." in body
     assert "<project-context>" in seen["prompt"]
     assert "project_title: Walsh Reno" in seen["prompt"]

@@ -238,8 +238,8 @@ describe("ChatPanel agent model selection", () => {
     });
   });
 
-  it("does not send a Hermes model override for Pi agent chat requests", () => {
-    window.localStorage.setItem("clerk.agentModel", "openai-codex:gpt-5.5");
+  it("sends the selected Pi model with agent chat requests", () => {
+    window.localStorage.setItem("clerk.agentModel.pi", "openai:gpt-5.6-sol");
     window.localStorage.setItem("clerk.agentRuntime", "pi");
     renderPanel("ready");
 
@@ -261,7 +261,9 @@ describe("ChatPanel agent model selection", () => {
       thread_id: "thread-1",
       agent_runtime: "pi",
     });
-    expect(request.body).not.toHaveProperty("agent_model");
+    expect(request.body).toMatchObject({
+      agent_model: "openai:gpt-5.6-sol",
+    });
   });
 });
 

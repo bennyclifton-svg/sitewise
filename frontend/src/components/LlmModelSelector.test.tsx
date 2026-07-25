@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LlmModelSelector } from "@/components/LlmModelSelector";
 import { api } from "@/lib/api";
 import { getSelectedAgentModel } from "@/lib/agent-model";
+import { PI_RUNTIME_ID } from "@/lib/agent-runtime";
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -68,7 +69,7 @@ describe("LlmModelSelector", () => {
     await waitFor(() => expect(api.getAgentConfiguration).toHaveBeenCalledTimes(1));
   });
 
-  it("shows Pi's configured model instead of Hermes options when Pi is selected", async () => {
+  it("allows selecting a Pi model when Pi is selected", async () => {
     window.localStorage.setItem("clerk.agentRuntime", "pi");
     vi.mocked(api.getAgentModels).mockResolvedValue({
       agent_runtime_enabled: true,
@@ -88,6 +89,30 @@ describe("LlmModelSelector", () => {
           enabled: true,
           model: "gpt-5.1",
           model_label: "gpt-5.1 (openai)",
+          default_model: "openai:gpt-5.6-terra",
+          model_options: [
+            {
+              id: "openai:gpt-5.6-sol",
+              label: "GPT-5.6 Sol (complex)",
+              is_default: false,
+              provider: "openai",
+              model: "gpt-5.6-sol",
+            },
+            {
+              id: "openai:gpt-5.6-terra",
+              label: "GPT-5.6 Terra (balanced)",
+              is_default: true,
+              provider: "openai",
+              model: "gpt-5.6-terra",
+            },
+            {
+              id: "openai:gpt-5.6-luna",
+              label: "GPT-5.6 Luna (fast)",
+              is_default: false,
+              provider: "openai",
+              model: "gpt-5.6-luna",
+            },
+          ],
         },
       ],
       models: [
@@ -111,9 +136,12 @@ describe("LlmModelSelector", () => {
     renderSelector();
 
     const select = await screen.findByLabelText(/pi model/i);
-    expect(select).toBeDisabled();
-    expect(screen.getByRole("option", { name: "gpt-5.1 (openai)" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "gpt-5.5 (Codex)" })).not.toBeInTheDocument();
+    expect(select).toHaveValue("openai:gpt-5.6-terra");
+    expect(screen.getByRole("option", { name: "GPT-5.6 Sol (complex)" })).toBeInTheDocument();
+
+    await userEvent.selectOptions(select, "openai:gpt-5.6-sol");
+
+    expect(getSelectedAgentModel(PI_RUNTIME_ID)).toBe("openai:gpt-5.6-sol");
   });
 });
 

@@ -100,13 +100,17 @@ class StreamChatRequest(BaseModel):
             InvalidHermesModelError,
             resolve_hermes_model_override,
         )
+        from app.agent.agent_runtimes import InvalidPiModelError, resolve_pi_model_override
 
         if stripped == HERMES_DEFAULT_MODEL_ID:
             return None
         try:
             resolve_hermes_model_override(stripped)
-        except InvalidHermesModelError as exc:
-            raise ValueError(str(exc)) from exc
+        except InvalidHermesModelError:
+            try:
+                resolve_pi_model_override(stripped)
+            except InvalidPiModelError as exc:
+                raise ValueError(str(exc)) from exc
         return stripped
 
     @field_validator("agent_runtime")

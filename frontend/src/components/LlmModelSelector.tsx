@@ -32,10 +32,6 @@ function getSelectionServerSnapshot(): string | null {
   return null;
 }
 
-function getAgentSelectionSnapshot(): string | null {
-  return getSelectedAgentModel();
-}
-
 function getAgentRuntimeSnapshot(): string | null {
   return getSelectedAgentRuntime();
 }
@@ -71,11 +67,6 @@ export function LlmModelSelector({
     getSelectionSnapshot,
     getSelectionServerSnapshot,
   );
-  const selectedAgentModel = useSyncExternalStore(
-    subscribeSelectedAgentModel,
-    getAgentSelectionSnapshot,
-    getSelectionServerSnapshot,
-  );
   const selectedAgentRuntime = useSyncExternalStore(
     subscribeSelectedAgentRuntime,
     getAgentRuntimeSnapshot,
@@ -83,24 +74,31 @@ export function LlmModelSelector({
   );
 
   const effectiveAgentRuntime = selectedAgentRuntime ?? defaultRuntime;
+  const selectedAgentModel = useSyncExternalStore(
+    subscribeSelectedAgentModel,
+    () => getSelectedAgentModel(effectiveAgentRuntime),
+    getSelectionServerSnapshot,
+  );
   const piRuntime = runtimes.find((runtime) => runtime.id === PI_RUNTIME_ID);
   const isPiMode = mode === "agent" && effectiveAgentRuntime === PI_RUNTIME_ID;
+  const piModels = piRuntime?.model_options ?? [];
+  const piDefaultModel = piRuntime?.default_model
+    ?? piModels.find((model) => model.is_default)?.id
+    ?? null;
   const selectedModel = mode === "agent" ? selectedAgentModel : selectedLegacyModel;
-  const piModelOption: AgentModelOption = {
-    id: "__pi_config__",
-    label: piRuntime?.model_label ?? piRuntime?.model ?? "Pi configured model",
-    is_default: true,
-    provider: null,
-    model: piRuntime?.model ?? null,
-  };
-  const displayModels = isPiMode ? [piModelOption] : models;
-  const effectiveValue = isPiMode ? piModelOption.id : selectedModel ?? defaultModel;
+  const selectedPiModel = piModels.some((model) => model.id === selectedAgentModel)
+    ? selectedAgentModel
+    : null;
+  const displayModels = isPiMode ? piModels : models;
+  const effectiveValue = isPiMode
+    ? selectedPiModel ?? piDefaultModel ?? ""
+    : selectedModel ?? defaultModel;
   const title = loadError
     ? `${loadError} Using fallback model list.`
     : loading
       ? "Loading LLM models..."
       : isPiMode
-        ? "Pi uses its own configured model"
+        ? "Choose the Pi model for this chat turn"
         : mode === "agent"
         ? "Hermes model for agent chat"
         : "LLM model for legacy chat and workflows";
@@ -120,15 +118,22 @@ export function LlmModelSelector({
           className,
         )}
         value={effectiveValue}
-        disabled={loading || isPiMode}
+        disabled={loading || (isPiMode && displayModels.length === 0)}
         aria-label={label}
         title={title}
         onChange={(event) => {
-          if (isPiMode) return;
           const next = event.target.value;
+          if (isPiMode) {
+            setSelectedAgentModel(
+              next === piDefaultModel ? null : next,
+              PI_RUNTIME_ID,
+            );
+            return;
+          }
           if (mode === "agent") {
             setSelectedAgentModel(
               next === defaultModel || next === HERMES_DEFAULT_MODEL_ID ? null : next,
+              effectiveAgentRuntime,
             );
             return;
           }

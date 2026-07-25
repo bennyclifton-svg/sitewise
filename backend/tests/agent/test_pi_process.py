@@ -135,11 +135,15 @@ def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(tmp_path: Path) -
             mcp_url="http://test/mcp",
             turn_token="turn-token",
             cwd=tmp_path,
+            provider="openai",
+            model="gpt-5.6-sol",
             spawn=spawn,
         )
     )
 
     assert chunks == ["ok"]
+    assert seen["argv"][seen["argv"].index("--provider") + 1] == "openai"
+    assert seen["argv"][seen["argv"].index("--model") + 1] == "gpt-5.6-sol"
     assert seen["argv"][-2:] == ["-p", seen["prompt_arg"]]
     assert seen["prompt_arg"].startswith("@.pi/turn-prompts/")
     assert prompt not in seen["argv"]

@@ -4,6 +4,14 @@ const CHANGE_EVENT = "clerk:agent-runtime-change";
 export const HERMES_RUNTIME_ID = "hermes";
 export const PI_RUNTIME_ID = "pi";
 
+export type AgentRuntimeModelOption = {
+  id: string;
+  label: string;
+  is_default: boolean;
+  provider: string;
+  model: string;
+};
+
 export type AgentRuntimeOption = {
   id: string;
   label: string;
@@ -12,6 +20,8 @@ export type AgentRuntimeOption = {
   provider?: string | null;
   model?: string | null;
   model_label?: string | null;
+  default_model?: string | null;
+  model_options?: AgentRuntimeModelOption[];
 };
 
 export function getSelectedAgentRuntime(): string | null {

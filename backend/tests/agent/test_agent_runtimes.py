@@ -5,6 +5,8 @@ from app.agent.agent_runtimes import (
     PI_RUNTIME_ID,
     InvalidAgentRuntimeError,
     agent_runtime_options,
+    pi_model_options,
+    resolve_pi_model_override,
     resolve_agent_runtime,
     resolve_agent_runtime_for_turn,
 )
@@ -27,6 +29,29 @@ def test_agent_runtime_options_include_hermes_and_pi(
     pi = next(option for option in options if option.id == PI_RUNTIME_ID)
     assert pi.model == settings.pi_model
     assert pi.enabled is False
+
+
+def test_pi_model_options_include_the_gpt_5_6_family(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        settings,
+        "pi_model_options",
+        (
+            "openai:gpt-5.6-sol:GPT-5.6 Sol (complex),"
+            "openai:gpt-5.6-terra:GPT-5.6 Terra (balanced),"
+            "openai:gpt-5.6-luna:GPT-5.6 Luna (fast)"
+        ),
+    )
+
+    options = pi_model_options()
+
+    assert [option.id for option in options] == [
+        "openai:gpt-5.6-sol",
+        "openai:gpt-5.6-terra",
+        "openai:gpt-5.6-luna",
+    ]
+    assert resolve_pi_model_override("openai:gpt-5.6-sol").model == "gpt-5.6-sol"
 
 
 def test_resolve_agent_runtime_rejects_disabled_pi(

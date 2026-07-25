@@ -24,7 +24,6 @@ import {
   subscribeSelectedAgentModel,
 } from "@/lib/agent-model";
 import {
-  PI_RUNTIME_ID,
   getSelectedAgentRuntime,
   subscribeSelectedAgentRuntime,
 } from "@/lib/agent-runtime";
@@ -111,14 +110,15 @@ export function ChatPanel({
     getSelectedChatModel,
     () => null,
   );
-  const agentModel = useSyncExternalStore(
-    subscribeSelectedAgentModel,
-    getSelectedAgentModel,
-    () => null,
-  );
   const agentRuntime = useSyncExternalStore(
     subscribeSelectedAgentRuntime,
     getSelectedAgentRuntime,
+    () => null,
+  );
+  const effectiveAgentRuntime = agentRuntime ?? getSelectedAgentRuntime();
+  const agentModel = useSyncExternalStore(
+    subscribeSelectedAgentModel,
+    () => getSelectedAgentModel(effectiveAgentRuntime),
     () => null,
   );
 
@@ -140,11 +140,8 @@ export function ChatPanel({
 
   const transport = useMemo(() => {
     const selectedModel = chatModel ?? getSelectedChatModel();
-    const selectedAgentRuntime = agentRuntime ?? getSelectedAgentRuntime();
-    const selectedAgentModel =
-      selectedAgentRuntime === PI_RUNTIME_ID
-        ? null
-        : agentModel ?? getSelectedAgentModel();
+    const selectedAgentRuntime = effectiveAgentRuntime;
+    const selectedAgentModel = agentModel ?? getSelectedAgentModel(selectedAgentRuntime);
     const params = new URLSearchParams();
     if (crossProject) {
       params.set("cross_project", "true");
@@ -178,7 +175,7 @@ export function ChatPanel({
         },
       }),
     });
-  }, [agentMode, crossProject, chatModel, agentModel, agentRuntime]);
+  }, [agentMode, crossProject, chatModel, agentModel, effectiveAgentRuntime]);
 
   const { messages, sendMessage, status, error, stop } = useChat({
     id: threadId,
