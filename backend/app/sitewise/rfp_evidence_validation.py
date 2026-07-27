@@ -17,7 +17,12 @@ def validate_rfp_output(
     """Reject uncited, unresolvable, or incomplete evidence-backed RFP prose."""
     issues: list[str] = []
     has_project_evidence = bool(citation_index.documents)
-    narrative_parts = [output.background, *output.information_to_review]
+    narrative_parts = [
+        output.background,
+        *output.requested_services,
+        *output.information_to_review,
+        *output.programme,
+    ]
 
     if not output.background.strip():
         issues.append("background must not be empty")
@@ -26,6 +31,14 @@ def validate_rfp_output(
 
     if has_project_evidence and not output.information_to_review:
         issues.append("information_to_review must not be empty when project evidence exists")
+    if has_project_evidence and not output.requested_services:
+        issues.append("requested_services must not be empty when project evidence exists")
+    elif has_project_evidence and not any(
+        _CITATION_PATTERN.search(item) for item in output.requested_services
+    ):
+        issues.append(
+            "requested_services must include at least one project-evidence citation"
+        )
 
     invalid_tokens = sorted(
         {

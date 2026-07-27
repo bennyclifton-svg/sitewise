@@ -38,6 +38,26 @@ def test_classify_da_package_to_planning_authorities() -> None:
     assert destination == "04-planning-and-authorities"
 
 
+@pytest.mark.parametrize(
+    ("filename", "preview_snippet"),
+    [
+        ("Master Programme Rev 04.pdf", None),
+        ("upload.pdf", "CONSTRUCTION PROGRAMME\nSix-week lookahead and milestone schedule"),
+    ],
+)
+def test_classify_project_programmes_to_programme_folder(
+    filename: str,
+    preview_snippet: str | None,
+) -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/{filename}",
+        filename=filename,
+        project_workspace_path=PROJECT,
+        preview_snippet=preview_snippet,
+    )
+    assert destination == "06-programme"
+
+
 def test_classify_cc_a_filename_without_package() -> None:
     destination = classify_inbox_destination(
         workspace_path=f"{PROJECT}/_inbox/CC-A-010 SITE PLAN.pdf",

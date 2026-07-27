@@ -239,6 +239,39 @@ async def test_revision_dedupe_keeps_distinct_drawings_with_generic_document_num
 
 
 @pytest.mark.anyio
+async def test_revision_dedupe_keeps_distinct_annexures_with_generic_number() -> None:
+    ppr = _document(
+        relative_path="04-projects/demo/_inbox/ANX Q PPR [E].pdf",
+        metadata={
+            "document_number": "ANX",
+            "title": "Q PPR",
+            "revision": "E",
+        },
+        updated_at=datetime(2026, 7, 20, 10, 3, tzinfo=timezone.utc),
+    )
+    da_matrix = _document(
+        relative_path="04-projects/demo/_inbox/ANX U DA MATRIX [A].pdf",
+        metadata={
+            "document_number": "ANX",
+            "title": "U DA MATRIX",
+            "revision": "A",
+        },
+        updated_at=datetime(2026, 7, 20, 20, 13, tzinfo=timezone.utc),
+    )
+
+    result = await list_current_pmp_corpus_documents(
+        _FakeSession([ppr, da_matrix]),
+        project_id=PROJECT_ID,
+    )
+
+    assert {document.filename for document in result.documents} == {
+        "ANX Q PPR [E].pdf",
+        "ANX U DA MATRIX [A].pdf",
+    }
+    assert result.skipped_revision_duplicate == 0
+
+
+@pytest.mark.anyio
 async def test_revision_dedupe_keeps_latest_real_document_number_despite_title_variation() -> None:
     old = _document(
         relative_path="04-projects/demo/03-design/A-101 Rev A.pdf",

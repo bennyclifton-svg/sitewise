@@ -100,6 +100,22 @@
           ]
         },
         {
+          "value": "commercial_fitout",
+          "label": "Commercial Fit-Out",
+          "items": [
+            {"value": "partitions_walls", "label": "Partitions/Internal Walls", "consultants": ["Architect", "Interior Designer", "Acoustic Consultant"]},
+            {"value": "ceilings", "label": "Ceilings and Acoustic Treatments", "consultants": ["Architect", "Interior Designer", "Acoustic Consultant"]},
+            {"value": "flooring", "label": "Flooring and Finishes", "consultants": ["Architect", "Interior Designer"]},
+            {"value": "joinery", "label": "Joinery/Cabinetry", "consultants": ["Interior Designer"]},
+            {"value": "workplace_furniture", "label": "Workplace Furniture Coordination", "consultants": ["Interior Designer", "Workplace Strategist"]},
+            {"value": "signage_wayfinding", "label": "Signage/Wayfinding", "consultants": ["Signage Consultant", "Access Consultant"]},
+            {"value": "ict_av_security", "label": "ICT/AV/Security", "consultants": ["ICT Consultant", "AV Consultant", "Security Consultant"]},
+            {"value": "mezzanine_structural_modifications", "label": "Mezzanine/Structural Modifications", "consultants": ["Structural Engineer", "Fire Engineer"], "complexityPoints": 2},
+            {"value": "slab_penetrations_builders_work", "label": "Slab Penetrations and Builder's Work", "consultants": ["Structural Engineer", "Services Engineer"]},
+            {"value": "integrated_commissioning_handover", "label": "Integrated Commissioning and Handover", "consultants": ["Services Engineer", "Commissioning Agent"]}
+          ]
+        },
+        {
           "value": "services_compliance",
           "label": "Services and Compliance Upgrade",
           "items": [

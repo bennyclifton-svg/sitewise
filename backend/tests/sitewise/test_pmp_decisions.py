@@ -85,6 +85,15 @@ def test_procurement_route_and_contract_form_are_not_conflated() -> None:
     assert {"as4000", "as4902"} <= contract_values
 
 
+def test_approval_pathway_includes_ssd_without_da_proxy() -> None:
+    option_sets = decision_option_sets_for_project(None)
+    approval_values = {
+        option["value"] for option in option_sets["approval-pathway"]["options"]
+    }
+
+    assert {"ssd", "da", "cdc", "exempt"} <= approval_values
+
+
 def test_decision_validation_rejects_incompatible_route_and_contract_form() -> None:
     markdown = SAMPLE_BLOCK + """
 ```pmp-decision

@@ -24,10 +24,20 @@ def effective_taxonomy(project) -> EffectiveTaxonomy:
     building_class = getattr(project, "building_class", None)
     work_type = getattr(project, "work_type", None)
     if building_class is not None or work_type is not None:
+        subclasses = _metadata_subclasses(
+            getattr(project, "project_metadata", None)
+        )
+        legacy = _LEGACY_ARCHETYPES.get(getattr(project, "archetype", None))
+        if (
+            not subclasses
+            and legacy is not None
+            and legacy.building_class == building_class
+        ):
+            subclasses = legacy.subclasses
         return EffectiveTaxonomy(
             building_class,
             work_type,
-            _metadata_subclasses(getattr(project, "project_metadata", None)),
+            subclasses,
         )
 
     archetype = getattr(project, "archetype", None)
@@ -36,17 +46,32 @@ def effective_taxonomy(project) -> EffectiveTaxonomy:
     return EffectiveTaxonomy(None, None, ())
 
 
+def effective_work_scopes(project) -> tuple[str, ...]:
+    """Return confirmed work-scope values stored with the project taxonomy."""
+    return _metadata_string_values(
+        getattr(project, "project_metadata", None),
+        "work_scope",
+    )
+
+
 def _metadata_subclasses(metadata: dict | None) -> tuple[str, ...]:
+    return _metadata_string_values(metadata, "subclasses")
+
+
+def _metadata_string_values(
+    metadata: dict | None,
+    key: str,
+) -> tuple[str, ...]:
     if not isinstance(metadata, dict):
         return ()
     taxonomy = metadata.get("taxonomy")
     if not isinstance(taxonomy, dict):
         return ()
-    subclasses = taxonomy.get("subclasses")
-    if not isinstance(subclasses, list):
+    raw_values = taxonomy.get(key)
+    if not isinstance(raw_values, list):
         return ()
     values: list[str] = []
-    for item in subclasses:
+    for item in raw_values:
         if isinstance(item, str) and item.strip():
             values.append(item)
         elif isinstance(item, dict):

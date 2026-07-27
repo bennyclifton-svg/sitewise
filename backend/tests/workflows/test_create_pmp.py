@@ -185,6 +185,7 @@ def _valid_seed_consulted() -> list[str]:
     return [
         "seed/renovation-guide.md",
         "seed/role-architect-pm.md",
+        "skills/reference/nsw-residential-cost-breakdown-reference.md",
         "seed/setup-and-commission-guide.md",
         "seed/contract-administration-guide.md",
         "seed/cost-management-principles.md",

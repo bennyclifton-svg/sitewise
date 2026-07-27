@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from app.database.workspace_file import WorkspaceFile
 from app.intake.sort_service import SortFilesResult, _move_workspace_file, sort_inbox_files
 from app.workflows.sort_files import run_sort_files_workflow
@@ -91,6 +93,27 @@ def test_sort_inbox_skips_manifest_and_leaves_unresolved() -> None:
     assert result.counts.unresolved == 1
     assert result.counts.moved == 0
     assert "intake_manifest_v" in result.manifest_markdown
+
+
+def test_sort_inbox_skips_files_that_are_still_ingesting() -> None:
+    session = AsyncMock()
+    queued = _workspace_file(ingest_status="queued")
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[queued]),
+        ),
+        patch("app.intake.sort_service._file_previews", new=AsyncMock()) as previews,
+        patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()) as move,
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert result.counts.skipped == 1
+    assert result.counts.inspected == 0
+    assert result.records[0].reason == "Ingestion is still in progress"
+    previews.assert_not_awaited()
+    move.assert_not_awaited()
 
 
 def test_sort_inbox_refuses_when_destination_hash_differs() -> None:
@@ -283,11 +306,25 @@ def test_move_workspace_file_purges_old_source_document_id() -> None:
     session.flush.assert_awaited_once()
 
 
-def test_run_sort_files_workflow_persists_manifest_draft() -> None:
+@pytest.mark.parametrize(
+    ("unresolved", "refused", "expected_status"),
+    [
+        (0, 0, "complete"),
+        (1, 0, "needs_review"),
+        (0, 1, "needs_review"),
+    ],
+)
+def test_run_sort_files_workflow_reports_reviewable_outcomes(
+    unresolved: int,
+    refused: int,
+    expected_status: str,
+) -> None:
     session = AsyncMock()
     sort_result = SortFilesResult()
     sort_result.counts.inspected = 2
     sort_result.counts.moved = 1
+    sort_result.counts.unresolved = unresolved
+    sort_result.counts.refused = refused
     sort_result.manifest_version = 2
     sort_result.manifest_workspace_path = (
         "04-projects/greenfield-demo/_inbox/intake_manifest_v02.md"
@@ -337,7 +374,8 @@ def test_run_sort_files_workflow_persists_manifest_draft() -> None:
             )
         )
 
-    assert result.status == "complete"
+    assert result.status == expected_status
+    assert result.trace[-1].status == expected_status
     assert result.draft is not None
     assert result.draft.version == 2
     session.commit.assert_awaited()

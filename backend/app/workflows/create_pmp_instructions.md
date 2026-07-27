@@ -83,7 +83,11 @@ When the prompt includes a **Greenfield content contract** (Create PMP), you mus
 - Include the archetype due diligence checklist under the planning/approvals section named in the prompt (adapt NSW-specific rows for non-NSW states)
 - Include the authority tracker table from the contract appendix
 - Surface archetype-specific due diligence, approvals, consultants, risks, and procurement posture from the loaded seeds
-- Label unknown site/budget/owner values as **Assumption** but still name the framework items (BASIX, LSL, HBCF, certifier, etc.)
+- Label unknown site/budget/owner values as **Assumption**, but name only
+  class-appropriate framework items. BASIX and HBCF/HOW are residential
+  examples, not universal NSW project controls; commercial fit-outs instead
+  test the evidenced consent/certification, landlord, fire/life-safety,
+  accessibility, services-capacity and occupation controls.
 - Write plain formal Australian English — avoid filler phrases ("facilitate collaboration", "ensure alignment")
 - Markdown tables must start at column 0 on their own lines — never prefix table rows with list bullets (`- |`)
 - In **Internal audit layer**, include at least 3 **Recommendations** each with an owner ask and due date
@@ -160,7 +164,10 @@ Use `##` headings exactly matching the required section list in the prompt. Stay
 This is the Project Management Plan facet from `contract-setup-system` Step 2A:
 - Review-only governance plan — not an issued instruction, statutory submission, tender, or construction management plan
 - Keep the architect-PM engagement brief separate from the owner's project brief
-- Architect-PM verifies builder HOW/HBCF, LSL, licence, and insurance — does not hold them
+- Architect-PM verifies the builder's applicable licence, insurances, levy/LSL
+  evidence and statutory instruments. Verify HOW/HBCF only where the project is
+  eligible residential work; do not create a commercial-fit-out
+  "non-applicability" task merely to preserve a residential checklist.
 - Do not imply Superintendent or Certifier roles without appointment evidence
 - Include the baseline programme/staging regime unless project evidence defines a better one:
   - Stage 1 — concept and schematic design to DA submission

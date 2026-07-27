@@ -4,6 +4,7 @@
 .pytest-tmp
 backend/.pytest-tmp
 backend/.pytest-tmp/
+backend/.pytest-tmp*
 **/.pytest-tmp/
 .uv-cache
 tmp

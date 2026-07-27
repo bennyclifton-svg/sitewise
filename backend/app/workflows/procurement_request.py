@@ -20,6 +20,7 @@ from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from app.sitewise.knowledge_catalog import (
     DOCTRINE_PATH,
+    applicable_platform_paths,
     catalog_entry_for_path,
     load_sections,
     select_required_paths,
@@ -83,6 +84,14 @@ class ProcurementDocument(ABC):
     ) -> tuple[str, ...]:
         """Return target-specific platform guidance that must be consulted."""
         return ()
+
+    def filter_platform_knowledge(
+        self,
+        knowledge: list[dict[str, Any]],
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        """Apply document-specific relevance rules after taxonomy filtering."""
+        return knowledge
 
     @abstractmethod
     async def forecast(
@@ -180,6 +189,11 @@ async def draft_procurement_request(
     platform_knowledge = await _retrieve_platform_knowledge(
         retriever,
         query=document.platform_query(target),
+        project=project,
+    )
+    platform_knowledge = document.filter_platform_knowledge(
+        platform_knowledge,
+        target,
     )
     platform_knowledge = await _merge_required_guidance(
         session,
@@ -304,7 +318,14 @@ async def _retrieve_platform_knowledge(
     retriever: DocumentRetriever,
     *,
     query: str,
+    project: Project,
 ) -> list[dict[str, Any]]:
+    from app.sitewise.archetype_bridge import (
+        effective_taxonomy,
+        effective_work_scopes,
+    )
+
+    taxonomy = effective_taxonomy(project)
     passages = await retriever.retrieve(
         query,
         filters=RetrievalFilters(platform_knowledge_only=True, phase="reference"),
@@ -313,9 +334,19 @@ async def _retrieve_platform_knowledge(
     )
     knowledge: list[dict[str, Any]] = []
     seen_paths: set[str] = set()
+    applicable_paths = applicable_platform_paths(
+        archetype=getattr(project, "archetype", None),
+        building_class=taxonomy.building_class,
+        work_type=taxonomy.work_type,
+        subclasses=taxonomy.subclasses,
+        work_scopes=effective_work_scopes(project),
+        include_required=False,
+    )
     for passage in passages:
         path = str(_attr(passage, "relative_path", ""))
         if path and path in seen_paths:
+            continue
+        if path and catalog_entry_for_path(path) is not None and path not in applicable_paths:
             continue
         if path:
             seen_paths.add(path)
@@ -328,9 +359,15 @@ def _required_guidance_paths(
     *,
     knowledge_workflow: str,
 ) -> list[str]:
+    from app.sitewise.archetype_bridge import (
+        effective_taxonomy,
+        effective_work_scopes,
+    )
+
     archetype = getattr(project, "archetype", None)
-    building_class = getattr(project, "building_class", None)
-    work_type = getattr(project, "work_type", None)
+    taxonomy = effective_taxonomy(project)
+    building_class = taxonomy.building_class
+    work_type = taxonomy.work_type
     if not archetype and not building_class:
         return []
     try:
@@ -339,6 +376,8 @@ def _required_guidance_paths(
             archetype=archetype or "",
             building_class=building_class,
             work_type=work_type,
+            subclasses=taxonomy.subclasses,
+            work_scopes=effective_work_scopes(project),
         )
     except ValueError:
         return []

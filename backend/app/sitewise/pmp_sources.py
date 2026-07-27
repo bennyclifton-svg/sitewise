@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Literal
 
 from app.sitewise.section_contracts import (
@@ -62,16 +63,21 @@ ARCHITECT_PM_PMP_SECTIONS: tuple[str, ...] = (
 PMP_DOCUMENT_TITLE = "Project Management Plan"
 
 
-def _project_taxonomy_kwargs(project: object | None) -> dict[str, str | None]:
+def _project_taxonomy_kwargs(project: object | None) -> dict[str, object]:
     if project is None or getattr(project, "building_class", None) is None:
         return {}
 
-    from app.sitewise.archetype_bridge import effective_taxonomy
+    from app.sitewise.archetype_bridge import (
+        effective_taxonomy,
+        effective_work_scopes,
+    )
 
     taxonomy = effective_taxonomy(project)
     return {
         "building_class": taxonomy.building_class,
         "work_type": taxonomy.work_type,
+        "subclasses": taxonomy.subclasses,
+        "work_scopes": effective_work_scopes(project),
     }
 
 
@@ -81,6 +87,8 @@ def required_platform_paths(
     project: object | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
 ) -> list[str]:
     """Return the mandatory doctrine + overlay + cross-cutting paths for Create PMP.
 
@@ -95,6 +103,10 @@ def required_platform_paths(
         taxonomy_kwargs["building_class"] = building_class
     if work_type is not None:
         taxonomy_kwargs["work_type"] = work_type
+    if subclasses is not None:
+        taxonomy_kwargs["subclasses"] = subclasses
+    if work_scopes is not None:
+        taxonomy_kwargs["work_scopes"] = work_scopes
     return select_required_paths(
         workflow="create-pmp",
         archetype=archetype,
@@ -141,6 +153,8 @@ def seed_consulted_includes_required(
     project: object | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
 ) -> list[str]:
     """Return mandatory seed paths missing from the model's seed_consulted list."""
     required = [
@@ -150,6 +164,8 @@ def seed_consulted_includes_required(
             project=project,
             building_class=building_class,
             work_type=work_type,
+            subclasses=subclasses,
+            work_scopes=work_scopes,
         )
         if path != DOCTRINE_PATH
     ]

@@ -1,17 +1,17 @@
 # Request for Fee Proposal - Structural engineer
 
 ## Project Summary
-| Field | Current PMP position | Citation |
+| Field | Project detail | Source |
 | --- | --- | --- |
-| Project | Walsh Renovation — User provided | — |
-| Site / address | TBC — User provided / Not evidenced | — |
-| Client | TBC — User provided / Not evidenced | — |
-| State | NSW — User provided | — |
-| Taxonomy | residential / refurb — User provided | — |
-| Subclass and scale | TBC; scale TBC — User provided | — |
-| Budget | TBC — User provided / Assumption | — |
-| Timeframe | TBC — User provided / Assumption | — |
-| Procurement route | TBC — User provided / Assumption | — |
+| Project | Walsh Renovation | Profile |
+| Site / address | TBC | Confirm |
+| Client | TBC | Confirm |
+| State | NSW | Profile |
+| Taxonomy | residential / refurb | Profile |
+| Subclass and scale | TBC; scale TBC | Profile |
+| Budget | TBC | Confirm |
+| Timeframe | TBC | Confirm |
+| Procurement route | TBC | Confirm |
 
 - Consultant discipline: Structural engineer
 
@@ -19,9 +19,7 @@
 The current project evidence defines the consultant briefing basis. [1]
 
 ## Requested services
-- Review architectural drawings, project brief, site constraints, and any geotechnical advice.
-- Provide structural design, drawings, calculations, certification inputs, and coordination advice.
-- Allow for builder queries, design clarifications, and construction-stage inspections where required.
+- Tailor the requested services to the evidenced project spaces and systems. [1]
 
 ## Information to review
 - Review the current project evidence before pricing. [1]
@@ -32,6 +30,7 @@ The current project evidence defines the consultant briefing basis. [1]
 - Hourly rates for variations, meetings, inspections, and additional design work.
 
 ## Programme / response date
+
 - Provide earliest availability, key programme assumptions, and duration for each stage.
 - Fee response date: TBC by client before issue.
 
@@ -39,11 +38,11 @@ The current project evidence defines the consultant briefing basis. [1]
 - Submit a lump-sum fee excluding GST, with GST shown separately.
 - Break the fee down by project stage and identify optional services, disbursements, and hourly rates.
 - State assumptions, exclusions, client inputs, authority fees, and validity period.
-- Internal benchmark: $16,500 ex GST judgement allowance for internal budget checking only; not a received fee proposal.
 
-## Exclusions / assumptions
-- This is a client-issued request for fee proposal, not a consultant-issued fee proposal.
-- The consultant must confirm scope, exclusions, programme, and fee basis before appointment.
+## Scope assumptions / exclusions to state
+- Identify every scope assumption, exclusion, optional service, reliance, and required client input in the fee proposal.
+- Separate consultant, client, landlord, authority, other-consultant, and contractor responsibilities.
+- State investigation, survey, authority-fee, meeting, site-visit, tender-support, construction-support, testing, and handover allowances.
 
 ## Site visit / clarifications
 - Confirm whether a site visit is required and list any preconditions for attendance.

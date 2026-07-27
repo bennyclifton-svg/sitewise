@@ -6,6 +6,7 @@ from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.workflows.runs import SUPPORTED_WORKFLOWS, canonical_request_hash
 from app.workflows.worker import _json_result
+from app.workflows.document_ingest import DocumentIngestResult
 from app.workflows.consultant_procurement import ConsultantProcurementResult
 from app.workflows.contractor_procurement import ContractorEoiResult
 from app.workflows import worker as workflow_worker
@@ -105,6 +106,10 @@ def test_contractor_eoi_is_supported_by_durable_run_boundary() -> None:
     assert "contractor_eoi" in SUPPORTED_WORKFLOWS
 
 
+def test_document_ingest_is_supported_by_durable_run_boundary() -> None:
+    assert "ingest_project_document" in SUPPORTED_WORKFLOWS
+
+
 def test_consultant_result_serialization_does_not_copy_sqlalchemy_state() -> None:
     draft = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000010",
@@ -175,3 +180,38 @@ def test_dispatches_contractor_eoi_to_durable_draft(monkeypatch) -> None:
         "/02-procurement/contractor_eoi_main_works_v01.draft.md"
     )
     assert draft_eoi.await_args.kwargs["auto_commit"] is False
+
+
+def test_dispatches_document_ingest_to_the_worker(monkeypatch) -> None:
+    workspace_file_id = uuid.UUID("00000000-0000-0000-0000-000000000010")
+    run = SimpleNamespace(
+        id=uuid.UUID("00000000-0000-0000-0000-000000000011"),
+        workflow_type="ingest_project_document",
+        requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        requested_by_thread_id=None,
+        frozen_artefact_version=None,
+        run_brief={
+            "snapshot": _snapshot().model_dump(mode="json"),
+            "project": {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "owner_user_id": "00000000-0000-0000-0000-000000000002",
+                "slug": "test",
+                "title": "Test",
+                "workspace_path": "04-projects/test",
+                "phase": "procurement",
+                "status": "active",
+            },
+            "parameters": {"workspace_file_id": str(workspace_file_id)},
+        },
+    )
+    ingest = AsyncMock(
+        return_value=DocumentIngestResult(
+            workspace_file_id=str(workspace_file_id), ingest_status="ingested"
+        )
+    )
+    monkeypatch.setattr(workflow_worker, "ingest_project_document", ingest)
+
+    payload = run_async(workflow_worker._dispatch(AsyncMock(), run))
+
+    assert payload["ingest_status"] == "ingested"
+    assert ingest.await_args.kwargs["workspace_file_id"] == workspace_file_id

@@ -70,20 +70,32 @@ def test_validate_upload_batch_rejects_unsupported_extension() -> None:
         validate_upload_batch([InboxUploadItem(filename="notes.txt", content=b"hello")])
     assert exc_info.value.status_code == 400
 
-def test_upload_inbox_files_stores_and_ingests(mock_session: AsyncMock) -> None:
+def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
+    mock_session: AsyncMock,
+) -> None:
     project = _project()
     content = b"# Procurement matrix\n\nEvaluation content."
+    snapshot = type(
+        "Snapshot",
+        (),
+        {
+            "content_fingerprint": "a" * 64,
+            "profile": type("Profile", (), {"profile_revision": 1})(),
+            "decisions": type("Decisions", (), {"set_revision": 1})(),
+        },
+    )()
 
     async def _run() -> None:
         with (
             patch("app.inbox.service.get_workspace_file_by_path", new=AsyncMock(return_value=None)),
             patch("app.inbox.service.upload_project_file") as mock_upload,
-            patch("app.inbox.service.ingest_hosted_file", return_value=True) as mock_ingest,
-            patch("app.inbox.service.source_document_id_for_path", return_value=uuid.uuid4()),
             patch(
                 "app.inbox.service.sort_inbox_files",
-                new=AsyncMock(return_value=type("SortResult", (), {"records": []})()),
-            ),
+                new=AsyncMock(),
+                create=True,
+            ) as mock_sort,
+            patch("app.inbox.service.ingest_hosted_file", create=True) as mock_ingest,
+            patch("app.inbox.service.start_workflow_run", new=AsyncMock(return_value=(object(), True)), create=True) as mock_start,
             patch(
                 "app.inbox.service.upsert_workspace_file",
                 new=AsyncMock(
@@ -102,13 +114,26 @@ def test_upload_inbox_files_stores_and_ingests(mock_session: AsyncMock) -> None:
                 mock_session,
                 project=project,
                 items=[InboxUploadItem(filename="matrix.md", content=content, relative_path="EVALUATION")],
+                user_id=USER_ID,
+                snapshot=snapshot,
             )
 
         mock_upload.assert_called_once()
-        mock_ingest.assert_called_once()
+        mock_ingest.assert_not_called()
+        mock_sort.assert_not_called()
+        mock_start.assert_awaited_once()
+        assert mock_start.await_args.kwargs["workflow_type"] == "ingest_project_document"
+        assert mock_start.await_args.kwargs["request"].parameters == {
+            "workspace_file_id": str(outcomes[0].id),
+            "document_metadata": {},
+        }
+        assert mock_start.await_args.kwargs["request"].idempotency_key.endswith(
+            outcomes[0].content_hash
+        )
         assert len(outcomes) == 1
         assert outcomes[0].workspace_path == "04-projects/demo/_inbox/EVALUATION/matrix.md"
-        assert outcomes[0].ingest_status == "ingested"
+        assert outcomes[0].ingest_status == "queued"
+        assert outcomes[0].message == "Uploaded; ingestion queued"
         mock_session.commit.assert_called_once()
 
     run_async(_run())
@@ -128,7 +153,7 @@ def test_post_inbox_upload_requires_project_ownership(client: TestClient, mock_s
 
 
 def test_post_inbox_upload_returns_upload_results(client: TestClient, mock_session: AsyncMock) -> None:
-    async def fake_upload_inbox_files(session, *, project, items):
+    async def fake_upload_inbox_files(session, *, project, items, user_id, snapshot):
         return [
             InboxUploadOutcome(
                 id=uuid.uuid4(),
@@ -144,6 +169,7 @@ def test_post_inbox_upload_returns_upload_results(client: TestClient, mock_sessi
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.ensure_user_exists", new=AsyncMock()),
+        patch("app.api.projects.get_project_snapshot", new=AsyncMock(return_value=object())),
         patch("app.api.projects.upload_inbox_files", side_effect=fake_upload_inbox_files),
     ):
         response = client.post(
@@ -155,3 +181,92 @@ def test_post_inbox_upload_returns_upload_results(client: TestClient, mock_sessi
     payload = response.json()
     assert payload["files"][0]["ingest_status"] == "ingested"
     assert payload["files"][0]["workspace_path"].endswith("/_inbox/report.md")
+
+
+def test_post_document_repair_preview_is_read_only_and_returns_proposals(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
+    from app.intake.repair_service import FileRepairPreview, FileRepairPreviewResult
+
+    preview = FileRepairPreviewResult(
+        inspected=1,
+        changes=1,
+        rows=[
+            FileRepairPreview(
+                status="change",
+                current_path="04-projects/demo/03-design/architect/HY-SK~1.PDF",
+                current_filename="HY-SK~1.PDF",
+                proposed_path=(
+                    "04-projects/demo/03-design/hydraulic/"
+                    "HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF"
+                ),
+                proposed_filename="HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF",
+                document_number="HY-SK-06",
+                title="ROOF DRAINAGE PLAN",
+                revision="P1",
+                category="Hydraulic",
+                confidence="high",
+                changes=("folder", "filename", "metadata"),
+            )
+        ],
+    )
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.projects.preview_existing_file_repairs",
+            new=AsyncMock(return_value=preview),
+            create=True,
+        ),
+    ):
+        response = client.post(f"/projects/{PROJECT_ID}/document-repairs/preview")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["inspected"] == 1
+    assert payload["changes"] == 1
+    assert payload["rows"][0]["document_number"] == "HY-SK-06"
+    mock_session.commit.assert_not_awaited()
+
+
+def test_post_document_repair_apply_requires_explicit_paths(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
+    from app.intake.repair_service import FileRepairApplyResult, FileRepairApplyRow
+
+    current_path = "04-projects/demo/03-design/architect/HY-SK~1.PDF"
+    applied = FileRepairApplyResult(
+        applied=1,
+        rows=[
+            FileRepairApplyRow(
+                current_path=current_path,
+                proposed_path=(
+                    "04-projects/demo/03-design/hydraulic/"
+                    "HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF"
+                ),
+                status="applied",
+            )
+        ],
+    )
+    apply_repairs = AsyncMock(return_value=applied)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.projects.apply_existing_file_repairs",
+            new=apply_repairs,
+            create=True,
+        ),
+    ):
+        response = client.post(
+            f"/projects/{PROJECT_ID}/document-repairs/apply",
+            json={"workspace_paths": [current_path]},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["applied"] == 1
+    assert apply_repairs.await_args.kwargs["workspace_paths"] == {current_path}

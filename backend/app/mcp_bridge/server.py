@@ -652,11 +652,25 @@ def _project_overlay_gate(project) -> tuple[object, dict]:
     return status, gate
 
 
-def _platform_overlay_kwargs(project) -> dict[str, str | None]:
+def _platform_overlay_kwargs(project) -> dict[str, object]:
+    from app.sitewise.archetype_bridge import (
+        effective_taxonomy,
+        effective_work_scopes,
+    )
+
+    if getattr(project, "building_class", None) is None:
+        return {
+            "archetype": project.archetype,
+            "building_class": None,
+            "work_type": None,
+        }
+    taxonomy = effective_taxonomy(project)
     return {
         "archetype": project.archetype,
-        "building_class": project.building_class,
-        "work_type": project.work_type,
+        "building_class": taxonomy.building_class,
+        "work_type": taxonomy.work_type,
+        "subclasses": taxonomy.subclasses,
+        "work_scopes": effective_work_scopes(project),
     }
 
 
@@ -1408,7 +1422,7 @@ async def start_consultant_procurement(
     expected_snapshot_fingerprint: str,
     expected_profile_revision: int,
     expected_decision_set_revision: int,
-    max_pages: int = 1,
+    max_pages: int = 3,
     instructions: str | None = None,
 ) -> dict:
     """Queue a durable consultant request-for-fee-proposal artefact."""
@@ -2391,7 +2405,7 @@ async def apply_consultant_fee_forecast(
 async def draft_consultant_procurement_artifact(
     project_id: str,
     discipline: str,
-    max_pages: int = 1,
+    max_pages: int = 3,
     instructions: str | None = None,
 ) -> dict:
     """Create a saved request-for-fee-proposal draft for a consultant discipline.
@@ -2868,9 +2882,7 @@ async def list_platform_knowledge(
             required = _required_platform_paths_for_project(project)
             available = await catalog_platform_knowledge(
                 session,
-                archetype=project.archetype,
-                building_class=project.building_class,
-                work_type=project.work_type,
+                **_platform_overlay_kwargs(project),
                 topics=topics,
             )
         return {"gate": gate, "required": required, "available": available}

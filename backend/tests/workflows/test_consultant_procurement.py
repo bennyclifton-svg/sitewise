@@ -163,6 +163,9 @@ def _install(
         token = citation_index.token_for(path)
         return RfpNarrativeOutput(
             background=f"The current project evidence defines the consultant briefing basis. {token}",
+            requested_services=[
+                f"Tailor the requested services to the evidenced project spaces and systems. {token}"
+            ],
             information_to_review=[f"Review the current project evidence before pricing. {token}"],
         )
 
@@ -241,14 +244,18 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     )
     assert "# Request for Fee Proposal - Structural engineer" in result.draft.content_markdown
     assert "## Project Summary" in result.draft.content_markdown
-    assert "| Field | Current PMP position | Citation |" in result.draft.content_markdown
-    assert "client-issued request for fee proposal" in result.draft.content_markdown
+    assert "| Field | Project detail | Source |" in result.draft.content_markdown
+    assert "client-issued request for fee proposal" not in result.draft.content_markdown
+    assert any(
+        "client-issued request for fee proposal" in item
+        for item in result.source_trace["assumptions"]
+    )
     assert "## Citation key" in result.draft.content_markdown
     assert "[1]" in result.draft.content_markdown
-    assert "| Site / address | TBC — User provided / Not evidenced | — |" in (
+    assert "| Site / address | TBC | Confirm |" in (
         result.draft.content_markdown
     )
-    assert "| Client | TBC — User provided / Not evidenced | — |" in (
+    assert "| Client | TBC | Confirm |" in (
         result.draft.content_markdown
     )
     assert result.source_trace["project_documents"]
@@ -359,6 +366,150 @@ def test_mechanical_rfp_consults_technical_guide_and_targeted_evidence(
     ]
 
 
+def test_mechanical_rfp_uses_evidence_tailored_requested_services(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="design-brief.pdf",
+                    path="04-projects/industrial/00-brief/design-brief.pdf",
+                    content=(
+                        "The 2,135 m² warehouse includes offices, wet-area amenities, "
+                        "MHE charging ventilation and smoke clearance."
+                    ),
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    result = _run(
+        session=_Session(),
+        discipline="mechanical engineer",
+        project=_project(
+            title="Industrial",
+            building_class="industrial",
+            work_type="extend",
+            project_metadata={
+                "taxonomy": {
+                    "subclasses": ["warehouse"],
+                    "scale": {"gfa_sqm": 2135, "office_percent": 9.3},
+                }
+            },
+        ),
+    )
+
+    requested = result.draft.content_markdown.split(
+        "## Requested services", maxsplit=1
+    )[1].split("## Information to review", maxsplit=1)[0]
+    assert (
+        "Tailor the requested services to the evidenced project spaces and systems. [1]"
+        in requested
+    )
+    assert "dwellings, common areas, car parking" not in requested
+
+
+def test_hydraulic_profile_uses_discipline_guide_and_fitout_controls() -> None:
+    profile = normalise_discipline("hydraulic engineer")
+
+    assert profile.knowledge_paths == ("seed/hydraulic-services-guide.md",)
+    assert "sanitary drainage" in profile.knowledge_query_terms
+    assert any("landlord" in item.lower() for item in profile.requested_services)
+    assert any("design-basis" in item.lower() for item in profile.deliverables)
+
+
+@pytest.mark.parametrize(
+    ("discipline", "expected_name", "expected_path"),
+    [
+        (
+            "electrical engineer",
+            "Electrical Services Engineer",
+            "seed/electrical-services-guide.md",
+        ),
+        (
+            "fire engineer",
+            "Fire engineer",
+            "seed/fire-life-safety-guide.md",
+        ),
+        (
+            "ESD consultant",
+            "Sustainability Consultant",
+            "seed/non-residential-sustainability-energy-guide.md",
+        ),
+        (
+            "ICT consultant",
+            "ICT / AV / Security Consultant",
+            "seed/ict-av-security-guide.md",
+        ),
+    ],
+)
+def test_new_discipline_profiles_route_to_deep_guidance(
+    discipline: str,
+    expected_name: str,
+    expected_path: str,
+) -> None:
+    profile = normalise_discipline(discipline)
+
+    assert profile.name == expected_name
+    assert profile.knowledge_paths == (expected_path,)
+    assert any("fee breakdown" in item.lower() for item in profile.deliverables)
+
+
+def test_commercial_fitout_filters_semantic_guidance_to_project_taxonomy(
+    monkeypatch,
+) -> None:
+    retriever = _StubRetriever(
+        platform_passages=[
+            _passage(
+                filename="nsw-industrial-warehouse-cost-breakdown-reference.md",
+                path="skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md",
+                content="Industrial warehouse cost taxonomy.",
+                source_type="reference",
+            ),
+            _passage(
+                filename="procurement-quoting-guide.md",
+                path="seed/procurement-quoting-guide.md",
+                content="Residential procurement guidance.",
+                source_type="reference",
+            ),
+            _passage(
+                filename="mechanical-services-guide.md",
+                path="seed/mechanical-services-guide.md",
+                content="Mechanical services consultant guidance.",
+                source_type="reference",
+            ),
+            _passage(
+                filename="nsw-commercial-fitout-cost-breakdown-reference.md",
+                path="skills/reference/nsw-commercial-fitout-cost-breakdown-reference.md",
+                content="Commercial fit-out consultant fee stages.",
+                source_type="reference",
+            ),
+        ]
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    result = _run(
+        session=_Session(),
+        discipline="hydraulic engineer",
+        project=_project(
+            title="Meridian Chambers Fit-Out",
+            building_class="commercial",
+            work_type="refurb",
+            user_role="d-and-c",
+            project_metadata={"taxonomy": {"subclasses": ["office"]}},
+        ),
+    )
+
+    paths = {
+        item["path"] for item in result.source_trace["platform_knowledge"]
+    }
+    assert "skills/reference/nsw-commercial-fitout-cost-breakdown-reference.md" in paths
+    assert "seed/hydraulic-services-guide.md" in paths
+    assert "skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md" not in paths
+    assert "seed/procurement-quoting-guide.md" not in paths
+    assert "seed/mechanical-services-guide.md" not in paths
+
+
 def test_auto_versioning_path_names_use_next_workflow_version(monkeypatch) -> None:
     retriever = _StubRetriever()
     _install(monkeypatch, retriever=retriever, version=12, cost_plan=None)
@@ -446,11 +597,12 @@ def test_forecast_values_are_labelled_as_judgement_allowances(monkeypatch) -> No
 
     result = _run(session=session, discipline="structural engineer")
 
-    assert "$16,500 ex GST judgement allowance" in result.draft.content_markdown
-    assert "not a received fee proposal" in result.draft.content_markdown
     forecast = result.source_trace["forecast"]
     assert forecast["status"] == "Judgement"
     assert forecast["basis"] == "Benchmark allowance - consultant fee forecast"
+    assert "$16,500 ex GST judgement allowance" in forecast["label"]
+    assert "not a received fee proposal" in forecast["label"]
+    assert "judgement allowance" not in result.draft.content_markdown
 
 
 def test_fee_proposals_excluded_from_inputs_and_reconciled(monkeypatch) -> None:
@@ -484,13 +636,76 @@ def test_fee_proposals_excluded_from_inputs_and_reconciled(monkeypatch) -> None:
     md = result.draft.content_markdown
     # Leakage guard: the competing structural fee proposal is not circulated.
     assert "p02-01-fee-proposal-southline-structural.md" not in md
-    # Reconciliation: the parametric benchmark no longer overrides real evidence silently.
-    assert "received consultant fee proposal is on file" in md
-    assert "$20,150 ex GST" in md
-    assert "reconcile the internal benchmark against it" in md
+    # Reconciliation remains available internally without leaking competitor
+    # pricing or benchmark commentary into the issued RFP.
+    assert "received consultant fee proposal is on file" not in md
+    assert "$20,150 ex GST" not in md
     forecast = result.source_trace["forecast"]
     assert forecast["received_proposal_on_file"] is True
     assert forecast["received_proposal_amount"] == 20150
+
+
+def test_other_discipline_fee_proposal_can_supply_project_scope(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="04-fee-proposal-form-function-studio.md",
+                    path="04-projects/fitout/_inbox/04-fee-proposal-form-function-studio.md",
+                    content=(
+                        "Architect and project management fee proposal for Meridian "
+                        "Chambers Fit-Out, including a kitchenette, breakout area and "
+                        "Level 4 mezzanine."
+                    ),
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    result = _run(
+        session=_Session(),
+        discipline="hydraulic engineer",
+        project=_project(building_class="commercial", work_type="refurb"),
+    )
+
+    assert "04-fee-proposal-form-function-studio.md" in (
+        result.draft.provenance_metadata["evidence_refs"]
+    )[0]
+
+
+def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="engagement-letter.md",
+                    path="04-projects/fitout/00-brief/engagement-letter.md",
+                    content="Target possession is 1 November 2026.",
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    async def _programme_narrative(**kwargs: Any) -> RfpNarrativeOutput:
+        return RfpNarrativeOutput(
+            background="The current programme is evidenced. [1]",
+            requested_services=["Provide staged hydraulic services. [1]"],
+            information_to_review=["Review the engagement letter. [1]"],
+            programme=["Target possession is 1 November 2026. [1]"],
+        )
+
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", _programme_narrative)
+    result = _run(
+        session=_Session(),
+        discipline="hydraulic engineer",
+        project=_project(building_class="commercial", work_type="refurb"),
+    )
+
+    assert "| Timeframe | See programme below | [1] |" in (
+        result.draft.content_markdown
+    )
 
 
 def test_platform_guidance_resolved_from_catalog_when_semantic_search_empty(monkeypatch) -> None:
@@ -701,10 +916,12 @@ def test_rfp_narrative_retries_after_invalid_citation(monkeypatch) -> None:
     citation_index = build_rfp_citation_index(evidence)
     invalid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [99]",
+        requested_services=["Provide project-specific planning services. [1]"],
         information_to_review=["Review the site plan. [2]"],
     )
     valid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [1]",
+        requested_services=["Provide project-specific planning services. [1]"],
         information_to_review=["Review the site plan. [2]"],
     )
     run_narrative = AsyncMock(side_effect=[invalid, valid])
@@ -730,6 +947,7 @@ def test_rfp_narrative_reraises_after_three_invalid_attempts(monkeypatch) -> Non
     citation_index = build_rfp_citation_index(evidence)
     invalid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [99]",
+        requested_services=["Provide project-specific planning services. [1]"],
         information_to_review=["Review the site plan. [2]"],
     )
     run_narrative = AsyncMock(return_value=invalid)
@@ -764,10 +982,12 @@ def test_rfp_draft_retries_invalid_narrative_before_persisting(monkeypatch) -> N
     _install(monkeypatch, retriever=retriever, cost_plan=None)
     invalid = RfpNarrativeOutput(
         background="The project brief defines the scope. [99]",
+        requested_services=["Provide project-specific planning services. [1]"],
         information_to_review=["Review the brief. [1]"],
     )
     valid = RfpNarrativeOutput(
         background="The project brief defines the scope. [1]",
+        requested_services=["Provide project-specific planning services. [1]"],
         information_to_review=["Review the brief. [1]"],
     )
     run_narrative = AsyncMock(side_effect=[invalid, valid])

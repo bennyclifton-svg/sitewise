@@ -12,6 +12,7 @@ from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
 from app.database.project import Project
 from app.sitewise.pmp_citations import CitationIndex
+from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context
 
 if TYPE_CHECKING:
     from app.workflows.consultant_procurement import DisciplineProfile
@@ -22,7 +23,9 @@ _INSTRUCTIONS_PATH = Path(__file__).with_name("rfp_narrative_instructions.md")
 
 class RfpNarrativeOutput(BaseModel):
     background: str = Field(min_length=1)
+    requested_services: list[str] = Field(default_factory=list)
     information_to_review: list[str] = Field(default_factory=list)
+    programme: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 
 
@@ -51,7 +54,20 @@ def build_rfp_narrative_prompt(
     parts = [
         f"Project: {project.title}",
         f"Consultant discipline: {target.name}",
-        "Write only the Background and Information to review narrative slots.",
+        "Project profile:",
+        _format_project_profile(project),
+        "Relevant taxonomy emphasis:",
+        _format_taxonomy_emphasis(project),
+        (
+            "Requested services is the highest-priority RFP section. Give it the most "
+            "project-specific detail and cut generic or inapplicable template language first."
+        ),
+        "Baseline requested services to tailor:",
+        "\n".join(f"- {item}" for item in target.requested_services),
+        (
+            "Write only the Background, Requested services, Information to review, "
+            "and Programme narrative slots."
+        ),
         "Project evidence (use the assigned token exactly; do not invent citations):",
         _format_project_evidence(project_evidence, citation_index),
         "Platform knowledge (guidance only, not project evidence):",
@@ -116,3 +132,36 @@ def _format_platform_knowledge(platform_knowledge: list[dict[str, Any]]) -> str:
         snippet = " ".join(str(item.get("snippet") or "").split())
         lines.append(f"- {title}: {snippet or 'No extract available.'}")
     return "\n".join(lines)
+
+
+def _format_project_profile(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "- Taxonomy profile unavailable; rely on cited project evidence."
+    parts = [context.building_class, context.work_type or "TBC", *context.subclasses]
+    gfa = context.scale.get("gfa_sqm")
+    if isinstance(gfa, (int, float)):
+        parts.append(f"{gfa:g} m² GFA")
+    office = context.scale.get("office_percent")
+    if isinstance(office, (int, float)):
+        parts.append(f"office {office:g}%")
+    return f"- {' / '.join(parts)}"
+
+
+def _format_taxonomy_emphasis(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "- No emphasis profile available."
+    relevant = (
+        "scope-client-requirements",
+        "consultants",
+        "compliance-approvals",
+    )
+    weights = ", ".join(
+        f"{section}={context.section_weights.get(section, 0):.0%}"
+        for section in relevant
+    )
+    return (
+        f"- {weights}. Carry the profile's strongest applicable scope and compliance "
+        "signals into the requested services."
+    )

@@ -12,7 +12,18 @@ from app.database.source_document import SourceDocument
 
 SUPERSEDED_STATUS = "superseded"
 _GENERIC_DOCUMENT_NUMBERS = frozenset(
-    {"drawing", "plan", "report", "section", "sheet", "sketch"}
+    {
+        "annex",
+        "anx",
+        "appendix",
+        "attachment",
+        "drawing",
+        "plan",
+        "report",
+        "section",
+        "sheet",
+        "sketch",
+    }
 )
 
 

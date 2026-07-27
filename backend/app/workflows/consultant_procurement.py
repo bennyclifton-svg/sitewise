@@ -38,6 +38,8 @@ from app.sitewise.rfp_evidence_validation import validate_rfp_output
 from app.sitewise.rfp_renderer import (
     BACKGROUND_PLACEHOLDER,
     INFORMATION_TO_REVIEW_PLACEHOLDER,
+    PROGRAMME_PLACEHOLDER,
+    REQUESTED_SERVICES_PLACEHOLDER,
     build_rfp_citation_index,
     render_rfp_scaffold,
 )
@@ -141,15 +143,72 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     _normalise_key("hydraulic engineer"): _profile(
         "Hydraulic engineer",
         benchmark_terms=("hydraulic", "wastewater"),
+        knowledge_paths=("seed/hydraulic-services-guide.md",),
+        knowledge_query_terms=(
+            "hydraulic services",
+            "potable water",
+            "sanitary drainage",
+            "hot water",
+            "trade waste",
+            "landlord interfaces",
+            "testing",
+            "commissioning",
+        ),
+        evidence_query_terms=(
+            "hydraulic plumbing sanitary drainage water hot water fixtures kitchenette amenities",
+            "existing services riser stack capacity connection metering isolation landlord shutdown",
+            "trade waste gas stormwater fire water penetrations waterproofing commissioning",
+        ),
         requested_services=(
-            "Review the project brief, authority pathway, site services, and architectural/design documents.",
-            "Advise on hydraulic, stormwater, sewer, water, drainage, and authority-service interfaces.",
-            "Coordinate design documentation and certification inputs with the project team.",
+            "Review the brief, layouts, existing-services records, landlord information, approval pathway, and affected hydraulic systems; identify missing investigations before accepting the design basis.",
+            "Confirm potable water, sanitary drainage, hot-water, fixture, metering, isolation, connection, capacity, access, shutdown, and tenant/landlord requirements applicable to the evidenced scope.",
+            "Treat stormwater, trade waste, gas, fire-water, and whole-building infrastructure as conditional scope, and state their inclusion, exclusion, or coordination boundary explicitly.",
+            "Coordinate hydraulic layouts, equipment, risers, ceiling zones, penetrations, fire stopping, waterproofing, structure, fire, mechanical, electrical, civil, and architectural interfaces.",
+            "Define approval, landlord-review, authority, certification, inspection, tender, construction-support, testing, commissioning, and handover responsibilities by project stage.",
+            "State design responsibility boundaries, required client inputs, assumptions, exclusions, optional services, programme, meetings, site visits, fee stages, rates, and disbursements.",
         ),
         deliverables=(
-            "Hydraulic services fee proposal with staged design and documentation scope.",
-            "Authority coordination assumptions and required client/site information.",
-            "Exclusions, disbursements, hourly rates, and optional service items.",
+            "Existing-services due-diligence and hydraulic design-basis report identifying affected systems, investigations, capacity assumptions, criteria, interfaces, and unresolved decisions.",
+            "Responsibility schedule separating tenant, landlord, base-building, fire-services, civil, contractor-designed, authority, and client-direct scope.",
+            "Calculations, coordinated drawings, schematics, details, specifications, fixture/equipment schedules, penetration information, and certification inputs appropriate to each agreed stage.",
+            "Landlord, certifier, and authority submission material, responses, inspections, declarations, and completion records applicable to the confirmed pathway.",
+            "Tender and construction support including tender queries, addenda, RFIs, submittal/shop-drawing reviews, site inspections, defects, and revision registers.",
+            "Testing and commissioning requirements, witness records, as-built and O&M review, training, handover inputs, and outstanding-items schedule.",
+            "Fee breakdown by stage with personnel, meetings, investigations, site visits, disbursements, hourly rates, programme, exclusions, optional services, and required client inputs.",
+        ),
+    ),
+    _normalise_key("electrical services engineer"): _profile(
+        "Electrical Services Engineer",
+        slug="electrical_engineer",
+        benchmark_terms=("electrical", "lighting", "power"),
+        knowledge_paths=("seed/electrical-services-guide.md",),
+        knowledge_query_terms=(
+            "electrical services",
+            "utility supply",
+            "distribution",
+            "lighting",
+            "emergency power",
+            "metering",
+            "controls",
+            "commissioning",
+        ),
+        evidence_query_terms=(
+            "electrical power supply switchboard distribution lighting metering",
+            "existing services capacity utility landlord riser generator UPS",
+            "emergency lighting controls security ICT fire interfaces commissioning",
+        ),
+        requested_services=(
+            "Review the brief, available electrical records, utility and landlord information, approval pathway, and the affected electrical systems.",
+            "Establish supply, demand, distribution, lighting, emergency-power, metering, controls and resilience design criteria appropriate to the confirmed project scope.",
+            "Coordinate spatial, structural, fire, mechanical, hydraulic, ICT, security, controls, utility, shutdown and builder's-work interfaces.",
+            "Define staged design, approval, tender, construction support, testing, commissioning, certification and handover services, including optional and excluded scope.",
+        ),
+        deliverables=(
+            "Electrical design-basis and existing-services due-diligence report with unresolved capacity and interface decisions.",
+            "Coordinated calculations, drawings, schematics, specifications, schedules and builder's-work requirements appropriate to each stage.",
+            "Utility, landlord, certifier and authority submission inputs, tender and construction support, inspection and defect allowances.",
+            "Testing, commissioning, witness, training, O&M, as-built and completion evidence requirements.",
+            "Fee breakdown by stage with assumptions, exclusions, optional services, meetings, site visits, disbursements and variation rates.",
         ),
     ),
     _normalise_key("mechanical services engineer"): _profile(
@@ -222,6 +281,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     _normalise_key("BASIX / energy assessor"): _profile(
         "BASIX / energy assessor",
         benchmark_terms=("basix", "energy", "nathers"),
+        knowledge_paths=("seed/sustainability-energy-guide.md",),
         requested_services=(
             "Review the project brief, plans, building fabric assumptions, and planning approval pathway.",
             "Price BASIX, NatHERS, energy modelling, sustainability advice, and certificate updates as required.",
@@ -278,15 +338,84 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     _normalise_key("fire engineer"): _profile(
         "Fire engineer",
         benchmark_terms=("fire engineering", "fire safety"),
+        knowledge_paths=("seed/fire-life-safety-guide.md",),
         requested_services=(
             "Review the project brief, building classification, proposed works, and fire-safety constraints.",
-            "Advise on performance solutions, fire-safety measures, and the approval pathway where required.",
-            "Coordinate fire-engineering documentation with the design team, certifier, and relevant authorities.",
+            "Establish the fire and life-safety design basis, existing-system constraints, egress strategy, passive and active measures, smoke-control interfaces, and approval pathway.",
+            "Define any performance-solution process, stakeholder consultation, analysis, peer review, authority and certifier inputs without assuming that a performance solution is required.",
+            "Coordinate architecture, structure, facade, mechanical, electrical, hydraulic, controls, access, security, vertical-transport and builder's-work interfaces.",
+            "Price staged design, documentation, tender support, construction verification, integrated testing, certification inputs and handover services separately.",
         ),
         deliverables=(
-            "Fire-engineering fee proposal with the assessment, report, and certification scope.",
-            "Assumptions on performance solutions, authority consultation, and required design inputs.",
-            "Hourly rates for design revisions, meetings, authority responses, and construction-stage advice.",
+            "Fire and life-safety design-basis, compliance strategy and responsibility matrix.",
+            "Reports, drawings, schedules, specifications, cause-and-effect inputs and certification deliverables appropriate to the agreed pathway.",
+            "Design reviews, tender responses, submittal reviews, inspections, passive-fire evidence and integrated-testing requirements.",
+            "Handover evidence schedule covering test records, defects, declarations, O&M, training and essential-safety-measure inputs.",
+            "Fee breakdown by stage with assumptions, exclusions, options, meetings, site visits, authority engagement and variation rates.",
+        ),
+    ),
+    _normalise_key("sustainability consultant"): _profile(
+        "Sustainability Consultant",
+        benchmark_terms=("sustainability", "energy", "section j"),
+        knowledge_paths=("seed/non-residential-sustainability-energy-guide.md",),
+        knowledge_query_terms=(
+            "non-residential sustainability",
+            "energy efficiency",
+            "Section J",
+            "NABERS",
+            "Green Star",
+            "embodied carbon",
+            "commissioning",
+        ),
+        evidence_query_terms=(
+            "sustainability targets energy compliance Section J NABERS Green Star",
+            "operational energy embodied carbon metering commissioning tuning",
+            "planning conditions client brief landlord requirements reporting",
+        ),
+        requested_services=(
+            "Review the client brief, planning conditions, building classification, design status and any rating or reporting commitments.",
+            "Define the applicable compliance, operational-energy, embodied-carbon, rating, metering, commissioning and evidence pathways without assuming a target not stated in project evidence.",
+            "Coordinate performance criteria and required inputs across architecture, facade, mechanical, electrical, hydraulic, fire, controls and cost planning.",
+            "Price design-stage modelling, submissions, procurement support, construction reviews, commissioning verification, handover and post-occupancy services separately.",
+        ),
+        deliverables=(
+            "Sustainability design-basis, commitments register and evidence matrix.",
+            "Compliance and modelling reports, specifications, schedules and submission inputs appropriate to the agreed pathway.",
+            "Design reviews, procurement clauses, submittal reviews, site verification and commissioning/tuning requirements.",
+            "Fee breakdown by stage with assumptions, exclusions, optional services, programme, inputs and variation rates.",
+        ),
+    ),
+    _normalise_key("ICT / AV / security consultant"): _profile(
+        "ICT / AV / Security Consultant",
+        slug="ict_av_security_consultant",
+        benchmark_terms=("ict", "av", "security"),
+        knowledge_paths=("seed/ict-av-security-guide.md",),
+        knowledge_query_terms=(
+            "ICT",
+            "structured cabling",
+            "audiovisual",
+            "security",
+            "access control",
+            "CCTV",
+            "technology commissioning",
+        ),
+        evidence_query_terms=(
+            "ICT AV security technology brief network structured cabling",
+            "access control CCTV audiovisual rooms racks pathways power cooling",
+            "landlord client IT standards commissioning training handover",
+        ),
+        requested_services=(
+            "Review the operational brief, client technology standards, existing systems, landlord interfaces and cybersecurity or privacy constraints.",
+            "Define ICT, structured-cabling, AV, security, access-control, CCTV, intercom, pathways, space, power, cooling and integration scope relevant to the project.",
+            "Coordinate architecture, electrical, mechanical, fire, vertical transport, furniture, signage and client-direct equipment interfaces.",
+            "Define design, procurement, construction support, testing, integrated commissioning, training and handover services with responsibility boundaries.",
+        ),
+        deliverables=(
+            "Technology design-basis and responsibility matrix separating consultant, contractor, landlord, carrier and client-IT scope.",
+            "Coordinated drawings, schematics, room data, equipment schedules, specifications and procurement packages.",
+            "Tender support, submittal reviews, inspections, testing scripts, integrated commissioning records and defects support.",
+            "Asset, configuration, warranty, training, O&M and as-built handover requirements.",
+            "Fee breakdown by stage with assumptions, exclusions, options, programme, meetings, site visits and variation rates.",
         ),
     ),
     _normalise_key("acoustic consultant"): _profile(
@@ -382,6 +511,15 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("building certifier pca"): _normalise_key("certifier"),
     _normalise_key("principal certifying authority"): _normalise_key("certifier"),
     _normalise_key("hydraulic consultant"): _normalise_key("hydraulic engineer"),
+    _normalise_key("electrical engineer"): _normalise_key(
+        "electrical services engineer"
+    ),
+    _normalise_key("electrical consultant"): _normalise_key(
+        "electrical services engineer"
+    ),
+    _normalise_key("services engineer electrical"): _normalise_key(
+        "electrical services engineer"
+    ),
     _normalise_key("mechanical engineer"): _normalise_key(
         "mechanical services engineer"
     ),
@@ -400,6 +538,19 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("civil engineer"): _normalise_key("civil / stormwater engineer"),
     _normalise_key("stormwater engineer"): _normalise_key("civil / stormwater engineer"),
     _normalise_key("stormwater consultant"): _normalise_key("civil / stormwater engineer"),
+    _normalise_key("esd consultant"): _normalise_key("sustainability consultant"),
+    _normalise_key("ecologically sustainable design consultant"): _normalise_key(
+        "sustainability consultant"
+    ),
+    _normalise_key("ict consultant"): _normalise_key(
+        "ICT / AV / security consultant"
+    ),
+    _normalise_key("av consultant"): _normalise_key(
+        "ICT / AV / security consultant"
+    ),
+    _normalise_key("security consultant"): _normalise_key(
+        "ICT / AV / security consultant"
+    ),
     _normalise_key("town planning"): _normalise_key("town planner"),
     _normalise_key("town planning consultant"): _normalise_key("town planner"),
     _normalise_key("planning consultant"): _normalise_key("town planner"),
@@ -619,6 +770,24 @@ class ConsultantDocument(ProcurementDocument):
     ) -> tuple[str, ...]:
         return tuple(getattr(target, "knowledge_paths", ()))
 
+    def filter_platform_knowledge(
+        self,
+        knowledge: list[dict[str, Any]],
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        target_paths = set(getattr(target, "knowledge_paths", ()))
+        discipline_paths = {
+            path
+            for profile in DISCIPLINE_PROFILES.values()
+            for path in profile.knowledge_paths
+        }
+        return [
+            item
+            for item in knowledge
+            if (path := str(item.get("path") or "")) not in discipline_paths
+            or path in target_paths
+        ]
+
     async def forecast(
         self,
         session: AsyncSession,
@@ -653,6 +822,7 @@ class ConsultantDocument(ProcurementDocument):
             project=project,
             evidence=evidence,
             forecast=forecast,
+            profile=target,
         )
 
     async def render(
@@ -668,7 +838,7 @@ class ConsultantDocument(ProcurementDocument):
         max_pages: int,
         instructions: str | None,
     ) -> str:
-        rfp_evidence = _reviewable_evidence(project_evidence)
+        rfp_evidence = _reviewable_evidence(project_evidence, target)
         citation_index = build_rfp_citation_index(rfp_evidence)
         scaffold = render_rfp_scaffold(
             project=project,
@@ -690,9 +860,33 @@ class ConsultantDocument(ProcurementDocument):
         information_to_review = "\n".join(
             f"- {line}" for line in narrative.information_to_review
         )
+        requested_services = narrative.requested_services or list(
+            target.requested_services
+        )
+        requested_services_markdown = "\n".join(
+            f"- {line}" for line in requested_services
+        )
+        programme_markdown = "\n".join(f"- {line}" for line in narrative.programme)
+        if narrative.programme:
+            programme_sources = " ".join(
+                dict.fromkeys(
+                    token
+                    for line in narrative.programme
+                    for token in re.findall(r"\[\d+\]", line)
+                )
+            )
+            scaffold = scaffold.replace(
+                "| Timeframe | TBC | Confirm |",
+                f"| Timeframe | See programme below | {programme_sources or 'Confirm'} |",
+            )
         return (
             scaffold.replace(BACKGROUND_PLACEHOLDER, narrative.background)
+            .replace(
+                REQUESTED_SERVICES_PLACEHOLDER,
+                requested_services_markdown,
+            )
             .replace(INFORMATION_TO_REVIEW_PLACEHOLDER, information_to_review)
+            .replace(PROGRAMME_PLACEHOLDER, programme_markdown)
         )
 
 
@@ -709,7 +903,7 @@ async def draft_consultant_procurement_artifact(
     project: Project,
     user_id: uuid.UUID,
     discipline: str,
-    max_pages: int = 1,
+    max_pages: int = 3,
     instructions: str | None = None,
     auto_commit: bool = True,
 ) -> ConsultantProcurementResult:
@@ -799,9 +993,15 @@ def _required_guidance_paths(project: Project) -> list[str]:
     the procurement guidance specifically. Returns ``[]`` when project overlays
     are incomplete (guidance cannot be resolved).
     """
+    from app.sitewise.archetype_bridge import (
+        effective_taxonomy,
+        effective_work_scopes,
+    )
+
     archetype = getattr(project, "archetype", None)
-    building_class = getattr(project, "building_class", None)
-    work_type = getattr(project, "work_type", None)
+    taxonomy = effective_taxonomy(project)
+    building_class = taxonomy.building_class
+    work_type = taxonomy.work_type
     if not archetype and not building_class:
         return []
     try:
@@ -810,6 +1010,8 @@ def _required_guidance_paths(project: Project) -> list[str]:
             archetype=archetype or "",
             building_class=building_class,
             work_type=work_type,
+            subclasses=taxonomy.subclasses,
+            work_scopes=effective_work_scopes(project),
         )
     except ValueError:
         return []
@@ -917,6 +1119,16 @@ def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
             "planning pathway approval CDC DA council certifier authority pathway",
         ),
         EvidenceQuery(
+            "project_scope",
+            "Project scope and spaces",
+            f"project scope rooms spaces occupancy amenities kitchenette systems {name}",
+        ),
+        EvidenceQuery(
+            "programme",
+            "Project programme",
+            "programme milestones lodgement approval possession construction practical completion occupation response date",
+        ),
+        EvidenceQuery(
             "cost_plan_pmp",
             "Cost plan / PMP",
             f"cost plan PMP budget programme consultant fees {name}",
@@ -979,6 +1191,7 @@ def _assumptions_and_missing_inputs(
     project: Project,
     evidence: list[dict[str, Any]],
     forecast: dict[str, Any],
+    profile: DisciplineProfile | None = None,
 ) -> tuple[list[str], list[str]]:
     roles = {item["role"] for item in evidence}
     missing: list[str] = []
@@ -1005,6 +1218,14 @@ def _assumptions_and_missing_inputs(
             "Submission contact and issue method.",
         ]
     )
+    if profile is not None and profile.slug == "hydraulic_engineer":
+        missing.extend(
+            [
+                "Existing hydraulic drawings, services survey, and verified connection/capacity information.",
+                "Current wet-area, sanitary-fixture, kitchenette, and equipment layouts or schedules.",
+                "Landlord hydraulic connection, shutdown, access, metering, and design-review requirements.",
+            ]
+        )
 
     assumptions = [
         "This is a client-issued request for fee proposal, not a consultant-issued fee proposal.",
@@ -1075,8 +1296,14 @@ def _is_consultant_fee_proposal(item: dict[str, Any]) -> bool:
     return snippet.startswith("fee proposal")
 
 
-def _reviewable_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [item for item in evidence if not _is_consultant_fee_proposal(item)]
+def _reviewable_evidence(
+    evidence: list[dict[str, Any]],
+    profile: DisciplineProfile,
+) -> list[dict[str, Any]]:
+    competing_ids = {
+        id(item) for item in _received_same_discipline_proposals(evidence, profile)
+    }
+    return [item for item in evidence if id(item) not in competing_ids]
 
 
 def _received_same_discipline_proposals(

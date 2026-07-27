@@ -21,3 +21,32 @@ def test_rfp_validation_rejects_out_of_range_citation() -> None:
 
     with pytest.raises(WorkflowValidationError, match=r"\[99\]"):
         validate_rfp_output(output, citation_index=citation_index)
+
+
+def test_rfp_validation_checks_requested_service_citations() -> None:
+    citation_index = build_rfp_citation_index(
+        [{"relative_path": "docs/design-brief.pdf"}]
+    )
+    output = RfpNarrativeOutput(
+        background="The brief confirms the proposed works. [1]",
+        requested_services=["Design warehouse smoke clearance. [99]"],
+        information_to_review=["Review the design brief. [1]"],
+    )
+
+    with pytest.raises(WorkflowValidationError, match=r"\[99\]"):
+        validate_rfp_output(output, citation_index=citation_index)
+
+
+def test_rfp_validation_checks_programme_citations() -> None:
+    citation_index = build_rfp_citation_index(
+        [{"relative_path": "docs/programme.pdf"}]
+    )
+    output = RfpNarrativeOutput(
+        background="The programme is on file. [1]",
+        requested_services=["Provide staged services. [1]"],
+        information_to_review=["Review the programme. [1]"],
+        programme=["Practical completion is required before occupation. [99]"],
+    )
+
+    with pytest.raises(WorkflowValidationError, match=r"\[99\]"):
+        validate_rfp_output(output, citation_index=citation_index)

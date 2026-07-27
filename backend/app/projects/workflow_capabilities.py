@@ -5,6 +5,10 @@ from app.schemas.workflow_capabilities import (
     WorkflowCapability,
     WorkflowCapabilityMatrix,
 )
+from app.sitewise.cost_plan_coverage import (
+    resolve_cost_plan_coverage,
+    unsupported_coverage_reason,
+)
 
 CREATE_PMP = "create_pmp"
 UPDATE_PMP = "update_pmp"
@@ -17,15 +21,13 @@ CONSULTANT_PROCUREMENT = "consultant_procurement"
 CONTRACTOR_EOI = "contractor_eoi"
 
 _PROJECT_PLAN_FIELDS = ("building_class", "work_type", "state")
+_COST_PLAN_FIELDS = ("building_class", "subclasses", "work_type", "state")
 _TENDER_FIELDS = ("building_class", "subclasses", "work_type", "state")
 _CONSULTANT_FIELDS = ("building_class", "work_type")
 _CONTRACTOR_FIELDS = ("building_class", "work_type", "state")
 _TENDER_STATES = frozenset({"NSW", "VIC", "QLD"})
 _TENDER_WORK_TYPES = frozenset({"new", "refurb", "extend"})
 _TENDER_CLASS_1A_SUBCLASSES = frozenset({"house", "townhouses"})
-_INDUSTRIAL_WAREHOUSE_SUBCLASSES = frozenset({"warehouse", "logistics_ecommerce"})
-
-
 def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix:
     """Return the single deterministic capability truth for a project snapshot."""
     plan = _required_profile_capability(snapshot, _PROJECT_PLAN_FIELDS)
@@ -88,7 +90,10 @@ def _required_profile_capability(
         )
     return WorkflowCapability(
         status="supported",
-        reasons=["The confirmed project profile is within this workflow's coverage."],
+        reasons=[
+            "The required project profile is complete; the workflow will use "
+            "available project evidence and applicable platform guidance."
+        ],
     )
 
 
@@ -129,13 +134,12 @@ def _tender_capability(snapshot: ProjectSnapshot) -> WorkflowCapability:
 def _cost_plan_capability(
     snapshot: ProjectSnapshot, *, action: str
 ) -> WorkflowCapability:
-    missing = _missing_profile_fields(snapshot, _PROJECT_PLAN_FIELDS)
+    missing = _missing_profile_fields(snapshot, _COST_PLAN_FIELDS)
     if missing:
         return WorkflowCapability(
             status="needs_input",
             reasons=["Cost Plan requires confirmed project context."],
             required_fields=missing,
-            reference_coverage=["NSW residential reference set"],
         )
 
     profile = snapshot.profile
@@ -150,55 +154,50 @@ def _cost_plan_capability(
         ],
     }[action]
 
-    if profile.building_class == "residential":
-        reasons: list[str] = []
-        if profile.state != "NSW":
-            reasons.append("Cost Plan reference-data coverage is currently NSW only.")
-        if reasons:
-            return WorkflowCapability(status="unsupported", reasons=reasons)
+    if profile.state != "NSW":
         return WorkflowCapability(
-            status="supported",
+            status="unsupported",
+            reasons=["Cost Plan reference-data coverage is currently NSW only."],
+        )
+    if profile.work_type == "remediation" and not profile.work_scope:
+        return WorkflowCapability(
+            status="needs_input",
             reasons=[
-                "The confirmed profile is within current NSW residential Cost Plan "
-                "coverage; missing reference data must be confirmed, never filled "
-                "from general model knowledge."
+                "Cost Plan remediation coverage depends on the confirmed remediation "
+                "scope."
             ],
-            required_confirmations=confirmations,
-            reference_coverage=["NSW residential reference set"],
+            required_fields=["work_scope"],
         )
 
-    if profile.building_class == "industrial":
-        reasons = []
-        if profile.state != "NSW":
-            reasons.append("Cost Plan reference-data coverage is currently NSW only.")
-        if not _profile_subclasses(snapshot) & _INDUSTRIAL_WAREHOUSE_SUBCLASSES:
-            reasons.append(
-                "Cost Plan industrial coverage is currently NSW warehouse / "
-                "logistics Class 7b only."
-            )
-        if reasons:
-            return WorkflowCapability(status="unsupported", reasons=reasons)
+    coverage = resolve_cost_plan_coverage(
+        building_class=profile.building_class,
+        work_type=profile.work_type,
+        subclasses=_profile_subclasses(snapshot),
+        work_scopes=_profile_work_scopes(snapshot),
+    )
+    if coverage is None:
         return WorkflowCapability(
-            status="supported",
+            status="unsupported",
             reasons=[
-                "The confirmed profile is within current NSW industrial warehouse/"
-                "logistics Cost Plan coverage; the reference set is structure only "
-                "and has no rate pack, so missing reference data must be confirmed, "
-                "never filled from general model knowledge."
-            ],
-            required_confirmations=confirmations,
-            reference_coverage=[
-                "NSW industrial warehouse/logistics Class 7b scaffold set "
-                "(structure only; no rate pack)"
+                unsupported_coverage_reason(
+                    building_class=profile.building_class,
+                    work_type=profile.work_type,
+                )
             ],
         )
-
+    coverage_kind = (
+        "structure-only scaffold" if coverage.structure_only else "reference set"
+    )
     return WorkflowCapability(
-        status="unsupported",
+        status="supported",
         reasons=[
-            "Cost Plan reference-data coverage is currently residential and "
-            "NSW warehouse/logistics industrial only."
+            f"The confirmed profile is within the {coverage.label}. The "
+            f"{coverage_kind} must be combined with active-project evidence; "
+            "missing prices remain TBC and are never filled from general model "
+            "knowledge."
         ],
+        required_confirmations=confirmations,
+        reference_coverage=[coverage.label],
     )
 
 
@@ -224,4 +223,12 @@ def _subclass_value(value: object) -> str:
 def _profile_subclasses(snapshot: ProjectSnapshot) -> set[str]:
     return {
         _subclass_value(item) for item in getattr(snapshot.profile, "subclasses", [])
+    }
+
+
+def _profile_work_scopes(snapshot: ProjectSnapshot) -> set[str]:
+    return {
+        str(item)
+        for item in getattr(snapshot.profile, "work_scope", [])
+        if str(item).strip()
     }

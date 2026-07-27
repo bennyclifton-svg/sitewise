@@ -219,6 +219,48 @@ class InboxUploadResponse(BaseModel):
     files: list[InboxUploadResult]
 
 
+class DocumentRepairPreviewRow(BaseModel):
+    status: str
+    current_path: str
+    current_filename: str
+    proposed_path: str
+    proposed_filename: str
+    document_number: str | None = None
+    title: str | None = None
+    revision: str | None = None
+    category: str | None = None
+    confidence: str
+    changes: list[str] = Field(default_factory=list)
+    reason: str | None = None
+
+
+class DocumentRepairPreviewResponse(BaseModel):
+    inspected: int = 0
+    changes: int = 0
+    needs_review: int = 0
+    conflicts: int = 0
+    unchanged: int = 0
+    rows: list[DocumentRepairPreviewRow] = Field(default_factory=list)
+
+
+class DocumentRepairApplyRequest(BaseModel):
+    workspace_paths: list[str] = Field(min_length=1, max_length=100)
+
+
+class DocumentRepairApplyRow(BaseModel):
+    current_path: str
+    proposed_path: str
+    status: str
+    reason: str | None = None
+
+
+class DocumentRepairApplyResponse(BaseModel):
+    applied: int = 0
+    failed: int = 0
+    skipped: int = 0
+    rows: list[DocumentRepairApplyRow] = Field(default_factory=list)
+
+
 class PdfSheetProposal(BaseModel):
     index: int
     proposed_title: str

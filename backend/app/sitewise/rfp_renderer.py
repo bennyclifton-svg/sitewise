@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from app.database.project import Project
@@ -18,7 +19,9 @@ if TYPE_CHECKING:
 
 
 BACKGROUND_PLACEHOLDER = "{{BACKGROUND}}"
+REQUESTED_SERVICES_PLACEHOLDER = "{{REQUESTED_SERVICES}}"
 INFORMATION_TO_REVIEW_PLACEHOLDER = "{{INFORMATION_TO_REVIEW}}"
+PROGRAMME_PLACEHOLDER = "{{PROGRAMME}}"
 
 
 def build_rfp_citation_index(project_evidence: list[dict[str, Any]]) -> CitationIndex:
@@ -43,10 +46,23 @@ def render_rfp_scaffold(
     instructions: str | None = None,
 ) -> str:
     """Render the RFP sections that do not require language-model judgement."""
-    service_limit = 4 if max_pages == 1 else 8
-    deliverable_limit = 4 if max_pages == 1 else 8
+    del max_pages, forecast, assumptions, instructions
+    # Consultant RFP scope is not truncated to a page target. Assumptions and
+    # user instructions remain internal provenance, never issue-document copy.
     identity = resolve_project_identity(project, evidence=project_evidence or [])
     classification = classification_summary(project)
+    site_citation = _identity_citation(
+        identity.get("site_address"),
+        project_evidence or [],
+        citation_index,
+        field="site_address",
+    )
+    client_citation = _identity_citation(
+        identity.get("client"),
+        project_evidence or [],
+        citation_index,
+        field="client",
+    )
     project_lines = [
         f"- Project: {project.title}",
         f"- Site address: {identity.get('site_address') or 'TBC'}",
@@ -58,15 +74,31 @@ def render_rfp_scaffold(
     if classification:
         project_lines.append(f"- Project type: {classification}")
 
-    assumption_lines = assumptions if assumptions is not None else [
-        "This is a client-issued request for fee proposal, not a consultant-issued fee proposal.",
-        "The consultant must confirm scope, exclusions, programme, and fee basis before appointment.",
-    ]
     try:
+        project_title, project_title_source = _project_title(
+            project,
+            project_evidence or [],
+            citation_index,
+        )
         project_summary = render_project_summary_table(
             project,
+            project_title=project_title,
+            project_title_source=project_title_source,
             site_address=identity.get("site_address"),
             client=identity.get("client"),
+            site_address_status=(
+                "User provided / Evidence on file"
+                if site_citation != "—"
+                else "User provided / Not evidenced"
+            ),
+            site_address_citation=site_citation,
+            client_status=(
+                "User provided / Evidence on file"
+                if client_citation != "—"
+                else "User provided / Not evidenced"
+            ),
+            client_citation=client_citation,
+            compact_sources=True,
         )
     except ValueError:
         project_summary = "\n".join(project_lines)
@@ -83,15 +115,16 @@ def render_rfp_scaffold(
         BACKGROUND_PLACEHOLDER,
         "",
         "## Requested services",
-        *_bullets(target.requested_services[:service_limit]),
+        REQUESTED_SERVICES_PLACEHOLDER,
         "",
         "## Information to review",
         INFORMATION_TO_REVIEW_PLACEHOLDER,
         "",
         "## Required deliverables",
-        *_bullets(target.deliverables[:deliverable_limit]),
+        *_bullets(target.deliverables),
         "",
         "## Programme / response date",
+        PROGRAMME_PLACEHOLDER,
         "- Provide earliest availability, key programme assumptions, and duration for each stage.",
         "- Fee response date: TBC by client before issue.",
         "",
@@ -99,10 +132,11 @@ def render_rfp_scaffold(
         "- Submit a lump-sum fee excluding GST, with GST shown separately.",
         "- Break the fee down by project stage and identify optional services, disbursements, and hourly rates.",
         "- State assumptions, exclusions, client inputs, authority fees, and validity period.",
-        *_forecast_lines(forecast),
         "",
-        "## Exclusions / assumptions",
-        *_bullets((*assumption_lines[:4], *_instruction_lines(instructions))),
+        "## Scope assumptions / exclusions to state",
+        "- Identify every scope assumption, exclusion, optional service, reliance, and required client input in the fee proposal.",
+        "- Separate consultant, client, landlord, authority, other-consultant, and contractor responsibilities.",
+        "- State investigation, survey, authority-fee, meeting, site-visit, tender-support, construction-support, testing, and handover allowances.",
         "",
         "## Site visit / clarifications",
         "- Confirm whether a site visit is required and list any preconditions for attendance.",
@@ -123,30 +157,97 @@ def _evidence_path(item: dict[str, Any]) -> str:
     return str(path).strip() if path else ""
 
 
-def _forecast_lines(forecast: dict[str, Any]) -> list[str]:
-    if forecast.get("used"):
-        lines = [f"- Internal benchmark: {forecast['label']}"]
-    else:
-        lines = ["- No internal fee benchmark is available for issue; consultant to price from scope."]
-    if forecast.get("received_proposal_on_file"):
-        amount = forecast.get("received_proposal_amount")
-        amount_text = f" ({_money(amount)} ex GST)" if amount else ""
-        lines.append(
-            "- Note: a received consultant fee proposal is on file"
-            f"{amount_text}; reconcile the internal benchmark against it before relying on it."
-        )
-    return lines
+_IDENTITY_STOPWORDS = frozenset(
+    {
+        "and",
+        "client",
+        "company",
+        "limited",
+        "ltd",
+        "nsw",
+        "owners",
+        "project",
+        "proprietary",
+        "pty",
+        "street",
+        "road",
+        "the",
+    }
+)
+
+
+def _identity_citation(
+    value: Any,
+    evidence: list[dict[str, Any]],
+    citation_index: CitationIndex,
+    *,
+    field: str,
+) -> str:
+    """Return the strongest source token corroborating a profile identity value."""
+    if not isinstance(value, str) or not value.strip():
+        return "—"
+    value_text = _normalise_identity(value)
+    value_tokens = _identity_tokens(value)
+    best: tuple[float, str] | None = None
+    for item in evidence:
+        snippet = str(item.get("snippet") or item.get("content") or "")
+        if not snippet.strip():
+            continue
+        snippet_text = _normalise_identity(snippet)
+        snippet_tokens = _identity_tokens(snippet)
+        overlap = value_tokens & snippet_tokens
+        score = len(overlap) / max(len(value_tokens), 1)
+        if value_text and value_text in snippet_text:
+            score = 1.0
+        if field == "site_address":
+            address_numbers = {
+                token for token in value_tokens if any(char.isdigit() for char in token)
+            }
+            if not address_numbers.intersection(snippet_tokens):
+                continue
+            matched = score >= 0.45
+        else:
+            matched = len(overlap) >= 2 and score >= 0.45
+        path = _evidence_path(item)
+        token = citation_index.token_for(path)
+        if matched and token != "—" and (best is None or score > best[0]):
+            best = (score, token)
+    return best[1] if best else "—"
+
+
+def _identity_tokens(value: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+(?:-[a-z0-9]+)?", value.casefold())
+        if len(token) >= 3 and token not in _IDENTITY_STOPWORDS
+    }
+
+
+def _normalise_identity(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", value.casefold()))
+
+
+_PROJECT_LABEL_RE = re.compile(
+    r"\bproject\s*:\s*(.+?)(?=,\s*(?:levels?|located|at)\b|\s+(?:date|ref|client)\s*:|$)",
+    re.I,
+)
+
+
+def _project_title(
+    project: Project,
+    evidence: list[dict[str, Any]],
+    citation_index: CitationIndex,
+) -> tuple[str, str]:
+    for item in evidence:
+        snippet = str(item.get("snippet") or item.get("content") or "")
+        match = _PROJECT_LABEL_RE.search(snippet)
+        if match is None:
+            continue
+        candidate = re.sub(r"[*_#]+", "", match.group(1)).strip(" -–—")
+        if 3 <= len(candidate) <= 120:
+            return candidate, citation_index.token_for(_evidence_path(item))
+    return str(project.title), "Profile"
 
 
 def _bullets(items: tuple[str, ...]) -> list[str]:
     return [f"- {item}" for item in items]
-
-
-def _instruction_lines(instructions: str | None) -> list[str]:
-    if not instructions or not instructions.strip():
-        return []
-    return [f"Additional instruction: {' '.join(instructions.split())}"]
-
-
-def _money(value: int | None) -> str:
-    return f"${value:,.0f}" if value is not None else "TBC"

@@ -2,9 +2,11 @@
 tier: topic
 applies_to_roles: [architect-pm, owner-builder, builder, d-and-c]
 applies_to_classes: [industrial]
+applies_to_work_types: [new, refurb, extend]
+applies_to_subclasses: [warehouse, logistics_ecommerce]
 topics: [cost, taxonomy]
 summary: "Practice-level taxonomy for early NSW Class 7b warehouse/logistics cost plans: workbook-ready groups and construction breakdown shape. Structure only — never market rates or active-project evidence."
-required_by: {create-cost-plan: 2}
+required_by: {create-pmp: 2, create-cost-plan: 2, consultant-procurement: 2}
 status: reference
 author: agent
 date: 2026-07-23

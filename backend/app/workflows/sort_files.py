@@ -206,9 +206,22 @@ async def run_sort_files_workflow(
     if auto_commit:
         await session.commit()
 
+    needs_review = bool(result.counts.unresolved or result.counts.refused)
+    workflow_status = "needs_review" if needs_review else "complete"
     message = (
-        f"Sort Files completed. {result.counts.moved} moved, "
-        f"{result.counts.unresolved} unresolved, {result.counts.refused} refused."
+        f"Sort Files {'needs review' if needs_review else 'completed'}. "
+        f"{result.counts.moved} moved, {result.counts.unresolved} unresolved, "
+        f"{result.counts.refused} refused."
+    )
+    trace.append(
+        _trace(
+            "finalize",
+            workflow_status,
+            message,
+            moved=result.counts.moved,
+            unresolved=result.counts.unresolved,
+            refused=result.counts.refused,
+        )
     )
     await _persist_trace_message(
         session,
@@ -217,12 +230,12 @@ async def run_sort_files_workflow(
         thread_id=thread_id,
         content=message,
         trace=trace,
-        status="complete",
+        status=workflow_status,
         draft_id=draft.id,
     )
 
     return SortFilesResponse(
-        status="complete",
+        status=workflow_status,
         gate=gate,
         trace=trace,
         summary=_summary(result),

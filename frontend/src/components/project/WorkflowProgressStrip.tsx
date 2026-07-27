@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,13 @@ export type WorkflowProgressStripProps = {
 };
 
 export function WorkflowProgressStrip({
+  runId,
+  ...props
+}: WorkflowProgressStripProps) {
+  return <WorkflowProgressStripRun key={runId} runId={runId} {...props} />;
+}
+
+function WorkflowProgressStripRun({
   title,
   kind,
   runId,
@@ -35,27 +42,22 @@ export function WorkflowProgressStrip({
   now,
   budgetSeconds = WORKFLOW_BUDGET_SECONDS_DEFAULT,
 }: WorkflowProgressStripProps) {
-  const [, setTick] = useState(0);
-  const estimatorRef = useRef<WorkflowRunEstimator | null>(null);
-  const estimatorRunIdRef = useRef<string | null>(null);
-
-  if (estimatorRunIdRef.current !== runId) {
-    estimatorRunIdRef.current = runId;
-    estimatorRef.current = new WorkflowRunEstimator({
-      budgetSeconds,
-      now,
-      startedAtMs: now?.(),
-    });
-  }
-
-  const estimator = estimatorRef.current!;
+  const [estimator] = useState(
+    () =>
+      new WorkflowRunEstimator({
+        budgetSeconds,
+        now,
+        startedAtMs: now?.(),
+      }),
+  );
+  const [nowMs, setNowMs] = useState(() => now?.() ?? Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setTick((current) => current + 1);
+      setNowMs(now?.() ?? Date.now());
     }, SNAPSHOT_TICK_MS);
     return () => window.clearInterval(timer);
-  }, [runId]);
+  }, [now, runId]);
 
   const snapshot = estimator.snapshot();
   const percent = Math.round(snapshot.fraction * 100);
@@ -66,7 +68,7 @@ export function WorkflowProgressStrip({
     runState,
     elapsedSeconds: estimator.elapsedSeconds(),
     budgetSeconds,
-    nowMs: now?.() ?? Date.now(),
+    nowMs,
   });
 
   return (

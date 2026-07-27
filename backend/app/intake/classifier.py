@@ -145,6 +145,15 @@ _PREVIEW_QUOTE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\btender\s+(?:price|sum|submission)\b", re.I),
 ]
 
+_PROGRAMME_DESTINATION = "06-programme"
+
+_PROGRAMME_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\b(?:master|project|construction|works)\s+programme\b", re.I),
+    re.compile(r"\b(?:two|three|four|six|eight|twelve)[-_ ]week\s+lookahead\b", re.I),
+    re.compile(r"\bmilestone\s+schedule\b", re.I),
+    re.compile(r"\bgantt(?:\s+chart)?\b", re.I),
+]
+
 _MANIFEST_PATTERN = re.compile(r"^intake_manifest_v\d+\.md$", re.I)
 
 
@@ -240,6 +249,9 @@ def classify_inbox_destination(
         _PREVIEW_DUE_DILIGENCE_PATTERNS, preview_snippet or ""
     ):
         return _DUE_DILIGENCE_DESTINATION
+
+    if _matches_any(_PROGRAMME_PATTERNS, stem, filename, preview_snippet or ""):
+        return _PROGRAMME_DESTINATION
 
     for pattern, destination in _FILENAME_DESTINATION_PATTERNS:
         if pattern.search(stem) or pattern.search(filename):

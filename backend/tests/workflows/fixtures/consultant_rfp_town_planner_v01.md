@@ -1,17 +1,17 @@
 # Request for Fee Proposal - Town planner
 
 ## Project Summary
-| Field | Current PMP position | Citation |
+| Field | Project detail | Source |
 | --- | --- | --- |
-| Project | Walsh Renovation — User provided | — |
-| Site / address | TBC — User provided / Not evidenced | — |
-| Client | TBC — User provided / Not evidenced | — |
-| State | NSW — User provided | — |
-| Taxonomy | residential / refurb — User provided | — |
-| Subclass and scale | TBC; scale TBC — User provided | — |
-| Budget | TBC — User provided / Assumption | — |
-| Timeframe | TBC — User provided / Assumption | — |
-| Procurement route | TBC — User provided / Assumption | — |
+| Project | Walsh Renovation | Profile |
+| Site / address | TBC | Confirm |
+| Client | TBC | Confirm |
+| State | NSW | Profile |
+| Taxonomy | residential / refurb | Profile |
+| Subclass and scale | TBC; scale TBC | Profile |
+| Budget | TBC | Confirm |
+| Timeframe | TBC | Confirm |
+| Procurement route | TBC | Confirm |
 
 - Consultant discipline: Town planner
 
@@ -19,9 +19,7 @@
 The current project evidence defines the consultant briefing basis. [1]
 
 ## Requested services
-- Review the project brief, site constraints, zoning (LEP/DCP), and proposed works.
-- Advise on permitted use, FSR, height, setbacks, and any merit-based variations required.
-- Confirm the planning pathway (CDC/DA) and any State-level (SEPP) referral requirements.
+- Tailor the requested services to the evidenced project spaces and systems. [1]
 
 ## Information to review
 - Review the current project evidence before pricing. [1]
@@ -32,6 +30,7 @@ The current project evidence defines the consultant briefing basis. [1]
 - Hourly rates for RFIs, design changes, and section 4.55 modifications.
 
 ## Programme / response date
+
 - Provide earliest availability, key programme assumptions, and duration for each stage.
 - Fee response date: TBC by client before issue.
 
@@ -39,12 +38,11 @@ The current project evidence defines the consultant briefing basis. [1]
 - Submit a lump-sum fee excluding GST, with GST shown separately.
 - Break the fee down by project stage and identify optional services, disbursements, and hourly rates.
 - State assumptions, exclusions, client inputs, authority fees, and validity period.
-- No internal fee benchmark is available for issue; consultant to price from scope.
 
-## Exclusions / assumptions
-- This is a client-issued request for fee proposal, not a consultant-issued fee proposal.
-- The consultant must confirm scope, exclusions, programme, and fee basis before appointment.
-- No discipline-specific fee benchmark was applied.
+## Scope assumptions / exclusions to state
+- Identify every scope assumption, exclusion, optional service, reliance, and required client input in the fee proposal.
+- Separate consultant, client, landlord, authority, other-consultant, and contractor responsibilities.
+- State investigation, survey, authority-fee, meeting, site-visit, tender-support, construction-support, testing, and handover allowances.
 
 ## Site visit / clarifications
 - Confirm whether a site visit is required and list any preconditions for attendance.

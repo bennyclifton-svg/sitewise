@@ -48,6 +48,8 @@ import type {
   SortFilesResponse,
   CreateProjectInput,
   DraftArtifact,
+  DocumentRepairApplyResult,
+  DocumentRepairPreview,
   EvidencePreview,
   InboxUploadResult,
   PdfAnalyzeResult,
@@ -544,6 +546,25 @@ export const api = {
     apiRequest<BatchDeleteEvidenceResponse>(
       `/projects/${projectId}/evidence/batch`,
       { method: "DELETE", body: { evidence_ids: evidenceIds } },
+    ),
+
+  previewExistingDocumentRepairs: async (
+    projectId: string,
+  ): Promise<DocumentRepairPreview> =>
+    api.post<DocumentRepairPreview>(
+      `/projects/${projectId}/document-repairs/preview`,
+      {},
+      { timeoutMs: WORKFLOW_TIMEOUT_MS },
+    ),
+
+  applyExistingDocumentRepairs: async (
+    projectId: string,
+    workspacePaths: string[],
+  ): Promise<DocumentRepairApplyResult> =>
+    api.post<DocumentRepairApplyResult>(
+      `/projects/${projectId}/document-repairs/apply`,
+      { workspace_paths: workspacePaths },
+      { timeoutMs: WORKFLOW_TIMEOUT_MS },
     ),
 
   analyzePdf: async (

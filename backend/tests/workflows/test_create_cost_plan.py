@@ -758,11 +758,14 @@ def test_retrieve_create_cost_plan_sources_uses_taxonomy_when_archetype_empty() 
         passages, project_count, _, draft_mode, missing = run_async(
             retrieve_create_cost_plan_sources(
                 AsyncMock(),
-                project=_project(
-                    archetype="",
-                    building_class="residential",
-                    work_type="refurb",
-                ),
+                    project=_project(
+                        archetype="",
+                        building_class="residential",
+                        work_type="refurb",
+                        project_metadata={
+                            "taxonomy": {"subclasses": ["house"]}
+                        },
+                    ),
             )
         )
 

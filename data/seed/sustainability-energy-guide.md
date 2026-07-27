@@ -4,7 +4,7 @@ seed_type: sustainability
 loaded_by: "task subject (BASIX, NatHERS, energy efficiency, sustainability, thermal comfort, glazing U-value, SHGC, insulation R-value, hot water, PV, BASIX certificate, OC, energy compliance)"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, small-commercial]
-applies_to_classes: [residential, commercial, mixed]
+applies_to_classes: [residential]
 applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 topics: [basix, nathers, sustainability, energy]
@@ -23,10 +23,16 @@ Authority stack reminder (per `../AGENTS.md §1`): the project's BASIX certifica
 
 **BASIX** (Building Sustainability Index) is the NSW Government's energy and water sustainability assessment scheme for residential buildings. It applies to:
 - new dwellings (Class 1a and Class 2);
-- alterations and additions with a value above the BASIX threshold ($50,000 as of mid-2025 — confirm current threshold with the BASIX tool or certifier);
+- alterations and additions where the current BASIX application threshold or
+  project criteria are met (confirm in the official BASIX tool and approval
+  pathway; this seed does not freeze a monetary threshold);
 - swimming pools (volume threshold applies).
 
-BASIX is administered by NSW Department of Planning and Environment through the [BASIX online tool](https://www.basix.nsw.gov.au/). The tool generates a **BASIX certificate** that is lodged with the DA or CDC application. The certificate commits the project to specific performance targets for water, energy, and thermal comfort.
+BASIX is administered through the NSW planning system and official BASIX online
+tool. Confirm the current administering agency, portal and lodgement process
+before use. The tool generates a **BASIX certificate** that is lodged with the
+DA or CDC application. The certificate commits the project to specific
+performance targets for water, energy, and thermal comfort.
 
 **What BASIX certifies:**
 - **Water score** — rainwater tank capacity/use, water-efficient fixtures (taps, showers, dual-flush toilets), pool/spa cover (where applicable).

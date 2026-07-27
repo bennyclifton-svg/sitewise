@@ -6,6 +6,8 @@ applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_classes: [residential]
 applies_to_work_types: [new]
 state_default: NSW
+status: legacy-retained
+superseded_by: seed/residential-construction-guide.md
 summary: "Archetype coverage for a standalone Class 1a dwelling on a vacant or cleared site, including knockdown-rebuild: the typical NSW lifecycle sequence, site due diligence, planning pathway, BASIX baseline, structural posture and inspection gates, and new-dwelling sequencing risks."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline]
 agents_anchors: [§1, §2, §3, §8]

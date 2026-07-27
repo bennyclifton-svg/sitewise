@@ -377,6 +377,30 @@ async def sort_inbox_files(
             result.counts.skipped += 1
             continue
 
+        if record.ingest_status in {"pending", "queued", "ingesting"}:
+            result.records.append(
+                SortFileRecord(
+                    source_path=record.workspace_path,
+                    filename=record.filename,
+                    outcome="skipped",
+                    reason="Ingestion is still in progress",
+                )
+            )
+            result.counts.skipped += 1
+            continue
+
+        if record.ingest_status == "failed":
+            result.records.append(
+                SortFileRecord(
+                    source_path=record.workspace_path,
+                    filename=record.filename,
+                    outcome="skipped",
+                    reason="Ingestion failed; retry the upload before sorting",
+                )
+            )
+            result.counts.skipped += 1
+            continue
+
         result.counts.inspected += 1
         previews = await _file_previews(record)
         destination_folder = classify_inbox_destination(

@@ -1,8 +1,9 @@
 ---
 tier: overlay
-loaded_by: "building_class: residential subclass: apartments"
-applies_to_classes: [residential, mixed]
+loaded_by: "building_class: residential; subclass: apartments, btr, student_housing, social_affordable_housing"
+applies_to_classes: [residential]
 applies_to_work_types: [new, refurb, extend]
+applies_to_subclasses: [apartments, btr, student_housing, social_affordable_housing]
 topics: [residential, apartments, class-2, strata, fire-safety]
 summary: "Multi-residential and apartment guide for Class 2 and mixed residential projects: classification, fire, accessibility, waterproofing, facade, services, strata, cost planning, quality, sustainability and delivery considerations."
 required_by: {create-pmp: 1}

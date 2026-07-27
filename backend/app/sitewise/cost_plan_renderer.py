@@ -5,6 +5,12 @@ from __future__ import annotations
 from typing import Literal
 
 from app.database.project import Project
+from app.sitewise.archetype_bridge import effective_taxonomy, effective_work_scopes
+from app.sitewise.cost_plan_coverage import (
+    CoverageFamily,
+    coverage_spec,
+    resolve_cost_plan_coverage,
+)
 from app.sitewise.cost_plan_evidence import CostPlanEvidencePack, OwnerSuppliedItem
 from app.sitewise.cost_plan_sources import document_title, required_section_headings
 from app.sitewise.mobilisation_evidence import (
@@ -22,17 +28,32 @@ from app.sitewise.pmp_citations import (
 
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
-CoverageFamily = Literal["residential", "industrial_warehouse"]
-
 NARRATIVE_PLACEHOLDER = "[Pending cost plan narrative generation]"
 
-# Structure-only disclosure for industrial coverage: there is no NSW industrial rate
-# pack (see data/skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md),
-# so every construction line is a lump-sum TBC rather than a benchmark % split.
-_INDUSTRIAL_NO_RATE_PACK_DISCLOSURE = (
-    "No NSW industrial rate pack exists yet — this is a structure-only scaffold; "
-    "every construction line is a lump-sum TBC pending head-builder tender."
-)
+def _no_rate_pack_disclosure(family: CoverageFamily) -> str:
+    if family == "industrial_warehouse":
+        return (
+            "No NSW industrial rate pack exists yet — this is a structure-only "
+            "scaffold; every construction line is a lump-sum TBC pending "
+            "head-builder tender."
+        )
+    subject = {
+        "residential_class1_refurb": "Class 1 refurbishment/extension",
+        "multi_residential": "multi-residential",
+        "commercial_fitout": "commercial fit-out",
+        "commercial_base_building": "commercial base-building",
+        "building_remediation": "building remediation",
+        "industrial_warehouse": "industrial warehouse",
+        "industrial_process": "industrial process-facility",
+        "industrial_cold_chain": "industrial cold-chain",
+        "data_centre": "data-centre",
+        "residential_class1_new": "Class 1 residential",
+    }[family]
+    return (
+        f"No NSW {subject} rate pack exists yet — this is a structure-only "
+        "scaffold; every construction line is a lump-sum TBC pending QS or "
+        "head-builder pricing."
+    )
 
 _RESIDENTIAL_FEE_ROWS: tuple[tuple[str, str], ...] = (
     ("2", "DA and CC authority fees"),
@@ -85,6 +106,50 @@ _RESIDENTIAL_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
 
 _RESIDENTIAL_CONTINGENCY_CODE = "25"
 
+# NSW Class 5 office / serviced-office commercial fit-out taxonomy. It keeps tenant,
+# landlord and client-direct interfaces visible and carries no benchmark percentage
+# split; see nsw-commercial-fitout-cost-breakdown-reference.md.
+_COMMERCIAL_FITOUT_FEE_ROWS: tuple[tuple[str, str], ...] = (
+    ("2", "Approval, certification and landlord review fees"),
+    ("3", "Levies, utility and statutory charges"),
+    ("4", "Landlord bonds and refundable deposits"),
+)
+
+_COMMERCIAL_FITOUT_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("5", "Architect / interior designer"),
+    ("6", "Project manager / contract administrator"),
+    ("7", "Building services engineers"),
+    ("8", "Fire engineer and certifier"),
+    ("9", "Structural engineer"),
+    ("10", "Acoustic, access, ICT / AV and specialist consultants"),
+)
+
+_COMMERCIAL_FITOUT_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("11", "Preliminaries and occupied-building controls"),
+    ("12", "Investigations, approvals and make-safe"),
+    ("13", "Strip-out and demolition"),
+    ("14", "Structural and builder's work"),
+    ("15", "Partitions, doors and glazing"),
+    ("16", "Ceilings and acoustic treatments"),
+    ("17", "Joinery and fixtures"),
+    ("18", "Finishes"),
+    ("19", "Mechanical services"),
+    ("20", "Electrical, lighting and controls"),
+    ("21", "Hydraulic services"),
+    ("22", "Fire and life-safety services"),
+    ("23", "ICT, AV and security"),
+    ("24", "Signage and wayfinding"),
+    ("25", "Testing, commissioning and handover"),
+    ("26", "Specialist tenant systems — scope gap"),
+    ("27", "Landlord / base-building interface works — allocation gap"),
+)
+
+_COMMERCIAL_FITOUT_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
+    ("28", "Client-direct furniture, IT and equipment allowance"),
+)
+
+_COMMERCIAL_FITOUT_CONTINGENCY_CODE = "29"
+
 # NSW industrial warehouse/logistics (Class 7b) taxonomy — no BASIX or residential
 # kitchen/joinery language; see nsw-industrial-warehouse-cost-breakdown-reference.md.
 _INDUSTRIAL_FEE_ROWS: tuple[tuple[str, str], ...] = (
@@ -102,8 +167,8 @@ _INDUSTRIAL_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
     ("10", "Principal certifier"),
 )
 
-# No benchmark % split exists for this family (see _INDUSTRIAL_NO_RATE_PACK_DISCLOSURE);
-# every row — including the specialist-systems scope gap — is a lump-sum TBC.
+# No benchmark split exists for this family; every row, including the
+# specialist-systems scope gap, remains a lump-sum TBC.
 _INDUSTRIAL_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
     ("11", "Preliminaries"),
     ("12", "Siteworks and earthworks"),
@@ -123,43 +188,276 @@ _INDUSTRIAL_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = ()
 
 _INDUSTRIAL_CONTINGENCY_CODE = "21"
 
+_RESIDENTIAL_REFURB_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("12", "Investigations, surveys and opening-up"),
+    ("13", "Preliminaries, protection and temporary works"),
+    ("14", "Hazardous-material controls and demolition"),
+    ("15", "Existing-structure repair and new structural work"),
+    ("16", "Envelope, roofing and old-to-new weatherproofing"),
+    ("17", "Partitions, linings, doors and joinery"),
+    ("18", "Kitchen, bathrooms and fittings"),
+    ("19", "Building-services alterations and upgrades"),
+    ("20", "Finishes, external works and making good"),
+)
+
+_MULTI_RESIDENTIAL_FEE_ROWS: tuple[tuple[str, str], ...] = (
+    ("2", "Planning, certification and authority fees"),
+    ("3", "Infrastructure and utility charges"),
+    ("4", "Levies and statutory charges"),
+)
+_MULTI_RESIDENTIAL_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("5", "Architect and project manager"),
+    ("6", "Quantity surveyor"),
+    ("7", "Planning, survey and geotechnical"),
+    ("8", "Structural and civil engineers"),
+    ("9", "Facade and waterproofing consultants"),
+    ("10", "Mechanical, electrical and hydraulic engineers"),
+    ("11", "Fire engineer and certifier"),
+    ("12", "Access, acoustic and sustainability consultants"),
+)
+_MULTI_RESIDENTIAL_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("13", "Preliminaries, logistics and temporary works"),
+    ("14", "Demolition, remediation and enabling works"),
+    ("15", "Earthworks, substructure and basement"),
+    ("16", "Superstructure"),
+    ("17", "Facade, windows, roofing and waterproofing"),
+    ("18", "Internal walls, doors and finishes"),
+    ("19", "Joinery, appliances, fixtures and equipment"),
+    ("20", "Vertical transport"),
+    ("21", "Mechanical services"),
+    ("22", "Electrical, communications and security"),
+    ("23", "Hydraulic services"),
+    ("24", "Fire and life-safety systems"),
+    ("25", "External works, landscape and utility connections"),
+    ("26", "Testing, commissioning and handover"),
+    ("27", "Specialist tenure/operational requirements â€” scope gap"),
+)
+_MULTI_RESIDENTIAL_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
+    ("28", "Client/operator equipment and loose-furniture allowance"),
+)
+_MULTI_RESIDENTIAL_CONTINGENCY_CODE = "29"
+
+_COMMERCIAL_BASE_FEE_ROWS: tuple[tuple[str, str], ...] = (
+    ("2", "Planning, certification and authority fees"),
+    ("3", "Infrastructure, utility and statutory charges"),
+    ("4", "Levies and approval-related contributions"),
+)
+_COMMERCIAL_BASE_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("5", "Architect and project manager"),
+    ("6", "Quantity surveyor"),
+    ("7", "Planning, survey and geotechnical"),
+    ("8", "Structural and civil engineers"),
+    ("9", "Facade consultant"),
+    ("10", "Building-services engineers"),
+    ("11", "Fire engineer, certifier, access and acoustic consultants"),
+)
+_COMMERCIAL_BASE_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("12", "Preliminaries, logistics and temporary works"),
+    ("13", "Demolition, remediation and enabling works"),
+    ("14", "Earthworks and substructure"),
+    ("15", "Superstructure"),
+    ("16", "Facade, windows, roofing and waterproofing"),
+    ("17", "Core, common-area and back-of-house fitout"),
+    ("18", "Vertical transport"),
+    ("19", "Mechanical services"),
+    ("20", "Electrical, lighting and controls"),
+    ("21", "Hydraulic services"),
+    ("22", "Fire and life-safety services"),
+    ("23", "ICT, security and building-management systems"),
+    ("24", "External works, landscape and utility connections"),
+    ("25", "Testing, commissioning and handover"),
+    ("26", "Tenant, anchor and operator interfaces â€” scope gap"),
+)
+_COMMERCIAL_BASE_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = ()
+_COMMERCIAL_BASE_CONTINGENCY_CODE = "27"
+
+_REMEDIATION_FEE_ROWS: tuple[tuple[str, str], ...] = (
+    ("2", "Investigation, approval and certification fees"),
+    ("3", "Access, permit, authority and statutory charges"),
+)
+_REMEDIATION_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("4", "Lead building/remediation consultant"),
+    ("5", "Project manager and quantity surveyor"),
+    ("6", "Structural, facade and waterproofing consultants"),
+    ("7", "Fire engineer and certifier"),
+    ("8", "Building-services engineers"),
+    ("9", "Access, hazardous-material and specialist testing consultants"),
+)
+_REMEDIATION_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("10", "Investigations, probes, testing and monitoring"),
+    ("11", "Preliminaries, access, protection and occupied-building controls"),
+    ("12", "Temporary works, make-safe and enabling works"),
+    ("13", "Demolition, removal and hazardous-material controls"),
+    ("14", "Substrate and structural repairs"),
+    ("15", "Waterproofing and weatherproofing rectification"),
+    ("16", "Facade and cladding rectification"),
+    ("17", "Fire and life-safety rectification"),
+    ("18", "Building-services modifications and reinstatement"),
+    ("19", "Internal finishes, external works and making good"),
+    ("20", "Testing, validation, certification and handover"),
+    ("21", "Access, decanting and occupant-interface works â€” scope gap"),
+)
+_REMEDIATION_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
+    ("22", "Owner/strata direct relocation and access allowance"),
+)
+_REMEDIATION_CONTINGENCY_CODE = "23"
+
+_INDUSTRIAL_PROCESS_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("5", "Architect, project manager and quantity surveyor"),
+    ("6", "Survey, geotechnical, civil and structural engineers"),
+    ("7", "Process, mechanical, electrical and hydraulic engineers"),
+    ("8", "Fire engineer, dangerous-goods and hazardous-area specialists"),
+    ("9", "Planning, environmental, traffic and certifier"),
+    ("10", "Controls, commissioning and operational-readiness specialists"),
+)
+_INDUSTRIAL_PROCESS_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("11", "Preliminaries, logistics and temporary works"),
+    ("12", "Earthworks, civil works and utility infrastructure"),
+    ("13", "Substructure, slabs and equipment foundations"),
+    ("14", "Structural frame, envelope and roofing"),
+    ("15", "Internal fitout and controlled operational areas"),
+    ("16", "Process plant and production equipment â€” allocation gap"),
+    ("17", "Process piping, gases and specialist utilities"),
+    ("18", "Mechanical and ventilation systems"),
+    ("19", "Electrical distribution, generation and controls"),
+    ("20", "Hydraulic, trade-waste and fire services"),
+    ("21", "External works, loading, storage and security"),
+    ("22", "Integrated testing, commissioning and operational readiness"),
+)
+_INDUSTRIAL_PROCESS_CONTINGENCY_CODE = "23"
+
+_COLD_CHAIN_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("11", "Preliminaries, logistics and temporary works"),
+    ("12", "Earthworks, civil works and utility infrastructure"),
+    ("13", "Substructure, insulated slabs and vapour barriers"),
+    ("14", "Structural frame, insulated envelope and roofing"),
+    ("15", "Temperature-controlled rooms, doors and docks"),
+    ("16", "Refrigeration plant and distribution"),
+    ("17", "Electrical distribution, generation and controls"),
+    ("18", "Hydraulic, trade-waste and fire services"),
+    ("19", "Food-safety/process fitout â€” allocation gap"),
+    ("20", "External works, yards, loading and security"),
+    ("21", "Integrated testing, commissioning and temperature validation"),
+)
+_COLD_CHAIN_CONTINGENCY_CODE = "22"
+
+_DATA_CENTRE_CONSULTANT_ROWS: tuple[tuple[str, str], ...] = (
+    ("5", "Architect, project manager and quantity surveyor"),
+    ("6", "Survey, geotechnical, civil and structural engineers"),
+    ("7", "Mission-critical mechanical and electrical engineers"),
+    ("8", "Fire, security, ICT and controls consultants"),
+    ("9", "Planning, environmental, acoustic and certifier"),
+    ("10", "Commissioning authority and operational-readiness specialists"),
+)
+_DATA_CENTRE_CONSTRUCTION_ROWS: tuple[tuple[str, str], ...] = (
+    ("11", "Preliminaries, logistics and temporary works"),
+    ("12", "Earthworks, civil works and utility infrastructure"),
+    ("13", "Substructure, slabs and structural frame"),
+    ("14", "Envelope, roofing and physical-security construction"),
+    ("15", "White-space, support-space and office fitout"),
+    ("16", "Utility intake, substations and high-voltage distribution"),
+    ("17", "Generators, UPS, energy storage and low-voltage distribution"),
+    ("18", "Cooling, ventilation and heat-rejection systems"),
+    ("19", "Fire detection, suppression and life-safety systems"),
+    ("20", "ICT pathways, security, BMS and DCIM controls"),
+    ("21", "External works, fuel systems and service yards"),
+    ("22", "Integrated systems testing and staged commissioning"),
+    ("23", "Client IT equipment and carrier services â€” allocation gap"),
+)
+_DATA_CENTRE_PC_ALLOWANCE_ROWS: tuple[tuple[str, str], ...] = (
+    ("24", "Client-direct IT and network equipment allowance"),
+)
+_DATA_CENTRE_CONTINGENCY_CODE = "25"
+
 _FEE_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
-    "residential": _RESIDENTIAL_FEE_ROWS,
+    "residential_class1_new": _RESIDENTIAL_FEE_ROWS,
+    "residential_class1_refurb": _RESIDENTIAL_FEE_ROWS,
+    "multi_residential": _MULTI_RESIDENTIAL_FEE_ROWS,
+    "commercial_fitout": _COMMERCIAL_FITOUT_FEE_ROWS,
+    "commercial_base_building": _COMMERCIAL_BASE_FEE_ROWS,
+    "building_remediation": _REMEDIATION_FEE_ROWS,
     "industrial_warehouse": _INDUSTRIAL_FEE_ROWS,
+    "industrial_process": _INDUSTRIAL_FEE_ROWS,
+    "industrial_cold_chain": _INDUSTRIAL_FEE_ROWS,
+    "data_centre": _INDUSTRIAL_FEE_ROWS,
 }
 _CONSULTANT_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
-    "residential": _RESIDENTIAL_CONSULTANT_ROWS,
+    "residential_class1_new": _RESIDENTIAL_CONSULTANT_ROWS,
+    "residential_class1_refurb": _RESIDENTIAL_CONSULTANT_ROWS,
+    "multi_residential": _MULTI_RESIDENTIAL_CONSULTANT_ROWS,
+    "commercial_fitout": _COMMERCIAL_FITOUT_CONSULTANT_ROWS,
+    "commercial_base_building": _COMMERCIAL_BASE_CONSULTANT_ROWS,
+    "building_remediation": _REMEDIATION_CONSULTANT_ROWS,
     "industrial_warehouse": _INDUSTRIAL_CONSULTANT_ROWS,
+    "industrial_process": _INDUSTRIAL_PROCESS_CONSULTANT_ROWS,
+    "industrial_cold_chain": _INDUSTRIAL_PROCESS_CONSULTANT_ROWS,
+    "data_centre": _DATA_CENTRE_CONSULTANT_ROWS,
 }
 _CONSTRUCTION_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
-    "residential": _RESIDENTIAL_CONSTRUCTION_ROWS,
+    "residential_class1_new": _RESIDENTIAL_CONSTRUCTION_ROWS,
+    "residential_class1_refurb": _RESIDENTIAL_REFURB_CONSTRUCTION_ROWS,
+    "multi_residential": _MULTI_RESIDENTIAL_CONSTRUCTION_ROWS,
+    "commercial_fitout": _COMMERCIAL_FITOUT_CONSTRUCTION_ROWS,
+    "commercial_base_building": _COMMERCIAL_BASE_CONSTRUCTION_ROWS,
+    "building_remediation": _REMEDIATION_CONSTRUCTION_ROWS,
     "industrial_warehouse": _INDUSTRIAL_CONSTRUCTION_ROWS,
+    "industrial_process": _INDUSTRIAL_PROCESS_CONSTRUCTION_ROWS,
+    "industrial_cold_chain": _COLD_CHAIN_CONSTRUCTION_ROWS,
+    "data_centre": _DATA_CENTRE_CONSTRUCTION_ROWS,
 }
-# Only residential has a benchmark % split; industrial is TBC-only (no rate pack).
+# Only residential has a benchmark % split; other families are TBC-only.
 _CONSTRUCTION_BENCHMARK_PCT_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, int], ...] | None] = {
-    "residential": _RESIDENTIAL_CONSTRUCTION_BENCHMARK_PCT,
+    "residential_class1_new": _RESIDENTIAL_CONSTRUCTION_BENCHMARK_PCT,
+    "residential_class1_refurb": None,
+    "multi_residential": None,
+    "commercial_fitout": None,
+    "commercial_base_building": None,
+    "building_remediation": None,
     "industrial_warehouse": None,
+    "industrial_process": None,
+    "industrial_cold_chain": None,
+    "data_centre": None,
 }
 _PC_ALLOWANCE_ROWS_BY_FAMILY: dict[CoverageFamily, tuple[tuple[str, str], ...]] = {
-    "residential": _RESIDENTIAL_PC_ALLOWANCE_ROWS,
+    "residential_class1_new": _RESIDENTIAL_PC_ALLOWANCE_ROWS,
+    "residential_class1_refurb": _RESIDENTIAL_PC_ALLOWANCE_ROWS,
+    "multi_residential": _MULTI_RESIDENTIAL_PC_ALLOWANCE_ROWS,
+    "commercial_fitout": _COMMERCIAL_FITOUT_PC_ALLOWANCE_ROWS,
+    "commercial_base_building": _COMMERCIAL_BASE_PC_ALLOWANCE_ROWS,
+    "building_remediation": _REMEDIATION_PC_ALLOWANCE_ROWS,
     "industrial_warehouse": _INDUSTRIAL_PC_ALLOWANCE_ROWS,
+    "industrial_process": (),
+    "industrial_cold_chain": (),
+    "data_centre": _DATA_CENTRE_PC_ALLOWANCE_ROWS,
 }
 _CONTINGENCY_CODE_BY_FAMILY: dict[CoverageFamily, str] = {
-    "residential": _RESIDENTIAL_CONTINGENCY_CODE,
+    "residential_class1_new": _RESIDENTIAL_CONTINGENCY_CODE,
+    "residential_class1_refurb": _RESIDENTIAL_CONTINGENCY_CODE,
+    "multi_residential": _MULTI_RESIDENTIAL_CONTINGENCY_CODE,
+    "commercial_fitout": _COMMERCIAL_FITOUT_CONTINGENCY_CODE,
+    "commercial_base_building": _COMMERCIAL_BASE_CONTINGENCY_CODE,
+    "building_remediation": _REMEDIATION_CONTINGENCY_CODE,
     "industrial_warehouse": _INDUSTRIAL_CONTINGENCY_CODE,
+    "industrial_process": _INDUSTRIAL_PROCESS_CONTINGENCY_CODE,
+    "industrial_cold_chain": _COLD_CHAIN_CONTINGENCY_CODE,
+    "data_centre": _DATA_CENTRE_CONTINGENCY_CODE,
 }
 
 
 def _coverage_family(project: Project) -> CoverageFamily:
-    """Map a project's building class to its Cost Plan renderer taxonomy family.
-
-    Capability gating (``app/projects/workflow_capabilities.py``) already blocks any
-    building class/state/role combination this renderer does not support, so this is
-    a simple two-way split rather than a full validity check.
-    """
-    if project.building_class == "industrial":
-        return "industrial_warehouse"
-    return "residential"
+    """Resolve the same exact taxonomy family used by workflow capability gating."""
+    taxonomy = effective_taxonomy(project)
+    coverage = resolve_cost_plan_coverage(
+        building_class=taxonomy.building_class,
+        work_type=taxonomy.work_type,
+        subclasses=taxonomy.subclasses,
+        work_scopes=effective_work_scopes(project),
+    )
+    if coverage is None:
+        raise ValueError(
+            "Project taxonomy is outside the supported Cost Plan coverage matrix."
+        )
+    return coverage.family
 
 _STANDING_ASSUMPTIONS: tuple[str, ...] = (
     "Construction trade pricing TBC pending head-builder tender.",
@@ -398,9 +696,10 @@ def _render_budget_and_breakdown(
     ]
     family = _coverage_family(project)
     breakdown_intro = (
-        _INDUSTRIAL_NO_RATE_PACK_DISCLOSURE
-        if family == "industrial_warehouse"
-        else "Construction rows are an indicative benchmark split until a tendered trade schedule is available."
+        "Construction rows are an indicative benchmark split until a tendered "
+        "trade schedule is available."
+        if family == "residential_class1_new"
+        else _no_rate_pack_disclosure(family)
     )
     return "\n".join(
         [
@@ -438,7 +737,7 @@ def _render_commitments_allowances(
     family = _coverage_family(project)
     construction_rows_note = (
         "- Construction rows are lump-sum TBC placeholders, not tendered prices."
-        if family == "industrial_warehouse"
+        if coverage_spec(family).structure_only
         else "- Construction benchmark rows are assumptions, not tendered prices."
     )
     lines = [
@@ -447,7 +746,17 @@ def _render_commitments_allowances(
         *rows,
         "",
         f"- Contingency: {_money(pack.contingency_amount) if pack.contingency_amount else 'TBC'} {brief}.",
-        "- PC allowances, authority fees and unappointed consultants remain TBC until tender or appointment.",
+        (
+            "- Client-direct / landlord interface allowances, authority fees and "
+            "unappointed consultants remain TBC until allocation, tender or appointment."
+            if family == "commercial_fitout"
+            else (
+                "- Client/owner-direct allowances, authority fees and unappointed "
+                "consultants remain TBC until allocation, tender or appointment."
+                if _PC_ALLOWANCE_ROWS_BY_FAMILY[family]
+                else "- Authority fees and unappointed consultants remain TBC until tender or appointment."
+            )
+        ),
         construction_rows_note,
     ]
     if pack.owner_supplied_items:
@@ -462,7 +771,10 @@ def _render_commitments_allowances(
     return "\n".join(lines)
 
 
-def _render_risks_gates_actions(pack: CostPlanEvidencePack) -> str:
+def _render_risks_gates_actions(
+    project: Project,
+    pack: CostPlanEvidencePack,
+) -> str:
     return "\n".join(
         [
             "## Risks, delivery gates and next actions",
@@ -471,7 +783,7 @@ def _render_risks_gates_actions(pack: CostPlanEvidencePack) -> str:
             NARRATIVE_PLACEHOLDER,
             "",
             "### Delivery gates",
-            _body(_render_authority_gates(pack)),
+            _body(_render_authority_gates(project, pack)),
             "",
             "### Next actions",
             NARRATIVE_PLACEHOLDER,
@@ -753,7 +1065,14 @@ def _render_gst_basis(pack: CostPlanEvidencePack) -> str:
 
 def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
     family = _coverage_family(project)
-    is_industrial = family == "industrial_warehouse"
+    is_industrial = family in {
+        "industrial_warehouse",
+        "industrial_process",
+        "industrial_cold_chain",
+        "data_centre",
+    }
+    is_commercial_fitout = family == "commercial_fitout"
+    is_structure_only = coverage_spec(family).structure_only
     fee_rows = _FEE_ROWS_BY_FAMILY[family]
     consultant_rows = _CONSULTANT_ROWS_BY_FAMILY[family]
     construction_rows = _CONSTRUCTION_ROWS_BY_FAMILY[family]
@@ -812,19 +1131,25 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
             )
         construction_subtotal = f"${ceiling:,}"
     else:
-        # Industrial has no benchmark % split (no rate pack) — every row is a lump-sum
-        # TBC regardless of whether a construction ceiling is evidenced.
+        # Structure-only families have no benchmark percentage split, so every row
+        # stays a lump-sum TBC even when a construction ceiling is evidenced.
         basis = (
             "Structure only — no rate pack; pending head-builder tender"
-            if is_industrial
+            if is_structure_only
             else "Pending head-builder tender"
         )
         for code, label in construction_rows:
             rows.append(f"| {code} | Construction | {label} | TBC | Assumption | {basis} |")
         construction_subtotal = "TBC"
+    allowance_category = (
+        "Client-direct and landlord works"
+        if is_commercial_fitout
+        else "PC allowances"
+    )
     for code, label in pc_allowance_rows:
         rows.append(
-            f"| {code} | PC allowances | {label} | TBC | Assumption | Selection pending — contract PC schedule |"
+            f"| {code} | {allowance_category} | {label} | TBC | Assumption | "
+            f"{'Allocation and procurement pending' if is_commercial_fitout else 'Selection pending — contract PC schedule'} |"
         )
     rows.append(
         f"| {contingency_code} | Contingency / allowances | Owner-held contingency | {contingency} | "
@@ -843,7 +1168,7 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
     grand_total = f"${itemised_total:,}" if itemised_total else "TBC"
     grand_basis = (
         "Sum of itemised subtotals — construction is a lump-sum TBC (no rate pack), consultants TBC"
-        if is_industrial
+        if is_structure_only
         else "Sum of itemised subtotals — construction is benchmark % of ceiling, consultants/PC TBC"
     )
     subtotal_rows = [
@@ -852,7 +1177,9 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
         f"| | | **Subtotal — Construction** | {construction_subtotal} | | |",
     ]
     if pc_allowance_rows:
-        subtotal_rows.append("| | | **Subtotal — PC allowances** | TBC | | |")
+        subtotal_rows.append(
+            f"| | | **Subtotal — {allowance_category}** | TBC | | |"
+        )
     subtotal_rows.append(f"| | | **Subtotal — Contingency / allowances** | {contingency} | | |")
     subtotal_rows.append(f"| | | **Grand total (ex GST)** | {grand_total} | Assumption | {grand_basis} |")
     rows.extend(subtotal_rows)
@@ -872,17 +1199,32 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
             "Workbook-ready groups: Fees and charges → Consultants → Construction → "
             "Contingency / allowances."
         )
-        taxonomy_line = (
-            "Construction rows follow the NSW industrial warehouse/logistics (Class 7b) "
-            "taxonomy structure only — no rate pack."
+        taxonomy_line = f"Construction rows follow the {coverage_spec(family).label}."
+        benchmark_line = _no_rate_pack_disclosure(family)
+    elif is_commercial_fitout:
+        workbook_groups_line = (
+            "Workbook-ready groups: Fees and statutory charges → Consultants → "
+            "Tenant construction works → Client-direct and landlord works → "
+            "Contingency / allowances."
         )
-        benchmark_line = _INDUSTRIAL_NO_RATE_PACK_DISCLOSURE
+        taxonomy_line = (
+            "Construction rows follow the NSW Class 5 office / serviced-office "
+            "commercial fit-out taxonomy structure only — no rate pack."
+        )
+        benchmark_line = _no_rate_pack_disclosure(family)
+    elif is_structure_only:
+        workbook_groups_line = (
+            "Workbook-ready groups: Fees and charges → Consultants → Construction → "
+            "Client/owner direct allowances (where applicable) → Contingency / allowances."
+        )
+        taxonomy_line = f"Construction rows follow the {coverage_spec(family).label}."
+        benchmark_line = _no_rate_pack_disclosure(family)
     else:
         workbook_groups_line = (
             "Workbook-ready groups: Fees and charges → Consultants → Construction → PC allowances → "
             "Contingency / allowances."
         )
-        taxonomy_line = "Construction rows follow NSW residential taxonomy."
+        taxonomy_line = "Construction rows follow NSW Class 1 residential taxonomy."
         benchmark_line = (
             "Construction rows are an indicative benchmark split of the owner ceiling (Assumption) "
             "until head-builder tender returns a priced schedule."
@@ -1035,7 +1377,10 @@ def _render_risks_skeleton(pack: CostPlanEvidencePack) -> str:
     )
 
 
-def _render_authority_gates(pack: CostPlanEvidencePack) -> str:
+def _render_authority_gates(
+    project: Project,
+    pack: CostPlanEvidencePack,
+) -> str:
     pathway = pack.planning_pathway_summary or pack.mobilisation.planning_pathway or "DA pathway — confirm"
     geotech_status = (
         "Grounded — adopt H1 (or as reported) in slab pricing"
@@ -1061,25 +1406,70 @@ def _render_authority_gates(pack: CostPlanEvidencePack) -> str:
             else "Appoint after DA determination"
         )
     )
+    family = _coverage_family(project)
+    rows = [
+        "| Gate | Status | Cost impact | Next action |",
+        "| --- | --- | --- | --- |",
+        f"| Planning / approval pathway | {pathway} | High if wrong | Record the confirmed pathway and cost owner |",
+    ]
+    if family in {"residential_class1_new", "residential_class1_refurb"}:
+        rows.extend(
+            [
+                f"| Geotechnical / footing class | {geotech_status} | Medium–High | {geotech_action} |",
+                "| Residential insurance, licence and contract evidence | Assumption | Statutory / commercial | Verify applicability and evidence before head contract |",
+            ]
+        )
+    elif family == "building_remediation":
+        rows.extend(
+            [
+                "| Investigation and cause confirmation | Partial | High | Close intrusive investigation and design-basis gaps before pricing |",
+                "| Access, occupation and temporary controls | Assumption | High | Confirm staging, decanting and access responsibility |",
+                "| Rectification verification plan | Assumption | High | Agree hold points, testing and completion evidence before tender |",
+            ]
+        )
+    elif family == "commercial_fitout":
+        rows.extend(
+            [
+                "| Existing-services capacity and condition | Assumption | High | Complete surveys and landlord/base-building confirmations |",
+                "| Tenant, landlord and client-direct allocation | Assumption | High | Freeze the responsibility matrix before tender |",
+            ]
+        )
+    elif family in {
+        "industrial_warehouse",
+        "industrial_process",
+        "industrial_cold_chain",
+        "data_centre",
+    }:
+        rows.extend(
+            [
+                "| Utility capacity and connection strategy | Assumption | High | Confirm applications, capacity, programme and cost allocation |",
+                "| Process/vendor and building-work allocation | Assumption | High | Freeze the interface schedule before package pricing |",
+                "| Commissioning and operational readiness | Assumption | High | Agree testing stages, witnesses and completion criteria |",
+            ]
+        )
+    else:
+        rows.extend(
+            [
+                "| Site, structure and existing-condition basis | Assumption | High | Close investigations before package pricing |",
+                "| Base-building, operator and client-direct allocation | Assumption | High | Freeze the responsibility matrix before tender |",
+            ]
+        )
+    rows.extend(
+        [
+            f"| Principal certifier / certification pathway | {certifier_status} | Programme | {certifier_action} |",
+            "| Head-builder / package procurement | Partial | High | Tender only against a coordinated, scoped issue |",
+        ]
+    )
+    if pack.mobilisation.heritage_approval_advice:
+        rows.append(
+            "| Heritage impact / approval input | Grounded | Programme / consultant fee | "
+            f"{pack.mobilisation.heritage_approval_advice} |"
+        )
     return "\n".join(
         [
             "## Authority, compliance and procurement gates",
             "",
-            "| Gate | Status | Cost impact | Next action |",
-            "| --- | --- | --- | --- |",
-            f"| Planning pathway | {pathway} | High if wrong | Owner decision recorded |",
-            f"| Geotechnical / footing class | {geotech_status} | Medium–High | {geotech_action} |",
-            "| HBCF / HOW / licence | Assumption | Statutory | Verify before head contract |",
-            f"| Principal certifier | {certifier_status} | Programme | {certifier_action} |",
-            "| Head-builder procurement | Partial | High | Tender after DD/IFC package |",
-            *(
-                [
-                    "| Heritage impact statement | Grounded | Programme / consultant fee | "
-                    f"{pack.mobilisation.heritage_approval_advice} |"
-                ]
-                if pack.mobilisation.heritage_approval_advice
-                else []
-            ),
+            *rows,
         ]
     )
 
@@ -1169,7 +1559,7 @@ def render_cost_plan_scaffold(
         _render_summary(project, pack, citations),
         _render_budget_and_breakdown(project, pack, citations),
         _render_commitments_allowances(project, pack, citations),
-        _render_risks_gates_actions(pack),
+        _render_risks_gates_actions(project, pack),
         _render_sources_and_audit(pack, citations),
     ]
 

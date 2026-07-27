@@ -10,11 +10,12 @@ from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.workspace_files import get_workspace_file_by_path, upsert_workspace_file
 from app.inbox.paths import InboxPathError, build_inbox_workspace_path, build_storage_key, sanitize_filename
-from app.intake.sort_service import sort_inbox_files
 from app.schemas.projects import WorkflowTraceEvent
+from app.schemas.project_snapshot import ProjectSnapshot
+from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.storage.project_files import upload_project_file
+from app.workflows.runs import start_workflow_run
 from ingest.hashing import bytes_content_hash
-from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
@@ -26,6 +27,7 @@ class InboxUploadItem:
     filename: str
     content: bytes
     relative_path: str | None = None
+    ingest_metadata: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,12 +129,20 @@ async def upload_inbox_files(
     *,
     project: Project,
     items: list[InboxUploadItem],
+    user_id: uuid.UUID,
+    snapshot: ProjectSnapshot,
 ) -> list[InboxUploadOutcome]:
     validate_upload_batch(items)
     outcomes: list[InboxUploadOutcome] = []
 
     for item in items:
-        outcome = await _upload_single_file(session, project=project, item=item)
+        outcome = await _upload_single_file(
+            session,
+            project=project,
+            item=item,
+            user_id=user_id,
+            snapshot=snapshot,
+        )
         outcomes.append(outcome)
 
     await session.commit()
@@ -144,10 +154,11 @@ async def _upload_single_file(
     *,
     project: Project,
     item: InboxUploadItem,
+    user_id: uuid.UUID,
+    snapshot: ProjectSnapshot,
 ) -> InboxUploadOutcome:
     run_id = uuid.uuid4()
     filename = sanitize_filename(item.filename)
-    extension = _extension(filename)
     content_hash = bytes_content_hash(item.content)
     workspace_path = build_inbox_workspace_path(
         project.workspace_path,
@@ -234,7 +245,7 @@ async def _upload_single_file(
         storage_key=storage_key,
         content_hash=content_hash,
         size_bytes=len(item.content),
-        ingest_status="pending",
+        ingest_status="queued",
         ingest_error=None,
         source_document_id=None,
     )
@@ -255,117 +266,24 @@ async def _upload_single_file(
         ],
     )
 
-    ingest_status = "failed"
-    ingest_error: str | None = None
-    message: str | None = None
-    ingest_events: list[WorkflowTraceEvent] = []
-
-    try:
-        def collect_ingest_event(
-            step: str,
-            status: str,
-            message: str,
-            metadata: dict[str, object],
-        ) -> None:
-            ingest_events.append(
-                WorkflowTraceEvent(
-                    step=step,
-                    status=status,
-                    message=message,
-                    metadata=metadata,
-                )
-            )
-
-        ingested = await asyncio.to_thread(
-            ingest_hosted_file,
-            content=item.content,
-            workspace_path=workspace_path,
-            project_id=project.id,
-            project_slug=project.slug,
-            project_phase=project.phase,
-            filename=filename,
-            extension=extension,
-            skip_if_unchanged=True,
-            trace_callback=collect_ingest_event,
-        )
-        await _record_file_activity(
-            session,
-            project_id=project.id,
-            run_id=run_id,
-            workspace_file_id=record.id,
-            events=ingest_events,
-        )
-        if ingested:
-            ingest_status = "ingested"
-            message = "Uploaded and ingested"
-        else:
-            ingest_status = "skipped"
-            message = "Uploaded; ingest skipped because content is unchanged"
-    except Exception as exc:
-        ingest_error = str(exc)
-        message = "Uploaded but ingest failed"
-        logger.exception("inbox_ingest_failed", workspace_path=workspace_path)
-        await _record_file_activity(
-            session,
-            project_id=project.id,
-            run_id=run_id,
-            workspace_file_id=record.id,
-            events=ingest_events,
-        )
-        await _record_file_activity(
-            session,
-            project_id=project.id,
-            run_id=run_id,
-            workspace_file_id=record.id,
-            events=[
-                _activity_trace(
-                    "ingest",
-                    "failed",
-                    "Ingest failed after the file was stored.",
-                    filename=filename,
-                    workspace_path=workspace_path,
-                    error=str(exc),
-                )
-            ],
-        )
-
-    source_doc_id = await asyncio.to_thread(
-        source_document_id_for_path, workspace_path, project_id=project.id
+    request = WorkflowRunStartRequest(
+        idempotency_key=f"document-ingest:{record.id}:{content_hash}",
+        expected_snapshot_fingerprint=snapshot.content_fingerprint,
+        expected_profile_revision=snapshot.profile.profile_revision,
+        expected_decision_set_revision=snapshot.decisions.set_revision,
+        parameters={
+            "workspace_file_id": str(record.id),
+            "document_metadata": item.ingest_metadata or {},
+        },
     )
-    record = await upsert_workspace_file(
+    await start_workflow_run(
         session,
-        project_id=project.id,
-        workspace_path=workspace_path,
-        filename=filename,
-        storage_bucket=bucket,
-        storage_key=storage_key,
-        content_hash=content_hash,
-        size_bytes=len(item.content),
-        ingest_status=ingest_status,
-        ingest_error=ingest_error,
-        source_document_id=source_doc_id,
+        project=project,
+        user_id=user_id,
+        workflow_type="ingest_project_document",
+        request=request,
+        snapshot=snapshot,
     )
-    if ingest_status == "ingested":
-        sorted_files = await sort_inbox_files(
-            session,
-            project=project,
-            workspace_paths={workspace_path},
-        )
-        moved = next(
-            (item for item in sorted_files.records if item.source_path == workspace_path),
-            None,
-        )
-        if moved is not None and moved.outcome == "moved" and moved.destination_path:
-            moved_record = await get_workspace_file_by_path(
-                session,
-                project_id=project.id,
-                workspace_path=moved.destination_path,
-            )
-            if moved_record is not None:
-                record = moved_record
-                workspace_path = moved.destination_path
-                filename = moved.destination_filename or moved_record.filename
-                message = "Uploaded, ingested, and filed"
     await _record_file_activity(
         session,
         project_id=project.id,
@@ -374,11 +292,11 @@ async def _upload_single_file(
         events=[
             _activity_trace(
                 "workspace_status",
-                "complete" if ingest_status == "ingested" else ingest_status,
-                message or "Updated workspace ingest status.",
+                "queued",
+                "Uploaded; ingestion queued.",
                 filename=filename,
                 workspace_path=workspace_path,
-                ingest_status=ingest_status,
+                ingest_status="queued",
             )
         ],
     )
@@ -389,6 +307,6 @@ async def _upload_single_file(
         workspace_path=workspace_path,
         content_hash=content_hash,
         size_bytes=len(item.content),
-        ingest_status=ingest_status,
-        message=message,
+        ingest_status="queued",
+        message="Uploaded; ingestion queued",
     )

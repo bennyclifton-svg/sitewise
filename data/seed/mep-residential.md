@@ -7,6 +7,8 @@ applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 applies_to_classes: [residential]
 applies_to_work_types: [new, refurb, extend]
 state_default: NSW
+status: legacy-retained
+reconciliation: "Retained as the domestic integrated-services overview; deep discipline scope lives in the mechanical, hydraulic, electrical, and ICT/AV/security guides."
 topics: [mep, electrical, plumbing, ventilation]
 summary: "Mechanical, electrical and plumbing literacy for residential work: hot water, gas, electrical, NBN and mechanical ventilation, with the inspection gates per service. Never a substitute for the licensed trade or hydraulic engineer."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]
@@ -18,6 +20,28 @@ agents_anchors: [§1, §2, §8]
 This seed provides residential-grade mechanical, electrical, and plumbing context for Class 1a and Class 10 buildings. It covers domestic hot water, gas, electrical, communications, and mechanical ventilation. It does not replace the licensed plumber, electrician, or hydraulic engineer — it gives the agent and project lead sufficient literacy to scope services work, identify inspection gates, and flag when specialist input is required.
 
 Load this seed task-loaded when a role × archetype task involves services RFIs, scope of works, specification items, or services inspection coordination.
+
+---
+
+## Scope boundary and deep-guide handoffs
+
+This file is retained as a compact Class 1 domestic-services overview. It must
+not become a second source of truth for full discipline appointments:
+
+- load `mechanical-services-guide.md` for mechanical design, coordination and
+  commissioning scope;
+- load `hydraulic-services-guide.md` for water, sanitary drainage, hot water,
+  gas, trade waste and hydraulic handover scope;
+- load `electrical-services-guide.md` for supply, demand, distribution,
+  lighting, metering, controls and electrical commissioning;
+- load `ict-av-security-guide.md` for communications, structured cabling,
+  security and integrated technology;
+- load `sustainability-energy-guide.md` for BASIX/NatHERS commitments.
+
+Where the integrated overview and a discipline guide differ, use project
+evidence first and the deeper discipline guide second. Keep the issue TBC and
+route it to the responsible designer or licensed trade rather than combining
+incompatible assumptions.
 
 ---
 

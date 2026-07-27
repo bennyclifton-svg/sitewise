@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.sitewise.archetype_bridge import effective_taxonomy
+from app.sitewise.archetype_bridge import effective_taxonomy, effective_work_scopes
 
 
 def _project(**overrides):
@@ -86,3 +86,33 @@ def test_legacy_small_commercial_mapping() -> None:
 
 def test_missing_taxonomy_and_archetype_returns_empty_effective_taxonomy() -> None:
     assert effective_taxonomy(_project()) == (None, None, ())
+
+
+def test_explicit_columns_can_reuse_matching_legacy_subclass_during_migration() -> None:
+    taxonomy = effective_taxonomy(
+        _project(
+            building_class="residential",
+            work_type="refurb",
+            archetype="renovation",
+        )
+    )
+
+    assert taxonomy.subclasses == ("house",)
+
+
+def test_effective_work_scopes_reads_taxonomy_metadata() -> None:
+    project = _project(
+        project_metadata={
+            "taxonomy": {
+                "work_scope": [
+                    "fire_services",
+                    {"value": "electrical_power", "label": "Electrical"},
+                ]
+            }
+        }
+    )
+
+    assert effective_work_scopes(project) == (
+        "fire_services",
+        "electrical_power",
+    )

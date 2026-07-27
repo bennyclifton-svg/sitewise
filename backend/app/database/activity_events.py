@@ -25,6 +25,7 @@ TERMINAL_ACTIVITY_STATUSES = frozenset(
         "completed",
         "done",
         "failed",
+        "needs_review",
         "refused",
         "skipped",
     }

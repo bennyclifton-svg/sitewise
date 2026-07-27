@@ -52,6 +52,22 @@ describe("MarkdownContent", () => {
     expect(screen.getByText("Sections")).toBeInTheDocument();
   });
 
+  it("renders compact RFP source values as provenance chips", () => {
+    render(
+      <MarkdownContent
+        markdown={`| Field | Project detail | Source |
+| --- | --- | --- |
+| Site | 88 Westgate Street | [2] |
+| State | NSW | Profile |
+| Budget | TBC | Confirm |`}
+      />,
+    );
+
+    expect(screen.getByText("[2]")).toHaveClass("evidence-status-chip");
+    expect(screen.getByText("Profile")).toHaveClass("evidence-status-chip");
+    expect(screen.getByText("Confirm")).toHaveClass("evidence-status-chip");
+  });
+
   it("hydrates embedded decisions from canonical server state", () => {
     render(
       <MarkdownContent

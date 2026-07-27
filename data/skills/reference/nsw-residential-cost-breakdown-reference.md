@@ -3,9 +3,11 @@ tier: topic
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 applies_to_classes: [residential]
+applies_to_work_types: [new, refurb, extend]
+applies_to_subclasses: [house, townhouses]
 topics: [cost, taxonomy]
 summary: "Practice-level taxonomy for early NSW residential cost plans: workbook-ready groups and the construction breakdown shape. Practice guidance only — never active-project evidence, a market-rate source, or a source-of-truth cost plan."
-required_by: {create-cost-plan: 2}
+required_by: {create-pmp: 2, create-cost-plan: 2, consultant-procurement: 2}
 status: reference
 author: agent
 date: 2026-05-30
@@ -53,6 +55,19 @@ but normally consider these item families:
 | Services | Hydraulic services, electrical services, mechanical services, communications and service fitoff allowances |
 | Finishes | Floor coverings, painting, joint sealing and caulking |
 | External works | Softscape, hardscape, driveways, paths, fencing, gates, external services and final cleaning |
+
+## Refurbishment and Extension Control
+
+For `refurb` and `extend`, retain the workbook groups but replace a greenfield
+trade split with project-specific lines for investigation and opening-up,
+protection and temporary works, hazardous-material controls, demolition,
+existing-structure repair, new structural work, old-to-new envelope interfaces,
+services alterations, making good and occupied-site staging where applicable.
+
+Do not transfer a new-build percentage allocation into refurbishment or
+extension work. Existing-condition extent, access, demolition, temporary works
+and tie-in risk must remain lump-sum TBC until supported by active-project
+evidence, a QS assessment or returned tender pricing.
 
 ## Use Rules
 

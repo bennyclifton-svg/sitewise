@@ -82,13 +82,14 @@ def test_analyze_endpoint_returns_proposal(client: TestClient) -> None:
 def test_split_endpoint_returns_outcomes(client: TestClient) -> None:
     from app.inbox.service import InboxUploadOutcome
 
-    async def fake_split(session, *, project, staging_id, source_filename):
+    async def fake_split(session, *, project, user_id, snapshot, staging_id, source_filename):
         return [InboxUploadOutcome(
             id=uuid.uuid4(), filename="x - 01 Site Plan.pdf", workspace_path="w",
             content_hash="h", size_bytes=1, ingest_status="ingested", message="ok")]
 
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.get_project_snapshot", new=AsyncMock(return_value=object())),
         patch("app.api.projects.split_staged_pdf", side_effect=fake_split),
     ):
         r = client.post(
@@ -102,13 +103,14 @@ def test_split_endpoint_returns_outcomes(client: TestClient) -> None:
 def test_commit_endpoint_returns_single_outcome(client: TestClient) -> None:
     from app.inbox.service import InboxUploadOutcome
 
-    async def fake_commit(session, *, project, staging_id, source_filename):
+    async def fake_commit(session, *, project, user_id, snapshot, staging_id, source_filename):
         return InboxUploadOutcome(
             id=uuid.uuid4(), filename="x.pdf", workspace_path="w",
             content_hash="h", size_bytes=1, ingest_status="ingested", message="ok")
 
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.get_project_snapshot", new=AsyncMock(return_value=object())),
         patch("app.api.projects.commit_staged_pdf_single", side_effect=fake_commit),
     ):
         r = client.post(

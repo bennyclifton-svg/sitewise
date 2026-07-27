@@ -86,6 +86,11 @@ from app.schemas.projects import (
     SortFilesResponse,
     DraftArtifactResponse,
     DraftArtifactSummary,
+    DocumentRepairApplyRequest,
+    DocumentRepairApplyResponse,
+    DocumentRepairApplyRow,
+    DocumentRepairPreviewResponse,
+    DocumentRepairPreviewRow,
     EvidencePreview,
     InboxUploadResponse,
     InboxUploadResult,
@@ -158,6 +163,10 @@ from app.schemas.workflow_runs import (
 from app.evidence.service import delete_project_evidence, require_project_evidence_ids
 from app.storage.project_files import delete_project_files, download_project_file
 from app.inbox.service import InboxUploadItem, upload_inbox_files
+from app.intake.repair_service import (
+    apply_existing_file_repairs,
+    preview_existing_file_repairs,
+)
 from app.inbox.split_service import (
     analyze_pdf_upload,
     commit_staged_pdf_single,
@@ -1372,6 +1381,9 @@ async def post_inbox_upload(
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await ensure_user_exists(session, user)
     await require_active_entitlement(session, user)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
 
     items: list[InboxUploadItem] = []
     for upload in files:
@@ -1385,7 +1397,13 @@ async def post_inbox_upload(
             )
         )
 
-    outcomes = await upload_inbox_files(session, project=project, items=items)
+    outcomes = await upload_inbox_files(
+        session,
+        project=project,
+        items=items,
+        user_id=user.id,
+        snapshot=snapshot,
+    )
     return InboxUploadResponse(
         files=[
             InboxUploadResult(
@@ -1420,6 +1438,77 @@ async def get_project_evidence(
         workspace_files=workspace_files,
     )
     return {"evidence": previews}
+
+
+@router.post(
+    "/{project_id}/document-repairs/preview",
+    response_model=DocumentRepairPreviewResponse,
+)
+async def post_document_repair_preview(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DocumentRepairPreviewResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    result = await preview_existing_file_repairs(session, project=project)
+    return DocumentRepairPreviewResponse(
+        inspected=result.inspected,
+        changes=result.changes,
+        needs_review=result.needs_review,
+        conflicts=result.conflicts,
+        unchanged=result.unchanged,
+        rows=[
+            DocumentRepairPreviewRow(
+                status=row.status,
+                current_path=row.current_path,
+                current_filename=row.current_filename,
+                proposed_path=row.proposed_path,
+                proposed_filename=row.proposed_filename,
+                document_number=row.document_number,
+                title=row.title,
+                revision=row.revision,
+                category=row.category,
+                confidence=row.confidence,
+                changes=list(row.changes),
+                reason=row.reason,
+            )
+            for row in result.rows
+        ],
+    )
+
+
+@router.post(
+    "/{project_id}/document-repairs/apply",
+    response_model=DocumentRepairApplyResponse,
+)
+async def post_document_repair_apply(
+    project_id: uuid.UUID,
+    body: DocumentRepairApplyRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DocumentRepairApplyResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    result = await apply_existing_file_repairs(
+        session,
+        project=project,
+        workspace_paths=set(body.workspace_paths),
+    )
+    return DocumentRepairApplyResponse(
+        applied=result.applied,
+        failed=result.failed,
+        skipped=result.skipped,
+        rows=[
+            DocumentRepairApplyRow(
+                current_path=row.current_path,
+                proposed_path=row.proposed_path,
+                status=row.status,
+                reason=row.reason,
+            )
+            for row in result.rows
+        ],
+    )
 
 
 @router.get("/{project_id}/evidence/{evidence_id}")
@@ -1578,9 +1667,14 @@ async def post_inbox_split(
     session: AsyncSession = Depends(get_db),
 ) -> InboxUploadResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
     outcomes = await split_staged_pdf(
         session,
         project=project,
+        user_id=user.id,
+        snapshot=snapshot,
         staging_id=staging_id,
         source_filename=body.source_filename,
     )
@@ -1598,9 +1692,14 @@ async def post_inbox_commit_single(
     session: AsyncSession = Depends(get_db),
 ) -> InboxUploadResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
+    snapshot = await get_project_snapshot(
+        session, project_id=project.id, owner_user_id=user.id
+    )
     outcome = await commit_staged_pdf_single(
         session,
         project=project,
+        user_id=user.id,
+        snapshot=snapshot,
         staging_id=staging_id,
         source_filename=body.source_filename,
     )

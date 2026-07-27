@@ -206,6 +206,12 @@ def test_listing_for_taxonomy_only_project_does_not_crash(monkeypatch):
             archetype=None,
             building_class="residential",
             work_type="refurb",
+            project_metadata={
+                "taxonomy": {
+                    "subclasses": ["house"],
+                    "work_scope": ["fire_services"],
+                }
+            },
         )
     )
     server = _install(monkeypatch, session)
@@ -220,6 +226,8 @@ def test_listing_for_taxonomy_only_project_does_not_crash(monkeypatch):
     (call,) = catalog_calls
     assert call["building_class"] == "residential"
     assert call["work_type"] == "refurb"
+    assert call["subclasses"] == ("house",)
+    assert call["work_scopes"] == ("fire_services",)
 
 
 def test_read_returns_content_and_publishes_consulted_path(monkeypatch):

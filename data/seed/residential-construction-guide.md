@@ -3,6 +3,7 @@ tier: overlay
 loaded_by: "building_class: residential"
 applies_to_classes: [residential]
 applies_to_work_types: [new, refurb, extend]
+applies_to_subclasses: [house, townhouses]
 topics: [residential, construction, class-1, approvals, quality]
 summary: "Residential construction guide for Class 1/10 projects: site assessment, approvals, contracts, insurance, footings, framing, envelope, services, programming, renovation, pools, quality, bushfire, handover, cost and sustainability."
 required_by: {create-pmp: 1}

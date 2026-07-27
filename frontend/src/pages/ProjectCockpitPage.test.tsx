@@ -35,6 +35,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/lib/queries/workflow-runs", () => ({
+  useWorkflowRun: () => ({ data: null }),
   waitForWorkflowRun: mocks.waitForWorkflowRun,
 }));
 

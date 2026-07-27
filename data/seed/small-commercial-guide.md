@@ -7,6 +7,8 @@ applies_to_classes: [commercial]
 applies_to_work_types: [new, refurb, extend]
 state_default: NSW
 confidence: reduced
+status: legacy-retained
+superseded_by: seed/commercial-construction-guide.md
 summary: "Thin graceful-degradation coverage for occasional small commercial work (Class 5, 6, 7b and 8 fitouts and shells) at the edge of SiteWise's residential domain. Every output under this archetype carries confidence: reduced and routes material commercial scope to specialists."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §state-handling]
 agents_anchors: [§1, §2, §3, §8, §11]

@@ -111,10 +111,15 @@ def test_activity_run_status_is_derived_from_latest_event() -> None:
         SimpleNamespace(status="complete"),
         SimpleNamespace(status="failed"),
     ]
+    needs_review = [
+        SimpleNamespace(status="complete"),
+        SimpleNamespace(status="needs_review"),
+    ]
 
     assert activity_run_status(running) == "running"
     assert activity_run_status(complete) == "complete"
     assert activity_run_status(failed) == "failed"
+    assert activity_run_status(needs_review) == "needs_review"
 
 
 def test_delete_project_activity_runs_returns_deleted_row_count() -> None:

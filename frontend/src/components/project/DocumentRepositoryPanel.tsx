@@ -38,6 +38,7 @@ import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
 import { useBatchDeleteEvidence, useDeleteEvidence } from "@/lib/queries/project-data";
 import type {
   EvidencePreview,
+  DocumentRepairPreview,
   InboxUploadResult,
   PdfAnalyzeResult,
   PlatformKnowledgeStatus,
@@ -156,6 +157,9 @@ export function DocumentRepositoryPanel({
   const [uploadProgress, setUploadProgress] = useState<IngestUploadProgress | null>(null);
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [repairPreview, setRepairPreview] = useState<DocumentRepairPreview | null>(null);
+  const [isPreviewingRepairs, setIsPreviewingRepairs] = useState(false);
+  const [isApplyingRepairs, setIsApplyingRepairs] = useState(false);
   const estimatorRef = useRef<IngestBatchEstimator | null>(null);
   const queuedUploadBatchesRef = useRef<UploadEntry[][]>([]);
   const isProcessingUploadsRef = useRef(false);
@@ -433,6 +437,56 @@ export function DocumentRepositoryPanel({
     void processQueuedUploadBatches();
   }
 
+  async function handlePreviewExistingRepairs() {
+    setIsPreviewingRepairs(true);
+    setUploadError(null);
+    try {
+      setRepairPreview(await api.previewExistingDocumentRepairs(projectId));
+    } catch (error) {
+      setUploadError(
+        error instanceof ApiError
+          ? error.message
+          : "Could not inspect existing documents.",
+      );
+    } finally {
+      setIsPreviewingRepairs(false);
+    }
+  }
+
+  async function handleApplyExistingRepairs() {
+    if (!repairPreview) return;
+    const workspacePaths = repairPreview.rows
+      .filter((row) => row.status === "change")
+      .map((row) => row.current_path);
+    if (!workspacePaths.length) return;
+    if (
+      !window.confirm(
+        `Apply ${workspacePaths.length} reviewed document ${workspacePaths.length === 1 ? "change" : "changes"}?`,
+      )
+    ) {
+      return;
+    }
+
+    setIsApplyingRepairs(true);
+    setUploadError(null);
+    try {
+      const result = await api.applyExistingDocumentRepairs(projectId, workspacePaths);
+      if (result.failed) {
+        setUploadError(
+          `${result.failed} document ${result.failed === 1 ? "repair" : "repairs"} could not be applied.`,
+        );
+      }
+      await onUploadComplete();
+      setRepairPreview(await api.previewExistingDocumentRepairs(projectId));
+    } catch (error) {
+      setUploadError(
+        error instanceof ApiError ? error.message : "Could not apply document repairs.",
+      );
+    } finally {
+      setIsApplyingRepairs(false);
+    }
+  }
+
   async function processQueuedUploadBatches() {
     if (isProcessingUploadsRef.current) return;
 
@@ -519,9 +573,9 @@ export function DocumentRepositoryPanel({
         setUploadError(analyzeErrors.join("; "));
       }
 
-      // Phase 2 keeps at most two heavy ingests in flight. Each file settles
-      // independently and the shared project queries refresh once per batch.
-      await runWithConcurrency(queue, 2, async (item) => {
+      // This only stores files and queues worker jobs; the browser does not run
+      // ingestion, so a small upload burst can be acknowledged quickly.
+      await runWithConcurrency(queue, 4, async (item) => {
         const filename = item.kind === "file" ? item.file.name : item.filename;
         try {
           let results: InboxUploadResult[];
@@ -667,6 +721,14 @@ export function DocumentRepositoryPanel({
               {isRunningSortFiles ? "Running" : "Sort Files"}
             </Button>
           ) : null}
+          <button
+            type="button"
+            className="shrink-0 text-xs text-primary hover:underline disabled:text-muted-foreground"
+            disabled={isPreviewingRepairs || isUploading}
+            onClick={() => void handlePreviewExistingRepairs()}
+          >
+            {isPreviewingRepairs ? "Inspecting…" : "Review existing files"}
+          </button>
         </div>
         <div
           className="flex shrink-0 items-center rounded-md border bg-muted/30 p-0.5"
@@ -709,6 +771,61 @@ export function DocumentRepositoryPanel({
         >
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>{uploadError}</span>
+        </div>
+      ) : null}
+
+      {repairPreview ? (
+        <div className="mx-3 mt-3 rounded-md border border-sky-400/40 bg-sky-50/50 p-3 text-xs dark:bg-sky-950/20">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-medium">
+              {repairPreview.changes} proposed{" "}
+              {repairPreview.changes === 1 ? "change" : "changes"}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                {repairPreview.needs_review} need review · {repairPreview.conflicts} conflicts
+              </span>
+              {repairPreview.changes ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={isApplyingRepairs}
+                  onClick={() => void handleApplyExistingRepairs()}
+                >
+                  {isApplyingRepairs
+                    ? "Applying…"
+                    : `Apply ${repairPreview.changes} ${
+                        repairPreview.changes === 1 ? "change" : "changes"
+                      }`}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <p className="mt-1 text-muted-foreground">
+            Preview only—no files have been changed.
+          </p>
+          {repairPreview.rows.some((row) => row.status !== "unchanged") ? (
+            <ul className="mt-2 max-h-44 overflow-y-auto rounded border bg-background/70">
+              {repairPreview.rows
+                .filter((row) => row.status !== "unchanged")
+                .map((row) => (
+                  <li key={row.current_path} className="border-b px-2 py-1.5 last:border-b-0">
+                    <p className="truncate font-medium" title={row.proposed_filename}>
+                      {row.proposed_filename}
+                    </p>
+                    <p className="truncate text-muted-foreground" title={row.current_path}>
+                      {row.current_filename} → {row.category ?? "Unclassified"}
+                    </p>
+                    {row.reason ? (
+                      <p className="text-amber-700 dark:text-amber-300">{row.reason}</p>
+                    ) : null}
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-muted-foreground">Existing files are up to date.</p>
+          )}
         </div>
       ) : null}
 

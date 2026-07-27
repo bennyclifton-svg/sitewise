@@ -89,6 +89,36 @@ def _warehouse_cost_pack() -> CostPlanEvidencePack:
     )
 
 
+def _commercial_fitout_project() -> Project:
+    project = _warehouse_project()
+    project.slug = "meridian-legal-fitout"
+    project.title = "Meridian Legal Fitout"
+    project.workspace_path = "04-projects/meridian-legal-fitout"
+    project.building_class = "commercial"
+    project.work_type = "refurb"
+    project.project_metadata = {"taxonomy": {"subclasses": ["office"]}}
+    return project
+
+
+def _taxonomy_project(
+    *,
+    building_class: str,
+    work_type: str,
+    subclass: str,
+    work_scope: list[str] | None = None,
+) -> Project:
+    project = _warehouse_project()
+    project.building_class = building_class
+    project.work_type = work_type
+    project.project_metadata = {
+        "taxonomy": {
+            "subclasses": [subclass],
+            "work_scope": work_scope or [],
+        }
+    }
+    return project
+
+
 def test_render_cost_plan_scaffold_includes_all_sections() -> None:
     markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded")
     headings = {
@@ -310,12 +340,96 @@ def test_render_cost_plan_scaffold_residential_still_uses_residential_taxonomy()
     assert NO_RATE_PACK_DISCLOSURE not in markdown
 
 
+def test_render_cost_plan_scaffold_commercial_fitout_uses_fitout_taxonomy() -> None:
+    markdown = render_cost_plan_scaffold(
+        _commercial_fitout_project(), _warehouse_cost_pack(), "evidence_grounded"
+    )
+
+    assert "Partitions, doors and glazing" in markdown
+    assert "Fire and life-safety services" in markdown
+    assert "Landlord / base-building interface works" in markdown
+    assert "Client-direct furniture, IT and equipment allowance" in markdown
+    assert "commercial fit-out rate pack exists yet" in markdown
+    assert "Kitchen and bathrooms" not in markdown
+    assert "BASIX" not in markdown
+    assert "Dock hardstand and yard" not in markdown
+
+
 def test_render_cost_plan_scaffold_walsh_residential_still_uses_residential_taxonomy() -> None:
     project = _walsh_project()
     project.building_class = "residential"
     project.work_type = "refurb"
     markdown = render_cost_plan_scaffold(project, _walsh_cost_pack(), "evidence_grounded")
 
-    assert "Kitchen and bathrooms" in markdown
+    assert "Investigations, surveys and opening-up" in markdown
+    assert "Building-services alterations and upgrades" in markdown
+    assert "Footings and slab" not in markdown
     assert "BASIX" in markdown
     assert NO_RATE_PACK_DISCLOSURE not in markdown
+
+
+def test_renderer_covers_each_new_cost_reference_family() -> None:
+    cases = (
+        (
+            _taxonomy_project(
+                building_class="residential",
+                work_type="new",
+                subclass="apartments",
+            ),
+            "Vertical transport",
+        ),
+        (
+            _taxonomy_project(
+                building_class="commercial",
+                work_type="new",
+                subclass="office",
+            ),
+            "Core, common-area and back-of-house fitout",
+        ),
+        (
+            _taxonomy_project(
+                building_class="commercial",
+                work_type="remediation",
+                subclass="office",
+                work_scope=["facade_cladding"],
+            ),
+            "Facade and cladding rectification",
+        ),
+        (
+            _taxonomy_project(
+                building_class="industrial",
+                work_type="new",
+                subclass="manufacturing",
+            ),
+            "Process piping, gases and specialist utilities",
+        ),
+        (
+            _taxonomy_project(
+                building_class="industrial",
+                work_type="new",
+                subclass="cold_storage",
+            ),
+            "Substructure, insulated slabs and vapour barriers",
+        ),
+        (
+            _taxonomy_project(
+                building_class="industrial",
+                work_type="new",
+                subclass="data_centre",
+            ),
+            "Generators, UPS, energy storage and low-voltage distribution",
+        ),
+    )
+
+    for project, expected_row in cases:
+        markdown = render_cost_plan_scaffold(
+            project,
+            _warehouse_cost_pack(),
+            "evidence_grounded",
+        )
+        assert expected_row in markdown
+        assert "structure-only scaffold" in markdown
+        if project.building_class != "residential":
+            assert "HBCF" not in markdown
+            assert "BASIX" not in markdown
+            assert "Kitchen and bathrooms" not in markdown

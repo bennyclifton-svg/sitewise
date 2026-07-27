@@ -23,6 +23,8 @@ const EVIDENCE_STATUSES = [
   "Assumption",
   "Gap",
   "Conflict",
+  "Profile",
+  "Confirm",
 ] as const;
 
 const baseComponents: Components = {
@@ -218,13 +220,27 @@ function sectionAnchor(heading: string): string {
 
 function renderEvidenceCell(children: ReactNode): ReactNode {
   const text = flattenText(children).trim();
+  if (/^\[\d+\]$/.test(text)) {
+    return (
+      <Badge variant="default" className="evidence-status-chip">
+        {text}
+      </Badge>
+    );
+  }
   const match = EVIDENCE_STATUSES.find(
     (status) => text === status || text.startsWith(`${status} `) || text.includes(` / ${status}`),
   );
   if (!match) return children;
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <Badge variant={evidenceBadgeVariant(match)} className="evidence-status-chip">
+      <Badge
+        variant={evidenceBadgeVariant(match)}
+        className={
+          match === "Confirm"
+            ? "evidence-status-chip border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            : "evidence-status-chip"
+        }
+      >
         {match}
       </Badge>
       {text !== match ? <span>{text.replace(match, "").trim()}</span> : null}
@@ -239,7 +255,10 @@ function evidenceBadgeVariant(status: (typeof EVIDENCE_STATUSES)[number]) {
       return "default" as const;
     case "Partial":
     case "Assumption":
+    case "Profile":
       return "secondary" as const;
+    case "Confirm":
+      return "outline" as const;
     case "Conflict":
       return "destructive" as const;
     default:

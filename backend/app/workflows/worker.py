@@ -30,6 +30,7 @@ from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.schemas import CostItemInput
 from app.cost_plan.service import refresh_cost_plan
 from app.workflows.create_pmp import run_create_pmp_workflow
+from app.workflows.document_ingest import ingest_project_document
 from app.workflows.runs import (
     WorkflowRunCancelled,
     claim_next_run,
@@ -110,6 +111,14 @@ async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
         )
     elif run.workflow_type == "sort_project_files":
         result = await run_sort_files_workflow(**common, auto_commit=False)
+    elif run.workflow_type == "ingest_project_document":
+        result = await ingest_project_document(
+            session,
+            project=project,
+            run_id=run.id,
+            workspace_file_id=uuid.UUID(str(parameters["workspace_file_id"])),
+            document_metadata=dict(parameters.get("document_metadata") or {}),
+        )
     elif run.workflow_type == "consultant_procurement":
         result = await draft_consultant_procurement_artifact(
             session,

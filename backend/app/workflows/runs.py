@@ -26,6 +26,7 @@ SUPPORTED_WORKFLOWS = frozenset(
         "create_cost_plan",
         "refresh_cost_plan",
         "sort_project_files",
+        "ingest_project_document",
         "consultant_procurement",
         "contractor_eoi",
     }

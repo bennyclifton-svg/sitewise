@@ -32,6 +32,7 @@ PMP_CORE_DECISIONS: dict[str, dict[str, Any]] = {
         "label": "Approvals pathway",
         "section": "Compliance & approvals",
         "options": [
+            {"value": "ssd", "label": "State Significant Development (SSD)"},
             {"value": "da", "label": "Development Application (DA)"},
             {"value": "cdc", "label": "Complying Development Certificate (CDC)"},
             {"value": "exempt", "label": "Exempt / No approval required"},

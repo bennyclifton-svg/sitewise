@@ -7,6 +7,8 @@ applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 applies_to_classes: [residential]
 applies_to_work_types: [new, refurb, extend]
 state_default: NSW
+status: active
+reconciliation: "Retained for residential OSD, sewer, crossover and subdivision interfaces; a future cross-class civil guide should complement rather than replace it."
 topics: [civil, stormwater, earthworks, drainage]
 summary: "Residential civil and site-works literacy: earthworks cut and fill, stormwater and OSD, sewer connection, driveway crossovers, and subdivision civil interfaces. Equips the project lead to scope work, raise the right RFIs, and flag when the civil or hydraulic engineer must be engaged."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]

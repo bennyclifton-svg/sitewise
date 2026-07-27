@@ -46,13 +46,15 @@ export function SortFilesResultPanel({
 
       {rows.length ? (
         <div className="overflow-x-auto rounded-md border">
-          <table className="w-full min-w-[40rem] text-left text-sm">
+          <table className="w-full min-w-[52rem] text-left text-sm">
             <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">File</th>
                 <th className="px-3 py-2 font-medium">Outcome</th>
                 <th className="px-3 py-2 font-medium">Destination</th>
                 <th className="px-3 py-2 font-medium">Doc No</th>
+                <th className="px-3 py-2 font-medium">Title</th>
+                <th className="px-3 py-2 font-medium">Rev</th>
                 <th className="px-3 py-2 font-medium">Category</th>
               </tr>
             </thead>
@@ -78,6 +80,8 @@ export function SortFilesResultPanel({
                     {row.destination_path ?? "—"}
                   </td>
                   <td className="px-3 py-2 align-top">{row.document_number ?? "—"}</td>
+                  <td className="px-3 py-2 align-top">{row.title ?? "—"}</td>
+                  <td className="px-3 py-2 align-top">{row.revision ?? "—"}</td>
                   <td className="px-3 py-2 align-top">{row.category ?? "—"}</td>
                 </tr>
               ))}

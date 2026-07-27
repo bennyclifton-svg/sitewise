@@ -1,14 +1,20 @@
 ---
 tier: overlay
-loaded_by: "work_type: remediation"
-applies_to_classes: [residential, commercial, industrial, institution, mixed, infrastructure]
+loaded_by: "work_type: remediation; work_scope: contamination_remediation"
+applies_to_classes: [residential, commercial, industrial]
 applies_to_work_types: [remediation]
+applies_to_work_scopes: [contamination_remediation]
 topics: [remediation, due-diligence, environmental, contamination, approvals]
 summary: "Remediation and due-diligence guide for contaminated or constrained sites: Phase 1 and 2 investigation, NEPM, regulators, RAPs, remediation methods, validation, asbestos, PFAS, ASS, approvals, reporting and program impacts."
 required_by: {create-pmp: 1}
 ---
 
-# Remediation & Due Diligence Guide
+# Contaminated-Land Remediation and Due Diligence Guide
+
+This guide is scoped to `contamination_remediation`. Waterproofing, fire-safety
+order and facade/cladding rectification route to
+`building-remediation-rectification-guide.md`; do not use environmental
+investigation stages as a substitute for building-defect diagnosis.
 
 ## Due Diligence Process Overview
 

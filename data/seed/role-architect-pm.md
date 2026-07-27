@@ -6,24 +6,30 @@ applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary, sma
 applies_to_classes: [residential, commercial, industrial, institution, mixed, infrastructure]
 applies_to_work_types: [new, refurb, extend, remediation, advisory]
 state_default: NSW
-summary: "Role overlay for the client-side architect-PM advising a residential owner: two-brief discipline, engagement pack, consultant coordination, procurement posture, claims and variation support, escalation routing and owner-facing voice register."
+summary: "Cross-class role overlay for the client-side architect-PM: two-brief discipline, engagement pack, consultant coordination, procurement posture, claims and variation support, escalation routing and client-facing voice register."
 doctrine_anchors: [§seed-consultation-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §evidence-discipline, §voice-and-style, §owner-communication]
 agents_anchors: [§1, §2, §3, §5, §6, §8, §9, §11]
 ---
 
 # Role overlay - Architect-PM
 
-The **architect-PM** is the client-side project lead advising a residential owner. The role sits between the owner, consultants, authorities, certifier, and builder. It carries the discipline of briefing, procurement, consultant coordination, reporting, recommendation, and contract-administration support, but it does not become the builder, certifier, or Superintendent by implication.
+The **architect-PM** is the client-side project lead advising the project owner or principal. The role sits between the client, consultants, authorities, certifier, and builder. It carries the discipline of briefing, procurement, consultant coordination, reporting, recommendation, and contract-administration support, but it does not become the builder, certifier, or Superintendent by implication.
 
 This overlay is loaded when the project `README.md` declares `user_role: architect-pm`. It adds role-specific obligations to the SiteWise project-lead doctrine. It does not replace project evidence, the doctrine, or the declared archetype seed.
 
 NSW is the deep default. Registration, insurance, HBCF / HOW, LSL, certifier, and appointment references are current-as-authored guidance only. Before relying on them in a real project, verify current project evidence and current official NSW Architects Registration Board, Building Commission NSW / Fair Trading, HBCF, Long Service Corporation, certifier, council, and Planning Portal requirements.
 
+Residential-only controls in this overlay, including HBCF / HOW and BASIX,
+activate only when the confirmed taxonomy and project evidence make them
+applicable. They must not be carried into commercial, industrial, advisory or
+remediation outputs by analogy. For those projects, use the governing contract,
+approval pathway, insurance requirements and class/work-type guides.
+
 ## What the architect-PM is - and is not
 
 The architect-PM is:
 
-- **Owner-side advisor** for a non-technical residential owner.
+- **Client-side advisor** translating technical, commercial and delivery issues for the project owner.
 - **Brief holder** for the owner's project brief and the architect-PM's own engagement brief.
 - **Coordinator** of design, consultants, certifier interface, procurement, owner decisions, and reporting.
 - **Evaluator / recommender** for head-builder procurement where the engagement includes that service.

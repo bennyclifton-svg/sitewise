@@ -1080,8 +1080,15 @@ def _snapshot_position(value: str, status: str) -> str:
 def render_project_summary_table(
     project: Project,
     *,
+    project_title: str | None = None,
+    project_title_source: str = "Profile",
     site_address: str | None = None,
     client: str | None = None,
+    site_address_status: str = "User provided / Not evidenced",
+    site_address_citation: str = "—",
+    client_status: str = "User provided / Not evidenced",
+    client_citation: str = "—",
+    compact_sources: bool = False,
 ) -> str:
     """Render the shared project-summary table used by PMP-derived artefacts."""
     context = pmp_taxonomy_context(project)
@@ -1090,12 +1097,34 @@ def render_project_summary_table(
     fields = context.user_provided_fields
     taxonomy_value = f"{context.building_class} / {context.work_type or 'TBC'}"
     dash = "—"
+    if compact_sources:
+        project_value = project_title or _metadata_value(project.title)
+        site_value = site_address or _metadata_value(fields.get("site_address"))
+        client_value = client or _metadata_value(fields.get("client"))
+        budget_value = _metadata_value(fields.get("budget"))
+        timeframe_value = _metadata_value(fields.get("timeframe"))
+        procurement_value = _metadata_value(fields.get("procurement_route"))
+        return "\n".join(
+            [
+                "| Field | Project detail | Source |",
+                "| --- | --- | --- |",
+                f"| Project | {project_value} | {project_title_source} |",
+                f"| Site / address | {site_value} | {_compact_summary_source(site_value, site_address_citation)} |",
+                f"| Client | {client_value} | {_compact_summary_source(client_value, client_citation)} |",
+                f"| State | {_metadata_value(project.state or 'NSW')} | Profile |",
+                f"| Taxonomy | {taxonomy_value} | Profile |",
+                f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} | Profile |",
+                f"| Budget | {budget_value} | {_compact_summary_source(budget_value)} |",
+                f"| Timeframe | {timeframe_value} | {_compact_summary_source(timeframe_value)} |",
+                f"| Procurement route | {procurement_value} | {_compact_summary_source(procurement_value)} |",
+            ]
+        )
     rows = [
         "| Field | Current PMP position | Citation |",
         "| --- | --- | --- |",
         f"| Project | {_snapshot_position(_metadata_value(project.title), 'User provided')} | {dash} |",
-        f"| Site / address | {_snapshot_position(site_address or _metadata_value(fields.get('site_address')), 'User provided / Not evidenced')} | {dash} |",
-        f"| Client | {_snapshot_position(client or _metadata_value(fields.get('client')), 'User provided / Not evidenced')} | {dash} |",
+        f"| Site / address | {_snapshot_position(site_address or _metadata_value(fields.get('site_address')), site_address_status)} | {site_address_citation} |",
+        f"| Client | {_snapshot_position(client or _metadata_value(fields.get('client')), client_status)} | {client_citation} |",
         f"| State | {_snapshot_position(_metadata_value(project.state or 'NSW'), 'User provided')} | {dash} |",
         f"| Taxonomy | {_snapshot_position(taxonomy_value, 'User provided')} | {dash} |",
         f"| Subclass and scale | {_snapshot_position(_taxonomy_scale_summary(project), 'User provided')} | {dash} |",
@@ -1104,6 +1133,50 @@ def render_project_summary_table(
         f"| Procurement route | {_snapshot_position(_metadata_value(fields.get('procurement_route')), 'User provided / Assumption')} | {dash} |",
     ]
     return "\n".join(rows)
+
+
+def _compact_summary_source(value: str, citation: str = "—") -> str:
+    if citation != "—":
+        return citation
+    return "Confirm" if value == "TBC" else "Profile"
+
+
+_COMPACT_SCALE_LABELS = {
+    "gfa_sqm": ("GFA", "m²"),
+    "nla_sqm": ("NLA", "m²"),
+    "floor_plate_sqm": ("floor plate", "m²"),
+    "office_percent": ("office", "%"),
+}
+_COMPACT_COUNT_LABELS = {
+    "storeys": ("storey", "storeys"),
+    "tenancies": ("tenancy", "tenancies"),
+    "dwellings": ("dwelling", "dwellings"),
+}
+
+
+def _compact_taxonomy_scale_summary(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "TBC"
+    parts = [", ".join(context.subclasses) or "TBC"]
+    for key, value in context.scale.items():
+        if value in (None, "", [], {}) or str(value).strip().lower() == "not declared":
+            continue
+        label, unit = _COMPACT_SCALE_LABELS.get(
+            key,
+            (key.replace("_", " "), ""),
+        )
+        rendered = _metadata_value(value)
+        if key in _COMPACT_COUNT_LABELS and isinstance(value, (int, float)):
+            singular, plural = _COMPACT_COUNT_LABELS[key]
+            parts.append(f"{rendered} {singular if value == 1 else plural}")
+        elif key == "office_percent":
+            parts.append(f"{rendered}% {label}")
+        elif unit:
+            parts.append(f"{rendered} {unit} {label}")
+        else:
+            parts.append(f"{rendered} {label}")
+    return "; ".join(parts) if len(parts) > 1 else f"{parts[0]}; scale TBC"
 
 
 def _render_taxonomy_snapshot(

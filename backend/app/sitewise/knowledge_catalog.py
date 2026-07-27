@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -11,12 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.source_document import SourceDocument
 from app.retrieval.schemas import SourcePassage
-from app.sitewise.gate import DEFAULT_USER_ROLE
 from app.retrieval.whole_document import (
     _document_columns,
     _platform_scope_filter,
     _row_to_passage,
 )
+from app.sitewise.gate import DEFAULT_USER_ROLE
 from app.sitewise.markdown_sections import (
     assemble_sections,
     list_section_ids,
@@ -45,6 +46,8 @@ class CatalogEntry:
     applies_to_archetypes: tuple[str, ...] | None
     applies_to_classes: tuple[str, ...] | None
     applies_to_work_types: tuple[str, ...] | None
+    applies_to_subclasses: tuple[str, ...] | None
+    applies_to_work_scopes: tuple[str, ...] | None
     required_by: dict[str, int]
     doctrine_anchors: tuple[str, ...]
     sections: tuple[str, ...]
@@ -144,6 +147,12 @@ def _entry_from_file(path: Path, corpus_path: str) -> CatalogEntry:
         applies_to_work_types=_optional_string_tuple(
             frontmatter.get("applies_to_work_types")
         ),
+        applies_to_subclasses=_optional_string_tuple(
+            frontmatter.get("applies_to_subclasses")
+        ),
+        applies_to_work_scopes=_optional_string_tuple(
+            frontmatter.get("applies_to_work_scopes")
+        ),
         required_by=_required_by(frontmatter.get("required_by")),
         doctrine_anchors=_string_tuple(frontmatter.get("doctrine_anchors")),
         sections=tuple(section.section_id for section in sections),
@@ -186,15 +195,31 @@ def _matches_axis(filters: tuple[str, ...] | None, value: str | None) -> bool:
     return value in filters or "any" in filters or "all" in filters
 
 
+def _matches_multi_axis(
+    filters: tuple[str, ...] | None,
+    values: Sequence[str] | None,
+) -> bool:
+    if filters is None or values is None:
+        return True
+    if "any" in filters or "all" in filters:
+        return True
+    return bool(set(filters).intersection(values))
+
+
 def _applies_to_taxonomy(
     entry: CatalogEntry,
     *,
     building_class: str | None,
     work_type: str | None,
+    subclasses: Sequence[str] | None,
+    work_scopes: Sequence[str] | None,
 ) -> bool:
-    return _matches_axis(
-        entry.applies_to_classes, building_class
-    ) and _matches_axis(entry.applies_to_work_types, work_type)
+    return (
+        _matches_axis(entry.applies_to_classes, building_class)
+        and _matches_axis(entry.applies_to_work_types, work_type)
+        and _matches_multi_axis(entry.applies_to_subclasses, subclasses)
+        and _matches_multi_axis(entry.applies_to_work_scopes, work_scopes)
+    )
 
 
 def _role_entry(entries: tuple[CatalogEntry, ...]) -> CatalogEntry | None:
@@ -235,6 +260,8 @@ def applicable_entries(
     archetype: str | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
     topics: list[str] | None = None,
 ) -> tuple[CatalogEntry, ...]:
     entries: list[CatalogEntry] = []
@@ -251,6 +278,8 @@ def applicable_entries(
                 entry,
                 building_class=building_class,
                 work_type=work_type,
+                subclasses=subclasses,
+                work_scopes=work_scopes,
             ):
                 continue
         else:
@@ -272,6 +301,8 @@ def required_paths_by_workflow(
     archetype: str | None,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
     workflows: tuple[str, ...] = WORKFLOWS,
 ) -> dict[str, list[str]]:
     return {
@@ -280,6 +311,8 @@ def required_paths_by_workflow(
             archetype=archetype,
             building_class=building_class,
             work_type=work_type,
+            subclasses=subclasses,
+            work_scopes=work_scopes,
         )
         for workflow in workflows
     }
@@ -294,6 +327,8 @@ def applicable_platform_paths(
     archetype: str | None,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
     topics: list[str] | None = None,
     include_required: bool = True,
 ) -> set[str]:
@@ -303,6 +338,8 @@ def applicable_platform_paths(
             archetype=archetype,
             building_class=building_class,
             work_type=work_type,
+            subclasses=subclasses,
+            work_scopes=work_scopes,
             topics=topics,
         )
     }
@@ -311,6 +348,8 @@ def applicable_platform_paths(
             archetype=archetype,
             building_class=building_class,
             work_type=work_type,
+            subclasses=subclasses,
+            work_scopes=work_scopes,
         ).values():
             paths.update(required_paths)
     return paths
@@ -322,6 +361,8 @@ def select_required_paths(
     archetype: str,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
 ) -> list[str]:
     entries = file_catalog()
     if building_class is not None:
@@ -341,6 +382,8 @@ def select_required_paths(
                 entry,
                 building_class=building_class,
                 work_type=work_type,
+                subclasses=subclasses,
+                work_scopes=work_scopes,
             )
         )
         return _dedupe([path for _, path in sorted(ranked_paths)])
@@ -390,6 +433,8 @@ async def list_platform_knowledge(
     archetype: str | None = None,
     building_class: str | None = None,
     work_type: str | None = None,
+    subclasses: Sequence[str] | None = None,
+    work_scopes: Sequence[str] | None = None,
     topics: list[str] | None = None,
 ) -> list[dict]:
     ingested = await ingested_platform_paths(session)
@@ -398,6 +443,8 @@ async def list_platform_knowledge(
         archetype=archetype,
         building_class=building_class,
         work_type=work_type,
+        subclasses=subclasses,
+        work_scopes=work_scopes,
         topics=topics,
     ):
         listing.append(
@@ -409,6 +456,8 @@ async def list_platform_knowledge(
                 "summary": entry.summary,
                 "applies_to_classes": list(entry.applies_to_classes or []),
                 "applies_to_work_types": list(entry.applies_to_work_types or []),
+                "applies_to_subclasses": list(entry.applies_to_subclasses or []),
+                "applies_to_work_scopes": list(entry.applies_to_work_scopes or []),
                 "sections": list(entry.sections),
                 "related_doctrine_sections": list(entry.doctrine_anchors),
                 "ingested": entry.path in ingested,

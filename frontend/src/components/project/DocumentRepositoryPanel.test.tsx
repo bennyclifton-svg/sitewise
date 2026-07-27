@@ -8,7 +8,9 @@ import type { InboxUploadResult, PdfAnalyzeResult } from "@/lib/types/project";
 vi.mock("@/lib/api", () => ({
   api: {
     analyzePdf: vi.fn(),
+    applyExistingDocumentRepairs: vi.fn(),
     commitStagedPdf: vi.fn(),
+    previewExistingDocumentRepairs: vi.fn(),
     uploadInboxFiles: vi.fn(),
   },
 }));
@@ -185,5 +187,99 @@ describe("DocumentRepositoryPanel pending uploads", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(api.commitStagedPdf).not.toHaveBeenCalled();
     expect(api.uploadInboxFiles).not.toHaveBeenCalled();
+  });
+
+  it("previews repairs for existing files without applying them", async () => {
+    vi.mocked(api.previewExistingDocumentRepairs).mockResolvedValue({
+      inspected: 1,
+      changes: 1,
+      needs_review: 0,
+      conflicts: 0,
+      unchanged: 0,
+      rows: [
+        {
+          status: "change",
+          current_path: "04-projects/demo/03-design/architect/HY-SK~1.PDF",
+          current_filename: "HY-SK~1.PDF",
+          proposed_path:
+            "04-projects/demo/03-design/hydraulic/HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF",
+          proposed_filename: "HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF",
+          document_number: "HY-SK-06",
+          title: "ROOF DRAINAGE PLAN",
+          revision: "P1",
+          category: "Hydraulic",
+          confidence: "high",
+          changes: ["folder", "filename", "metadata"],
+          reason: null,
+        },
+      ],
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: "Review existing files" }));
+
+    expect(await screen.findByText("1 proposed change")).toBeInTheDocument();
+    expect(
+      screen.getByText("HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF"),
+    ).toBeInTheDocument();
+    expect(api.previewExistingDocumentRepairs).toHaveBeenCalledWith("project-1");
+  });
+
+  it("applies only the conflict-free changes after confirmation", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(api.previewExistingDocumentRepairs).mockResolvedValue({
+      inspected: 2,
+      changes: 1,
+      needs_review: 1,
+      conflicts: 0,
+      unchanged: 0,
+      rows: [
+        {
+          status: "change",
+          current_path: "04-projects/demo/03-design/architect/HY-SK~1.PDF",
+          current_filename: "HY-SK~1.PDF",
+          proposed_path: "04-projects/demo/03-design/hydraulic/HY-SK-06.pdf",
+          proposed_filename: "HY-SK-06.pdf",
+          document_number: "HY-SK-06",
+          title: "ROOF DRAINAGE PLAN",
+          revision: "P1",
+          category: "Hydraulic",
+          confidence: "high",
+          changes: ["folder", "filename", "metadata"],
+          reason: null,
+        },
+        {
+          status: "needs_review",
+          current_path: "04-projects/demo/03-design/architect/unknown.pdf",
+          current_filename: "unknown.pdf",
+          proposed_path: "04-projects/demo/03-design/architect/unknown.pdf",
+          proposed_filename: "unknown.pdf",
+          document_number: null,
+          title: null,
+          revision: null,
+          category: "Architectural",
+          confidence: "low",
+          changes: [],
+          reason: "Document identity could not be read confidently",
+        },
+      ],
+    });
+    vi.mocked(api.applyExistingDocumentRepairs).mockResolvedValue({
+      applied: 1,
+      failed: 0,
+      skipped: 0,
+      rows: [],
+    });
+    const { onUploadComplete } = renderPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: "Review existing files" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply 1 change" }));
+
+    await waitFor(() =>
+      expect(api.applyExistingDocumentRepairs).toHaveBeenCalledWith("project-1", [
+        "04-projects/demo/03-design/architect/HY-SK~1.PDF",
+      ]),
+    );
+    expect(onUploadComplete).toHaveBeenCalled();
   });
 });

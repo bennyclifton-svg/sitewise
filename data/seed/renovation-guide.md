@@ -6,6 +6,8 @@ applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_classes: [residential]
 applies_to_work_types: [refurb, extend]
 state_default: NSW
+status: legacy-retained
+superseded_by: seed/residential-construction-guide.md
 summary: "Archetype coverage for altering an existing dwelling: due diligence package, latent conditions, dilapidation and neighbour management, structural intervention, BASIX for additions, heritage checks, live-occupancy staging and old-to-new tie-in risks."
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §state-handling]
 agents_anchors: [§1, §2, §3, §7, §8, §11]

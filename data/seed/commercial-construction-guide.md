@@ -1,14 +1,21 @@
 ---
 tier: overlay
 loaded_by: "building_class: commercial"
-applies_to_classes: [commercial, industrial, institution, mixed]
+applies_to_classes: [commercial]
 applies_to_work_types: [new, refurb, extend]
+applies_to_subclasses: [office, retail_shopping_centre, retail_standalone, serviced_office_coworking]
 topics: [commercial, construction, ncc, services, fitout]
-summary: "Commercial and institutional construction guide for Class 5-9 projects: classifications, fire, egress, accessibility, base-build versus fitout, services, ESM, sustainability, programming, QA, handover and commercial refurbishment risks."
+summary: "Commercial office, retail and coworking construction guide: classification, fire, egress, accessibility, base-build versus fitout, services, ESM, sustainability, programming, QA, handover and refurbishment risks."
 required_by: {create-pmp: 1}
 ---
 
 # Commercial Construction Guide
+
+This guide is routed to office, retail and serviced-office/coworking projects.
+References to Class 7, 8 or 9 buildings below explain classification and
+interface boundaries only; they do not provide industrial or institutional
+project coverage. Use `industrial-construction-guide.md` for industrial work.
+Institutional and other specialist subclasses remain second-pass gaps.
 
 ## Commercial Building Classifications (Class 5–9)
 
@@ -400,7 +407,11 @@ Common pitfalls:
 
 Cost planning for commercial buildings follows the Australian Institute of Quantity Surveyors (AIQS) guidelines, with estimates progressing from feasibility through to post-contract cost management. Elemental cost plans provide the framework for tracking costs against functional elements of the building.
 
-Cost benchmarking for commercial buildings in Australia is typically expressed per square metre of gross floor area (GFA) or net lettable area (NLA). As a general guide, indicative construction cost ranges (excluding land, fees, and GST) for 2024-2025 are: Class 5 office buildings $3,500–$5,500/m² GFA for standard to A-grade; Class 6 retail (shopping centre) $3,000–$5,000/m² GFA; Class 7a multi-level carpark $1,200–$1,800/m²; Class 9a hospital $6,000–$10,000/m² GFA; Class 9b school $3,000–$4,500/m² GFA. These ranges vary significantly by location, market conditions, and specification level.
+Commercial benchmarking is commonly normalised by gross floor area (GFA), net
+lettable area (NLA), functional area or another stated denominator. This guide
+does not supply market rates: source any benchmark from current, attributable
+project evidence or a qualified cost adviser, record its date and inclusions,
+and leave the amount TBC when that evidence is unavailable.
 
 Services costs in commercial buildings typically represent 35–45% of total construction cost, compared to 15–25% for residential projects. This higher proportion reflects the complexity of HVAC, electrical, fire protection, lift, and BMS systems. Services cost must be tracked separately and managed as a distinct cost centre.
 

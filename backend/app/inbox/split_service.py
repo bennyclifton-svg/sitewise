@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.project import Project
@@ -15,6 +16,7 @@ from app.inbox.pdf_inspect import inspect_pdf
 from app.inbox.pdf_split import split_pdf_pages
 from app.inbox.service import InboxUploadItem, InboxUploadOutcome, upload_inbox_files
 from app.inbox.sheet_titles import SheetPlan, build_sheet_plan
+from app.schemas.project_snapshot import ProjectSnapshot
 from app.storage.project_files import (
     delete_project_file,
     download_project_file,
@@ -23,7 +25,7 @@ from app.storage.project_files import (
 
 logger = structlog.get_logger(__name__)
 
-_SUCCESS_STATUSES = {"ingested", "skipped"}
+_SUCCESS_STATUSES = {"queued", "ingested", "skipped"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,15 +97,14 @@ async def analyze_pdf_upload(
 async def _attach_split_provenance(
     session: AsyncSession,
     *,
+    project_id: uuid.UUID,
     outcomes: list[InboxUploadOutcome],
     sheet_plans: list[SheetPlan],
     source_filename: str,
     source_hash: str,
 ) -> None:
-    by_filename = {plan.filename: plan for plan in sheet_plans}
-    for outcome in outcomes:
-        plan = by_filename.get(outcome.filename)
-        if plan is None or outcome.ingest_status not in _SUCCESS_STATUSES:
+    for outcome, plan in zip(outcomes, sheet_plans, strict=True):
+        if outcome.ingest_status not in _SUCCESS_STATUSES:
             continue
         provenance = {
             "split_from": source_filename,
@@ -115,7 +116,12 @@ async def _attach_split_provenance(
             "split_method": "heuristic_v1",
             "title": plan.title,
         }
-        doc = await session.get(SourceDocument, outcome.id)
+        doc = await session.scalar(
+            select(SourceDocument).where(
+                SourceDocument.project_id == project_id,
+                SourceDocument.relative_path == outcome.workspace_path,
+            )
+        )
         if doc is not None:
             merged = dict(doc.document_metadata or {})
             merged.update({k: v for k, v in provenance.items() if v is not None})
@@ -127,6 +133,8 @@ async def split_staged_pdf(
     session: AsyncSession,
     *,
     project: Project,
+    user_id: uuid.UUID,
+    snapshot: ProjectSnapshot,
     staging_id: str,
     source_filename: str,
 ) -> list[InboxUploadOutcome]:
@@ -138,15 +146,35 @@ async def split_staged_pdf(
     sheet_plans = build_sheet_plan(content, source_filename=source_filename)
 
     items = [
-        InboxUploadItem(filename=plan.filename, content=blob)
+        InboxUploadItem(
+            filename=plan.filename,
+            content=blob,
+            ingest_metadata={
+                "split_from": source_filename,
+                "split_source_hash": source_hash,
+                "sheet_index": plan.index,
+                "sheet_total": len(sheet_plans),
+                "sheet_number_label": plan.sheet_number_label,
+                "sheet_scale": plan.scale,
+                "split_method": "heuristic_v1",
+                "title": plan.title,
+            },
+        )
         for plan, blob in zip(sheet_plans, page_blobs)
     ]
-    outcomes = await upload_inbox_files(session, project=project, items=items)
+    outcomes = await upload_inbox_files(
+        session,
+        project=project,
+        items=items,
+        user_id=user_id,
+        snapshot=snapshot,
+    )
 
     succeeded = [o for o in outcomes if o.ingest_status in _SUCCESS_STATUSES]
     if succeeded:
         await _attach_split_provenance(
             session,
+            project_id=project.id,
             outcomes=outcomes,
             sheet_plans=sheet_plans,
             source_filename=source_filename,
@@ -166,6 +194,8 @@ async def commit_staged_pdf_single(
     session: AsyncSession,
     *,
     project: Project,
+    user_id: uuid.UUID,
+    snapshot: ProjectSnapshot,
     staging_id: str,
     source_filename: str,
 ) -> InboxUploadOutcome:
@@ -175,6 +205,8 @@ async def commit_staged_pdf_single(
         session,
         project=project,
         items=[InboxUploadItem(filename=source_filename, content=content)],
+        user_id=user_id,
+        snapshot=snapshot,
     )
     await asyncio.to_thread(delete_project_file, storage_key=storage_key)
     return outcomes[0]

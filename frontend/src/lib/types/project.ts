@@ -577,6 +577,42 @@ export type InboxUploadResult = {
   message: string | null;
 };
 
+export type DocumentRepairPreviewRow = {
+  status: "change" | "unchanged" | "needs_review" | "conflict";
+  current_path: string;
+  current_filename: string;
+  proposed_path: string;
+  proposed_filename: string;
+  document_number: string | null;
+  title: string | null;
+  revision: string | null;
+  category: string | null;
+  confidence: string;
+  changes: string[];
+  reason: string | null;
+};
+
+export type DocumentRepairPreview = {
+  inspected: number;
+  changes: number;
+  needs_review: number;
+  conflicts: number;
+  unchanged: number;
+  rows: DocumentRepairPreviewRow[];
+};
+
+export type DocumentRepairApplyResult = {
+  applied: number;
+  failed: number;
+  skipped: number;
+  rows: {
+    current_path: string;
+    proposed_path: string;
+    status: "applied" | "failed" | "skipped";
+    reason: string | null;
+  }[];
+};
+
 export type PdfSheetProposal = {
   index: number;
   proposed_title: string;

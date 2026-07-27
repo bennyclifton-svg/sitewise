@@ -7,6 +7,8 @@ applies_to_archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
 applies_to_classes: [residential]
 applies_to_work_types: [new, refurb, extend]
 state_default: NSW
+status: active
+reconciliation: "Retained because Class 1 footing, framing, wind and BAL guidance is residential-specific rather than duplicated by a cross-class structural guide."
 topics: [structural, footings, framing, wind, bal]
 summary: "Structural literacy under the residential standards suite: AS 2870 footings and slabs, AS 1684 framing, AS 4055 wind classification, AS 1170 loads and AS 3959 BAL. Supports RFIs, scope descriptions and inspection-gate coordination; never replaces the structural engineer."
 doctrine_anchors: [§evidence-discipline, §seed-consultation-discipline, §escalation-triggers]

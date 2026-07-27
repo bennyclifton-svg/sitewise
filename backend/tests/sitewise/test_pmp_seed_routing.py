@@ -6,12 +6,20 @@ from app.sitewise.pmp_seed_routing import load_pmp_seed_sections, resolve_seed_r
 from tests.conftest import run_async
 
 
-def _selected(building_class: str, work_type: str):
+def _selected(
+    building_class: str,
+    work_type: str,
+    *,
+    subclasses: tuple[str, ...] = (),
+    work_scopes: tuple[str, ...] = (),
+):
     return select_required_paths(
         workflow="create-pmp",
         archetype="",
         building_class=building_class,
         work_type=work_type,
+        subclasses=subclasses,
+        work_scopes=work_scopes,
     )
 
 
@@ -22,9 +30,15 @@ def _refs(**kwargs) -> set[str]:
 
 def test_residential_new_scope_heavy_routes() -> None:
     refs = _refs(
-        selected_paths=_selected("residential", "new"),
+        selected_paths=_selected(
+            "residential",
+            "new",
+            subclasses=("house",),
+            work_scopes=("substructure", "superstructure", "wet_areas"),
+        ),
         building_class="residential",
         work_type="new",
+        subclasses=("house",),
         work_scope=("substructure", "superstructure", "wet_areas"),
     )
 
@@ -44,14 +58,24 @@ def test_residential_new_scope_heavy_routes() -> None:
 
 def test_commercial_refurb_fire_services_routes_to_ncc_and_as_sections() -> None:
     refs = _refs(
-        selected_paths=_selected("commercial", "refurb"),
+        selected_paths=_selected(
+            "commercial",
+            "refurb",
+            subclasses=("office",),
+            work_scopes=("fire_services",),
+        ),
         building_class="commercial",
         work_type="refurb",
+        subclasses=("office",),
         work_scope=("fire_services",),
     )
 
     assert (
         "seed/ncc-reference-guide.md#compliance-pathways-and-documentation" in refs
+    )
+    assert (
+        "seed/fire-life-safety-guide.md#compliance-strategy-and-responsibility"
+        in refs
     )
     assert (
         "seed/as-standards-reference.md#as-2419-series-fire-hydrant-installations"
@@ -65,9 +89,16 @@ def test_commercial_refurb_fire_services_routes_to_ncc_and_as_sections() -> None
 
 def test_remediation_routes_due_diligence_sections() -> None:
     refs = _refs(
-        selected_paths=_selected("industrial", "remediation"),
+        selected_paths=_selected(
+            "industrial",
+            "remediation",
+            subclasses=("manufacturing",),
+            work_scopes=("contamination_remediation",),
+        ),
         building_class="industrial",
         work_type="remediation",
+        subclasses=("manufacturing",),
+        work_scope=("contamination_remediation",),
     )
 
     assert (
@@ -84,13 +115,45 @@ def test_remediation_routes_due_diligence_sections() -> None:
     )
 
 
-def test_advisory_routes_service_deliverable_sections() -> None:
+def test_building_remediation_routes_rectification_sections() -> None:
     refs = _refs(
-        selected_paths=_selected("commercial", "advisory"),
+        selected_paths=_selected(
+            "commercial",
+            "remediation",
+            subclasses=("office",),
+            work_scopes=("facade_cladding",),
+        ),
         building_class="commercial",
-        work_type="advisory",
+        work_type="remediation",
+        subclasses=("office",),
+        work_scope=("facade_cladding",),
     )
 
+    assert (
+        "seed/building-remediation-rectification-guide.md"
+        "#investigation-before-solution"
+    ) in refs
+    assert not any("remediation-due-diligence-guide.md" in ref for ref in refs)
+
+
+def test_advisory_routes_service_deliverable_sections() -> None:
+    refs = _refs(
+        selected_paths=_selected(
+            "commercial",
+            "advisory",
+            subclasses=("office",),
+            work_scopes=("technical_dd",),
+        ),
+        building_class="commercial",
+        work_type="advisory",
+        subclasses=("office",),
+        work_scope=("technical_dd",),
+    )
+
+    assert (
+        "seed/advisory-services-guide.md#define-the-decision-before-the-scope"
+        in refs
+    )
     assert (
         "seed/procurement-tendering-guide.md#4-tender-documentation-and-deliverables"
         in refs

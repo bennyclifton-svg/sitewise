@@ -16,7 +16,11 @@
             "site-assessment-and-due-diligence",
             "construction-sequence-and-programming-for-residential-projects"
           ],
-          "when": {"building_class": "residential", "work_type": "new"}
+          "when": {
+            "building_class": "residential",
+            "work_type": "new",
+            "subclasses": ["house", "townhouses"]
+          }
         },
         {
           "path": "seed/residential-construction-guide.md",
@@ -36,15 +40,33 @@
             "strata-title-and-common-property"
           ],
           "when": {
-            "building_class": ["residential", "mixed"],
+            "building_class": "residential",
             "subclasses": [
               "apartments",
               "btr",
               "student_housing",
-              "residential_retail",
-              "residential_commercial"
+              "social_affordable_housing"
             ]
           }
+        },
+        {
+          "path": "seed/industrial-construction-guide.md",
+          "section_ids": [
+            "activation-and-subtype-control",
+            "operational-brief-and-basis-of-design"
+          ],
+          "when": {
+            "building_class": "industrial",
+            "work_type": ["new", "refurb", "extend"]
+          }
+        },
+        {
+          "path": "seed/advisory-services-guide.md",
+          "section_ids": [
+            "define-the-decision-before-the-scope",
+            "advisory-service-types"
+          ],
+          "when": {"work_type": "advisory"}
         }
       ],
       "optional": [
@@ -62,13 +84,13 @@
           "section_ids": ["compliance-pathways-and-documentation"]
         },
         {
-          "path": "seed/commercial-construction-guide.md",
+          "path": "seed/fire-life-safety-guide.md",
           "section_ids": [
-            "fire-detection-alarm-and-suppression-systems",
-            "essential-safety-measures-esm"
+            "compliance-strategy-and-responsibility",
+            "active-systems-and-water-supply"
           ],
           "when": {
-            "building_class": ["commercial", "industrial", "institution", "mixed"],
+            "building_class": ["residential", "commercial", "industrial"],
             "work_scope": ["fire_services"]
           }
         },
@@ -90,14 +112,35 @@
             "detailed-site-investigation-phase-2",
             "remediation-action-plans-raps"
           ],
-          "when": {"work_type": "remediation"}
+          "when": {
+            "work_type": "remediation",
+            "work_scope": ["contamination_remediation"]
+          }
+        },
+        {
+          "path": "seed/building-remediation-rectification-guide.md",
+          "section_ids": [
+            "investigation-before-solution",
+            "governance-and-approvals"
+          ],
+          "when": {
+            "work_type": "remediation",
+            "work_scope": [
+              "waterproofing_rectification",
+              "fire_safety_orders",
+              "facade_cladding"
+            ]
+          }
         }
       ],
       "optional": [
         {
           "path": "seed/remediation-due-diligence-guide.md",
           "section_ids": ["regulatory-approvals-and-planning-controls"],
-          "when": {"work_type": "remediation"}
+          "when": {
+            "work_type": "remediation",
+            "work_scope": ["contamination_remediation"]
+          }
         }
       ]
     },
@@ -113,7 +156,25 @@
         {
           "path": "seed/remediation-due-diligence-guide.md",
           "section_ids": ["remediation-in-the-construction-program"],
-          "when": {"work_type": "remediation"}
+          "when": {
+            "work_type": "remediation",
+            "work_scope": ["contamination_remediation"]
+          }
+        },
+        {
+          "path": "seed/building-remediation-rectification-guide.md",
+          "section_ids": [
+            "safety-occupation-and-temporary-controls",
+            "construction-verification-and-handover"
+          ],
+          "when": {
+            "work_type": "remediation",
+            "work_scope": [
+              "waterproofing_rectification",
+              "fire_safety_orders",
+              "facade_cladding"
+            ]
+          }
         }
       ]
     },

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import fitz
@@ -61,7 +62,7 @@ def test_split_staged_pdf_ingests_each_sheet_and_deletes_staging():
     project = _project()
     session = AsyncMock()
 
-    async def fake_upload(session, *, project, items):
+    async def fake_upload(session, *, project, items, user_id, snapshot):
         return [
             InboxUploadOutcome(
                 id=uuid.uuid4(), filename=item.filename,
@@ -82,6 +83,8 @@ def test_split_staged_pdf_ingests_each_sheet_and_deletes_staging():
             outcomes = await split_staged_pdf(
                 session, project=project, staging_id="abc123",
                 source_filename="L18 CC Plans.pdf",
+                user_id=project.owner_user_id,
+                snapshot=object(),
             )
         assert len(outcomes) == 2
         mock_ingest.assert_called_once()
@@ -97,7 +100,7 @@ def test_split_staged_pdf_keeps_staging_when_all_fail():
     data = _make_pdf([(1191, 842, "SITE PLAN SHEET: 2 OF 20")])
     project = _project()
 
-    async def fake_upload(session, *, project, items):
+    async def fake_upload(session, *, project, items, user_id, snapshot):
         return [
             InboxUploadOutcome(
                 id=uuid.uuid4(), filename=i.filename, workspace_path="w",
@@ -115,7 +118,57 @@ def test_split_staged_pdf_keeps_staging_when_all_fail():
             await split_staged_pdf(
                 AsyncMock(), project=project, staging_id="abc123",
                 source_filename="x.pdf",
+                user_id=project.owner_user_id,
+                snapshot=object(),
             )
         mock_delete.assert_not_called()  # staging retained for retry
 
     run_async(_run())
+
+
+def test_split_staged_pdf_attaches_sheet_provenance_to_source_documents():
+    from app.inbox.service import InboxUploadOutcome
+    from app.inbox.split_service import split_staged_pdf
+
+    data = _make_pdf([(1191, 842, "ROOF PLAN SHEET: 1 OF 1")])
+    project = _project()
+    source_document = SimpleNamespace(document_metadata={"revision": "P1"})
+    session = AsyncMock()
+    session.get.return_value = None
+    session.scalar.return_value = source_document
+
+    async def fake_upload(session, *, project, items, user_id, snapshot):
+        item = items[0]
+        return [
+            InboxUploadOutcome(
+                id=uuid.uuid4(),
+                filename=item.filename,
+                workspace_path=f"{project.workspace_path}/03-design/architect/{item.filename}",
+                content_hash="h",
+                size_bytes=len(item.content),
+                ingest_status="ingested",
+                message="ok",
+            )
+        ]
+
+    async def _run():
+        with (
+            patch("app.inbox.split_service.download_project_file", return_value=data),
+            patch("app.inbox.split_service.upload_inbox_files", side_effect=fake_upload),
+            patch("app.inbox.split_service.delete_project_file"),
+        ):
+            await split_staged_pdf(
+                session,
+                project=project,
+                staging_id="abc123",
+                source_filename="Architectural Set.pdf",
+                user_id=project.owner_user_id,
+                snapshot=object(),
+            )
+
+    run_async(_run())
+
+    assert source_document.document_metadata["split_from"] == "Architectural Set.pdf"
+    assert source_document.document_metadata["sheet_index"] == 1
+    assert source_document.document_metadata["title"] == "Roof Plan"
+    assert source_document.document_metadata["revision"] == "P1"

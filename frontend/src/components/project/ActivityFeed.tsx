@@ -424,6 +424,7 @@ function isTerminalStatus(status: string): boolean {
     "completed",
     "done",
     "failed",
+    "needs_review",
     "refused",
     "skipped",
   ].includes(status);
@@ -438,6 +439,7 @@ function statusLabel(status: string): string {
     completed: "Complete",
     done: "Complete",
     failed: "Failed",
+    needs_review: "Needs review",
     refused: "Refused",
     running: "Running",
     skipped: "Skipped",
@@ -474,6 +476,7 @@ function sourceTitle(source: string): string {
     create_cost_plan: "Cost plan",
     create_pmp: "PMP",
     document_ingest: "Doc ingest",
+    document_repair: "Document repair",
     sort_files: "Sort",
     tender: "Tender",
     update_pmp: "PMP update",
