@@ -22,9 +22,22 @@ export const TENDER_COMPARISON_STAGES = [
   "generate_flags",
 ] as const;
 
+/** Mirrors `report.labels.cost_plus_non_comparable` in data/tender/report_language.yaml. */
+export const COST_PLUS_NON_COMPARABLE_LABEL =
+  "Cost-plus — excludes builder's margin; not directly comparable";
+
 export function formatTenderMoney(cents: number | null | undefined): string {
   if (typeof cents !== "number") return "Not stated";
   return moneyFormatter.format(cents / 100);
+}
+
+/** Native stated-total GST gloss for reconciliation strips / headers. */
+export function formatStatedGstBasis(
+  gstTreatment: string | null | undefined,
+): string {
+  if (gstTreatment === "exclusive") return "ex GST";
+  if (gstTreatment === "inclusive") return "inc GST";
+  return "inc GST";
 }
 
 export function formatTenderDate(value: string | null | undefined): string {
@@ -41,10 +54,12 @@ export function formatTenderStage(value: string | null | undefined): string {
 }
 
 export function formatTenderStatus(value: string): string {
-  if (value === "pc") return "PC allowance";
-  if (value === "ps") return "PS allowance";
-  if (value === "excluded_explicit") return "Excluded";
+  if (value === "pc" || value === "pc_allowance") return "PC allowance";
+  if (value === "ps" || value === "ps_allowance") return "PS allowance";
+  if (value === "excluded_explicit" || value === "excluded") return "Excluded";
   if (value === "silent_ambiguous") return "Not itemised";
+  if (value === "contract_component") return "Included";
+  if (value === "mixed") return "Mixed";
   return formatTenderStage(value);
 }
 
@@ -58,6 +73,7 @@ export function tenderStatusGlyph(status: string): string {
   if (status === "pc" || status === "ps") return "\u25C7";
   if (status === "excluded_explicit") return "\u2715";
   if (status === "not_required") return "\u2013";
+  if (status === "mixed") return "\u25D1";
   return "\u25CB";
 }
 
@@ -75,6 +91,7 @@ export function tenderStatusCellTint(status: string): string {
   if (status === "pc" || status === "ps") return "bg-[var(--warn-bg)]";
   if (status === "excluded_explicit") return "bg-[var(--alert-bg)]";
   if (status === "not_required") return "bg-muted/50";
+  if (status === "mixed") return "bg-[var(--warn-bg)]";
   return "bg-[var(--info-bg)]";
 }
 

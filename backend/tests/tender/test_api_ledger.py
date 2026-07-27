@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import uuid
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.auth.dependencies import CurrentUser, get_current_user
+from app.database.session import get_db
+from app.main import fastapi_app as app
+from tender.schemas import CellItemsResponse, CellLineItem, LedgerItem, QuoteLedgerResponse
+
+USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+COMPARISON_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
+QUOTE_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+
+
+@pytest.fixture
+def mock_session() -> AsyncMock:
+    return AsyncMock()
+
+
+@pytest.fixture
+def client(mock_session: AsyncMock) -> TestClient:
+    current_user = CurrentUser(id=USER_ID, email="operator@example.com")
+
+    async def override_get_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: current_user
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+def test_ledger_endpoint_returns_items_summing_to_stated(client: TestClient) -> None:
+    ledger = QuoteLedgerResponse(
+        quote_id=QUOTE_ID,
+        builder_name="Coastal",
+        stated_total_cents=100_00,
+        stated_basis="inc",
+        status="reconciled",
+        residual_cents=0,
+        computed_ex_gst_cents=91_00,
+        items=[
+            LedgerItem(
+                figure_key="p1-1",
+                description_raw="Category A",
+                amount_cents=60_00,
+                counted_in_total=True,
+            ),
+            LedgerItem(
+                figure_key="p1-2",
+                description_raw="Category B",
+                amount_cents=40_00,
+                counted_in_total=True,
+            ),
+        ],
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.ledger.build_quote_ledger",
+            new=AsyncMock(return_value=ledger),
+        ),
+    ):
+        response = client.get(
+            f"/api/tender/comparisons/{COMPARISON_ID}/quotes/{QUOTE_ID}/ledger"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    counted = sum(
+        item["amount_cents"]
+        for item in payload["items"]
+        if item.get("counted_in_total")
+    )
+    assert counted + payload["residual_cents"] == payload["stated_total_cents"]
+    assert payload["builder_name"] == "Coastal"
+
+
+def test_trade_items_endpoint_returns_allocations_and_sum(client: TestClient) -> None:
+    trade_id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    item_a = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+    trade_items = CellItemsResponse(
+        cell_code="PT.01",
+        name="Joinery / cabinetry",
+        quote_id=QUOTE_ID,
+        project_trade_id=trade_id,
+        items=[
+            CellLineItem(
+                line_item_id=item_a,
+                description_raw="Kitchen cabinets",
+                page_no=4,
+                role="contract_component",
+                allocation_fraction=1.0,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="taxonomy_seed",
+                qa_state="auto_pass",
+            ),
+        ],
+        sum_ex_gst_cents=100_00,
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.ledger.build_trade_items",
+            new=AsyncMock(return_value=trade_items),
+        ),
+    ):
+        response = client.get(
+            f"/api/tender/comparisons/{COMPARISON_ID}/trades/{trade_id}/items",
+            params={"quote_id": str(QUOTE_ID)},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cell_code"] == "PT.01"
+    assert payload["project_trade_id"] == str(trade_id)
+    assert payload["sum_ex_gst_cents"] == 100_00
+
+
+def test_cell_items_endpoint_returns_allocations_and_sum(client: TestClient) -> None:
+    item_a = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    item_b = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    cell_items = CellItemsResponse(
+        cell_code="13.01",
+        name="Joinery",
+        quote_id=QUOTE_ID,
+        items=[
+            CellLineItem(
+                line_item_id=item_a,
+                description_raw="Kitchen cabinets",
+                page_no=4,
+                role="contract_component",
+                allocation_fraction=0.6,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="t1_embedding",
+                qa_state="auto_pass",
+            ),
+            CellLineItem(
+                line_item_id=item_b,
+                description_raw="Vanity",
+                page_no=5,
+                role="contract_component",
+                allocation_fraction=0.4,
+                amount_cents=100_00,
+                amount_ex_gst_cents=100_00,
+                mapping_tier="t2_small_llm",
+                qa_state="needs_review",
+            ),
+        ],
+        sum_ex_gst_cents=100_00,
+    )
+
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.ledger.build_cell_items",
+            new=AsyncMock(return_value=cell_items),
+        ),
+    ):
+        response = client.get(
+            f"/api/tender/comparisons/{COMPARISON_ID}/cells/13.01/items",
+            params={"quote_id": str(QUOTE_ID)},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cell_code"] == "13.01"
+    assert payload["name"] == "Joinery"
+    assert len(payload["items"]) == 2
+    assert payload["items"][0]["allocation_fraction"] == 0.6
+    assert payload["items"][1]["allocation_fraction"] == 0.4
+    assert payload["sum_ex_gst_cents"] == 100_00
+    assert (
+        sum(
+            round(item["amount_ex_gst_cents"] * item["allocation_fraction"])
+            for item in payload["items"]
+        )
+        == payload["sum_ex_gst_cents"]
+    )

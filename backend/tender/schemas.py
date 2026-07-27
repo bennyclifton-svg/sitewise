@@ -311,6 +311,7 @@ class MatrixQuoteCell(BaseModel):
 class MatrixCell(BaseModel):
     code: str
     name: str
+    project_trade_id: uuid.UUID | None = None
     quotes: dict[str, MatrixQuoteCell] = Field(default_factory=dict)
 
 
@@ -322,8 +323,14 @@ class MatrixGroup(BaseModel):
 class MatrixQuoteTotal(BaseModel):
     quote_id: uuid.UUID
     computed_total_cents: int
+    basis: Literal["ex"] = "ex"
+    residual_cents: int = 0
+    unallocated_cents: int = 0
+    not_itemised_cents: int = 0
+    stated_native_cents: int | None = None
     stated_total_cents: int | None = None
     stated_total_source: Literal["manual", "extracted"] | None = None
+    non_comparable: bool = False
     delta_cents: int | None = None
     delta_ratio: float | None = None
     reconciliation: Literal["match", "mismatch", "not_stated"]
@@ -345,6 +352,23 @@ class TaxonomyCellView(BaseModel):
 
 class TaxonomyListResponse(BaseModel):
     cells: list[TaxonomyCellView] = Field(default_factory=list)
+
+
+class ProjectTradeView(BaseModel):
+    id: uuid.UUID | None = None
+    code: str
+    name: str
+    description: str | None = None
+    group_label: str | None = None
+    sort_order: int = 0
+    source: Literal["generated", "manual", "reserved"] = "generated"
+    anchor_cell_codes: list[str] = Field(default_factory=list)
+    anchor_confidence: float | None = None
+
+
+class ProjectTradesResponse(BaseModel):
+    comparison_id: uuid.UUID
+    trades: list[ProjectTradeView] = Field(default_factory=list)
 
 
 class TaxonomySearchResult(TaxonomyCellView):
@@ -403,9 +427,26 @@ class ExtractedLineItem(BaseModel):
     unit: str | None = None
     rate_cents: int | None = None
     amount_cents: int | None = None
-    item_status: Literal["included", "excluded", "pc_allowance", "ps_allowance", "note"]
+    # Legacy status kept optional; role is the v0.2.0 source of truth (I1/I2).
+    item_status: (
+        Literal["included", "excluded", "pc_allowance", "ps_allowance", "note"] | None
+    ) = None
     allowance_cents: int | None = None
-    extraction_confidence: float = Field(ge=0, le=1)
+    extraction_confidence: float = Field(default=0.5, ge=0, le=1)
+    figure_key: str
+    parent_figure_key: str | None = None
+    role: Literal[
+        "contract_component",
+        "pc_allowance",
+        "ps_allowance",
+        "optional_upgrade",
+        "informational",
+        "excluded",
+    ]
+    gst_basis: Literal["inc", "ex", "unknown"] = "unknown"
+    is_rollup: bool = False
+    duplicate_of_figure_key: str | None = None
+    printed_text: str
 
     @field_validator("rate_cents", "amount_cents", "allowance_cents", mode="before")
     @classmethod
@@ -503,3 +544,53 @@ class ApprovedTenderCostHandoff(BaseModel):
     exclusions: list[str] = Field(default_factory=list)
     qualifications: list[str] = Field(default_factory=list)
     idempotency_key: str = Field(min_length=1, max_length=255)
+
+
+class LedgerItem(BaseModel):
+    id: uuid.UUID | None = None
+    figure_key: str
+    page_no: int | None = None
+    description_raw: str
+    printed_text: str | None = None
+    amount_cents: int | None = None
+    amount_ex_gst_cents: int | None = None
+    gst_basis: str | None = None
+    role: str | None = None
+    is_rollup: bool = False
+    counted_in_total: bool = False
+    duplicate_of_id: uuid.UUID | None = None
+    parent_id: uuid.UUID | None = None
+    children: list["LedgerItem"] = Field(default_factory=list)
+
+
+class QuoteLedgerResponse(BaseModel):
+    quote_id: uuid.UUID
+    builder_name: str
+    stated_total_cents: int | None = None
+    stated_basis: str | None = None
+    status: str
+    residual_cents: int = 0
+    computed_ex_gst_cents: int | None = None
+    uncaptured: list[dict] = Field(default_factory=list)
+    items: list[LedgerItem] = Field(default_factory=list)
+
+
+class CellLineItem(BaseModel):
+    line_item_id: uuid.UUID
+    description_raw: str
+    page_no: int | None = None
+    role: str | None = None
+    allocation_fraction: float
+    amount_cents: int | None = None
+    amount_ex_gst_cents: int | None = None
+    mapping_tier: str
+    qa_state: str
+
+
+class CellItemsResponse(BaseModel):
+    cell_code: str
+    name: str
+    quote_id: uuid.UUID
+    project_trade_id: uuid.UUID | None = None
+    items: list[CellLineItem] = Field(default_factory=list)
+    sum_ex_gst_cents: int = 0

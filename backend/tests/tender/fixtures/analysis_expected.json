@@ -153,6 +153,7 @@
                 {
                   "line_item_id": "00000000-0000-0000-0000-000000000201",
                   "item_status": "pc_allowance",
+                  "role": "pc_allowance",
                   "allocation_fraction": 1.0
                 }
               ]

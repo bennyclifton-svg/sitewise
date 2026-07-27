@@ -217,6 +217,24 @@ export type TenderTaxonomySearchResult = TenderTaxonomyCell & {
   via: string;
 };
 
+export type TenderProjectTrade = {
+  /** Null for the synthetic reserved PT.UNALLOC when no DB row exists. */
+  id: string | null;
+  code: string;
+  name: string;
+  description: string | null;
+  group_label: string | null;
+  sort_order: number;
+  source: "generated" | "manual" | "reserved";
+  anchor_cell_codes: string[];
+  anchor_confidence: number | null;
+};
+
+export type TenderProjectTradesResponse = {
+  comparison_id: string;
+  trades: TenderProjectTrade[];
+};
+
 export type TenderMatrixQuoteCell = {
   status: string;
   amount_cents: number | null;
@@ -238,9 +256,14 @@ export type TenderMatrixMappingChoice = {
   locked: boolean;
 };
 
+export type TenderMappingChoiceTarget =
+  | { project_trade_id: string }
+  | { cell_code: string };
+
 export type TenderMatrixCell = {
   code: string;
   name: string;
+  project_trade_id?: string | null;
   quotes: Record<string, TenderMatrixQuoteCell>;
 };
 
@@ -251,9 +274,19 @@ export type TenderMatrixGroup = {
 
 export type TenderMatrixQuoteTotal = {
   quote_id: string;
+  /** Conserved matrix column total on the comparison basis (always ex-GST). */
   computed_total_cents: number;
+  basis: "ex";
+  /** Native-basis residual: stated_native − Σ counted items (I2). */
+  residual_cents: number;
+  unallocated_cents: number;
+  not_itemised_cents: number;
+  /** Quote's stated total on its native GST basis (header figure). */
+  stated_native_cents: number | null;
   stated_total_cents: number | null;
   stated_total_source: "manual" | "extracted" | null;
+  /** Cost-plus / excluded-margin columns are flagged, never adjusted. */
+  non_comparable: boolean;
   delta_cents: number | null;
   delta_ratio: number | null;
   reconciliation: "match" | "mismatch" | "not_stated";
@@ -338,4 +371,53 @@ export type TenderIntakeInput = TenderPreparationInput & { turn_id: string };
 export type TenderIntakeResponse = {
   comparison: TenderComparison;
   idempotent_replay: boolean;
+};
+
+export type QuoteLedgerItem = {
+  id: string | null;
+  figure_key: string;
+  page_no: number | null;
+  description_raw: string;
+  printed_text: string | null;
+  amount_cents: number | null;
+  amount_ex_gst_cents: number | null;
+  gst_basis: string | null;
+  role: string | null;
+  is_rollup: boolean;
+  counted_in_total: boolean;
+  duplicate_of_id: string | null;
+  parent_id: string | null;
+  children: QuoteLedgerItem[];
+};
+
+export type QuoteLedgerResponse = {
+  quote_id: string;
+  builder_name: string;
+  stated_total_cents: number | null;
+  stated_basis: string | null;
+  status: string;
+  residual_cents: number;
+  computed_ex_gst_cents: number | null;
+  uncaptured: Array<Record<string, unknown>>;
+  items: QuoteLedgerItem[];
+};
+
+export type TenderCellLineItem = {
+  line_item_id: string;
+  description_raw: string;
+  page_no: number | null;
+  role: string | null;
+  allocation_fraction: number;
+  amount_cents: number | null;
+  amount_ex_gst_cents: number | null;
+  mapping_tier: string;
+  qa_state: string;
+};
+
+export type TenderCellItemsResponse = {
+  cell_code: string;
+  name: string;
+  quote_id: string;
+  items: TenderCellLineItem[];
+  sum_ex_gst_cents: number;
 };

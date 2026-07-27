@@ -6,6 +6,48 @@ from tender import worker
 from tender.services import expectations
 
 
+def test_mixed_roles_keep_countable_money_and_breakdown() -> None:
+    """I4: excluded money stays in breakdown; amount_cents is countable ex-GST only."""
+    comparison_id = uuid.uuid4()
+    quote_id = uuid.uuid4()
+
+    drafts = expectations.build_cell_status_grid(
+        comparison_id=comparison_id,
+        quote_ids=[quote_id],
+        fired_rules=[],
+        mapped_items=[
+            expectations.MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=quote_id,
+                cell_code="13.01",
+                item_status="included",
+                role="contract_component",
+                amount_ex_gst_cents=100_00,
+                counted_in_total=True,
+            ),
+            expectations.MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=quote_id,
+                cell_code="13.01",
+                item_status="excluded",
+                role="excluded",
+                amount_ex_gst_cents=50_00,
+                counted_in_total=True,
+            ),
+        ],
+    )
+
+    assert len(drafts) == 1
+    draft = drafts[0]
+    assert draft.status == "mixed"
+    assert draft.amount_cents == 100_00
+    assert draft.amount_breakdown == {
+        "contract_component": 100_00,
+        "excluded": 50_00,
+        "item_count": 2,
+    }
+
+
 def test_cell_status_grid_unions_expected_and_mapped_cells() -> None:
     comparison_id = uuid.uuid4()
     q1 = uuid.uuid4()
@@ -147,12 +189,13 @@ def test_run_expectations_queues_one_silence_batch_per_quote(monkeypatch) -> Non
         ],
     )
     scalar_results = [
-        [],
+        [],  # expectation rules
         [
             type("Quote", (), {"id": quote_a})(),
             type("Quote", (), {"id": quote_b})(),
         ],
-        [],
+        [],  # project trades (empty → legacy cell_code path)
+        [],  # existing cell status
     ]
     monkeypatch.setattr(
         expectations,
@@ -197,3 +240,88 @@ async def _awaitable(value):
 
 def test_worker_registers_run_expectations_handler() -> None:
     assert worker.HANDLERS["run_expectations"] is expectations.run_expectations
+
+
+def test_trade_mode_grid_keys_by_project_trade_id() -> None:
+    """When trades exist, drafts key by (quote_id, project_trade_id); cell_code NULL."""
+    comparison_id = uuid.uuid4()
+    quote_id = uuid.uuid4()
+    trade_a = uuid.uuid4()
+    trade_b = uuid.uuid4()
+
+    drafts = expectations.build_cell_status_grid(
+        comparison_id=comparison_id,
+        quote_ids=[quote_id],
+        fired_rules=[
+            expectations.FiredRule(
+                rule_code="SITE.RETAINING.SHOULD",
+                cell_code="03.05",
+                severity="should",
+                rationale="Anchored expectation for trade_a only.",
+            )
+        ],
+        mapped_items=[
+            expectations.MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=quote_id,
+                cell_code=None,
+                project_trade_id=trade_a,
+                item_status="included",
+                role="contract_component",
+                amount_ex_gst_cents=200_00,
+                counted_in_total=True,
+            ),
+            expectations.MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=quote_id,
+                cell_code=None,
+                project_trade_id=trade_b,
+                item_status="excluded",
+                role="excluded",
+                amount_ex_gst_cents=50_00,
+                counted_in_total=True,
+            ),
+        ],
+        trades=[
+            expectations.TradeExpectationTarget(trade_a, ("03.05",)),
+            expectations.TradeExpectationTarget(trade_b, ()),
+        ],
+    )
+
+    assert len(drafts) == 2
+    by_trade = {draft.project_trade_id: draft for draft in drafts}
+    assert by_trade[trade_a].cell_code is None
+    assert by_trade[trade_a].status == "included"
+    assert by_trade[trade_a].amount_cents == 200_00
+    assert by_trade[trade_b].cell_code is None
+    assert by_trade[trade_b].status == "excluded_explicit"
+    assert by_trade[trade_b].amount_cents == 0
+    assert by_trade[trade_b].amount_breakdown == {
+        "excluded": 50_00,
+        "item_count": 1,
+    }
+
+
+def test_trade_mode_merge_keys_by_project_trade_id() -> None:
+    comparison_id = uuid.uuid4()
+    quote_id = uuid.uuid4()
+    trade_id = uuid.uuid4()
+    draft = expectations.CellStatusDraft(
+        comparison_id=comparison_id,
+        quote_id=quote_id,
+        cell_code=None,
+        project_trade_id=trade_id,
+        status="included",
+        amount_cents=10_00,
+        bundled_into_cell=None,
+        evidence={"mapped_line_items": []},
+        confidence=None,
+        qa_state="auto_pass",
+    )
+    existing = draft.as_row_state()
+
+    merge = expectations.merge_cell_status_drafts([existing], [draft])
+
+    assert merge.inserts == []
+    assert merge.updates == []
+    assert merge.silence_jobs == []

@@ -3,8 +3,17 @@ from tender.eval.golden import (
     GoldenCellStatus,
     GoldenLineItem,
     GoldenMapping,
+    GoldenQuote,
+    load_manifest,
 )
-from tender.eval.metrics import evaluate_document, summarize_counts
+from tender.eval.metrics import (
+    counted_sum_reconciles,
+    evaluate_completeness,
+    evaluate_document,
+    summarize_completeness,
+    summarize_counts,
+)
+from tender.eval.runners import CompletenessRunner
 
 
 def test_metrics_score_extraction_mapping_silence_and_impact() -> None:
@@ -75,3 +84,84 @@ def test_empty_metrics_have_counts_and_no_rates() -> None:
     assert summary["mapping"]["split_f1"] is None
     assert summary["end_to_end"]["report_impacting_check_count"] == 0
 
+
+def test_completeness_metrics_score_recall_roles_dedup_and_recon() -> None:
+    expected = GoldenAnnotation(
+        quote=GoldenQuote(
+            stated_total_cents=10_000,
+            stated_basis="inc",
+            expected_residual_cents=0,
+        ),
+        line_items=(
+            GoldenLineItem(
+                description_raw="Category A",
+                page=1,
+                amount_cents=10_000,
+                role="contract_component",
+                counted=True,
+                gst_basis="inc",
+            ),
+            GoldenLineItem(
+                description_raw="Category A reprint",
+                page=2,
+                amount_cents=10_000,
+                role="informational",
+                counted=False,
+                duplicate_of="cat-a",
+                gst_basis="inc",
+            ),
+            GoldenLineItem(
+                description_raw="PS nested",
+                page=1,
+                amount_cents=500,
+                role="ps_allowance",
+                counted=False,
+                parent="cat-a",
+                gst_basis="inc",
+            ),
+        ),
+    )
+    predicted = GoldenAnnotation(
+        line_items=(
+            GoldenLineItem(
+                description_raw="Category A",
+                page=1,
+                amount_cents=10_000,
+                role="contract_component",
+            ),
+            GoldenLineItem(
+                description_raw="Category A reprint",
+                page=2,
+                amount_cents=10_000,
+                role="informational",
+                duplicate_of="cat-a",
+            ),
+            GoldenLineItem(
+                description_raw="PS nested",
+                page=1,
+                amount_cents=500,
+                role="pc_allowance",  # wrong role
+            ),
+        )
+    )
+
+    summary = summarize_completeness(evaluate_completeness(expected, predicted))
+
+    assert summary["printed_figure_recall"] == 1.0
+    assert summary["counted_sum_reconciles"] is True
+    assert summary["dedup_precision"] == 1.0
+    assert summary["role_accuracy"] == 2 / 3
+
+
+def test_merrick_completeness_gates() -> None:
+    manifest = load_manifest()
+    runner = CompletenessRunner()
+    by_id = {document.id: document for document in manifest.documents}
+
+    for doc_id in ("coastal", "montique", "toussaint"):
+        document = by_id[doc_id]
+        assert counted_sum_reconciles(document.annotation) is True
+        summary = runner.evaluate(document)
+        assert summary["printed_figure_recall"] is not None
+        assert summary["printed_figure_recall"] >= 0.99, doc_id
+        assert summary["counted_sum_reconciles"] is True, doc_id

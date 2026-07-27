@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import uuid
 
 import pytest
 
@@ -8,11 +9,15 @@ from tender.schemas import ProjectContext
 from tender.seeds.load import read_expectations
 from tender.services.expectations import (
     ExpectationRuleInput,
+    FiredRule,
+    MappedCellItem,
     PredicateValidationError,
+    TradeExpectationTarget,
+    build_cell_status_grid,
     evaluate_rules,
+    expected_trades_from_fired_cells,
     validate_predicate,
 )
-
 
 CONCEPTS = {
     "cut_and_fill": ("cut and fill", "cut & fill", "benching", "earthworks"),
@@ -176,6 +181,113 @@ rules:
 
     with pytest.raises(ValueError, match="BAD.RULE"):
         read_expectations(path)
+
+
+def test_expected_trades_from_fired_cells_maps_via_anchors() -> None:
+    trade_a = uuid.uuid4()
+    trade_b = uuid.uuid4()
+    trade_c = uuid.uuid4()
+    fired = [
+        FiredRule("SITE.RETAINING.SHOULD", "03.05", "should", None),
+        FiredRule("SITE.PIERING.MUST", "03.02", "must", None),
+    ]
+    trades = [
+        TradeExpectationTarget(trade_a, ("03.05", "03.01")),
+        TradeExpectationTarget(trade_b, ("18.01",)),
+        TradeExpectationTarget(trade_c, ()),
+    ]
+
+    expected = expected_trades_from_fired_cells(fired, trades)
+
+    assert set(expected) == {trade_a}
+    assert [rule.rule_code for rule in expected[trade_a]] == ["SITE.RETAINING.SHOULD"]
+
+
+def test_trade_grid_expected_unmapped_is_silent_ambiguous() -> None:
+    comparison_id = uuid.uuid4()
+    q1 = uuid.uuid4()
+    q2 = uuid.uuid4()
+    trade_id = uuid.uuid4()
+
+    drafts = build_cell_status_grid(
+        comparison_id=comparison_id,
+        quote_ids=[q1, q2],
+        fired_rules=[
+            FiredRule("SITE.RETAINING.SHOULD", "03.05", "should", "Need retaining"),
+        ],
+        mapped_items=[
+            MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=q1,
+                project_trade_id=trade_id,
+                item_status="included",
+                amount_ex_gst_cents=50_00,
+            ),
+        ],
+        trades=[TradeExpectationTarget(trade_id, ("03.05",))],
+    )
+
+    by_key = {(d.quote_id, d.project_trade_id): d for d in drafts}
+    assert by_key[(q1, trade_id)].status == "included"
+    assert by_key[(q1, trade_id)].amount_cents == 50_00
+    assert by_key[(q2, trade_id)].status == "silent_ambiguous"
+    assert by_key[(q2, trade_id)].queue_silence
+    assert by_key[(q2, trade_id)].cell_code is None
+    assert by_key[(q2, trade_id)].evidence["expected_because"] == [
+        "SITE.RETAINING.SHOULD"
+    ]
+    assert by_key[(q2, trade_id)].evidence["cross_quote_presence"] is True
+
+
+def test_trade_grid_cross_quote_absence_without_anchors() -> None:
+    """Trade priced in one quote and absent in another → silent even with no anchors."""
+    comparison_id = uuid.uuid4()
+    q1 = uuid.uuid4()
+    q2 = uuid.uuid4()
+    trade_id = uuid.uuid4()
+
+    drafts = build_cell_status_grid(
+        comparison_id=comparison_id,
+        quote_ids=[q1, q2],
+        fired_rules=[
+            FiredRule("SITE.RETAINING.SHOULD", "03.05", "should", None),
+        ],
+        mapped_items=[
+            MappedCellItem(
+                line_item_id=uuid.uuid4(),
+                quote_id=q1,
+                project_trade_id=trade_id,
+                item_status="included",
+                amount_ex_gst_cents=10_00,
+            ),
+        ],
+        trades=[TradeExpectationTarget(trade_id, ())],
+    )
+
+    by_key = {(d.quote_id, d.project_trade_id): d for d in drafts}
+    assert by_key[(q1, trade_id)].status == "included"
+    silent = by_key[(q2, trade_id)]
+    assert silent.status == "silent_ambiguous"
+    assert silent.queue_silence
+    assert silent.evidence["expected_because"] == []
+    assert silent.evidence["cross_quote_presence"] is True
+    assert "absent here" in silent.evidence["cross_quote_note"]
+
+
+def test_trade_grid_ignores_fired_cells_without_matching_anchors() -> None:
+    comparison_id = uuid.uuid4()
+    quote_id = uuid.uuid4()
+    trade_id = uuid.uuid4()
+
+    drafts = build_cell_status_grid(
+        comparison_id=comparison_id,
+        quote_ids=[quote_id],
+        fired_rules=[FiredRule("SITE.RETAINING.SHOULD", "03.05", "should", None)],
+        mapped_items=[],
+        trades=[TradeExpectationTarget(trade_id, ("18.01",))],
+    )
+
+    assert drafts == []
 
 
 def _rule(

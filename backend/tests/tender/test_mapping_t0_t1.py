@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from types import SimpleNamespace
 from typing import Any
 
+from tender.models import UNALLOCATED_TRADE_CODE
 from tender.services import mapping
 from tests.conftest import run_async
 
@@ -77,6 +79,126 @@ def test_t1_accept_candidate_requires_similarity_and_margin() -> None:
     assert mapping.accept_t1_candidate(confident) == confident[0]
     assert mapping.accept_t1_candidate(low_margin) is None
     assert mapping.accept_t1_candidate(low_similarity) is None
+
+
+def test_t0_seed_match_direct_figure_key() -> None:
+    quote_id = uuid.uuid4()
+    item = mapping.LineItemMappingInput(
+        description_raw="Joinery package",
+        section_path=("Interior",),
+        qty=None,
+        unit=None,
+        amount_cents=100_000,
+        item_status="included",
+        figure_key="p10-1",
+        counted_in_total=True,
+    )
+    seed_index = {"p10-1": "PT.01"}
+
+    result = mapping.t0_seed_match(
+        item,
+        seed_index=seed_index,
+        figure_key_by_id={},
+        parent_by_id={},
+    )
+
+    assert result == [
+        mapping.CellCandidate(cell_code="PT.01", similarity=1.0, via="seed:p10-1")
+    ]
+    assert mapping.build_seed_index(
+        [
+            mapping.ProjectTradeInfo(
+                id=uuid.uuid4(),
+                code="PT.01",
+                name="Joinery",
+                seed_assignments=(
+                    {"quote_id": str(quote_id), "figure_key": "p10-1"},
+                ),
+            )
+        ],
+        quote_id,
+    ) == {"p10-1": "PT.01"}
+
+
+def test_t0_seed_match_via_ancestor_figure_key() -> None:
+    parent_id = uuid.uuid4()
+    item = mapping.LineItemMappingInput(
+        description_raw="Kitchen cabinets",
+        section_path=("Interior", "Joinery"),
+        qty=None,
+        unit=None,
+        amount_cents=50_000,
+        item_status="included",
+        figure_key="p10-3",
+        parent_id=parent_id,
+    )
+
+    result = mapping.t0_seed_match(
+        item,
+        seed_index={"p10-1": "PT.01"},
+        figure_key_by_id={parent_id: "p10-1"},
+        parent_by_id={parent_id: None},
+    )
+
+    assert result == [
+        mapping.CellCandidate(cell_code="PT.01", similarity=1.0, via="seed:p10-1")
+    ]
+
+
+def test_t1_trade_candidates_excludes_unalloc_and_ranks() -> None:
+    trades = [
+        mapping.ProjectTradeInfo(
+            id=uuid.uuid4(),
+            code="PT.01",
+            name="Joinery",
+            embedding=[1.0, 0.0, 0.0],
+        ),
+        mapping.ProjectTradeInfo(
+            id=uuid.uuid4(),
+            code="PT.02",
+            name="Site",
+            embedding=[0.0, 1.0, 0.0],
+        ),
+        mapping.ProjectTradeInfo(
+            id=uuid.uuid4(),
+            code=UNALLOCATED_TRADE_CODE,
+            name="Unallocated",
+            embedding=[1.0, 0.0, 0.0],
+        ),
+    ]
+
+    result = mapping.t1_trade_candidates([1.0, 0.0, 0.0], trades, limit=5)
+
+    assert [candidate.cell_code for candidate in result] == ["PT.01", "PT.02"]
+    assert result[0].similarity == 1.0
+    assert UNALLOCATED_TRADE_CODE not in {c.cell_code for c in result}
+
+
+def test_taxonomy_seed_tier_on_seed_hit() -> None:
+    free = mapping.resolve_free_tier_trades(
+        mapping.LineItemMappingInput(
+            description_raw="Joinery",
+            section_path=("Interior",),
+            qty=None,
+            unit=None,
+            amount_cents=10_000,
+            item_status="included",
+            figure_key="p1-1",
+        ),
+        seed_index={"p1-1": "PT.01"},
+        trades=[
+            mapping.ProjectTradeInfo(
+                id=uuid.uuid4(), code="PT.01", name="Joinery"
+            )
+        ],
+        figure_key_by_id={},
+        parent_by_id={},
+    )
+
+    assert free.decision is not None
+    assert free.decision.tier == "taxonomy_seed"
+    assert free.decision.qa_state == "auto_pass"
+    assert free.decision.allocations == (mapping.CellAllocation("PT.01", 1.0),)
 
 
 class FakeSession:

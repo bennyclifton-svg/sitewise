@@ -173,6 +173,57 @@ def test_flag_merge_preserves_confirmed_and_suppressed_by_identity() -> None:
     assert merge.current == (confirmed, suppressed, fresh)
 
 
+def test_gap_matrix_keys_by_trade_code() -> None:
+    """Phase 6: when AnalysisCell.code is a trade code, gap matrix keys by that code."""
+    matrix = build_gap_matrix(
+        quotes=[
+            AnalysisQuote("quote-a", "A Homes", 1_000_000),
+            AnalysisQuote("quote-b", "B Homes", 1_100_000),
+        ],
+        cells=[
+            AnalysisCell("PT.01", "Cabinetry", "joinery.kitchen"),
+            AnalysisCell("PT.02", "Unallocated", None),
+        ],
+        statuses=[
+            _status("quote-a", "PT.01", "included", amount_cents=327_000_00, qa_state="auto_pass"),
+            _status("quote-b", "PT.01", "silent_ambiguous"),
+        ],
+    )
+
+    assert [row["cell_code"] for row in matrix] == ["PT.01", "PT.02"]
+    assert matrix[0]["cell_name"] == "Cabinetry"
+    assert matrix[0]["quotes"][0]["status"] == "included"
+    assert matrix[0]["quotes"][0]["amount_cents"] == 327_000_00
+    assert matrix[0]["quotes"][1]["status"] == "silent_ambiguous"
+    assert matrix[1]["quotes"] == [
+        {"status": None, "amount_cents": None, "qa_state": None, "confidence": None},
+        {"status": None, "amount_cents": None, "qa_state": None, "confidence": None},
+    ]
+
+
+def test_allowance_flags_skip_trades_without_benchmark_key() -> None:
+    """Multi-anchor / unanchored trades (benchmark_key=None) do not emit allowance flags."""
+    flags = generate_analysis_flags(
+        context=_context(),
+        quotes=[AnalysisQuote("quote-a", "A Homes", 1_000_000)],
+        cells=[
+            AnalysisCell("PT.01", "Cabinetry", "joinery.kitchen"),
+            AnalysisCell("PT.02", "Mixed joinery", None),
+        ],
+        statuses=[
+            _status("quote-a", "PT.01", "pc", amount_cents=700),
+            _status("quote-a", "PT.02", "pc", amount_cents=700),
+        ],
+        benchmarks=[
+            _benchmark("joinery.kitchen", confidence="high", p25=800, p50=1_000, p75=1_300)
+        ],
+    )
+
+    allowance = [flag for flag in flags if flag.flag_type == "low_pc_allowance"]
+    assert len(allowance) == 1
+    assert allowance[0].cell_code == "PT.01"
+
+
 def _status(
     quote_id: str,
     cell_code: str,

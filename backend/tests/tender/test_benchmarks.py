@@ -6,7 +6,21 @@ from decimal import Decimal
 import pytest
 
 from tender.schemas import ProjectContext
-from tender.services.benchmarks import BenchmarkRow, price_benchmark, resolve_benchmark
+from tender.services.benchmarks import (
+    BenchmarkRow,
+    inherit_benchmark_key,
+    price_benchmark,
+    resolve_benchmark,
+)
+
+
+def test_inherit_benchmark_key_single_anchor_only() -> None:
+    keys = {"03.05": "site.retaining", "18.01": "joinery.kitchen"}
+
+    assert inherit_benchmark_key(("03.05",), keys) == "site.retaining"
+    assert inherit_benchmark_key(("03.05", "18.01"), keys) is None
+    assert inherit_benchmark_key((), keys) is None
+    assert inherit_benchmark_key(("99.99",), keys) is None
 
 
 def test_resolve_benchmark_uses_exact_non_superseded_latest_effective_date() -> None:

@@ -42,6 +42,9 @@ from tender.schemas import (
     QAResolveRequest,
     QAResolveResponse,
     QuoteCreate,
+    CellItemsResponse,
+    ProjectTradesResponse,
+    QuoteLedgerResponse,
     QuoteView,
     ReportDeliveredRequest,
     ReportLifecycleResponse,
@@ -53,7 +56,17 @@ from tender.schemas import (
     TenderIntakeResponse,
     TenderReportStateResponse,
 )
-from tender.services import intake, jobs, matrix, progress, qa, report, taxonomy
+from tender.services import (
+    intake,
+    jobs,
+    ledger,
+    matrix,
+    progress,
+    project_taxonomy,
+    qa,
+    report,
+    taxonomy,
+)
 from tender.services.project_context_adapter import (
     ContextRevisionConflict,
     ContextValidationError,
@@ -70,6 +83,7 @@ MANUAL_QUOTE_STAGES = {
     "map_items",
 }
 MANUAL_COMPARISON_STAGES = {
+    "generate_project_taxonomy",
     "run_expectations",
     "run_analysis",
     "generate_flags",
@@ -754,6 +768,93 @@ async def get_comparison_matrix(
         user_id=user.id,
     )
     return await matrix.build_matrix(session, comparison_id=comparison_id)
+
+
+@router.get(
+    "/comparisons/{comparison_id}/trades",
+    response_model=ProjectTradesResponse,
+)
+async def get_comparison_trades(
+    comparison_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectTradesResponse:
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await project_taxonomy.list_project_trades(
+        session, comparison_id=comparison_id
+    )
+
+
+@router.get(
+    "/comparisons/{comparison_id}/quotes/{quote_id}/ledger",
+    response_model=QuoteLedgerResponse,
+)
+async def get_quote_ledger(
+    comparison_id: uuid.UUID,
+    quote_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> QuoteLedgerResponse:
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await ledger.build_quote_ledger(
+        session, comparison_id=comparison_id, quote_id=quote_id
+    )
+
+
+@router.get(
+    "/comparisons/{comparison_id}/cells/{cell_code}/items",
+    response_model=CellItemsResponse,
+)
+async def get_cell_items(
+    comparison_id: uuid.UUID,
+    cell_code: str,
+    quote_id: uuid.UUID = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CellItemsResponse:
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await ledger.build_cell_items(
+        session,
+        comparison_id=comparison_id,
+        cell_code=cell_code,
+        quote_id=quote_id,
+    )
+
+
+@router.get(
+    "/comparisons/{comparison_id}/trades/{trade_id}/items",
+    response_model=CellItemsResponse,
+)
+async def get_trade_items(
+    comparison_id: uuid.UUID,
+    trade_id: uuid.UUID,
+    quote_id: uuid.UUID = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CellItemsResponse:
+    await require_comparison_owner(
+        session,
+        comparison_id=comparison_id,
+        user_id=user.id,
+    )
+    return await ledger.build_trade_items(
+        session,
+        comparison_id=comparison_id,
+        trade_id=trade_id,
+        quote_id=quote_id,
+    )
 
 
 @router.get("/taxonomy", response_model=TaxonomyListResponse)

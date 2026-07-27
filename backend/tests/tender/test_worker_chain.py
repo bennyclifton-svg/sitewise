@@ -69,6 +69,13 @@ class _Session:
             return _ExecuteResult([])
         return _ExecuteResult(self.execute_values.pop(0))
 
+    async def scalars(self, statement: Any) -> _ScalarResult:
+        return _ScalarResult(self.execute_values.pop(0))
+
+    async def scalar(self, statement: Any) -> Any:
+        # No reconciliation row exists for this fixture; the handler inserts one.
+        return None
+
     def add(self, obj: Any) -> None:
         if isinstance(obj, TenderPage):
             self.pages.append(obj)
@@ -105,13 +112,26 @@ class _StubLLM:
             prompt_version=prompt_version,
         )
 
-    async def extract(self, document_pages, schema, context):
+    async def extract(
+        self,
+        document_pages,
+        schema,
+        context,
+        *,
+        page_images=None,
+        prior_section_headings=None,
+        already_found=None,
+        reextract_hint=None,
+    ):
         return LLMExtractionResponse(
             data={
                 "line_items": [
                     {
                         "page_no": 1,
                         "description_raw": "Slab and footings",
+                        "printed_text": "Slab and footings $45,000",
+                        "figure_key": "p1-slab-and-footings",
+                        "role": "contract_component",
                         "item_status": "included",
                         "amount_cents": 4_500_000,
                         "extraction_confidence": 0.95,

@@ -58,11 +58,11 @@ Product decisions (Benny, 2026-07-19): capture EVERY printed figure classified b
 - [x] **Phase 0** — Branch, plan commit, pytest guard rails
 - [x] **Phase 1** — Migration **034** (ledger columns + reconciliation table) + model/schema updates
 - [x] **Phase 2** — Extraction overhaul (census → windowed extraction → reconciliation) + quote-ledger endpoint + `QuoteLedgerPanel` (unit/API green; live MERRICK smoke deferred)
-- [ ] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
-- [ ] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
-- [ ] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
-- [ ] **Phase 6** — Expectations/silence/benchmarks via anchor cells
-- [ ] **Phase 7** — Report overhaul + golden fixtures/eval gates + E2E MERRICK acceptance
+- [x] **Phase 3** — No-drop mapping + money-conserving grid + always-clickable cells + cell drill-down
+- [x] **Phase 4** — Migrations **035/036** + `generate_project_taxonomy` stage + mapping retarget + matrix rows from trades
+- [x] **Phase 5** — Ex-GST totals + reconciliation strip + non-comparable flags in UI
+- [x] **Phase 6** — Expectations/silence/benchmarks via anchor cells
+- [x] **Phase 7** — Report overhaul + golden fixtures/eval gates (E2E MERRICK acceptance deferred — see Task 7.4 / run report)
 
 > **Migration renumber (2026-07-19):** Stages 3–6 already claimed `029`–`033` on
 > `main`. This plan’s former `029`/`030`/`031` are implemented as
@@ -347,12 +347,12 @@ Concepts: input is the merged list of extracted figures (schema objects from Tas
 # Phase 3 — No-drop mapping + money-conserving grid + drill-down
 
 **Todo:**
-- [ ] 3.1 Unallocated seed cell
-- [ ] 3.2 Mapping fallback + sweep (I3)
-- [ ] 3.3 Grid per-role aggregation (I4)
-- [ ] 3.4 Totals rewrite
-- [ ] 3.5 Cell drill-down endpoint
-- [ ] 3.6 Always-clickable cells UI
+- [x] 3.1 Unallocated seed cell
+- [x] 3.2 Mapping fallback + sweep (I3)
+- [x] 3.3 Grid per-role aggregation (I4)
+- [x] 3.4 Totals rewrite
+- [x] 3.5 Cell drill-down endpoint
+- [x] 3.6 Always-clickable cells UI
 
 ### Task 3.1: Seed `99.01 Unallocated`
 
@@ -414,20 +414,20 @@ Concepts: input is the merged list of extracted figures (schema objects from Tas
 ### Phase 3 Definition of done
 - [ ] Zero-drop SQL returns 0 on a fresh MERRICK re-run; Toussaint's "51.01 Internal Fix Carpentry $20,000" visible (mapped or Unallocated)
 - [ ] Σ every matrix column (cells + unallocated + not-itemised) == recon computed ex-GST (spot-check SQL)
-- [ ] Grid/mapping/totals/api test files green
+- [x] Grid/mapping/totals/api test files green
 
 ---
 
-# Phase 4 — Project-generated taxonomy (Migrations 030/031)
+# Phase 4 — Project-generated taxonomy (Migrations 035/036)
 
 **Todo:**
-- [ ] 4.1 Migrations 030 (tender_project_trades) + 031 (mapping/cell_status trade targets)
-- [ ] 4.2 ORM + trades endpoints
-- [ ] 4.3 Fan-in barrier + worker stage
-- [ ] 4.4 Generation service + prompt
-- [ ] 4.5 Mapping retarget T0–T3
-- [ ] 4.6 Matrix rows from trades (+ legacy fallback)
-- [ ] 4.7 QA/corrections retarget
+- [x] 4.1 Migrations 035 (tender_project_trades) + 036 (mapping/cell_status trade targets)
+- [x] 4.2 ORM + trades endpoints
+- [x] 4.3 Fan-in barrier + worker stage
+- [x] 4.4 Generation service + prompt
+- [x] 4.5 Mapping retarget T0–T3
+- [x] 4.6 Matrix rows from trades (+ legacy fallback)
+- [x] 4.7 QA/corrections retarget
 
 ### Task 4.1: Migrations
 
@@ -491,14 +491,14 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 ### Phase 4 Definition of done
 - [ ] Fresh MERRICK re-run produces 20–60 trades in the matrix using project language (e.g. a "Joinery / cabinetry" row with Coastal ≈ $327k ex, Montique ≈ $314k ex, Toussaint $138k ex all aligned on it)
 - [ ] Zero-drop invariant still 0; column conservation still holds; QA mapping corrections work against trades
-- [ ] Mapping/grid/matrix/QA test files green
+- [x] Mapping/grid/matrix/QA test files green
 
 ---
 
 # Phase 5 — Ex-GST comparison surfaced (UI)
 
 **Todo:**
-- [ ] 5.1 Reconciliation strip + basis badges + non-comparable flag
+- [x] 5.1 Reconciliation strip + basis badges + non-comparable flag
 
 **Files:** Modify: `frontend/src/components/project/tender/TenderMatrix.tsx` (header ~380-400, `MatrixTotalsRow` ~436-473, `TotalReconciliation` ~475-499), `frontend/src/components/project/tender/format.ts`, `frontend/src/lib/types/tender.ts`
 
@@ -508,14 +508,16 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 4. Fix today's header-vs-footer inconsistency: header quote figure = stated native (labelled), footer = computed ex-GST (labelled).
 5. `pnpm build`; manual visual check; commit.
 
+**DoD (2026-07-20):** Matrix header shows labelled stated-native; footer row is "Total (ex GST)" with labelled computed totals + reconciliation strip; cost-plus columns show amber non-comparable badge (`report.labels.cost_plus_non_comparable`). `pnpm exec tsc --noEmit` + `pnpm build` clean; TenderMatrix vitest green.
+
 ---
 
 # Phase 6 — Expectations / silence / benchmarks via anchors
 
 **Todo:**
-- [ ] 6.1 Expectation → trade adapter
-- [ ] 6.2 Silence over trades
-- [ ] 6.3 Benchmarks/analysis retarget
+- [x] 6.1 Expectation → trade adapter
+- [x] 6.2 Silence over trades
+- [x] 6.3 Benchmarks/analysis retarget
 
 **Files:** Modify: `backend/tender/services/expectations.py` (`evaluate_rules` consumers, `_silent_status_draft` ~452), `backend/tender/services/silence.py` (`SilenceCell` construction), `backend/tender/services/analysis.py` (`_analysis_inputs`, gap matrix keys), `backend/tender/services/benchmarks.py`; Tests: `test_expectations.py`, `test_infer_silence.py`, `test_analysis_flags.py`, `test_benchmarks.py` (extend)
 
@@ -524,15 +526,23 @@ Resolve/correct accepts a `project_trade_id` target; corrections to a single-anc
 3. Benchmarks: single-anchor trades inherit `benchmark_key`; multi/unanchored skip (v1). Gap matrix + ledgers keyed by trade code.
 4. Tests per piece; commit per task.
 
+**DoD (2026-07-20):** Fired cell rules adapt onto trades via `anchor_cell_codes`; expected-but-unmapped + cross-quote absence → `silent_ambiguous`. Silence evidence unions anchor synonyms/parents; unanchored trades skip LLM. Single-anchor trades inherit `benchmark_key`; gap/analysis keyed by trade code. Targeted pytest files green (`test_expectations`, `test_infer_silence`, `test_benchmarks`, `test_analysis_flags`).
+
 ---
 
 # Phase 7 — Report, golden fixtures, eval gates, E2E acceptance
 
 **Todo:**
-- [ ] 7.1 Report: trade matrix + reconciliation strip + full ledger appendix
-- [ ] 7.2 MERRICK golden fixtures + annotations
-- [ ] 7.3 Eval metrics + completeness runner + gates
-- [ ] 7.4 Final E2E acceptance run
+- [x] 7.1 Report: trade matrix + reconciliation strip + full ledger appendix
+- [x] 7.2 MERRICK golden fixtures + annotations
+- [x] 7.3 Eval metrics + completeness runner + gates
+- [ ] 7.4 Final E2E acceptance run — **deferred 2026-07-20** (no live authenticated UI run this session; unit/report/eval DoD green — see `docs/plans/2026-07-20-tender-completeness-phase7-run-report.md`)
+
+**DoD notes (2026-07-20):**
+- Report: trades when present; recon strip + cost-plus note; ledger appendix; `mixed` glyph present.
+- Goldens: Coastal 36 cats = $3,547,495; Montique lump + **42** PS $ lines (PDF count); Toussaint 77 sections + GST identities verified.
+- Completeness gates: recall ≥ 0.99, `counted_sum_reconciles` True for three MERRICK docs.
+- Live E2E checklist left open for a follow-up authenticated run / PR description.
 
 ### Task 7.1: Report
 

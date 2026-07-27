@@ -138,7 +138,7 @@ def test_openai_extract_records_safe_call_metadata_without_prompt_content(
 
     assert usage.metadata == {
         "models": ["gpt-test"],
-        "prompt_versions": ["0.1.0"],
+        "prompt_versions": ["0.2.0"],
         "request_ids": ["resp-1"],
         "llm_retries": 2,
     }

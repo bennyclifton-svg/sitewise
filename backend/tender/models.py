@@ -77,6 +77,24 @@ INGEST_STATUSES = (
     "failed",
 )
 LINE_ITEM_STATUSES = ("included", "excluded", "pc_allowance", "ps_allowance", "note")
+LINE_ITEM_ROLES = (
+    "contract_component",
+    "pc_allowance",
+    "ps_allowance",
+    "optional_upgrade",
+    "informational",
+    "excluded",
+)
+GST_BASES = ("inc", "ex", "unknown")
+RECONCILIATION_STATUSES = ("reconciled", "residual", "not_stated", "non_comparable")
+ROLE_TO_ITEM_STATUS = {
+    "contract_component": "included",
+    "pc_allowance": "pc_allowance",
+    "ps_allowance": "ps_allowance",
+    "optional_upgrade": "note",
+    "informational": "note",
+    "excluded": "excluded",
+}
 TAXONOMY_STAGES = (
     "prelim",
     "base",
@@ -91,7 +109,16 @@ RULE_SEVERITIES = ("must", "should", "conditional")
 BENCHMARK_METRICS = ("absolute", "per_m2", "pct_of_build", "ratio")
 BENCHMARK_SOURCES = ("model_seed", "published", "observed")
 BENCHMARK_CONFIDENCES = ("low", "medium", "high")
-MAPPING_TIERS = ("t0_exact", "t1_embedding", "t2_small_llm", "t3_frontier", "human")
+MAPPING_TIERS = (
+    "t0_exact",
+    "t1_embedding",
+    "t2_small_llm",
+    "t3_frontier",
+    "human",
+    "taxonomy_seed",
+)
+PROJECT_TRADE_SOURCES = ("generated", "manual")
+UNALLOCATED_TRADE_CODE = "PT.UNALLOC"
 QA_STATES = ("auto_pass", "needs_review", "confirmed", "corrected")
 CELL_STATUSES = (
     "included",
@@ -101,6 +128,7 @@ CELL_STATUSES = (
     "bundled",
     "not_required",
     "silent_ambiguous",
+    "mixed",
 )
 FLAG_TYPES = (
     "gap",
@@ -112,6 +140,9 @@ FLAG_TYPES = (
     "exclusion_risk",
     "statutory_missing",
     "arithmetic_inconsistency",
+    "unreconciled_residual",
+    "non_comparable_basis",
+    "suspect_number_format",
 )
 FLAG_SEVERITIES = ("info", "caution", "warning")
 FLAG_QA_STATES = ("needs_review", "confirmed", "suppressed")
@@ -198,6 +229,9 @@ class TenderQuote(Base):
 
     comparison: Mapped["TenderComparison"] = relationship(back_populates="quotes")
     documents: Mapped[list["TenderDocument"]] = relationship(back_populates="quote")
+    reconciliation: Mapped["TenderQuoteReconciliation | None"] = relationship(
+        back_populates="quote", uselist=False
+    )
 
     __table_args__ = (
         _values_check("stated_total_source", STATED_TOTAL_SOURCES, "tender_quotes"),
@@ -319,14 +353,80 @@ class TenderLineItem(Base):
     allowance_cents: Mapped[int | None] = mapped_column(BigInteger)
     extraction_confidence: Mapped[float | None] = mapped_column(Numeric)
     embedding = mapped_column(Vector(1536), nullable=True)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_line_items.id", ondelete="CASCADE"),
+    )
+    role: Mapped[str | None] = mapped_column(String(32))
+    is_rollup: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    duplicate_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_line_items.id", ondelete="SET NULL"),
+    )
+    gst_basis: Mapped[str | None] = mapped_column(String(8))
+    amount_ex_gst_cents: Mapped[int | None] = mapped_column(BigInteger)
+    counted_in_total: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    figure_key: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     __table_args__ = (
         _values_check("item_status", LINE_ITEM_STATUSES, "tender_line_items"),
+        _values_check("role", LINE_ITEM_ROLES, "tender_line_items"),
+        _values_check("gst_basis", GST_BASES, "tender_line_items"),
         Index("ix_tender_line_items_quote_id", "quote_id"),
         Index("ix_tender_line_items_document_id", "document_id"),
+        Index("ix_tender_line_items_quote_parent", "quote_id", "parent_id"),
+    )
+
+
+class TenderQuoteReconciliation(Base):
+    __tablename__ = "tender_quote_reconciliations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    quote_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_quotes.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    comparison_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_comparisons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stated_total_cents: Mapped[int | None] = mapped_column(BigInteger)
+    stated_basis: Mapped[str | None] = mapped_column(String(8))
+    gst_line_cents: Mapped[int | None] = mapped_column(BigInteger)
+    counted_total_cents: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    computed_ex_gst_cents: Mapped[int | None] = mapped_column(BigInteger)
+    residual_cents: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    checks: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    uncaptured: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    quote: Mapped["TenderQuote"] = relationship(back_populates="reconciliation")
+    comparison: Mapped["TenderComparison"] = relationship()
+
+    __table_args__ = (
+        _values_check("stated_basis", GST_BASES, "tender_quote_reconciliations"),
+        _values_check("status", RECONCILIATION_STATUSES, "tender_quote_reconciliations"),
     )
 
 
@@ -468,6 +568,44 @@ class ReportLanguageEntry(Base):
     )
 
 
+class TenderProjectTrade(Base):
+    __tablename__ = "tender_project_trades"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    comparison_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_comparisons.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(String(32), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    group_label: Mapped[str | None] = mapped_column(String(64))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="generated")
+    anchor_cell_codes: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    anchor_confidence: Mapped[float | None] = mapped_column(Numeric)
+    seed_assignments: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    embedding = mapped_column(Vector(1536), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    comparison: Mapped["TenderComparison"] = relationship()
+
+    __table_args__ = (
+        _values_check("source", PROJECT_TRADE_SOURCES, "tender_project_trades"),
+        UniqueConstraint(
+            "comparison_id",
+            "code",
+            name="uq_tender_project_trades_comparison_id_code",
+        ),
+        Index("ix_tender_project_trades_comparison_id", "comparison_id"),
+    )
+
+
 class TenderMapping(Base):
     __tablename__ = "tender_mappings"
 
@@ -479,8 +617,12 @@ class TenderMapping(Base):
         ForeignKey("tender_line_items.id", ondelete="CASCADE"),
         nullable=False,
     )
-    cell_code: Mapped[str] = mapped_column(
-        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE"), nullable=False
+    cell_code: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE")
+    )
+    project_trade_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_project_trades.id", ondelete="CASCADE"),
     )
     allocation_fraction: Mapped[float] = mapped_column(
         Numeric, nullable=False, default=1.0
@@ -502,7 +644,12 @@ class TenderMapping(Base):
     __table_args__ = (
         _values_check("tier", MAPPING_TIERS, "tender_mappings"),
         _values_check("qa_state", QA_STATES, "tender_mappings"),
+        CheckConstraint(
+            "cell_code IS NOT NULL OR project_trade_id IS NOT NULL",
+            name="ck_tender_mappings_cell_or_trade",
+        ),
         Index("ix_tender_mappings_line_item_id", "line_item_id"),
+        Index("ix_tender_mappings_project_trade_id", "project_trade_id"),
     )
 
 
@@ -522,11 +669,16 @@ class TenderCellStatus(Base):
         ForeignKey("tender_quotes.id", ondelete="CASCADE"),
         nullable=False,
     )
-    cell_code: Mapped[str] = mapped_column(
-        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE"), nullable=False
+    cell_code: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("taxonomy_cells.code", ondelete="CASCADE")
+    )
+    project_trade_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tender_project_trades.id", ondelete="CASCADE"),
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     amount_cents: Mapped[int | None] = mapped_column(BigInteger)
+    amount_breakdown: Mapped[dict | None] = mapped_column(JSONB)
     bundled_into_cell: Mapped[str | None] = mapped_column(String(32))
     evidence: Mapped[dict | None] = mapped_column(JSONB)
     confidence: Mapped[float | None] = mapped_column(Numeric)
@@ -541,12 +693,12 @@ class TenderCellStatus(Base):
     __table_args__ = (
         _values_check("status", CELL_STATUSES, "tender_cell_status"),
         _values_check("qa_state", QA_STATES, "tender_cell_status"),
-        UniqueConstraint(
-            "comparison_id",
-            "quote_id",
-            "cell_code",
-            name="uq_tender_cell_status_comparison_quote_cell",
+        CheckConstraint(
+            "cell_code IS NOT NULL OR project_trade_id IS NOT NULL",
+            name="ck_tender_cell_status_cell_or_trade",
         ),
+        # Partial uniques live in migration 036; ORM cannot express them.
+        Index("ix_tender_cell_status_comparison_id", "comparison_id"),
     )
 
 

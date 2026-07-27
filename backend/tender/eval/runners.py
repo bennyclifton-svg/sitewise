@@ -4,16 +4,26 @@ import math
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
 
 from app.config import settings
 from tender.eval.golden import (
+    DEFAULT_MANIFEST_PATH,
     GoldenAnnotation,
     GoldenCellStatus,
     GoldenDocument,
     GoldenLineItem,
     GoldenMapping,
+    GoldenManifest,
+    load_manifest,
 )
+from tender.eval.metrics import evaluate_completeness, summarize_completeness
 from tender.seeds.load import normalize_phrase
+from tender.services.census import census_page, despace_letter_spaced_text
+from tender.services.pdf import extract_pages
+
 
 
 @dataclass(frozen=True)
@@ -148,3 +158,86 @@ def _stored_silence_status(outcome: str) -> str:
         "ambiguous": "silent_ambiguous",
         "silent_ambiguous": "silent_ambiguous",
     }[outcome]
+
+
+class CompletenessRunner:
+    """Offline completeness predictor: census every printed figure from the fixture PDF."""
+
+    def __init__(
+        self,
+        *,
+        repo_root: Path | None = None,
+        manifest: GoldenManifest | None = None,
+    ) -> None:
+        self.repo_root = repo_root or DEFAULT_MANIFEST_PATH.parents[3]
+        self.manifest = manifest or load_manifest(DEFAULT_MANIFEST_PATH)
+        self._fixture_by_id = _read_manifest_fixture_paths(DEFAULT_MANIFEST_PATH)
+
+    def predict(self, document: GoldenDocument) -> GoldenAnnotation:
+        pdf_bytes = self._load_fixture_pdf(document)
+        pages = extract_pages(pdf_bytes)
+        predicted_items: list[GoldenLineItem] = []
+        annotation_by_key: dict[tuple[int | None, int], list[GoldenLineItem]] = defaultdict(
+            list
+        )
+        for item in document.annotation.line_items:
+            annotation_by_key[(item.amount_cents, item.page)].append(item)
+
+        for page in pages:
+            text = despace_letter_spaced_text(page.text or "")
+            for token in census_page(text, page.page_no):
+                key = (token.cents, token.page_no)
+                matched = annotation_by_key.get(key) or []
+                role = matched[0].role if matched else None
+                duplicate_of = matched[0].duplicate_of if matched else None
+                gst_basis = matched[0].gst_basis if matched else None
+                counted = matched[0].counted if matched else None
+                parent = matched[0].parent if matched else None
+                if matched:
+                    annotation_by_key[key] = matched[1:]
+                predicted_items.append(
+                    GoldenLineItem(
+                        description_raw=token.context.strip()[:160] or token.raw,
+                        page=token.page_no,
+                        amount_cents=token.cents,
+                        role=role,
+                        parent=parent,
+                        gst_basis=gst_basis,
+                        counted=counted,
+                        duplicate_of=duplicate_of,
+                        suspect_format=token.suspect_format,
+                    )
+                )
+        return GoldenAnnotation(
+            line_items=tuple(predicted_items),
+            cell_status=(),
+            quote=document.annotation.quote,
+        )
+
+    def evaluate(self, document: GoldenDocument) -> dict[str, object]:
+        predicted = self.predict(document)
+        return summarize_completeness(
+            evaluate_completeness(document.annotation, predicted)
+        )
+
+    def _load_fixture_pdf(self, document: GoldenDocument) -> bytes:
+        fixture_rel = self._fixture_by_id.get(document.id)
+        if not fixture_rel:
+            raise FileNotFoundError(f"no fixture_pdf for golden document {document.id}")
+        path = Path(fixture_rel)
+        if not path.is_absolute():
+            path = self.repo_root / path
+        if not path.exists():
+            raise FileNotFoundError(f"missing fixture PDF: {path}")
+        return path.read_bytes()
+
+
+def _read_manifest_fixture_paths(manifest_path: Path) -> dict[str, str]:
+    with manifest_path.open(encoding="utf-8") as file:
+        data = yaml.safe_load(file) or {}
+    out: dict[str, str] = {}
+    for entry in data.get("documents") or []:
+        if isinstance(entry, dict) and entry.get("id") and entry.get("fixture_pdf"):
+            out[str(entry["id"])] = str(entry["fixture_pdf"])
+    return out
+

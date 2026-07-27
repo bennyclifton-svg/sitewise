@@ -19,6 +19,7 @@ from tender.models import (
     TenderComparison,
     TenderFlag,
     TenderJob,
+    TenderProjectTrade,
     TenderQuote,
 )
 from tender.schemas import ProjectContext
@@ -27,6 +28,7 @@ from tender.services.benchmarks import (
     BenchmarkRow,
     PricedBenchmark,
     benchmark_row_from_model,
+    inherit_benchmark_key,
     price_benchmark,
     resolve_benchmark,
 )
@@ -831,13 +833,98 @@ async def _analysis_inputs(session: AsyncSession, comparison_id: uuid.UUID) -> d
             .order_by(TenderQuote.created_at),
         )
     ]
+    status_rows = await _scalars(
+        session,
+        select(TenderCellStatus).where(TenderCellStatus.comparison_id == comparison_id),
+    )
+    trade_rows = await _scalars(
+        session,
+        select(TenderProjectTrade)
+        .where(TenderProjectTrade.comparison_id == comparison_id)
+        .order_by(TenderProjectTrade.sort_order, TenderProjectTrade.code),
+    )
+
+    if trade_rows:
+        cells, statuses, benchmarks = await _trade_analysis_inputs(
+            session, trade_rows, status_rows
+        )
+    else:
+        cells, statuses, benchmarks = await _cell_analysis_inputs(session, status_rows)
+
+    return {
+        "context": context,
+        "quotes": quotes,
+        "cells": cells,
+        "statuses": statuses,
+        "benchmarks": benchmarks,
+    }
+
+
+async def _trade_analysis_inputs(
+    session: AsyncSession,
+    trade_rows: Sequence[TenderProjectTrade],
+    status_rows: Sequence[TenderCellStatus],
+) -> tuple[list[AnalysisCell], list[AnalysisCellStatus], list[BenchmarkRow]]:
+    anchor_codes = sorted(
+        {
+            code
+            for trade in trade_rows
+            for code in (trade.anchor_cell_codes or [])
+        }
+    )
+    taxonomy_cells = [
+        cell
+        for cell in await _scalars(
+            session,
+            select(TaxonomyCell).where(TaxonomyCell.code.in_(anchor_codes)),
+        )
+    ] if anchor_codes else []
+    benchmark_key_by_cell = {
+        cell.code: cell.benchmark_key for cell in taxonomy_cells
+    }
+    cells = [
+        AnalysisCell(
+            code=trade.code,
+            name=trade.name,
+            benchmark_key=inherit_benchmark_key(
+                tuple(trade.anchor_cell_codes or ()),
+                benchmark_key_by_cell,
+            ),
+        )
+        for trade in trade_rows
+    ]
+    trade_code_by_id = {trade.id: trade.code for trade in trade_rows}
     statuses = [
-        _status_from_model(row)
+        AnalysisCellStatus(
+            comparison_id=str(row.comparison_id),
+            quote_id=str(row.quote_id),
+            cell_code=trade_code_by_id[row.project_trade_id],
+            status=row.status,
+            amount_cents=row.amount_cents,
+            bundled_into_cell=row.bundled_into_cell,
+            evidence=row.evidence,
+            confidence=float(row.confidence) if row.confidence is not None else None,
+            qa_state=row.qa_state,
+        )
+        for row in status_rows
+        if row.project_trade_id is not None and row.project_trade_id in trade_code_by_id
+    ]
+    benchmark_keys = sorted({cell.benchmark_key for cell in cells if cell.benchmark_key})
+    benchmarks = [
+        benchmark_row_from_model(row)
         for row in await _scalars(
             session,
-            select(TenderCellStatus).where(TenderCellStatus.comparison_id == comparison_id),
+            select(Benchmark).where(Benchmark.benchmark_key.in_(benchmark_keys)),
         )
-    ]
+    ] if benchmark_keys else []
+    return cells, statuses, benchmarks
+
+
+async def _cell_analysis_inputs(
+    session: AsyncSession,
+    status_rows: Sequence[TenderCellStatus],
+) -> tuple[list[AnalysisCell], list[AnalysisCellStatus], list[BenchmarkRow]]:
+    statuses = [_status_from_model(row) for row in status_rows if row.cell_code]
     cell_codes = sorted({status.cell_code for status in statuses})
     cells = [
         _cell_from_model(cell)
@@ -854,13 +941,7 @@ async def _analysis_inputs(session: AsyncSession, comparison_id: uuid.UUID) -> d
             select(Benchmark).where(Benchmark.benchmark_key.in_(benchmark_keys)),
         )
     ] if benchmark_keys else []
-    return {
-        "context": context,
-        "quotes": quotes,
-        "cells": cells,
-        "statuses": statuses,
-        "benchmarks": benchmarks,
-    }
+    return cells, statuses, benchmarks
 
 
 async def _replace_generated_flags(

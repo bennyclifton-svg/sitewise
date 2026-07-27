@@ -16,6 +16,7 @@ from tender.models import (
     TenderLineItem,
     TenderPage,
     TenderQuote,
+    TenderQuoteReconciliation,
 )
 from tender.schemas import ProjectContext
 from tender.services import extract_cache, extraction_handler, telemetry
@@ -35,6 +36,10 @@ PAYLOAD = {
             "item_status": "included",
             "amount_cents": 4_500_000,
             "extraction_confidence": 0.95,
+            "figure_key": "p1-1",
+            "role": "contract_component",
+            "gst_basis": "inc",
+            "printed_text": "$45,000.00",
         }
     ],
     "page_subtotals": [],
@@ -102,6 +107,12 @@ class _Session:
             return _ExecuteResult([])
         return _ExecuteResult(self.execute_values.pop(0))
 
+    async def scalar(self, statement: Any) -> Any:
+        return None
+
+    async def scalars(self, statement: Any) -> _ScalarResult:
+        return _ScalarResult(self.execute_values.pop(0))
+
     def add(self, obj: Any) -> None:
         if isinstance(obj, TenderLineItem):
             self.line_items.append(obj)
@@ -111,6 +122,8 @@ class _Session:
             self.jobs.append(obj)
         elif isinstance(obj, TenderExtractCache):
             self.added_cache.append(obj)
+        elif isinstance(obj, TenderQuoteReconciliation):
+            pass
 
     async def flush(self) -> None:
         self.flush_count += 1
@@ -120,12 +133,12 @@ class _CountingLLM:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def extract(self, document_pages, schema, context):
+    async def extract(self, document_pages, schema, context, **kwargs):
         self.calls += 1
         return LLMExtractionResponse(
             data=PAYLOAD,
             model="test-model",
-            prompt_version="0.1.0",
+            prompt_version="0.2.0",
         )
 
     async def adjudicate(self, *args, **kwargs):
@@ -159,6 +172,7 @@ def _fixtures() -> tuple[TenderDocument, _Session]:
         comparison_id=COMPARISON_ID,
         builder_name="Acme",
         stated_total_cents=4_500_000,
+        gst_treatment="inclusive",
     )
     comparison = TenderComparison(
         id=COMPARISON_ID,
@@ -250,6 +264,10 @@ def test_extract_cache_hit_skips_llm_and_materializes_items(monkeypatch) -> None
                     "item_status": "included",
                     "amount_cents": 1_000_000,
                     "extraction_confidence": 0.9,
+                    "figure_key": "p1-1",
+                    "role": "contract_component",
+                    "gst_basis": "inc",
+                    "printed_text": "$10,000.00",
                 }
             ],
             "page_subtotals": [],

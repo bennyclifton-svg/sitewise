@@ -8,12 +8,14 @@ EXPECTED_TABLES = {
     "tender_documents",
     "tender_pages",
     "tender_line_items",
+    "tender_quote_reconciliations",
     # taxonomy & knowledge
     "taxonomy_cells",
     "taxonomy_synonyms",
     "expectation_rules",
     "benchmarks",
     # mapping, status, flags
+    "tender_project_trades",
     "tender_mappings",
     "tender_cell_status",
     "tender_flags",
@@ -59,10 +61,27 @@ def test_tender_documents_dedupe_unique_constraint() -> None:
     assert ("quote_id", "content_hash") in _unique_constraint_columns("tender_documents")
 
 
-def test_tender_cell_status_unique_constraint() -> None:
-    assert ("comparison_id", "quote_id", "cell_code") in _unique_constraint_columns(
-        "tender_cell_status"
+def test_tender_cell_status_supports_trade_or_cell_target() -> None:
+    table = Base.metadata.tables["tender_cell_status"]
+    assert "project_trade_id" in table.columns
+    assert table.columns["cell_code"].nullable is True
+    check_names = {constraint.name for constraint in table.constraints}
+    assert "ck_tender_cell_status_cell_or_trade" in check_names
+
+
+def test_tender_project_trades_unique_on_comparison_code() -> None:
+    assert ("comparison_id", "code") in _unique_constraint_columns(
+        "tender_project_trades"
     )
+
+
+def test_tender_mappings_support_trade_or_cell_target() -> None:
+    table = Base.metadata.tables["tender_mappings"]
+    assert "project_trade_id" in table.columns
+    assert table.columns["cell_code"].nullable is True
+    check_names = {constraint.name for constraint in table.constraints}
+    assert "ck_tender_mappings_cell_or_trade" in check_names
+    assert "taxonomy_seed" in tender.models.MAPPING_TIERS
 
 
 def test_tender_analysis_result_unique_constraint() -> None:
@@ -111,3 +130,25 @@ def test_taxonomy_synonym_embedding_is_1536_vector() -> None:
     assert isinstance(column.type, Vector)
     assert column.type.dim == 1536
     assert column.nullable
+
+
+def test_line_item_ledger_columns_registered() -> None:
+    table = Base.metadata.tables["tender_line_items"]
+    for name in (
+        "parent_id",
+        "role",
+        "is_rollup",
+        "duplicate_of_id",
+        "gst_basis",
+        "amount_ex_gst_cents",
+        "counted_in_total",
+        "figure_key",
+    ):
+        assert name in table.columns
+
+
+def test_quote_reconciliation_unique_on_quote() -> None:
+    assert ("quote_id",) in _unique_constraint_columns("tender_quote_reconciliations")
+    assert _foreign_key_targets("tender_quote_reconciliations", "quote_id") == {
+        "tender_quotes.id"
+    }

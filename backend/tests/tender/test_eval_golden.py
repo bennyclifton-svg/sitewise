@@ -17,6 +17,9 @@ def test_repo_manifest_loads() -> None:
         "enmore",
         "kaposi",
         "nexusbuilt",
+        "coastal",
+        "montique",
+        "toussaint",
     }
     assert manifest.targets["real_documents_min"] == 30
 
@@ -25,7 +28,7 @@ def test_repo_manifest_reports_release_gate_gaps_without_claiming_approval() -> 
     report = validate_release_corpus(load_manifest(DEFAULT_MANIFEST_PATH))
 
     assert report.ready is False
-    assert "requires at least 30 real documents; found 3" in report.errors
+    assert "requires at least 30 real documents; found 6" in report.errors
     assert (
         "requires at least 20 synthetic adversarial documents; found 0" in report.errors
     )

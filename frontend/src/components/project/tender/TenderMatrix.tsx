@@ -16,9 +16,12 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import type {
   TenderComparison,
+  TenderMappingChoiceTarget,
   TenderMatrixCell,
+  TenderMatrixQuoteCell,
   TenderMatrixQuoteTotal,
   TenderMatrixResponse,
+  TenderProjectTrade,
   TenderQaItem,
   TenderQaResolveRequest,
   TenderQuote,
@@ -27,16 +30,21 @@ import type {
 import { cn } from "@/lib/utils";
 
 import {
+  COST_PLUS_NON_COMPARABLE_LABEL,
+  formatStatedGstBasis,
   formatTenderMoney,
   formatTenderStatus,
   tenderStatusCellTint,
   tenderStatusGlyph,
   tenderStatusTextTone,
 } from "./format";
-import { MatrixQaPanel } from "./MatrixQaPanel";
 import { MatrixQaStrip } from "./MatrixQaStrip";
+import { QuoteLedgerPanel } from "./QuoteLedgerPanel";
+import { NOT_ITEMISED_CODE, TenderCellDrilldown } from "./TenderCellDrilldown";
 import { cellKey, groupQaByCell, qaItemKey, unanchoredQaItems } from "./qa";
 import { pageEvidenceFromPayload } from "./evidence";
+
+const UNALLOCATED_CELL_CODE = "99.01";
 
 type MatrixRow =
   | { kind: "group"; id: string; groupName: string }
@@ -58,6 +66,7 @@ export function TenderMatrix({
   const [comparison, setComparison] = useState<TenderComparison | null>(null);
   const [qaItems, setQaItems] = useState<TenderQaItem[]>([]);
   const [taxonomy, setTaxonomy] = useState<TenderTaxonomyCell[]>([]);
+  const [trades, setTrades] = useState<TenderProjectTrade[]>([]);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
   const [qaNote, setQaNote] = useState<string | null>(null);
@@ -65,6 +74,7 @@ export function TenderMatrix({
   const [adjudicationError, setAdjudicationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ledgerQuoteId, setLedgerQuoteId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,17 +84,20 @@ export function TenderMatrix({
       setIsLoading(true);
       setError(null);
       try {
-        const [matrixData, comparisonData, queue, taxonomyCells] = await Promise.all([
-          api.getTenderMatrix(comparisonId),
-          api.getTenderComparison(comparisonId),
-          api.getTenderQaQueue(comparisonId),
-          api.getTenderTaxonomy(),
-        ]);
+        const [matrixData, comparisonData, queue, taxonomyCells, tradesData] =
+          await Promise.all([
+            api.getTenderMatrix(comparisonId),
+            api.getTenderComparison(comparisonId),
+            api.getTenderQaQueue(comparisonId),
+            api.getTenderTaxonomy(),
+            api.getTenderTrades(comparisonId),
+          ]);
         if (cancelled) return;
         setMatrix(matrixData);
         setComparison(comparisonData);
         setQaItems(queue.items);
         setTaxonomy(taxonomyCells);
+        setTrades(tradesData.trades);
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -104,8 +117,16 @@ export function TenderMatrix({
     };
   }, [comparisonId]);
 
-  const rows = useMemo(() => flattenRows(matrix), [matrix]);
   const quotes = useMemo(() => quoteColumns(matrix, comparison?.quotes ?? []), [comparison, matrix]);
+  const totalsByQuote = useMemo(() => {
+    const map = new Map<string, TenderMatrixQuoteTotal>();
+    for (const total of matrix?.totals ?? []) map.set(total.quote_id, total);
+    return map;
+  }, [matrix]);
+  const rows = useMemo(
+    () => flattenRows(matrix, quotes, totalsByQuote),
+    [matrix, quotes, totalsByQuote],
+  );
   const qaByCell = useMemo(() => groupQaByCell(qaItems), [qaItems]);
   const unanchoredItems = useMemo(() => unanchoredQaItems(qaItems), [qaItems]);
   const cellNames = useMemo(() => cellNameIndex(matrix), [matrix]);
@@ -119,11 +140,6 @@ export function TenderMatrix({
       .filter((total): total is number => typeof total === "number");
     return totals.length > 1 ? Math.min(...totals) : null;
   }, [quotes]);
-  const totalsByQuote = useMemo(() => {
-    const map = new Map<string, TenderMatrixQuoteTotal>();
-    for (const total of matrix?.totals ?? []) map.set(total.quote_id, total);
-    return map;
-  }, [matrix]);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -213,10 +229,13 @@ export function TenderMatrix({
     );
   }
 
-  async function resolveMappingChoice(mappingId: string, cellCode: string) {
+  async function resolveMappingChoice(
+    mappingId: string,
+    target: TenderMappingChoiceTarget,
+  ) {
     await api.resolveTenderQaItem(mappingId, {
       action: "correct",
-      corrected_value: { cell_code: cellCode },
+      corrected_value: target,
       reason: "Inline matrix mapping override",
     });
     const [matrixData, queue] = await Promise.all([
@@ -352,20 +371,30 @@ export function TenderMatrix({
 
       {activeCell
         ? (() => {
-            const activeMatrixCell = matrix?.groups
-              .flatMap((group) => group.cells)
-              .find((cell) => cell.code === activeCell.cellCode);
+            const activeMatrixCell =
+              rows
+                .filter((row): row is Extract<MatrixRow, { kind: "cell" }> => row.kind === "cell")
+                .find((row) => row.cell.code === activeCell.cellCode)?.cell ??
+              matrix?.groups
+                .flatMap((group) => group.cells)
+                .find((cell) => cell.code === activeCell.cellCode);
             const choices =
               activeMatrixCell?.quotes[activeCell.quoteId]?.mapping_choices ?? [];
-            if (!activeItems.length && !choices.length) return null;
             return (
-              <MatrixQaPanel
+              <TenderCellDrilldown
+                comparisonId={comparisonId}
                 cellCode={activeCell.cellCode}
-                cellName={cellNames.get(activeCell.cellCode) ?? activeCell.cellCode}
+                cellName={
+                  cellNames.get(activeCell.cellCode) ??
+                  activeMatrixCell?.name ??
+                  activeCell.cellCode
+                }
+                quoteId={activeCell.quoteId}
                 quoteName={activeQuote?.builderName ?? null}
                 items={activeItems}
                 choices={choices}
                 taxonomy={taxonomy}
+                trades={trades}
                 resolving={resolving}
                 error={adjudicationError}
                 onClose={() => setActiveCell(null)}
@@ -377,6 +406,14 @@ export function TenderMatrix({
           })()
         : null}
 
+      {ledgerQuoteId ? (
+        <QuoteLedgerPanel
+          comparisonId={comparisonId}
+          quoteId={ledgerQuoteId}
+          onClose={() => setLedgerQuoteId(null)}
+        />
+      ) : null}
+
       <div className="overflow-x-auto">
         <div className="min-w-[54rem]">
           <div
@@ -384,19 +421,47 @@ export function TenderMatrix({
             style={{ gridTemplateColumns: gridColumns(quotes.length) }}
           >
             <div className="px-3 py-2">Line item</div>
-            {quotes.map((quote) => (
-              <div key={quote.id} className="border-l px-2 py-2">
-                <span className="block truncate" title={quote.builderName}>
-                  {quote.builderName}
-                </span>
-                <span className="block font-mono text-[0.68rem] font-normal tabular-nums">
-                  {formatTenderMoney(quote.totalCents)}
-                  {lowestTotal !== null && quote.totalCents === lowestTotal ? (
-                    <span className="ml-1.5 font-sans text-[var(--ok-text)]">Lowest</span>
+            {quotes.map((quote) => {
+              const total = totalsByQuote.get(quote.id);
+              const statedNative =
+                total?.stated_native_cents ?? quote.totalCents;
+              const nonComparable = total?.non_comparable ?? false;
+              return (
+                <div key={quote.id} className="border-l px-2 py-2">
+                  <span className="block truncate" title={quote.builderName}>
+                    {quote.builderName}
+                  </span>
+                  <span className="mt-0.5 block text-[0.65rem] font-normal text-muted-foreground">
+                    Stated (native)
+                  </span>
+                  <span className="block font-mono text-[0.68rem] font-normal tabular-nums">
+                    {formatTenderMoney(statedNative)}
+                    <span className="ml-1 font-sans text-muted-foreground">
+                      {formatStatedGstBasis(quote.gstTreatment)}
+                    </span>
+                    {lowestTotal !== null && statedNative === lowestTotal ? (
+                      <span className="ml-1.5 font-sans text-[var(--ok-text)]">Lowest</span>
+                    ) : null}
+                  </span>
+                  {nonComparable ? (
+                    <span className="mt-1 inline-flex rounded-sm bg-[var(--warn-bg)] px-1 py-0.5 text-[0.65rem] font-medium leading-snug text-[var(--warn-text)]">
+                      {COST_PLUS_NON_COMPARABLE_LABEL}
+                    </span>
                   ) : null}
-                </span>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    className="mt-0.5 block text-[0.65rem] font-normal text-foreground underline-offset-2 hover:underline"
+                    onClick={() =>
+                      setLedgerQuoteId((current) =>
+                        current === quote.id ? null : quote.id,
+                      )
+                    }
+                  >
+                    Ledger
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           <div ref={scrollRef} className="h-[42rem] overflow-auto [scrollbar-gutter:stable]">
@@ -460,7 +525,7 @@ function MatrixTotalsRow({
       style={{ gridTemplateColumns: gridColumns(quotes.length) }}
     >
       <div className="px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Total
+        Total (ex GST)
       </div>
       {quotes.map((quote) => {
         const total = totalsByQuote.get(quote.id);
@@ -468,10 +533,21 @@ function MatrixTotalsRow({
           <div key={quote.id} className="border-l px-2 py-2">
             {total ? (
               <>
+                <span className="block text-[0.65rem] text-muted-foreground">
+                  Computed (ex GST)
+                </span>
                 <span className="block font-mono text-sm font-semibold tabular-nums">
                   {formatTenderMoney(total.computed_total_cents)}
                 </span>
-                <TotalReconciliation total={total} />
+                <TotalReconciliation
+                  total={total}
+                  gstTreatment={quote.gstTreatment}
+                />
+                {total.non_comparable ? (
+                  <span className="mt-1 inline-flex rounded-sm bg-[var(--warn-bg)] px-1 py-0.5 text-[0.65rem] font-medium leading-snug text-[var(--warn-text)]">
+                    {COST_PLUS_NON_COMPARABLE_LABEL}
+                  </span>
+                ) : null}
               </>
             ) : (
               <span className="block text-xs text-muted-foreground">
@@ -485,28 +561,41 @@ function MatrixTotalsRow({
   );
 }
 
-function TotalReconciliation({ total }: { total: TenderMatrixQuoteTotal }) {
-  if (total.reconciliation === "match") {
+function TotalReconciliation({
+  total,
+  gstTreatment,
+}: {
+  total: TenderMatrixQuoteTotal;
+  gstTreatment: string;
+}) {
+  if (
+    total.reconciliation === "not_stated" ||
+    total.stated_native_cents == null
+  ) {
     return (
-      <span className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-[var(--ok-bg)] px-1 py-0.5 text-[0.68rem] font-medium text-[var(--ok-text)]">
-        <Check className="size-3 shrink-0" aria-hidden />
-        Matches stated total
+      <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
+        Not stated in quote
       </span>
     );
   }
-  if (total.reconciliation === "mismatch") {
-    const delta = total.delta_cents ?? 0;
-    const sign = delta > 0 ? "+" : "-";
-    return (
-      <span className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-[var(--alert-bg)] px-1 py-0.5 text-[0.68rem] font-medium text-[var(--alert-text)]">
-        <AlertCircle className="size-3 shrink-0" aria-hidden />
-        {`Stated ${formatTenderMoney(total.stated_total_cents)} (${sign}${formatTenderMoney(Math.abs(delta))})`}
-      </span>
-    );
-  }
+
+  const residual = total.residual_cents ?? 0;
+  const counted = total.stated_native_cents - residual;
+  const residualTone =
+    residual !== 0
+      ? "font-medium text-[var(--alert-text)]"
+      : "text-muted-foreground";
+
   return (
-    <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
-      Not stated in quote
+    <span className="mt-0.5 block text-[0.65rem] leading-snug text-muted-foreground">
+      Stated (native): {formatTenderMoney(total.stated_native_cents)}{" "}
+      {formatStatedGstBasis(gstTreatment)}
+      {" · "}
+      Counted: {formatTenderMoney(counted)}
+      {" · "}
+      <span className={residualTone}>
+        Residual: {formatTenderMoney(residual)}
+      </span>
     </span>
   );
 }
@@ -554,6 +643,7 @@ function MatrixCellRow({
         const isActive =
           activeCell?.quoteId === quote.id && activeCell?.cellCode === row.cell.code;
         const statusLabel = formatTenderStatus(cell.status);
+        const isNotItemised = row.cell.code === NOT_ITEMISED_CODE;
         const content = (
           <>
             <span
@@ -601,36 +691,36 @@ function MatrixCellRow({
           </>
         );
 
-        if (questions.length || mappingChoices.length) {
+        if (isNotItemised) {
           return (
-            <button
+            <div
               key={quote.id}
-              type="button"
               className={cn(
-                "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95 dark:hover:brightness-110",
+                "flex items-center gap-1.5 border-l px-2",
                 tenderStatusCellTint(cell.status),
-                isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
               )}
               title={statusLabel}
-              aria-label={`${statusLabel} — ${questions.length} question${questions.length === 1 ? "" : "s"} for ${row.cell.name}, ${quote.builderName}`}
-              onClick={() => onToggleCell({ quoteId: quote.id, cellCode: row.cell.code })}
             >
               {content}
-            </button>
+            </div>
           );
         }
 
         return (
-          <div
+          <button
             key={quote.id}
+            type="button"
             className={cn(
-              "flex items-center gap-1.5 border-l px-2",
+              "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95 dark:hover:brightness-110",
               tenderStatusCellTint(cell.status),
+              isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
             )}
             title={statusLabel}
+            aria-label={`${statusLabel} — line items for ${row.cell.name}, ${quote.builderName}`}
+            onClick={() => onToggleCell({ quoteId: quote.id, cellCode: row.cell.code })}
           >
             {content}
-          </div>
+          </button>
         );
       })}
     </div>
@@ -669,10 +759,11 @@ type MatrixQuote = {
   id: string;
   builderName: string;
   totalCents: number | null;
+  gstTreatment: string;
 };
 
 function gridColumns(quoteCount: number): string {
-  return `16rem repeat(${quoteCount}, minmax(9.5rem, 1fr))`;
+  return `16rem repeat(${quoteCount}, minmax(11rem, 1fr))`;
 }
 
 function cellNameIndex(matrix: TenderMatrixResponse | null): Map<string, string> {
@@ -680,12 +771,18 @@ function cellNameIndex(matrix: TenderMatrixResponse | null): Map<string, string>
   for (const group of matrix?.groups ?? []) {
     for (const cell of group.cells) map.set(cell.code, cell.name);
   }
+  map.set(UNALLOCATED_CELL_CODE, "Unallocated / uncategorised");
+  map.set(NOT_ITEMISED_CODE, "Not itemised in quote");
   return map;
 }
 
-function flattenRows(matrix: TenderMatrixResponse | null): MatrixRow[] {
+function flattenRows(
+  matrix: TenderMatrixResponse | null,
+  quotes: MatrixQuote[],
+  totalsByQuote: Map<string, TenderMatrixQuoteTotal>,
+): MatrixRow[] {
   if (!matrix) return [];
-  return matrix.groups.flatMap((group) => [
+  const rows: MatrixRow[] = matrix.groups.flatMap((group) => [
     { kind: "group" as const, id: `group:${group.name}`, groupName: group.name },
     ...group.cells.map((cell) => ({
       kind: "cell" as const,
@@ -694,6 +791,78 @@ function flattenRows(matrix: TenderMatrixResponse | null): MatrixRow[] {
       cell,
     })),
   ]);
+
+  const hasUnallocated = matrix.groups.some((group) =>
+    group.cells.some((cell) => cell.code === UNALLOCATED_CELL_CODE),
+  );
+  if (!hasUnallocated && quotes.length) {
+    rows.push(
+      {
+        kind: "group",
+        id: "group:Unallocated",
+        groupName: "Unallocated",
+      },
+      {
+        kind: "cell",
+        id: `cell:Unallocated:${UNALLOCATED_CELL_CODE}`,
+        groupName: "Unallocated",
+        cell: syntheticAmountCell(
+          UNALLOCATED_CELL_CODE,
+          "Unallocated / uncategorised",
+          quotes,
+          totalsByQuote,
+          (total) => total.unallocated_cents ?? 0,
+          "included",
+        ),
+      },
+    );
+  }
+
+  if (quotes.length) {
+    rows.push(
+      {
+        kind: "group",
+        id: "group:Reconciliation",
+        groupName: "Reconciliation",
+      },
+      {
+        kind: "cell",
+        id: `cell:Reconciliation:${NOT_ITEMISED_CODE}`,
+        groupName: "Reconciliation",
+        cell: syntheticAmountCell(
+          NOT_ITEMISED_CODE,
+          "Not itemised in quote",
+          quotes,
+          totalsByQuote,
+          (total) => total.not_itemised_cents ?? 0,
+          "silent_ambiguous",
+        ),
+      },
+    );
+  }
+
+  return rows;
+}
+
+function syntheticAmountCell(
+  code: string,
+  name: string,
+  quotes: MatrixQuote[],
+  totalsByQuote: Map<string, TenderMatrixQuoteTotal>,
+  amountOf: (total: TenderMatrixQuoteTotal) => number,
+  status: string,
+): TenderMatrixCell {
+  const quoteCells: Record<string, TenderMatrixQuoteCell> = {};
+  for (const quote of quotes) {
+    const total = totalsByQuote.get(quote.id);
+    quoteCells[quote.id] = {
+      status,
+      amount_cents: total ? amountOf(total) : 0,
+      flags: [],
+      mapping_choices: [],
+    };
+  }
+  return { code, name, quotes: quoteCells };
 }
 
 function quoteColumns(
@@ -705,6 +874,7 @@ function quoteColumns(
       id: quote.id,
       builderName: quote.builder_name,
       totalCents: quote.stated_total_cents,
+      gstTreatment: quote.gst_treatment,
     }));
   }
   const ids = new Set<string>();
@@ -713,5 +883,10 @@ function quoteColumns(
       for (const quoteId of Object.keys(cell.quotes)) ids.add(quoteId);
     }
   }
-  return [...ids].map((id) => ({ id, builderName: id, totalCents: null }));
+  return [...ids].map((id) => ({
+    id,
+    builderName: id,
+    totalCents: null,
+    gstTreatment: "unclear",
+  }));
 }

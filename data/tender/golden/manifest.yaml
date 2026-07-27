@@ -14,6 +14,10 @@ annotation_schema:
     build_type: enum
     anonymised: bool
   ground_truth:
+    quote:
+      stated_total_cents: int?
+      stated_basis: inc|ex|unknown?
+      expected_residual_cents: int?
     line_items:
       - description_raw: str
         page: int
@@ -22,6 +26,11 @@ annotation_schema:
         amount_cents: int?
         item_status: enum
         allowance_cents: int?
+        role: str?
+        parent: str?
+        gst_basis: inc|ex|unknown?
+        counted: bool?
+        duplicate_of: str?
         mappings:
           - cell: code
             fraction: num
@@ -57,3 +66,30 @@ documents:
     anonymised: false
     annotation: annotations/nexusbuilt.json
     fixture_pdf: backend/tests/tender/fixtures/NexusBuilt.pdf
+  - id: coastal
+    source: real
+    difficulty: hard
+    doc_type: builder_quote
+    state: VIC
+    build_type: new_build
+    anonymised: false
+    annotation: annotations/coastal.json
+    fixture_pdf: backend/tests/tender/fixtures/Coastal-Builders.pdf
+  - id: montique
+    source: real
+    difficulty: hard
+    doc_type: builder_quote
+    state: VIC
+    build_type: new_build
+    anonymised: false
+    annotation: annotations/montique.json
+    fixture_pdf: backend/tests/tender/fixtures/Montique.pdf
+  - id: toussaint
+    source: real
+    difficulty: hard
+    doc_type: builder_quote
+    state: VIC
+    build_type: new_build
+    anonymised: false
+    annotation: annotations/toussaint.json
+    fixture_pdf: backend/tests/tender/fixtures/Toussaint.pdf
