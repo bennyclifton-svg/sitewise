@@ -17,6 +17,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from app.cost_plan.calculations import resolved_budget
 from app.cost_plan.schemas import CostPlanState
+from app.sitewise.cost_plan_lines import CostPlanLine
 
 SUMMARY_HEADERS = (
     "Cost Code",
@@ -63,17 +64,6 @@ SUMMARY_MONEY_COLUMNS = set(range(4, 13))
 INVOICE_MONEY_COLUMNS = {7}
 VARIATION_MONEY_COLUMNS = {5, 7}
 PREVIEW_MAX_ROWS = 160
-
-
-@dataclass(frozen=True, slots=True)
-class CostPlanLine:
-    cost_code: str
-    category: str
-    cost_item: str
-    budget: float | None
-    approved_contract: float | None
-    status: str
-    basis: str
 
 
 @dataclass(frozen=True, slots=True)
