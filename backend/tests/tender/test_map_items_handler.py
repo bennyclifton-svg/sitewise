@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import uuid
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 from tender import worker
+from tender.llm import usage
+from tender.models import TenderJob
 from tender.schemas import ProjectContext
 from tender.services import mapping
 from tests.conftest import run_async
@@ -153,6 +158,106 @@ def test_mapping_protection_skips_human_confirmed_or_corrected_rows() -> None:
 
 def test_worker_registers_map_items_handler() -> None:
     assert worker.HANDLERS["map_items"] is mapping.map_items
+
+
+def test_map_items_records_per_tier_counters_on_stage_usage(monkeypatch) -> None:
+    quote_id = uuid.uuid4()
+    comparison_id = uuid.uuid4()
+    quote = SimpleNamespace(stage="map_items", comparison_id=comparison_id)
+    line_a = SimpleNamespace(
+        id=uuid.uuid4(),
+        quote_id=quote_id,
+        description_raw="Retaining Walls",
+        section_path=("Site",),
+        qty=None,
+        unit=None,
+        amount_cents=1000,
+        item_status="included",
+        embedding=None,
+        created_at=1,
+    )
+    line_b = SimpleNamespace(
+        id=uuid.uuid4(),
+        quote_id=quote_id,
+        description_raw="Driveway",
+        section_path=("Site",),
+        qty=None,
+        unit=None,
+        amount_cents=2000,
+        item_status="included",
+        embedding=[0.1],
+        created_at=2,
+    )
+
+    class _Scalars:
+        def __iter__(self):
+            return iter((line_a, line_b))
+
+    class _Result:
+        def scalars(self):
+            return _Scalars()
+
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=quote)
+    session.execute = AsyncMock(return_value=_Result())
+    session.flush = AsyncMock()
+    monkeypatch.setattr(
+        mapping,
+        "_context_for_quote",
+        AsyncMock(return_value=_context()),
+    )
+    monkeypatch.setattr(
+        mapping,
+        "_existing_mappings",
+        AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(mapping, "_add_mapping_rows", lambda *args, **kwargs: None)
+
+    decisions = iter(
+        (
+            mapping.MappingDecision(
+                tier="t0_exact",
+                allocations=(mapping.CellAllocation("03.05", 1.0),),
+                confidence=1.0,
+                qa_state="auto_pass",
+                adjudication={},
+            ),
+            mapping.MappingDecision(
+                tier="t2_small_llm",
+                allocations=(mapping.CellAllocation("19.01", 1.0),),
+                confidence=0.9,
+                qa_state="auto_pass",
+                adjudication={},
+            ),
+        )
+    )
+
+    async def fake_cascade(*args: Any, **kwargs: Any) -> mapping.MappingDecision:
+        return next(decisions)
+
+    monkeypatch.setattr(mapping, "map_line_item_cascade", fake_cascade)
+
+    collector = usage.begin_stage_usage()
+    try:
+        run_async(
+            mapping.map_items(
+                session,
+                TenderJob(
+                    kind="map_items",
+                    comparison_id=comparison_id,
+                    quote_id=quote_id,
+                    payload={},
+                ),
+            )
+        )
+        metadata = collector.snapshot().metadata
+    finally:
+        usage.reset_stage_usage()
+
+    assert metadata["tier_counts"] == {"t0": 1, "t1": 0, "t2": 1, "t3": 0}
+    assert metadata["tier_durations_ms"]["t0"] >= 0
+    assert metadata["tier_durations_ms"]["t2"] >= 0
+    assert set(metadata["tier_durations_ms"]) == {"t0", "t1", "t2", "t3"}
 
 
 async def _cell_loader(

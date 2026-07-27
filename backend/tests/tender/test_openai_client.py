@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from tender.llm import usage
 from tender.llm.openai_client import AsyncOpenAITenderClient
 from tender.schemas import ExtractionStructuredOutput, ProjectContext, TenderDocumentPage
 from tests.conftest import run_async
@@ -34,6 +35,35 @@ def test_openai_client_requests_strict_structured_output(tmp_path: Path) -> None
     assert json.loads(call["input"])["project_context"]["state"] == "NSW"
     assert result.data == {"line_items": [], "page_subtotals": []}
     assert result.request_id == "resp-1"
+
+
+def test_openai_client_records_llm_usage_from_response(tmp_path: Path) -> None:
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("extract carefully", encoding="utf-8")
+    fake_client = FakeOpenAIClient(
+        usage=SimpleNamespace(input_tokens=111, output_tokens=22)
+    )
+    client = AsyncOpenAITenderClient(
+        client=fake_client,  # type: ignore[arg-type]
+        model="gpt-test",
+        prompt_path=prompt_path,
+    )
+    collector = usage.begin_stage_usage()
+    try:
+        run_async(
+            client.extract(
+                [_page()],
+                {"type": "object", "properties": {"line_items": {"type": "array"}}},
+                _context(),
+            )
+        )
+        snapshot = collector.snapshot()
+    finally:
+        usage.reset_stage_usage()
+
+    assert snapshot.llm_calls == 1
+    assert snapshot.input_tokens == 111
+    assert snapshot.output_tokens == 22
 
 
 def test_openai_client_makes_extraction_schema_strict_for_openai(tmp_path: Path) -> None:
@@ -146,21 +176,31 @@ def test_openai_client_batch_adjudication_preserves_indexes(tmp_path: Path) -> N
 
 
 class FakeResponses:
-    def __init__(self, output: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        output: dict[str, Any] | None = None,
+        usage: Any | None = None,
+    ) -> None:
         self.kwargs: dict[str, Any] = {}
         self.output = output or {"line_items": [], "page_subtotals": []}
+        self.usage = usage
 
     async def create(self, **kwargs: Any) -> SimpleNamespace:
         self.kwargs = kwargs
         return SimpleNamespace(
             id="resp-1",
             output_text=json.dumps(self.output),
+            usage=self.usage,
         )
 
 
 class FakeOpenAIClient:
-    def __init__(self, output: dict[str, Any] | None = None) -> None:
-        self.responses = FakeResponses(output)
+    def __init__(
+        self,
+        output: dict[str, Any] | None = None,
+        usage: Any | None = None,
+    ) -> None:
+        self.responses = FakeResponses(output, usage=usage)
 
 
 def _page() -> TenderDocumentPage:

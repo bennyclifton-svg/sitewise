@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from tender.llm import usage
 from tender.llm.client import LLMAdjudicationResponse, TenderLLMClient
 from tender.llm.schema import openai_strict_json_schema
 from tender.models import (
@@ -135,6 +137,8 @@ class OpenAIFrontierMappingClient:
             },
             temperature=0,
         )
+        input_tokens, output_tokens = usage.tokens_from_response(response)
+        usage.record_llm_call(input_tokens=input_tokens, output_tokens=output_tokens)
         data = json.loads(_response_text(response))
         return FrontierMappingResponse(
             allocations=tuple(
@@ -169,6 +173,8 @@ async def map_items(
         .where(TenderLineItem.quote_id == job.quote_id)
         .order_by(TenderLineItem.created_at)
     )
+    tier_counts = {"t0": 0, "t1": 0, "t2": 0, "t3": 0}
+    tier_durations_ms = {"t0": 0, "t1": 0, "t2": 0, "t3": 0}
     for line_item in result.scalars():
         existing = await _existing_mappings(session, line_item.id)
         if has_protected_mapping(existing):
@@ -176,6 +182,7 @@ async def map_items(
         await session.execute(
             delete(TenderMapping).where(TenderMapping.line_item_id == line_item.id)
         )
+        started = time.perf_counter()
         decision = await map_line_item_cascade(
             session,
             _line_item_from_model(line_item),
@@ -183,11 +190,36 @@ async def map_items(
             llm_client=llm_client,
             frontier_client=frontier_client,
         )
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        tier_key = _tier_counter_key(decision.tier)
+        if tier_key is not None:
+            tier_counts[tier_key] += 1
+            tier_durations_ms[tier_key] += elapsed_ms
         _add_mapping_rows(session, line_item.id, decision)
         await session.flush()
+    collector = usage.current_stage_usage()
+    if collector is not None:
+        collector.merge_metadata(
+            {
+                "tier_counts": tier_counts,
+                "tier_durations_ms": tier_durations_ms,
+            }
+        )
     quote = await session.get(TenderQuote, job.quote_id)
     if quote is not None:
         quote.stage = "run_expectations"
+
+
+def _tier_counter_key(tier: str) -> str | None:
+    if tier.startswith("t0"):
+        return "t0"
+    if tier.startswith("t1"):
+        return "t1"
+    if tier.startswith("t2"):
+        return "t2"
+    if tier.startswith("t3"):
+        return "t3"
+    return None
 
 
 async def map_line_item_cascade(

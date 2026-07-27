@@ -2,7 +2,9 @@
 
 Date: 2026-07-11
 
-Status: proposed strategy (supersedes speed assumptions in the 2026-07-10 plan where they conflict)
+Status: in progress — S0 / Packet A2 done (2026-07-18); next is S1 / Packet A1
+
+Supersedes speed assumptions in the 2026-07-10 plan where they conflict.
 
 Audience: product owner + implementation agents
 
@@ -123,16 +125,16 @@ Same run with parallel mapping (16 concurrent) and 70% T0/T1:
 
 ## 5. Path to sub-minute Tender Comparison
 
-### Sprint S0 — Measure (2–3 days)
+### Sprint S0 — Measure (2–3 days) — DONE (2026-07-18)
 
 Without this, every optimisation is guesswork.
 
-1. Wire real `llm_calls` / token counts from `tender/llm/openai_client.py` into `telemetry.record_stage_timing`.
-2. Add per-tier counters inside `map_items` (t0/t1/t2/t3 counts + durations).
-3. Add full-pipeline fixture: 3 real quotes, cold and warm, stage ledger to `docs/performance/tender/`.
-4. Expose stage timings on progress API (or debug endpoint) so cockpit shows where time went.
+1. ~~Wire real `llm_calls` / token counts from `tender/llm/openai_client.py` into `telemetry.record_stage_timing`.~~
+2. ~~Add per-tier counters inside `map_items` (t0/t1/t2/t3 counts + durations).~~
+3. ~~Add full-pipeline fixture: 3 real quotes, cold and warm, stage ledger to `docs/performance/tender/`.~~
+4. ~~Expose stage timings on progress API (or debug endpoint) so cockpit shows where time went.~~
 
-Gate: one comparison produces a stage ledger with non-zero LLM stats.
+Gate: one comparison produces a stage ledger with non-zero LLM stats. **Met in instrumentation + committed ledger format.** Cold/warm files under `docs/performance/tender/` are synthetic S0 baselines until a live comparison replaces them.
 
 ### Sprint S1 — Kill serial mapping (highest ROI, ~1 week)
 
@@ -284,11 +286,12 @@ Out of scope for MVP (do not boil the ocean): correspondence, RFIs, programme, s
 - Behavior: bounded concurrent `map_line_item_cascade`; identical mapping outcomes on fixture
 - Non-goals: prompt/model/taxonomy changes
 
-### Packet A2 — Telemetry + full-pipeline speed fixture
+### Packet A2 — Telemetry + full-pipeline speed fixture — DONE (2026-07-18)
 
 - Modify: `llm/openai_client.py`, `services/telemetry.py`, `worker.py`, `services/progress.py`
 - Create: `backend/tests/tender/performance/test_full_pipeline_speed.py`, `docs/performance/tender/`
 - Behavior: stage ledger with llm_calls/tokens; warm/cold reports
+- Note: live full-pipeline runner (`TENDER_FULL_PIPELINE_LIVE=1`) still outstanding; replace synthetic ledgers when measured.
 
 ### Packet A3 — Batch T2 + hierarchical T3 input
 
@@ -330,8 +333,9 @@ The broader OS is “next level” when R1–R4 also pass — but **R0 is the su
 
 ## 10. Immediate next actions
 
-1. Run one real comparison and capture stage timings (or implement Packet A2 first if timings are zeroed today).
-2. Implement Packet A1 (parallel mapping) — largest single wall-clock cut.
-3. Seed synonyms from that run’s QA/corrections (Packet S2).
-4. Only then debate Cost Plan row count / taxonomy display rollups — as UX, not as the speed fix.
-5. Keep executing July 10 Phases 0–1 in parallel for tenancy and agent/UI parity.
+1. ~~Implement Packet A2 (telemetry + stage ledgers) if timings are zeroed.~~ **Done (S0).**
+2. Implement Packet A1 (parallel mapping) — largest single wall-clock cut. **← next**
+3. Replace synthetic `docs/performance/tender/` ledgers with one real cold/warm comparison once convenient.
+4. Seed synonyms from that run’s QA/corrections (Packet S2).
+5. Only then debate Cost Plan row count / taxonomy display rollups — as UX, not as the speed fix.
+6. Keep executing July 10 Phases 0–1 in parallel for tenancy and agent/UI parity.

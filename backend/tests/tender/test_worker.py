@@ -71,8 +71,48 @@ def test_run_once_dispatches_by_kind_and_completes(mock_session: AsyncMock) -> N
             stage="ingest_document",
             duration_ms=ANY,
             status="done",
+            llm_calls=0,
+            input_tokens=0,
+            output_tokens=0,
+            metadata=None,
         )
         mock_complete.assert_awaited_once_with(mock_session, job)
+
+    run_async(_run())
+
+
+def test_run_once_forwards_llm_usage_into_stage_timing(mock_session: AsyncMock) -> None:
+    from tender.llm import usage
+
+    job = _comparison_job(kind="extract_line_items")
+
+    async def llm_handler(session, claimed_job) -> None:
+        usage.record_llm_call(input_tokens=50, output_tokens=12)
+
+    async def _run() -> None:
+        with (
+            patch.object(worker.jobs, "claim_next", new=AsyncMock(return_value=job)),
+            patch.object(worker.jobs, "complete", new=AsyncMock()),
+            patch.object(
+                worker.telemetry, "record_stage_timing", new=AsyncMock()
+            ) as mock_timing,
+            patch.dict(worker.HANDLERS, {"extract_line_items": llm_handler}),
+        ):
+            processed = await worker.run_once(_session_factory(mock_session), "host:1")
+
+        assert processed is True
+        mock_timing.assert_awaited_once_with(
+            mock_session,
+            comparison_id=job.comparison_id,
+            job_id=job.id,
+            stage="extract_line_items",
+            duration_ms=ANY,
+            status="done",
+            llm_calls=1,
+            input_tokens=50,
+            output_tokens=12,
+            metadata=None,
+        )
 
     run_async(_run())
 

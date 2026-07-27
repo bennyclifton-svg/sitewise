@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
@@ -101,3 +103,40 @@ def timing_table(rows: list[StageTiming]) -> str:
             )
         )
     return "\n".join(lines)
+
+
+def write_stage_ledger(
+    path: Path | str,
+    rows: list[StageTiming],
+    *,
+    header: dict[str, Any] | None = None,
+) -> None:
+    """Write a markdown stage ledger with optional JSON header and metadata."""
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    parts: list[str] = []
+    if header:
+        parts.append("```json")
+        parts.append(json.dumps(header, indent=2, sort_keys=True))
+        parts.append("```")
+        parts.append("")
+    parts.append(timing_table(rows))
+    metadata_rows = [
+        (row.stage, row.metadata) for row in rows if row.metadata
+    ]
+    if metadata_rows:
+        parts.append("")
+        parts.append("## Stage metadata")
+        parts.append("")
+        parts.append("```json")
+        parts.append(
+            json.dumps(
+                {stage: metadata for stage, metadata in metadata_rows},
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        parts.append("```")
+    parts.append("")
+    target.write_text("\n".join(parts), encoding="utf-8")

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.database.models  # noqa: F401 — register all SQLAlchemy mappers before any query
 from app.config import settings
 from app.logging import configure_logging, get_logger
+from tender.llm import usage as llm_usage
 from tender.models import TenderJob
 from tender.services import continuations, jobs, telemetry
 from tender.services.analysis import generate_flags, run_analysis
@@ -82,41 +83,57 @@ async def run_once(session_factory, worker_id: str) -> bool:
         job_kind = job.kind
         comparison_id = job.comparison_id
         started = time.perf_counter()
+        collector = llm_usage.begin_stage_usage()
         try:
-            await handler(session, job)
-        except Exception:
-            error_text = traceback.format_exc()
+            try:
+                await handler(session, job)
+            except Exception:
+                error_text = traceback.format_exc()
+                duration_ms = int((time.perf_counter() - started) * 1000)
+                snapshot = collector.snapshot()
+                await session.rollback()
+                failed_metadata = {"error": error_text.splitlines()[-1] if error_text else ""}
+                if snapshot.metadata:
+                    failed_metadata = {**snapshot.metadata, **failed_metadata}
+                await telemetry.record_stage_timing(
+                    session,
+                    comparison_id=comparison_id,
+                    job_id=job_id,
+                    stage=job_kind,
+                    duration_ms=duration_ms,
+                    status="failed",
+                    llm_calls=snapshot.llm_calls,
+                    input_tokens=snapshot.input_tokens,
+                    output_tokens=snapshot.output_tokens,
+                    metadata=failed_metadata,
+                )
+                await jobs.fail(session, job, error_text)
+                return True
+
             duration_ms = int((time.perf_counter() - started) * 1000)
-            await session.rollback()
+            snapshot = collector.snapshot()
             await telemetry.record_stage_timing(
                 session,
                 comparison_id=comparison_id,
                 job_id=job_id,
                 stage=job_kind,
                 duration_ms=duration_ms,
-                status="failed",
-                metadata={"error": error_text.splitlines()[-1] if error_text else ""},
+                status="done",
+                llm_calls=snapshot.llm_calls,
+                input_tokens=snapshot.input_tokens,
+                output_tokens=snapshot.output_tokens,
+                metadata=snapshot.metadata or None,
             )
-            await jobs.fail(session, job, error_text)
+            await jobs.complete(session, job)
+            await continuations.after_job_complete(
+                session,
+                job_id=job_id,
+                job_kind=job_kind,
+                comparison_id=comparison_id,
+            )
             return True
-
-        duration_ms = int((time.perf_counter() - started) * 1000)
-        await telemetry.record_stage_timing(
-            session,
-            comparison_id=comparison_id,
-            job_id=job_id,
-            stage=job_kind,
-            duration_ms=duration_ms,
-            status="done",
-        )
-        await jobs.complete(session, job)
-        await continuations.after_job_complete(
-            session,
-            job_id=job_id,
-            job_kind=job_kind,
-            comparison_id=comparison_id,
-        )
-        return True
+        finally:
+            llm_usage.reset_stage_usage()
 
 
 async def _idle_wait(shutdown_event: asyncio.Event) -> None:

@@ -8,6 +8,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from app.config import settings
+from tender.llm import usage
 from tender.llm.client import LLMAdjudicationResponse, LLMExtractionResponse
 from tender.llm.schema import openai_strict_json_schema
 from tender.schemas import ProjectContext, TenderDocumentPage
@@ -49,6 +50,7 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
+        _record_response_usage(response)
         return LLMExtractionResponse(
             data=json.loads(_response_text(response)),
             model=self.model,
@@ -84,6 +86,7 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
+        _record_response_usage(response)
         data = json.loads(_response_text(response))
         choice = str(data["choice"])
         if choice not in choices:
@@ -136,6 +139,7 @@ class AsyncOpenAITenderClient:
             },
             temperature=0,
         )
+        _record_response_usage(response)
         data = json.loads(_response_text(response))
         decisions = data.get("decisions")
         if not isinstance(decisions, list):
@@ -290,3 +294,8 @@ def _response_text(response: Any) -> str:
             if text:
                 return str(text)
     raise ValueError("OpenAI structured extraction response did not contain text")
+
+
+def _record_response_usage(response: Any) -> None:
+    input_tokens, output_tokens = usage.tokens_from_response(response)
+    usage.record_llm_call(input_tokens=input_tokens, output_tokens=output_tokens)

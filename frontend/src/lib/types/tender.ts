@@ -138,6 +138,17 @@ export type TenderProgressQuote = {
   documents: TenderProgressDocument[];
 };
 
+export type TenderStageTiming = {
+  stage: string;
+  duration_ms: number;
+  status: string;
+  llm_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_hits: number;
+  metadata: Record<string, unknown>;
+};
+
 export type TenderComparisonProgress = {
   comparison_id: string;
   status: string;
@@ -146,6 +157,7 @@ export type TenderComparisonProgress = {
   qa_pending: number;
   milestones: TenderProgressMilestone[];
   quotes: TenderProgressQuote[];
+  stage_timings?: TenderStageTiming[];
 };
 
 export type TenderProcessComparisonResponse = {

@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from tender.llm import usage
 from tender.models import TaxonomySynonym, TenderJob, TenderLineItem, TenderQuote
 from tender.seeds.load import normalize_phrase
 from tender.services import jobs
@@ -41,6 +42,8 @@ class OpenAIEmbeddingClient:
             input=texts,
             dimensions=settings.tender_embedding_dimensions,
         )
+        input_tokens, output_tokens = usage.tokens_from_embedding_response(response)
+        usage.record_llm_call(input_tokens=input_tokens, output_tokens=output_tokens)
         return [list(item.embedding) for item in response.data]
 
 

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import uuid
+from unittest.mock import AsyncMock
 
+from tender.schemas import ComparisonProgressResponse
+from tender.services import telemetry
 from tender.services.progress import (
     JobFacts,
+    comparison_progress,
     compute_milestones,
     progress_percent,
 )
+from tests.conftest import run_async
 
 QUOTE_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 
@@ -155,3 +160,59 @@ def test_report_built_is_fully_done() -> None:
     )
     assert all(m.state == "done" for m in milestones), _states(milestones)
     assert progress_percent(milestones) == 100
+
+
+def test_comparison_progress_includes_stage_timings(monkeypatch) -> None:
+    comparison_id = uuid.uuid4()
+
+    class _EmptyScalars:
+        def all(self):
+            return []
+
+    class _EmptyResult:
+        def scalars(self):
+            return _EmptyScalars()
+
+        def all(self):
+            return []
+
+        def scalar_one(self):
+            return 0
+
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=_EmptyResult())
+    monkeypatch.setattr(
+        telemetry,
+        "list_stage_timings",
+        AsyncMock(
+            return_value=[
+                telemetry.StageTiming(
+                    stage="map_items",
+                    duration_ms=1200,
+                    status="done",
+                    llm_calls=3,
+                    input_tokens=900,
+                    output_tokens=120,
+                    metadata={"tier_counts": {"t2": 3}},
+                )
+            ]
+        ),
+    )
+
+    response = run_async(
+        comparison_progress(
+            session,
+            comparison_id=comparison_id,
+            comparison_status="processing",
+        )
+    )
+
+    assert isinstance(response, ComparisonProgressResponse)
+    assert len(response.stage_timings) == 1
+    timing = response.stage_timings[0]
+    assert timing.stage == "map_items"
+    assert timing.duration_ms == 1200
+    assert timing.llm_calls == 3
+    assert timing.input_tokens == 900
+    assert timing.output_tokens == 120
+    assert timing.metadata == {"tier_counts": {"t2": 3}}
