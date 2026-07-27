@@ -105,9 +105,18 @@ class ProjectProfilePatch(BaseModel):
     work_scope: list[str] | None = None
     user_role: str | None = Field(default=None, max_length=64)
     state: str | None = Field(default=None, max_length=16)
+    site_address: str | None = Field(default=None, max_length=256)
+    client: str | None = Field(default=None, max_length=128)
     clear_incompatible: bool = False
 
-    @field_validator("building_class", "work_type", "user_role", "state")
+    @field_validator(
+        "building_class",
+        "work_type",
+        "user_role",
+        "state",
+        "site_address",
+        "client",
+    )
     @classmethod
     def strip_optional_strings(cls, value: str | None) -> str | None:
         if value is None:
@@ -151,6 +160,8 @@ ProjectProfileField = Literal[
     "work_scope",
     "user_role",
     "state",
+    "site_address",
+    "client",
 ]
 
 
@@ -165,6 +176,8 @@ class ProjectProfileView(BaseModel):
     work_scope: list[str] = Field(default_factory=list)
     user_role: str | None = None
     state: str | None = None
+    site_address: str | None = None
+    client: str | None = None
 
 
 class ProjectProfileChange(BaseModel):

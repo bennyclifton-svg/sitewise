@@ -969,6 +969,7 @@ export function ProjectCockpitPage() {
         <ProjectControlBoard
           project={project}
           nextActions={snapshot?.next_actions ?? []}
+          profileProposals={snapshot?.open_profile_proposals ?? []}
           evidence={evidence}
           latestDraft={latestDraft}
           latestCostPlanDraft={latestCostPlanDraft}
@@ -1016,6 +1017,22 @@ export function ProjectCockpitPage() {
                 item.id === updatedProject.id ? updatedProject : item,
               ),
             );
+          }}
+          onProfileProposalsResolved={() => {
+            void (async () => {
+              try {
+                const data = await api.getProjectCockpitBootstrap(project.id);
+                setSnapshot(data.snapshot);
+                seedProjectData(queryClient, project.id, {
+                  project: data.project,
+                  evidence: data.evidence,
+                  workspaceTree: data.workspace_tree.tree,
+                });
+                setProjects(data.projects);
+              } catch {
+                // Keep the current cockpit state if refresh fails.
+              }
+            })();
           }}
         />
       ) : null}

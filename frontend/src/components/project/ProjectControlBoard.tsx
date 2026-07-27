@@ -43,6 +43,7 @@ import type {
   OverlayIssue,
   ProjectDetail,
   ProjectNextAction,
+  ProjectProfileProposal,
   SortFilesResponse,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
@@ -58,10 +59,12 @@ import {
 } from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
+import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
 
 export function ProjectControlBoard({
   project,
   nextActions = [],
+  profileProposals = [],
   evidence,
   latestDraft,
   latestCostPlanDraft,
@@ -89,9 +92,11 @@ export function ProjectControlBoard({
   sortFilesError,
   isRunningSortFiles,
   onProjectUpdated,
+  onProfileProposalsResolved,
 }: {
   project: ProjectDetail;
   nextActions?: ProjectNextAction[];
+  profileProposals?: ProjectProfileProposal[];
   evidence: EvidencePreview[];
   latestDraft: DraftArtifactSummary | null;
   latestCostPlanDraft: DraftArtifactSummary | null;
@@ -119,6 +124,7 @@ export function ProjectControlBoard({
   sortFilesError: string | null;
   isRunningSortFiles: boolean;
   onProjectUpdated?: (project: ProjectDetail) => void;
+  onProfileProposalsResolved?: () => void;
 }) {
   const lifecycle = buildLifecycleTiles({
     project,
@@ -144,6 +150,14 @@ export function ProjectControlBoard({
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
       <RiskFlagChips flags={project.risk_flags} />
+
+      <ProfileProposalStrip
+        projectId={project.id}
+        proposals={profileProposals}
+        onResolved={() => {
+          onProfileProposalsResolved?.();
+        }}
+      />
 
       {nextActions.length ? <ProjectNextActions actions={nextActions} /> : null}
 

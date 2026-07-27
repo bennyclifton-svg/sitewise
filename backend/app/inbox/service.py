@@ -14,6 +14,7 @@ from app.schemas.projects import WorkflowTraceEvent
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
+from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
@@ -344,6 +345,12 @@ async def _upload_single_file(
         ingest_error=ingest_error,
         source_document_id=source_doc_id,
     )
+    if ingest_status == "ingested" and source_doc_id is not None:
+        await safe_bootstrap_identity_from_document(
+            session,
+            project=project,
+            source_document_id=source_doc_id,
+        )
     await _record_file_activity(
         session,
         project_id=project.id,

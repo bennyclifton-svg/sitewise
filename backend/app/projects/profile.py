@@ -39,6 +39,8 @@ PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
     "work_scope",
     "user_role",
     "state",
+    "site_address",
+    "client",
 )
 
 
@@ -190,22 +192,36 @@ def validate_profile_patch(
 
 
 def read_profile(project: Project) -> ProjectProfileView:
-    metadata = project.project_metadata or {}
+    metadata = getattr(project, "project_metadata", None) or {}
     taxonomy = metadata.get("taxonomy") if isinstance(metadata, dict) else None
     taxonomy = taxonomy if isinstance(taxonomy, dict) else {}
     return ProjectProfileView(
         project_id=project.id,
-        profile_revision=project.profile_revision,
-        building_class=project.building_class,
-        work_type=project.work_type,
+        profile_revision=getattr(project, "profile_revision", 1) or 1,
+        building_class=getattr(project, "building_class", None),
+        work_type=getattr(project, "work_type", None),
         subclasses=_list_value(taxonomy.get("subclasses")),
         scale=_dict_value(taxonomy.get("scale")),
         complexity=_dict_value(taxonomy.get("complexity")),
         work_scope=[
             item for item in _list_value(taxonomy.get("work_scope")) if isinstance(item, str)
         ],
-        user_role=project.user_role,
-        state=project.state,
+        user_role=getattr(project, "user_role", None),
+        state=getattr(project, "state", None),
+        site_address=_optional_text(
+            taxonomy.get("site_address")
+            if taxonomy.get("site_address") is not None
+            else metadata.get("site_address")
+            if isinstance(metadata, dict)
+            else None
+        ),
+        client=_optional_text(
+            taxonomy.get("client")
+            if taxonomy.get("client") is not None
+            else metadata.get("client")
+            if isinstance(metadata, dict)
+            else None
+        ),
     )
 
 
@@ -368,13 +384,35 @@ def _profile_change(
     )
 
 
+def _optional_text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
 def _write_profile(project: Project, profile: ProjectProfileView) -> None:
     project.building_class = profile.building_class
     project.work_type = profile.work_type
     project.user_role = profile.user_role
     project.state = profile.state
     metadata = dict(project.project_metadata or {})
-    metadata["taxonomy"] = {
+    existing_taxonomy = metadata.get("taxonomy")
+    preserved: dict[str, Any] = {}
+    if isinstance(existing_taxonomy, dict):
+        for key, value in existing_taxonomy.items():
+            if key in {
+                "subclasses",
+                "scale",
+                "complexity",
+                "work_scope",
+                "site_address",
+                "client",
+            }:
+                continue
+            preserved[key] = value
+    taxonomy: dict[str, Any] = {
+        **preserved,
         "subclasses": [
             item if isinstance(item, str) else item.model_dump(exclude_none=True)
             for item in profile.subclasses
@@ -383,4 +421,12 @@ def _write_profile(project: Project, profile: ProjectProfileView) -> None:
         "complexity": dict(profile.complexity),
         "work_scope": list(profile.work_scope),
     }
+    if profile.site_address:
+        taxonomy["site_address"] = profile.site_address
+    if profile.client:
+        taxonomy["client"] = profile.client
+    metadata["taxonomy"] = taxonomy
+    # Prefer taxonomy as the canonical store; drop legacy top-level copies.
+    metadata.pop("site_address", None)
+    metadata.pop("client", None)
     project.project_metadata = metadata

@@ -36,3 +36,7 @@ class ProjectProfileProposalView(BaseModel):
 class ProfileProposalResolution(BaseModel):
     proposal: ProjectProfileProposalView
     profile_change: ProjectProfileChange | None = None
+
+
+class ProfileProposalResolveRequest(BaseModel):
+    expected_profile_revision: int = Field(ge=1)

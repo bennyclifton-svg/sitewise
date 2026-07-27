@@ -50,6 +50,8 @@ def test_read_profile_normalizes_columns_and_taxonomy_metadata() -> None:
         "work_scope": ["fire_services"],
         "user_role": "architect-pm",
         "state": "NSW",
+        "site_address": None,
+        "client": None,
     }
 
 

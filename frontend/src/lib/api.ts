@@ -60,6 +60,7 @@ import type {
   ProjectDecisionListResponse,
   ProjectEventListResponse,
   ProjectProfileChange,
+  ProfileProposalResolution,
   ProjectSummary,
   TaxonomyCatalog,
   UpdateProjectInput,
@@ -710,6 +711,26 @@ export const api = {
     api.post<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}/accept`, {
       expected_version: expectedVersion,
     }),
+
+  acceptProfileProposal: async (
+    projectId: string,
+    proposalId: string,
+    expectedProfileRevision: number,
+  ): Promise<ProfileProposalResolution> =>
+    api.post<ProfileProposalResolution>(
+      `/projects/${projectId}/profile-proposals/${proposalId}/accept`,
+      { expected_profile_revision: expectedProfileRevision },
+    ),
+
+  rejectProfileProposal: async (
+    projectId: string,
+    proposalId: string,
+    expectedProfileRevision: number,
+  ): Promise<ProfileProposalResolution> =>
+    api.post<ProfileProposalResolution>(
+      `/projects/${projectId}/profile-proposals/${proposalId}/reject`,
+      { expected_profile_revision: expectedProfileRevision },
+    ),
 
   runSortFiles: async (
     projectId: string,
