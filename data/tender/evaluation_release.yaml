@@ -1,0 +1,32 @@
+# Customer release remains blocked until the protected corpus, paid evaluation,
+# and named QS review are complete. Do not change status without attaching the
+# referenced evidence and freezing the exact evaluated versions.
+version: 1
+status: blocked
+
+evaluation:
+  passed: false
+  run_id: null
+  report: null
+
+qs_review:
+  status: pending
+  reviewer: null
+  reviewed_at: null
+  report: null
+
+rollout:
+  status: blocked
+  approved_by: null
+  approved_at: null
+  rollback_procedure: docs/performance/tender/2026-07-19-stage7-quality-gate.md
+
+frozen_versions:
+  taxonomy: 1
+  report_language: 1
+  extract_prompt: 0.1.0
+  classification_prompt: 0.1.0
+  mapping_prompt: 0.1.0
+  silence_prompt: 0.1.0
+  extract_model: null
+  adjudication_model: null

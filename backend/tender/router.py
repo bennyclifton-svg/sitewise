@@ -913,6 +913,11 @@ async def post_report_approve(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
+    except report.CustomerQualityGateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tender customer quality gate is blocked",
+        ) from exc
 
 
 @router.post(
@@ -931,8 +936,14 @@ async def post_report_delivered(
         comparison_id=comparison_id,
         user_id=user.id,
     )
-    return await report.mark_report_delivered(
-        session,
-        comparison_id=comparison_id,
-        delivery_note=body.delivery_note,
-    )
+    try:
+        return await report.mark_report_delivered(
+            session,
+            comparison_id=comparison_id,
+            delivery_note=body.delivery_note,
+        )
+    except report.CustomerQualityGateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tender customer quality gate is blocked",
+        ) from exc

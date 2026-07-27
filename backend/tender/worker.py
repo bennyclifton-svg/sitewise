@@ -15,6 +15,7 @@ import socket
 import time
 import traceback
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -83,16 +84,15 @@ async def run_once(session_factory, worker_id: str) -> bool:
         comparison_id = job.comparison_id
         started = time.perf_counter()
         usage = telemetry.begin_stage_usage()
+        usage.merge_metadata(_job_telemetry_metadata(job))
         try:
             await handler(session, job)
-        except Exception:
+        except Exception as exc:
             error_text = traceback.format_exc()
             duration_ms = int((time.perf_counter() - started) * 1000)
             await session.rollback()
             failed_meta = dict(usage.metadata)
-            failed_meta["error"] = (
-                error_text.splitlines()[-1] if error_text else ""
-            )
+            failed_meta["error_type"] = type(exc).__name__
             await telemetry.record_stage_timing(
                 session,
                 comparison_id=comparison_id,
@@ -133,6 +133,31 @@ async def run_once(session_factory, worker_id: str) -> bool:
             comparison_id=comparison_id,
         )
         return True
+
+
+def _job_telemetry_metadata(job: TenderJob) -> dict[str, object]:
+    correlation = {
+        "comparison_id": str(job.comparison_id) if job.comparison_id else None,
+        "job_id": str(job.id),
+        "quote_id": str(job.quote_id) if job.quote_id else None,
+        "document_id": str((job.payload or {}).get("document_id") or "") or None,
+    }
+    correlation = {
+        key: value for key, value in correlation.items() if value is not None
+    }
+
+    claimed_at = job.locked_at or datetime.now(timezone.utc)
+    created_at = job.created_at or claimed_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    if claimed_at.tzinfo is None:
+        claimed_at = claimed_at.replace(tzinfo=timezone.utc)
+    queue_wait_ms = max(0, int((claimed_at - created_at).total_seconds() * 1000))
+    return {
+        "queue_wait_ms": queue_wait_ms,
+        "job_retry_attempt": max(0, job.attempts),
+        "correlation": correlation,
+    }
 
 
 async def _idle_wait(shutdown_event: asyncio.Event) -> None:

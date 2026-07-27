@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -34,6 +35,25 @@ def test_render_report_html_uses_language_phrases_glyphs_and_watermark() -> None
     assert "◷" in artifacts.html
     assert "This report is information and document analysis only." in artifacts.html
     assert artifacts.pdf_bytes.startswith(b"%PDF")
+
+
+def test_markdown_static_customer_phrases_come_from_report_language() -> None:
+    language = deepcopy(report.load_report_language_yaml(_language_path()))
+    language["report"]["labels"].update(
+        {"item": "LANG_ITEM", "builder": "LANG_BUILDER", "flag": "LANG_FLAG"}
+    )
+
+    artifacts = report.assemble_report_artifacts(
+        _report_data(),
+        language=language,
+        draft=True,
+        pdf_renderer=lambda html: b"%PDF language",
+    )
+
+    assert "| LANG_ITEM | A Homes | B Homes |" in artifacts.markdown
+    assert "| LANG_BUILDER | LANG_ITEM | LANG_FLAG |" in artifacts.markdown
+    assert "Cooktop allowance appears low" not in artifacts.markdown
+    assert "If you select mid-range products" in artifacts.markdown
 
 
 def test_rebuild_preserves_narratives_and_regenerates_tables() -> None:

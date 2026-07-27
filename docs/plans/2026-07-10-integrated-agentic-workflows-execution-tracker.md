@@ -803,27 +803,27 @@ additive-list gates pass.
 Objective: evaluate the complete Tender pipeline and obtain the customer-quality
 and QS approval required for customer exposure and downstream handoff.
 
-- [ ] **6.1 — Wire real TCM usage telemetry**
+- [x] **6.1 — Wire real TCM usage telemetry**
   - Dependencies: stable TCM pipeline.
   - Gate: real LLM stages record correlated non-zero usage and deterministic
     stages correctly record zero without customer/prompt content.
-- [ ] **6.2 — Replace the extraction-only speed gate**
+- [~] **6.2 — Replace the extraction-only speed gate**
   - Dependencies: 6.1, canonical performance environment.
   - Gate: cold/warm full-pipeline ledger covers intake through report-ready or
     QA-required and identifies slow stages.
-- [ ] **6.3 — Produce measured optimization packets**
+- [!] **6.3 — Produce measured optimization packets**
   - Dependencies: 6.2.
   - Gate: each proven bottleneck produces a separate exact packet; production
     behavior is not modified by this decision task.
-- [ ] **6.4 — Build the required Tender evaluation corpus**
+- [!] **6.4 — Build the required Tender evaluation corpus**
   - Dependencies: protected fixture storage and consent/redaction process.
   - Gate: at least 30 anonymized real documents plus adversarial coverage pass
     manifest validation and access review.
-- [ ] **6.5 — Run Tender evaluation and complete QS acceptance**
+- [!] **6.5 — Run Tender evaluation and complete QS acceptance**
   - Dependencies: 6.4; frozen prompt/model/taxonomy candidate.
   - Gate: PRD thresholds and QS review pass; all report phrases come from the
     approved language file; evaluated versions are frozen.
-- [ ] **6.6 — Implement measured Tender optimizations**
+- [!] **6.6 — Implement measured Tender optimizations**
   - Dependencies: one exact packet from 6.3 at a time; 6.5 rerun when required.
   - Gate: each change improves its measured stage and preserves evaluation,
     deterministic arithmetic, and two-owner isolation; otherwise it is reverted.
@@ -835,6 +835,50 @@ and QS approval required for customer exposure and downstream handoff.
 - [ ] Golden corpus, evaluation thresholds, report language, and QS gate pass.
 - [ ] Customer exposure and approval have an explicit rollout decision.
 - [ ] Frozen evaluated versions and rollback procedure are recorded.
+
+### Stage 7 implementation record — 2026-07-19
+
+Status: telemetry complete; full-pipeline/evaluation infrastructure complete;
+live provider, protected-corpus, QS, optimization, and rollout gates blocked
+Owner/agent: Codex
+Branch/worktree: `feature/stage7-tender-quality` /
+`.worktrees/stage7-tender-quality`
+Commit/PR: this Stage 7 implementation commit (hash recorded in the final handoff)
+Started: 2026-07-19
+Completed: not complete — external data, paid evaluation, and human QS gates remain
+Predecessors verified: Stage 3 atomic intake, Stage 4 Tender publication, Stage 5
+durable workflow, and Stage 6 performance commits form the direct predecessor
+chain ending at `41f5f0fb`.
+
+Implementation:
+
+- 6.1 records model/prompt/request/token/retry/cache metadata, queue wait, stage
+  duration, and safe resource correlation; exception/customer/prompt content is
+  excluded from telemetry.
+- 6.2 now has a real paid full-pipeline harness from atomic intake through the
+  actual worker chain to report-ready or QA-required. The ODL benchmark remains
+  a separate micro-benchmark. No live baseline is claimed.
+- 6.3 remains blocked until the live report has at least ten samples and proves
+  a bottleneck by contribution and variance.
+- 6.4 has a strict release validator. It currently fails honestly: 3/30 real,
+  0/20 synthetic, non-anonymised fixtures, and missing consent/protected
+  storage/provenance/retention/coverage/access review.
+- 6.5 routes static report copy through the approved language file and adds a
+  fail-closed customer approval/delivery gate. Evaluation and QS sign-off are
+  not present and are not claimed.
+- 6.6 remains blocked by 6.3 and 6.5; no speculative production optimization
+  was made.
+
+Validation evidence and exact blocker output:
+`docs/performance/tender/2026-07-19-stage7-quality-gate.md`.
+
+Rollout result: not performed; customer approval/delivery return HTTP 409 while
+`data/tender/evaluation_release.yaml` is blocked.
+Rollback result or procedure: revert this additive commit; no schema migration
+or customer state transition was made. The procedure is documented, not exercised.
+Remaining risks/notes: acquire/redact/annotate protected real and adversarial
+documents, complete access review, run paid provider baseline/eval, obtain named
+QS approval, freeze exact versions, then decide rollout before 6.6 or R3 customer.
 
 ## Stage 8 — Typed Cost Plan and cross-workflow handoffs
 

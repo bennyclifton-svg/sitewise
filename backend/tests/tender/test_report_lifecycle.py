@@ -127,6 +127,29 @@ def test_approve_report_endpoint_maps_weasyprint_unavailable(
     assert "WeasyPrint" in response.json()["detail"]
 
 
+def test_approve_report_endpoint_blocks_unapproved_customer_quality_gate(
+    client: TestClient,
+) -> None:
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch("tender.router.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "tender.router.report.approve_report",
+            new=AsyncMock(
+                side_effect=report.CustomerQualityGateError(
+                    ["QS review is not approved"]
+                )
+            ),
+        ),
+    ):
+        response = client.post(
+            f"/api/tender/comparisons/{COMPARISON_ID}/report/approve"
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Tender customer quality gate is blocked"
+
+
 def _lifecycle(
     *,
     status: str,

@@ -154,7 +154,11 @@ class OpenAIFrontierMappingClient:
             },
             temperature=0,
         )
-        note_openai_response(response)
+        note_openai_response(
+            response,
+            model=_model_for_key(model_key),
+            prompt_version=prompt_version,
+        )
         data = json.loads(_response_text(response))
         return FrontierMappingResponse(
             allocations=tuple(

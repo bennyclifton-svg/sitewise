@@ -50,6 +50,21 @@ def test_begin_stage_usage_binds_context_for_record_llm_usage() -> None:
     assert telemetry.current_stage_usage() is None
 
 
+def test_record_resource_ids_extends_stage_correlation() -> None:
+    report_id = "e71481fb-2f2f-493a-bc44-77b65ad5c919"
+    usage = telemetry.begin_stage_usage()
+    try:
+        usage.merge_metadata({"correlation": {"job_id": "job-1"}})
+        telemetry.record_resource_ids(report_id=report_id)
+    finally:
+        telemetry.end_stage_usage()
+
+    assert usage.metadata["correlation"] == {
+        "job_id": "job-1",
+        "report_id": report_id,
+    }
+
+
 def test_openai_extract_records_usage_from_response(tmp_path: Path) -> None:
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("extract carefully", encoding="utf-8")
@@ -86,6 +101,49 @@ def test_openai_extract_records_usage_from_response(tmp_path: Path) -> None:
     assert usage.input_tokens == 120
     assert usage.output_tokens == 45
     assert usage.cache_hits == 8
+
+
+def test_openai_extract_records_safe_call_metadata_without_prompt_content(
+    tmp_path: Path,
+) -> None:
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("private prompt instructions", encoding="utf-8")
+    fake_client = _FakeOpenAIClient(
+        output={"line_items": [], "page_subtotals": []},
+        usage=SimpleNamespace(input_tokens=12, output_tokens=3),
+        retries=2,
+    )
+    client = AsyncOpenAITenderClient(
+        client=fake_client,  # type: ignore[arg-type]
+        model="gpt-test",
+        prompt_path=prompt_path,
+    )
+    usage = telemetry.begin_stage_usage()
+    try:
+        run_async(
+            client.extract(
+                [
+                    TenderDocumentPage(
+                        document_id="doc-1",
+                        page_no=1,
+                        text_content="private customer quote text",
+                    )
+                ],
+                {"type": "object", "properties": {"line_items": {"type": "array"}}},
+                _context(),
+            )
+        )
+    finally:
+        telemetry.end_stage_usage()
+
+    assert usage.metadata == {
+        "models": ["gpt-test"],
+        "prompt_versions": ["0.1.0"],
+        "request_ids": ["resp-1"],
+        "llm_retries": 2,
+    }
+    assert "private prompt instructions" not in json.dumps(usage.metadata)
+    assert "private customer quote text" not in json.dumps(usage.metadata)
 
 
 def test_usage_from_openai_response_supports_embedding_shape() -> None:
@@ -137,9 +195,10 @@ def _context() -> ProjectContext:
 
 
 class _FakeResponses:
-    def __init__(self, output: dict[str, Any], usage: Any) -> None:
+    def __init__(self, output: dict[str, Any], usage: Any, retries: int = 0) -> None:
         self.output = output
         self.usage = usage
+        self.retries = retries
         self.kwargs: dict[str, Any] = {}
 
     async def create(self, **kwargs: Any) -> SimpleNamespace:
@@ -148,9 +207,10 @@ class _FakeResponses:
             id="resp-1",
             output_text=json.dumps(self.output),
             usage=self.usage,
+            retries=self.retries,
         )
 
 
 class _FakeOpenAIClient:
-    def __init__(self, *, output: dict[str, Any], usage: Any) -> None:
-        self.responses = _FakeResponses(output, usage)
+    def __init__(self, *, output: dict[str, Any], usage: Any, retries: int = 0) -> None:
+        self.responses = _FakeResponses(output, usage, retries)
