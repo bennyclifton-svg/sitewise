@@ -193,6 +193,19 @@ def test_certifier_row_is_grounded_when_appointed() -> None:
     assert "certify nsw" in markdown
 
 
+def test_certifier_row_reads_owner_direct_when_appointed_without_a_fee() -> None:
+    pack = _pack().model_copy(update={"certifier_fee_ex_gst": None})
+
+    markdown = render_cost_plan_scaffold(
+        _harrison_clarke_project(), pack, "evidence_grounded"
+    )
+
+    assert (
+        "| 11 | Consultants | Principal certifier | Owner-direct | Grounded | "
+        "Appointed (Certify NSW Pty Ltd); owner-direct fee |" in markdown
+    )
+
+
 def test_owner_supplied_items_do_not_assert_gst_basis() -> None:
     markdown = render_cost_plan_scaffold(_harrison_clarke_project(), _pack(), "evidence_grounded").lower()
     assert "$33,000 inc gst" not in markdown
