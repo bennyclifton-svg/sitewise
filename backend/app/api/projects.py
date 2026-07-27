@@ -119,6 +119,17 @@ from app.projects.profile import (
     ProfileValidationError,
     apply_profile_patch,
 )
+from app.projects.profile_proposals import (
+    ProfileProposalNotFound,
+    ProfileProposalRevisionConflict,
+    ProfileProposalStateConflict,
+    accept_profile_proposal,
+    reject_profile_proposal,
+)
+from app.schemas.profile_proposals import (
+    ProfileProposalResolution,
+    ProfileProposalResolveRequest,
+)
 from app.projects.events import list_project_events
 from app.projects.decisions import (
     DecisionNotFound,
@@ -919,6 +930,95 @@ async def patch_project(
         ) from exc
     except ProfileValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors) from exc
+
+
+@router.post(
+    "/{project_id}/profile-proposals/{proposal_id}/accept",
+    response_model=ProfileProposalResolution,
+)
+async def accept_project_profile_proposal_http(
+    project_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    body: ProfileProposalResolveRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProfileProposalResolution:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        return await accept_profile_proposal(
+            session,
+            project=project,
+            proposal_id=proposal_id,
+            expected_profile_revision=body.expected_profile_revision,
+            actor_source="user",
+        )
+    except ProfileProposalNotFound as exc:
+        raise HTTPException(status_code=404, detail="Profile proposal not found") from exc
+    except ProfileProposalStateConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "profile_proposal_state_conflict", "state": exc.state},
+        ) from exc
+    except ProfileProposalRevisionConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "profile_proposal_revision_conflict",
+                "proposal_revision": exc.proposal_revision,
+                "current_revision": exc.current_revision,
+            },
+        ) from exc
+    except ProfileRevisionConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "profile_revision_conflict",
+                "expected_revision": exc.expected_revision,
+                "current_revision": exc.current_revision,
+            },
+        ) from exc
+    except ProfileValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors) from exc
+
+
+@router.post(
+    "/{project_id}/profile-proposals/{proposal_id}/reject",
+    response_model=ProfileProposalResolution,
+)
+async def reject_project_profile_proposal_http(
+    project_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    body: ProfileProposalResolveRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProfileProposalResolution:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        return await reject_profile_proposal(
+            session,
+            project=project,
+            proposal_id=proposal_id,
+            expected_profile_revision=body.expected_profile_revision,
+            actor_source="user",
+        )
+    except ProfileProposalNotFound as exc:
+        raise HTTPException(status_code=404, detail="Profile proposal not found") from exc
+    except ProfileProposalStateConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "profile_proposal_state_conflict", "state": exc.state},
+        ) from exc
+    except ProfileProposalRevisionConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "profile_proposal_revision_conflict",
+                "proposal_revision": exc.proposal_revision,
+                "current_revision": exc.current_revision,
+            },
+        ) from exc
 
 
 @router.get("/{project_id}/events")

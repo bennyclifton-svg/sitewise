@@ -305,6 +305,33 @@ export type ProjectSnapshot = {
     gst_treatment: string | null;
   };
   next_actions: ProjectNextAction[];
+  open_profile_proposals?: ProjectProfileProposal[];
+  open_profile_proposals_complete?: boolean;
+};
+
+export type ProjectProfileProposal = {
+  id: string;
+  project_id: string;
+  profile_revision: number;
+  current_values: Record<string, unknown>;
+  proposed_values: Record<string, unknown>;
+  evidence_references: {
+    source_document_id: string;
+    locator: string | null;
+    claim: string | null;
+  }[];
+  confidence: number | null;
+  state: "pending" | "accepted" | "rejected";
+  proposer: string;
+  resolver_source: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+};
+
+export type ProfileProposalResolution = {
+  proposal: ProjectProfileProposal;
+  profile_change: unknown | null;
 };
 
 export type WorkflowRunState =

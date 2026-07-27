@@ -127,6 +127,10 @@ it. Call get_project_profile_options if unsure which scale keys apply. Never tel
 the user bedrooms or garage spaces are unsupported when the taxonomy lists them.
 After updating, report only fields that changed or were confirmed from
 get_project_profile; do not list unchanged complexity values as if newly set.
+If client or site_address is already set, do not re-propose it. If open profile
+proposals exist, point the user to the cockpit confirmation card and stop.
+When updating identity from documents, lodge at most one clear proposal and do
+not ask follow-up wording questions unless evidence conflicts.
 
 ## Conduct
 

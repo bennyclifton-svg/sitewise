@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.source_document import SourceDocument
+from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from app.database.workspace_file import WorkspaceFile
 from app.schemas.projects import WorkflowTraceEvent
 from app.storage.project_files import download_project_file
@@ -109,6 +110,12 @@ async def ingest_project_document(
                     **document_metadata,
                 }
         record.ingest_status = "ingested" if ingested else "skipped"
+        if record.ingest_status == "ingested" and record.source_document_id is not None:
+            await safe_bootstrap_identity_from_document(
+                session,
+                project=project,
+                source_document_id=record.source_document_id,
+            )
         await _record(
             session,
             project_id=project.id,
