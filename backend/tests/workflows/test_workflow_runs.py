@@ -4,7 +4,11 @@ from datetime import UTC, datetime
 
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
-from app.workflows.runs import SUPPORTED_WORKFLOWS, canonical_request_hash
+from app.workflows.runs import (
+    SUPPORTED_WORKFLOWS,
+    canonical_request_hash,
+    heartbeat_run,
+)
 from app.workflows.worker import _json_result
 from app.workflows.document_ingest import DocumentIngestResult
 from app.workflows.consultant_procurement import ConsultantProcurementResult
@@ -215,3 +219,199 @@ def test_dispatches_document_ingest_to_the_worker(monkeypatch) -> None:
 
     assert payload["ingest_status"] == "ingested"
     assert ingest.await_args.kwargs["workspace_file_id"] == workspace_file_id
+
+
+def _running_run(progress: dict | None = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=uuid.uuid4(),
+        state="running",
+        lock_owner="worker-1",
+        cancel_requested=False,
+        progress=progress if progress is not None else {},
+        heartbeat_at=None,
+        lease_expires_at=None,
+    )
+
+
+def _session_returning(run: SimpleNamespace) -> AsyncMock:
+    result = SimpleNamespace(scalar_one_or_none=lambda: run)
+    session = AsyncMock()
+    session.execute.return_value = result
+    return session
+
+
+def test_heartbeat_keeps_a_published_preview_while_advancing_the_stage() -> None:
+    run = _running_run({"stage": "starting", "percent": 1, "preview": {"markdown": "# Draft"}})
+    session = _session_returning(run)
+
+    run_async(
+        heartbeat_run(
+            session,
+            run_id=run.id,
+            worker_id="worker-1",
+            progress={"stage": "executing", "percent": 50},
+        )
+    )
+
+    assert run.progress == {
+        "stage": "executing",
+        "percent": 50,
+        "preview": {"markdown": "# Draft"},
+    }
+
+
+def test_publishing_a_preview_keeps_the_current_stage() -> None:
+    run = _running_run({"stage": "executing", "percent": 50})
+    session = _session_returning(run)
+
+    run_async(
+        heartbeat_run(
+            session,
+            run_id=run.id,
+            worker_id="worker-1",
+            progress={"preview": {"markdown": "# Draft"}},
+        )
+    )
+
+    assert run.progress == {
+        "stage": "executing",
+        "percent": 50,
+        "preview": {"markdown": "# Draft"},
+    }
+
+
+def test_heartbeat_without_progress_leaves_progress_untouched() -> None:
+    run = _running_run({"stage": "executing", "percent": 50})
+    session = _session_returning(run)
+
+    run_async(heartbeat_run(session, run_id=run.id, worker_id="worker-1"))
+
+    assert run.progress == {"stage": "executing", "percent": 50}
+
+
+def _plan_run(workflow_type: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=uuid.UUID("00000000-0000-0000-0000-000000000011"),
+        workflow_type=workflow_type,
+        requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        requested_by_thread_id=None,
+        frozen_artefact_version=None,
+        run_brief={
+            "snapshot": _snapshot().model_dump(mode="json"),
+            "project": {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "owner_user_id": "00000000-0000-0000-0000-000000000002",
+                "slug": "test",
+                "title": "Test",
+                "workspace_path": "04-projects/test",
+                "phase": "procurement",
+                "status": "active",
+            },
+            "parameters": {},
+        },
+    )
+
+
+def test_dispatch_hands_the_project_plan_workflow_its_preview_publisher(
+    monkeypatch,
+) -> None:
+    create_pmp = AsyncMock(return_value=SimpleNamespace(status="complete"))
+    monkeypatch.setattr(workflow_worker, "run_create_pmp_workflow", create_pmp)
+    monkeypatch.setattr(workflow_worker, "_json_result", lambda result: {})
+
+    async def publisher(preview: dict) -> None:
+        return None
+
+    run_async(
+        workflow_worker._dispatch(
+            AsyncMock(), _plan_run("create_project_plan"), on_preview=publisher
+        )
+    )
+
+    assert create_pmp.await_args.kwargs["on_preview"] is publisher
+
+
+def test_dispatch_works_without_a_preview_publisher(monkeypatch) -> None:
+    create_pmp = AsyncMock(return_value=SimpleNamespace(status="complete"))
+    monkeypatch.setattr(workflow_worker, "run_create_pmp_workflow", create_pmp)
+    monkeypatch.setattr(workflow_worker, "_json_result", lambda result: {})
+
+    run_async(workflow_worker._dispatch(AsyncMock(), _plan_run("create_project_plan")))
+
+    assert create_pmp.await_args.kwargs["on_preview"] is None
+
+
+class _FakeSessionFactory:
+    """Hands out the same session for every `async with session_factory()`."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def __call__(self):
+        return self
+
+    async def __aenter__(self):
+        return self.session
+
+    async def __aexit__(self, *args):
+        return False
+
+
+def test_preview_publisher_writes_the_preview_onto_the_run() -> None:
+    run = _running_run({"stage": "executing", "percent": 50})
+    session_factory = _FakeSessionFactory(_session_returning(run))
+
+    publish = workflow_worker._preview_publisher(
+        session_factory, run_id=run.id, worker_id="worker-1"
+    )
+    run_async(publish({"stage": "scaffold", "markdown": "# Draft"}))
+
+    assert run.progress["preview"] == {"stage": "scaffold", "markdown": "# Draft"}
+    assert run.progress["stage"] == "executing"
+
+
+def test_run_once_gives_the_workflow_a_publisher_bound_to_this_run(monkeypatch) -> None:
+    run = _running_run()
+    run.workflow_type = "create_project_plan"
+    session_factory = _FakeSessionFactory(_session_returning(run))
+    captured: dict = {}
+
+    async def fake_dispatch(session, dispatched_run, on_preview=None):
+        captured["run"] = dispatched_run
+        await on_preview({"stage": "scaffold", "markdown": "# Draft"})
+        return {"status": "complete"}
+
+    monkeypatch.setattr(workflow_worker, "claim_next_run", AsyncMock(return_value=run))
+    monkeypatch.setattr(workflow_worker, "_dispatch", fake_dispatch)
+    monkeypatch.setattr(
+        workflow_worker, "_stamp_result_dependencies", AsyncMock(return_value=None)
+    )
+    monkeypatch.setattr(
+        workflow_worker, "lock_run_for_publish", AsyncMock(return_value=run)
+    )
+    monkeypatch.setattr(
+        workflow_worker, "complete_workflow_run", AsyncMock(return_value=None)
+    )
+
+    assert run_async(workflow_worker.run_once(session_factory, "worker-1")) is True
+    assert captured["run"] is run
+    assert run.progress["preview"] == {"stage": "scaffold", "markdown": "# Draft"}
+
+
+def test_dispatch_hands_the_cost_plan_workflow_its_preview_publisher(monkeypatch) -> None:
+    create_cost_plan = AsyncMock(return_value=SimpleNamespace(status="complete"))
+    monkeypatch.setattr(
+        workflow_worker, "run_create_cost_plan_workflow", create_cost_plan
+    )
+    monkeypatch.setattr(workflow_worker, "_json_result", lambda result: {})
+
+    async def publisher(preview: dict) -> None:
+        return None
+
+    run_async(
+        workflow_worker._dispatch(
+            AsyncMock(), _plan_run("create_cost_plan"), on_preview=publisher
+        )
+    )
+
+    assert create_cost_plan.await_args.kwargs["on_preview"] is publisher

@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
@@ -8,6 +9,11 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from app.config import settings
+from app.cost_plan.schemas import (
+    CostPlanMutationResult,
+    CostPlanState,
+    DependencySnapshot,
+)
 from app.mcp_bridge.tokens import mint_turn_token
 from tests.conftest import run_async
 
@@ -44,6 +50,8 @@ def _project(project_id: uuid.UUID = PROJECT_ID) -> SimpleNamespace:
         id=project_id,
         owner_user_id=USER_ID,
         workspace_path="04-projects/walsh-reno",
+        title="Walsh Reno",
+        work_type="extend",
     )
 
 
@@ -192,7 +200,9 @@ def test_list_project_files_includes_ingested_document_identity(monkeypatch) -> 
             }
         ),
     )
-    monkeypatch.setattr(server, "search_workspace_files_for_project", AsyncMock(return_value=[drawing]))
+    monkeypatch.setattr(
+        server, "search_workspace_files_for_project", AsyncMock(return_value=[drawing])
+    )
 
     result = _call(server, "list_project_files", {"project_id": str(PROJECT_ID)})
 
@@ -213,6 +223,7 @@ def test_pi_runtime_allows_project_file_tools() -> None:
     assert "read_workspace_file" in PI_MCP_DIRECT_TOOLS
     assert "forecast_consultant_fees" in PI_MCP_DIRECT_TOOLS
     assert "apply_consultant_fee_forecast" in PI_MCP_DIRECT_TOOLS
+    assert "apply_cost_plan_budget_forecast" in PI_MCP_DIRECT_TOOLS
     assert "draft_consultant_procurement_artifact" in PI_MCP_DIRECT_TOOLS
 
 
@@ -235,7 +246,9 @@ def test_read_project_workbook_returns_sheet_rows(monkeypatch) -> None:
         workspace_path="04-projects/walsh-reno/01-cost/Cost_Plan_v01.draft.xlsx",
         filename="Cost_Plan_v01.draft.xlsx",
     )
-    monkeypatch.setattr(server, "get_workspace_file_by_path", AsyncMock(return_value=workbook))
+    monkeypatch.setattr(
+        server, "get_workspace_file_by_path", AsyncMock(return_value=workbook)
+    )
     monkeypatch.setattr(server, "download_project_file", lambda *, storage_key: b"xlsx")
     monkeypatch.setattr(
         server,
@@ -301,7 +314,9 @@ def test_forecast_consultant_fees_returns_preview(monkeypatch) -> None:
     session = _Session(project=_project())
     server = _install(monkeypatch, session)
     draft = _draft(version=1, content=_cost_plan_markdown())
-    monkeypatch.setattr(server, "get_latest_draft_artifact", AsyncMock(return_value=draft))
+    monkeypatch.setattr(
+        server, "get_latest_draft_artifact", AsyncMock(return_value=draft)
+    )
 
     result = _call(
         server,
@@ -331,7 +346,9 @@ def test_apply_consultant_fee_forecast_versions_draft_and_workbook(monkeypatch) 
             "version": 2,
         }
     )
-    monkeypatch.setattr(server, "get_latest_draft_artifact", AsyncMock(return_value=source))
+    monkeypatch.setattr(
+        server, "get_latest_draft_artifact", AsyncMock(return_value=source)
+    )
     monkeypatch.setattr(server, "revise_workflow_artefact", revise_artefact)
     monkeypatch.setattr(server, "sync_cost_plan_revision_artifacts", sync_artifacts)
 
@@ -364,3 +381,97 @@ def test_apply_consultant_fee_forecast_rejects_cross_project_token(monkeypatch) 
             "apply_consultant_fee_forecast",
             {"project_id": str(PROJECT_ID)},
         )
+
+
+def test_apply_cost_plan_budget_forecast_refreshes_all_rows_and_workbook(
+    monkeypatch,
+) -> None:
+    from tests.sitewise.test_cost_plan_budget_forecast import GREENBANK_COST_PLAN
+
+    session = _Session(project=_project())
+    server = _install(monkeypatch, session)
+    source = _draft(version=1, content=GREENBANK_COST_PLAN)
+    updated = _draft(version=2, content="# typed Cost Plan v2")
+    dependencies = DependencySnapshot(
+        profile_revision=2,
+        evidence_fingerprint="current-evidence",
+        decision_set_revision=3,
+        runtime_version="adopted-budget-test",
+    )
+    base_state = CostPlanState(
+        project_id=PROJECT_ID,
+        artefact_revision_id=source.id,
+        version=1,
+        dependency_snapshot=dependencies,
+        items=[],
+    )
+
+    async def persist_refresh(_session, **kwargs):
+        state = CostPlanState(
+            project_id=PROJECT_ID,
+            artefact_revision_id=updated.id,
+            version=2,
+            dependency_snapshot=dependencies,
+            assumptions=kwargs["assumptions"],
+            items=kwargs["proposed_items"],
+        )
+        return CostPlanMutationResult(
+            state=state,
+            changed_item_keys=[item.item_key for item in kwargs["proposed_items"]],
+        )
+
+    persist = AsyncMock(side_effect=persist_refresh)
+    sync_artifacts = AsyncMock(
+        return_value={
+            "file_name": "Cost_Plan_v02.draft.xlsx",
+            "workspace_path": "04-projects/walsh-reno/01-cost/Cost_Plan_v02.draft.xlsx",
+            "version": 2,
+            "row_count": 25,
+        }
+    )
+    monkeypatch.setattr(
+        server, "get_latest_draft_artifact", AsyncMock(return_value=source)
+    )
+    monkeypatch.setattr(
+        server, "read_typed_cost_plan", AsyncMock(return_value=base_state)
+    )
+    monkeypatch.setattr(
+        server,
+        "read_project_snapshot",
+        AsyncMock(
+            return_value=SimpleNamespace(profile=SimpleNamespace(work_type="extend"))
+        ),
+    )
+    monkeypatch.setattr(
+        server, "cost_dependency_snapshot", lambda *_args, **_kwargs: dependencies
+    )
+    monkeypatch.setattr(server, "persist_cost_refresh", persist)
+    monkeypatch.setattr(server, "get_draft_artifact", AsyncMock(return_value=updated))
+    monkeypatch.setattr(server, "sync_cost_plan_revision_artifacts", sync_artifacts)
+
+    result = _call(
+        server,
+        "apply_cost_plan_budget_forecast",
+        {
+            "project_id": str(PROJECT_ID),
+            "construction_budget_ex_gst": "300000",
+        },
+    )
+
+    assert result.data["kind"] == "cost_plan_budget_forecast_applied"
+    assert result.data["version"] == 2
+    assert result.data["forecast"]["row_count"] == 25
+    assert result.data["forecast"]["construction_envelope_total"] == "300000.00"
+    assert result.data["forecast"]["total_excluding_gst"] == "399500.00"
+    assert len(persist.await_args.kwargs["proposed_items"]) == 25
+    assert persist.await_args.kwargs["expected_base_version"] == 1
+    assert persist.await_args.kwargs["contingency_percent"] == Decimal("0")
+    sync_artifacts.assert_awaited_once()
+    sync_kwargs = sync_artifacts.await_args.kwargs
+    assert sync_kwargs["project"] == session.project
+    assert sync_kwargs["draft"] == updated
+    assert sync_kwargs["markdown"] == updated.content_markdown
+    assert sync_kwargs["typed_state"].version == 2
+    assert (
+        sync_kwargs["provenance_updates"]["adopted_budget_forecast"]["row_count"] == 25
+    )

@@ -1,9 +1,10 @@
 import asyncio
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from openai import OpenAIError
 from sqlalchemy import select
@@ -27,6 +28,7 @@ from app.projects.decisions import locked_selections, sync_decisions_from_markdo
 from app.projects.workflow_capabilities import CREATE_PMP, capability_block_message
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
+from app.logging import get_logger
 from app.storage.project_files import upload_project_file
 from app.database.source_document import SourceDocument
 from app.retrieval.retriever import DocumentRetriever
@@ -78,6 +80,13 @@ from app.sitewise.pmp_seed_routing import load_pmp_seed_sections
 from app.sitewise.pmp_sweep import sweep_current_pmp_corpus
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
 from ingest.hashing import bytes_content_hash
+
+log = get_logger(__name__)
+
+PreviewPublisher = Callable[[dict[str, Any]], Awaitable[None]]
+"""Publishes an in-progress draft so the cockpit can show it building."""
+
+PREVIEW_MAX_CHARS = 60_000
 
 WORKFLOW_TYPE = "create_pmp"
 RUNTIME_NAME = "clerk-sitewise-create-pmp"
@@ -173,6 +182,24 @@ create_pmp_agent = Agent(
     instructions=_load_agent_instructions(),
     defer_model_check=True,
 )
+
+
+async def _publish_preview(
+    on_preview: PreviewPublisher | None, *, stage: str, markdown: str
+) -> None:
+    """Push an in-progress draft to the run's progress channel.
+
+    A preview is cosmetic: a publisher that fails must never take the draft
+    down with it.
+    """
+    if on_preview is None:
+        return
+    try:
+        await on_preview(
+            {"stage": stage, "markdown": markdown[:PREVIEW_MAX_CHARS]}
+        )
+    except Exception:  # noqa: BLE001 — a broken preview channel is not a draft failure
+        log.warning("pmp_preview_publish_failed", stage=stage, exc_info=True)
 
 
 def _trace(step: str, status: str, message: str, **metadata) -> WorkflowTraceEvent:
@@ -936,6 +963,7 @@ async def run_create_pmp_hybrid(
     project_source_texts: list[str],
     trace: list[WorkflowTraceEvent],
     locked_decisions: dict[str, str] | None = None,
+    on_preview: PreviewPublisher | None = None,
 ) -> PmpDraftOutput:
     """Hybrid compiler path: extract → render → narrate → assemble."""
     from app.sitewise.mobilisation_evidence import extract_mobilisation_evidence_pack
@@ -965,6 +993,9 @@ async def run_create_pmp_hybrid(
             "Rendered deterministic PMP scaffold.",
         )
     )
+    # The scaffold is a complete document skeleton and it exists before the
+    # multi-minute narrative call. Show it now rather than after.
+    await _publish_preview(on_preview, stage="scaffold", markdown=scaffold)
 
     validation_feedback: str | None = None
     run_date = date.today()
@@ -1288,6 +1319,7 @@ async def run_create_pmp_workflow(
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
     snapshot: ProjectSnapshot | None = None,
+    on_preview: PreviewPublisher | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
@@ -1590,6 +1622,7 @@ async def run_create_pmp_workflow(
                 project_source_texts=project_source_texts,
                 trace=trace,
                 locked_decisions=locked_decisions,
+                on_preview=on_preview,
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
             output.markdown = sanitize_evidence_grounded_markdown(

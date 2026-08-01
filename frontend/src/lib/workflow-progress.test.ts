@@ -6,6 +6,7 @@ import {
   WorkflowRunEstimator,
   workflowProgressStage,
   workflowProgressTitle,
+  workflowRunPreview,
   WORKFLOW_BUDGET_SECONDS_DEFAULT,
 } from "@/lib/workflow-progress";
 
@@ -129,5 +130,38 @@ describe("formatEtaSeconds (shared)", () => {
   it("formats short and long remaining times", () => {
     expect(formatEtaSeconds(3)).toBe("a few seconds left");
     expect(formatEtaSeconds(130)).toBe("~2 min left");
+  });
+});
+
+describe("workflowRunPreview", () => {
+  it("returns the in-progress draft a run has published", () => {
+    expect(
+      workflowRunPreview({
+        stage: "executing",
+        percent: 50,
+        preview: { stage: "scaffold", markdown: "# Project Management Plan" },
+      }),
+    ).toEqual({ stage: "scaffold", markdown: "# Project Management Plan" });
+  });
+
+  it("returns null before a run has published anything", () => {
+    expect(workflowRunPreview({ stage: "queued", percent: 0 })).toBeNull();
+    expect(workflowRunPreview(null)).toBeNull();
+    expect(workflowRunPreview(undefined)).toBeNull();
+  });
+
+  it("returns null for a preview with no usable markdown", () => {
+    expect(workflowRunPreview({ preview: { stage: "scaffold" } })).toBeNull();
+    expect(
+      workflowRunPreview({ preview: { stage: "scaffold", markdown: "   " } }),
+    ).toBeNull();
+    expect(workflowRunPreview({ preview: "not-an-object" })).toBeNull();
+  });
+
+  it("falls back to a generic stage when the publisher omitted one", () => {
+    expect(workflowRunPreview({ preview: { markdown: "# Draft" } })).toEqual({
+      stage: "drafting",
+      markdown: "# Draft",
+    });
   });
 });

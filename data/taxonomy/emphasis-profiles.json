@@ -39,6 +39,9 @@
     {"when": {"risk_flag": "heritage_adaptive_reuse"}, "boost": {"compliance-approvals": 0.05}},
     {"when": {"risk_flag": "critical_infrastructure"}, "boost": {"compliance-approvals": 0.04, "risks": 0.03}},
     {"when": {"risk_flag": "contaminated_land"}, "boost": {"compliance-approvals": 0.05, "risks": 0.04}},
+    {"when": {"risk_flag": "bushfire_prone"}, "boost": {"compliance-approvals": 0.05, "risks": 0.04}},
+    {"when": {"risk_flag": "bushfire_flame_zone"}, "boost": {"compliance-approvals": 0.03, "procurement-delivery": 0.03, "risks": 0.03}},
+    {"when": {"risk_flag": "flood_overlay"}, "boost": {"compliance-approvals": 0.04, "risks": 0.04}},
     {"when": {"work_type": "remediation"}, "boost": {"compliance-approvals": 0.08, "risks": 0.05}},
     {"when": {"work_type": "advisory"}, "boost": {"actions-decisions": 0.04}}
   ]

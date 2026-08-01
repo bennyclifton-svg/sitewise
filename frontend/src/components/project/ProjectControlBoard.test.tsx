@@ -1,14 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
 
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type {
   ProjectDetail,
-  ProjectNextAction,
   TaxonomyCatalog,
   WorkflowCapability,
   WorkflowRun,
@@ -72,7 +70,7 @@ describe("ProjectControlBoard project profile", () => {
     } as unknown as ReturnType<typeof useTaxonomy>);
   });
 
-  it("renders risk chips and saves taxonomy edits", async () => {
+  it("saves taxonomy edits from the project profile panel", async () => {
     const user = userEvent.setup();
     const onProjectUpdated = vi.fn();
     const updatedChange = {
@@ -117,7 +115,6 @@ describe("ProjectControlBoard project profile", () => {
     render(
       <ProjectControlBoard
         project={project}
-        evidence={[]}
         latestDraft={null}
         latestCostPlanDraft={null}
         trace={[]}
@@ -131,7 +128,6 @@ describe("ProjectControlBoard project profile", () => {
         onRunUpdatePmp={vi.fn()}
         onRunCreateCostPlan={vi.fn()}
         onRunSortFiles={vi.fn()}
-        onOpenDraft={vi.fn()}
         onOpenTenderComparison={vi.fn()}
         inboxCount={0}
         sortFilesResult={null}
@@ -142,10 +138,7 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    expect(screen.getByText("Live Operational Environment")).toHaveAttribute(
-      "title",
-      "Works in live environments require careful staging.",
-    );
+    expect(screen.queryByText("Live Operational Environment")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/archetype/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Other"));
@@ -165,31 +158,6 @@ describe("ProjectControlBoard project profile", () => {
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
-  });
-
-  it("renders deterministic next-action reasons and routes", () => {
-    const actions: ProjectNextAction[] = [
-      {
-        code: "select_tender_quotes",
-        label: "Select tender quotes",
-        reason: "No persisted Tender Comparison quote selection exists.",
-        blocking_fact: "tender_selection:none",
-        route: `/projects/${project.id}/tender`,
-        tool: "replace_tender_quote_selection",
-      },
-    ];
-
-    render(
-      <MemoryRouter>{profileBoard(project, vi.fn(), actions)}</MemoryRouter>,
-    );
-
-    expect(screen.getByText("Next actions")).toBeInTheDocument();
-    expect(screen.getByText(actions[0].reason)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
-      "href",
-      actions[0].route,
-    );
-    expect(screen.getByText(/replace_tender_quote_selection/)).toBeInTheDocument();
   });
 
   it("updates clean controls when a newer server revision arrives", () => {
@@ -288,7 +256,6 @@ describe("ProjectControlBoard project profile", () => {
     render(
       <ProjectControlBoard
         project={blockedProject}
-        evidence={[]}
         latestDraft={null}
         latestCostPlanDraft={null}
         trace={[]}
@@ -303,7 +270,6 @@ describe("ProjectControlBoard project profile", () => {
         onRunUpdatePmp={vi.fn()}
         onRunCreateCostPlan={onRunCreateCostPlan}
         onRunSortFiles={vi.fn()}
-        onOpenDraft={vi.fn()}
         onOpenTenderComparison={vi.fn()}
         inboxCount={0}
         sortFilesResult={null}
@@ -362,11 +328,10 @@ describe("ProjectControlBoard project profile", () => {
     expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
   });
 
-  it("shows one progress strip while Project Plan runs and hides Clerk is working copy", () => {
+  it("shows one progress strip while Project Plan runs and hides Clerk is working copy", async () => {
     render(
       <ProjectControlBoard
         project={project}
-        evidence={[]}
         latestDraft={draftSummary}
         latestCostPlanDraft={null}
         trace={[{ step: "plan", status: "running", message: "working", metadata: {} }]}
@@ -384,7 +349,6 @@ describe("ProjectControlBoard project profile", () => {
         onRunCreateCostPlan={vi.fn()}
         onRunSortFiles={vi.fn()}
         onCancelWorkflow={vi.fn()}
-        onOpenDraft={vi.fn()}
         onOpenTenderComparison={vi.fn()}
         inboxCount={0}
         sortFilesResult={null}
@@ -407,8 +371,135 @@ describe("ProjectControlBoard project profile", () => {
     expect(screen.getByRole("button", { name: /create pmp/i })).not.toHaveTextContent(
       "Running",
     );
-    expect(screen.getByRole("button", { name: /review draft/i })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /accept pmp/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  function runningPmpBoard(run: WorkflowRun) {
+    return (
+      <ProjectControlBoard
+        project={project}
+        latestDraft={draftSummary}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow
+        isRunningCostPlan={false}
+        pmpRunMode="create"
+        pmpProgressKey="pmp-session-1"
+        activeWorkflowRun={run}
+        selectedWorkflowId="create-pmp"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onCancelWorkflow={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />
+    );
+  }
+
+  it("shows the document taking shape once the run publishes a scaffold", async () => {
+    render(
+      runningPmpBoard({
+        ...runningWorkflowRun,
+        progress: {
+          stage: "executing",
+          percent: 50,
+          preview: {
+            stage: "scaffold",
+            markdown: "## 1. Project Summary\n\nScaffolded content.",
+          },
+        },
+      }),
+    );
+
+    const preview = await screen.findByTestId("workflow-draft-preview");
+    expect(preview).toHaveTextContent("1. Project Summary");
+    expect(preview).toHaveTextContent("Drafting");
+  });
+
+  it("keeps the progress strip alongside the building draft", () => {
+    render(
+      runningPmpBoard({
+        ...runningWorkflowRun,
+        progress: {
+          stage: "executing",
+          percent: 50,
+          preview: { stage: "scaffold", markdown: "## 1. Project Summary" },
+        },
+      }),
+    );
+
+    expect(screen.getByTestId("workflow-progress-strip")).toBeInTheDocument();
+  });
+
+  it("shows the existing draft until the run publishes its first preview", async () => {
+    render(runningPmpBoard(runningWorkflowRun));
+
+    expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /accept pmp/i })).toBeInTheDocument();
+  });
+
+  it("shows the cost plan taking shape once its run publishes a scaffold", async () => {
+    render(
+      <ProjectControlBoard
+        project={costPlanSupportedProject}
+        latestDraft={null}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan
+        costPlanRunMode="create"
+        costPlanProgressKey="cost-session-1"
+        activeCostPlanRun={{
+          ...runningWorkflowRun,
+          workflow_type: "create_cost_plan",
+          progress: {
+            stage: "executing",
+            percent: 50,
+            preview: { stage: "scaffold", markdown: "## 1. Cost Summary" },
+          },
+        }}
+        selectedWorkflowId="cost-plan"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunRefreshCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+
+    expect(await screen.findByTestId("workflow-draft-preview")).toHaveTextContent(
+      "1. Cost Summary",
+    );
+  });
+
+  it("shows the cost workbook directly under Cost Plan actions", async () => {
+    render(costPlanBoard(costPlanSupportedProject));
+
+    expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cost workbook" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Create cost plan to generate the workbook."),
+    ).toBeInTheDocument();
   });
 });
 
@@ -547,7 +638,6 @@ function costPlanBoard(
   return (
     <ProjectControlBoard
       project={projectValue}
-      evidence={[]}
       latestDraft={null}
       latestCostPlanDraft={null}
       trace={[]}
@@ -562,7 +652,6 @@ function costPlanBoard(
       onRunCreateCostPlan={overrides.onRunCreateCostPlan ?? vi.fn()}
       onRunRefreshCostPlan={vi.fn()}
       onRunSortFiles={vi.fn()}
-      onOpenDraft={vi.fn()}
       onOpenTenderComparison={vi.fn()}
       inboxCount={0}
       sortFilesResult={null}
@@ -576,13 +665,10 @@ function costPlanBoard(
 function profileBoard(
   projectValue: ProjectDetail,
   onProjectUpdated = vi.fn(),
-  nextActions: ProjectNextAction[] = [],
 ) {
   return (
     <ProjectControlBoard
       project={projectValue}
-      nextActions={nextActions}
-      evidence={[]}
       latestDraft={null}
       latestCostPlanDraft={null}
       trace={[]}
@@ -596,7 +682,6 @@ function profileBoard(
       onRunUpdatePmp={vi.fn()}
       onRunCreateCostPlan={vi.fn()}
       onRunSortFiles={vi.fn()}
-      onOpenDraft={vi.fn()}
       onOpenTenderComparison={vi.fn()}
       inboxCount={0}
       sortFilesResult={null}

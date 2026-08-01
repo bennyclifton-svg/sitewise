@@ -369,7 +369,6 @@ export function CockpitPreviewPage() {
       {activeView === "workbench" ? (
         <ProjectControlBoard
           project={previewProject}
-          evidence={previewEvidence}
           latestDraft={previewDraft}
           latestCostPlanDraft={null}
           trace={previewTrace}
@@ -383,7 +382,6 @@ export function CockpitPreviewPage() {
           onRunUpdatePmp={() => setActiveView("draft")}
           onRunCreateCostPlan={() => setActiveView("draft")}
           onRunSortFiles={() => undefined}
-          onOpenDraft={() => setActiveView("draft")}
           onOpenTenderComparison={() => undefined}
           inboxCount={0}
           sortFilesResult={null}

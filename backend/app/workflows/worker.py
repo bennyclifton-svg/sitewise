@@ -29,7 +29,7 @@ from app.workflows.create_cost_plan import run_create_cost_plan_workflow
 from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.schemas import CostItemInput
 from app.cost_plan.service import refresh_cost_plan
-from app.workflows.create_pmp import run_create_pmp_workflow
+from app.workflows.create_pmp import PreviewPublisher, run_create_pmp_workflow
 from app.workflows.document_ingest import ingest_project_document
 from app.workflows.runs import (
     WorkflowRunCancelled,
@@ -68,7 +68,9 @@ def _frozen_project(run) -> Project:
     )
 
 
-async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
+async def _dispatch(
+    session: AsyncSession, run, on_preview: PreviewPublisher | None = None
+) -> dict[str, Any]:
     snapshot = ProjectSnapshot.model_validate(run.run_brief["snapshot"])
     project = _frozen_project(run)
     chat_model = run.run_brief.get("chat_model")
@@ -81,7 +83,7 @@ async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
     }
     if run.workflow_type == "create_project_plan":
         result = await run_create_pmp_workflow(
-            **common, chat_model=chat_model, snapshot=snapshot
+            **common, chat_model=chat_model, snapshot=snapshot, on_preview=on_preview
         )
     elif run.workflow_type == "refresh_project_plan":
         result = await run_update_pmp_workflow(
@@ -89,7 +91,7 @@ async def _dispatch(session: AsyncSession, run) -> dict[str, Any]:
         )
     elif run.workflow_type == "create_cost_plan":
         result = await run_create_cost_plan_workflow(
-            **common, chat_model=chat_model, snapshot=snapshot
+            **common, chat_model=chat_model, snapshot=snapshot, on_preview=on_preview
         )
     elif run.workflow_type == "refresh_cost_plan":
         result = await refresh_cost_plan(
@@ -227,6 +229,24 @@ async def _heartbeat_loop(
             return
 
 
+def _preview_publisher(
+    session_factory, *, run_id: uuid.UUID, worker_id: str
+) -> PreviewPublisher:
+    """Publish in-progress draft previews onto the run the cockpit is polling."""
+
+    async def publish(preview: dict[str, Any]) -> None:
+        async with session_factory() as preview_session:
+            await heartbeat_run(
+                preview_session,
+                run_id=run_id,
+                worker_id=worker_id,
+                progress={"preview": preview},
+                lease_seconds=settings.workflow_worker_lease_seconds,
+            )
+
+    return publish
+
+
 async def run_once(session_factory, worker_id: str) -> bool:
     async with session_factory() as claim_session:
         run = await claim_next_run(
@@ -245,7 +265,13 @@ async def run_once(session_factory, worker_id: str) -> bool:
     started = time.perf_counter()
     try:
         async with session_factory() as work_session:
-            result = await _dispatch(work_session, run)
+            result = await _dispatch(
+                work_session,
+                run,
+                on_preview=_preview_publisher(
+                    session_factory, run_id=run.id, worker_id=worker_id
+                ),
+            )
             await _stamp_result_dependencies(work_session, run, result)
             owned_run = await lock_run_for_publish(
                 work_session, run_id=run.id, worker_id=worker_id

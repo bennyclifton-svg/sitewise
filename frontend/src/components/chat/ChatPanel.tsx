@@ -101,6 +101,17 @@ export function ChatPanel({
   // onScroll in the same turn. Ignore that echo so it cannot flip
   // showScrollButton and re-enter the message-scroll effect.
   const ignoreScrollSyncRef = useRef(false);
+  // Mirrors showScrollButton so the pin path can skip setState entirely when
+  // the value is unchanged. A no-op setState still counts towards React's
+  // nested-update limit while the fiber has pending work, and the pin effect
+  // runs once per stream delta — 50 deltas was enough to abort the stream
+  // with "Maximum update depth exceeded".
+  const showScrollButtonRef = useRef(false);
+  const applyShowScrollButton = useCallback((next: boolean) => {
+    if (showScrollButtonRef.current === next) return;
+    showScrollButtonRef.current = next;
+    setShowScrollButton(next);
+  }, []);
   const persistedMessageData = useMemo(
     () => messageDataById(initialMessages),
     [initialMessages],
@@ -212,9 +223,8 @@ export function ChatPanel({
     if (!history) return;
     const distanceFromBottom =
       history.scrollHeight - history.clientHeight - history.scrollTop;
-    const next = distanceFromBottom > 32;
-    setShowScrollButton((current) => (current === next ? current : next));
-  }, []);
+    applyShowScrollButton(distanceFromBottom > 32);
+  }, [applyShowScrollButton]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const history = historyRef.current;
@@ -226,11 +236,11 @@ export function ChatPanel({
       // Direct assignment jumps without animating through prior messages.
       history.scrollTop = history.scrollHeight;
     }
-    setShowScrollButton((current) => (current ? false : current));
+    applyShowScrollButton(false);
     requestAnimationFrame(() => {
       ignoreScrollSyncRef.current = false;
     });
-  }, []);
+  }, [applyShowScrollButton]);
 
   useEffect(() => {
     if (collapsed) return;

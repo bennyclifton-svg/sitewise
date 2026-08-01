@@ -31,6 +31,7 @@ import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
   CreatePmpResponse,
+  DraftArtifact,
   DraftArtifactSummary,
   EvidencePreview,
   PlatformKnowledgeStatus,
@@ -46,9 +47,19 @@ import type { WorkflowProgressMode } from "@/lib/workflow-progress";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
+/**
+ * Errors we raise carry a message written for the user. Anything else is a bug
+ * we did not anticipate, so keep the readable fallback but append the raw
+ * message and log the error: a failure nobody can name is a failure nobody can
+ * fix.
+ */
 function formatApiError(error: unknown, fallback: string): string {
-  return error instanceof ApiError || error instanceof WorkflowRunError
-    ? error.message
+  if (error instanceof ApiError || error instanceof WorkflowRunError) {
+    return error.message;
+  }
+  console.error(fallback, error);
+  return error instanceof Error && error.message
+    ? `${fallback} (${error.message})`
     : fallback;
 }
 
@@ -419,10 +430,15 @@ export function ProjectCockpitPage() {
     if (!projectId) {
       throw new WorkflowRunError("Project workflow inputs are still loading.");
     }
-    const fresh = await queryClient.fetchQuery({
-      queryKey: projectKeys.detail(projectId),
-      queryFn: () => api.getProject(projectId),
-    });
+    // Read the project directly instead of through `fetchQuery`. The detail
+    // cache entry is owned by the project-event poller, which invalidates it on
+    // every durable event, and `invalidateQueries` cancels an in-flight read
+    // (`cancelRefetch` defaults to true) — that rejection surfaces as a bare
+    // `CancelledError` and aborts the launch before any request is sent. The
+    // cache read also inherited the global 30s `staleTime`, so the OCC
+    // fingerprint this call exists to refresh could be handed back stale.
+    const fresh = await api.getProject(projectId);
+    setProjectDetail(queryClient, fresh);
     return workflowRunInput(fresh, thread?.id, expectedArtefactVersion);
   }
 
@@ -447,20 +463,52 @@ export function ProjectCockpitPage() {
       ...current,
       [draft.workflow_type]: draft,
     }));
+    setSelectedWorkspacePath(draft.workspace_path);
+    setChatPanelCollapsed(true);
     if (draft.workflow_type === "create_cost_plan") {
       setLatestCostPlanDraft(draft);
       setSelectedWorkflowId("cost-plan");
-    } else if (draft.workflow_type === "create_pmp") {
+      // Cost plan drafts render inline on the Cost Plan workbench.
+      setActiveView("workbench");
+      return;
+    }
+    if (draft.workflow_type === "create_pmp") {
       setLatestDraft(draft);
       setSelectedWorkflowId("create-pmp");
+      // PMP drafts render inline on the Project Plan workbench.
+      setActiveView("workbench");
+      return;
     }
-    setSelectedWorkspacePath(draft.workspace_path);
-    setChatPanelCollapsed(true);
     setActiveView("draft");
   }
 
   function showPmpDraft(draft: DraftArtifactSummary) {
     openDraftReview(draft);
+  }
+
+  async function handleDraftUpdated(draft: DraftArtifact) {
+    setReviewDraft(draft);
+    setLatestDraftsMap((current) => ({
+      ...current,
+      [draft.workflow_type]: draft,
+    }));
+    if (draft.workflow_type === "create_cost_plan") {
+      setLatestCostPlanDraft(draft);
+      setSelectedWorkspacePath(draft.workspace_path);
+    } else if (draft.workflow_type.startsWith("consultant_procurement_")) {
+      setSelectedWorkspacePath(draft.workspace_path);
+    } else {
+      setLatestDraft(draft);
+      const pmpPath = isPmpWorkspaceFile(draft.workspace_path)
+        ? draft.workspace_path
+        : project
+          ? `${project.workspace_path}/00-brief-pmp/PMP.md`
+          : null;
+      if (pmpPath) {
+        setSelectedWorkspacePath(pmpPath);
+      }
+    }
+    await refreshWorkspaceTree();
   }
 
   function showCostPlanDraft(draft: DraftArtifactSummary) {
@@ -778,12 +826,7 @@ export function ProjectCockpitPage() {
     }
     leaveTenderRoute();
     setSelectedWorkflowId(workflowId);
-    if (workflowId === "create-pmp" || workflowId === "cost-plan") {
-      setSelectedEvidenceId(null);
-      setChatPanelCollapsed(true);
-      setActiveView("draft");
-      return;
-    }
+    setChatPanelCollapsed(true);
     setActiveView("workbench");
   }
 
@@ -802,13 +845,13 @@ export function ProjectCockpitPage() {
       if (isPmpWorkspaceFile(item.relative_path)) {
         setSelectedWorkflowId("create-pmp");
         setChatPanelCollapsed(true);
-        setActiveView("draft");
+        setActiveView("workbench");
         return;
       }
       if (isCostPlanWorkspaceFile(item.relative_path)) {
         setSelectedWorkflowId("cost-plan");
         setChatPanelCollapsed(true);
-        setActiveView("draft");
+        setActiveView("workbench");
         return;
       }
     }
@@ -1020,9 +1063,7 @@ export function ProjectCockpitPage() {
       {activeView === "workbench" ? (
         <ProjectControlBoard
           project={project}
-          nextActions={snapshot?.next_actions ?? []}
           profileProposals={snapshot?.open_profile_proposals ?? []}
-          evidence={evidence}
           latestDraft={latestDraft}
           latestCostPlanDraft={latestCostPlanDraft}
           trace={trace}
@@ -1053,10 +1094,8 @@ export function ProjectCockpitPage() {
           onCancelSortFiles={() => {
             if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);
           }}
-          onOpenDraft={() => {
-            setReviewDraft(null);
-            setChatPanelCollapsed(true);
-            setActiveView("draft");
+          onDraftUpdated={(draft) => {
+            void handleDraftUpdated(draft);
           }}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
           inboxCount={inboxCount}
@@ -1112,29 +1151,8 @@ export function ProjectCockpitPage() {
           workflowType={activeWorkflowType}
           onRunUpdatePmp={() => void runUpdatePmp()}
           isRunningUpdatePmp={isRunningWorkflow}
-          onDraftUpdated={async (draft) => {
-            setReviewDraft(draft);
-            setLatestDraftsMap((current) => ({
-              ...current,
-              [draft.workflow_type]: draft,
-            }));
-            if (draft.workflow_type === "create_cost_plan") {
-              setLatestCostPlanDraft(draft);
-              setSelectedWorkspacePath(draft.workspace_path);
-            } else if (draft.workflow_type.startsWith("consultant_procurement_")) {
-              setSelectedWorkspacePath(draft.workspace_path);
-            } else {
-              setLatestDraft(draft);
-              const pmpPath = isPmpWorkspaceFile(draft.workspace_path)
-                ? draft.workspace_path
-                : project
-                  ? `${project.workspace_path}/00-brief-pmp/PMP.md`
-                  : null;
-              if (pmpPath) {
-                setSelectedWorkspacePath(pmpPath);
-              }
-            }
-            await refreshWorkspaceTree();
+          onDraftUpdated={(draft) => {
+            void handleDraftUpdated(draft);
           }}
           />
         </Suspense>

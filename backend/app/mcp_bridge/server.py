@@ -98,6 +98,7 @@ from app.cost_plan.schemas import CostItemInput
 from app.cost_plan.service import (
     apply_external_proposal,
     get_cost_plan as read_typed_cost_plan,
+    refresh_cost_plan as persist_cost_refresh,
     set_contingency as persist_cost_contingency,
     set_cost_plan_assumption as persist_cost_assumption,
     upsert_cost_item as persist_cost_item,
@@ -110,6 +111,10 @@ from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
 from app.sitewise.cost_plan_consultant_forecast import (
     forecast_consultant_fees_for_markdown,
+)
+from app.sitewise.cost_plan_budget_forecast import (
+    AdoptedBudgetForecastError,
+    build_adopted_budget_forecast,
 )
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.gate import format_overlay_failure, overlay_status
@@ -355,11 +360,20 @@ def _project_file_summary(record) -> dict:
         "source_document_id": source_document_id,
         "read_with": read_with,
     }
-    metadata = getattr(getattr(record, "source_document", None), "document_metadata", None) or {}
+    metadata = (
+        getattr(getattr(record, "source_document", None), "document_metadata", None)
+        or {}
+    )
     if metadata:
         summary["document_metadata"] = {
             key: metadata.get(key)
-            for key in ("document_number", "title", "revision", "discipline", "metadata_confidence")
+            for key in (
+                "document_number",
+                "title",
+                "revision",
+                "discipline",
+                "metadata_confidence",
+            )
             if metadata.get(key)
         }
     return summary
@@ -2398,6 +2412,129 @@ async def apply_consultant_fee_forecast(
         "workspace_path": updated.workspace_path,
         "workbook": workbook_metadata,
         "forecast": forecast.to_payload(),
+    }
+
+
+@mcp.tool
+async def apply_cost_plan_budget_forecast(
+    project_id: str,
+    construction_budget_ex_gst: str,
+    cost_plan_path: str | None = None,
+) -> dict:
+    """Adopt a user-supplied construction budget and populate the current Cost Plan.
+
+    Construction plus PC allowance rows reconcile exactly to the adopted ex-GST
+    envelope. Owner-side fees, consultants, and contingency are deterministic
+    planning allowances outside that envelope. The action refreshes stale
+    dependencies and publishes a complete typed Cost Plan and workbook revision.
+    """
+    pid = uuid.UUID(project_id)
+    try:
+        adopted_budget = Decimal(construction_budget_ex_gst.replace(",", ""))
+    except Exception as exc:
+        raise ToolError("construction_budget_ex_gst must be a valid amount") from exc
+
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="apply_cost_plan_budget_forecast",
+            running="Allocating the adopted Cost Plan budget",
+            done="Updated the Cost Plan budget allowances",
+            error="Cost Plan budget allocation failed",
+        ):
+            draft = await _load_cost_plan_draft(
+                session,
+                project_id=pid,
+                path=cost_plan_path,
+            )
+            try:
+                base_state = await read_typed_cost_plan(
+                    session,
+                    project_id=pid,
+                    owner_user_id=authorization.project.owner_user_id,
+                )
+                if base_state.version != draft.version:
+                    raise ToolError(
+                        "Cost Plan draft and canonical state versions do not agree; "
+                        "refresh the project before applying an adopted budget"
+                    )
+                snapshot = await read_project_snapshot(
+                    session,
+                    project_id=pid,
+                    owner_user_id=authorization.project.owner_user_id,
+                )
+                forecast = build_adopted_budget_forecast(
+                    draft.content_markdown,
+                    construction_budget=adopted_budget,
+                    work_type=snapshot.profile.work_type,
+                    source_ref=f"chat_turn:{authorization.claims.turn_id}",
+                )
+                result = await persist_cost_refresh(
+                    session,
+                    project=authorization.project,
+                    author_user_id=authorization.claims.user_id,
+                    expected_base_version=base_state.version,
+                    current_snapshot=snapshot,
+                    proposed_items=list(forecast.items),
+                    dependency_snapshot=cost_dependency_snapshot(
+                        snapshot,
+                        model_version=base_state.dependency_snapshot.model_version,
+                        prompt_version="adopted-budget-allocation-v1",
+                        runtime_version="clerk-adopted-budget-allocation-v1",
+                    ),
+                    assumptions=forecast.assumptions,
+                    contingency_percent=Decimal("0"),
+                    escalation_percent=Decimal("0"),
+                )
+                updated = await get_draft_artifact(
+                    session, result.state.artefact_revision_id
+                )
+                if updated is None:
+                    raise ToolError("updated Cost Plan revision was not found")
+                workbook_metadata = await sync_cost_plan_revision_artifacts(
+                    session,
+                    project=authorization.project,
+                    draft=updated,
+                    markdown=updated.content_markdown,
+                    typed_state=result.state,
+                    provenance_updates={
+                        "adopted_budget_forecast": forecast.to_payload(),
+                    },
+                )
+                await session.commit()
+            except (
+                AdoptedBudgetForecastError,
+                ArtefactRevisionConflict,
+                ArtefactPolicyViolation,
+                ValueError,
+                RuntimeError,
+                LookupError,
+            ) as exc:
+                raise ToolError(str(exc)) from exc
+
+    return {
+        "kind": "cost_plan_budget_forecast_applied",
+        "source_draft_id": str(draft.id),
+        "draft_id": str(updated.id),
+        "version": updated.version,
+        "workspace_path": updated.workspace_path,
+        "workbook": workbook_metadata,
+        "changed_item_keys": result.changed_item_keys,
+        "conflicts": result.conflicts,
+        "forecast": forecast.to_payload(),
+        "message": (
+            f"Cost Plan v{updated.version} now carries the adopted "
+            f"${forecast.construction_budget:,.2f} ex-GST construction envelope "
+            f"across {len(forecast.items)} rows. Total planning budget is "
+            f"${forecast.total_excluding_gst:,.2f} ex GST. Unconfirmed figures "
+            "are planning allowances, not quotations."
+        ),
     }
 
 

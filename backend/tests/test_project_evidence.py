@@ -3,10 +3,12 @@ from types import SimpleNamespace
 
 from app.api.projects import (
     _append_unindexed_inbox_workspace_files,
+    _apply_document_usage,
     _evidence_preview_from_document,
     _evidence_preview_from_values,
     _filter_stale_inbox_documents,
 )
+from app.schemas.projects import DocumentUsageMark
 
 
 def _document(relative_path: str):
@@ -123,3 +125,57 @@ def test_specification_preview_uses_filename_title_over_body_derived_metadata() 
     )
 
     assert preview.title == "Specification"
+
+
+def _preview(relative_path: str):
+    return _evidence_preview_from_values(
+        document_id=uuid.uuid4(),
+        document_type=None,
+        metadata={},
+        filename=relative_path.rsplit("/", 1)[-1],
+        relative_path=relative_path,
+        source_type="project_evidence",
+        document_class="project_evidence",
+        excerpt_source="Excerpt.",
+    )
+
+
+def test_previews_start_with_no_usage_marks() -> None:
+    preview = _preview("04-projects/demo/03-design/brief.pdf")
+
+    assert preview.used_by == []
+
+
+def test_apply_document_usage_marks_the_documents_a_draft_consulted() -> None:
+    used = _preview("04-projects/demo/03-design/brief.pdf")
+    unused = _preview("04-projects/demo/03-design/survey.pdf")
+    mark = DocumentUsageMark(
+        artefact_id=uuid.UUID("88888888-8888-8888-8888-888888888888"),
+        workflow_type="create_pmp",
+        title="Project Management Plan",
+        version=3,
+    )
+
+    marked = _apply_document_usage(
+        [used, unused],
+        {"04-projects/demo/03-design/brief.pdf": [mark]},
+    )
+
+    assert marked[0].used_by == [mark]
+    assert marked[1].used_by == []
+
+
+def test_apply_document_usage_matches_windows_separators() -> None:
+    preview = _preview(r"04-projects\demo\03-design\brief.pdf")
+    mark = DocumentUsageMark(
+        artefact_id=uuid.UUID("88888888-8888-8888-8888-888888888888"),
+        workflow_type="create_pmp",
+        title="Project Management Plan",
+        version=3,
+    )
+
+    marked = _apply_document_usage(
+        [preview], {"04-projects/demo/03-design/brief.pdf": [mark]}
+    )
+
+    assert marked[0].used_by == [mark]

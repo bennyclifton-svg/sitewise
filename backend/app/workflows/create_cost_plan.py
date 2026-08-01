@@ -54,8 +54,7 @@ from app.sitewise.cost_plan_evidence_validation import (
     ensure_evidence_grounded_cost_plan_scaffold,
 )
 from app.sitewise.cost_plan_workbook import (
-    build_cost_plan_workbook,
-    build_typed_cost_plan_workbook,
+    build_cost_plan_workbook_for_export,
 )
 from app.sitewise.cost_plan_sources import (
     document_title,
@@ -65,9 +64,11 @@ from app.sitewise.cost_plan_sources import (
 )
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.workflows.create_pmp import (
+    PreviewPublisher,
     WorkflowValidationError,
     _is_platform_passage,
     _is_project_passage,
+    _publish_preview,
     _source_ref,
     normalize_pmp_markdown,
 )
@@ -468,11 +469,7 @@ async def run_create_cost_plan_model(
     prompt_parts = [
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
-        (
-            "Overlays: "
-            f"archetype={project.archetype}, "
-            f"state={project.state}"
-        ),
+        (f"Overlays: archetype={project.archetype}, state={project.state}"),
         (
             f"Cost plan run date: {date.today().isoformat()} — use for recommendation "
             "due dates (2–4 weeks forward or relative phrasing; never past years)."
@@ -782,6 +779,7 @@ async def sync_cost_plan_revision_artifacts(
     draft: DraftArtifact,
     markdown: str | None = None,
     provenance_updates: dict | None = None,
+    typed_state: CostPlanState | None = None,
 ) -> dict:
     content = markdown or draft.content_markdown
     await sync_cost_plan_draft_workspace(
@@ -795,6 +793,7 @@ async def sync_cost_plan_revision_artifacts(
         project=project,
         draft=draft,
         markdown=content,
+        typed_state=typed_state,
     )
     draft.provenance_metadata = {
         **(draft.provenance_metadata or {}),
@@ -815,19 +814,12 @@ async def save_cost_plan_workbook_artifact(
     typed_state: CostPlanState | None = None,
 ) -> dict:
     generated_at = datetime.now(UTC)
-    workbook = (
-        build_typed_cost_plan_workbook(
-            project_title=project.title,
-            state=typed_state,
-            generated_at=generated_at,
-        )
-        if typed_state is not None
-        else build_cost_plan_workbook(
-            project_title=project.title,
-            markdown=markdown,
-            version=draft.version,
-            generated_at=generated_at,
-        )
+    workbook = build_cost_plan_workbook_for_export(
+        project_title=project.title,
+        markdown=markdown,
+        version=draft.version,
+        typed_state=typed_state,
+        generated_at=generated_at,
     )
     workspace_path = workbook_workspace_path(project, draft.version)
     storage_key = build_storage_key(str(project.id), workspace_path)
@@ -901,10 +893,7 @@ def _seed_consulted_from_passages(passages: list[SourcePassage]) -> list[str]:
 
 
 def _should_use_hybrid_compiler(project: Project, draft_mode: DraftMode) -> bool:
-    return (
-        settings.cost_plan_hybrid_compiler
-        and draft_mode == "evidence_grounded"
-    )
+    return settings.cost_plan_hybrid_compiler and draft_mode == "evidence_grounded"
 
 
 async def run_create_cost_plan_hybrid(
@@ -915,6 +904,7 @@ async def run_create_cost_plan_hybrid(
     chat_model: str,
     project_source_texts: list[str],
     trace: list[WorkflowTraceEvent],
+    on_preview: PreviewPublisher | None = None,
 ) -> CostPlanDraftOutput:
     """Hybrid compiler path: extract → render → narrate → assemble."""
     from app.sitewise.cost_plan_assembler import assemble_cost_plan_markdown
@@ -942,6 +932,7 @@ async def run_create_cost_plan_hybrid(
             "Rendered deterministic cost plan scaffold.",
         )
     )
+    await _publish_preview(on_preview, stage="scaffold", markdown=scaffold)
 
     validation_feedback: str | None = None
     run_date = date.today()
@@ -1032,6 +1023,7 @@ async def run_create_cost_plan_workflow(
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
     snapshot: ProjectSnapshot | None = None,
+    on_preview: PreviewPublisher | None = None,
 ) -> CreateCostPlanResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
@@ -1210,6 +1202,7 @@ async def run_create_cost_plan_workflow(
                 chat_model=resolved_model,
                 project_source_texts=project_source_texts,
                 trace=trace,
+                on_preview=on_preview,
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
             output.markdown = restamp_decisions(output.markdown, locked_decisions)

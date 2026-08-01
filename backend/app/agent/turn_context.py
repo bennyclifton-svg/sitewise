@@ -176,6 +176,23 @@ reasonably match this confirmation. Report the accepted fields after the tool
 succeeds.
 </profile-proposal-confirmation>"""
 
+_ADOPTED_COST_PLAN_BUDGET_GUIDANCE = """<adopted-cost-plan-budget-request>
+The user has explicitly supplied or adopted a construction budget and asked to
+populate or update the existing Cost Plan. Call apply_cost_plan_budget_forecast
+now with the project id and the user-supplied ex-GST construction budget. This
+single action reads the existing cost-item schedule, refreshes it against the
+current project snapshot, allocates deterministic planning allowances, and
+publishes the next Cost Plan workbook revision.
+
+Do not ask the user to regenerate, reconfirm, or provide project evidence for
+the supplied budget. Do not describe TBC-priced rows as missing line items. The
+tool treats Construction plus PC allowances as the adopted construction
+envelope and estimates owner-side fees, consultants, and contingency outside
+that envelope. After it succeeds, report the new revision, the construction
+envelope, the total ex GST, and that unconfirmed figures are planning
+allowances rather than quotations.
+</adopted-cost-plan-budget-request>"""
+
 
 @dataclass(frozen=True)
 class HistoryMessage:
@@ -241,6 +258,8 @@ def build_agent_prompt(
         )
     elif _is_profile_proposal_confirmation_request(user_text, mutation_intent):
         blocks.append(_PROFILE_PROPOSAL_CONFIRMATION_GUIDANCE)
+    if is_adopted_cost_plan_budget_request(user_text):
+        blocks.append(_ADOPTED_COST_PLAN_BUDGET_GUIDANCE)
 
     window = _bounded_history(history)
     if window:
@@ -258,7 +277,10 @@ def _is_profile_enrichment_request(
     mutation_intent: MutationIntent | None,
 ) -> bool:
     """Recognize broad profile-completion requests that carry no exact patch."""
-    if mutation_intent is not None and mutation_intent.reason == PROFILE_ENRICHMENT_REASON:
+    if (
+        mutation_intent is not None
+        and mutation_intent.reason == PROFILE_ENRICHMENT_REASON
+    ):
         return True
     if mutation_intent is not None and mutation_intent.scopes:
         return False
@@ -313,9 +335,23 @@ _WORKFLOW_MUTATION_RE = re.compile(
     r")\b"
     r"|"
     r"\b(apply|write|save|update)\b.{0,40}\b(consultant\s+fee\s+forecast|fee\s+forecast)\b"
+    r"|"
+    r"\b(apply|write|save|update|revise|amend|refresh|populate|fill|allocate)\b"
+    r".{0,60}\bcost\s+plan\b"
     r")",
     re.IGNORECASE | re.DOTALL,
 )
+
+_ADOPTED_COST_PLAN_BUDGET_RE = re.compile(
+    r"(?=.*\bcost\s+plan\b)"
+    r"(?=.*\b(?:adopt|budget|construction\s+cost|estimate|allowance|line\s+items?)\b)"
+    r"(?=.*\b(?:apply|write|save|update|revise|amend|refresh|populate|fill|allocate|adopt)\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def is_adopted_cost_plan_budget_request(user_text: str) -> bool:
+    return bool(_ADOPTED_COST_PLAN_BUDGET_RE.search(user_text or ""))
 
 
 def is_workflow_mutation_request(user_text: str) -> bool:
@@ -355,7 +391,9 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         for key, value in sorted(snapshot.confirmed_inputs.items())
     ]
     identity = getattr(snapshot, "identity", None)
-    site_value = getattr(identity, "site_address", None) if identity is not None else None
+    site_value = (
+        getattr(identity, "site_address", None) if identity is not None else None
+    )
     client_value = getattr(identity, "client", None) if identity is not None else None
     identity_lines = [
         (
@@ -442,7 +480,9 @@ def _project_context_block(
     taxonomy = _taxonomy_metadata(project_metadata)
     subclass_items = _subclass_items(taxonomy.get("subclasses"))
     subclass_values = tuple(value for value, _label in subclass_items)
-    has_project_taxonomy = _clean(building_class) is not None or _clean(work_type) is not None
+    has_project_taxonomy = (
+        _clean(building_class) is not None or _clean(work_type) is not None
+    )
 
     lines = [
         "<project-context>",
