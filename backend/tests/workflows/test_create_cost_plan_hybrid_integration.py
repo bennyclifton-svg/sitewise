@@ -532,3 +532,94 @@ def test_hybrid_industrial_warehouse_cost_plan_smoke_excludes_residential_conten
     assert "basix" not in lowered
     assert "structural steel" in lowered
     assert "dock hardstand" in lowered
+
+
+def test_hybrid_cost_plan_publishes_the_scaffold_before_the_narrative_model() -> None:
+    project = harrison_clarke_cost_project()
+    cost_passages = [
+        passage.model_copy(update={"project_id": project.id})
+        for passage in harrison_clarke_cost_passages(project_slug=project.slug)
+    ]
+    platform_passages = platform_passages_for_cost_plan(project)
+    draft = mock_cost_plan_draft()
+    published: list[dict] = []
+    previews_at_narrative_time: list[int] = []
+
+    async def capture(preview: dict) -> None:
+        published.append(preview)
+
+    async def narrative(**kwargs):
+        previews_at_narrative_time.append(len(published))
+        return harrison_clarke_cost_narrative()
+
+    with (
+        patch(
+            "app.workflows.create_cost_plan.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.list_cost_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
+            new=AsyncMock(return_value=cost_passages),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_platform_documents_by_paths",
+            new=AsyncMock(return_value=(platform_passages, [])),
+        ),
+        patch("app.workflows.cost_plan_narrative.run_cost_plan_narrative_model", new=narrative),
+        patch(
+            "app.workflows.create_cost_plan._next_version_hint",
+            new=AsyncMock(return_value=1),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.create_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.import_legacy_draft",
+            new=AsyncMock(return_value=_typed_import(draft)),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value=draft.workspace_path),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(
+                return_value={
+                    "file_name": "Cost_Plan_v01.draft.xlsx",
+                    "workspace_path": (
+                        "04-projects/test-project-112/01-cost/Cost_Plan_v01.draft.xlsx"
+                    ),
+                    "version": 1,
+                    "content_hash": "abc123",
+                    "size_bytes": 1234,
+                    "row_count": 10,
+                    "cost_item_lookup_count": 10,
+                    "warnings": [],
+                    "generated_at": "2026-06-08T00:00:00+00:00",
+                }
+            ),
+        ),
+    ):
+        result = run_async(
+            run_create_cost_plan_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+                on_preview=capture,
+            )
+        )
+
+    assert result.status == "complete"
+    assert previews_at_narrative_time == [1]
+    assert published[0]["stage"] == "scaffold"
+    assert published[0]["markdown"].strip()

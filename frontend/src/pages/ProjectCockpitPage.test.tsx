@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { projectKeys } from "@/lib/queries/project-data";
 import { ProjectCockpitPage } from "@/pages/ProjectCockpitPage";
 import type {
   DraftArtifact,
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     createProjectThread: vi.fn(),
     getLatestDraft: vi.fn(),
     getProject: vi.fn(),
+    getProjectChatBootstrap: vi.fn(),
     getProjectCockpitBootstrap: vi.fn(),
     getThreadMessages: vi.fn(),
     listThreads: vi.fn(),
@@ -125,11 +127,13 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     onRunCreateCostPlan,
     costPlanWorkflowError,
     onCancelCostPlan,
+    latestCostPlanDraft,
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
     costPlanWorkflowError: string | null;
     onCancelCostPlan?: () => void;
+    latestCostPlanDraft: DraftArtifactSummary | null;
   }) => (
     <div>
       <div data-testid="control-cost-plan-state">
@@ -144,6 +148,9 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
         </button>
       ) : null}
       {costPlanWorkflowError ? <div>{costPlanWorkflowError}</div> : null}
+      <div data-testid="inline-cost-workbook">
+        {latestCostPlanDraft ? `draft-v${latestCostPlanDraft.version}` : "no-draft"}
+      </div>
     </div>
   ),
 }));
@@ -168,6 +175,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       },
       timings_ms: {},
     });
+    mocks.api.getProjectChatBootstrap.mockResolvedValue({ thread, messages: [] });
     mocks.api.listThreads.mockResolvedValue([thread]);
     mocks.api.getThreadMessages.mockResolvedValue([]);
     mocks.api.getLatestDraft.mockResolvedValue(costPlanSummary);
@@ -224,7 +232,8 @@ describe("ProjectCockpitPage cost plan workflow", () => {
         "draft:Draft v2",
       );
     });
-    expect(screen.getByTestId("draft-review")).toHaveTextContent("draft-v2");
+    expect(screen.getByTestId("inline-cost-workbook")).toHaveTextContent("draft-v2");
+    expect(screen.queryByTestId("draft-review")).not.toBeInTheDocument();
     expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
       project.id,
       "cost-plan",
@@ -240,7 +249,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
 
   it("keeps project controls usable when chat bootstrap fails", async () => {
     const user = userEvent.setup();
-    mocks.api.listThreads.mockRejectedValueOnce(new Error("chat offline"));
+    mocks.api.getProjectChatBootstrap.mockRejectedValueOnce(new Error("chat offline"));
 
     renderProjectCockpit();
 
@@ -275,6 +284,52 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     expect(button).toBeEnabled();
   });
 
+  /**
+   * A workflow launch must read the project itself rather than share the
+   * cockpit's cached copy. The cache entry is owned by the project-event
+   * poller, which invalidates it on every durable event; sharing it makes the
+   * launch inherit both the global `staleTime` (a stale OCC fingerprint) and
+   * `invalidateQueries`' `cancelRefetch`, which rejects an in-flight read with
+   * a `CancelledError` and aborts the launch before any request is sent.
+   */
+  it("starts the run with a freshly read fingerprint, not the cached one", async () => {
+    const user = userEvent.setup();
+    const queryClient = renderProjectCockpit({ staleTime: 30_000 });
+
+    await screen.findByRole("button", { name: "Create cost plan" });
+    queryClient.setQueryData(projectKeys.detail(project.id), {
+      ...project,
+      workflow_capabilities: {
+        ...project.workflow_capabilities,
+        snapshot_content_fingerprint: "b".repeat(64),
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Create cost plan" }));
+
+    await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
+    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
+      project.id,
+      "cost-plan",
+      expect.objectContaining({
+        expected_snapshot_fingerprint: "a".repeat(64),
+      }),
+    );
+  });
+
+  it("surfaces the underlying failure when a launch throws an unrecognised error", async () => {
+    const user = userEvent.setup();
+    mocks.api.getProject.mockRejectedValueOnce(new Error("CancelledError"));
+
+    renderProjectCockpit();
+    await user.click(await screen.findByRole("button", { name: "Create cost plan" }));
+
+    expect(
+      await screen.findByText(/Create Cost Plan could not run\..*CancelledError/),
+    ).toBeInTheDocument();
+    expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
+  });
+
   it("cancels the exact durable run from the UI", async () => {
     const user = userEvent.setup();
     let finishRun: ((run: Record<string, unknown>) => void) | undefined;
@@ -298,10 +353,10 @@ describe("ProjectCockpitPage cost plan workflow", () => {
   });
 });
 
-function renderProjectCockpit() {
+function renderProjectCockpit(options?: { staleTime?: number }) {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false },
+      queries: { retry: false, staleTime: options?.staleTime },
       mutations: { retry: false },
     },
   });
@@ -315,6 +370,8 @@ function renderProjectCockpit() {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+
+  return queryClient;
 }
 
 const project: ProjectDetail = {

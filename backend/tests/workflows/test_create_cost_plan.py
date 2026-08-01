@@ -3,6 +3,7 @@ import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -20,6 +21,7 @@ from app.workflows.create_cost_plan import (
     CostPlanDraftOutput,
     retrieve_create_cost_plan_sources,
     run_create_cost_plan_workflow,
+    sync_cost_plan_revision_artifacts,
     validate_cost_plan_output,
 )
 from app.workflows.create_pmp import WorkflowValidationError, normalize_pmp_markdown
@@ -828,3 +830,32 @@ def test_normalize_cost_plan_markdown_strips_bullet_prefixed_table_rows() -> Non
     normalized = normalize_pmp_markdown(raw)
     assert "- | Col |" not in normalized
     assert "| Col | Val |" in normalized
+
+
+def test_revision_sync_passes_typed_state_only_to_workbook_export() -> None:
+    session = AsyncMock()
+    draft = SimpleNamespace(content_markdown="# Cost Plan", provenance_metadata={})
+    typed_state = object()
+    workbook_metadata = {"row_count": 25}
+    with (
+        patch(
+            "app.workflows.create_cost_plan.sync_cost_plan_draft_workspace",
+            new=AsyncMock(return_value="cost_plan_v02.md"),
+        ) as sync_markdown,
+        patch(
+            "app.workflows.create_cost_plan.save_cost_plan_workbook_artifact",
+            new=AsyncMock(return_value=workbook_metadata),
+        ) as save_workbook,
+    ):
+        result = run_async(
+            sync_cost_plan_revision_artifacts(
+                session,
+                project=_project(),
+                draft=draft,
+                typed_state=typed_state,
+            )
+        )
+
+    assert result == workbook_metadata
+    assert "typed_state" not in sync_markdown.await_args.kwargs
+    assert save_workbook.await_args.kwargs["typed_state"] is typed_state

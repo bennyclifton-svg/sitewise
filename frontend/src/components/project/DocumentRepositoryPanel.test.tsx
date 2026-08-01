@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { api } from "@/lib/api";
-import type { InboxUploadResult, PdfAnalyzeResult } from "@/lib/types/project";
+import type {
+  DocumentUsageMark,
+  EvidencePreview,
+  InboxUploadResult,
+  PdfAnalyzeResult,
+} from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -281,5 +286,108 @@ describe("DocumentRepositoryPanel pending uploads", () => {
       ]),
     );
     expect(onUploadComplete).toHaveBeenCalled();
+  });
+});
+
+function evidenceRow(overrides: Partial<EvidencePreview> = {}): EvidencePreview {
+  return {
+    id: "doc-1",
+    title: "Owner Brief",
+    filename: "owner-brief.pdf",
+    relative_path: "04-projects/demo/01-brief/owner-brief.pdf",
+    source_type: "project_evidence",
+    document_class: "project_evidence",
+    excerpt: "Brief excerpt.",
+    used_by: [],
+    ...overrides,
+  };
+}
+
+function usageMark(overrides: Partial<DocumentUsageMark> = {}): DocumentUsageMark {
+  return {
+    artefact_id: "artefact-1",
+    workflow_type: "create_pmp",
+    title: "Project Management Plan",
+    version: 3,
+    ...overrides,
+  };
+}
+
+function renderWithEvidence(evidence: EvidencePreview[]) {
+  return render(
+    <DocumentRepositoryPanel
+      projectId="project-1"
+      evidence={evidence}
+      selectedEvidenceId={null}
+      workspaceTree={[]}
+      selectedWorkspacePath={null}
+      onSelectEvidence={vi.fn()}
+      onSelectWorkspacePath={vi.fn()}
+      onOpenWorkflow={vi.fn()}
+      onViewWorkbench={vi.fn()}
+      onViewFolder={vi.fn()}
+      onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+    />,
+  );
+}
+
+describe("DocumentRepositoryPanel usage marks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("marks a document that the latest project plan was drafted from", () => {
+    renderWithEvidence([evidenceRow({ used_by: [usageMark()] })]);
+
+    expect(
+      screen.getByTitle("Used by Project Management Plan v3"),
+    ).toHaveTextContent("PMP");
+  });
+
+  it("leaves an unused document unmarked", () => {
+    renderWithEvidence([evidenceRow()]);
+
+    expect(screen.getByText("Owner Brief")).toBeInTheDocument();
+    expect(screen.queryByTitle(/^Used by /)).not.toBeInTheDocument();
+  });
+
+  it("marks a document used by both a plan and a cost plan", () => {
+    renderWithEvidence([
+      evidenceRow({
+        used_by: [
+          usageMark(),
+          usageMark({
+            artefact_id: "artefact-2",
+            workflow_type: "create_cost_plan",
+            title: "Cost Plan",
+            version: 2,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(screen.getByTitle("Used by Project Management Plan v3")).toBeInTheDocument();
+    expect(screen.getByTitle("Used by Cost Plan v2")).toHaveTextContent("Cost");
+  });
+
+  it("falls back to a generic mark for an unrecognised workflow type", () => {
+    renderWithEvidence([
+      evidenceRow({
+        used_by: [
+          usageMark({ workflow_type: "contractor_eoi", title: "EOI Pack", version: 1 }),
+        ],
+      }),
+    ]);
+
+    expect(screen.getByTitle("Used by EOI Pack v1")).toHaveTextContent("Used");
+  });
+
+  it("tolerates evidence rows from an older API response with no used_by field", () => {
+    const legacy = evidenceRow();
+    delete (legacy as { used_by?: unknown }).used_by;
+
+    renderWithEvidence([legacy]);
+
+    expect(screen.getByText("Owner Brief")).toBeInTheDocument();
   });
 });

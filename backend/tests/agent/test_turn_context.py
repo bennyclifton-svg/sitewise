@@ -17,7 +17,8 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
         "Compare the tenders",
         project_id=PROJECT_ID,
         title="Harbour House",
-        archetype="renovation",        state="NSW",
+        archetype="renovation",
+        state="NSW",
         phase="procurement",
         building_class="1a",
         work_type="alterations-additions",
@@ -53,7 +54,8 @@ def test_prompt_marks_undeclared_overlays_and_omits_empty_history() -> None:
         "Hello",
         project_id=PROJECT_ID,
         title="Harbour House",
-        archetype=None,        state=None,
+        archetype=None,
+        state=None,
         phase=None,
         building_class=None,
         work_type=None,
@@ -73,7 +75,8 @@ def test_broad_profile_update_runs_document_enrichment_before_replying() -> None
         "Update the project profile where possible.",
         project_id=PROJECT_ID,
         title="Walsh Reno",
-        archetype=None,        state=None,
+        archetype=None,
+        state=None,
         phase=None,
         building_class=None,
         work_type=None,
@@ -112,6 +115,31 @@ def test_read_only_project_question_does_not_need_mutation_tools() -> None:
     assert turn_needs_mutation_tools(user_text, intent) is False
 
 
+def test_update_cost_plan_with_adopted_budget_needs_mutation_tools() -> None:
+    user_text = (
+        "adopt a total construction cost of 300,000, update cost plan and "
+        "estimate reasonable cost for all line items."
+    )
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_mutation_tools(user_text, intent) is True
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Greenbank",
+        archetype="renovation",
+        state="NSW",
+        phase="design",
+        building_class="residential",
+        work_type="extend",
+        history=[],
+        mutation_intent=intent,
+    )
+    assert "<adopted-cost-plan-budget-request>" in prompt
+    assert "apply_cost_plan_budget_forecast" in prompt
+    assert "Do not ask the user to regenerate" in prompt
+
+
 def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:
     """Regression: broad check/fix phrasing grants enrichment write authority."""
     user_text = (
@@ -123,7 +151,8 @@ def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:
         user_text,
         project_id=PROJECT_ID,
         title="Walsh Reno",
-        archetype=None,        state=None,
+        archetype=None,
+        state=None,
         phase=None,
         building_class=None,
         work_type=None,
@@ -137,12 +166,15 @@ def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:
     assert "unbound profile_mutation authority" in prompt
 
 
-def test_profile_proposal_confirmation_uses_acceptance_without_direct_mutation_scope() -> None:
+def test_profile_proposal_confirmation_uses_acceptance_without_direct_mutation_scope() -> (
+    None
+):
     prompt = build_agent_prompt(
         "Confirm and set that site address and client on the profile.",
         project_id=PROJECT_ID,
         title="Walsh Reno",
-        archetype=None,        state=None,
+        archetype=None,
+        state=None,
         phase=None,
         building_class=None,
         work_type=None,
@@ -161,7 +193,8 @@ def test_confirmed_profile_values_are_reported_only_after_server_acceptance() ->
         "Confirm and set that site address and client on the profile.",
         project_id=PROJECT_ID,
         title="Walsh Reno",
-        archetype=None,        state=None,
+        archetype=None,
+        state=None,
         phase=None,
         building_class=None,
         work_type=None,
@@ -183,7 +216,8 @@ def test_prompt_routes_head_contractor_eoi_without_tender_comparison_gate() -> N
         "Draft an EOI for the main works contractor tender",
         project_id=PROJECT_ID,
         title="Petersham Apartments",
-        archetype=None,        state="NSW",
+        archetype=None,
+        state="NSW",
         phase="procurement",
         building_class="residential",
         work_type="new",
@@ -199,7 +233,8 @@ def test_prompt_treats_taxonomy_profile_as_authoritative() -> None:
         "What do you know about the project?",
         project_id=PROJECT_ID,
         title="Walsh Reno",
-        archetype=None,        state="NSW",
+        archetype=None,
+        state="NSW",
         phase="brief-planning",
         building_class="residential",
         work_type="refurb",
@@ -218,7 +253,10 @@ def test_prompt_treats_taxonomy_profile_as_authoritative() -> None:
     assert "building_class: residential" in prompt
     assert "work_type: refurb" in prompt
     assert "subclasses: House (Class 1a)" in prompt
-    assert "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)" in prompt
+    assert (
+        "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)"
+        in prompt
+    )
 
 
 def test_history_window_is_bounded_by_count_and_chars(
@@ -235,7 +273,8 @@ def test_history_window_is_bounded_by_count_and_chars(
         "Next",
         project_id=PROJECT_ID,
         title="Harbour House",
-        archetype="new-dwelling",        state="NSW",
+        archetype="new-dwelling",
+        state="NSW",
         phase=None,
         building_class=None,
         work_type=None,
@@ -243,7 +282,9 @@ def test_history_window_is_bounded_by_count_and_chars(
     )
 
     assert "message number 3" not in prompt
-    conversation = prompt.split("<recent-conversation>\n")[1].split("\n</recent-conversation>")[0]
+    conversation = prompt.split("<recent-conversation>\n")[1].split(
+        "\n</recent-conversation>"
+    )[0]
     lines = conversation.splitlines()
     assert len(lines) == 2
     for line in lines:
@@ -257,7 +298,8 @@ def test_multiline_history_messages_are_flattened() -> None:
         "Next",
         project_id=PROJECT_ID,
         title="Harbour House",
-        archetype="new-dwelling",        state="NSW",
+        archetype="new-dwelling",
+        state="NSW",
         phase=None,
         building_class=None,
         work_type=None,
@@ -273,7 +315,8 @@ def test_ambiguous_profile_claim_prompts_for_confirmation_without_authority() ->
         user_text,
         project_id=PROJECT_ID,
         title="Harbour House",
-        archetype=None,        state="NSW",
+        archetype=None,
+        state="NSW",
         phase=None,
         building_class=None,
         work_type=None,
@@ -294,7 +337,8 @@ def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:
         user_text,
         project_id=PROJECT_ID,
         title="Harbour House",
-        archetype=None,        state=None,
+        archetype=None,
+        state=None,
         phase=None,
         building_class=None,
         work_type=None,

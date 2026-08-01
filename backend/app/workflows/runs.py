@@ -350,7 +350,10 @@ async def heartbeat_run(
     run.heartbeat_at = now
     run.lease_expires_at = now + timedelta(seconds=max(1, lease_seconds))
     if progress is not None:
-        run.progress = progress
+        # Merge, don't replace: the periodic stage heartbeat and the workflow's
+        # own preview publications write to the same column from different
+        # sessions, and neither should erase the other's keys.
+        run.progress = {**(run.progress or {}), **progress}
     await session.commit()
     return not run.cancel_requested
 

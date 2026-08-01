@@ -443,3 +443,50 @@ def test_refresh_preserves_locked_and_manual_rows_as_explicit_conflicts() -> Non
     assert result.changed_item_keys == []
     assert result.conflicts == ["demolition"]
     assert result.state.status == "proposed"
+
+
+def test_refresh_applies_budget_assumptions_and_natural_cost_code_order() -> None:
+    base = _state(items=[])
+    proposals = [
+        _item(item_key="ten", cost_code="10", item="Ten"),
+        _item(item_key="two", cost_code="2", item="Two"),
+        _item(item_key="one", cost_code="1", item="One"),
+    ]
+    project = Project(
+        id=PROJECT_ID,
+        owner_user_id=USER_ID,
+        slug="house",
+        title="House",
+        workspace_path="projects/house",
+    )
+    published = base.model_copy(update={"version": 2, "items": proposals})
+    with (
+        patch(
+            "app.cost_plan.service._base_for_mutation",
+            new=AsyncMock(return_value=base),
+        ),
+        patch(
+            "app.cost_plan.service._publish_state",
+            new=AsyncMock(return_value=published),
+        ) as publish_state,
+    ):
+        run_async(
+            refresh_cost_plan(
+                AsyncMock(),
+                project=project,
+                author_user_id=USER_ID,
+                expected_base_version=1,
+                current_snapshot=_snapshot(),
+                proposed_items=proposals,
+                dependency_snapshot=_dependencies(),
+                assumptions={"adopted_budget": "$300,000 user provided"},
+                contingency_percent=Decimal("0"),
+                escalation_percent=Decimal("0"),
+            )
+        )
+
+    state_sent = publish_state.await_args.kwargs["state"]
+    assert [item.cost_code for item in state_sent.items] == ["1", "2", "10"]
+    assert state_sent.assumptions["adopted_budget"] == "$300,000 user provided"
+    assert state_sent.contingency_percent == Decimal("0")
+    assert state_sent.escalation_percent == Decimal("0")

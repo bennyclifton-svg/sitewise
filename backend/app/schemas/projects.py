@@ -374,6 +374,15 @@ class PatchProjectRequest(BaseModel):
         return CreateProjectRequest.strip_optional_string_lists(value)
 
 
+class DocumentUsageMark(BaseModel):
+    """An artefact that was drafted from this document."""
+
+    artefact_id: uuid.UUID
+    workflow_type: str
+    title: str
+    version: int
+
+
 class EvidencePreview(BaseModel):
     id: uuid.UUID
     workspace_file_id: uuid.UUID | None = None
@@ -387,6 +396,7 @@ class EvidencePreview(BaseModel):
     document_number: str | None = None
     revision: str | None = None
     category: str | None = None
+    used_by: list[DocumentUsageMark] = Field(default_factory=list)
 
 
 class ProjectDetail(ProjectSummary):

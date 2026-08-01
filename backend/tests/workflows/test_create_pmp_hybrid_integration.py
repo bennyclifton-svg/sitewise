@@ -230,3 +230,94 @@ def test_legacy_create_pmp_path_when_hybrid_compiler_disabled() -> None:
     assert create_draft.await_args.kwargs["provenance_metadata"]["compiler"] == "legacy"
     assert create_draft.await_args.kwargs["runtime"] == RUNTIME_NAME
     assert "model" in {event.step for event in result.trace}
+
+
+def _run_hybrid_with_preview(on_preview, narrative_hook=None):
+    """Run the hybrid Create PMP path, capturing previews it publishes."""
+    project = harrison_clarke_project()
+    mobilisation_passages = harrison_clarke_mobilisation_passages(project_slug=project.slug)
+    platform_passages = platform_passages_for_project(project)
+
+    async def narrative(**kwargs):
+        if narrative_hook is not None:
+            narrative_hook()
+        return harrison_clarke_narrative()
+
+    with (
+        patch(
+            "app.workflows.create_pmp.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_pmp.load_mobilisation_project_evidence_documents",
+            new=AsyncMock(return_value=mobilisation_passages),
+        ),
+        patch(
+            "app.workflows.create_pmp.load_platform_documents_by_paths",
+            new=AsyncMock(return_value=(platform_passages, [])),
+        ),
+        patch("app.workflows.pmp_narrative.run_pmp_narrative_model", new=narrative),
+        patch(
+            "app.workflows.create_pmp._next_version_hint",
+            new=AsyncMock(return_value=1),
+        ),
+        patch(
+            "app.workflows.create_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=mock_draft_artifact()),
+        ),
+    ):
+        return run_async(
+            run_create_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+                on_preview=on_preview,
+            )
+        )
+
+
+def test_hybrid_publishes_the_scaffold_before_the_narrative_model_runs() -> None:
+    published: list[dict] = []
+    previews_at_narrative_time: list[int] = []
+
+    async def capture(preview: dict) -> None:
+        published.append(preview)
+
+    result = _run_hybrid_with_preview(
+        capture,
+        narrative_hook=lambda: previews_at_narrative_time.append(len(published)),
+    )
+
+    assert result.status == "complete"
+    # The scaffold reaches the user before the multi-minute model call starts.
+    assert previews_at_narrative_time == [1]
+    assert published[0]["stage"] == "scaffold"
+    assert published[0]["markdown"].strip()
+
+
+def test_published_scaffold_carries_the_document_headings() -> None:
+    published: list[dict] = []
+
+    async def capture(preview: dict) -> None:
+        published.append(preview)
+
+    _run_hybrid_with_preview(capture)
+
+    headings = markdown_section_headings(published[0]["markdown"])
+    assert headings == list(required_section_headings())
+
+
+def test_a_failing_preview_publisher_does_not_fail_the_run() -> None:
+    async def explode(preview: dict) -> None:
+        raise RuntimeError("preview channel is down")
+
+    result = _run_hybrid_with_preview(explode)
+
+    assert result.status == "complete"
+
+
+def test_hybrid_runs_without_a_preview_publisher() -> None:
+    result = _run_hybrid_with_preview(None)
+
+    assert result.status == "complete"

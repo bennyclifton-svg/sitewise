@@ -91,6 +91,7 @@ from app.schemas.projects import (
     DocumentRepairApplyRow,
     DocumentRepairPreviewResponse,
     DocumentRepairPreviewRow,
+    DocumentUsageMark,
     EvidencePreview,
     InboxUploadResponse,
     InboxUploadResult,
@@ -130,6 +131,7 @@ from app.schemas.profile_proposals import (
     ProfileProposalResolution,
     ProfileProposalResolveRequest,
 )
+from app.projects.document_usage import latest_document_usage
 from app.projects.events import list_project_events
 from app.projects.decisions import (
     DecisionNotFound,
@@ -660,6 +662,19 @@ async def _list_project_evidence_previews(
     if workspace_files:
         previews = _append_unindexed_inbox_workspace_files(previews, workspace_files)
         previews.sort(key=lambda preview: preview.relative_path)
+    usage = await latest_document_usage(session, project_id=project_id)
+    return _apply_document_usage(previews, usage)
+
+
+def _apply_document_usage(
+    previews: list[EvidencePreview],
+    usage: dict[str, list[DocumentUsageMark]],
+) -> list[EvidencePreview]:
+    """Stamp each preview with the drafts that were built from it."""
+    if not usage:
+        return previews
+    for preview in previews:
+        preview.used_by = usage.get(preview.relative_path.replace("\\", "/"), [])
     return previews
 
 

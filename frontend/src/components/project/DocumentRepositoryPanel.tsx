@@ -37,6 +37,7 @@ import { IngestBatchEstimator, type IngestBatchSnapshot } from "@/lib/ingest-pro
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
 import { useBatchDeleteEvidence, useDeleteEvidence } from "@/lib/queries/project-data";
 import type {
+  DocumentUsageMark,
   EvidencePreview,
   DocumentRepairPreview,
   InboxUploadResult,
@@ -979,41 +980,32 @@ export function DocumentRepositoryPanel({
                 const deletingRow =
                   bulkDeletingIds.has(row.id) ||
                   (deleteEvidence.isPending && deleteEvidence.variables === row.id);
+                const highlighted = active || selected;
                 return (
                   <tr
                     key={row.id}
                     className={cn(
-                      "cursor-pointer select-none border-b border-l-2 transition-colors hover:bg-muted/60",
-                      inInbox
-                        ? "border-l-amber-400 bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
-                        : "border-l-transparent",
-                      active &&
-                        !selected &&
-                        (inInbox ? "bg-amber-50/80 dark:bg-amber-950/35" : "bg-muted"),
-                      selected &&
-                        (inInbox
-                          ? "bg-amber-100/80 dark:bg-amber-900/35"
-                          : "border-l-primary bg-primary/10 hover:bg-primary/15"),
+                      "cursor-pointer select-none border-b border-l-2 border-l-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
+                      highlighted &&
+                        "border-l-primary bg-primary/15 text-foreground hover:bg-primary/20",
                     )}
                     onClick={(event) => handleRowClick(event, row)}
                   >
-                    <td className="truncate px-1 py-2 tabular-nums text-muted-foreground">
+                    <td className="truncate px-1 py-2 tabular-nums">
                       {displayValue(row.document_number)}
                     </td>
-                    <td className="max-w-0 truncate px-2 py-2 font-medium" title={row.title}>
-                      {row.title}
+                    <td className="max-w-0 px-2 py-2 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate" title={row.title}>
+                          {row.title}
+                        </span>
+                        <UsageMarks marks={row.used_by} />
+                      </div>
                     </td>
-                    <td className="truncate px-1 py-2 text-muted-foreground">
+                    <td className="truncate px-1 py-2">
                       {displayValue(row.revision)}
                     </td>
-                    <td
-                      className={cn(
-                        "truncate px-1.5 py-2",
-                        inInbox
-                          ? "font-medium text-amber-800 dark:text-amber-200"
-                          : "text-muted-foreground",
-                      )}
-                    >
+                    <td className="truncate px-1.5 py-2">
                       {inInbox ? "Inbox" : displayValue(row.category)}
                     </td>
                     <td className="px-0.5 py-1.5 text-center">
@@ -1041,13 +1033,13 @@ export function DocumentRepositoryPanel({
               {pendingUploads.map((pending) => (
                 <tr
                   key={pending.id}
-                  className="animate-in fade-in border-b border-l-2 border-l-amber-400/70 bg-amber-50/25 duration-300 dark:bg-amber-950/10"
+                  className="animate-in fade-in border-b border-l-2 border-l-transparent text-muted-foreground duration-300"
                 >
                   <td className="px-1 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-7" aria-hidden />
                   </td>
                   <td
-                    className="max-w-0 truncate px-2 py-2 font-medium text-muted-foreground"
+                    className="max-w-0 truncate px-2 py-2 font-medium"
                     title={pending.filename}
                   >
                     {pending.filename}
@@ -1055,7 +1047,7 @@ export function DocumentRepositoryPanel({
                   <td className="px-1 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-4" aria-hidden />
                   </td>
-                  <td className="truncate px-1.5 py-2 font-medium text-amber-800/90 dark:text-amber-200/90">
+                  <td className="truncate px-1.5 py-2">
                     {pendingStageLabel(pending)}
                   </td>
                   <td className="px-0.5 py-1.5 text-center">
@@ -1101,6 +1093,32 @@ function displayValue(value: string | null | undefined): string {
 
 function isInboxEvidence(row: EvidencePreview): boolean {
   return row.relative_path.replace("\\", "/").includes("/_inbox/");
+}
+
+const USAGE_MARK_LABELS: Record<string, string> = {
+  create_pmp: "PMP",
+  create_cost_plan: "Cost",
+};
+
+/**
+ * Marks the documents the latest drafts were actually built from, so the answer
+ * to "which of my files did it read?" outlives the run that read them.
+ */
+function UsageMarks({ marks }: { marks?: DocumentUsageMark[] }) {
+  if (!marks?.length) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      {marks.map((mark) => (
+        <span
+          key={mark.artefact_id}
+          title={`Used by ${mark.title} v${mark.version}`}
+          className="rounded-sm bg-primary/10 px-1 py-px text-[10px] font-medium leading-tight text-primary/80"
+        >
+          {USAGE_MARK_LABELS[mark.workflow_type] ?? "Used"}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function sortRegisterRows(evidence: EvidencePreview[]): EvidencePreview[] {

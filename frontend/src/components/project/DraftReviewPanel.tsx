@@ -16,6 +16,7 @@ import type {
   ProjectDecision,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
+import { cn } from "@/lib/utils";
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -29,6 +30,7 @@ export function DraftReviewPanel({
   workflowType,
   onRunUpdatePmp,
   isRunningUpdatePmp = false,
+  embedded = false,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
@@ -36,6 +38,8 @@ export function DraftReviewPanel({
   workflowType?: string;
   onRunUpdatePmp?: () => void;
   isRunningUpdatePmp?: boolean;
+  /** Compact layout when nested inside a workflow panel. */
+  embedded?: boolean;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -147,13 +151,33 @@ export function DraftReviewPanel({
     () => (loadedDraft ? splitMarkdownSections(loadedDraft.content_markdown) : []),
     [loadedDraft],
   );
+  const isCostPlanWorkflow =
+    workflowType === "create_cost_plan" || draft?.workflow_type === "create_cost_plan";
 
   if (!draft) {
+    if (isCostPlanWorkflow) {
+      return (
+        <CostWorkbookSection
+          workbook={null}
+          emptyMessage="Create cost plan to generate the workbook."
+        />
+      );
+    }
     return (
-      <div className="flex min-h-full items-center justify-center p-6">
-        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-          {emptyDraftMessage(workflowType)}
-        </div>
+      <div
+        className={cn(
+          embedded
+            ? "rounded-md border border-dashed p-4 text-sm text-muted-foreground"
+            : "flex min-h-full items-center justify-center p-6",
+        )}
+      >
+        {embedded ? (
+          emptyDraftMessage(workflowType)
+        ) : (
+          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+            {emptyDraftMessage(workflowType)}
+          </div>
+        )}
       </div>
     );
   }
@@ -271,8 +295,27 @@ export function DraftReviewPanel({
     }
   }
 
+  if (displayDraft.workflow_type === "create_cost_plan") {
+    return (
+      <article className={cn("w-full min-w-0", embedded ? "" : "p-4 lg:p-6")}>
+        <CostWorkbookSection
+          workbook={workbook}
+          isLoading={isLoadingDraft}
+          error={actionError}
+          emptyMessage="Cost workbook is not available. Refresh cost plan to regenerate it."
+          projectId={projectId}
+        />
+      </article>
+    );
+  }
+
   return (
-    <article className="flex w-full min-w-0 flex-col gap-4 p-4 lg:p-6">
+    <article
+      className={cn(
+        "flex w-full min-w-0 flex-col gap-4",
+        embedded ? "" : "p-4 lg:p-6",
+      )}
+    >
       <section className="rounded-md border bg-background">
         {sectionsChanged.length || evidenceChanged ? (
           <div className="space-y-3 border-b px-4 py-3">
@@ -500,6 +543,40 @@ export function DraftReviewPanel({
         <ReferenceList title="Context refs" items={context} />
       </div>
     </article>
+  );
+}
+
+function CostWorkbookSection({
+  workbook,
+  projectId,
+  isLoading = false,
+  error = null,
+  emptyMessage,
+}: {
+  workbook: WorkbookMetadata | null;
+  projectId?: string;
+  isLoading?: boolean;
+  error?: string | null;
+  emptyMessage: string;
+}) {
+  return (
+    <section className="rounded-md border bg-background">
+      <header className="flex items-center gap-2 border-b px-4 py-3">
+        <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <h2 className="text-sm font-semibold">Cost workbook</h2>
+      </header>
+      {error ? (
+        <p className="p-4 text-sm text-destructive">{error}</p>
+      ) : isLoading ? (
+        <p className="p-4 text-sm text-muted-foreground" role="status">
+          Loading cost workbook...
+        </p>
+      ) : workbook && projectId ? (
+        <WorkbookGrid projectId={projectId} workbookPath={workbook.workspace_path} />
+      ) : (
+        <p className="p-4 text-sm text-muted-foreground">{emptyMessage}</p>
+      )}
+    </section>
   );
 }
 

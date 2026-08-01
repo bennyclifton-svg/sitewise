@@ -1,9 +1,6 @@
 import {
-  Bot,
   CheckCircle2,
   ClipboardList,
-  FileText,
-  HandCoins,
   Inbox,
   ListChecks,
   LoaderCircle,
@@ -15,15 +12,16 @@ import {
   Settings2,
   ShieldAlert,
   Square,
+  Table2,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
   TaxonomyPicker,
@@ -31,20 +29,16 @@ import {
 } from "@/components/project/TaxonomyPicker";
 import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
-import {
-  workflowStatusBadgeClass,
-  type WorkflowStatus,
-} from "@/components/project/workflow/workflowStatus";
+import { type WorkflowStatus } from "@/components/project/workflow/workflowStatus";
 import {
   buildLifecycleTiles,
   type WorkflowTile,
 } from "@/components/project/workflow/workflowTiles";
 import type {
+  DraftArtifact,
   DraftArtifactSummary,
-  EvidencePreview,
   OverlayIssue,
   ProjectDetail,
-  ProjectNextAction,
   ProjectProfileProposal,
   SortFilesResponse,
   WorkflowCapability,
@@ -63,15 +57,24 @@ import { cn } from "@/lib/utils";
 import {
   workflowProgressStage,
   workflowProgressTitle,
+  workflowRunPreview,
   type WorkflowProgressMode,
 } from "@/lib/workflow-progress";
-import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
+
+const DraftReviewPanel = lazy(() =>
+  import("@/components/project/DraftReviewPanel").then((module) => ({
+    default: module.DraftReviewPanel,
+  })),
+);
+const WorkflowDraftPreview = lazy(() =>
+  import("@/components/project/WorkflowDraftPreview").then((module) => ({
+    default: module.WorkflowDraftPreview,
+  })),
+);
 
 export function ProjectControlBoard({
   project,
-  nextActions = [],
   profileProposals = [],
-  evidence,
   latestDraft,
   latestCostPlanDraft,
   trace,
@@ -96,7 +99,6 @@ export function ProjectControlBoard({
   onCancelWorkflow,
   onCancelCostPlan,
   onCancelSortFiles,
-  onOpenDraft,
   onOpenTenderComparison,
   inboxCount,
   sortFilesResult,
@@ -105,11 +107,10 @@ export function ProjectControlBoard({
   isRunningSortFiles,
   onProjectUpdated,
   onProfileProposalsResolved,
+  onDraftUpdated,
 }: {
   project: ProjectDetail;
-  nextActions?: ProjectNextAction[];
   profileProposals?: ProjectProfileProposal[];
-  evidence: EvidencePreview[];
   latestDraft: DraftArtifactSummary | null;
   latestCostPlanDraft: DraftArtifactSummary | null;
   trace: WorkflowTraceEvent[];
@@ -138,7 +139,6 @@ export function ProjectControlBoard({
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
   onCancelSortFiles?: () => void;
-  onOpenDraft: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
@@ -147,6 +147,7 @@ export function ProjectControlBoard({
   isRunningSortFiles: boolean;
   onProjectUpdated?: (project: ProjectDetail) => void;
   onProfileProposalsResolved?: () => void;
+  onDraftUpdated?: (draft: DraftArtifact) => void;
 }) {
   const lifecycle = buildLifecycleTiles({
     project,
@@ -171,8 +172,6 @@ export function ProjectControlBoard({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
-      <RiskFlagChips flags={project.risk_flags} />
-
       <ProfileProposalStrip
         projectId={project.id}
         proposals={profileProposals}
@@ -181,13 +180,10 @@ export function ProjectControlBoard({
         }}
       />
 
-      {nextActions.length ? <ProjectNextActions actions={nextActions} /> : null}
-
       <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0 rounded-lg border bg-card shadow-sm">
         <WorkflowDetail
           tile={selectedTile}
           project={project}
-          evidenceCount={evidence.length}
           latestDraft={latestDraft}
           latestCostPlanDraft={latestCostPlanDraft}
           trace={trace}
@@ -211,7 +207,6 @@ export function ProjectControlBoard({
           onCancelWorkflow={onCancelWorkflow}
           onCancelCostPlan={onCancelCostPlan}
           onCancelSortFiles={onCancelSortFiles}
-          onOpenDraft={onOpenDraft}
           onOpenTenderComparison={onOpenTenderComparison}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
@@ -219,37 +214,10 @@ export function ProjectControlBoard({
           sortFilesError={sortFilesError}
           isRunningSortFiles={isRunningSortFiles}
           onProjectUpdated={onProjectUpdated}
+          onDraftUpdated={onDraftUpdated}
         />
       </section>
     </div>
-  );
-}
-
-function ProjectNextActions({ actions }: { actions: ProjectNextAction[] }) {
-  return (
-    <section aria-labelledby="project-next-actions" className="rounded-lg border bg-card p-4">
-      <h2 id="project-next-actions" className="font-semibold">
-        Next actions
-      </h2>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {actions.map((action) => (
-          <article key={`${action.code}-${action.blocking_fact}`} className="rounded-md border p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">{action.label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{action.reason}</p>
-              </div>
-              <Button asChild size="sm" variant="outline">
-                <Link to={action.route}>Open</Link>
-              </Button>
-            </div>
-            <p className="mt-2 font-mono text-[11px] text-muted-foreground">
-              {action.tool} · {action.blocking_fact}
-            </p>
-          </article>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -646,38 +614,9 @@ function OverlaySelectField({
   );
 }
 
-function RiskFlagChips({ flags }: { flags: ProjectDetail["risk_flags"] }) {
-  if (!flags.length) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {flags.map((flag) => (
-        <Badge
-          key={flag.value}
-          variant="outline"
-          title={flag.description}
-          className={riskFlagClass(flag.severity)}
-        >
-          {flag.title}
-        </Badge>
-      ))}
-    </div>
-  );
-}
-
-function riskFlagClass(severity: string): string {
-  if (severity === "critical") {
-    return "border-destructive/40 bg-destructive/10 text-destructive";
-  }
-  if (severity === "warning") {
-    return "border-amber-300 bg-amber-50 text-amber-900";
-  }
-  return "border-sky-300 bg-sky-50 text-sky-900";
-}
-
 function WorkflowDetail({
   tile,
   project,
-  evidenceCount,
   latestDraft,
   latestCostPlanDraft,
   trace,
@@ -701,7 +640,6 @@ function WorkflowDetail({
   onCancelWorkflow,
   onCancelCostPlan,
   onCancelSortFiles,
-  onOpenDraft,
   onOpenTenderComparison,
   inboxCount,
   sortFilesResult,
@@ -709,10 +647,10 @@ function WorkflowDetail({
   sortFilesError,
   isRunningSortFiles,
   onProjectUpdated,
+  onDraftUpdated,
 }: {
   tile: WorkflowTile;
   project: ProjectDetail;
-  evidenceCount: number;
   latestDraft: DraftArtifactSummary | null;
   latestCostPlanDraft: DraftArtifactSummary | null;
   trace: WorkflowTraceEvent[];
@@ -735,7 +673,6 @@ function WorkflowDetail({
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
   onCancelSortFiles?: () => void;
-  onOpenDraft: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
@@ -744,12 +681,21 @@ function WorkflowDetail({
   isRunningSortFiles: boolean;
   onSelectWorkflow?: (workflowId: string) => void;
   onProjectUpdated?: (project: ProjectDetail) => void;
+  onDraftUpdated?: (draft: DraftArtifact) => void;
 }) {
   const isProjectProfile = tile.id === "project-profile";
   const isCreatePmp = tile.id === "create-pmp";
   const isCostPlan = tile.id === "cost-plan";
   const isDocumentIntake = tile.id === "document-intake";
   const isProcurement = tile.id === "procurement";
+  // Only while the run owns the panel: a completed run clears its preview, so
+  // the accepted draft takes the space back.
+  const pmpPreview = isRunningWorkflow
+    ? workflowRunPreview(activeWorkflowRun?.progress)
+    : null;
+  const costPlanPreview = isRunningCostPlan
+    ? workflowRunPreview(activeCostPlanRun?.progress)
+    : null;
   const costPlanCapability = project.workflow_capabilities?.capabilities.create_cost_plan;
   const costPlanSupported = !costPlanCapability || costPlanCapability.status === "supported";
   const activeTrace = isDocumentIntake
@@ -773,12 +719,6 @@ function WorkflowDetail({
 
   return (
     <div className="min-w-0">
-      <header className="border-t border-b p-4">
-        <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
-          {tile.description}
-        </p>
-      </header>
-
       <div className="space-y-4 p-4">
         {isProjectProfile ? (
           <ProjectProfilePanel
@@ -788,26 +728,6 @@ function WorkflowDetail({
           />
         ) : isCreatePmp ? (
           <>
-            <div className="grid gap-3 md:grid-cols-3">
-              <ReadinessItem
-                icon={project.overlay_status.ready ? CheckCircle2 : ShieldAlert}
-                label="Overlay gate"
-                value={project.overlay_status.ready ? "Ready" : "Blocked"}
-                attention={!project.overlay_status.ready}
-              />
-              <ReadinessItem
-                icon={FileText}
-                label="Evidence"
-                value={`${evidenceCount} indexed`}
-                attention={evidenceCount === 0}
-              />
-              <ReadinessItem
-                icon={latestDraft ? CheckCircle2 : ClipboardList}
-                label="Latest draft"
-                trailing={draftReadinessTrailing(latestDraft, tile.status, tile.statusLabel)}
-              />
-            </div>
-
             {workflowError ? (
               <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {workflowError}
@@ -860,11 +780,32 @@ function WorkflowDetail({
                 <RefreshCw className="size-4" aria-hidden />
                 Update PMP
               </Button>
-              <Button variant="secondary" onClick={onOpenDraft} disabled={!latestDraft}>
-                <Bot className="size-4" aria-hidden />
-                Review draft
-              </Button>
             </div>
+
+            {pmpPreview ? (
+              <Suspense fallback={<DraftReviewFallback label="Building project plan..." />}>
+                <WorkflowDraftPreview
+                  preview={pmpPreview}
+                  title={workflowProgressTitle("project_plan", pmpRunMode ?? "create")}
+                />
+              </Suspense>
+            ) : (
+              <Suspense
+                fallback={<DraftReviewFallback label="Loading project plan..." />}
+              >
+                <DraftReviewPanel
+                  projectId={project.id}
+                  draft={latestDraft}
+                  workflowType="create_pmp"
+                  embedded
+                  onRunUpdatePmp={onRunUpdatePmp}
+                  isRunningUpdatePmp={isRunningWorkflow}
+                  onDraftUpdated={(draft) => {
+                    onDraftUpdated?.(draft);
+                  }}
+                />
+              </Suspense>
+            )}
 
             {!isRunningWorkflow ? (
               <WorkflowTracePanel trace={activeTrace} isRunning={false} />
@@ -872,26 +813,6 @@ function WorkflowDetail({
           </>
         ) : isCostPlan ? (
           <>
-            <div className="grid gap-3 md:grid-cols-3">
-              <ReadinessItem
-                icon={project.overlay_status.ready ? CheckCircle2 : ShieldAlert}
-                label="Overlay gate"
-                value={project.overlay_status.ready ? "Ready" : "Blocked"}
-                attention={!project.overlay_status.ready}
-              />
-              <ReadinessItem
-                icon={HandCoins}
-                label="Cost evidence"
-                value={`${evidenceCount} indexed`}
-                attention={evidenceCount === 0}
-              />
-              <ReadinessItem
-                icon={activeDraft ? CheckCircle2 : ClipboardList}
-                label="Latest draft"
-                trailing={draftReadinessTrailing(activeDraft, tile.status, tile.statusLabel)}
-              />
-            </div>
-
             {activeError ? (
               <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {activeError}
@@ -958,15 +879,31 @@ function WorkflowDetail({
                 <RefreshCw className="size-4" aria-hidden />
                 Refresh cost plan
               </Button>
-              <Button variant="secondary" onClick={onOpenDraft} disabled={!activeDraft}>
-                <Bot className="size-4" aria-hidden />
-                Review draft
-              </Button>
             </div>
 
-            {!isRunningCostPlan ? (
-              <WorkflowTracePanel trace={activeTrace} isRunning={false} />
-            ) : null}
+            {costPlanPreview ? (
+              <Suspense fallback={<DraftReviewFallback label="Building cost plan..." />}>
+                <WorkflowDraftPreview
+                  preview={costPlanPreview}
+                  title={workflowProgressTitle(
+                    "cost_plan",
+                    costPlanRunMode ?? "create",
+                  )}
+                />
+              </Suspense>
+            ) : (
+              <Suspense fallback={<DraftReviewFallback costWorkbook />}>
+                <DraftReviewPanel
+                  projectId={project.id}
+                  draft={latestCostPlanDraft}
+                  workflowType="create_cost_plan"
+                  embedded
+                  onDraftUpdated={(draft) => {
+                    onDraftUpdated?.(draft);
+                  }}
+                />
+              </Suspense>
+            )}
           </>
         ) : isDocumentIntake ? (
           <>
@@ -1057,6 +994,29 @@ function WorkflowDetail({
   );
 }
 
+function DraftReviewFallback({
+  label = "Loading cost workbook...",
+  costWorkbook = false,
+}: {
+  label?: string;
+  costWorkbook?: boolean;
+}) {
+  if (!costWorkbook) {
+    return <p className="text-sm text-muted-foreground">{label}</p>;
+  }
+  return (
+    <section className="rounded-md border bg-background">
+      <header className="flex items-center gap-2 border-b px-4 py-3">
+        <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <h2 className="text-sm font-semibold">Cost workbook</h2>
+      </header>
+      <p className="p-4 text-sm text-muted-foreground" role="status">
+        {label}
+      </p>
+    </section>
+  );
+}
+
 function ReadinessItem({
   icon: Icon,
   label,
@@ -1141,22 +1101,6 @@ function CapabilityGateNotice({
         </ul>
       ) : null}
     </div>
-  );
-}
-
-function draftReadinessTrailing(
-  draft: DraftArtifactSummary | null,
-  status: WorkflowStatus,
-  statusLabel: string,
-) {
-  if (!draft) {
-    return <span className="font-medium">None</span>;
-  }
-
-  return (
-    <Badge variant="outline" className={workflowStatusBadgeClass(status)}>
-      {statusLabel}
-    </Badge>
   );
 }
 

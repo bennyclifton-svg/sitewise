@@ -100,7 +100,9 @@ def forecast_consultant_fees_for_markdown(
         )
 
     consultant_rows = [
-        line for line in cost_lines if _normalise_category(line.category) == "consultants"
+        line
+        for line in cost_lines
+        if _normalise_category(line.category) == "consultants"
     ]
     known_professional_fee_total = sum(
         _money_to_int(line.budget)
@@ -145,7 +147,9 @@ def forecast_consultant_fees_for_markdown(
                 )
             )
             if current_budget is None:
-                warnings.append(f"No consultant benchmark rule matched '{line.cost_item}'.")
+                warnings.append(
+                    f"No consultant benchmark rule matched '{line.cost_item}'."
+                )
             else:
                 known_consultant_total += current_budget
             continue
@@ -237,7 +241,9 @@ def _rewrite_cost_breakdown(markdown: str, forecast_by_code: dict[str, int]) -> 
             cells[indexes["basis"]] = FORECAST_BASIS
             lines[index] = _join_row(cells)
         elif "subtotal" in label and "consultants" in label:
-            cells[indexes["budget"]] = _format_money(_consultant_subtotal(lines, table_indices, indexes))
+            cells[indexes["budget"]] = _format_money(
+                _consultant_subtotal(lines, table_indices, indexes)
+            )
             lines[index] = _join_row(cells)
 
     grand_total = _subtotal_sum(lines, table_indices, indexes)
@@ -249,7 +255,9 @@ def _rewrite_cost_breakdown(markdown: str, forecast_by_code: dict[str, int]) -> 
             if "grand total" in label:
                 cells[indexes["budget"]] = _format_money(grand_total)
                 cells[indexes["status"]] = "Judgement"
-                cells[indexes["basis"]] = "Sum of itemised subtotals including consultant fee forecast"
+                cells[indexes["basis"]] = (
+                    "Sum of itemised subtotals including consultant fee forecast"
+                )
                 lines[index] = _join_row(cells)
                 break
     return "\n".join(lines)
@@ -298,7 +306,11 @@ def _upsert_forecast_basis_section(
     construction_base: int | None,
     missing_forecast_total: int,
 ) -> str:
-    base = _format_money(construction_base) if construction_base is not None else "fallback midpoints"
+    base = (
+        _format_money(construction_base)
+        if construction_base is not None
+        else "fallback midpoints"
+    )
     section = "\n".join(
         [
             f"## {FORECAST_SECTION_HEADING}",
@@ -326,13 +338,19 @@ def _upsert_forecast_basis_section(
     return "\n".join(next_lines)
 
 
-def _append_stale_value_warnings(lines: list[CostPlanLine], warnings: list[str]) -> None:
+def _append_stale_value_warnings(
+    lines: list[CostPlanLine], warnings: list[str]
+) -> None:
     for line in lines:
         label = line.cost_item.lower()
         amount = _money_to_int(line.budget)
         if amount is None:
             continue
-        if "architect" in label and "pm fee" in label and amount >= ARCHITECT_PM_WARNING_THRESHOLD:
+        if (
+            "architect" in label
+            and "pm fee" in label
+            and amount >= ARCHITECT_PM_WARNING_THRESHOLD
+        ):
             warnings.append(
                 "Architect / PM fee row appears unusually high; check whether the construction budget was misallocated."
             )
@@ -355,7 +373,9 @@ def _benchmark_key(label: str) -> str | None:
     return None
 
 
-def _benchmark_amount(benchmark: ConsultantBenchmark, construction_base: int | None) -> int:
+def _benchmark_amount(
+    benchmark: ConsultantBenchmark, construction_base: int | None
+) -> int:
     if construction_base is None:
         raw = (benchmark.minimum + benchmark.maximum) / 2
     else:
@@ -364,10 +384,22 @@ def _benchmark_amount(benchmark: ConsultantBenchmark, construction_base: int | N
     return _round_money(clamped)
 
 
+def consultant_fee_allowance(label: str, construction_base: int | float) -> int | None:
+    """Return the deterministic allowance for a recognised consultant label."""
+    key = _benchmark_key(label)
+    if key is None:
+        return None
+    return _benchmark_amount(BENCHMARKS[key], int(construction_base))
+
+
 def _is_known_professional_fee(line: CostPlanLine) -> bool:
     label = line.cost_item.lower()
     amount = _money_to_int(line.budget)
-    return amount is not None and "architect" in label and ("pm" in label or "architect" in label)
+    return (
+        amount is not None
+        and "architect" in label
+        and ("pm" in label or "architect" in label)
+    )
 
 
 def _is_protected_status(status: str) -> bool:

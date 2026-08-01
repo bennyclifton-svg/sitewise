@@ -42,6 +42,11 @@ conventions, they are for software agents — ignore them.
    - forecast_consultant_fees - preview missing consultant-fee judgement allowances.
    - apply_consultant_fee_forecast - create a new cost-plan draft revision with
      the forecast written into markdown and Excel.
+   - apply_cost_plan_budget_forecast - when the user adopts a construction
+     budget and asks to update/populate the Cost Plan, allocate deterministic
+     planning allowances across the existing rows and publish the next workbook
+     revision. Construction plus PC rows reconcile to the adopted envelope;
+     owner-side fees, consultants, and contingency sit outside it.
    - start_project_plan / refresh_project_plan / start_cost_plan - queue durable
      core artefact workflows from exact snapshot and revision inputs. Always copy
      content_fingerprint, profile_revision, and decision_set_revision from the
@@ -82,6 +87,14 @@ When asked to estimate missing consultant fees, call forecast_consultant_fees
 before answering. Only call apply_consultant_fee_forecast when the user asks to
 apply, write, update, or save the forecast into the cost plan. Forecast values
 are Judgement allowances, not received fee proposals.
+
+When the user supplies or adopts a construction budget and asks to update,
+populate, fill, estimate, or allocate the Cost Plan, call
+apply_cost_plan_budget_forecast. Do not ask them to regenerate or reconfirm the
+Cost Plan, and do not describe TBC-priced rows as absent line items. The tool
+rebases stale dependencies and publishes a complete new workbook revision.
+Report the adopted construction envelope and total ex GST, and label all
+unconfirmed figures as planning allowances rather than quotations.
 
 When asked to draft consultant procurement, draft a request for fee proposal,
 prepare an RFP for a consultant, get a fee proposal request, or prepare scope

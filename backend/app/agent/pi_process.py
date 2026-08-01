@@ -22,6 +22,7 @@ PI_MCP_DIRECT_TOOLS = (
     "read_workspace_file",
     "forecast_consultant_fees",
     "apply_consultant_fee_forecast",
+    "apply_cost_plan_budget_forecast",
     "draft_consultant_procurement_artifact",
     "start_project_plan",
     "refresh_project_plan",
@@ -56,8 +57,7 @@ class PiTurnTimeout(PiTurnError):
 
 
 class _Stream(Protocol):
-    async def readline(self) -> bytes:
-        ...
+    async def readline(self) -> bytes: ...
 
 
 class _Process(Protocol):
@@ -65,11 +65,9 @@ class _Process(Protocol):
     stderr: _Stream | None
     returncode: int | None
 
-    async def wait(self) -> int:
-        ...
+    async def wait(self) -> int: ...
 
-    def kill(self) -> None:
-        ...
+    def kill(self) -> None: ...
 
 
 Spawn = Callable[..., Awaitable[_Process]]
@@ -86,8 +84,12 @@ class _ThreadedStream:
 class _ThreadedProcess:
     def __init__(self, process: subprocess.Popen[bytes]) -> None:
         self._process = process
-        self.stdout = _ThreadedStream(process.stdout) if process.stdout is not None else None
-        self.stderr = _ThreadedStream(process.stderr) if process.stderr is not None else None
+        self.stdout = (
+            _ThreadedStream(process.stdout) if process.stdout is not None else None
+        )
+        self.stderr = (
+            _ThreadedStream(process.stderr) if process.stderr is not None else None
+        )
 
     @property
     def pid(self) -> int:

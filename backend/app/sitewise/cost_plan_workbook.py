@@ -137,6 +137,46 @@ def build_typed_cost_plan_workbook(
     )
 
 
+def build_cost_plan_workbook_for_export(
+    *,
+    project_title: str,
+    markdown: str,
+    version: int,
+    typed_state: CostPlanState | None = None,
+    generated_at: datetime | None = None,
+) -> CostPlanWorkbook:
+    """Export from typed state only when it preserves every workbook row.
+
+    The typed legacy importer intentionally rejects TBC amounts, while the
+    operational workbook must still list those cost items. Comparing stable row
+    identities prevents a partial typed import from silently producing an empty
+    or truncated Summary sheet.
+    """
+    generated_at = generated_at or datetime.now(UTC)
+    markdown_items, warnings = parse_cost_breakdown(markdown)
+    markdown_identities = [
+        (item.cost_code, item.category, item.cost_item) for item in markdown_items
+    ]
+    typed_identities = (
+        [(item.cost_code, item.category, item.item) for item in typed_state.items]
+        if typed_state is not None
+        else None
+    )
+    if typed_state is not None and typed_identities == markdown_identities:
+        return build_typed_cost_plan_workbook(
+            project_title=project_title,
+            state=typed_state,
+            generated_at=generated_at,
+        )
+    return _build_workbook(
+        project_title=project_title,
+        items=markdown_items,
+        version=version,
+        generated_at=generated_at,
+        warnings=warnings,
+    )
+
+
 def _build_workbook(
     *,
     project_title: str,

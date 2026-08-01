@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from decimal import Decimal
 
@@ -19,6 +20,7 @@ from app.cost_plan.schemas import (
     ExternalCostProposal,
 )
 from app.database.project import Project
+from app.inbox.paths import build_storage_key
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
@@ -36,29 +38,40 @@ class CostPlanStaleError(ArtefactRevisionConflict):
     pass
 
 
+def _cost_item_sort_key(item: CostItemInput) -> tuple[tuple[int, int | str], ...]:
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part.lower())
+        for part in re.split(r"(\d+)", item.cost_code)
+        if part
+    )
+
+
 def _state(row: CostPlanVersion) -> CostPlanState:
-    items = [
-        CostItemInput(
-            item_key=item.item_key,
-            cost_code=item.cost_code,
-            category=item.category,
-            item=item.item,
-            budget=item.budget,
-            committed=item.committed,
-            forecast=item.forecast,
-            paid=item.paid,
-            allowance_type=item.allowance_type,
-            quantity=item.quantity,
-            unit=item.unit,
-            rate=item.rate,
-            basis=item.basis,
-            source_refs=item.source_refs,
-            confidence=item.confidence,
-            status=item.status,
-            locked=item.locked,
-        )
-        for item in row.items
-    ]
+    items = sorted(
+        [
+            CostItemInput(
+                item_key=item.item_key,
+                cost_code=item.cost_code,
+                category=item.category,
+                item=item.item,
+                budget=item.budget,
+                committed=item.committed,
+                forecast=item.forecast,
+                paid=item.paid,
+                allowance_type=item.allowance_type,
+                quantity=item.quantity,
+                unit=item.unit,
+                rate=item.rate,
+                basis=item.basis,
+                source_refs=item.source_refs,
+                confidence=item.confidence,
+                status=item.status,
+                locked=item.locked,
+            )
+            for item in row.items
+        ],
+        key=_cost_item_sort_key,
+    )
     return CostPlanState(
         id=row.id,
         project_id=row.project_id,
@@ -132,14 +145,16 @@ async def _publish_state(
     )
     proposed = proposed.model_copy(update={"totals": totals})
     markdown = render_cost_plan_markdown(proposed)
-    base = f"{project.workspace_path.rstrip('/')}/01 Cost/Cost Plan"
+    base = f"{project.workspace_path.rstrip('/')}/01-cost"
+    markdown_path = f"{base}/cost_plan_v{version:02d}.md"
+    workbook_path = f"{base}/Cost_Plan_v{version:02d}.draft.xlsx"
     result = await publish(
         session,
         project_id=project.id,
         workflow_type="create_cost_plan",
         expected_base_version=expected_base_version,
         title=f"{project.title} Cost Plan",
-        workspace_path=f"{base}/Cost Plan v{version}.md",
+        workspace_path=markdown_path,
         author_user_id=author_user_id,
         content_markdown=markdown,
         model=proposed.dependency_snapshot.model_version,
@@ -152,13 +167,13 @@ async def _publish_state(
         exports=(
             ExportSpec(
                 "markdown",
-                f"{base}/Cost Plan v{version}.md",
-                f"{project.id}/cost-plan/v{version}.md",
+                markdown_path,
+                build_storage_key(str(project.id), markdown_path),
             ),
             ExportSpec(
                 "workbook",
-                f"{base}/Cost Plan v{version}.xlsx",
-                f"{project.id}/cost-plan/v{version}.xlsx",
+                workbook_path,
+                build_storage_key(str(project.id), workbook_path),
             ),
         ),
     )
@@ -253,7 +268,7 @@ async def upsert_cost_item(
     )
     items = [existing for existing in base.items if existing.item_key != item.item_key]
     items.append(item)
-    items.sort(key=lambda value: (value.cost_code, value.item_key))
+    items.sort(key=_cost_item_sort_key)
     state = await _publish_state(
         session,
         project=project,
@@ -334,6 +349,9 @@ async def refresh_cost_plan(
     current_snapshot: ProjectSnapshot,
     proposed_items: list[CostItemInput],
     dependency_snapshot: DependencySnapshot,
+    assumptions: dict[str, str] | None = None,
+    contingency_percent: Decimal | None = None,
+    escalation_percent: Decimal | None = None,
 ) -> CostPlanMutationResult:
     base = await _base_for_mutation(
         session,
@@ -356,10 +374,19 @@ async def refresh_cost_plan(
             changed.append(proposal.item_key)
     refreshed = base.model_copy(
         update={
-            "items": sorted(
-                by_key.values(), key=lambda value: (value.cost_code, value.item_key)
-            ),
+            "items": sorted(by_key.values(), key=_cost_item_sort_key),
             "dependency_snapshot": dependency_snapshot,
+            "assumptions": {**base.assumptions, **(assumptions or {})},
+            "contingency_percent": (
+                base.contingency_percent
+                if contingency_percent is None
+                else contingency_percent
+            ),
+            "escalation_percent": (
+                base.escalation_percent
+                if escalation_percent is None
+                else escalation_percent
+            ),
         }
     )
     state = await _publish_state(

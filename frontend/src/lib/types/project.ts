@@ -215,6 +215,13 @@ export type ProjectEventListResponse = {
   next_after: number;
 };
 
+export type DocumentUsageMark = {
+  artefact_id: string;
+  workflow_type: string;
+  title: string;
+  version: number;
+};
+
 export type EvidencePreview = {
   id: string;
   workspace_file_id?: string | null;
@@ -228,6 +235,8 @@ export type EvidencePreview = {
   document_number?: string | null;
   revision?: string | null;
   category?: string | null;
+  /** Latest drafts that were built from this document. */
+  used_by?: DocumentUsageMark[];
 };
 
 export type ProjectDetail = ProjectSummary & {

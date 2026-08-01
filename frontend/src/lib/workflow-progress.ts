@@ -198,6 +198,25 @@ function withRotatedSubline(phase: PhaseDef, nowMs: number): WorkflowDisplayStag
 }
 
 /** Read `progress.stage` from a workflow run payload without assuming shape. */
+/** An in-progress draft a run has published while it is still working. */
+export type WorkflowRunPreview = {
+  stage: string;
+  markdown: string;
+};
+
+export function workflowRunPreview(
+  progress: Record<string, unknown> | null | undefined,
+): WorkflowRunPreview | null {
+  const preview = progress?.preview;
+  if (!preview || typeof preview !== "object") return null;
+  const { stage, markdown } = preview as Record<string, unknown>;
+  if (typeof markdown !== "string" || !markdown.trim()) return null;
+  return {
+    stage: typeof stage === "string" && stage.trim() ? stage : "drafting",
+    markdown,
+  };
+}
+
 export function workflowProgressStage(
   progress: Record<string, unknown> | null | undefined,
 ): string | null {
