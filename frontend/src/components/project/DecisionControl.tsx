@@ -105,9 +105,12 @@ export function DecisionControl({
           ) : null}
         </div>
         <Badge
-          variant={source === "user" || evidenced ? "default" : "secondary"}
+          variant="outline"
           className={cn(
-            !evidenced && source !== "user" && "bg-[var(--decision-assumed)] text-white",
+            "border-transparent",
+            source === "user" || evidenced
+              ? "bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)]"
+              : "bg-[var(--decision-assumed-bg)] text-[var(--decision-assumed-text)]",
           )}
         >
           {badgeLabel}
@@ -132,15 +135,15 @@ export function DecisionControl({
               key={option.value}
               type="button"
               size="sm"
-              variant={isSelected ? "default" : "outline"}
+              variant="outline"
               disabled={readOnly || isSaving}
               className={cn(
                 isSelected &&
                   evidenced &&
-                  "border-transparent bg-[var(--decision-evidenced)] text-white hover:bg-[var(--decision-evidenced-hover)]",
+                  "border-transparent bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)] hover:bg-[var(--decision-evidenced-hover)] hover:text-[var(--decision-evidenced-text)]",
                 isSelected &&
                   !evidenced &&
-                  "border-transparent bg-[var(--decision-assumed)] text-white hover:bg-[var(--decision-assumed-hover)]",
+                  "border-transparent bg-[var(--decision-assumed-bg)] text-[var(--decision-assumed-text)] hover:bg-[var(--decision-assumed-hover)] hover:text-[var(--decision-assumed-text)]",
               )}
               onClick={() => void commit(option.value)}
             >

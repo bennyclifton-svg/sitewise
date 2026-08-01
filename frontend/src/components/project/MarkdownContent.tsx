@@ -222,7 +222,10 @@ function renderEvidenceCell(children: ReactNode): ReactNode {
   const text = flattenText(children).trim();
   if (/^\[\d+\]$/.test(text)) {
     return (
-      <Badge variant="default" className="evidence-status-chip">
+      <Badge
+        variant="outline"
+        className="evidence-status-chip border-transparent bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)]"
+      >
         {text}
       </Badge>
     );
@@ -235,11 +238,7 @@ function renderEvidenceCell(children: ReactNode): ReactNode {
     <span className="inline-flex flex-wrap items-center gap-1">
       <Badge
         variant={evidenceBadgeVariant(match)}
-        className={
-          match === "Confirm"
-            ? "evidence-status-chip border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-            : "evidence-status-chip"
-        }
+        className={evidenceBadgeClassName(match)}
       >
         {match}
       </Badge>
@@ -250,19 +249,28 @@ function renderEvidenceCell(children: ReactNode): ReactNode {
 
 function evidenceBadgeVariant(status: (typeof EVIDENCE_STATUSES)[number]) {
   switch (status) {
-    case "Grounded":
-    case "User provided":
-      return "default" as const;
-    case "Partial":
-    case "Assumption":
-    case "Profile":
-      return "secondary" as const;
-    case "Confirm":
-      return "outline" as const;
     case "Conflict":
       return "destructive" as const;
     default:
       return "outline" as const;
+  }
+}
+
+function evidenceBadgeClassName(status: (typeof EVIDENCE_STATUSES)[number]): string {
+  switch (status) {
+    case "Grounded":
+    case "User provided":
+      return "evidence-status-chip border-transparent bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)]";
+    case "Partial":
+    case "Assumption":
+    case "Profile":
+      return "evidence-status-chip border-transparent bg-[var(--decision-assumed-bg)] text-[var(--decision-assumed-text)]";
+    case "Confirm":
+      return "evidence-status-chip border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    case "Conflict":
+      return "evidence-status-chip";
+    default:
+      return "evidence-status-chip";
   }
 }
 

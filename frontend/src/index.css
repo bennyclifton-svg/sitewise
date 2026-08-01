@@ -79,11 +79,13 @@
   --brand-border: var(--blaze-200);
   --brand-ring: oklch(0.55 0.12 52 / 0.3);
 
-  /* DecisionControl selected states: evidenced (blaze) vs AI assumption (blue) */
-  --decision-evidenced: var(--blaze-600);
-  --decision-evidenced-hover: var(--blaze-700);
-  --decision-assumed: oklch(0.52 0.12 250);
-  --decision-assumed-hover: oklch(0.44 0.12 250);
+  /* DecisionControl selected states: soft chips (evidenced blaze vs AI azure) */
+  --decision-evidenced-bg: oklch(0.63 0.11 52.5 / 0.12);
+  --decision-evidenced-text: var(--blaze-700);
+  --decision-evidenced-hover: oklch(0.63 0.11 52.5 / 0.18);
+  --decision-assumed-bg: var(--info-bg);
+  --decision-assumed-text: var(--info-text);
+  --decision-assumed-hover: oklch(0.62 0.12 245 / 0.16);
 
   --ok-text: var(--blaze-700);
   --ok-bg: var(--blaze-50);
@@ -169,10 +171,12 @@
   --brand-border: oklch(0.63 0.11 52.5 / 0.32);
   --brand-ring: oklch(0.72 0.09 53 / 0.4);
 
-  --decision-evidenced: var(--blaze-500);
-  --decision-evidenced-hover: var(--blaze-400);
-  --decision-assumed: oklch(0.62 0.12 250);
-  --decision-assumed-hover: oklch(0.7 0.1 250);
+  --decision-evidenced-bg: oklch(0.63 0.11 52.5 / 0.16);
+  --decision-evidenced-text: var(--blaze-300);
+  --decision-evidenced-hover: oklch(0.63 0.11 52.5 / 0.24);
+  --decision-assumed-bg: var(--info-bg);
+  --decision-assumed-text: var(--info-text);
+  --decision-assumed-hover: oklch(0.62 0.12 245 / 0.22);
 
   --ok-text: var(--blaze-300);
   --ok-bg: oklch(0.63 0.11 52.5 / 0.14);
