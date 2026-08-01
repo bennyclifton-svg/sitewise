@@ -37,7 +37,6 @@ from app.sitewise.pmp_citations import CitationIndex
 from app.sitewise.rfp_evidence_validation import validate_rfp_output
 from app.sitewise.rfp_renderer import (
     BACKGROUND_PLACEHOLDER,
-    INFORMATION_TO_REVIEW_PLACEHOLDER,
     PROGRAMME_PLACEHOLDER,
     REQUESTED_SERVICES_PLACEHOLDER,
     build_rfp_citation_index,
@@ -130,9 +129,13 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
         "Structural engineer",
         benchmark_terms=("structural",),
         requested_services=(
-            "Review architectural drawings, project brief, site constraints, and any geotechnical advice.",
-            "Provide structural design, drawings, calculations, certification inputs, and coordination advice.",
-            "Allow for builder queries, design clarifications, and construction-stage inspections where required.",
+            "Review the project brief, architectural drawings, survey, available geotechnical advice, existing-structure information, and site constraints; identify missing investigations or design inputs.",
+            "Prepare the structural design basis and advise on framing, stability, footing, slab, retained-structure, demolition, temporary-support, and new-to-existing interface requirements applicable to the project.",
+            "Provide coordinated structural design, calculations, drawings, details, specifications, schedules, and certification inputs for the agreed design and approval stages.",
+            "Coordinate structural grids, levels, openings, penetrations, loads, movements, tolerances, buildability, and design responsibilities with the architect and relevant consultants.",
+            "Support procurement through tender queries, scope clarifications, addenda, and review of structural alternatives or contractor proposals where included.",
+            "Define construction-phase allowances for RFIs, shop drawings and technical submittals, site inspections, defects, completion statements, and close-out advice.",
+            "State exclusions and responsibility boundaries for geotechnical design, surveying, temporary works, shop detailing, proprietary systems, demolition methodology, waterproofing, bushfire/fire advice, and contractor design.",
         ),
         deliverables=(
             "Structural fee proposal with design, documentation, certification, and site-phase allowances.",
@@ -857,14 +860,12 @@ class ConsultantDocument(ProcurementDocument):
             platform_knowledge=platform_knowledge,
             citation_index=citation_index,
         )
-        information_to_review = "\n".join(
-            f"- {line}" for line in narrative.information_to_review
-        )
         requested_services = narrative.requested_services or list(
             target.requested_services
         )
         requested_services_markdown = "\n".join(
-            f"- {line}" for line in requested_services
+            f"{index}. {line}"
+            for index, line in enumerate(requested_services, start=1)
         )
         programme_markdown = "\n".join(f"- {line}" for line in narrative.programme)
         if narrative.programme:
@@ -885,7 +886,6 @@ class ConsultantDocument(ProcurementDocument):
                 REQUESTED_SERVICES_PLACEHOLDER,
                 requested_services_markdown,
             )
-            .replace(INFORMATION_TO_REVIEW_PLACEHOLDER, information_to_review)
             .replace(PROGRAMME_PLACEHOLDER, programme_markdown)
         )
 
@@ -1057,35 +1057,52 @@ async def _forecast_for_discipline(
     project_id: uuid.UUID,
     profile: DisciplineProfile,
 ) -> dict[str, Any]:
-    if not profile.benchmark_terms:
-        return {"used": False, "reason": "No benchmark rule for this discipline."}
-
     draft = await get_latest_draft_artifact(
         session,
         project_id=project_id,
         workflow_type=CREATE_COST_PLAN_WORKFLOW_TYPE,
     )
     if draft is None:
-        return {"used": False, "reason": "No cost plan draft was available."}
+        reason = (
+            "No benchmark rule for this discipline."
+            if not profile.benchmark_terms
+            else "No cost plan draft was available."
+        )
+        return {"used": False, "reason": reason}
 
     forecast = forecast_consultant_fees_for_markdown(
         draft.content_markdown,
         source_path=draft.workspace_path,
     )
+    adopted_budget = _adopted_construction_budget(draft.content_markdown)
+    budget_context = {
+        "source_path": draft.workspace_path,
+        "construction_budget": adopted_budget or forecast.construction_base,
+        "construction_budget_basis": (
+            "user_adopted" if adopted_budget is not None else "cost_plan"
+        ),
+    }
+    if not profile.benchmark_terms:
+        return {
+            **budget_context,
+            "used": False,
+            "reason": "No benchmark rule for this discipline.",
+        }
+
     for row in forecast.rows:
         label = _normalise_key(row.cost_item)
         if not any(term in label for term in profile.benchmark_terms):
             continue
         if row.action != "forecasted" or row.forecast_budget is None:
             return {
+                **budget_context,
                 "used": False,
-                "source_path": draft.workspace_path,
                 "reason": "A matching consultant row exists, but it is already known or not forecasted.",
             }
         return {
+            **budget_context,
             "used": True,
             "tool": "forecast_consultant_fees",
-            "source_path": draft.workspace_path,
             "cost_item": row.cost_item,
             "forecast_budget": row.forecast_budget,
             "status": FORECAST_STATUS,
@@ -1099,10 +1116,24 @@ async def _forecast_for_discipline(
         }
 
     return {
+        **budget_context,
         "used": False,
-        "source_path": draft.workspace_path,
         "reason": "No matching consultant benchmark row was found in the current cost plan.",
     }
+
+
+_ADOPTED_CONSTRUCTION_BUDGET_RE = re.compile(
+    r"adopted_construction_budget_ex_gst:\*\*\s*\$([\d,]+(?:\.\d+)?)",
+    flags=re.IGNORECASE,
+)
+
+
+def _adopted_construction_budget(markdown: str) -> int | None:
+    """Read the user-adopted construction envelope from the current Cost Plan."""
+    match = _ADOPTED_CONSTRUCTION_BUDGET_RE.search(markdown)
+    if match is None:
+        return None
+    return round(float(match.group(1).replace(",", "")))
 
 
 def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
@@ -1161,6 +1192,7 @@ def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
 
 
 def _project_evidence_item(query: EvidenceQuery, passage: Any) -> dict[str, Any]:
+    metadata = _attr(passage, "document_metadata", None)
     return {
         "role": query.key,
         "role_label": query.label,
@@ -1171,6 +1203,7 @@ def _project_evidence_item(query: EvidenceQuery, passage: Any) -> dict[str, Any]
         "page_or_section": _attr(passage, "page_or_section", None),
         "snippet": _compact(_attr(passage, "content", ""), limit=260),
         "score": _attr(passage, "score", None),
+        "document_metadata": metadata if isinstance(metadata, dict) else {},
     }
 
 

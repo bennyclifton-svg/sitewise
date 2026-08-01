@@ -166,7 +166,6 @@ def _install(
             requested_services=[
                 f"Tailor the requested services to the evidenced project spaces and systems. {token}"
             ],
-            information_to_review=[f"Review the current project evidence before pricing. {token}"],
         )
 
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", _narrative)
@@ -250,7 +249,10 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
         "client-issued request for fee proposal" in item
         for item in result.source_trace["assumptions"]
     )
-    assert "## Citation key" in result.draft.content_markdown
+    assert "| Document number | Title | Rev | Category | Citation |" in (
+        result.draft.content_markdown
+    )
+    assert "## Citation key" not in result.draft.content_markdown
     assert "[1]" in result.draft.content_markdown
     assert "| Site / address | TBC | Confirm |" in (
         result.draft.content_markdown
@@ -264,6 +266,10 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     )
     assert result.source_trace["forecast"]["used"] is True
     assert result.source_trace["forecast"]["status"] == "Judgement"
+    assert result.source_trace["forecast"]["construction_budget"] == 920_000
+    assert "| Budget | $920,000 ex GST | Current Cost Plan v1 |" in (
+        result.draft.content_markdown
+    )
     assert create_draft.await_args.kwargs["runtime"] == "clerk-consultant-procurement"
     assert result.draft.provenance_metadata["seed_consulted"] == [
         "seed/consultant-procurement.md",
@@ -300,6 +306,66 @@ def test_basix_alias_happy_path_uses_basix_scope_and_path(monkeypatch) -> None:
     )
     assert "BASIX / energy assessment fee proposal" in result.draft.content_markdown
     assert result.source_trace["forecast"]["used"] is True
+
+
+def test_rfp_information_register_uses_document_repository_metadata(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="420 - 57 GREENBANK Section Rev P3.pdf",
+                    path="04-projects/greenbank/03-design/structural/420-section.pdf",
+                    content="Structural engineer details are required for the frame and slab.",
+                    metadata={
+                        "document_number": "420",
+                        "title": "STRUCTURAL ENG. DETAILS",
+                        "revision": "P3",
+                        "discipline": "Structural",
+                    },
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    result = _run(session=_Session(), discipline="structural engineer")
+
+    assert (
+        "| 420 | STRUCTURAL ENG. DETAILS | P3 | Structural | [1] |"
+        in result.draft.content_markdown
+    )
+    assert "1. Tailor the requested services" in result.draft.content_markdown
+    assert "provide a short return brief" in result.draft.content_markdown
+
+
+def test_rfp_prefers_user_adopted_cost_plan_budget_over_partial_trade_total(
+    monkeypatch,
+) -> None:
+    cost_plan = SimpleNamespace(
+        workspace_path="04-projects/greenbank/01-cost/cost_plan_v03.md",
+        content_markdown="""# Greenbank Cost Plan
+
+## Cost breakdown by category
+
+| Cost code | Category | Cost item | Budget | Status | Basis |
+| --- | --- | --- | ---: | --- | --- |
+| 6 | Consultants | Structural engineer | $12,000 | proposed | Planning allowance |
+| 12 | Construction | Building work | $360,000 | proposed | Planning allowance |
+| 21 | PC allowances | Owner selections | $40,000 | proposed | Planning allowance |
+
+## Assumptions
+
+- **adopted_construction_budget_ex_gst:** $400,000.00 supplied by the user.
+""",
+    )
+    _install(monkeypatch, retriever=_StubRetriever(), cost_plan=cost_plan)
+
+    result = _run(session=_Session(), discipline="structural engineer")
+
+    assert result.source_trace["forecast"]["construction_budget"] == 400_000
+    assert "| Budget | $400,000 ex GST | Current Cost Plan v3 (user-adopted) |" in (
+        result.draft.content_markdown
+    )
 
 
 @pytest.mark.parametrize(
@@ -692,7 +758,6 @@ def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
         return RfpNarrativeOutput(
             background="The current programme is evidenced. [1]",
             requested_services=["Provide staged hydraulic services. [1]"],
-            information_to_review=["Review the engagement letter. [1]"],
             programme=["Target possession is 1 November 2026. [1]"],
         )
 
@@ -850,6 +915,15 @@ def test_known_consultant_profiles_do_not_use_generic_fallback(
     assert profile.slug == slug
 
 
+def test_structural_profile_is_contract_ready_and_uses_discipline_specific_closeout() -> None:
+    profile = normalise_discipline("structural engineer")
+
+    assert len(profile.requested_services) == 7
+    assert any("new-to-existing interface" in item for item in profile.requested_services)
+    assert any("completion statements" in item for item in profile.requested_services)
+    assert not any("commissioning" in item.lower() for item in profile.requested_services)
+
+
 def test_unknown_consultant_still_falls_through() -> None:
     profile = normalise_discipline("facade consultant")
     assert profile.name == "facade consultant"
@@ -917,12 +991,10 @@ def test_rfp_narrative_retries_after_invalid_citation(monkeypatch) -> None:
     invalid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [99]",
         requested_services=["Provide project-specific planning services. [1]"],
-        information_to_review=["Review the site plan. [2]"],
     )
     valid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [1]",
         requested_services=["Provide project-specific planning services. [1]"],
-        information_to_review=["Review the site plan. [2]"],
     )
     run_narrative = AsyncMock(side_effect=[invalid, valid])
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
@@ -948,7 +1020,6 @@ def test_rfp_narrative_reraises_after_three_invalid_attempts(monkeypatch) -> Non
     invalid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [99]",
         requested_services=["Provide project-specific planning services. [1]"],
-        information_to_review=["Review the site plan. [2]"],
     )
     run_narrative = AsyncMock(return_value=invalid)
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
@@ -983,12 +1054,10 @@ def test_rfp_draft_retries_invalid_narrative_before_persisting(monkeypatch) -> N
     invalid = RfpNarrativeOutput(
         background="The project brief defines the scope. [99]",
         requested_services=["Provide project-specific planning services. [1]"],
-        information_to_review=["Review the brief. [1]"],
     )
     valid = RfpNarrativeOutput(
         background="The project brief defines the scope. [1]",
         requested_services=["Provide project-specific planning services. [1]"],
-        information_to_review=["Review the brief. [1]"],
     )
     run_narrative = AsyncMock(side_effect=[invalid, valid])
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)

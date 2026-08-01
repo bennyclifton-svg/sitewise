@@ -20,7 +20,6 @@ def validate_rfp_output(
     narrative_parts = [
         output.background,
         *output.requested_services,
-        *output.information_to_review,
         *output.programme,
     ]
 
@@ -29,8 +28,6 @@ def validate_rfp_output(
     elif has_project_evidence and not _CITATION_PATTERN.search(output.background):
         issues.append("background must include at least one project-evidence citation")
 
-    if has_project_evidence and not output.information_to_review:
-        issues.append("information_to_review must not be empty when project evidence exists")
     if has_project_evidence and not output.requested_services:
         issues.append("requested_services must not be empty when project evidence exists")
     elif has_project_evidence and not any(

@@ -453,6 +453,7 @@ async def _merge_required_guidance(
 def _project_evidence_item(
     query: EvidenceQuery, passage: Any
 ) -> dict[str, Any]:
+    metadata = _attr(passage, "document_metadata", None)
     return {
         "role": query.key,
         "role_label": query.label,
@@ -463,6 +464,7 @@ def _project_evidence_item(
         "page_or_section": _attr(passage, "page_or_section", None),
         "snippet": _compact(_attr(passage, "content", ""), limit=260),
         "score": _attr(passage, "score", None),
+        "document_metadata": metadata if isinstance(metadata, dict) else {},
     }
 
 

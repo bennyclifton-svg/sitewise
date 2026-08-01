@@ -1088,6 +1088,8 @@ def render_project_summary_table(
     site_address_citation: str = "—",
     client_status: str = "User provided / Not evidenced",
     client_citation: str = "—",
+    budget: str | None = None,
+    budget_source: str | None = None,
     compact_sources: bool = False,
 ) -> str:
     """Render the shared project-summary table used by PMP-derived artefacts."""
@@ -1101,7 +1103,7 @@ def render_project_summary_table(
         project_value = project_title or _metadata_value(project.title)
         site_value = site_address or _metadata_value(fields.get("site_address"))
         client_value = client or _metadata_value(fields.get("client"))
-        budget_value = _metadata_value(fields.get("budget"))
+        budget_value = budget or _metadata_value(fields.get("budget"))
         timeframe_value = _metadata_value(fields.get("timeframe"))
         procurement_value = _metadata_value(fields.get("procurement_route"))
         return "\n".join(
@@ -1114,7 +1116,7 @@ def render_project_summary_table(
                 f"| State | {_metadata_value(project.state or 'NSW')} | Profile |",
                 f"| Taxonomy | {taxonomy_value} | Profile |",
                 f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} | Profile |",
-                f"| Budget | {budget_value} | {_compact_summary_source(budget_value)} |",
+                f"| Budget | {budget_value} | {budget_source or _compact_summary_source(budget_value)} |",
                 f"| Timeframe | {timeframe_value} | {_compact_summary_source(timeframe_value)} |",
                 f"| Procurement route | {procurement_value} | {_compact_summary_source(procurement_value)} |",
             ]
@@ -1151,6 +1153,8 @@ _COMPACT_COUNT_LABELS = {
     "storeys": ("storey", "storeys"),
     "tenancies": ("tenancy", "tenancies"),
     "dwellings": ("dwelling", "dwellings"),
+    "bedrooms": ("bedroom", "bedrooms"),
+    "garage_spaces": ("garage space", "garage spaces"),
 }
 
 

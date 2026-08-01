@@ -24,7 +24,6 @@ _INSTRUCTIONS_PATH = Path(__file__).with_name("rfp_narrative_instructions.md")
 class RfpNarrativeOutput(BaseModel):
     background: str = Field(min_length=1)
     requested_services: list[str] = Field(default_factory=list)
-    information_to_review: list[str] = Field(default_factory=list)
     programme: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 
@@ -65,8 +64,7 @@ def build_rfp_narrative_prompt(
         "Baseline requested services to tailor:",
         "\n".join(f"- {item}" for item in target.requested_services),
         (
-            "Write only the Background, Requested services, Information to review, "
-            "and Programme narrative slots."
+            "Write only the Background, Requested services, and Programme narrative slots."
         ),
         "Project evidence (use the assigned token exactly; do not invent citations):",
         _format_project_evidence(project_evidence, citation_index),
