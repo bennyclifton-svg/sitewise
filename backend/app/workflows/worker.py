@@ -26,11 +26,15 @@ from app.procurement.requests import (
     attach_generated_draft,
     request_kind_for_workflow,
 )
+from app.schemas.projects import DraftArtifactResponse
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.workflows.consultant_procurement import draft_consultant_procurement_artifact
 from app.workflows.contractor_procurement import draft_contractor_eoi_artifact
 from app.workflows.trade_procurement import draft_trade_procurement_artifact
-from app.workflows.create_cost_plan import run_create_cost_plan_workflow
+from app.workflows.create_cost_plan import (
+    run_create_cost_plan_workflow,
+    sync_cost_plan_revision_artifacts,
+)
 from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.schemas import CostItemInput
 from app.cost_plan.service import refresh_cost_plan
@@ -80,6 +84,7 @@ async def _dispatch(
     project = _frozen_project(run)
     chat_model = run.run_brief.get("chat_model")
     parameters = run.run_brief.get("parameters") or {}
+    refreshed_cost_plan_draft: DraftArtifact | None = None
     common = {
         "session": session,
         "user_id": run.requested_by_user_id,
@@ -116,8 +121,23 @@ async def _dispatch(
                 runtime_version="clerk-typed-cost-plan-refresh-v1",
             ),
         )
+        if result.state.artefact_revision_id is None:
+            raise RuntimeError("refreshed Cost Plan has no artefact revision")
+        draft = await session.get(DraftArtifact, result.state.artefact_revision_id)
+        if draft is None:
+            raise RuntimeError("refreshed Cost Plan artefact revision was not found")
+        await sync_cost_plan_revision_artifacts(
+            session,
+            project=project,
+            draft=draft,
+            typed_state=result.state,
+        )
+        refreshed_cost_plan_draft = draft
     elif run.workflow_type == "sort_project_files":
-        result = await run_sort_files_workflow(**common, auto_commit=False)
+        # Sorting touches non-transactional object storage. Commit its durable
+        # workspace state before the worker publishes the run result, so a
+        # publish deadlock cannot roll back the database half of a storage move.
+        result = await run_sort_files_workflow(**common, auto_commit=True)
     elif run.workflow_type == "ingest_project_document":
         result = await ingest_project_document(
             session,
@@ -160,6 +180,10 @@ async def _dispatch(
     else:
         raise ValueError(f"Unknown workflow type: {run.workflow_type}")
     payload = _json_result(result)
+    if refreshed_cost_plan_draft is not None:
+        payload["draft"] = DraftArtifactResponse.model_validate(
+            refreshed_cost_plan_draft
+        ).model_dump(mode="json")
     request_id = await _attach_procurement_result(
         session,
         run=run,

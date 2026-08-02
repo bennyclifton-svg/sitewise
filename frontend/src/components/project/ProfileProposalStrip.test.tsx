@@ -1,19 +1,15 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
 import type { ProjectProfileProposal } from "@/lib/types/project";
 
 const acceptProfileProposal = vi.fn();
-const rejectProfileProposal = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   api: {
     acceptProfileProposal: (...args: unknown[]) =>
       acceptProfileProposal(...args),
-    rejectProfileProposal: (...args: unknown[]) =>
-      rejectProfileProposal(...args),
   },
 }));
 
@@ -43,13 +39,10 @@ function proposal(
 describe("ProfileProposalStrip", () => {
   beforeEach(() => {
     acceptProfileProposal.mockReset();
-    rejectProfileProposal.mockReset();
     acceptProfileProposal.mockResolvedValue({ proposal: proposal(), profile_change: null });
-    rejectProfileProposal.mockResolvedValue({ proposal: proposal({ state: "rejected" }), profile_change: null });
   });
 
-  it("renders pending identity proposals and accepts them", async () => {
-    const user = userEvent.setup();
+  it("applies pending identity proposals without rendering a confirmation card", async () => {
     const onResolved = vi.fn();
     render(
       <ProfileProposalStrip
@@ -59,15 +52,12 @@ describe("ProfileProposalStrip", () => {
       />,
     );
 
+    await waitFor(() => {
+      expect(acceptProfileProposal).toHaveBeenCalledWith("proj-1", "prop-1", 2);
+      expect(onResolved).toHaveBeenCalledOnce();
+    });
     expect(
-      screen.getByText(/Confirm project identity from documents/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Client: Atelier North for David & Emma Walsh/i),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Accept" }));
-    expect(acceptProfileProposal).toHaveBeenCalledWith("proj-1", "prop-1", 2);
-    expect(onResolved).toHaveBeenCalled();
+      screen.queryByText(/Confirm project identity from documents/i),
+    ).not.toBeInTheDocument();
   });
 });

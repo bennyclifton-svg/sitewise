@@ -65,9 +65,11 @@ export function ChatHistoryNav({
       </div>
 
       <section className="flex min-h-0 flex-1 flex-col" aria-label="Chat history">
-        <header className="flex shrink-0 items-center gap-2 px-3 py-2">
-          <History className="size-4 shrink-0" aria-hidden />
-          <h2 className="text-sm font-semibold">History</h2>
+        <header className="shrink-0 px-3 py-2">
+          <div className="flex items-center gap-2 px-1.5 py-1.5">
+            <History className="size-4 shrink-0" aria-hidden />
+            <h2 className="text-sm font-semibold">History</h2>
+          </div>
         </header>
 
         <ChatSessionList

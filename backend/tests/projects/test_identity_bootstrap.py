@@ -107,7 +107,7 @@ def test_high_confidence_address_auto_applies_when_empty() -> None:
     )
 
 
-def test_ambiguous_client_stays_pending_while_address_auto_applies() -> None:
+def test_document_identity_populates_client_and_address_without_confirmation() -> None:
     project = _project()
     source_id = uuid.uuid4()
     session = AsyncMock()
@@ -142,15 +142,14 @@ def test_ambiguous_client_stays_pending_while_address_auto_applies() -> None:
             )
         )
 
-    assert result.status == "mixed"
+    assert result.status == "auto_applied"
     assert "site_address" in result.auto_applied_fields
-    assert "client" in result.proposed_fields
+    assert "client" in result.auto_applied_fields
+    assert result.proposed_fields == ()
     assert read_profile(project).site_address is not None
-    assert read_profile(project).client is None
+    assert read_profile(project).client == "Atelier North for David & Emma Walsh"
     assert result.proposal is not None
-    assert result.proposal.proposed_values.get("client") == (
-        "Atelier North for David & Emma Walsh"
-    )
+    assert result.proposal.state == "accepted"
 
 
 def test_set_fields_are_not_overwritten() -> None:

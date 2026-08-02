@@ -1833,7 +1833,7 @@ async def propose_project_profile_change(
     evidence_references: list[dict] | str | None = None,
     confidence: float | None = None,
 ) -> dict:
-    """Persist inferred or evidence-derived profile facts for user confirmation."""
+    """Persist evidence-derived profile facts, auto-filling missing identity values."""
     pid = uuid.UUID(project_id)
     proposed_values = _coerce_json_object(proposed_values, field_name="proposed_values")
     try:
@@ -1860,7 +1860,31 @@ async def propose_project_profile_change(
                 confidence=confidence,
                 proposer="agent",
             )
+            resolution = None
+            if set(proposal.proposed_values) <= {"client", "site_address"}:
+                resolution = await accept_profile_proposal(
+                    session=session,
+                    project=authorization.project,
+                    proposal_id=proposal.id,
+                    expected_profile_revision=proposal.profile_revision,
+                    actor_source="agent",
+                )
+                proposal = resolution.proposal
             await session.commit()
+            if resolution is not None and resolution.profile_change is not None:
+                change = resolution.profile_change
+                await agent_turn_status_bus.publish(
+                    _turn_id(authorization),
+                    kind="resource",
+                    message="Updated project profile",
+                    projectId=str(pid),
+                    resourceType="project_profile",
+                    resourceId=str(pid),
+                    action="updated",
+                    revision=change.new_revision,
+                    changedFields=list(change.changed_fields),
+                    clearedFields=list(change.cleared_fields),
+                )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         except (ProfileValidationError, ValidationError) as exc:

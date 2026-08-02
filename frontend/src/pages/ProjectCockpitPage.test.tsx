@@ -126,6 +126,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
   ProjectControlBoard: ({
     isRunningCostPlan,
     onRunCreateCostPlan,
+    onRunRefreshCostPlan,
     costPlanWorkflowError,
     onCancelCostPlan,
     latestCostPlanDraft,
@@ -134,6 +135,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
+    onRunRefreshCostPlan?: () => void;
     costPlanWorkflowError: string | null;
     onCancelCostPlan?: () => void;
     latestCostPlanDraft: DraftArtifactSummary | null;
@@ -147,6 +149,11 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
       <button type="button" onClick={onRunCreateCostPlan}>
         Create cost plan
       </button>
+      {onRunRefreshCostPlan ? (
+        <button type="button" onClick={onRunRefreshCostPlan}>
+          Refresh cost plan
+        </button>
+      ) : null}
       {isRunningCostPlan && onCancelCostPlan ? (
         <button type="button" onClick={onCancelCostPlan}>
           Cancel cost plan
@@ -259,6 +266,52 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     );
 
     resolveWorkspaceRefresh?.();
+  });
+
+  it("shows the workbook draft returned by a Cost Plan refresh", async () => {
+    const user = userEvent.setup();
+    const baseDraft = { ...costPlanSummary, version: 1 };
+    mocks.api.getProjectCockpitBootstrap.mockResolvedValueOnce({
+      project,
+      projects: [project],
+      evidence: [],
+      workspace_tree: {
+        project_id: project.id,
+        root_path: project.workspace_path,
+        tree: [],
+      },
+      platform_knowledge: { available: true, buckets: [] },
+      latest_drafts: {
+        create_pmp: null,
+        create_cost_plan: baseDraft,
+        sort_files: null,
+      },
+      timings_ms: {},
+    });
+    mocks.api.getLatestDraft.mockRejectedValueOnce(new Error("not available"));
+    mocks.api.getWorkflowResult.mockResolvedValueOnce({
+      run: { id: "run-1", project_id: project.id, state: "complete" },
+      result: {
+        status: "complete",
+        draft: costPlanDraft,
+      },
+    });
+
+    renderProjectCockpit();
+
+    await user.click(await screen.findByRole("button", { name: "Refresh cost plan" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("inline-cost-workbook")).toHaveTextContent("draft-v2");
+    });
+    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
+      project.id,
+      "cost-plan/refresh",
+      expect.objectContaining({
+        expected_artefact_version: 1,
+        parameters: { proposed_items: [] },
+      }),
+    );
   });
 
   it("queues a trade RFQ for worker-side request attachment", async () => {

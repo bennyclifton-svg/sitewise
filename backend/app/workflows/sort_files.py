@@ -203,9 +203,6 @@ async def run_sort_files_workflow(
         )
     )
 
-    if auto_commit:
-        await session.commit()
-
     needs_review = bool(result.counts.unresolved or result.counts.refused)
     workflow_status = "needs_review" if needs_review else "complete"
     message = (
@@ -233,6 +230,9 @@ async def run_sort_files_workflow(
         status=workflow_status,
         draft_id=draft.id,
     )
+
+    if auto_commit:
+        await session.commit()
 
     return SortFilesResponse(
         status=workflow_status,

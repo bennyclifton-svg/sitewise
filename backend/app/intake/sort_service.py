@@ -23,7 +23,11 @@ from app.database.workspace_files import (
 )
 from app.inbox.paths import build_storage_key
 from app.intake.classifier import classify_inbox_destination, is_intake_manifest
-from app.storage.project_files import download_project_file, move_project_file
+from app.storage.project_files import (
+    delete_project_files,
+    download_project_file,
+    upload_project_file,
+)
 from ingest.document_metadata import parse_document_metadata
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 from ingest.ids import document_id
@@ -291,9 +295,8 @@ async def _move_workspace_file(
     destination_key = build_storage_key(str(project.id), destination_workspace_path)
 
     await asyncio.to_thread(
-        move_project_file,
-        source_key=record.storage_key,
-        destination_key=destination_key,
+        upload_project_file,
+        storage_key=destination_key,
         content=content,
         filename=destination_filename,
     )
@@ -341,6 +344,12 @@ async def _move_workspace_file(
 
     await session.delete(record)
     await session.flush()
+    await session.commit()
+
+    # Storage cannot participate in the database transaction. Keep the inbox
+    # object until the replacement row is durable, so a deadlock can only leave
+    # a harmless duplicate blob for a later cleanup rather than an orphaned row.
+    await asyncio.to_thread(delete_project_files, storage_keys=[record.storage_key])
     return moved
 
 

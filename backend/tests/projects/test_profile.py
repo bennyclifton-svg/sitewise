@@ -81,6 +81,36 @@ def test_validate_profile_patch_persists_site_address_and_client() -> None:
     assert read_profile(project).client == "Walsh Family"
 
 
+def test_document_identity_marker_clears_when_user_corrects_the_field() -> None:
+    project = _orm_project(profile_revision=1)
+    session = _Session()
+
+    asyncio.run(
+        apply_profile_patch(
+            session,
+            project=project,
+            patch=ProjectProfilePatch(
+                expected_revision=1,
+                client="Atelier North for David & Emma Walsh",
+            ),
+            actor_source="ingest",
+        )
+    )
+
+    assert project.project_metadata["identity_review"] == {"fields": ["client"]}
+
+    asyncio.run(
+        apply_profile_patch(
+            session,
+            project=project,
+            patch=ProjectProfilePatch(expected_revision=2, client="David Walsh"),
+            actor_source="user",
+        )
+    )
+
+    assert "identity_review" not in project.project_metadata
+
+
 def test_write_profile_preserves_identity_when_other_fields_change() -> None:
     project = _orm_project(
         profile_revision=2,

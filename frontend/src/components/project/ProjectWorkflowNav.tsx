@@ -37,6 +37,12 @@ export function ProjectWorkflowNav({
                   aria-hidden
                 />
                 <span className="truncate">{tile.label}</span>
+                {tile.attention ? (
+                  <span
+                    aria-label="Profile details need review"
+                    className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                  />
+                ) : null}
               </button>
             </li>
           );

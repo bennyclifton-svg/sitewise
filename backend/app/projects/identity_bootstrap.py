@@ -47,7 +47,7 @@ async def bootstrap_identity_from_document(
     source_document_id: uuid.UUID,
     document_text: str | None = None,
 ) -> IdentityBootstrapResult:
-    """Propose or auto-apply empty client/site_address from an ingested document."""
+    """Auto-apply empty client/site_address from an ingested document."""
     profile = read_profile(project)
     if profile.site_address and profile.client:
         return IdentityBootstrapResult(status="noop", detail="identity already set")
@@ -69,9 +69,7 @@ async def bootstrap_identity_from_document(
     )
 
     auto_values: dict[str, Any] = {}
-    propose_values: dict[str, Any] = {}
     auto_confidences: list[float] = []
-    propose_confidences: list[float] = []
 
     for decision in decisions:
         if decision.action == "skip" or not decision.value:
@@ -81,22 +79,18 @@ async def bootstrap_identity_from_document(
         conflict = _pending_conflict(pending, decision)
         if conflict == "duplicate":
             continue
-        if conflict == "conflict" or decision.action == "propose":
-            propose_values[decision.field] = decision.value
-            propose_confidences.append(decision.confidence)
+        if conflict == "conflict":
             continue
         auto_values[decision.field] = decision.value
         auto_confidences.append(decision.confidence)
 
-    if not auto_values and not propose_values:
+    if not auto_values:
         return IdentityBootstrapResult(
             status="noop", detail="no eligible identity fields"
         )
 
     auto_proposal: ProjectProfileProposalView | None = None
-    pending_proposal: ProjectProfileProposalView | None = None
     auto_fields = tuple(sorted(auto_values))
-    propose_fields = tuple(sorted(propose_values))
 
     if auto_values:
         auto_proposal = await _propose(
@@ -114,35 +108,10 @@ async def bootstrap_identity_from_document(
             actor_source=INGEST_PROPOSER,
         )
         auto_proposal = resolution.proposal
-        # Refresh project revision for a follow-on propose.
-        await session.refresh(project)
-
-    if propose_values:
-        pending_proposal = await _propose(
-            session,
-            project=project,
-            values=propose_values,
-            source_document_id=source_document_id,
-            confidence=min(propose_confidences) if propose_confidences else None,
-        )
-
-    if auto_fields and propose_fields:
-        return IdentityBootstrapResult(
-            status="mixed",
-            proposal=pending_proposal,
-            auto_applied_fields=auto_fields,
-            proposed_fields=propose_fields,
-        )
-    if auto_fields:
-        return IdentityBootstrapResult(
-            status="auto_applied",
-            proposal=auto_proposal,
-            auto_applied_fields=auto_fields,
-        )
     return IdentityBootstrapResult(
-        status="proposed",
-        proposal=pending_proposal,
-        proposed_fields=propose_fields,
+        status="auto_applied",
+        proposal=auto_proposal,
+        auto_applied_fields=auto_fields,
     )
 
 

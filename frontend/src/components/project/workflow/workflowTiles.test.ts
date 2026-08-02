@@ -72,4 +72,23 @@ describe("buildLifecycleTiles workflow capabilities", () => {
     );
     expect(tiles.find((tile) => tile.id === "procurement")?.status).toBe("blocked");
   });
+
+  it("marks the project profile when document identity needs review", () => {
+    const tiles = buildLifecycleTiles({
+      project: {
+        ...projectWithCapabilities({}),
+        metadata: { identity_review: { fields: ["client"] } },
+      },
+      latestDraft: null,
+      latestCostPlanDraft: null,
+      workflowError: null,
+      costPlanWorkflowError: null,
+      isRunningWorkflow: false,
+      isRunningCostPlan: false,
+    });
+
+    expect(tiles.find((tile) => tile.id === "project-profile")?.attention).toBe(
+      true,
+    );
+  });
 });

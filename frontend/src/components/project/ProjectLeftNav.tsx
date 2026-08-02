@@ -93,9 +93,11 @@ export function ProjectLeftNav({
           className="flex min-h-0 max-h-[min(24rem,52%)] flex-col"
           aria-label="Chat history preview"
         >
-          <header className="flex shrink-0 items-center gap-2 px-3 py-2">
-            <History className="size-4 shrink-0" aria-hidden />
-            <span className="text-sm font-semibold">History</span>
+          <header className="shrink-0 px-3 py-2">
+            <div className="flex items-center gap-2 px-1.5 py-1.5">
+              <History className="size-4 shrink-0" aria-hidden />
+              <span className="text-sm font-semibold">History</span>
+            </div>
           </header>
           <p className="px-3 py-3 text-sm text-muted-foreground">
             Connect the backend to browse project chat sessions.

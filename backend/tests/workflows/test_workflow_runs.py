@@ -491,3 +491,53 @@ def test_dispatch_hands_the_cost_plan_workflow_its_preview_publisher(
     )
 
     assert create_cost_plan.await_args.kwargs["on_preview"] is publisher
+
+
+def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> None:
+    run = _plan_run("refresh_cost_plan")
+    run.frozen_artefact_version = 1
+    refreshed_draft = SimpleNamespace(
+        id=uuid.UUID("00000000-0000-0000-0000-000000000012"),
+        project_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        workflow_type="create_cost_plan",
+        version=2,
+        status="draft",
+        title="Cost Plan",
+        workspace_path="04-projects/test/01-cost/cost_plan_v02.md",
+        author_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        content_markdown="# Cost Plan v2",
+        model="test-model",
+        runtime="test-runtime",
+        provenance_metadata={
+            "workbook": {
+                "file_name": "Cost_Plan_v02.draft.xlsx",
+                "workspace_path": "04-projects/test/01-cost/Cost_Plan_v02.draft.xlsx",
+            }
+        },
+        created_at=datetime(2026, 8, 2, tzinfo=UTC),
+        updated_at=datetime(2026, 8, 2, tzinfo=UTC),
+    )
+    state = SimpleNamespace(artefact_revision_id=refreshed_draft.id)
+    refresh = AsyncMock(return_value=SimpleNamespace(state=state))
+    synchronize = AsyncMock()
+    session = AsyncMock()
+    session.get.return_value = refreshed_draft
+    monkeypatch.setattr(workflow_worker, "refresh_cost_plan", refresh)
+    monkeypatch.setattr(
+        workflow_worker,
+        "sync_cost_plan_revision_artifacts",
+        synchronize,
+        raising=False,
+    )
+    monkeypatch.setattr(workflow_worker, "_json_result", lambda result: {})
+
+    payload = run_async(workflow_worker._dispatch(session, run))
+
+    synchronize.assert_awaited_once_with(
+        session,
+        project=refresh.await_args.kwargs["project"],
+        draft=refreshed_draft,
+        typed_state=state,
+    )
+    assert payload["draft"]["id"] == str(refreshed_draft.id)
+    assert payload["draft"]["provenance_metadata"] == refreshed_draft.provenance_metadata

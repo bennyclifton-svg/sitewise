@@ -106,6 +106,9 @@ export type ProjectTaxonomyMetadata = {
 
 export type ProjectMetadata = Record<string, unknown> & {
   taxonomy?: ProjectTaxonomyMetadata;
+  identity_review?: {
+    fields?: ("client" | "site_address")[];
+  };
 };
 
 export type ProjectTaxonomyInput = {

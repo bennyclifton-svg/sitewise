@@ -278,7 +278,8 @@ def test_move_workspace_file_purges_old_source_document_id() -> None:
 
     with (
         patch("app.intake.sort_service.download_project_file", return_value=b"content"),
-        patch("app.intake.sort_service.move_project_file"),
+        patch("app.intake.sort_service.upload_project_file"),
+        patch("app.intake.sort_service.delete_project_files"),
         patch("app.intake.sort_service._purge_source_document") as purge,
         patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
         patch(
@@ -304,6 +305,85 @@ def test_move_workspace_file_purges_old_source_document_id() -> None:
     purge.assert_called_once_with(source.workspace_path, PROJECT_ID, old_source_document_id)
     session.delete.assert_awaited_once_with(source)
     session.flush.assert_awaited_once()
+
+
+def test_move_workspace_file_deletes_source_blob_only_after_commit() -> None:
+    session = AsyncMock()
+    new_source_document_id = uuid.uuid4()
+    source = _workspace_file()
+    moved_record = _workspace_file(
+        workspace_path="04-projects/greenfield-demo/03-design/architect/CC-A-010.pdf",
+        filename="CC-A-010.pdf",
+        source_document_id=new_source_document_id,
+    )
+
+    with (
+        patch("app.intake.sort_service.download_project_file", return_value=b"content"),
+        patch("app.intake.sort_service.upload_project_file") as upload,
+        patch("app.intake.sort_service.delete_project_files") as delete_source,
+        patch("app.intake.sort_service._purge_source_document"),
+        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=new_source_document_id,
+        ),
+        patch(
+            "app.intake.sort_service.upsert_workspace_file",
+            new=AsyncMock(return_value=moved_record),
+        ),
+    ):
+        result = run_async(
+            _move_workspace_file(
+                session,
+                project=_project(),
+                record=source,
+                destination_workspace_path=moved_record.workspace_path,
+                destination_filename=moved_record.filename,
+            )
+        )
+
+    assert result == moved_record
+    upload.assert_called_once()
+    session.commit.assert_awaited_once()
+    delete_source.assert_called_once_with(storage_keys=[source.storage_key])
+
+
+def test_move_workspace_file_keeps_source_blob_when_commit_fails() -> None:
+    session = AsyncMock()
+    session.commit.side_effect = RuntimeError("deadlock detected")
+    source = _workspace_file()
+    moved_record = _workspace_file(
+        workspace_path="04-projects/greenfield-demo/03-design/architect/CC-A-010.pdf",
+        filename="CC-A-010.pdf",
+    )
+
+    with (
+        patch("app.intake.sort_service.download_project_file", return_value=b"content"),
+        patch("app.intake.sort_service.upload_project_file"),
+        patch("app.intake.sort_service.delete_project_files") as delete_source,
+        patch("app.intake.sort_service._purge_source_document"),
+        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=uuid.uuid4(),
+        ),
+        patch(
+            "app.intake.sort_service.upsert_workspace_file",
+            new=AsyncMock(return_value=moved_record),
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="deadlock detected"):
+            run_async(
+                _move_workspace_file(
+                    session,
+                    project=_project(),
+                    record=source,
+                    destination_workspace_path=moved_record.workspace_path,
+                    destination_filename=moved_record.filename,
+                )
+            )
+
+    delete_source.assert_not_called()
 
 
 @pytest.mark.parametrize(

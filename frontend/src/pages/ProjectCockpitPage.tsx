@@ -764,17 +764,17 @@ export function ProjectCockpitPage() {
         );
       }
       const response = await api.getWorkflowResult(project.id, run.id);
-      workflowPayload<Record<string, unknown>>(
+      const result = workflowPayload<CreatePmpResponse>(
         response.result,
         "Refresh Cost Plan completed without a result.",
       );
-      setCostPlanWorkflowResult({
-        status: "complete",
-        gate: project.overlay_status,
-        trace: [],
-        draft: null,
-        message: "Cost Plan refresh proposal is ready.",
-      });
+      setCostPlanWorkflowResult(result);
+      if (result.status === "failed" || result.status === "blocked") {
+        setCostPlanWorkflowError(result.message ?? "Refresh Cost Plan did not complete.");
+      }
+      if (result.draft) {
+        showCostPlanDraft(result.draft);
+      }
       refreshLatestDraftInBackground("create_cost_plan");
       refreshWorkflowSurfaces();
     } catch (runError) {

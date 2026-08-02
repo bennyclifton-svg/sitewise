@@ -19,6 +19,7 @@ export type WorkflowTile = {
   statusLabel: string;
   description: string;
   implemented: boolean;
+  attention?: boolean;
 };
 
 export function buildLifecycleTiles({
@@ -76,6 +77,7 @@ export function buildLifecycleTiles({
       description:
         "Set your role, state, building class, and work type so SiteWise overlays and workflow gates match this project.",
       implemented: true,
+      attention: hasIdentityReviewMarker(project),
     },
     {
       id: "create-pmp",
@@ -123,6 +125,10 @@ export function buildLifecycleTiles({
       implemented: true,
     },
   ];
+}
+
+function hasIdentityReviewMarker(project: ProjectDetail): boolean {
+  return Boolean(project.metadata?.identity_review?.fields?.length);
 }
 
 function procurementStatus({

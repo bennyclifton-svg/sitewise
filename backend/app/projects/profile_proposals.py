@@ -13,6 +13,7 @@ from app.projects.profile import (
     PROFILE_FIELDS,
     ProfileValidationError,
     apply_profile_patch,
+    read_profile,
     validate_profile_patch,
 )
 from app.schemas.profile_proposals import (
@@ -41,6 +42,9 @@ class ProfileProposalRevisionConflict(RuntimeError):
             f"profile proposal revision {proposal_revision} does not match "
             f"current revision {current_revision}"
         )
+
+
+IDENTITY_PROPOSAL_FIELDS = frozenset({"client", "site_address"})
 
 
 async def propose_project_profile_change(
@@ -142,6 +146,13 @@ async def accept_profile_proposal(
     await session.refresh(project, with_for_update=True)
     proposal = await _locked_proposal(session, project.id, proposal_id)
     _require_pending(proposal)
+    if _is_identity_proposal(proposal):
+        return await _accept_identity_proposal(
+            session,
+            project=project,
+            proposal=proposal,
+            actor_source=actor_source,
+        )
     _require_revision(proposal, project, expected_profile_revision)
     change = await apply_profile_patch(
         session,
@@ -164,6 +175,66 @@ async def accept_profile_proposal(
         resource_revision=change.new_revision,
         action="accepted",
         payload={"profile_revision": change.new_revision},
+        locked_project=project,
+    )
+    await session.refresh(proposal)
+    return ProfileProposalResolution(
+        proposal=ProjectProfileProposalView.model_validate(proposal),
+        profile_change=change,
+    )
+
+
+async def _accept_identity_proposal(
+    session,
+    *,
+    project: Project,
+    proposal: ProjectProfileProposal,
+    actor_source: str,
+) -> ProfileProposalResolution:
+    """Apply document identity to empty fields, even if another profile edit advanced it."""
+    current = read_profile(project)
+    values: dict[str, Any] = {}
+    conflicts = False
+    for field, value in proposal.proposed_values.items():
+        existing = getattr(current, field)
+        if existing is None:
+            values[field] = value
+        elif _identity_values_match(existing, value):
+            continue
+        else:
+            conflicts = True
+
+    change = None
+    if conflicts:
+        proposal.state = "rejected"
+        action = "rejected"
+    else:
+        if values:
+            change = await apply_profile_patch(
+                session,
+                project=project,
+                patch=ProjectProfilePatch(
+                    expected_revision=project.profile_revision,
+                    **values,
+                ),
+                actor_source=(
+                    "identity_autofill" if actor_source == "user" else actor_source
+                ),
+            )
+        proposal.state = "accepted"
+        action = "accepted"
+    proposal.resolver_source = actor_source
+    proposal.resolved_at = datetime.now(UTC)
+    revision = change.new_revision if change is not None else project.profile_revision
+    await publish_project_event(
+        session,
+        project_id=project.id,
+        actor_source=actor_source,
+        resource_type="project_profile_proposal",
+        resource_id=proposal.id,
+        resource_revision=revision,
+        action=action,
+        payload={"profile_revision": revision},
         locked_project=project,
     )
     await session.refresh(proposal)
@@ -223,6 +294,17 @@ async def _locked_proposal(
 def _require_pending(proposal: ProjectProfileProposal) -> None:
     if proposal.state != "pending":
         raise ProfileProposalStateConflict(proposal.state)
+
+
+def _is_identity_proposal(proposal: ProjectProfileProposal) -> bool:
+    fields = set(proposal.proposed_values)
+    return bool(fields) and fields <= IDENTITY_PROPOSAL_FIELDS
+
+
+def _identity_values_match(existing: Any, proposed: Any) -> bool:
+    if not isinstance(existing, str) or not isinstance(proposed, str):
+        return existing == proposed
+    return existing.strip().casefold() == proposed.strip().casefold()
 
 
 def _require_revision(

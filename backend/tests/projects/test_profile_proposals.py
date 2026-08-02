@@ -125,6 +125,42 @@ def test_accept_reject_stale_proposal_when_profile_changed() -> None:
     assert proposal.state == "pending"
 
 
+def test_accept_stale_identity_proposal_rebases_onto_empty_fields() -> None:
+    project = _project(profile_revision=4)
+    proposal = _proposal(
+        project,
+        profile_revision=3,
+        current_values={"client": None},
+        proposed_values={"client": "Atelier North for David & Emma Walsh"},
+    )
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.get.return_value = proposal
+    publish = AsyncMock()
+
+    with patch(
+        "app.projects.profile_proposals.publish_project_event", new=publish
+    ), patch("app.projects.profile.publish_project_event", new=AsyncMock()):
+        resolution = asyncio.run(
+            accept_profile_proposal(
+                session,
+                project=project,
+                proposal_id=proposal.id,
+                expected_profile_revision=3,
+                actor_source="user",
+            )
+        )
+
+    assert resolution.proposal.state == "accepted"
+    assert resolution.profile_change is not None
+    assert resolution.profile_change.new_revision == 5
+    assert project.project_metadata["taxonomy"]["client"] == (
+        "Atelier North for David & Emma Walsh"
+    )
+    assert project.project_metadata["identity_review"] == {"fields": ["client"]}
+    publish.assert_awaited_once()
+
+
 def test_reject_proposal_persists_resolution_without_profile_change() -> None:
     project = _project()
     proposal = _proposal(project)

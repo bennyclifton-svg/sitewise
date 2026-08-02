@@ -94,6 +94,11 @@ async def apply_profile_patch(
 
     new_revision = plan.before.profile_revision + 1
     _write_profile(project, plan.after)
+    _update_identity_review_marker(
+        project,
+        changed_fields=(*plan.changed_fields, *plan.cleared_fields),
+        actor_source=actor_source,
+    )
     project.profile_revision = new_revision
     session.add(
         ActivityEvent(
@@ -426,4 +431,34 @@ def _write_profile(project: Project, profile: ProjectProfileView) -> None:
     # Prefer taxonomy as the canonical store; drop legacy top-level copies.
     metadata.pop("site_address", None)
     metadata.pop("client", None)
+    project.project_metadata = metadata
+
+
+def _update_identity_review_marker(
+    project: Project,
+    *,
+    changed_fields: tuple[ProjectProfileField, ...],
+    actor_source: str,
+) -> None:
+    """Keep document-derived identity visible until the user reviews the fields."""
+    identity_fields = {"client", "site_address"} & set(changed_fields)
+    if not identity_fields:
+        return
+
+    metadata = dict(project.project_metadata or {})
+    existing = metadata.get("identity_review")
+    marked_fields = (
+        set(existing.get("fields", [])) if isinstance(existing, dict) else set()
+    )
+    if actor_source in {"agent", "ingest", "identity_autofill"}:
+        marked_fields.update(identity_fields)
+    elif actor_source == "user":
+        marked_fields.difference_update(identity_fields)
+    else:
+        return
+
+    if marked_fields:
+        metadata["identity_review"] = {"fields": sorted(marked_fields)}
+    else:
+        metadata.pop("identity_review", None)
     project.project_metadata = metadata

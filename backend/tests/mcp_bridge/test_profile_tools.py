@@ -252,6 +252,65 @@ def test_evidence_derived_change_creates_proposal_without_profile_mutation(
     assert project.profile_revision == 1
 
 
+def test_evidence_derived_identity_is_applied_without_confirmation(monkeypatch) -> None:
+    project = _project()
+    session = _Session(project)
+    server, _, _ = _install(monkeypatch, session)
+    proposal = _proposal(project).model_copy(
+        update={
+            "proposed_values": {"client": "Atelier North for David & Emma Walsh"}
+        }
+    )
+    applied = ProjectProfileChange(
+        profile=ProjectProfileView(
+            project_id=project.id,
+            profile_revision=2,
+            client="Atelier North for David & Emma Walsh",
+        ),
+        previous_revision=1,
+        new_revision=2,
+        changed_fields=["client"],
+        cleared_fields=[],
+        overlay_status=OverlayStatus(ready=False),
+        risk_flags=[],
+    )
+    persist = AsyncMock(return_value=proposal)
+    accept = AsyncMock(
+        return_value=ProfileProposalResolution(
+            proposal=proposal.model_copy(update={"state": "accepted"}),
+            profile_change=applied,
+        )
+    )
+    publish = AsyncMock()
+    monkeypatch.setattr(server, "persist_profile_proposal", persist)
+    monkeypatch.setattr(server, "accept_profile_proposal", accept)
+    monkeypatch.setattr(server.agent_turn_status_bus, "publish", publish)
+
+    result = _call(
+        server,
+        "propose_project_profile_change",
+        {
+            "project_id": str(PROJECT_ID),
+            "proposed_values": {
+                "client": "Atelier North for David & Emma Walsh"
+            },
+            "evidence_references": [],
+            "confidence": 0.98,
+        },
+    )
+
+    assert result["state"] == "accepted"
+    assert accept.await_args.kwargs == {
+        "session": session,
+        "project": project,
+        "proposal_id": proposal.id,
+        "expected_profile_revision": proposal.profile_revision,
+        "actor_source": "agent",
+    }
+    assert session.committed is True
+    assert publish.await_args.kwargs["changedFields"] == ["client"]
+
+
 def test_profile_tools_accept_stringified_json_object_args(monkeypatch) -> None:
     project = _project()
     session = _Session(project)
