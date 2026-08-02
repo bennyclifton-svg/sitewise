@@ -203,7 +203,7 @@ export function ProcurementRequestPanel({
             draft={selectedRequest.current_draft}
             workflowType={selectedRequest.current_draft.workflow_type}
             embedded
-            onDraftUpdated={onDraftUpdated}
+            onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
           />
         </Suspense>
       ) : selectedRequest ? (
