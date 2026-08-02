@@ -73,7 +73,7 @@ Setup guides:
 - [Supabase](docs/guides/supabase-setup.md)
 - [Backend](docs/guides/backend-setup.md)
 - [Frontend](docs/guides/frontend-setup.md)
-- [Deployment](docs/deployment.md)
+- [Deployment](DEPLOYMENT.md)
 
 Backend commands run from `backend/`.
 

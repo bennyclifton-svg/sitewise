@@ -1,8 +1,8 @@
 # SiteWise — Unattended Deployment Runbook
 
-Operational runbook for shipping `main` to production at `https://sitewise.au`.
-This is the *how*; `docs/deployment.md` is the *what* (architecture, services,
-env var inventory, phase gates). Read this one to deploy.
+The single deployment document for shipping `main` to production at
+`https://sitewise.au` — production facts, environment inventory, deploy
+sequence, smoke tests and triage.
 
 > **Purpose:** this file exists so a deploy can be driven end-to-end without the
 > operator at the keyboard. Anything an agent would otherwise have to ask for
@@ -28,6 +28,21 @@ env var inventory, phase gates). Read this one to deploy.
 | Git remote | `origin` → `https://github.com/bennyclifton-svg/sitewise.git` |
 | Deploy branch | `main` |
 
+### Services
+
+| Service | Role |
+| --- | --- |
+| `sitewise-api` | FastAPI API, TCM router, billing, Hermes/MCP runtime |
+| `sitewise-worker` | Tender Comparison worker running `python -m tender.worker` |
+| `sitewise-web` | Static React SPA and nginx proxy to FastAPI |
+| Supabase | Auth, Postgres, and object storage |
+| Stripe | Billing provider |
+
+The backend image bundles Hermes CLI v0.17.x with JVM/ODL support, FastAPI, MCP,
+and the Tender Comparison worker path. `AGENT_WORKSPACE_ROOT` is a persistent
+volume for scratch and artefact files; Supabase Storage stays canonical for
+uploaded source documents. nginx must keep `/api/*` and SSE streams unbuffered.
+
 ### Access credentials — FILL THESE IN
 
 These are the only things that block a fully unattended deploy. Secrets stay out
@@ -52,6 +67,55 @@ of git: record the *method and location*, not the value.
   that would have worked; see the outage note in section 6. Record the reseller
   or panel used to buy the VPS, since CloudWebManage is the upstream platform
   rather than the billing vendor.
+
+### Environment inventory
+
+Backend runtime values live in Dokploy or in gitignored env files. Never commit
+live secrets. `deploy/env/sitewise-api.env` is the local mirror of what Dokploy
+holds — keep it truthful.
+
+Required backend values:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET`
+- `DATABASE_URL`
+- `OPENAI_API_KEY`
+- `PUBLIC_APP_URL=https://sitewise.au`
+- `ALLOWED_ORIGINS=https://sitewise.au`
+
+Agent and billing values:
+
+- `AGENT_RUNTIME_ENABLED`
+- `HERMES_BINARY_PATH`
+- `HERMES_INVOCATION_MODE`
+- `AGENT_PLATFORM_API_KEY`
+- `AGENT_MCP_URL`
+- `AGENT_WORKSPACE_ROOT`
+- `AGENT_MAX_CONCURRENT_TURNS`
+- `AGENT_TURN_TIMEOUT_SECONDS`
+- `AGENT_TURN_TOKEN_SECRET`
+- `BILLING_PROVIDER=stripe`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID`
+- `STRIPE_CHECKOUT_SUCCESS_PATH`
+- `STRIPE_PORTAL_RETURN_PATH`
+
+Frontend build values:
+
+- `VITE_API_BASE_URL=/api`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Model values are listed separately in step 2b, because they are the ones that
+silently override a code change.
+
+`BILLING_PROVIDER` accepts only `none` or `stripe`. Polar was removed on
+2026-08-02; a leftover `BILLING_PROVIDER=polar` now fails validation and will
+stop the container booting. Any other stale `POLAR_*` values are inert — the
+settings model is `extra="ignore"` — and can be deleted at leisure.
 
 ---
 
@@ -204,9 +268,38 @@ missing, the new code is **not** live regardless of what Dokploy reported.
 After a model change, confirm the values match what you shipped — e.g.
 `"chat_model":"gpt-5.6-luna"`, `"chat_provider":"openai-responses:gpt-5.6-luna"`.
 
-Then the manual smoke path in `docs/deployment.md` §Smoke Test: sign in, project
-list loads, open a cockpit, ask a project-scoped chat question with citations,
-upload a small document, check billing entitlement.
+Then walk the manual smoke path:
+
+1. Open `https://sitewise.au` and sign in with Supabase Auth.
+2. Confirm the project list loads.
+3. Open a project cockpit.
+4. Ask a project-scoped chat question and inspect the citations.
+5. Upload a small document to the project repository.
+6. Open billing and confirm entitlement state loads.
+
+Full agent-path smoke test, when the change touches Hermes or tender:
+
+1. Sign up and subscribe through Stripe test mode.
+2. Create or open a project.
+3. Upload tender documents.
+4. Ask chat to compare the selected tenders.
+5. Confirm Hermes tool chips stream.
+6. Confirm the TCM worker completes.
+7. Confirm the comparison panel and report artefact populate.
+8. Edit the artefact and confirm persistence.
+
+### Deeper validation on the host
+
+```powershell
+./scripts/sitewise-vps-phase8-validate.ps1
+```
+
+Writes `tmp/sitewise-vps-phase8-validate-*.txt` and checks: backend container
+starts and `/health` responds; a Hermes headless turn works in-container; MCP
+initialize/tool-call round-trips over the internal network; SSE streams through
+nginx unbuffered; ODL/JVM extraction works; the tender worker drains jobs; a
+Stripe webhook updates entitlement state; and production container env is
+present without printing secrets. It needs the section 1 SSH access.
 
 ---
 
