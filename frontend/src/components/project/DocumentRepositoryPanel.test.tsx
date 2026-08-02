@@ -5,6 +5,7 @@ import { DocumentRepositoryPanel } from "@/components/project/DocumentRepository
 import { api } from "@/lib/api";
 import type {
   DocumentUsageMark,
+  DraftArtifactSummary,
   EvidencePreview,
   InboxUploadResult,
   PdfAnalyzeResult,
@@ -303,6 +304,27 @@ function evidenceRow(overrides: Partial<EvidencePreview> = {}): EvidencePreview 
   };
 }
 
+function artefactDraft(
+  overrides: Partial<DraftArtifactSummary> = {},
+): DraftArtifactSummary {
+  return {
+    id: "draft-1",
+    project_id: "project-1",
+    workflow_type: "trade_rft_electrical_services",
+    version: 2,
+    status: "draft",
+    title: "Request for Tender - Electrical services",
+    workspace_path:
+      "04-projects/demo/05-procurement/electrical-services/02-tender-pack/electrical-services_rft_v02.draft.md",
+    author_user_id: "user-1",
+    model: null,
+    runtime: "clerk-trade-procurement",
+    created_at: "2026-08-02T00:00:00.000Z",
+    updated_at: "2026-08-02T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function usageMark(overrides: Partial<DocumentUsageMark> = {}): DocumentUsageMark {
   return {
     artefact_id: "artefact-1",
@@ -389,5 +411,37 @@ describe("DocumentRepositoryPanel usage marks", () => {
     renderWithEvidence([legacy]);
 
     expect(screen.getByText("Owner Brief")).toBeInTheDocument();
+  });
+});
+
+describe("DocumentRepositoryPanel generated artefacts", () => {
+  it("opens an RFT artefact without selecting or exposing source-document actions", () => {
+    const onSelectEvidence = vi.fn();
+    const onOpenDraft = vi.fn();
+    const draft = artefactDraft();
+    render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[evidenceRow()]}
+        selectedEvidenceId={null}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={onSelectEvidence}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        artefactDrafts={[draft]}
+        onOpenDraft={onOpenDraft}
+      />,
+    );
+
+    expect(screen.getByText("RFT")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `Open ${draft.title}` }));
+
+    expect(onOpenDraft).toHaveBeenCalledWith(draft);
+    expect(onSelectEvidence).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: `Delete ${draft.title}` })).toBeNull();
   });
 });

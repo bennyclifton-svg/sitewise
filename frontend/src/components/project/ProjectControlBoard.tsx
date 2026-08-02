@@ -22,7 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
-import { ProcurementRequestPanel } from "@/components/project/ProcurementRequestPanel";
+import {
+  ProcurementRequestPanel,
+  type RunnableProcurementRequestKind,
+} from "@/components/project/ProcurementRequestPanel";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
   TaxonomyPicker,
@@ -41,7 +44,6 @@ import type {
   OverlayIssue,
   ProjectDetail,
   ProjectProfileProposal,
-  ProcurementRequestKind,
   SortFilesResponse,
   WorkflowCapability,
   WorkflowRun,
@@ -151,7 +153,7 @@ export function ProjectControlBoard({
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
   onCancelProcurement?: () => void;
-  onRunProcurement?: (kind: ProcurementRequestKind, targetName: string) => void;
+  onRunProcurement?: (kind: RunnableProcurementRequestKind, targetName: string) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -705,7 +707,7 @@ function WorkflowDetail({
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
   onCancelProcurement?: () => void;
-  onRunProcurement?: (kind: ProcurementRequestKind, targetName: string) => void;
+  onRunProcurement?: (kind: RunnableProcurementRequestKind, targetName: string) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;

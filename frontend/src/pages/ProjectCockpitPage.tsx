@@ -5,9 +5,15 @@ import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-rout
 
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
+import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
 import { ChatRail } from "@/components/chat/ChatRail";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
-import { isCostPlanWorkspaceFile, isPmpWorkspaceFile, findDraftByWorkspacePath } from "@/components/project/workflow/workspaceRouting";
+import {
+  findDraftByWorkspacePath,
+  isCostPlanWorkspaceFile,
+  isDraftArtifactWorkspaceFile,
+  isPmpWorkspaceFile,
+} from "@/components/project/workflow/workspaceRouting";
 import { buildLifecycleTiles } from "@/components/project/workflow/workflowTiles";
 import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
@@ -35,7 +41,6 @@ import type {
   DraftArtifactSummary,
   EvidencePreview,
   PlatformKnowledgeStatus,
-  ProcurementRequestKind,
   ProjectDetail,
   ProjectEvent,
   ProjectSummary,
@@ -832,29 +837,23 @@ export function ProjectCockpitPage() {
   }
 
   async function runProcurementRequest(
-    kind: ProcurementRequestKind,
+    kind: RunnableProcurementRequestKind,
     targetName: string,
   ) {
     if (!project) return;
     setIsRunningProcurement(true);
     setProcurementError(null);
     try {
-      const request = await api.createProcurementRequest(project.id, {
-        kind,
-        target_name: targetName,
-      });
       const parameters =
         kind === "consultant_rfp"
           ? {
               discipline: targetName,
               max_pages: 3,
-              procurement_request_id: request.id,
             }
           : {
               package: targetName,
               kind: kind === "trade_rft" ? "rft" : "rfq",
               max_pages: 3,
-              procurement_request_id: request.id,
             };
       const queued = await api.startWorkflowRun(
         project.id,
@@ -942,7 +941,7 @@ export function ProjectCockpitPage() {
     setActiveView("file");
   }
 
-  function selectWorkspacePath(path: string) {
+  async function selectWorkspacePath(path: string) {
     const keepTenderRoute = isTenderRouteActive();
     if (!keepTenderRoute) {
       leaveTenderRoute();
@@ -950,7 +949,11 @@ export function ProjectCockpitPage() {
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
     if (selectedNode?.kind === "file") {
-      const draft = findDraftByWorkspacePath(latestDraftsMap, path);
+      const draft =
+        findDraftByWorkspacePath(latestDraftsMap, path) ??
+        (isDraftArtifactWorkspaceFile(path) && projectId
+          ? await api.getProjectDraftByWorkspacePath(projectId, path)
+          : null);
       if (draft) {
         openDraftReview(draft);
         return;
@@ -1137,6 +1140,10 @@ export function ProjectCockpitPage() {
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
           platformStatus={platformStatus}
+          artefactDrafts={Object.values(latestDraftsMap).filter(
+            (draft): draft is DraftArtifactSummary => draft !== null,
+          )}
+          onOpenDraft={openDraftReview}
         />
       }
     >

@@ -24,6 +24,25 @@ export function isContractorEoiWorkspaceFile(path: string): boolean {
   return /\/02-procurement\/contractor_eoi_.+_v\d+\.draft\.md$/i.test(normalised);
 }
 
+/** True when the explorer path points at a trade RFT or RFQ draft. */
+export function isTradeProcurementWorkspaceFile(path: string): boolean {
+  const normalised = path.replaceAll("\\", "/");
+  return /\/05-procurement\/[^/]+\/02-tender-pack\/[^/]+_(?:rft|rfq)_v\d+\.draft\.md$/i.test(
+    normalised,
+  );
+}
+
+/** True when a workspace file is backed by a generated draft artefact. */
+export function isDraftArtifactWorkspaceFile(path: string): boolean {
+  return (
+    isPmpWorkspaceFile(path) ||
+    isCostPlanWorkspaceFile(path) ||
+    isConsultantProcurementWorkspaceFile(path) ||
+    isContractorEoiWorkspaceFile(path) ||
+    isTradeProcurementWorkspaceFile(path)
+  );
+}
+
 export function findDraftByWorkspacePath(
   drafts: Record<string, DraftArtifactSummary | null>,
   path: string,

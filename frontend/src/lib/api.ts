@@ -493,6 +493,14 @@ export const api = {
   ): Promise<DraftArtifact> =>
     api.get<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`),
 
+  getProjectDraftByWorkspacePath: async (
+    projectId: string,
+    workspacePath: string,
+  ): Promise<DraftArtifact | null> =>
+    api.get<DraftArtifact | null>(
+      `/projects/${projectId}/drafts/by-workspace-path?workspace_path=${encodeURIComponent(workspacePath)}`,
+    ),
+
   getProjectCockpitBootstrap: async (
     projectId: string,
   ): Promise<ProjectCockpitBootstrap> =>

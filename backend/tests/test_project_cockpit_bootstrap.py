@@ -7,12 +7,14 @@ from unittest.mock import ANY, AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api import projects as projects_api
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.database.project import Project
 from app.database.session import get_db
 from app.main import fastapi_app as app
 from app.schemas.projects import EvidencePreview, PlatformKnowledgeStatus
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
+from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -96,16 +98,16 @@ def _draft_summary() -> dict:
 
 
 @contextmanager
-def _consultant_procurement_bootstrap_patches():
+def _procurement_bootstrap_patches():
     with (
         patch(
-            "app.api.projects.get_latest_consultant_procurement_draft_summaries",
+            "app.api.projects.get_latest_prefixed_draft_artifact_summaries",
             new=AsyncMock(return_value={}),
         ),
         patch(
-            "app.api.projects._ensure_consultant_procurement_workspace_files",
+            "app.api.projects._ensure_procurement_workspace_files",
             new=AsyncMock(
-                side_effect=lambda _session, *, project, workspace_files, consultant_draft_summaries: workspace_files
+                side_effect=lambda _session, *, project, workspace_files, procurement_draft_summaries: workspace_files
             ),
         ),
     ):
@@ -157,7 +159,7 @@ def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ),
-        _consultant_procurement_bootstrap_patches(),
+        _procurement_bootstrap_patches(),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -213,7 +215,7 @@ def test_cockpit_bootstrap_includes_canonical_pmp_path_for_legacy_draft(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ),
-        _consultant_procurement_bootstrap_patches(),
+        _procurement_bootstrap_patches(),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -267,7 +269,7 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
             "app.api.projects._ensure_cost_plan_workspace_file",
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ),
-        _consultant_procurement_bootstrap_patches(),
+        _procurement_bootstrap_patches(),
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -279,7 +281,7 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
     assert "Cost_Plan_v01.draft.xlsx" in file_names
 
 
-def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
+def test_cockpit_bootstrap_includes_all_procurement_drafts(
     client: TestClient,
 ) -> None:
     consultant_draft_id = uuid.UUID("55555555-5555-5555-5555-555555555555")
@@ -299,6 +301,33 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
         "runtime": "clerk-consultant-procurement",
         "created_at": NOW,
         "updated_at": NOW,
+    }
+    eoi_draft = {
+        **consultant_draft,
+        "id": uuid.UUID("66666666-6666-6666-6666-666666666666"),
+        "workflow_type": "contractor_eoi_main_works",
+        "title": "Expression of Interest - Main works",
+        "workspace_path": "04-projects/demo/02-procurement/contractor_eoi_main_works_v01.draft.md",
+    }
+    rft_draft = {
+        **consultant_draft,
+        "id": uuid.UUID("77777777-7777-7777-7777-777777777777"),
+        "workflow_type": "trade_rft_electrical_services",
+        "title": "Request for Tender - Electrical services",
+        "workspace_path": (
+            "04-projects/demo/05-procurement/electrical-services/02-tender-pack/"
+            "electrical-services_rft_v01.draft.md"
+        ),
+    }
+    rfq_draft = {
+        **consultant_draft,
+        "id": uuid.UUID("88888888-8888-8888-8888-888888888888"),
+        "workflow_type": "trade_rfq_joinery",
+        "title": "Request for Quote - Joinery",
+        "workspace_path": (
+            "04-projects/demo/05-procurement/joinery/02-tender-pack/"
+            "joinery_rfq_v01.draft.md"
+        ),
     }
 
     with (
@@ -320,9 +349,14 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
             new=AsyncMock(return_value={}),
         ),
         patch(
-            "app.api.projects.get_latest_consultant_procurement_draft_summaries",
+            "app.api.projects.get_latest_prefixed_draft_artifact_summaries",
             new=AsyncMock(
-                return_value={"consultant_procurement_structural_engineer": consultant_draft}
+                return_value={
+                    "consultant_procurement_structural_engineer": consultant_draft,
+                    "contractor_eoi_main_works": eoi_draft,
+                    "trade_rft_electrical_services": rft_draft,
+                    "trade_rfq_joinery": rfq_draft,
+                }
             ),
         ),
         patch(
@@ -334,9 +368,9 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
             new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, draft_summaries: workspace_files),
         ) as ensure_cost_plan,
         patch(
-            "app.api.projects._ensure_consultant_procurement_workspace_files",
-            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, consultant_draft_summaries: workspace_files),
-        ) as ensure_consultant,
+            "app.api.projects._ensure_procurement_workspace_files",
+            new=AsyncMock(side_effect=lambda _session, *, project, workspace_files, procurement_draft_summaries: workspace_files),
+        ) as ensure_procurement,
     ):
         response = client.get(f"/projects/{PROJECT_ID}/cockpit-bootstrap")
 
@@ -345,10 +379,19 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
     assert payload["latest_drafts"]["consultant_procurement_structural_engineer"]["id"] == str(
         consultant_draft_id
     )
+    assert payload["latest_drafts"]["contractor_eoi_main_works"]["id"] == str(
+        eoi_draft["id"]
+    )
+    assert payload["latest_drafts"]["trade_rft_electrical_services"]["id"] == str(
+        rft_draft["id"]
+    )
+    assert payload["latest_drafts"]["trade_rfq_joinery"]["id"] == str(rfq_draft["id"])
     tree = payload["workspace_tree"]["tree"]
     consultant_node = next(node for node in tree if node["name"] == "02-consultant")
     file_names = [child["name"] for child in consultant_node["children"] if child["kind"] == "file"]
     assert "consultant_procurement_structural_engineer_v01.draft.md" in file_names
+    procurement_node = next(node for node in tree if node["name"] == "05-procurement")
+    assert procurement_node["kind"] == "directory"
 
     # Regression guard: these self-heal syncs must actually run on every
     # bootstrap so a draft_artifacts row can never outlive its workspace file
@@ -357,7 +400,65 @@ def test_cockpit_bootstrap_includes_consultant_procurement_drafts(
     # tests kept passing, because nothing asserted the calls happened.
     ensure_pmp.assert_awaited_once()
     ensure_cost_plan.assert_awaited_once()
-    ensure_consultant.assert_awaited_once()
+    ensure_procurement.assert_awaited_once()
+
+
+def test_procurement_workspace_repair_syncs_each_request_family() -> None:
+    summaries = {
+        "consultant_procurement_structural_engineer": SimpleNamespace(
+            workflow_type="consultant_procurement_structural_engineer",
+            workspace_path="04-projects/demo/02-consultant/rfp.md",
+        ),
+        "contractor_eoi_main_works": SimpleNamespace(
+            workflow_type="contractor_eoi_main_works",
+            workspace_path="04-projects/demo/02-procurement/eoi.md",
+        ),
+        "trade_rft_electrical": SimpleNamespace(
+            workflow_type="trade_rft_electrical",
+            workspace_path="04-projects/demo/05-procurement/electrical/rft.md",
+        ),
+        "trade_rfq_joinery": SimpleNamespace(
+            workflow_type="trade_rfq_joinery",
+            workspace_path="04-projects/demo/05-procurement/joinery/rfq.md",
+        ),
+    }
+    latest_draft = AsyncMock()
+
+    with (
+        patch(
+            "app.api.projects.get_latest_draft_artifact",
+            new=AsyncMock(return_value=latest_draft),
+        ),
+        patch(
+            "app.api.projects.sync_consultant_procurement_draft_workspace",
+            new=AsyncMock(),
+        ) as sync_consultant,
+        patch(
+            "app.api.projects.sync_contractor_eoi_draft_workspace",
+            new=AsyncMock(),
+        ) as sync_eoi,
+        patch(
+            "app.api.projects.sync_trade_procurement_draft_workspace",
+            new=AsyncMock(),
+        ) as sync_trade,
+        patch(
+            "app.api.projects.list_workspace_files_for_project",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        result = run_async(
+            projects_api._ensure_procurement_workspace_files(
+                AsyncMock(),
+                project=_project(),
+                workspace_files=[],
+                procurement_draft_summaries=summaries,
+            )
+        )
+
+    assert result == []
+    sync_consultant.assert_awaited_once()
+    sync_eoi.assert_awaited_once()
+    assert sync_trade.await_count == 2
 
 
 def test_project_activity_returns_grouped_runs(

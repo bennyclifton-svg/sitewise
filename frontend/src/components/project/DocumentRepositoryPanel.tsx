@@ -1000,7 +1000,7 @@ export function DocumentRepositoryPanel({
                       className="cursor-pointer border-b border-l-2 border-l-sky-500/60 text-muted-foreground transition-colors hover:bg-sky-50/60 hover:text-foreground dark:hover:bg-sky-950/20"
                       onClick={() => onOpenDraft?.(draft)}
                     >
-                      <td className="truncate px-1 py-2 tabular-nums">â€”</td>
+                      <td className="truncate px-1 py-2 tabular-nums">-</td>
                       <td className="max-w-0 px-2 py-2 font-medium">
                         <span className="truncate" title={draft.title}>
                           {draft.title}

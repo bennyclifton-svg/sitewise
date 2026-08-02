@@ -198,3 +198,29 @@ def test_patch_project_draft_rejects_source_document_id(
         )
 
     assert response.status_code == 404
+
+
+def test_get_project_draft_by_workspace_path_returns_historical_revision(
+    client: TestClient,
+) -> None:
+    historical = _draft(version=1, content="# Historical")
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch(
+            "app.api.projects.get_latest_draft_artifact_by_workspace_path",
+            new=AsyncMock(return_value=historical),
+        ) as get_by_path,
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/drafts/by-workspace-path",
+            params={"workspace_path": historical.workspace_path},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(historical.id)
+    get_by_path.assert_awaited_once_with(
+        ANY,
+        project_id=PROJECT_ID,
+        workspace_path=historical.workspace_path,
+    )

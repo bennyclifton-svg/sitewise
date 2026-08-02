@@ -18,13 +18,18 @@ import type {
 } from "@/lib/types/project";
 import { workflowProgressStage, workflowProgressTitle } from "@/lib/workflow-progress";
 
+export type RunnableProcurementRequestKind = Exclude<
+  ProcurementRequestKind,
+  "contractor_eoi"
+>;
+
 const DraftReviewPanel = lazy(() =>
   import("@/components/project/DraftReviewPanel").then((module) => ({
     default: module.DraftReviewPanel,
   })),
 );
 
-const KIND_OPTIONS: Array<{ value: ProcurementRequestKind; label: string }> = [
+const KIND_OPTIONS: Array<{ value: RunnableProcurementRequestKind; label: string }> = [
   { value: "consultant_rfp", label: "RFP" },
   { value: "trade_rft", label: "RFT" },
   { value: "trade_rfq", label: "RFQ" },
@@ -47,11 +52,11 @@ export function ProcurementRequestPanel({
   error: string | null;
   refreshToken: number;
   renderGate: (kind: ProcurementRequestKind) => ReactNode;
-  onCreate: (kind: ProcurementRequestKind, targetName: string) => void;
+  onCreate: (kind: RunnableProcurementRequestKind, targetName: string) => void;
   onCancel?: () => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
 }) {
-  const [kind, setKind] = useState<ProcurementRequestKind>("consultant_rfp");
+  const [kind, setKind] = useState<RunnableProcurementRequestKind>("consultant_rfp");
   const [targetName, setTargetName] = useState("");
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -139,7 +144,9 @@ export function ProcurementRequestPanel({
             id="procurement-kind"
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             value={kind}
-            onChange={(event) => setKind(event.target.value as ProcurementRequestKind)}
+            onChange={(event) =>
+              setKind(event.target.value as RunnableProcurementRequestKind)
+            }
             disabled={isRunning}
           >
             {KIND_OPTIONS.map((option) => (

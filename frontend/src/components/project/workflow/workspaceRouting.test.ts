@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   findDraftByWorkspacePath,
+  isDraftArtifactWorkspaceFile,
   isConsultantProcurementWorkspaceFile,
   isContractorEoiWorkspaceFile,
+  isTradeProcurementWorkspaceFile,
 } from "@/components/project/workflow/workspaceRouting";
 import type { DraftArtifactSummary } from "@/lib/types/project";
 
@@ -53,6 +55,30 @@ describe("isContractorEoiWorkspaceFile", () => {
   it("does not match consultant procurement paths", () => {
     expect(
       isContractorEoiWorkspaceFile(structuralDraft.workspace_path),
+    ).toBe(false);
+  });
+});
+
+describe("isTradeProcurementWorkspaceFile", () => {
+  const rftPath =
+    "04-projects/walsh-reno/05-procurement/electrical/02-tender-pack/electrical_rft_v01.draft.md";
+
+  it("matches trade RFT and RFQ draft paths", () => {
+    expect(isTradeProcurementWorkspaceFile(rftPath)).toBe(true);
+    expect(
+      isTradeProcurementWorkspaceFile(
+        rftPath.replace("_rft_", "_rfq_"),
+      ),
+    ).toBe(true);
+  });
+
+  it("recognises every generated draft family", () => {
+    expect(isDraftArtifactWorkspaceFile(rftPath)).toBe(true);
+    expect(isDraftArtifactWorkspaceFile(structuralDraft.workspace_path)).toBe(true);
+    expect(
+      isDraftArtifactWorkspaceFile(
+        "04-projects/walsh-reno/03-design/window-schedule.md",
+      ),
     ).toBe(false);
   });
 });

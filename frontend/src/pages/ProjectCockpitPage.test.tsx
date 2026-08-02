@@ -261,7 +261,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     resolveWorkspaceRefresh?.();
   });
 
-  it("creates a request row before queuing a trade RFQ", async () => {
+  it("queues a trade RFQ for worker-side request attachment", async () => {
     const user = userEvent.setup();
     renderProjectCockpit();
 
@@ -269,21 +269,20 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       await screen.findByRole("button", { name: "Create electrical RFQ" }),
     );
 
-    await waitFor(() =>
-      expect(mocks.api.createProcurementRequest).toHaveBeenCalledWith(project.id, {
-        kind: "trade_rfq",
-        target_name: "Electrical",
-      }),
-    );
+    await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
+    expect(mocks.api.createProcurementRequest).not.toHaveBeenCalled();
     expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
       project.id,
       "trade-procurement",
       expect.objectContaining({
+        expected_snapshot_fingerprint: "a".repeat(64),
+        expected_profile_revision: 1,
+        expected_decision_set_revision: 1,
+        idempotency_key: expect.any(String),
         parameters: {
           package: "Electrical",
           kind: "rfq",
           max_pages: 3,
-          procurement_request_id: "request-1",
         },
       }),
     );
