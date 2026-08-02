@@ -18,9 +18,15 @@ sequence, smoke tests and triage.
 | VPS IP | `45.151.153.218` |
 | VPS reverse DNS | `45-151-153-218.cloud-xip.com` |
 | Hosting provider (per APNIC RDAP) | CloudWebManage Platform AU (`CLOUDWEBMANAGE-AU-SY`), country AU |
+| Provider panel | **My Cloud → Server Management**, server `SiteWise` |
+| Provider server ID | `a50faedb-d09d-411a-8d91-1cde9a1af697` |
+| VPS shape / zone | 1 vCPU, 4096 MB RAM, 50 GB disk; AU-SY Sydney |
+| Root filesystem | ext4 on `/dev/sda2` |
 | Orchestrator | Dokploy (compose app) |
+| Dokploy dashboard | `http://45.151.153.218:3000` |
 | Dokploy stack prefix | `sitewise-3m1mco-` |
-| Containers | `sitewise-3m1mco-sitewise-api-1`, `-sitewise-worker-1`, `-sitewise-web-1` |
+| Containers | `sitewise-3m1mco-sitewise-api-1`, `-sitewise-worker-1`, `-sitewise-core-workflow-worker-1`, `-sitewise-web-1` |
+| Dokploy checkout | `/etc/dokploy/compose/sitewise-3m1mco/code` |
 | Compose file | `deploy/dokploy.compose.yml` |
 | Docker network | external `sitewise-public` |
 | Database / Auth / Storage | hosted Supabase, project ref `kdeqyxexexcywtsxiugz` |
@@ -34,6 +40,7 @@ sequence, smoke tests and triage.
 | --- | --- |
 | `sitewise-api` | FastAPI API, TCM router, billing, Hermes/MCP runtime |
 | `sitewise-worker` | Tender Comparison worker running `python -m tender.worker` |
+| `sitewise-core-workflow-worker` | Durable core workflow worker running `python -m app.workflows.worker` |
 | `sitewise-web` | Static React SPA and nginx proxy to FastAPI |
 | Supabase | Auth, Postgres, and object storage |
 | Stripe | Billing provider |
@@ -43,36 +50,40 @@ and the Tender Comparison worker path. `AGENT_WORKSPACE_ROOT` is a persistent
 volume for scratch and artefact files; Supabase Storage stays canonical for
 uploaded source documents. nginx must keep `/api/*` and SSE streams unbuffered.
 
-### Access credentials — FILL THESE IN
+### Access credentials and recovery access
 
 These are the only things that block a fully unattended deploy. Secrets stay out
 of git: record the *method and location*, not the value.
 
-- **SSH host/port/user:** `root@45.151.153.218` on port `22` is the documented
-  path (`scripts/sitewise-vps-*.ps1` default to
-  `root@45-151-153-218.cloud-xip.com`). _If the port is non-standard or the
-  firewall allowlists source IPs, record that here._
-  - Non-standard SSH port: `TODO`
-  - Firewall / IP allowlist in play: `TODO`
-  - Key file: `TODO` (candidates on this machine: `~/.ssh/id_ed25519`,
-    `~/.ssh/assemble-vps.pem`). Passphrase location: `TODO`
-- **Dokploy dashboard URL:** `TODO` (commonly `http://45.151.153.218:3000` or a
-  `dokploy.` subdomain). Login method: `TODO`
+- **SSH host/port/user:** `root@45.151.153.218` on port `22`. The working key on
+  the deployment laptop is `C:\Users\orlan\.ssh\id_ed25519`. The equivalent
+  hostname is `root@45-151-153-218.cloud-xip.com`.
+  - Provider firewall: disabled in My Cloud on 2026-08-02.
+  - Ubuntu UFW: inactive on 2026-08-02.
+- **Dokploy dashboard URL:** `http://45.151.153.218:3000`. Login method/account:
+  `TODO`.
 - **Dokploy API token:** `TODO` — with one, deploys can be triggered by HTTP and
   no dashboard click is needed. Generate in Dokploy under
   *Settings → API/CLI → Generate token*. Store in a local ignored file, e.g.
   `deploy/env/dokploy.local.env` as `DOKPLOY_URL=` / `DOKPLOY_TOKEN=`.
-- **Provider console** (for power-cycle / VNC when SSH is dead): `TODO` — URL and
-  account. **Highest-priority blank.** As of 2026-08-02 this is the only route
-  that would have worked; see the outage note in section 6. Record the reseller
-  or panel used to buy the VPS, since CloudWebManage is the upstream platform
-  rather than the billing vendor.
+- **Provider console** (for power-cycle / VNC when SSH is dead): sign in to the
+  **My Cloud** panel, open **Server Management**, select `SiteWise`, then use
+  **Actions → Console**. **Actions → Reboot** is the out-of-band restart. The
+  exact panel URL/account is still `TODO`; record it here without storing a
+  password in git. See the resolved recovery incident in section 6.
 
 ### Environment inventory
 
-Backend runtime values live in Dokploy or in gitignored env files. Never commit
-live secrets. `deploy/env/sitewise-api.env` is the local mirror of what Dokploy
-holds — keep it truthful.
+Backend runtime values must live in the Dokploy compose app's persistent
+**Environment** settings. Never commit live secrets. `deploy/env/sitewise-api.env`
+is the local gitignored mirror of what Dokploy holds — keep it truthful.
+
+The checkout-local file
+`/etc/dokploy/compose/sitewise-3m1mco/code/deploy/.env` is generated/replaced
+when Dokploy checks out a push. Editing it over SSH is suitable for an emergency
+restart only; it is **not** durable configuration. On 2026-08-02 an automatic
+checkout erased values added only to this file. Save values in Dokploy before
+the next push or redeploy.
 
 Required backend values:
 
@@ -132,9 +143,9 @@ uv run python -m pytest -q
 
 # Frontend: typecheck, tests, production build
 cd ../frontend
-npx tsc --noEmit
-npm run test -- --run
-npm run build
+pnpm exec tsc --noEmit
+pnpm test -- --run
+pnpm build
 ```
 
 > **Live-database hazard.** `backend/.env` `DATABASE_URL` points at the **live
@@ -163,37 +174,17 @@ curl -sS https://api.openai.com/v1/models -H "Authorization: Bearer $KEY" \
 Order matters. Migrations are additive, so schema-first is safe for the
 still-running old code; code-first is not.
 
-### Step 1 — Push
-
-```bash
-git add -A
-git commit -m "…"
-git push origin main
-```
-
-A push **does not deploy**. Dokploy on this stack has been observed not to
-auto-deploy on push; treat the push as staging the source only.
-
-### Step 2 — Migrate the production database
-
-The backend container's CMD is just `uvicorn` — there is no migrate-on-start.
-Run Alembic from the laptop; `backend/.env` already points at prod:
-
-```bash
-cd backend
-uv run alembic current   # read-only; confirm where prod actually is
-uv run alembic heads     # confirm the target
-uv run alembic upgrade head
-```
-
-If `current` already equals `heads`, skip — DB and code drift independently and
-prod is often already at head.
-
-### Step 2b — Reconcile the Dokploy environment with the code defaults
+### Step 1 — Reconcile the persistent Dokploy environment
 
 **Dokploy env vars override code defaults, so shipping code is not enough.**
 Any setting pinned in the stack's environment keeps its old value after deploy,
 silently. Check this every time a default in `app/config.py` changes.
+
+Use the compose app's **Environment** editor and save there. Do not rely on
+editing `code/deploy/.env`: the next automatic checkout replaces it. Confirm all
+five required billing/agent secrets are non-empty without printing their values:
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`,
+`AGENT_TURN_TOKEN_SECRET`, and `AGENT_PLATFORM_API_KEY`.
 
 Known trap: `deploy/env/sitewise-api.env` (gitignored; mirrors what Dokploy
 holds) pins `OPENAI_CHAT_MODEL=gpt-4o-mini`. With the GPT-5.6 code deployed but
@@ -216,6 +207,7 @@ TENDER_MODEL_ADJUDICATE_SMALL=gpt-5.6-terra
 TENDER_MODEL_ADJUDICATE_FRONTIER=gpt-5.6-sol
 HERMES_MODEL_PROVIDER=openai
 HERMES_MODEL=gpt-5.6-terra
+HERMES_MODEL_OPTIONS=openai:gpt-5.6-sol:GPT-5.6 Sol (complex),openai:gpt-5.6-terra:GPT-5.6 Terra (balanced),openai:gpt-5.6-luna:GPT-5.6 Luna (fast),openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)
 ```
 
 Leave `OPENAI_EMBEDDING_MODEL=text-embedding-3-small` alone — embeddings are a
@@ -224,7 +216,35 @@ different model family and changing it would invalidate every stored vector.
 Keep the local `deploy/env/sitewise-api.env` in sync so the file stays a truthful
 mirror of production.
 
-### Step 3 — Roll out the containers
+### Step 2 — Migrate the production database
+
+The backend container's CMD is just `uvicorn` — there is no migrate-on-start.
+Run Alembic from the laptop; `backend/.env` already points at prod:
+
+```bash
+cd backend
+uv run alembic current   # read-only; confirm where prod actually is
+uv run alembic heads     # confirm the target
+uv run alembic upgrade head
+```
+
+If `current` already equals `heads`, skip — DB and code drift independently and
+prod is often already at head.
+
+### Step 3 — Push and monitor the automatic deployment
+
+```bash
+git add -A
+git commit -m "…"
+git push origin main
+```
+
+A push to `main` **does trigger an automatic Dokploy deployment** on this stack;
+this was confirmed twice on 2026-08-02. During deployment the `code` directory
+may briefly contain only a partial `.git` checkout; do not run compose commands
+against it until `deploy/dokploy.compose.yml` exists again.
+
+### Step 4 — Roll out manually if the automatic deploy does not complete
 
 The compose uses `pull_policy: never` with `image: sitewise-production-*:latest`,
 so **Dokploy builds the images on the VPS from current `main`**. There is no
@@ -242,18 +262,46 @@ curl -sS -X POST "$DOKPLOY_URL/api/compose.deploy" \
 
 `<COMPOSE_ID>`: `TODO` — read it from the Dokploy compose app's URL.
 
-Fallback A — SSH and drive compose directly:
+Fallback A — SSH and drive the effective Dokploy compose file directly:
 
 ```bash
 ssh root@45.151.153.218
-cd /etc/dokploy/compose/sitewise-3m1mco   # verify path on the box
-docker compose up -d --build
+cd /etc/dokploy/compose/sitewise-3m1mco/code
+test -f deploy/dokploy.compose.yml
+docker compose \
+  --env-file deploy/.env \
+  -p sitewise-3m1mco \
+  -f deploy/dokploy.compose.yml \
+  config --quiet
+docker compose \
+  --env-file deploy/.env \
+  -p sitewise-3m1mco \
+  -f deploy/dokploy.compose.yml \
+  up -d --build
 ```
+
+Dokploy adds routing labels and the `dokploy-network` attachment to its effective
+checkout copy of `deploy/dokploy.compose.yml`, so that file is normally dirty on
+the VPS. Preserve those changes; do not replace it with the pristine git copy.
+
+Check disk before an on-host build with `df -h /` and `docker system df`. The
+backend image is large because it includes LibreOffice, Hermes, Playwright and
+document-extraction dependencies. Linux builds must retain the explicit
+CPU-only PyTorch source in `backend/pyproject.toml`/`uv.lock`; resolving the CUDA
+wheels exhausted the 50 GB VPS during the first attempt. After a successful
+deploy, `docker builder prune --all --force` and `docker image prune --force`
+remove build cache and dangling layers without touching running containers or
+volumes. The 2026-08-02 cleanup moved `/` from 89% to 77% used.
+
+The API image must contain `/app/data/taxonomy`, `/app/data/seed`,
+`/app/data/skills/reference`, `/app/data/tender`, and
+`/app/docs/clerk-brief.md`. A build that omits these source-of-truth files fails
+at startup with `FileNotFoundError: /app/data/taxonomy/emphasis-profiles.json`.
 
 Fallback B — Dokploy dashboard: open the `sitewise` compose app, click
 **Deploy** / **Redeploy**.
 
-### Step 4 — Verify
+### Step 5 — Verify
 
 ```bash
 curl -sS https://sitewise.au/api/health
@@ -314,6 +362,9 @@ Quick classification of what is broken, from the outside in:
 | `:3000` (Dokploy) also refused | Dokploy itself is not running, not just the app. Dashboard won't help; you need shell. |
 | `/api/health` responds but lacks `pmp_model` etc. | Old code still live — the deploy didn't take. |
 | App loads, chat 500s | Usually a bad model id or a missing env var; check `docker logs` on `sitewise-api`. |
+| Provider console stops at `(initramfs)` with `UNEXPECTED INCONSISTENCY` | Root filesystem check failed. Use the exact device printed by boot; this VPS used `/dev/sda2`. Follow the section 6 recovery. |
+| `dokploy-traefik` loops with exit `139` / kernel segfaults | The local Traefik image may be corrupt after a filesystem incident. An ordinary pull can falsely report it up to date; force-remove and re-pull as in section 6. |
+| Alembic reports `EMAXCONNSESSION max clients reached` | The Supabase session pooler is saturated. Stop API and both workers, wait for their sessions to close, run the migration/check as the sole client, then restart the stack. |
 
 Probe from two vantage points before diagnosing — a local-ISP routing fault to
 this IP looks identical to an outage if you only test from one network.
@@ -348,36 +399,75 @@ unless a migration rollback has been explicitly planned and tested — **do not*
 
 | Date | Commit | What shipped | Outcome |
 | --- | --- | --- | --- |
-| 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Pushed to `origin/main`. **Rollout blocked — production was already down before the deploy; see below.** |
-| 2026-08-02 | `5f597424` | Polar removed; Stripe is the only billing provider | Pushed, not deployed. `BILLING_PROVIDER` now rejects `polar` — check the Dokploy value before rolling out. Stale `POLAR_*` vars are inert. |
-| 2026-08-02 | `219763b1` | Procurement Requests (RFP/EOI/RFT/RFQ) register | Pushed, not deployed. **Ships migration 038; prod is at 037, so this deploy does need `alembic upgrade head` first.** Optional follow-up once live: `uv run python scripts/backfill_procurement_requests.py` (reports by default, writes under `--apply`) to create register rows for pre-038 consultant RFP and contractor EOI drafts. |
+| 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Live. `/api/health` reports chat `gpt-5.6-luna`, Hermes/PMP `gpt-5.6-terra`, cost plan `gpt-5.6-luna`, and embedding `text-embedding-3-small`. |
+| 2026-08-02 | `5f597424` | Polar removed; Stripe is the only billing provider | Live. Required Stripe values are present in the running container; values were not printed or committed. |
+| 2026-08-02 | `219763b1` | Procurement Requests (RFP/EOI/RFT/RFQ) register | Live. Production Alembic revision confirmed as `038_procurement_requests (head)`. Optional follow-up: run `uv run python scripts/backfill_procurement_requests.py` in report mode, then explicitly use `--apply` if the report is correct. |
+| 2026-08-02 | `f8bc5ef6` | Deployment preflight fixes | Live. Backend: 1,561 passed, 6 skipped, 24 deselected. Frontend: 181 tests, typecheck, production build and bundle budget passed. |
+| 2026-08-02 | `ec57eb81` | CPU-only PyTorch resolution on Linux | Live. Removed CUDA/NVIDIA wheels that exceeded the 50 GB VPS during image build. |
+| 2026-08-02 | `5a0f9595` | Package runtime taxonomy, platform knowledge, tender seeds and doctrine in the API image | Live. Fixed the startup `FileNotFoundError`; API and core worker healthy, tender worker ready, all application/Traefik restart counts zero. |
 
-### 2026-08-02 — production outage (open)
+### 2026-08-02 — production outage and recovery (resolved)
 
-Found while attempting this deploy. **The outage predates and is unrelated to the
-GPT-5.6 change** — nothing was rolled out.
+The outage predated and was unrelated to the release. The provider console
+showed the actual cause: Ubuntu could not mount the root filesystem because
+`/dev/sda2` contained errors. Rebooting alone repeated the failure.
 
-Evidence:
+#### Filesystem recovery
 
-- `https://sitewise.au/api/health` → `ECONNREFUSED 45.151.153.218:443` from an
-  external network; a third-party proxy independently returned **HTTP 522**
-  (origin unreachable). Two unrelated networks agree the origin is down.
-- Probing `45.151.153.218` externally on **22, 80, 443 and 3000** returned
-  `ECONNREFUSED` on every port — TCP RST, not a timeout. The host's network stack
-  answers, but nothing is listening anywhere, **including sshd**.
-- From the operator's own connection (TPG, AU) every port instead **times out**,
-  and `ping` returns an ICMP *destination host unreachable* from an intermediate
-  router — a different failure mode to the external one.
+Open **My Cloud → Server Management → SiteWise → Actions → Console**. At the
+`(initramfs)` prompt, use the device named in the boot error. For this VPS it was:
 
-Reading: this is not "the app container stopped". Docker being down would not
-also take sshd off port 22. Either the host is in a barely-booted/rescue state,
-or a provider-level firewall has flipped to reject-all. Both explanations put the
-fix **out of band** — no SSH, no Dokploy API, no dashboard, because all three
-need a listening port.
+```sh
+fsck.ext4 -f -y /dev/sda2
+reboot -f
+```
 
-Consequence for future deploys: **there is currently no remote path onto this
-box.** Reviving it requires the provider console (power-cycle plus VNC/serial),
-which is why section 1's provider-console blank is the highest-value one to fill.
-Once shell access is restored, check in order: `systemctl status sshd`, the
-host firewall (`ufw status` / provider firewall rules), `systemctl status docker`,
-then `docker ps` for the Dokploy and `sitewise-3m1mco-*` containers.
+Do not copy `/dev/sda2` to a different server without checking its boot output;
+running `fsck` against the wrong device is destructive. The repair reported and
+fixed filesystem errors, after which Ubuntu 24.04 booted and SSH returned.
+
+#### Traefik recovery after boot
+
+Docker and the old application containers returned, but HTTPS remained down
+because `dokploy-traefik` repeatedly exited `139`; the kernel logged Traefik
+segfaults. Even a minimal container using the local `traefik:v3.6.1` image
+segfaulted, isolating the fault to the image rather than dynamic routing config.
+An ordinary `docker pull` said the image was current, so force-refresh it:
+
+```bash
+docker inspect dokploy-traefik \
+  > /root/dokploy-traefik.inspect-$(date +%Y%m%d).json
+docker rm -f dokploy-traefik
+docker image rm traefik:v3.6.1
+docker pull traefik:v3.6.1
+docker run -d \
+  --name dokploy-traefik \
+  --restart always \
+  -p 80:80/tcp \
+  -p 443:443/tcp \
+  -p 443:443/udp \
+  -v /etc/dokploy/traefik/traefik.yml:/etc/traefik/traefik.yml \
+  -v /etc/dokploy/traefik/dynamic:/etc/dokploy/traefik/dynamic \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  traefik:v3.6.1
+docker network connect dokploy-network dokploy-traefik
+docker network connect sitewise-public dokploy-traefik
+```
+
+Verify `docker inspect dokploy-traefik` shows ports 80/443, both networks and
+restart policy `always`, then check `curl -fsS https://sitewise.au/api/health`.
+The inspect backup from this incident is
+`/root/dokploy-traefik.inspect-20260802.json`.
+
+#### Release outcome
+
+After recovery, the schema-first migration reached revision 038 and commit
+`5a0f9595` was deployed. Final checks on 2026-08-02:
+
+- TCP 22, 80 and 443 reachable from the deployment laptop.
+- `sitewise-api` and `sitewise-core-workflow-worker` healthy.
+- Tender worker ready with four lanes; web and Traefik running.
+- Zero restarts for API, both workers, web and Traefik.
+- Public `/api/health` returned the intended GPT-5.6 and embedding models.
+- UFW inactive; provider firewall disabled.
+- Docker cache/dangling-layer cleanup left 12 GB free on `/` (77% used).
