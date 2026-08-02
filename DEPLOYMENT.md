@@ -255,7 +255,9 @@ unless a migration rollback has been explicitly planned and tested — **do not*
 
 | Date | Commit | What shipped | Outcome |
 | --- | --- | --- | --- |
-| 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Pushed to `origin/main`. Prod DB confirmed at head. **Rollout blocked — production was already down before the deploy; see below.** |
+| 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Pushed to `origin/main`. **Rollout blocked — production was already down before the deploy; see below.** |
+| 2026-08-02 | `5f597424` | Polar removed; Stripe is the only billing provider | Pushed, not deployed. `BILLING_PROVIDER` now rejects `polar` — check the Dokploy value before rolling out. Stale `POLAR_*` vars are inert. |
+| 2026-08-02 | `219763b1` | Procurement Requests (RFP/EOI/RFT/RFQ) register | Pushed, not deployed. **Ships migration 038; prod is at 037, so this deploy does need `alembic upgrade head` first.** Optional follow-up once live: `uv run python scripts/backfill_procurement_requests.py` (reports by default, writes under `--apply`) to create register rows for pre-038 consultant RFP and contractor EOI drafts. |
 
 ### 2026-08-02 — production outage (open)
 
