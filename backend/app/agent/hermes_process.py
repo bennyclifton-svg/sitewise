@@ -377,10 +377,12 @@ async def stream_hermes_turn(
         )
         process = await spawn(argv=argv, env=env, cwd=str(cwd))
         stderr_task = asyncio.create_task(_read_stderr(process.stderr, stderr_tail))
+        produced_output = False
         try:
             try:
                 async with asyncio.timeout(settings.agent_turn_timeout_seconds):
                     async for chunk in _iter_stdout(process.stdout):
+                        produced_output = True
                         yield chunk
                     returncode = await process.wait()
             except TimeoutError as exc:
@@ -396,6 +398,8 @@ async def stream_hermes_turn(
                 if tail:
                     message = f"{message}: {tail}"
                 raise HermesTurnError(message)
+            if not produced_output:
+                raise HermesTurnError("Hermes completed without producing a response")
         except BaseException:
             if process.returncode is None:
                 await _kill_and_wait(process)

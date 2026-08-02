@@ -644,6 +644,7 @@ export type InboxUploadResult = {
   size_bytes: number;
   ingest_status: string;
   message: string | null;
+  workflow_run_id?: string | null;
 };
 
 export type DocumentRepairPreviewRow = {

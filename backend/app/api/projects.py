@@ -1598,6 +1598,7 @@ async def post_inbox_upload(
                 size_bytes=outcome.size_bytes,
                 ingest_status=outcome.ingest_status,
                 message=outcome.message,
+                workflow_run_id=outcome.workflow_run_id,
             )
             for outcome in outcomes
         ]
@@ -1803,6 +1804,7 @@ def _upload_results(outcomes) -> InboxUploadResponse:
                 size_bytes=outcome.size_bytes,
                 ingest_status=outcome.ingest_status,
                 message=outcome.message,
+                workflow_run_id=outcome.workflow_run_id,
             )
             for outcome in outcomes
         ]

@@ -40,6 +40,7 @@ import type {
   DraftArtifact,
   DraftArtifactSummary,
   EvidencePreview,
+  InboxUploadResult,
   PlatformKnowledgeStatus,
   ProjectDetail,
   ProjectEvent,
@@ -1135,7 +1136,15 @@ export function ProjectCockpitPage() {
             setChatPanelCollapsed(true);
             setActiveView("folder");
           }}
-          onUploadComplete={async () => {
+          onUploadComplete={async (outcomes: InboxUploadResult[] = []) => {
+            await Promise.all(
+              outcomes
+                .flatMap((outcome) => (outcome.workflow_run_id ? [outcome.workflow_run_id] : []))
+                .map(async (runId) => {
+                  const run = await api.getWorkflowRun(project.id, runId);
+                  await waitForWorkflowRun(queryClient, project.id, run);
+                }),
+            );
             await Promise.all([
               refreshEvidence(),
               refreshWorkspaceTree(),

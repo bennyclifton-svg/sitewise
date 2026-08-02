@@ -107,17 +107,17 @@ class Settings(BaseSettings):
     hermes_mutations_enabled: bool = False
     hermes_binary_path: str = "hermes"
     hermes_invocation_mode: str = "chat_stream"
-    hermes_model_provider: str = "openai"
+    hermes_model_provider: str = "openai-api"
     hermes_model: str = "gpt-5.6-terra"
-    # The openai:* options bill to AGENT_PLATFORM_API_KEY. The openai-codex option
+    # The openai-api:* options bill to AGENT_PLATFORM_API_KEY. The openai-codex option
     # is the one path that runs on a Codex subscription instead — hermes_process
     # withholds the platform key and copies local credentials for that provider.
     # Pinned to gpt-5.5 because the Codex model list is not verifiable from here;
     # change the id if Codex exposes a 5.6 tier.
     hermes_model_options: str = (
-        "openai:gpt-5.6-sol:GPT-5.6 Sol (complex),"
-        "openai:gpt-5.6-terra:GPT-5.6 Terra (balanced),"
-        "openai:gpt-5.6-luna:GPT-5.6 Luna (fast),"
+        "openai-api:gpt-5.6-sol:GPT-5.6 Sol (complex),"
+        "openai-api:gpt-5.6-terra:GPT-5.6 Terra (balanced),"
+        "openai-api:gpt-5.6-luna:GPT-5.6 Luna (fast),"
         "openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)"
     )
     pi_runtime_enabled: bool = False

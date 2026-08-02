@@ -213,6 +213,7 @@ class InboxUploadResult(BaseModel):
     size_bytes: int
     ingest_status: str
     message: str | None = None
+    workflow_run_id: uuid.UUID | None = None
 
 
 class InboxUploadResponse(BaseModel):

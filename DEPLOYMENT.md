@@ -205,9 +205,9 @@ COST_PLAN_MODEL=gpt-5.6-luna
 TENDER_MODEL_EXTRACT=gpt-5.6-luna
 TENDER_MODEL_ADJUDICATE_SMALL=gpt-5.6-terra
 TENDER_MODEL_ADJUDICATE_FRONTIER=gpt-5.6-sol
-HERMES_MODEL_PROVIDER=openai
+HERMES_MODEL_PROVIDER=openai-api
 HERMES_MODEL=gpt-5.6-terra
-HERMES_MODEL_OPTIONS=openai:gpt-5.6-sol:GPT-5.6 Sol (complex),openai:gpt-5.6-terra:GPT-5.6 Terra (balanced),openai:gpt-5.6-luna:GPT-5.6 Luna (fast),openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)
+HERMES_MODEL_OPTIONS=openai-api:gpt-5.6-sol:GPT-5.6 Sol (complex),openai-api:gpt-5.6-terra:GPT-5.6 Terra (balanced),openai-api:gpt-5.6-luna:GPT-5.6 Luna (fast),openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)
 ```
 
 Leave `OPENAI_EMBEDDING_MODEL=text-embedding-3-small` alone — embeddings are a

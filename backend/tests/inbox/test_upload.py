@@ -95,7 +95,11 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
                 create=True,
             ) as mock_sort,
             patch("app.inbox.service.ingest_hosted_file", create=True) as mock_ingest,
-            patch("app.inbox.service.start_workflow_run", new=AsyncMock(return_value=(object(), True)), create=True) as mock_start,
+            patch(
+                "app.inbox.service.start_workflow_run",
+                new=AsyncMock(return_value=(type("Run", (), {"id": uuid.uuid4()})(), True)),
+                create=True,
+            ) as mock_start,
             patch(
                 "app.inbox.service.upsert_workspace_file",
                 new=AsyncMock(
@@ -134,6 +138,7 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
         assert outcomes[0].workspace_path == "04-projects/demo/_inbox/EVALUATION/matrix.md"
         assert outcomes[0].ingest_status == "queued"
         assert outcomes[0].message == "Uploaded; ingestion queued"
+        assert outcomes[0].workflow_run_id is not None
         mock_session.commit.assert_called_once()
 
     run_async(_run())
@@ -181,6 +186,7 @@ def test_post_inbox_upload_returns_upload_results(client: TestClient, mock_sessi
     payload = response.json()
     assert payload["files"][0]["ingest_status"] == "ingested"
     assert payload["files"][0]["workspace_path"].endswith("/_inbox/report.md")
+    assert payload["files"][0]["workflow_run_id"] is None
 
 
 def test_post_document_repair_preview_is_read_only_and_returns_proposals(

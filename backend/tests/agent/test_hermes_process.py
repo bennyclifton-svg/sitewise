@@ -123,7 +123,7 @@ def test_secrets_are_in_env_not_argv(monkeypatch, tmp_path: Path) -> None:
     assert env["AGENT_TURN_TOKEN"] == "turn-token"
     assert env["CLERK_MCP_TOKEN"] == "turn-token"
     assert env["OPENAI_API_KEY"] == "platform-key"
-    assert "provider: openai" in config
+    assert "provider: openai-api" in config
     assert "default: gpt-5.6-terra" in config
 
 
@@ -307,6 +307,30 @@ def test_non_zero_exit_raises_with_stderr_tail(tmp_path: Path) -> None:
         _collect(
             stream_hermes_turn(
                 prompt="fail",
+                mcp_url="http://test/mcp",
+                turn_token="token",
+                cwd=tmp_path,
+                spawn=spawn,
+            )
+        )
+
+
+def test_empty_successful_output_raises(tmp_path: Path) -> None:
+    from app.agent.hermes_process import HermesTurnError, stream_hermes_turn
+
+    async def spawn(**_kwargs: Any) -> _FakeProcess:
+        return _FakeProcess(
+            stdout=[
+                "Query: Reply with exactly HELLO.\n",
+                "Unknown provider 'openai'.\n",
+                "Goodbye! \u2695\n",
+            ]
+        )
+
+    with pytest.raises(HermesTurnError, match="without producing a response"):
+        _collect(
+            stream_hermes_turn(
+                prompt="Reply with exactly HELLO.",
                 mcp_url="http://test/mcp",
                 turn_token="token",
                 cwd=tmp_path,

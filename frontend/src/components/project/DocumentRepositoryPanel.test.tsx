@@ -114,8 +114,9 @@ describe("DocumentRepositoryPanel pending uploads", () => {
     expect(container.querySelector(".cockpit-skeleton")).not.toBeNull();
     expect(screen.getByRole("status")).toHaveTextContent("Uploading notes.md");
 
-    upload.resolve([uploadResult()]);
-    await waitFor(() => expect(onUploadComplete).toHaveBeenCalled());
+    const completed = uploadResult({ workflow_run_id: "run-1" });
+    upload.resolve([completed]);
+    await waitFor(() => expect(onUploadComplete).toHaveBeenCalledWith([completed]));
     await waitFor(() => expect(screen.queryByText("notes.md")).not.toBeInTheDocument());
   });
 

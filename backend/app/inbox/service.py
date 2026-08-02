@@ -39,6 +39,7 @@ class InboxUploadOutcome:
     size_bytes: int
     ingest_status: str
     message: str | None = None
+    workflow_run_id: uuid.UUID | None = None
 
 
 class InboxUploadValidationError(ValueError):
@@ -276,7 +277,7 @@ async def _upload_single_file(
             "document_metadata": item.ingest_metadata or {},
         },
     )
-    await start_workflow_run(
+    workflow_run, _ = await start_workflow_run(
         session,
         project=project,
         user_id=user_id,
@@ -309,4 +310,5 @@ async def _upload_single_file(
         size_bytes=len(item.content),
         ingest_status="queued",
         message="Uploaded; ingestion queued",
+        workflow_run_id=workflow_run.id,
     )

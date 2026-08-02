@@ -147,7 +147,7 @@ export function DocumentRepositoryPanel({
   onOpenWorkflow: (tileId: string) => void;
   onViewWorkbench: () => void;
   onViewFolder: () => void;
-  onUploadComplete: () => Promise<void>;
+  onUploadComplete: (outcomes?: InboxUploadResult[]) => Promise<void>;
   onRunSortFiles?: () => void;
   isRunningSortFiles?: boolean;
   overlayReady?: boolean;
@@ -404,14 +404,15 @@ export function DocumentRepositoryPanel({
     setResolvingStagingId(proposal.analysis.staging_id);
     setUploadError(null);
     try {
+      let outcomes: InboxUploadResult[];
       if (mode === "split") {
-        await api.splitStagedPdf(
+        outcomes = await api.splitStagedPdf(
           projectId,
           proposal.analysis.staging_id,
           proposal.sourceFile.name,
         );
       } else {
-        await api.commitStagedPdf(
+        outcomes = await api.commitStagedPdf(
           projectId,
           proposal.analysis.staging_id,
           proposal.sourceFile.name,
@@ -422,7 +423,7 @@ export function DocumentRepositoryPanel({
           (item) => item.analysis.staging_id !== proposal.analysis.staging_id,
         ),
       );
-      await onUploadComplete();
+      await onUploadComplete(outcomes);
     } catch (error) {
       setUploadError(
         `Could not process "${proposal.sourceFile.name}": ${formatUploadError(error)}`,
@@ -545,6 +546,7 @@ export function DocumentRepositoryPanel({
 
     const queue: IngestQueueItem[] = [];
     const failedResults: InboxUploadResult[] = [];
+    const completedResults: InboxUploadResult[] = [];
     const uploadErrors: string[] = [];
     const analyzeErrors: string[] = [];
 
@@ -633,6 +635,7 @@ export function DocumentRepositoryPanel({
             );
           }
           const outcome = results[0];
+          completedResults.push(...results);
           if (outcome?.ingest_status === "failed") {
             failedResults.push(outcome);
             failedCount += 1;
@@ -650,7 +653,7 @@ export function DocumentRepositoryPanel({
       });
 
       if (queue.length) {
-        await onUploadComplete();
+        await onUploadComplete(completedResults);
       }
 
       if (failedResults.length) {
