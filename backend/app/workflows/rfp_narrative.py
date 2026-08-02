@@ -33,7 +33,7 @@ def _load_instructions() -> str:
 
 
 rfp_narrative_agent = Agent(
-    f"openai-chat:{settings.pmp_model}",
+    f"openai-responses:{settings.pmp_model}",
     output_type=RfpNarrativeOutput,
     instructions=_load_instructions(),
     defer_model_check=True,

@@ -90,7 +90,7 @@ def _load_agent_instructions() -> str:
 
 
 cost_plan_narrative_agent = Agent(
-    f"openai-chat:{settings.openai_chat_model}",
+    f"openai-responses:{settings.cost_plan_model}",
     output_type=CostPlanNarrativeOutput,
     instructions=_load_agent_instructions(),
     defer_model_check=True,

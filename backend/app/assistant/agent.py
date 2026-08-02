@@ -104,7 +104,7 @@ def _serialize_passages(passages: list[SourcePassage]) -> str:
 @lru_cache
 def get_document_agent() -> Agent[DocumentAgentDeps, GroundedAnswer]:
     return Agent(
-        f"openai-chat:{settings.openai_chat_model}",
+        f"openai-responses:{settings.openai_chat_model}",
         deps_type=DocumentAgentDeps,
         output_type=GroundedAnswer,
         instructions=load_instructions(),
@@ -119,7 +119,7 @@ agent = get_document_agent()
 def get_platform_qa_agent() -> Agent[DocumentAgentDeps, GroundedAnswer]:
     """Single-pass LLM for seed/doctrine turns — no retrieval tools."""
     return Agent(
-        f"openai-chat:{settings.openai_chat_model}",
+        f"openai-responses:{settings.openai_chat_model}",
         deps_type=DocumentAgentDeps,
         output_type=GroundedAnswer,
         instructions=load_instructions(),

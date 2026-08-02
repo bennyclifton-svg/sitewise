@@ -62,7 +62,7 @@ def _draft(*, version: int, content: str) -> DraftArtifact:
         workspace_path="04-projects/demo/00-brief-pmp/PMP.md",
         author_user_id=USER_ID,
         content_markdown=content,
-        model="gpt-4.1-mini",
+        model="gpt-5.6-luna",
         runtime="clerk-sitewise-create-pmp",
         provenance_metadata={"source": "test"},
         created_at=NOW,

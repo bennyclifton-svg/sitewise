@@ -1,7 +1,10 @@
 import type { AgentRuntimeOption } from "@/lib/agent-runtime";
 import { PI_RUNTIME_ID } from "@/lib/agent-runtime";
 
-const HERMES_STORAGE_KEY = "clerk.agentModel";
+// Hermes key bumped for the GPT-5.6 migration: stored ids such as
+// "openai-codex:gpt-5.5" are no longer in HERMES_MODEL_OPTIONS and the backend
+// rejects an unknown agent_model. Pi ids were already 5.6, so that key stands.
+const HERMES_STORAGE_KEY = "clerk.agentModel.v2";
 const PI_STORAGE_KEY = "clerk.agentModel.pi";
 const CHANGE_EVENT = "clerk:agent-model-change";
 

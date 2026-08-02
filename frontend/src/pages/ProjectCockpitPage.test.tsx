@@ -427,7 +427,7 @@ const costPlanSummary: DraftArtifactSummary = {
   title: "Project Cost Plan",
   workspace_path: "04-projects/walsh-reno/01-cost/cost_plan_v02.md",
   author_user_id: "user-1",
-  model: "gpt-4o-mini",
+  model: "gpt-5.6-terra",
   runtime: "clerk-sitewise-create-cost-plan-hybrid",
   created_at: "2026-07-06T10:08:44.000Z",
   updated_at: "2026-07-06T10:08:44.000Z",

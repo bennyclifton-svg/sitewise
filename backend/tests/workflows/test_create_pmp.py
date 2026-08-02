@@ -295,7 +295,7 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
     draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-pmp"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
@@ -346,17 +346,17 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
     assert result.status == "complete"
     assert result.draft is not None
     create_draft.assert_awaited_once()
-    assert create_draft.await_args.kwargs["model"] == "openai-chat:gpt-5.5"
+    assert create_draft.await_args.kwargs["model"] == "openai-responses:gpt-5.6-terra"
     provenance = create_draft.await_args.kwargs["provenance_metadata"]
     assert provenance["draft_mode"] == "platform_seeded"
-    assert provenance["model_label"] == "gpt-5.5 (Codex)"
-    assert provenance["model_provider"] == "openai-codex"
-    assert provenance["model_execution_provider"] == "openai-chat"
-    assert provenance["model_execution_id"] == "openai-chat:gpt-5.5"
+    assert provenance["model_label"] == "GPT-5.6 Terra (balanced)"
+    assert provenance["model_provider"] == "openai-api"
+    assert provenance["model_execution_provider"] == "openai-responses"
+    assert provenance["model_execution_id"] == "openai-responses:gpt-5.6-terra"
     model_trace = next(event for event in result.trace if event.step == "model_config")
-    assert model_trace.metadata["model"] == "gpt-5.5"
-    assert model_trace.metadata["model_label"] == "gpt-5.5 (Codex)"
-    assert model_trace.metadata["model_execution_id"] == "openai-chat:gpt-5.5"
+    assert model_trace.metadata["model"] == "gpt-5.6-terra"
+    assert model_trace.metadata["model_label"] == "GPT-5.6 Terra (balanced)"
+    assert model_trace.metadata["model_execution_id"] == "openai-responses:gpt-5.6-terra"
     retrieval_trace = next(event for event in result.trace if event.step == "retrieval")
     assert retrieval_trace.metadata["platform_retrieval"] == "overlay_mandatory_paths"
     assert retrieval_trace.metadata["draft_mode"] == "platform_seeded"
@@ -385,7 +385,7 @@ def test_create_pmp_saves_evidence_grounded_draft() -> None:
     draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-pmp"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
@@ -508,7 +508,7 @@ def test_create_pmp_taxonomy_sweeps_current_corpus_for_coverage() -> None:
     draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-pmp"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
@@ -680,7 +680,7 @@ No project evidence documents numbered yet.
     draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
-    draft.model = "openai-chat:gpt-5.5"
+    draft.model = "openai-responses:gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-pmp"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
@@ -813,7 +813,7 @@ def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
     draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = "saved markdown"
-    draft.model = "openai-chat:gpt-5.5"
+    draft.model = "openai-responses:gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-pmp"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
@@ -1381,7 +1381,7 @@ def test_create_pmp_returns_failed_response_when_model_request_fails() -> None:
             new=AsyncMock(
                 side_effect=ModelHTTPError(
                     status_code=401,
-                    model_name="openai-chat:gpt-4o-mini",
+                    model_name="openai-responses:gpt-5.6-terra",
                     body={"error": {"message": "invalid api key"}},
                 )
             ),
@@ -1555,7 +1555,7 @@ def test_create_pmp_hybrid_compiler_saves_assembled_draft() -> None:
     draft.workspace_path = "04-projects/greenfield-demo/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = "# Project Management Plan"
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = RUNTIME_HYBRID_NAME
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 8, tzinfo=timezone.utc)

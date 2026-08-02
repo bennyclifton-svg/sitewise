@@ -150,7 +150,7 @@ def mock_cost_plan_draft(**overrides: Any) -> AsyncMock:
     draft.workspace_path = "04-projects/test-project-112/01-cost/cost_plan_v01.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = "# Project Cost Plan"
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-cost-plan-hybrid"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 8, tzinfo=timezone.utc)

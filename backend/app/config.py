@@ -21,10 +21,10 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "project-files"
     database_url: str
     openai_api_key: str
-    openai_chat_model: str = "gpt-4o-mini"
-    openai_chat_models: str = (
-        "gpt-4.1-nano,gpt-4o-mini,gpt-4.1-mini,gpt-4.1,gpt-4o,o4-mini,o3-mini"
-    )
+    # Luna is the default across chat and workflows; terra is reserved for the
+    # surfaces where reasoning earns its cost (see pmp_model).
+    openai_chat_model: str = "gpt-5.6-luna"
+    openai_chat_models: str = "gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna"
     log_level: str = "INFO"
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dimensions: int = 1536
@@ -50,14 +50,17 @@ class Settings(BaseSettings):
     chat_history_message_limit: int = 100
     project_list_page_size: int = 50
     openai_rate_limit_max_retries: int = 5
-    pmp_model_provider: str = "openai-codex"
-    pmp_model: str = "gpt-5.5"
-    pmp_model_label: str = "gpt-5.5 (Codex)"
+    # PMP and consultant-RFP generation is long-form, evidence-grounded and runs a
+    # validation-retry loop, so reasoning pays for itself here — terra, not luna.
+    pmp_model_provider: str = "openai-api"
+    pmp_model: str = "gpt-5.6-terra"
+    pmp_model_label: str = "GPT-5.6 Terra (balanced)"
     pmp_hybrid_compiler: bool = True
     pmp_min_words: int = 800
     pmp_max_words: int = 1800
     pmp_sweep_max_documents: int = 150
     cost_plan_hybrid_compiler: bool = True
+    cost_plan_model: str = "gpt-5.6-luna"
     public_app_url: str = "http://localhost:5173"
     billing_provider: str = "none"
     polar_enabled: bool = False
@@ -90,9 +93,9 @@ class Settings(BaseSettings):
     workflow_worker_concurrency: int = 2
     workflow_worker_lease_seconds: int = 90
     workflow_worker_max_attempts: int = 3
-    tender_model_extract: str = "gpt-4.1-mini"
-    tender_model_adjudicate_small: str = "gpt-4.1-mini"
-    tender_model_adjudicate_frontier: str = "gpt-4.1"
+    tender_model_extract: str = "gpt-5.6-luna"
+    tender_model_adjudicate_small: str = "gpt-5.6-terra"
+    tender_model_adjudicate_frontier: str = "gpt-5.6-sol"
     tender_embed_model: str = "text-embedding-3-small"
     tender_embedding_dimensions: int = 1536
     tender_extraction_confidence_threshold: float = 0.85
@@ -112,9 +115,19 @@ class Settings(BaseSettings):
     hermes_mutations_enabled: bool = False
     hermes_binary_path: str = "hermes"
     hermes_invocation_mode: str = "chat_stream"
-    hermes_model_provider: str = "openai-api"
-    hermes_model: str = "gpt-5.1"
-    hermes_model_options: str = "openai-codex:gpt-5.5:gpt-5.5 (Codex)"
+    hermes_model_provider: str = "openai"
+    hermes_model: str = "gpt-5.6-terra"
+    # The openai:* options bill to AGENT_PLATFORM_API_KEY. The openai-codex option
+    # is the one path that runs on a Codex subscription instead — hermes_process
+    # withholds the platform key and copies local credentials for that provider.
+    # Pinned to gpt-5.5 because the Codex model list is not verifiable from here;
+    # change the id if Codex exposes a 5.6 tier.
+    hermes_model_options: str = (
+        "openai:gpt-5.6-sol:GPT-5.6 Sol (complex),"
+        "openai:gpt-5.6-terra:GPT-5.6 Terra (balanced),"
+        "openai:gpt-5.6-luna:GPT-5.6 Luna (fast),"
+        "openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)"
+    )
     pi_runtime_enabled: bool = False
     pi_binary_path: str = "pi"
     pi_model_provider: str = "openai"

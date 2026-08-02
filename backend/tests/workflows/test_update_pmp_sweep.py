@@ -103,7 +103,7 @@ def _baseline_draft() -> DraftArtifact:
         workspace_path="04-projects/taxonomy-project/00-brief-pmp/PMP.md",
         author_user_id=USER_ID,
         content_markdown=_valid_evidence_grounded_pmp_markdown(),
-        model="gpt-4o-mini",
+        model="gpt-5.6-terra",
         runtime="clerk-sitewise-create-pmp-adaptive-scaffold",
         provenance_metadata={
             "evidence_refs": [
@@ -364,7 +364,7 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
         workspace_path=baseline.workspace_path,
         author_user_id=USER_ID,
         content_markdown=baseline.content_markdown,
-        model="gpt-4o-mini",
+        model="gpt-5.6-terra",
         runtime="clerk-sitewise-update-pmp",
         provenance_metadata={},
         created_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
@@ -467,12 +467,12 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
     sweep_mock.assert_awaited_once()
     delta_mock.assert_not_awaited()
     assert response.status == "complete"
-    assert create_draft_mock.await_args.kwargs["model"] == "openai-chat:gpt-5.5"
+    assert create_draft_mock.await_args.kwargs["model"] == "openai-responses:gpt-5.6-terra"
     provenance = create_draft_mock.await_args.kwargs["provenance_metadata"]
-    assert provenance["model_label"] == "gpt-5.5 (Codex)"
-    assert provenance["model_provider"] == "openai-codex"
-    assert provenance["model_execution_provider"] == "openai-chat"
-    assert provenance["model_execution_id"] == "openai-chat:gpt-5.5"
+    assert provenance["model_label"] == "GPT-5.6 Terra (balanced)"
+    assert provenance["model_provider"] == "openai-api"
+    assert provenance["model_execution_provider"] == "openai-responses"
+    assert provenance["model_execution_id"] == "openai-responses:gpt-5.6-terra"
     assert "sections_changed" in provenance
     assert "evidence_changed" in provenance
     assert provenance["active_corpus_documents"] == 0
@@ -537,7 +537,7 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
         workspace_path=baseline.workspace_path,
         author_user_id=USER_ID,
         content_markdown=baseline.content_markdown,
-        model="gpt-4o-mini",
+        model="gpt-5.6-terra",
         runtime="clerk-sitewise-update-pmp",
         provenance_metadata={},
         created_at=datetime(2026, 6, 2, tzinfo=timezone.utc),

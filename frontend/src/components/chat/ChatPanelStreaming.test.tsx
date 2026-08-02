@@ -26,7 +26,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
         runtimes: [],
         models: [],
       },
-      legacy: { default_model: "gpt-4.1-mini", models: [] },
+      legacy: { default_model: "gpt-5.6-luna", models: [] },
     },
     isPending: false,
     error: null,

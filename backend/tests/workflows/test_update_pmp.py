@@ -52,7 +52,7 @@ def _baseline_draft() -> DraftArtifact:
         workspace_path="04-projects/test-project/00-brief-pmp/PMP.md",
         author_user_id=USER_ID,
         content_markdown=_valid_pmp_markdown(),
-        model="gpt-4o-mini",
+        model="gpt-5.6-terra",
         runtime="clerk-sitewise-create-pmp",
         provenance_metadata={},
         created_at=datetime(2026, 6, 1, tzinfo=timezone.utc),

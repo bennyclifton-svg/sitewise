@@ -25,7 +25,7 @@ describe("LlmModelSelector", () => {
       legacy: await api.getLlmModels(),
     }));
     vi.mocked(api.getLlmModels).mockResolvedValue({
-      default_model: "gpt-4o-mini",
+      default_model: "gpt-5.6-terra",
       models: [],
     });
   });
@@ -48,11 +48,11 @@ describe("LlmModelSelector", () => {
           model: null,
         },
         {
-          id: "openai-codex:gpt-5.5",
-          label: "gpt-5.5 (Codex)",
+          id: "openai:gpt-5.6-sol",
+          label: "GPT-5.6 Sol (complex)",
           is_default: false,
-          provider: "openai-codex",
-          model: "gpt-5.5",
+          provider: "openai",
+          model: "gpt-5.6-sol",
         },
       ],
     });
@@ -61,11 +61,11 @@ describe("LlmModelSelector", () => {
 
     const select = await screen.findByLabelText(/hermes model/i);
     expect(select).toHaveValue("__hermes_config__");
-    expect(screen.getByRole("option", { name: "gpt-5.5 (Codex)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "GPT-5.6 Sol (complex)" })).toBeInTheDocument();
 
-    await userEvent.selectOptions(select, "openai-codex:gpt-5.5");
+    await userEvent.selectOptions(select, "openai:gpt-5.6-sol");
 
-    expect(getSelectedAgentModel()).toBe("openai-codex:gpt-5.5");
+    expect(getSelectedAgentModel()).toBe("openai:gpt-5.6-sol");
     await waitFor(() => expect(api.getAgentConfiguration).toHaveBeenCalledTimes(1));
   });
 
@@ -80,15 +80,15 @@ describe("LlmModelSelector", () => {
           id: "hermes",
           label: "Hermes",
           enabled: true,
-          model: "gpt-5.1",
-          model_label: "gpt-5.1 (openai-api)",
+          model: "gpt-5.6-terra",
+          model_label: "gpt-5.6-terra (openai)",
         },
         {
           id: "pi",
           label: "Pi",
           enabled: true,
-          model: "gpt-5.1",
-          model_label: "gpt-5.1 (openai)",
+          model: "gpt-5.6-terra",
+          model_label: "gpt-5.6-terra (openai)",
           default_model: "openai:gpt-5.6-terra",
           model_options: [
             {
@@ -124,11 +124,11 @@ describe("LlmModelSelector", () => {
           model: null,
         },
         {
-          id: "openai-codex:gpt-5.5",
-          label: "gpt-5.5 (Codex)",
+          id: "openai:gpt-5.6-sol",
+          label: "GPT-5.6 Sol (complex)",
           is_default: false,
-          provider: "openai-codex",
-          model: "gpt-5.5",
+          provider: "openai",
+          model: "gpt-5.6-sol",
         },
       ],
     });

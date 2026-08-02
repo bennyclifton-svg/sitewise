@@ -25,7 +25,7 @@ from app.grounding.validator import GroundingError
 async def main(query: str) -> None:
     print(
         f"chat_model={settings.openai_chat_model} "
-        f"(openai-chat:{settings.openai_chat_model})",
+        f"(openai-responses:{settings.openai_chat_model})",
         flush=True,
     )
     print(f"embedding_model={settings.openai_embedding_model}", flush=True)

@@ -367,7 +367,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     draft.workspace_path = "04-projects/greenfield-demo/01-cost/cost_plan_v01.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-cost-plan"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)

@@ -454,7 +454,7 @@ def _load_agent_instructions() -> str:
 
 
 pmp_narrative_agent = Agent(
-    f"openai-chat:{settings.pmp_model}",
+    f"openai-responses:{settings.pmp_model}",
     output_type=PmpNarrativeOutput,
     instructions=_load_agent_instructions(),
     defer_model_check=True,

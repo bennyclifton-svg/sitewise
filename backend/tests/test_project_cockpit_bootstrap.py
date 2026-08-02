@@ -88,7 +88,7 @@ def _draft_summary() -> dict:
         "title": "PMP Draft",
         "workspace_path": "04-projects/demo/00-brief-pmp/PMP.md",
         "author_user_id": USER_ID,
-        "model": "gpt-4o-mini",
+        "model": "gpt-5.6-terra",
         "runtime": "clerk-sitewise",
         "created_at": NOW,
         "updated_at": NOW,

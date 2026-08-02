@@ -57,29 +57,32 @@ def _validate_provider(provider: str) -> str:
 
 
 def _execution_provider(provider: str) -> str:
-    if provider == PMP_OPENAI_API_PROVIDER:
-        return PMP_OPENAI_RESPONSES_PROVIDER
-    if provider == PMP_CODEX_PROVIDER:
-        # The PMP workflows require PydanticAI typed output. PydanticAI does not
-        # expose an ``openai-codex`` provider, so execute through its OpenAI chat
-        # structured-output provider and make that adapter explicit in metadata.
-        return PMP_OPENAI_CHAT_PROVIDER
-    return provider
+    """Map a configured provider onto the one PydanticAI actually executes through.
+
+    Every model the PMP workflows run is in the GPT-5.6 family, which has reasoning
+    enabled by default. OpenAI rejects function tools — how PydanticAI implements
+    typed output — alongside reasoning on ``/v1/chat/completions``, so all configured
+    providers execute through the Responses provider. ``openai-codex`` in particular
+    has no PydanticAI provider of its own; the configured value survives only as
+    provenance, and this mapping keeps that adapter explicit in trace metadata.
+    """
+    del provider
+    return PMP_OPENAI_RESPONSES_PROVIDER
 
 
 def resolve_pmp_model(override: str | None = None) -> PmpModelSpec:
     """Resolve the model used by Create PMP and Update PMP workflows.
 
-    A plain request override is treated as a legacy OpenAI chat model override.
-    A provider-qualified value such as ``openai-codex:gpt-5.5`` records the
+    A plain request override is treated as an OpenAI platform model override.
+    A provider-qualified value such as ``openai-codex:gpt-5.6-sol`` records the
     intended provider in trace/provenance while passing the model id to the
-    structured PydanticAI runner.
+    structured PydanticAI runner, which always executes via the Responses API.
     """
     raw_override = override.strip() if override else ""
     raw = raw_override or settings.pmp_model
     source = "request" if raw_override else "PMP_MODEL"
     default_provider = (
-        PMP_OPENAI_CHAT_PROVIDER if raw_override else settings.pmp_model_provider
+        PMP_OPENAI_API_PROVIDER if raw_override else settings.pmp_model_provider
     )
     provider, model = _split_provider_model(raw.strip(), default_provider=default_provider)
     provider = _validate_provider(provider)

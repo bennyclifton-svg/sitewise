@@ -35,7 +35,7 @@ BODY = {
 
 BODY_WITH_AGENT_MODEL = {
     **BODY,
-    "agent_model": "openai-codex:gpt-5.5",
+    "agent_model": "openai:gpt-5.6-sol",
 }
 
 BODY_WITH_PI_RUNTIME = {
@@ -336,7 +336,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
 
     monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
-    monkeypatch.setattr(settings, "hermes_model_options", "openai-codex:gpt-5.5")
+    monkeypatch.setattr(settings, "hermes_model_options", "openai:gpt-5.6-sol")
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
@@ -495,8 +495,8 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "mcp_url": "http://testserver/mcp",
         "turn_token": "turn-token",
         "cwd": str(tmp_path / str(PROJECT_ID)),
-        "provider": "openai-codex",
-        "model": "gpt-5.5",
+        "provider": "openai",
+        "model": "gpt-5.6-sol",
     }
     assert (tmp_path / str(PROJECT_ID) / "AGENTS.md").exists()
     token_mint.assert_called_once()

@@ -203,7 +203,7 @@ def _load_agent_instructions() -> str:
 
 
 create_cost_plan_agent = Agent(
-    f"openai-chat:{settings.openai_chat_model}",
+    f"openai-responses:{settings.cost_plan_model}",
     output_type=CostPlanDraftOutput,
     instructions=_load_agent_instructions(),
     defer_model_check=True,

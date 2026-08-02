@@ -1,4 +1,6 @@
-const STORAGE_KEY = "clerk.chatModel";
+// Key bumped for the GPT-5.6 migration: stored selections named models that are
+// no longer allowlisted, and the backend rejects an unknown chat_model outright.
+const STORAGE_KEY = "clerk.chatModel.v2";
 const CHANGE_EVENT = "clerk:chat-model-change";
 
 export type ChatModelOption = {
@@ -13,16 +15,12 @@ export type ChatModelsResponse = {
 };
 
 export const FALLBACK_CHAT_MODELS: ChatModelOption[] = [
-  { id: "gpt-4.1-nano", label: "GPT-4.1 nano (fastest)", is_default: false },
-  { id: "gpt-4o-mini", label: "GPT-4o mini (fast, default)", is_default: true },
-  { id: "gpt-4.1-mini", label: "GPT-4.1 mini (fast)", is_default: false },
-  { id: "gpt-4.1", label: "GPT-4.1 (capable)", is_default: false },
-  { id: "gpt-4o", label: "GPT-4o (capable)", is_default: false },
-  { id: "o4-mini", label: "o4-mini (reasoning, fast)", is_default: false },
-  { id: "o3-mini", label: "o3-mini (reasoning)", is_default: false },
+  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol (complex)", is_default: false },
+  { id: "gpt-5.6-terra", label: "GPT-5.6 Terra (balanced)", is_default: false },
+  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna (fast)", is_default: true },
 ];
 
-export const FALLBACK_DEFAULT_MODEL = "gpt-4o-mini";
+export const FALLBACK_DEFAULT_MODEL = "gpt-5.6-luna";
 
 export function getSelectedChatModel(): string | null {
   if (typeof window === "undefined") {

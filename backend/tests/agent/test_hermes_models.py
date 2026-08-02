@@ -15,7 +15,7 @@ def test_hermes_models_response_includes_default_and_allowlisted_options(
     monkeypatch.setattr(
         settings,
         "hermes_model_options",
-        "openai-codex:gpt-5.5:gpt-5.5 (Codex),openai-api:gpt-5.1",
+        "openai:gpt-5.6-sol:GPT-5.6 Sol (complex),openai:gpt-5.6-luna",
     )
 
     response = hermes_models_response()
@@ -26,9 +26,10 @@ def test_hermes_models_response_includes_default_and_allowlisted_options(
     assert len(response.runtimes) == 2
     assert response.models[0].id == HERMES_DEFAULT_MODEL_ID
     assert response.models[0].is_default is True
-    assert response.models[1].id == "openai-codex:gpt-5.5"
-    assert response.models[1].label == "gpt-5.5 (Codex)"
-    assert response.models[2].id == "openai-api:gpt-5.1"
+    assert response.models[1].id == "openai:gpt-5.6-sol"
+    assert response.models[1].label == "GPT-5.6 Sol (complex)"
+    assert response.models[2].id == "openai:gpt-5.6-luna"
+    assert response.models[2].label == "gpt-5.6-luna (openai)"
 
 
 def test_hermes_model_override_rejects_unknown_options(
@@ -39,7 +40,7 @@ def test_hermes_model_override_rejects_unknown_options(
         resolve_hermes_model_override,
     )
 
-    monkeypatch.setattr(settings, "hermes_model_options", "openai-codex:gpt-5.5")
+    monkeypatch.setattr(settings, "hermes_model_options", "openai:gpt-5.6-sol")
 
     with pytest.raises(InvalidHermesModelError):
-        resolve_hermes_model_override("xai-oauth:gpt-5.5")
+        resolve_hermes_model_override("xai-oauth:gpt-5.6-sol")

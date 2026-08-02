@@ -13,10 +13,16 @@ _RETRY_AFTER_RE = re.compile(r"try again in ([0-9.]+)s", re.IGNORECASE)
 
 
 def _agent_model_id(model: str) -> str:
+    """Qualify a bare model id with the provider PydanticAI should execute through.
+
+    GPT-5.6 models have reasoning on by default, and OpenAI rejects function tools
+    (which PydanticAI uses for typed output) alongside reasoning on
+    /v1/chat/completions. Bare ids therefore resolve to the Responses provider.
+    """
     stripped = model.strip()
     if ":" in stripped:
         return stripped
-    return f"openai-chat:{stripped}"
+    return f"openai-responses:{stripped}"
 
 
 def _retry_wait_seconds(exc: ModelHTTPError, attempt: int) -> float:

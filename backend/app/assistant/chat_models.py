@@ -7,23 +7,15 @@ from pydantic import BaseModel, Field
 from app.config import settings
 
 DEFAULT_OPENAI_CHAT_MODELS: tuple[str, ...] = (
-    "gpt-4.1-nano",
-    "gpt-4o-mini",
-    "gpt-4.1-mini",
-    "gpt-4.1",
-    "gpt-4o",
-    "o4-mini",
-    "o3-mini",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
 )
 
 MODEL_LABELS: dict[str, str] = {
-    "gpt-4.1-nano": "GPT-4.1 nano (fastest)",
-    "gpt-4o-mini": "GPT-4o mini (fast, default)",
-    "gpt-4.1-mini": "GPT-4.1 mini (fast)",
-    "gpt-4.1": "GPT-4.1 (capable)",
-    "gpt-4o": "GPT-4o (capable)",
-    "o4-mini": "o4-mini (reasoning, fast)",
-    "o3-mini": "o3-mini (reasoning)",
+    "gpt-5.6-sol": "GPT-5.6 Sol (complex)",
+    "gpt-5.6-terra": "GPT-5.6 Terra (balanced)",
+    "gpt-5.6-luna": "GPT-5.6 Luna (fast)",
 }
 
 
@@ -80,7 +72,7 @@ def resolve_chat_model(override: str | None = None) -> str:
 
 
 def openai_chat_provider(model: str) -> str:
-    return f"openai-chat:{model}"
+    return f"openai-responses:{model}"
 
 
 def chat_model_options() -> list[ChatModelOption]:

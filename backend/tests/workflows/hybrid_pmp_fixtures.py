@@ -171,7 +171,7 @@ def mock_draft_artifact(**overrides: Any) -> AsyncMock:
     draft.workspace_path = "04-projects/test-project-112/00-brief-pmp/PMP.md"
     draft.author_user_id = USER_ID
     draft.content_markdown = "# Project Management Plan"
-    draft.model = "gpt-4o-mini"
+    draft.model = "gpt-5.6-terra"
     draft.runtime = "clerk-sitewise-create-pmp-hybrid"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 8, tzinfo=timezone.utc)

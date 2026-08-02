@@ -33,8 +33,8 @@ vi.mock("@/lib/api", () => ({
       models: [{ id: "__hermes_config__", label: "Hermes default", is_default: true }],
     }),
     getLlmModels: vi.fn().mockResolvedValue({
-      default_model: "gpt-4.1-mini",
-      models: [{ id: "gpt-4.1-mini", label: "gpt-4.1-mini", is_default: true }],
+      default_model: "gpt-5.6-luna",
+      models: [{ id: "gpt-5.6-luna", label: "gpt-5.6-luna", is_default: true }],
     }),
   },
 }));
@@ -53,7 +53,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
         runtimes: [{ id: "hermes", label: "Hermes", enabled: true }],
         models: [],
       },
-      legacy: { default_model: "gpt-4.1-mini", models: [] },
+      legacy: { default_model: "gpt-5.6-luna", models: [] },
     },
     isPending: false,
     error: null,
@@ -215,7 +215,7 @@ describe("ChatPanel agent model selection", () => {
   });
 
   it("sends the selected Hermes model with agent chat requests", () => {
-    window.localStorage.setItem("clerk.agentModel", "openai-codex:gpt-5.5");
+    window.localStorage.setItem("clerk.agentModel.v2", "openai:gpt-5.6-sol");
     renderPanel("ready");
 
     const config = transportMock.mock.calls[0][0] as {
@@ -234,7 +234,7 @@ describe("ChatPanel agent model selection", () => {
 
     expect(request.body).toMatchObject({
       thread_id: "thread-1",
-      agent_model: "openai-codex:gpt-5.5",
+      agent_model: "openai:gpt-5.6-sol",
     });
   });
 

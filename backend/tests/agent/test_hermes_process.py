@@ -123,8 +123,8 @@ def test_secrets_are_in_env_not_argv(monkeypatch, tmp_path: Path) -> None:
     assert env["AGENT_TURN_TOKEN"] == "turn-token"
     assert env["CLERK_MCP_TOKEN"] == "turn-token"
     assert env["OPENAI_API_KEY"] == "platform-key"
-    assert "provider: openai-api" in config
-    assert "default: gpt-5.1" in config
+    assert "provider: openai" in config
+    assert "default: gpt-5.6-terra" in config
 
 
 def test_model_override_is_passed_as_cli_flags(tmp_path: Path) -> None:
@@ -143,7 +143,7 @@ def test_model_override_is_passed_as_cli_flags(tmp_path: Path) -> None:
             turn_token="turn-token",
             cwd=tmp_path,
             provider="openai-codex",
-            model="gpt-5.5",
+            model="gpt-5.6-sol",
             spawn=spawn,
         )
     )
@@ -151,7 +151,7 @@ def test_model_override_is_passed_as_cli_flags(tmp_path: Path) -> None:
     assert "--provider" in seen["argv"]
     assert "openai-codex" in seen["argv"]
     assert "--model" in seen["argv"]
-    assert "gpt-5.5" in seen["argv"]
+    assert "gpt-5.6-sol" in seen["argv"]
 
 
 def test_oauth_mode_copies_existing_config_and_overlays_mcp(
@@ -167,7 +167,7 @@ def test_oauth_mode_copies_existing_config_and_overlays_mcp(
         "\n".join(
             [
                 "model:",
-                "  default: gpt-5.5",
+                "  default: gpt-5.6-sol",
                 "  provider: xai-oauth",
                 "mcp_servers:",
                 "  old:",
@@ -265,7 +265,7 @@ def test_codex_override_copies_auth_even_with_platform_key(
     source_home = tmp_path / "source-hermes"
     source_home.mkdir()
     (source_home / "config.yaml").write_text(
-        "model:\n  provider: openai-codex\n  default: gpt-5.5\n",
+        "model:\n  provider: openai-codex\n  default: gpt-5.6-sol\n",
         encoding="utf-8",
     )
     (source_home / "auth.json").write_text('{"codex": true}', encoding="utf-8")
@@ -285,7 +285,7 @@ def test_codex_override_copies_auth_even_with_platform_key(
             turn_token="turn-token",
             cwd=tmp_path,
             provider="openai-codex",
-            model="gpt-5.5",
+            model="gpt-5.6-sol",
             spawn=spawn,
         )
     )
