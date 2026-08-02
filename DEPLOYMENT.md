@@ -48,7 +48,10 @@ of git: record the *method and location*, not the value.
   *Settings → API/CLI → Generate token*. Store in a local ignored file, e.g.
   `deploy/env/dokploy.local.env` as `DOKPLOY_URL=` / `DOKPLOY_TOKEN=`.
 - **Provider console** (for power-cycle / VNC when SSH is dead): `TODO` — URL and
-  account.
+  account. **Highest-priority blank.** As of 2026-08-02 this is the only route
+  that would have worked; see the outage note in section 6. Record the reseller
+  or panel used to buy the VPS, since CloudWebManage is the upstream platform
+  rather than the billing vendor.
 
 ---
 
@@ -252,4 +255,34 @@ unless a migration rollback has been explicitly planned and tested — **do not*
 
 | Date | Commit | What shipped | Outcome |
 | --- | --- | --- | --- |
-| 2026-08-02 | `TODO` | GPT-5.6 model migration (chat/PMP/tender/Hermes) + Responses API provider switch | Pushed; **rollout blocked — VPS unreachable, see section 1 blanks** |
+| 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Pushed to `origin/main`. Prod DB confirmed at head. **Rollout blocked — production was already down before the deploy; see below.** |
+
+### 2026-08-02 — production outage (open)
+
+Found while attempting this deploy. **The outage predates and is unrelated to the
+GPT-5.6 change** — nothing was rolled out.
+
+Evidence:
+
+- `https://sitewise.au/api/health` → `ECONNREFUSED 45.151.153.218:443` from an
+  external network; a third-party proxy independently returned **HTTP 522**
+  (origin unreachable). Two unrelated networks agree the origin is down.
+- Probing `45.151.153.218` externally on **22, 80, 443 and 3000** returned
+  `ECONNREFUSED` on every port — TCP RST, not a timeout. The host's network stack
+  answers, but nothing is listening anywhere, **including sshd**.
+- From the operator's own connection (TPG, AU) every port instead **times out**,
+  and `ping` returns an ICMP *destination host unreachable* from an intermediate
+  router — a different failure mode to the external one.
+
+Reading: this is not "the app container stopped". Docker being down would not
+also take sshd off port 22. Either the host is in a barely-booted/rescue state,
+or a provider-level firewall has flipped to reject-all. Both explanations put the
+fix **out of band** — no SSH, no Dokploy API, no dashboard, because all three
+need a listening port.
+
+Consequence for future deploys: **there is currently no remote path onto this
+box.** Reviving it requires the provider console (power-cycle plus VNC/serial),
+which is why section 1's provider-console blank is the highest-value one to fill.
+Once shell access is restored, check in order: `systemctl status sshd`, the
+host firewall (`ufw status` / provider firewall rules), `systemctl status docker`,
+then `docker ps` for the Dokploy and `sitewise-3m1mco-*` containers.
