@@ -38,7 +38,8 @@ from app.database.chats import (
 )
 from app.database.draft_artifacts import (
     get_draft_artifact,
-    get_latest_consultant_procurement_draft_summaries,
+    get_latest_draft_artifact_by_workspace_path,
+    get_latest_prefixed_draft_artifact_summaries,
     get_latest_draft_artifact_summaries,
     get_latest_draft_artifact,
 )
@@ -99,6 +100,10 @@ from app.schemas.projects import (
     PdfSheetProposal,
     PlatformKnowledgeBucket,
     PlatformKnowledgeStatus,
+    ProcurementRequestCreateRequest,
+    ProcurementRequestListResponse,
+    ProcurementRequestStatusUpdate,
+    ProcurementRequestView,
     ProjectActivityEvent,
     ProjectActivityReferences,
     ProjectActivityResponse,
@@ -165,6 +170,16 @@ from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
 )
+from app.procurement.requests import (
+    ProcurementRequestNotFound,
+    ProcurementRequestRevisionConflict,
+    ProcurementRequestStateConflict,
+    create_procurement_request,
+    get_procurement_request,
+    list_procurement_requests,
+    request_kind_for_workflow,
+    transition_procurement_request,
+)
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectNextAction, ProjectSnapshot
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
@@ -202,6 +217,7 @@ from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.consultant_procurement import (
     sync_consultant_procurement_draft_workspace,
 )
+from app.workflows.contractor_procurement import sync_contractor_eoi_draft_workspace
 from app.workflows.create_cost_plan import (
     draft_workspace_path as cost_plan_draft_workspace_path,
     run_create_cost_plan_workflow,
@@ -215,6 +231,7 @@ from app.workflows.create_pmp import (
     sync_pmp_draft_workspace,
 )
 from app.workflows.sort_files import run_sort_files_workflow
+from app.workflows.trade_procurement import sync_trade_procurement_draft_workspace
 from app.workflows.update_pmp import run_update_pmp_workflow
 from app.workflows.runs import (
     WorkflowRunCapabilityConflict,
@@ -229,6 +246,13 @@ from app.logging import get_logger
 router = APIRouter(prefix="/projects", tags=["projects"])
 sitewise_router = APIRouter(prefix="/sitewise", tags=["sitewise"])
 log = get_logger(__name__)
+
+PROCUREMENT_DRAFT_PREFIXES = (
+    "consultant_procurement_",
+    "contractor_eoi_",
+    "trade_rft_",
+    "trade_rfq_",
+)
 
 
 @router.get(
@@ -535,19 +559,19 @@ async def _ensure_cost_plan_workspace_file(
     return await list_workspace_files_for_project(session, project_id=project.id)
 
 
-async def _ensure_consultant_procurement_workspace_files(
+async def _ensure_procurement_workspace_files(
     session: AsyncSession,
     *,
     project,
     workspace_files,
-    consultant_draft_summaries: dict[str, DraftArtifactSummary | None],
+    procurement_draft_summaries: dict[str, DraftArtifactSummary | None],
 ) -> list:
-    if not consultant_draft_summaries:
+    if not procurement_draft_summaries:
         return workspace_files
 
     existing_paths = {record.workspace_path for record in workspace_files}
     changed = False
-    for summary in consultant_draft_summaries.values():
+    for summary in procurement_draft_summaries.values():
         if summary is None or summary.workspace_path in existing_paths:
             continue
         draft = await get_latest_draft_artifact(
@@ -557,9 +581,18 @@ async def _ensure_consultant_procurement_workspace_files(
         )
         if draft is None:
             continue
-        await sync_consultant_procurement_draft_workspace(
-            session, project=project, draft=draft
-        )
+        if summary.workflow_type.startswith("consultant_procurement_"):
+            await sync_consultant_procurement_draft_workspace(
+                session, project=project, draft=draft
+            )
+        elif summary.workflow_type.startswith("contractor_eoi_"):
+            await sync_contractor_eoi_draft_workspace(session, project=project, draft=draft)
+        elif summary.workflow_type.startswith(("trade_rft_", "trade_rfq_")):
+            await sync_trade_procurement_draft_workspace(
+                session, project=project, draft=draft
+            )
+        else:
+            continue
         changed = True
 
     if not changed:
@@ -567,13 +600,43 @@ async def _ensure_consultant_procurement_workspace_files(
     return await list_workspace_files_for_project(session, project_id=project.id)
 
 
-def _consultant_procurement_draft_summaries(
+def _procurement_draft_summaries(
     draft_rows: dict[str, dict],
 ) -> dict[str, DraftArtifactSummary | None]:
     return {
         workflow_type: DraftArtifactSummary.model_validate(row)
         for workflow_type, row in draft_rows.items()
     }
+
+
+async def _procurement_request_view(
+    session: AsyncSession, request
+) -> ProcurementRequestView:
+    draft = None
+    if request.current_draft_artifact_id is not None:
+        draft = await get_draft_artifact(session, request.current_draft_artifact_id)
+    return ProcurementRequestView.model_validate(
+        {
+            "id": request.id,
+            "project_id": request.project_id,
+            "created_by_user_id": request.created_by_user_id,
+            "kind": request.kind,
+            "target_name": request.target_name,
+            "target_slug": request.target_slug,
+            "status": request.status,
+            "current_draft_artifact_id": request.current_draft_artifact_id,
+            "current_draft": (
+                DraftArtifactSummary.model_validate(draft)
+                if draft is not None
+                else None
+            ),
+            "issued_at": request.issued_at,
+            "closed_at": request.closed_at,
+            "revision": request.revision,
+            "created_at": request.created_at,
+            "updated_at": request.updated_at,
+        }
+    )
 
 
 def _merge_draft_summaries(
@@ -969,7 +1032,9 @@ async def accept_project_profile_proposal_http(
             actor_source="user",
         )
     except ProfileProposalNotFound as exc:
-        raise HTTPException(status_code=404, detail="Profile proposal not found") from exc
+        raise HTTPException(
+            status_code=404, detail="Profile proposal not found"
+        ) from exc
     except ProfileProposalStateConflict as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1019,7 +1084,9 @@ async def reject_project_profile_proposal_http(
             actor_source="user",
         )
     except ProfileProposalNotFound as exc:
-        raise HTTPException(status_code=404, detail="Profile proposal not found") from exc
+        raise HTTPException(
+            status_code=404, detail="Profile proposal not found"
+        ) from exc
     except ProfileProposalStateConflict as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1154,12 +1221,13 @@ async def get_project_cockpit_bootstrap(
         )
         for workflow_type in workflow_types
     }
-    consultant_draft_rows = await get_latest_consultant_procurement_draft_summaries(
+    procurement_draft_rows = await get_latest_prefixed_draft_artifact_summaries(
         session,
         project_id=project.id,
+        prefixes=PROCUREMENT_DRAFT_PREFIXES,
     )
-    consultant_drafts = _consultant_procurement_draft_summaries(consultant_draft_rows)
-    all_draft_summaries = _merge_draft_summaries(latest_drafts, consultant_drafts)
+    procurement_drafts = _procurement_draft_summaries(procurement_draft_rows)
+    all_draft_summaries = _merge_draft_summaries(latest_drafts, procurement_drafts)
     timings_ms["draft_summaries"] = _elapsed_ms(step_start)
 
     step_start = time.perf_counter()
@@ -1178,11 +1246,11 @@ async def get_project_cockpit_bootstrap(
         workspace_files=workspace_files,
         draft_summaries=latest_drafts,
     )
-    workspace_files = await _ensure_consultant_procurement_workspace_files(
+    workspace_files = await _ensure_procurement_workspace_files(
         session,
         project=project,
         workspace_files=workspace_files,
-        consultant_draft_summaries=consultant_drafts,
+        procurement_draft_summaries=procurement_drafts,
     )
     workspace_path_list = _workspace_paths_for_tree(
         workspace_files,
@@ -1240,7 +1308,7 @@ async def get_project_cockpit_bootstrap(
         evidence=evidence,
         workspace_tree=workspace_tree,
         platform_knowledge=platform_knowledge,
-        latest_drafts=_merge_draft_summaries(latest_drafts, consultant_drafts),
+        latest_drafts=_merge_draft_summaries(latest_drafts, procurement_drafts),
         snapshot=snapshot.model_dump(mode="json"),
         timings_ms=timings_ms,
     )
@@ -1298,12 +1366,13 @@ async def get_project_workspace_tree(
         )
         for workflow_type in ["create_pmp", "create_cost_plan", "sort_files"]
     }
-    consultant_draft_rows = await get_latest_consultant_procurement_draft_summaries(
+    procurement_draft_rows = await get_latest_prefixed_draft_artifact_summaries(
         session,
         project_id=project.id,
+        prefixes=PROCUREMENT_DRAFT_PREFIXES,
     )
-    consultant_drafts = _consultant_procurement_draft_summaries(consultant_draft_rows)
-    all_draft_summaries = _merge_draft_summaries(draft_summaries, consultant_drafts)
+    procurement_drafts = _procurement_draft_summaries(procurement_draft_rows)
+    all_draft_summaries = _merge_draft_summaries(draft_summaries, procurement_drafts)
     workspace_files = await _ensure_pmp_workspace_file(
         session,
         project=project,
@@ -1316,11 +1385,11 @@ async def get_project_workspace_tree(
         workspace_files=workspace_files,
         draft_summaries=draft_summaries,
     )
-    workspace_files = await _ensure_consultant_procurement_workspace_files(
+    workspace_files = await _ensure_procurement_workspace_files(
         session,
         project=project,
         workspace_files=workspace_files,
-        consultant_draft_summaries=consultant_drafts,
+        procurement_draft_summaries=procurement_drafts,
     )
     return ProjectWorkspaceTreeResponse(
         project_id=project.id,
@@ -1855,6 +1924,22 @@ async def get_latest_project_draft(
     return DraftArtifactResponse.model_validate(draft) if draft is not None else None
 
 
+@router.get("/{project_id}/drafts/by-workspace-path")
+async def get_project_draft_by_workspace_path(
+    project_id: uuid.UUID,
+    workspace_path: str = Query(min_length=1, max_length=1024),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DraftArtifactResponse | None:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    draft = await get_latest_draft_artifact_by_workspace_path(
+        session,
+        project_id=project.id,
+        workspace_path=workspace_path,
+    )
+    return DraftArtifactResponse.model_validate(draft) if draft is not None else None
+
+
 @router.get("/{project_id}/drafts/{draft_id}")
 async def get_project_draft(
     project_id: uuid.UUID,
@@ -2240,6 +2325,93 @@ async def post_accept_project_draft(
     return DraftArtifactResponse.model_validate(accepted)
 
 
+@router.get("/{project_id}/procurement-requests")
+async def get_project_procurement_requests(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementRequestListResponse:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    requests = await list_procurement_requests(session, project_id=project_id)
+    return ProcurementRequestListResponse(
+        requests=[
+            await _procurement_request_view(session, request) for request in requests
+        ]
+    )
+
+
+@router.post(
+    "/{project_id}/procurement-requests",
+    status_code=status.HTTP_201_CREATED,
+)
+async def post_project_procurement_request(
+    project_id: uuid.UUID,
+    body: ProcurementRequestCreateRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementRequestView:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    request = await create_procurement_request(
+        session,
+        project_id=project.id,
+        created_by_user_id=user.id,
+        kind=body.kind,
+        target_name=body.target_name,
+    )
+    return await _procurement_request_view(session, request)
+
+
+@router.get("/{project_id}/procurement-requests/{request_id}")
+async def get_project_procurement_request(
+    project_id: uuid.UUID,
+    request_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementRequestView:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        request = await get_procurement_request(
+            session, project_id=project_id, request_id=request_id
+        )
+    except ProcurementRequestNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Request not found"
+        ) from exc
+    return await _procurement_request_view(session, request)
+
+
+@router.patch("/{project_id}/procurement-requests/{request_id}/status")
+async def patch_project_procurement_request_status(
+    project_id: uuid.UUID,
+    request_id: uuid.UUID,
+    body: ProcurementRequestStatusUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementRequestView:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        request = await get_procurement_request(
+            session, project_id=project_id, request_id=request_id
+        )
+        updated = await transition_procurement_request(
+            session,
+            request=request,
+            status=body.status,
+            expected_revision=body.expected_revision,
+        )
+    except ProcurementRequestNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Request not found"
+        ) from exc
+    except (ProcurementRequestRevisionConflict, ProcurementRequestStateConflict) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    return await _procurement_request_view(session, updated)
+
+
 @router.post("/{project_id}/workflows/sort-files")
 async def post_sort_files(
     project_id: uuid.UUID,
@@ -2264,6 +2436,7 @@ _ASYNC_CAPABILITIES = {
     "create_cost_plan": "create_cost_plan",
     "refresh_cost_plan": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
+    "trade_procurement": "trade_procurement",
 }
 
 
@@ -2301,6 +2474,40 @@ async def _start_core_workflow(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="parameters.discipline is required",
         )
+    if workflow_type == "trade_procurement":
+        if not str(body.parameters.get("package", "")).strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="parameters.package is required",
+            )
+        if body.parameters.get("kind") not in {"rft", "rfq"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="parameters.kind must be rft or rfq",
+            )
+    if workflow_type in {"consultant_procurement", "trade_procurement"}:
+        raw_request_id = body.parameters.get("procurement_request_id")
+        if raw_request_id:
+            try:
+                request = await get_procurement_request(
+                    session,
+                    project_id=project.id,
+                    request_id=uuid.UUID(str(raw_request_id)),
+                )
+                expected_kind = request_kind_for_workflow(
+                    workflow_type,
+                    trade_kind=str(body.parameters.get("kind") or ""),
+                )
+            except (ValueError, ProcurementRequestNotFound) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="parameters.procurement_request_id is invalid for this project",
+                ) from exc
+            if request.kind != expected_kind:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="parameters.procurement_request_id kind does not match workflow",
+                )
     if workflow_type == "refresh_cost_plan":
         proposed_items = body.parameters.get("proposed_items")
         if not isinstance(proposed_items, list):
@@ -2459,6 +2666,25 @@ async def post_consultant_procurement_run(
         session,
         project_id=project_id,
         workflow_type="consultant_procurement",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/trade-procurement",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_trade_procurement_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="trade_procurement",
         body=body,
         user=user,
     )

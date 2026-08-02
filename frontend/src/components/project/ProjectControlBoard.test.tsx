@@ -15,6 +15,7 @@ import type {
 vi.mock("@/lib/api", () => ({
   api: {
     updateProject: vi.fn(),
+    listProcurementRequests: vi.fn(),
   },
 }));
 
@@ -158,6 +159,48 @@ describe("ProjectControlBoard project profile", () => {
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
+  });
+
+  it("creates a trade RFQ from the RFP / RFT panel", async () => {
+    const user = userEvent.setup();
+    const onRunProcurement = vi.fn();
+    vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
+
+    render(
+      <ProjectControlBoard
+        project={project}
+        latestDraft={null}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan={false}
+        selectedWorkflowId="procurement-requests"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+        onRunProcurement={onRunProcurement}
+      />,
+    );
+
+    await screen.findByText("No procurement requests yet.");
+    await user.selectOptions(screen.getByLabelText("Request"), "trade_rfq");
+    await user.type(screen.getByLabelText("Target"), "Electrical services");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(onRunProcurement).toHaveBeenCalledWith(
+      "trade_rfq",
+      "Electrical services",
+    );
   });
 
   it("updates clean controls when a newer server revision arrives", () => {

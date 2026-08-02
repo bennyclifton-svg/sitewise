@@ -113,6 +113,9 @@ describe("workflowProgressTitle", () => {
     );
     expect(workflowProgressTitle("cost_plan", "create")).toBe("Creating Cost Plan");
     expect(workflowProgressTitle("cost_plan", "update")).toBe("Refreshing Cost Plan");
+    expect(workflowProgressTitle("procurement", "create")).toBe(
+      "Preparing Procurement Request",
+    );
   });
 });
 

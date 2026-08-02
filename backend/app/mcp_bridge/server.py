@@ -136,6 +136,7 @@ from app.workflows.consultant_procurement import (
     draft_consultant_procurement_artifact as run_consultant_procurement_artifact,
     normalise_discipline as _normalise_consultant_discipline,
 )
+from app.workflows.trade_procurement import normalise_trade_target
 from app.workflows.create_pmp import _upstream_failure_message
 from app.workflows.runs import (
     WorkflowRunCapabilityConflict,
@@ -1061,6 +1062,7 @@ _MCP_WORKFLOW_CAPABILITIES = {
     "refresh_cost_plan": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
     "contractor_eoi": "contractor_eoi",
+    "trade_procurement": "trade_procurement",
 }
 
 
@@ -1446,7 +1448,7 @@ async def start_consultant_procurement(
         return {
             "kind": "blocked",
             "reason": str(exc),
-            "redirect": "start_contractor_eoi",
+            "redirect": "start_trade_procurement",
         }
     return await _start_mcp_workflow(
         project_id=project_id,
@@ -1485,6 +1487,41 @@ async def start_contractor_eoi(
         parameters={
             "package": package,
             "max_pages": max_pages,
+            "instructions": instructions,
+        },
+    )
+
+
+@mcp.tool
+async def start_trade_procurement(
+    project_id: str,
+    package: str,
+    kind: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    max_pages: int = 3,
+    instructions: str | None = None,
+) -> dict:
+    """Queue a durable client-issued trade RFT or RFQ draft artefact."""
+    if kind not in {"rft", "rfq"}:
+        raise ToolError("kind must be rft or rfq")
+    try:
+        normalise_trade_target(package)
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="trade_procurement",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        parameters={
+            "package": package,
+            "kind": kind,
+            "max_pages": max(1, max_pages),
             "instructions": instructions,
         },
     )

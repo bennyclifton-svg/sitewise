@@ -65,6 +65,10 @@ class ProcurementDocument(ABC):
     trace_guidance_purpose: str
     load_required_seed_content = False
 
+    def provenance_metadata(self, target: ProcurementTarget) -> dict[str, Any]:
+        """Return document-specific metadata without duplicating publication."""
+        return {}
+
     @abstractmethod
     def resolve_target(self, raw: str) -> ProcurementTarget: ...
 
@@ -178,7 +182,9 @@ async def draft_procurement_request(
     sync_workspace: SyncWorkspace | None = None,
 ) -> ProcurementRequestResult:
     target = document.resolve_target(raw_target)
-    pages = max(1, min(max_pages, 3))
+    # A page target guides the bounded narrative prompt. It must not cause a
+    # complete procurement document to fail or be truncated at an arbitrary cap.
+    pages = max(1, max_pages)
     retriever = (retriever_factory or DocumentRetriever)(session)
 
     project_evidence = await _retrieve_project_evidence(
@@ -265,6 +271,7 @@ async def draft_procurement_request(
             "max_pages": pages,
             "instructions": instructions,
             "source_trace": source_trace,
+            **document.provenance_metadata(target),
             **_provenance_references(project_evidence, platform_knowledge),
         },
     )
@@ -592,6 +599,24 @@ async def _sync_draft_workspace(
         content_hash=content_hash,
     )
     return canonical_path
+
+
+async def sync_procurement_draft_workspace(
+    session: AsyncSession,
+    *,
+    project: Project,
+    document: ProcurementDocument,
+    draft: DraftArtifact,
+    markdown: str | None = None,
+) -> str:
+    """Republish a standard procurement artefact after review or acceptance."""
+    return await _sync_draft_workspace(
+        session,
+        project=project,
+        document=document,
+        draft=draft,
+        markdown=markdown or draft.content_markdown,
+    )
 
 
 def _platform_title(passage: Any, metadata: dict[str, Any]) -> str:

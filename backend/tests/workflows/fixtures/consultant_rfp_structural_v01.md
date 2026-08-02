@@ -9,7 +9,7 @@
 | State | NSW | Profile |
 | Taxonomy | residential / refurb | Profile |
 | Subclass and scale | TBC; scale TBC | Profile |
-| Budget | TBC | Confirm |
+| Budget | $920,000 ex GST | Current Cost Plan v1 |
 | Timeframe | TBC | Confirm |
 | Procurement route | TBC | Confirm |
 
@@ -19,10 +19,14 @@
 The current project evidence defines the consultant briefing basis. [1]
 
 ## Requested services
-- Tailor the requested services to the evidenced project spaces and systems. [1]
+Please review the proposed services and provide a short return brief with your fee proposal, identifying any amendments, qualifications, omissions, or additional services required.
+
+1. Tailor the requested services to the evidenced project spaces and systems. [1]
 
 ## Information to review
-- Review the current project evidence before pricing. [1]
+| Document number | Title | Rev | Category | Citation |
+| --- | --- | --- | --- | --- |
+| TBC | project-brief | TBC | TBC | [1] |
 
 ## Required deliverables
 - Structural fee proposal with design, documentation, certification, and site-phase allowances.
@@ -33,24 +37,30 @@ The current project evidence defines the consultant briefing basis. [1]
 
 - Provide earliest availability, key programme assumptions, and duration for each stage.
 - Fee response date: TBC by client before issue.
-
-## Fee response requirements
-- Submit a lump-sum fee excluding GST, with GST shown separately.
-- Break the fee down by project stage and identify optional services, disbursements, and hourly rates.
-- State assumptions, exclusions, client inputs, authority fees, and validity period.
-
-## Scope assumptions / exclusions to state
-- Identify every scope assumption, exclusion, optional service, reliance, and required client input in the fee proposal.
-- Separate consultant, client, landlord, authority, other-consultant, and contractor responsibilities.
-- State investigation, survey, authority-fee, meeting, site-visit, tender-support, construction-support, testing, and handover allowances.
-
-## Site visit / clarifications
-- Confirm whether a site visit is required and list any preconditions for attendance.
-- Submit clarification questions before pricing where information is incomplete.
-
-## Submission instructions
 - Submit the fee proposal to the client-nominated contact in PDF format.
 - Include company details, insurances, proposed personnel, and any terms requiring acceptance.
 
-## Citation key
-[1] project-brief.pdf — on file
+## Fee response requirements
+- Submit a lump-sum fee excluding GST, with GST shown separately.
+- Use the indicative breakdown below (mark stages N/A where not applicable), or an equivalent schedule that preserves these stages, to support like-for-like fee comparison.
+
+| Indicative fee stage | Scope / allowance to identify | Fee ex GST |
+| --- | --- | ---: |
+| Information review, site visit and design basis | Confirm inputs, investigations and initial advice | TBC |
+| Concept design | Options, design criteria and concept coordination | TBC |
+| Detailed design and documentation | Calculations, drawings, specifications and coordination | TBC |
+| Approval and tender support | Certification / authority inputs, tender queries and addenda | TBC |
+| Construction phase | RFIs, submittal reviews, inspections and site attendance allowances | TBC |
+| Completion and handover | Defects, completion statements and close-out deliverables | TBC |
+| Optional / additional services | Separately identify scope, rates and trigger | TBC |
+| Hourly rates | Identify rates by proposed personnel / role | TBC |
+| Disbursements | Separately identify estimated expenses | TBC |
+| **Total lump sum** | Excluding GST | **TBC** |
+
+**Assumptions, exclusions and clarifications**
+
+- State assumptions, exclusions, client inputs, authority fees, fee validity, optional services, disbursements, and hourly rates.
+- Separate consultant, client, authority, other-consultant, and contractor responsibilities.
+- State allowances for investigations, surveys, meetings, site visits, tender support, construction support, inspections, testing, and handover.
+- Confirm whether a site visit is required and any preconditions for attendance.
+- Submit clarification questions before pricing where information is incomplete.

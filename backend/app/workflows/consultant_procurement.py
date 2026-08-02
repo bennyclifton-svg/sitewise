@@ -22,12 +22,6 @@ from app.inbox.paths import build_storage_key
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 from app.retrieval.retriever import DocumentRetriever
-from app.retrieval.schemas import RetrievalFilters
-from app.sitewise.knowledge_catalog import (
-    DOCTRINE_PATH,
-    catalog_entry_for_path,
-    select_required_paths,
-)
 from app.sitewise.cost_plan_consultant_forecast import (
     FORECAST_BASIS,
     FORECAST_STATUS,
@@ -928,129 +922,6 @@ async def draft_consultant_procurement_artifact(
     )
 
 
-async def _retrieve_project_evidence(
-    retriever: DocumentRetriever,
-    *,
-    project: Project,
-    profile: DisciplineProfile,
-) -> list[dict[str, Any]]:
-    filters = RetrievalFilters(
-        active_project_id=project.id,
-        include_platform_knowledge=False,
-    )
-    evidence: list[dict[str, Any]] = []
-    seen_chunks: set[str] = set()
-    for query in _evidence_queries(profile):
-        passages = await retriever.retrieve(
-            query.query,
-            filters=filters,
-            limit=3,
-            include_neighbours=False,
-        )
-        for passage in passages:
-            chunk_key = str(_attr(passage, "chunk_id", ""))
-            if chunk_key and chunk_key in seen_chunks:
-                continue
-            if chunk_key:
-                seen_chunks.add(chunk_key)
-            evidence.append(_project_evidence_item(query, passage))
-    return evidence
-
-
-async def _retrieve_platform_knowledge(
-    retriever: DocumentRetriever,
-    *,
-    profile: DisciplineProfile,
-) -> list[dict[str, Any]]:
-    passages = await retriever.retrieve(
-        (
-            f"consultant procurement request for fee proposal {profile.name} "
-            "scope deliverables exclusions fee response programme"
-        ),
-        filters=RetrievalFilters(platform_knowledge_only=True, phase="reference"),
-        limit=5,
-        include_neighbours=False,
-    )
-    knowledge: list[dict[str, Any]] = []
-    seen_paths: set[str] = set()
-    for passage in passages:
-        path = str(_attr(passage, "relative_path", ""))
-        if path and path in seen_paths:
-            continue
-        if path:
-            seen_paths.add(path)
-        knowledge.append(_platform_knowledge_item(passage))
-    return knowledge
-
-
-def _required_guidance_paths(project: Project) -> list[str]:
-    """Resolve the platform's consultant-procurement doctrine for this project.
-
-    Uses the frontmatter-driven knowledge catalog so the governing guidance is
-    surfaced deterministically, independent of whether semantic search happens
-    to hit it. Only the consultant-procurement-tagged seeds are returned — the
-    doctrine core, archetype, and role scaffolding are excluded so the RFP cites
-    the procurement guidance specifically. Returns ``[]`` when project overlays
-    are incomplete (guidance cannot be resolved).
-    """
-    from app.sitewise.archetype_bridge import (
-        effective_taxonomy,
-        effective_work_scopes,
-    )
-
-    archetype = getattr(project, "archetype", None)
-    taxonomy = effective_taxonomy(project)
-    building_class = taxonomy.building_class
-    work_type = taxonomy.work_type
-    if not archetype and not building_class:
-        return []
-    try:
-        resolved = select_required_paths(
-            workflow=KNOWLEDGE_WORKFLOW,
-            archetype=archetype or "",
-            building_class=building_class,
-            work_type=work_type,
-            subclasses=taxonomy.subclasses,
-            work_scopes=effective_work_scopes(project),
-        )
-    except ValueError:
-        return []
-    guidance: list[str] = []
-    for path in resolved:
-        if path == DOCTRINE_PATH:
-            continue
-        entry = catalog_entry_for_path(path)
-        if entry is not None and KNOWLEDGE_WORKFLOW in entry.required_by:
-            guidance.append(path)
-    return guidance
-
-
-def _merge_required_guidance(
-    knowledge: list[dict[str, Any]],
-    project: Project,
-) -> list[dict[str, Any]]:
-    """Fold catalog-mandated consultant-procurement doctrine into the platform
-    knowledge list, so guidance is present even when semantic search returns
-    nothing. Semantic hits keep their position; mandatory paths are appended."""
-    existing = {item.get("path") for item in knowledge}
-    for path in _required_guidance_paths(project):
-        if path in existing:
-            continue
-        existing.add(path)
-        entry = catalog_entry_for_path(path)
-        knowledge.append(
-            {
-                "path": path,
-                "title": entry.title if entry is not None else path.rsplit("/", maxsplit=1)[-1],
-                "section": None,
-                "snippet": entry.summary if entry is not None else "",
-                "score": None,
-                "source_type": "required-doctrine",
-            }
-        )
-    return knowledge
-
-
 async def _forecast_for_discipline(
     session: AsyncSession,
     *,
@@ -1191,34 +1062,6 @@ def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
     return tuple(queries)
 
 
-def _project_evidence_item(query: EvidenceQuery, passage: Any) -> dict[str, Any]:
-    metadata = _attr(passage, "document_metadata", None)
-    return {
-        "role": query.key,
-        "role_label": query.label,
-        "document_id": str(_attr(passage, "document_id", "")),
-        "chunk_id": str(_attr(passage, "chunk_id", "")),
-        "filename": _attr(passage, "filename", "Unknown document"),
-        "relative_path": _attr(passage, "relative_path", ""),
-        "page_or_section": _attr(passage, "page_or_section", None),
-        "snippet": _compact(_attr(passage, "content", ""), limit=260),
-        "score": _attr(passage, "score", None),
-        "document_metadata": metadata if isinstance(metadata, dict) else {},
-    }
-
-
-def _platform_knowledge_item(passage: Any) -> dict[str, Any]:
-    metadata = _attr(passage, "document_metadata", None) or {}
-    return {
-        "path": _attr(passage, "relative_path", ""),
-        "title": _platform_title(passage, metadata),
-        "section": _attr(passage, "page_or_section", None),
-        "snippet": _compact(_attr(passage, "content", ""), limit=260),
-        "score": _attr(passage, "score", None),
-        "source_type": _attr(passage, "source_type", None),
-    }
-
-
 def _assumptions_and_missing_inputs(
     *,
     project: Project,
@@ -1271,46 +1114,6 @@ def _assumptions_and_missing_inputs(
     if not forecast.get("used"):
         assumptions.append("No discipline-specific fee benchmark was applied.")
     return assumptions, missing
-
-
-def _source_trace(
-    *,
-    project_evidence: list[dict[str, Any]],
-    platform_knowledge: list[dict[str, Any]],
-    forecast: dict[str, Any],
-    assumptions: list[str],
-    missing_inputs: list[str],
-) -> dict[str, Any]:
-    tools = [
-        {
-            "name": "draft_consultant_procurement_artifact",
-            "purpose": "Generated and saved the consultant procurement artefact.",
-        },
-        {
-            "name": "search_documents",
-            "purpose": "Gathered active-project evidence for the RFP basis.",
-        },
-        {
-            "name": "search_platform_knowledge",
-            "purpose": "Gathered SiteWise consultant procurement guidance.",
-        },
-    ]
-    if forecast.get("used"):
-        tools.append(
-            {
-                "name": "forecast_consultant_fees",
-                "purpose": "Added an internal judgement allowance for budget context.",
-            }
-        )
-
-    return {
-        "project_documents": project_evidence,
-        "platform_knowledge": platform_knowledge,
-        "forecast": forecast,
-        "assumptions": assumptions,
-        "missing_inputs": missing_inputs,
-        "tools": tools,
-    }
 
 
 _FEE_PROPOSAL_MARKERS = ("fee-proposal", "fee_proposal")
@@ -1388,25 +1191,6 @@ def _reconcile_forecast_with_received(
         item.get("relative_path") or item.get("filename") for item in received
     ]
     return forecast
-
-
-def _platform_title(passage: Any, metadata: dict[str, Any]) -> str:
-    frontmatter = metadata.get("frontmatter") if isinstance(metadata, dict) else None
-    if isinstance(frontmatter, dict) and isinstance(frontmatter.get("title"), str):
-        return frontmatter["title"]
-    filename = str(_attr(passage, "filename", "Platform knowledge"))
-    return filename.rsplit("/", maxsplit=1)[-1]
-
-
-def _attr(obj: Any, name: str, default: Any = None) -> Any:
-    return getattr(obj, name, default)
-
-
-def _compact(value: str, *, limit: int) -> str:
-    cleaned = " ".join(str(value).split())
-    if len(cleaned) <= limit:
-        return cleaned
-    return cleaned[: limit - 1].rstrip() + "..."
 
 
 def _money(value: int | None) -> str:

@@ -1,5 +1,6 @@
 import {
   BriefcaseBusiness,
+  ClipboardList,
   FileText,
   HandCoins,
   Settings2,
@@ -28,6 +29,8 @@ export function buildLifecycleTiles({
   costPlanWorkflowError,
   isRunningWorkflow,
   isRunningCostPlan,
+  procurementError = null,
+  isRunningProcurement = false,
 }: {
   project: ProjectDetail;
   latestDraft: DraftArtifactSummary | null;
@@ -36,9 +39,19 @@ export function buildLifecycleTiles({
   costPlanWorkflowError: string | null;
   isRunningWorkflow: boolean;
   isRunningCostPlan: boolean;
+  procurementError?: string | null;
+  isRunningProcurement?: boolean;
 }): WorkflowTile[] {
   const capabilities = project.workflow_capabilities?.capabilities;
   const tenderCapability = capabilities?.tender_comparison;
+  const consultantProcurementCapability = capabilities?.consultant_procurement;
+  const tradeProcurementCapability = capabilities?.trade_procurement;
+  const procurementTileStatus = procurementStatus({
+    consultantCapability: consultantProcurementCapability,
+    tradeCapability: tradeProcurementCapability,
+    error: procurementError,
+    isRunning: isRunningProcurement,
+  });
   const createPmpStatus = getCreatePmpStatus({
     project,
     latestDraft,
@@ -87,6 +100,17 @@ export function buildLifecycleTiles({
       implemented: true,
     },
     {
+      id: "procurement-requests",
+      label: "RFP / RFT",
+      folder: "05-procurement",
+      icon: ClipboardList,
+      status: procurementTileStatus.status,
+      statusLabel: procurementTileStatus.label,
+      description:
+        "Prepare a fee proposal, tender, or quotation request and review the latest draft.",
+      implemented: true,
+    },
+    {
       id: "procurement",
       label: "Tender Comparison",
       folder: "05-procurement",
@@ -99,6 +123,29 @@ export function buildLifecycleTiles({
       implemented: true,
     },
   ];
+}
+
+function procurementStatus({
+  consultantCapability,
+  tradeCapability,
+  error,
+  isRunning,
+}: {
+  consultantCapability: { status: string } | undefined;
+  tradeCapability: { status: string } | undefined;
+  error: string | null;
+  isRunning: boolean;
+}): { status: WorkflowStatus; label: string } {
+  if (isRunning) return { status: "running", label: "Running" };
+  if (error) return { status: "failed", label: "Failed" };
+  if (
+    consultantCapability?.status === "supported" ||
+    tradeCapability?.status === "supported" ||
+    (!consultantCapability && !tradeCapability)
+  ) {
+    return { status: "ready", label: "Ready" };
+  }
+  return { status: "blocked", label: "Blocked" };
 }
 
 function getCreatePmpStatus({

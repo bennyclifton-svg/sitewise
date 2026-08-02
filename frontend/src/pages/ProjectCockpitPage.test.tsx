@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     startWorkflowRun: vi.fn(),
     getWorkflowResult: vi.fn(),
     cancelWorkflowRun: vi.fn(),
+    createProcurementRequest: vi.fn(),
   },
   reloadProjectWorkspaceTree: vi.fn(),
   seedProjectData: vi.fn(),
@@ -128,12 +129,16 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     costPlanWorkflowError,
     onCancelCostPlan,
     latestCostPlanDraft,
+    isRunningProcurement,
+    onRunProcurement,
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
     costPlanWorkflowError: string | null;
     onCancelCostPlan?: () => void;
     latestCostPlanDraft: DraftArtifactSummary | null;
+    isRunningProcurement: boolean;
+    onRunProcurement?: (kind: string, targetName: string) => void;
   }) => (
     <div>
       <div data-testid="control-cost-plan-state">
@@ -151,6 +156,14 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
       <div data-testid="inline-cost-workbook">
         {latestCostPlanDraft ? `draft-v${latestCostPlanDraft.version}` : "no-draft"}
       </div>
+      <div data-testid="control-procurement-state">
+        {isRunningProcurement ? "running" : "idle"}
+      </div>
+      {onRunProcurement ? (
+        <button type="button" onClick={() => onRunProcurement("trade_rfq", "Electrical")}> 
+          Create electrical RFQ
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -208,6 +221,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       state: "running",
       cancel_requested: true,
     });
+    mocks.api.createProcurementRequest.mockResolvedValue({ id: "request-1" });
     mocks.waitForWorkflowRun.mockImplementation(
       async (_client, _projectId, run) => ({ ...run, state: "complete" }),
     );
@@ -245,6 +259,34 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     );
 
     resolveWorkspaceRefresh?.();
+  });
+
+  it("creates a request row before queuing a trade RFQ", async () => {
+    const user = userEvent.setup();
+    renderProjectCockpit();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Create electrical RFQ" }),
+    );
+
+    await waitFor(() =>
+      expect(mocks.api.createProcurementRequest).toHaveBeenCalledWith(project.id, {
+        kind: "trade_rfq",
+        target_name: "Electrical",
+      }),
+    );
+    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
+      project.id,
+      "trade-procurement",
+      expect.objectContaining({
+        parameters: {
+          package: "Electrical",
+          kind: "rfq",
+          max_pages: 3,
+          procurement_request_id: "request-1",
+        },
+      }),
+    );
   });
 
   it("keeps project controls usable when chat bootstrap fails", async () => {

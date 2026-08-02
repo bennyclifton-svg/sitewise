@@ -38,6 +38,7 @@ import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
 import { useBatchDeleteEvidence, useDeleteEvidence } from "@/lib/queries/project-data";
 import type {
   DocumentUsageMark,
+  DraftArtifactSummary,
   EvidencePreview,
   DocumentRepairPreview,
   InboxUploadResult,
@@ -83,6 +84,10 @@ type IngestQueueItem =
   | { kind: "file"; uid: string; file: File }
   | { kind: "staged"; uid: string; stagingId: string; filename: string };
 
+type ScheduleRow =
+  | { kind: "artefact"; draft: DraftArtifactSummary }
+  | { kind: "source"; evidence: EvidencePreview };
+
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
 }
@@ -126,6 +131,8 @@ export function DocumentRepositoryPanel({
   isRunningSortFiles = false,
   overlayReady = true,
   platformStatus = null,
+  artefactDrafts = [],
+  onOpenDraft,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
@@ -144,6 +151,8 @@ export function DocumentRepositoryPanel({
   isRunningSortFiles?: boolean;
   overlayReady?: boolean;
   platformStatus?: PlatformKnowledgeStatus | null;
+  artefactDrafts?: DraftArtifactSummary[];
+  onOpenDraft?: (draft: DraftArtifactSummary) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
@@ -175,6 +184,15 @@ export function DocumentRepositoryPanel({
   );
   const dragDepthRef = useRef(0);
   const registerRows = useMemo(() => sortRegisterRows(evidence), [evidence]);
+  const scheduleRows = useMemo<ScheduleRow[]>(
+    () => [
+      ...artefactDrafts
+        .filter((draft) => draft.workflow_type !== "sort_files")
+        .map((draft) => ({ kind: "artefact" as const, draft })),
+      ...registerRows.map((evidence) => ({ kind: "source" as const, evidence })),
+    ],
+    [artefactDrafts, registerRows],
+  );
   const registerRowIds = useMemo(
     () => new Set(registerRows.map((row) => row.id)),
     [registerRows],
@@ -927,7 +945,7 @@ export function DocumentRepositoryPanel({
               </NavAccordionSection>
             </div>
           </div>
-        ) : registerRows.length || pendingUploads.length ? (
+        ) : scheduleRows.length || pendingUploads.length ? (
           <table className="w-full table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
               <col className="w-[2.75rem]" />
@@ -973,7 +991,43 @@ export function DocumentRepositoryPanel({
               </tr>
             </thead>
             <tbody>
-              {registerRows.map((row) => {
+              {scheduleRows.map((scheduleRow) => {
+                if (scheduleRow.kind === "artefact") {
+                  const { draft } = scheduleRow;
+                  return (
+                    <tr
+                      key={draft.id}
+                      className="cursor-pointer border-b border-l-2 border-l-sky-500/60 text-muted-foreground transition-colors hover:bg-sky-50/60 hover:text-foreground dark:hover:bg-sky-950/20"
+                      onClick={() => onOpenDraft?.(draft)}
+                    >
+                      <td className="truncate px-1 py-2 tabular-nums">â€”</td>
+                      <td className="max-w-0 px-2 py-2 font-medium">
+                        <span className="truncate" title={draft.title}>
+                          {draft.title}
+                        </span>
+                      </td>
+                      <td className="truncate px-1 py-2">v{draft.version}</td>
+                      <td className="truncate px-1.5 py-2">
+                        {artefactScheduleLabel(draft.workflow_type)}
+                      </td>
+                      <td className="px-0.5 py-1.5 text-center">
+                        <button
+                          type="button"
+                          className="rounded-sm px-1.5 py-1 text-[0.65rem] font-medium text-primary hover:bg-primary/10"
+                          aria-label={`Open ${draft.title}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onOpenDraft?.(draft);
+                          }}
+                        >
+                          Open
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                const row = scheduleRow.evidence;
                 const active = selectedEvidenceId === row.id;
                 const selected = selectedIds.has(row.id);
                 const inInbox = isInboxEvidence(row);
@@ -1085,6 +1139,16 @@ export function DocumentRepositoryPanel({
       </div>
     </div>
   );
+}
+
+function artefactScheduleLabel(workflowType: string): string {
+  if (workflowType === "create_pmp") return "Project Plan";
+  if (workflowType === "create_cost_plan") return "Cost Plan";
+  if (workflowType.startsWith("consultant_procurement_")) return "RFP";
+  if (workflowType.startsWith("contractor_eoi_")) return "EOI";
+  if (workflowType.startsWith("trade_rft_")) return "RFT";
+  if (workflowType.startsWith("trade_rfq_")) return "RFQ";
+  return "Generated";
 }
 
 function displayValue(value: string | null | undefined): string {

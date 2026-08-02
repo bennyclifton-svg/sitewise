@@ -19,6 +19,7 @@ APPROVED_TENDER_HANDOFF = "approved_tender_cost_handoff"
 TENDER_COMPARISON = "tender_comparison"
 CONSULTANT_PROCUREMENT = "consultant_procurement"
 CONTRACTOR_EOI = "contractor_eoi"
+TRADE_PROCUREMENT = "trade_procurement"
 
 _PROJECT_PLAN_FIELDS = ("building_class", "work_type", "state")
 _COST_PLAN_FIELDS = ("building_class", "subclasses", "work_type", "state")
@@ -46,6 +47,10 @@ def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix
             _CONSULTANT_FIELDS,
         ),
         CONTRACTOR_EOI: _required_profile_capability(
+            snapshot,
+            _CONTRACTOR_FIELDS,
+        ),
+        TRADE_PROCUREMENT: _required_profile_capability(
             snapshot,
             _CONTRACTOR_FIELDS,
         ),

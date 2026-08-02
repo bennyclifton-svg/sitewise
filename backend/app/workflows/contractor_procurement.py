@@ -15,6 +15,7 @@ from app.workflows.procurement_request import (
     ProcurementDocument,
     ProcurementTarget,
     draft_procurement_request,
+    sync_procurement_draft_workspace,
 )
 
 WORKFLOW_TYPE_PREFIX = "contractor_eoi"
@@ -36,6 +37,10 @@ def _slugify(value: str) -> str:
 def normalise_package(package: str) -> PackageProfile:
     cleaned = " ".join(package.strip().split()) or "Main Works"
     return PackageProfile(name=cleaned, slug=_slugify(cleaned))
+
+
+def is_contractor_eoi_workflow(workflow_type: str) -> bool:
+    return workflow_type.startswith(f"{WORKFLOW_TYPE_PREFIX}_")
 
 
 class ContractorEoiDocument(ProcurementDocument):
@@ -214,6 +219,22 @@ class ContractorEoiDocument(ProcurementDocument):
 
 
 CONTRACTOR_EOI_DOCUMENT = ContractorEoiDocument()
+
+
+async def sync_contractor_eoi_draft_workspace(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft: DraftArtifact,
+    markdown: str | None = None,
+) -> str:
+    return await sync_procurement_draft_workspace(
+        session,
+        project=project,
+        document=CONTRACTOR_EOI_DOCUMENT,
+        draft=draft,
+        markdown=markdown,
+    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,792 +1,575 @@
-# Procurement Requests (RFP, RFT, and RFQ) — Staged Implementation Plan
+# Procurement Requests (RFP, RFT, and RFQ) — Lean Implementation Plan
 
-**Date:** 2026-08-02  
+**Date:** 2026-08-02
 **Product specification:**
-[Procurement Requests PRD](../issues/procurement-requests/README.md)  
-**Status:** Proposed for implementation; PRD is in `needs-triage`.
+[Procurement Requests PRD](../issues/procurement-requests/README.md)
+**Peer review:**
+[Procurement Requests implementation-plan review](./2026-08-02-procurement-requests-rfp-rft-rfq-review.md)
+**Status:** Revised after peer review; ready for issue creation.
 
 ## Goal
 
-Extend Clerk’s existing consultant procurement capability into a single
-agent-first Procurement Requests workflow that can prepare consultant RFPs,
-head-contractor EOIs, and trade/supplier RFTs or RFQs; retain a durable record of
-recipients and responses; and expose the latest request artefacts consistently
-in both document repository views.
+Extend Clerk’s proven consultant-procurement engine so a user can prepare:
 
-The implementation must work across Clerk’s supported residential, commercial,
-multi-residential, industrial, fitout, extension, refurbishment, and remediation
-profiles. It must not broaden or entangle the Tender Comparison Module.
+- consultant requests for fee proposal;
+- head-contractor expressions of interest;
+- full trade, supplier, specialist, or main-works RFTs; and
+- genuinely concise trade or supplier RFQs.
 
-## Architecture
+The v1 workflow is generate, review, edit, and copy into Outlook or Word. It
+does not send documents, manage contacts, receive tenders, or award work.
 
-Clerk already has the correct generation spine:
+The latest generated artefacts must be visible in both repository tree and
+schedule modes. Tender Comparison remains a separate downstream workflow with
+its current ownership boundary and URLs.
+
+## Delivery Strategy
+
+Prove the document and chat workflow before adding schema or UI:
 
 ```text
 project snapshot + project evidence + platform guidance
-    -> ProcurementDocument adapter
+    -> existing ProcurementDocument engine
+    -> trade adapter with RFT/RFQ section contract
     -> deterministic scaffold + bounded narrative
-    -> validation
-    -> draft_artifact revision
-    -> Supabase Storage export + workspace_files row
-    -> chat artefact event / cockpit review
+    -> citation/completeness validation
+    -> normal draft artefact + workspace file
+    -> chat review/edit/copy
+    -> slim request record
+    -> lightweight cockpit panel
+    -> repository schedule row
 ```
 
-The feature adds three deep modules around that spine:
+The quality of the generated document is the risky part. Stages therefore run
+in this order:
 
-1. **Trade package catalogue** — resolves canonical packages, aliases,
-   applicability, delivery modes, scope prompts, price-breakdown lines, and
-   returnables through a small read-only interface.
-2. **Procurement register service** — owns requests, request-scoped decisions,
-   recipients, response revisions, and response-file links behind a
-   project-authorized service interface.
-3. **Trade request document adapter** — supplies RFT/RFQ-specific evidence
-   queries, guidance selection, deterministic structure, narrative slots,
-   validation, and package-specific workspace paths to the existing procurement
-   engine.
+1. generation and chat;
+2. one slim requests table;
+3. one lightweight dashboard panel;
+4. repository artefact rows; and
+5. backfill and acceptance.
 
-The React surface consumes those interfaces through JSON APIs and the existing
-durable workflow/SSE event vocabulary. Tender Comparison remains downstream and
-separate.
+## Binding V1 Decisions
 
-## Binding Decisions
-
-- Left navigation order is Project Profile, Project Plan, Cost Plan, RFP / RFT,
-  Tender Comparison.
-- The new route is `/projects/:projectId/requests`; existing `/tender` routes do
-  not change.
-- RFQ is a concise trade-request variant inside RFP / RFT, not another nav item.
-- The existing consultant RFP and contractor EOI workflows retain their current
-  output behaviour while becoming visible in the new register.
-- Trade RFT/RFQ drafts extend `ProcurementDocument`; no parallel retrieval,
-  versioning, provenance, or workspace engine is permitted.
-- Trade catalogue data belongs to Clerk core, not `backend/tender/` or
-  `data/tender/`.
-- “All trades” means a reviewed common catalogue plus a custom-package fallback.
-  The fallback never invents specialist scope.
-- The existing Project Summary renderer is reused exactly.
-- RFT/RFQ project-specific claims require project-document citations.
-- Price schedules are deterministic blank returnables. An LLM performs no
-  arithmetic.
-- Creating a request produces a draft only. External issue/distribution remains
-  a recorded human act in v1.
-- Blocking issue decisions are scoped to one procurement request, not stored as
-  project-global PMP decisions.
-- The schedule view shows the latest revision of each procurement request. The
-  tree remains the version-complete view.
-- Generated requests remain artefacts. They are never inserted into project
-  evidence merely to make the schedule render them.
+- Left-nav order is Project Profile, Project Plan, Cost Plan, RFP / RFT, Tender
+  Comparison.
+- Add a new RFP / RFT tile. Keep the existing `procurement` tile ID and
+  Tender Comparison routes unchanged.
+- The RFP / RFT experience remains inside `ProjectControlBoard.tsx`; v1 adds
+  no `/requests` route.
+- The panel is deliberately small: kind, free-text target, create action,
+  compact request list, current draft, progress, and trace.
+- Consultant RFP and contractor EOI outputs retain their current behaviour.
+- Trade RFT/RFQ extends `ProcurementDocument`; it does not duplicate retrieval,
+  versioning, provenance, storage, or workspace publication.
+- Both RFT and RFQ use bounded, evidence-grounded narrative with a three-page
+  nominal target. This is guidance for clear drafting, not an output limit.
+- RFQ and RFT share the same core document coverage. The RFQ may use lighter
+  formality where suitable, but neither its structure nor its output length is
+  rejected for exceeding a page or line limit.
+- V1 trade coverage is free text plus a small in-code `TRADE_PACKAGES` profile
+  map and generic fallback. There is no YAML catalogue, loader, validator, or CI
+  gate.
+- Unknown non-empty trade names are valid. The fallback may organise supplied
+  and evidenced information but never invent specialist scope.
+- Cost-plan elements may group suggestions but are not package identities.
+- The existing Project Summary renderer is reused.
+- Price and returnable schedules are deterministic blank templates. An LLM
+  performs no arithmetic.
+- Only one new table, `procurement_requests`, is introduced in v1.
+- Per-request decision tables and controls are deferred. Unresolved issue inputs
+  render as visible TBC lines and are edited in the draft.
+- Recipient, contact, response, and response-file tables and UI are deferred.
+  Users send and receive through their existing Outlook/document workflow.
+- Creating a request produces Markdown. `DraftReviewPanel` provides the v1
+  copy action. DOCX export is deferred.
+- Generated requests remain artefacts and never become project evidence merely
+  to appear in schedule mode.
+- Schedule mode gains a general `source | artefact` row contract. The same
+  work also exposes Project Plan and Cost Plan drafts because they have the
+  identical presentation gap.
 - No new runtime dependency is expected.
 
-## Current-State Anchors
+## V1 and Deferred Scope
 
-- `backend/app/workflows/procurement_request.py` already owns the shared request
-  engine: evidence retrieval, platform guidance, forecasts, provenance, draft
-  publication, storage upload, and workspace row sync.
-- `backend/app/workflows/consultant_procurement.py` is the mature RFP adapter and
-  quality reference.
-- `backend/app/workflows/contractor_procurement.py` proves a second deterministic
-  procurement document can reuse the engine.
-- `backend/app/sitewise/rfp_renderer.py` and the RFP narrative/validation modules
-  establish the deterministic-scaffold plus bounded-narrative method.
-- `backend/app/workflows/runs.py` and `worker.py` provide durable asynchronous
-  execution, leases, retries, cancellation, idempotency, and result publication.
-- `backend/app/mcp_bridge/server.py` already exposes consultant procurement and
-  contractor EOI actions with project-scoped authorization.
-- `frontend/src/components/project/DocumentRepositoryPanel.tsx` renders schedule
-  mode from evidence rows only and tree mode from workspace paths; this is the
-  source of the current visibility mismatch.
-- `frontend/src/pages/ProjectCockpitPage.tsx` already receives evidence,
-  workspace tree, and latest draft summaries in its bootstrap response.
-- `data/project-template/05-procurement/README.md` defines the package-specific
-  EOI, tender-pack, RFI/addendum, submissions, evaluation, and recommendation
-  lifecycle folders.
+| Deliver now | Explicitly defer |
+| --- | --- |
+| Chat-triggered consultant RFP, trade RFT, and trade RFQ | Email/Outlook integration or automatic issue |
+| Existing head-contractor EOI continuity | Recipient/contact directory |
+| Small curated trade profiles plus free-text fallback | Governed YAML trade catalogue |
+| Deterministic RFT and short RFQ templates | External tender lodgement |
+| Edit, accept, and copy Markdown | DOCX export |
+| Slim request history and status | Response and revision register |
+| Lightweight cockpit panel | Dedicated `/requests` route |
+| Artefacts in repository schedule mode | Per-request decision UI |
+| Idempotent legacy backfill | Award, contract, or cost-plan handoff |
+
+Each deferred item has a migration path under **Deferred Evolution** below.
+
+## Current-State Anchors and Confirmed Gaps
+
+- `backend/app/workflows/procurement_request.py` is already the shared engine.
+  Its `sync_workspace` callback is injectable, so package paths require no new
+  engine hook.
+- The same engine hard-codes provenance metadata. A small adapter hook is needed
+  for request ID and request kind.
+- `backend/app/workflows/consultant_procurement.py` is the quality reference,
+  but it contains an unused duplicate retrieval/helper chain. Remove that chain
+  before adding a third adapter so it is not copied.
+- `backend/app/workflows/contractor_procurement.py` proves a compact second
+  adapter can reuse the engine without duplication.
+- `backend/app/sitewise/rfp_renderer.py` interleaves headings and body in a
+  fixed list. Refactoring that list into section contracts is the shared seam.
+- `backend/app/workflows/rfp_narrative.py` and
+  `backend/app/sitewise/rfp_evidence_validation.py` are structurally generic
+  but typed to consultant output. Generalise them instead of cloning them.
+- `backend/app/projects/artefact_adapters.py` omits contractor EOI and would
+  reject edit/accept operations for EOI and new trade artefacts.
+- `backend/app/sitewise/knowledge_catalog.py` omits the existing
+  `head-contractor-procurement` key from its parity list.
+- `backend/app/mcp_bridge/server.py` currently redirects a trade-shaped
+  consultant request to head-contractor EOI. It must redirect to trade
+  procurement after that tool exists.
+- `frontend/src/components/project/workflow/workflowRouting.ts` points
+  consultant procurement at a non-existent tile and RFT at Tender Comparison.
+- `frontend/src/lib/workflow-progress.ts` has a closed Project Plan/Cost Plan
+  union and needs a procurement progress kind.
+- `backend/app/database/draft_artifacts.py` already has a prefix-parameterised
+  latest-procurement query despite its consultant-specific name.
+- `frontend/src/pages/ProjectCockpitPage.tsx` already reconciles artefact
+  events; its workflow-family checks only need widening.
+- `frontend/src/components/project/workflow/workspaceRouting.ts` already has
+  consultant and contractor workspace classifiers that can be used and extended
+  for trade paths.
+- `frontend/src/components/project/DocumentRepositoryPanel.tsx` currently
+  renders schedule mode from source evidence only.
 
 ## Domain Contracts
 
 ### Request kinds
 
-| Kind | Target | Default form | Notes |
+| Kind | Target | Length | Implementation |
 | --- | --- | --- | --- |
-| `consultant_rfp` | Consultant discipline | Request for Fee Proposal | Existing workflow |
-| `contractor_eoi` | Head contractor / builder | Expression of Interest | Existing workflow, unpriced |
-| `trade_rft` | Head contractor, trade, specialist, supplier | Request for Tender | Full tender conditions and returnables |
-| `trade_rfq` | Defined trade, service, or supply package | Request for Quotation | Concise conditions; full price/scope controls retained |
+| `consultant_rfp` | Consultant discipline | Existing limit | Existing consultant adapter |
+| `contractor_eoi` | Head contractor or builder | Existing one-page output | Existing EOI adapter |
+| `trade_rft` | Main works, trade, supplier, or specialist | Three-page nominal target | New trade adapter |
+| `trade_rfq` | Defined trade, supply, or service package | Three-page nominal target | Same trade adapter, lighter formality where appropriate |
 
 ### Request lifecycle
 
 ```text
-draft -> ready_for_issue -> issued -> closed
-   \                            \
-    +-----------> cancelled <---+
+draft -> issued -> closed
+   \        \
+    +-------> cancelled
 ```
 
-- `draft`: a working artefact exists or is being prepared.
-- `ready_for_issue`: all blocking issue decisions are resolved.
-- `issued`: a user records that external issue occurred, with an issue timestamp.
-- `closed`: the response period is closed; responses remain editable only by
-  adding revisions or correcting register metadata with an audit event.
-- `cancelled`: request was abandoned without deleting its audit history.
+- `draft`: working artefact prepared for user review.
+- `issued`: user records that issue occurred outside Clerk.
+- `closed`: user records the request period as closed.
+- `cancelled`: request abandoned without deleting history.
 
-No system transition sends a document externally.
+There is no `ready_for_issue` state in v1 because Clerk does not maintain a
+separate issue-decision model. Visible TBC items remain part of the Markdown
+review workflow. No status transition sends a document.
 
-### Recipient and response lifecycle
+### Slim request row
 
-- Recipient outcomes: `invited`, `received`, `declined`, `withdrawn`,
-  `no_response`.
-- A recipient may have multiple immutable response revisions.
-- One response revision may contain multiple files.
-- One revision is current; superseding it never deletes prior revisions.
-- Late is derived when `received_at > request.close_at`.
-- Award/engagement belongs to later evaluation/contract workflows and is not a
-  receipt-register state.
+`procurement_requests` contains only:
 
-### Blocking issue decisions
+- ID, project FK, and creator user FK;
+- request kind;
+- target name and normalised target slug;
+- status;
+- current draft artefact FK;
+- issued and close timestamps;
+- optimistic revision; and
+- created/updated timestamps.
 
-Each request stores independently revisioned decisions for:
+The service validates lifecycle changes and same-project draft attachment.
+Document provenance remains the detailed audit source.
 
-1. request form and package identity;
-2. delivery basis (`supply_only`, `install_only`, `supply_install`,
-   `design_supply_install`, or package-approved equivalent);
-3. scope and issued-document baseline;
-4. pricing breakdown and allowance treatment;
-5. tender close, required-on-site date, and programme assumptions; and
-6. contract basis, design responsibility, and material departures process.
+### Trade target profile
 
-The catalogue may provide a suggested default. A suggestion is not a locked user
-decision. Missing non-blocking values render as TBC.
+The trade adapter owns a small immutable profile type with:
+
+- canonical display name and aliases;
+- optional construction-sequence group;
+- baseline scope/interface prompts;
+- deterministic price-breakdown lines; and
+- applicable returnables.
+
+`normalise_trade_target(raw_name)` performs:
+
+1. trim and normalise;
+2. resolve a curated alias if present;
+3. return a curated profile if present; otherwise
+4. construct a generic profile from the user’s non-empty name.
+
+The initial map covers only frequently tendered packages needed for fixtures and
+early use. It grows from observed product need.
+
+### Document contracts
+
+RFT and RFQ use one renderer driven by ordered section lists. Both cover the
+same core procurement information; variants tailor tone and optional formality,
+not a hard length quota.
+
+RFT includes:
+
+- Project Summary;
+- invitation/package basis;
+- issued-document schedule;
+- scope and interfaces;
+- programme and tender timetable;
+- deterministic price breakdown;
+- returnables;
+- departures, qualifications, and exclusions;
+- RFI/addendum and submission controls; and
+- draft/TBC review items.
+
+RFQ includes the same core information in a quotation-oriented form:
+
+- Project Summary;
+- package and issued documents;
+- concise scope/interfaces;
+- delivery or lead-time requirement;
+- deterministic quotation breakdown;
+- exclusions, qualifications, and validity; and
+- submission details/TBC review items.
+
+The renderer owns headings, tables, price rows, returnable rows, and
+placeholders. Bounded narrative owns only short project/package context,
+evidence-grounded scope/interface tailoring, and programme/lead-time context.
 
 ### Workspace paths
 
-- Consultant paths remain unchanged under `02-consultant/`.
-- Existing EOI paths remain unchanged; no migration rewrites old storage keys.
-- New trade paths use:
+Existing consultant and EOI paths do not change. New trade drafts use:
 
 ```text
-05-procurement/<canonical package name>/02-tender-pack/
-  <package_slug>_<rft|rfq>_vNN.draft.md
-
-05-procurement/<canonical package name>/04-submissions/<respondent>/
-  <uploaded response files>
+05-procurement/<target name>/02-tender-pack/
+  <target_slug>_<rft|rfq>_vNN.draft.md
 ```
 
-All paths pass through existing storage-key and traversal/path validation.
-
-## Stage 1 — Governed Trade-Package Catalogue
-
-**Outcome:** Clerk can resolve common and custom trade packages deterministically
-without importing TCM taxonomy or hard-coding the catalogue into workflow code.
-
-### Files
-
-- Create `data/procurement/trade_packages.yaml`.
-- Create `data/procurement/README.md`.
-- Create `data/procurement/tools/validate.py`.
-- Create `backend/app/sitewise/trade_packages.py`.
-- Create `backend/tests/sitewise/test_trade_packages.py`.
-- Add a data-validator test or CI invocation beside the existing tender seed
-  validation pattern.
-
-### Catalogue schema
-
-Every entry carries:
+Use the existing injectable workspace-sync callback and current path
+canonicalisation/traversal checks.
+
+## Stage A — Trade Generation Through Chat
+
+**Outcome:** A real chat turn generates an editable RFT or demonstrably short
+RFQ and publishes a normal draft artefact. No new table or dashboard is needed
+to prove the vertical slice.
+
+### A1. Remove duplication before extension
+
+Delete the unused post-extraction helper chain from
+`backend/app/workflows/consultant_procurement.py`, including its private
+retrieval, evidence-item, platform-item, source-trace, and title helpers.
+
+Prove the helpers are unreferenced, then run consultant fixtures before any
+renderer change.
+
+### A2. Refactor the shared content seam
+
+- Convert `backend/app/sitewise/rfp_renderer.py` to an ordered section
+  contract rather than a hard-coded interleaved list.
+- Extract shared Project Summary, citation index, and document-register atoms
+  only when both consultant and trade renderers call them.
+- Generalise `backend/app/workflows/rfp_narrative.py` over a
+  procurement-target contract and requested output fields.
+- Generalise
+  `backend/app/sitewise/rfp_evidence_validation.py` over an explicit
+  narrative-field list.
+- Keep consultant fee/stage wording in the consultant renderer.
+- Keep EOI wording inside the EOI adapter.
+- Do not build a configurable mega-template.
+
+Existing consultant RFP and contractor EOI fixtures are the regression gate.
+Where the current suite uses golden output, the refactor must remain
+byte-identical.
+
+### A3. Add one trade adapter and one variant renderer
+
+Create:
+
+- `backend/app/workflows/trade_procurement.py`;
+- `backend/app/sitewise/trade_request_renderer.py`;
+- `backend/app/workflows/trade_rft_narrative_instructions.md`; and
+- `backend/app/workflows/trade_rfq_narrative_instructions.md`.
+
+The adapter contains the initial `TRADE_PACKAGES` map and generic fallback.
+Both variants call one renderer with different section lists and instructions.
+
+Enforce:
+
+- RFT and RFQ both use a three-page nominal target;
+- the generator treats that target as concision guidance and completes a
+  document that reasonably needs to run longer;
+- RFQ instructions use quotation-oriented, direct language without deleting
+  core scope, price, returnable, or submission coverage;
+- assigned citation tokens for project-specific narrative;
+- no unknown or uncited project-specific claims;
+- deterministic blank/TBC commercial cells; and
+- generic fallback scope no broader than user instructions and cited evidence.
+
+Add only a small provenance hook to
+`backend/app/workflows/procurement_request.py`. Use the already-injected
+`sync_workspace` callback for the package path.
+
+### A4. Wire the durable workflow and chat
+
+Update the existing registration seams:
+
+- `backend/app/workflows/runs.py`;
+- `backend/app/workflows/worker.py`;
+- `backend/app/projects/workflow_capabilities.py`;
+- `backend/app/api/projects.py`;
+- `backend/app/mcp_bridge/server.py`;
+- `backend/app/agent/turn_context.py`; and
+- `backend/app/agent/workspace_instructions.py`.
+
+Add `start_trade_procurement` with project-scoped authorization, idempotency,
+kind, target, and concise optional instructions. Reuse the normal durable run,
+worker, SSE, and artefact event contract.
+
+Routing rules:
+
+- consultant services/fee proposal -> consultant procurement;
+- RFT/invite to tender/trade or contractor tender -> trade RFT;
+- RFQ/request for quotation/quote a defined package -> trade RFQ;
+- head-contractor shortlist/EOI -> contractor EOI;
+- compare/evaluate/normalise/recommend/select/award existing responses -> Tender
+  Comparison or its capability response, never drafting; and
+- ambiguous “request for services” -> one concise clarification before queuing.
+
+Also:
+
+- redirect `NonConsultantDiscipline` to the new trade tool rather than
+  `start_contractor_eoi`;
+- add `head-contractor-procurement` and the new trade workflow key to
+  `knowledge_catalog.WORKFLOWS`;
+- register contractor EOI and both trade kinds in
+  `backend/app/projects/artefact_adapters.py` so revise and accept work; and
+- add procurement capability/progress metadata without importing from
+  `backend/tender/`.
+
+### Stage A tests and gate
+
+Add or extend tests for:
+
+- shared section ordering and consultant fixture stability;
+- generalised narrative and citation validation;
+- RFT/RFQ section contracts and length controls;
+- custom-package fallback;
+- durable-run dispatch, idempotency, retry, cancellation, and publication;
+- MCP authorization and trade-shaped consultant redirect;
+- chat positive and negative intent routing;
+- knowledge-catalog parity; and
+- revise/accept policy for contractor EOI, RFT, and RFQ.
+
+Red-pen these four outputs against project evidence:
+
+1. main-works RFT;
+2. structural-steel RFT;
+3. electrical RFQ; and
+4. custom specialist package.
+
+The stage passes only when the electrical RFQ is complete, proportionate to the
+RFT, and clear without arbitrary truncation; all four documents are editable;
+and consultant RFP/contractor EOI tests show no drift.
+
+## Stage B — Slim Procurement Requests Table
+
+**Outcome:** Generated requests have a durable, project-scoped list identity
+without recipients, responses, or decision infrastructure.
+
+### Data and service
+
+- Add one SQLAlchemy model for `procurement_requests`.
+- Add one Alembic migration with FKs, constrained kind/status values, useful
+  project/list indexes, RLS, grants, and project-owner policies.
+- Add a small Clerk-core service for create, get, list, current-draft
+  attachment, and status transition.
+- Add project API schemas and list/create/get/status endpoints using current
+  ownership, entitlement, and response conventions.
+- Integrate run start/publication so UI-created requests receive the published
+  draft. Preserve idempotency when the same run is retried.
+
+Do not add:
+
+- `procurement_request_decisions`;
+- `procurement_recipients`;
+- `procurement_responses`;
+- `procurement_response_files`; or
+- rollups/readiness calculations with no v1 consumer.
+
+### Stage B tests and gate
+
+Tests cover:
+
+- model constraints, migration upgrade, indexes, FKs, RLS, and grants;
+- owner A cannot read or mutate owner B’s rows or drafts;
+- valid and invalid lifecycle transitions;
+- optimistic request revision conflicts;
+- same-project current-draft attachment;
+- idempotent workflow attachment; and
+- list order/current-draft summaries.
+
+The stage passes when chat and API generation create or attach exactly one
+current request row without changing artefact lineage.
 
-- stable `code` and `name`;
-- chronological `sequence` and `family`;
-- unique normalised `aliases`;
-- applicable building classes, work types, and optional work-scope signals;
-- supported delivery modes and recommended default;
-- baseline scope prompts and interface prompts;
-- default price-breakdown rows;
-- default non-price returnables;
-- optional requirements for design, shop drawings, samples, testing,
-  commissioning, warranties, as-builts, and O&M information; and
-- active/version metadata.
-
-Seed at least the ten chronological families approved in the PRD, with enough
-entries to cover representative early works, civil, structure, envelope,
-services, fitout, finishes, FF&E, specialist, and external works packages.
-
-### Backend interface
-
-Expose a narrow read-only interface:
-
-- resolve a package from canonical code, name, or alias;
-- list packages in construction sequence;
-- filter suggestions for a project profile without declaring other packages
-  unsupported;
-- return a generic custom-package profile for an unknown non-empty target; and
-- distinguish a catalogued profile from a custom profile.
-
-Do not add database tables for catalogue data in this stage. Runtime read of a
-validated, bounded YAML file is sufficient.
-
-### Tests
-
-- Codes are unique and stable-format.
-- Normalised aliases are globally unambiguous.
-- Sequences are ordered and families are recognised.
-- Delivery modes and price rows are non-empty and valid.
-- Applicability filters suggestions but does not block explicit package choice.
-- Common aliases resolve to one lineage.
-- A custom specialist name produces a safe generic profile.
-- Blank package names are rejected at the boundary.
-
-### Gate
-
-`data/procurement/tools/validate.py` passes and representative package-resolution
-tests are green before generation work begins.
-
-## Stage 2 — Procurement Register Domain and Migration
-
-**Outcome:** Requests, decisions, recipients, response revisions, and files have
-a durable project-scoped source of truth independent of draft filenames and TCM.
-
-### Files
-
-- Create focused SQLAlchemy models under `backend/app/database/` for:
-  - procurement requests;
-  - request decisions;
-  - recipients;
-  - response revisions; and
-  - response-file links.
-- Register the models in the database model import surface.
-- Create one reviewed Alembic migration with constraints, indexes, RLS, grants,
-  and policies.
-- Create `backend/app/procurement/__init__.py`.
-- Create `backend/app/procurement/schemas.py`.
-- Create `backend/app/procurement/register.py` as the deep service boundary.
-- Add unit/integration tests under `backend/tests/procurement/`.
+## Stage C — Lightweight RFP / RFT Dashboard Panel
 
-### Data model
+**Outcome:** The cockpit gains the requested nav item and a compact creation/list
+panel without a new route or another frontend subsystem.
+
+### Navigation and routing
+
+- Add one new tile immediately before the existing `procurement` tile in
+  `frontend/src/components/project/workflow/workflowTiles.ts`.
+- Give the new tile a distinct ID such as `procurement-requests` and the label
+  **RFP / RFT**.
+- Leave the existing `procurement` ID, Tender Comparison tile, `/tender`
+  routes, deep links, and browser history untouched.
+- Fix `frontend/src/components/project/workflow/workflowRouting.ts` so
+  `consultant_procurement`, `contractor_eoi`, `rft`, and `rfq` select the
+  new tile while evaluation/recommendation remain on `procurement`.
 
-`procurement_requests` includes:
+### Panel shape
+
+Implement one `WorkflowDetail` branch in
+`frontend/src/components/project/ProjectControlBoard.tsx` using the same lean
+pattern as current Project Plan and Cost Plan panels:
+
+```text
+[error]
+[OverlayGateNotice]
+[WorkflowProgressStrip while running]
+[kind: RFP | RFT | RFQ] [target: text] [Create]
+[compact latest-request list]
+[WorkflowDraftPreview while running | DraftReviewPanel]
+[WorkflowTracePanel]
+```
 
-- project and creator FKs;
-- kind, target code/name, display package, and delivery basis;
-- status and optimistic `revision`;
-- current draft FK, latest workflow-run FK if useful, issue/close timestamps;
-- optional instructions and request metadata; and
-- created/updated timestamps.
+Create at most one small request-list component. Keep the panel branch near
+110 lines and do not add:
 
-`procurement_request_decisions` includes:
+- a nested route or `App.tsx` changes;
+- a procurement component folder;
+- readiness tiles, risk chips, next-action cards, or duplicate headers;
+- package-picker infrastructure;
+- issue-readiness or status-control components; or
+- a separate frontend query layer unless the existing API surface cannot
+  express the calls clearly.
 
-- request FK and stable decision key;
-- options, selected value, source, resolved flag, rationale;
-- row revision; and
-- uniqueness on request plus key.
+RFP delegates to the existing consultant workflow. RFT/RFQ delegates to the
+trade workflow. Existing EOI requests appear in the list and remain chat
+creatable.
 
-`procurement_recipients` includes request FK, organisation/contact fields,
-invited timestamp, outcome, notes, revision, and timestamps.
+Add `procurement` to `WorkflowProgressKind` with its phase labels so the
+existing progress strip renders for the new workflow.
 
-`procurement_responses` includes request and recipient FKs, response reference,
-received timestamp, response revision number, status/current marker, notes, and
-timestamps.
+Reuse `DraftReviewPanel` for view, edit, accept, and copy. If gate notices must
+be shared outside `ProjectControlBoard.tsx`, extract the existing component
+rather than copying it.
 
-`procurement_response_files` links a response revision to one or more existing
-project `workspace_files` rows. Enforce project consistency in the service and
-through the strongest practical database constraints.
+### Stage C tests and gate
 
-### Service interface
+Update:
 
-The register service owns:
+- `ProjectControlBoard.test.tsx`;
+- `ProjectCockpitPage.test.tsx`;
+- `workflowTiles.test.ts`;
+- `workflowRouting.test.ts`;
+- `workflow-progress.test.ts`; and
+- `DraftReviewPanel.test.tsx` only if its generic fallback needs coverage.
 
-- create/get/list request;
-- attach a published draft and update the current revision;
-- update a request decision with optimistic concurrency;
-- compute issue readiness;
-- transition request status through allowed edges;
-- add/update recipients;
-- record a response revision;
-- attach existing workspace files;
-- compute invited/received/late rollups; and
-- reject cross-project object composition.
+Assert exact nav order, distinct tile identities, corrected artefact routing,
+create/error/running/completed states, request selection, edit/accept, and copy.
 
-Routes and MCP tools delegate to this service. They must not reimplement state
-transitions or counts.
+The stage passes when an electrical RFQ can be created, observed, selected,
+edited, and copied without leaving the cockpit panel.
 
-### Tests
+## Stage D — Repository Artefact Rows
 
-- Schema constraints and FK targets.
-- Owner A cannot read or mutate Owner B’s requests or files.
-- Invalid lifecycle transitions fail with domain errors.
-- A request cannot become ready while blocking decisions are unresolved.
-- Optimistic decision/request updates reject stale revisions.
-- Later response revisions supersede without deleting prior data.
-- Late is deterministic from timestamps.
-- Rollups count recipients and current responses correctly.
-- Response files must belong to the same project.
-- RLS migration checks follow existing project-owned table tests.
+**Outcome:** Schedule and tree users can open generated drafts without changing
+their evidentiary identity.
 
-### Gate
+### Backend widening
 
-Migration upgrade tests and procurement service tests pass before API or UI work.
+- Rename/generalise
+  `get_latest_consultant_procurement_draft_summaries` in
+  `backend/app/database/draft_artifacts.py` and use its existing prefix
+  capability for consultant, contractor EOI, and trade workflow families.
+- Extend cockpit bootstrap/workspace self-heal to return the latest artefact
+  summaries needed by schedule mode.
+- Include Project Plan and Cost Plan artefacts in the same response contract
+  because they have the same schedule-mode gap.
 
-## Stage 3 — Shared Procurement Renderer Seam
+### Frontend row contract
 
-**Outcome:** Consultant RFP and new trade requests use the same stable project
-summary, citation, document-register, and formatting atoms without changing
-existing consultant output.
+Introduce a discriminated presentation row in
+`frontend/src/components/project/DocumentRepositoryPanel.tsx`:
 
-### Files
+- `source`: current evidence preview, selection, usage marks, and deletion;
+- `artefact`: draft ID, workflow type, title, version, path, label, status, and
+  update time.
 
-- Create `backend/app/sitewise/procurement_renderer.py` for genuinely shared
-  deterministic atoms.
-- Modify `backend/app/sitewise/rfp_renderer.py` to delegate to those atoms.
-- Modify `backend/app/workflows/procurement_request.py` only where an adapter
-  hook is required for a package-specific path or extra provenance.
-- Update focused renderer and procurement-engine tests.
-- Run all existing consultant RFP and contractor EOI fixtures unmodified.
+Artefact behaviour:
 
-### Shared atoms
+- click opens `DraftReviewPanel` through draft identity/path;
+- latest revision appears in schedule mode;
+- historical revisions remain available in tree mode;
+- labels distinguish Project Plan, Cost Plan, RFP, EOI, RFT, and RFQ;
+- artefacts never enter source selection, source deletion, or Tender Comparison
+  evidence selection; and
+- live artefact events add or replace the relevant latest row.
 
-Extract only interfaces with at least the existing and new caller:
+Widen `reconcileArtefactEvent` and related workflow-prefix checks in
+`ProjectCockpitPage.tsx`. Use the existing workspace classifiers in
+`frontend/src/components/project/workflow/workspaceRouting.ts` and add the
+trade classifier beside them.
 
-- procurement project-summary rendering using the existing PMP summary table;
-- stable citation-index creation from project evidence;
-- information-to-review/document schedule table;
-- safe table-cell formatting and natural document-number ordering; and
-- optional common issue/submission boilerplate where wording is truly identical.
+### Stage D tests and gate
 
-Keep consultant fee-stage language inside the RFP renderer. Keep EOI wording
-inside the EOI adapter. Do not create a configurable mega-template.
+Extend backend bootstrap/draft-versioning tests and:
 
-### Procurement engine hooks
+- `DocumentRepositoryPanel.test.tsx`;
+- `ProjectCockpitPage.test.tsx`; and
+- `workspaceRouting.test.ts`.
 
-Add the smallest adapter hook needed for:
+Assert source interactions are unchanged, artefacts cannot enter evidence
+actions, live events reconcile rows, and the same latest draft opens from chat,
+dashboard, tree, and schedule.
 
-- package-specific workspace paths whose folder contains the target name; and
-- request-specific provenance such as procurement request ID and request kind.
+## Stage E — Backfill, Acceptance, and Rollout
 
-Default behaviour must reproduce current consultant and EOI paths byte-for-byte.
+**Outcome:** Existing procurement artefacts appear in the slim request history,
+and the complete draft/edit/copy workflow is proven before release.
 
-### Tests
+### Idempotent backfill
 
-- Existing consultant golden fixtures remain byte-identical.
-- Existing contractor EOI tests remain unchanged and green.
-- Shared summary output is identical for the same project/evidence inputs.
-- Default workspace-path behaviour remains unchanged.
-- A test adapter can override the path and provenance without bypassing storage
-  sync or draft versioning.
+Create an application backfill command/script that:
 
-### Gate
+- scans consultant-procurement and contractor-EOI draft families;
+- groups by project and trusted workflow lineage;
+- creates one request row per lineage when absent;
+- derives kind/target from provenance first and workflow suffix second;
+- points at the latest draft while retaining all existing versions and paths;
+- records conflicts and counts; and
+- produces zero duplicates on rerun.
 
-No RFP or EOI output drift. This is a refactor gate, not a feature gate.
-
-## Stage 4 — Trade RFT/RFQ Generation
-
-**Outcome:** One backend interface generates a validated, evidence-grounded
-trade RFT or RFQ and publishes it as a normal Clerk draft artefact.
-
-### Files
-
-- Create `backend/app/workflows/trade_procurement.py`.
-- Create `backend/app/sitewise/trade_request_renderer.py`.
-- Create `backend/app/workflows/trade_request_narrative.py`.
-- Create `backend/app/workflows/trade_request_narrative_instructions.md`.
-- Create `backend/app/sitewise/trade_request_evidence_validation.py`.
-- Add workflow, renderer, evidence, and golden-fixture tests under
-  `backend/tests/workflows/` and `backend/tests/sitewise/`.
-
-### Adapter behaviour
-
-The trade adapter:
-
-- validates `rft` versus `rfq` and resolves the package profile;
-- queries active-project brief, scope, drawing/specification, approvals,
-  programme, Project Plan, Cost Plan, design-responsibility, and prior package
-  evidence as applicable;
-- consults platform procurement, construction-sequencing, contract,
-  building-class, and trade-interface guidance;
-- derives no project fact from platform guidance;
-- renders the approved Project Summary first;
-- lists the evidence documents proposed for issue;
-- tailors scope and interfaces within the catalogue/evidence boundary;
-- emits the package-specific blank price schedule and returnables;
-- records assumptions and missing issue inputs in provenance;
-- writes the package-specific workspace path; and
-- attaches the resulting draft to the procurement request.
-
-RFT includes full conditions, RFI/addendum process, tender validity, departures,
-returnables, and evaluation context. RFQ retains project, package, scope,
-documents, programme, price breakdown, exclusions, qualifications, validity,
-and submission controls while omitting unnecessary formal sections.
-
-### Hybrid compiler
-
-The deterministic renderer owns headings, tables, catalogue lines, price rows,
-submission controls, and placeholders. The bounded narrative owns only:
-
-- short project/package background;
-- project-specific scope tailoring and interfaces; and
-- programme/lead-time context.
-
-The narrative receives assigned citation tokens beside evidence snippets.
-Validation rejects:
-
-- unknown citation tokens;
-- uncited project-specific claims when evidence exists;
-- missing scope/price/returnable sections;
-- calculated or invented tender values;
-- a custom-package scope that exceeds user instructions and cited evidence; and
-- RFT/RFQ terminology mismatch.
-
-Use the existing bounded retry and upstream-error handling pattern.
-
-### Tests
-
-- Civil/earthworks RFT.
-- Structural-steel supply-and-install RFT.
-- Electrical/services RFT with testing/commissioning returnables.
-- Joinery or kitchen RFT with samples/shop-drawing requirements.
-- Windows supply-only RFQ with lead time and unit/option pricing.
-- Custom specialist package that remains generic and flags scope gaps.
-- Missing evidence creates explicit issue gaps, not fabricated facts.
-- Citation failure retries then succeeds; repeated failure is bounded.
-- Price schedules contain blank/TBC cells only and no model-derived totals.
-- Workspace path, workflow type, title, provenance, storage export, and draft
-  attachment are correct.
-
-### Gate
-
-All six representative outputs pass fixtures and a construction-professional
-red-pen review before chat/UI exposure.
-
-## Stage 5 — Durable Workflow, API, MCP, and Chat Routing
-
-**Outcome:** UI and chat can start, observe, cancel, and open trade request runs
-through the same durable workflow contract as Project Plan, Cost Plan, RFP, and
-EOI.
-
-### Backend workflow files
-
-- Modify `backend/app/projects/workflow_capabilities.py`.
-- Modify `backend/app/workflows/runs.py`.
-- Modify `backend/app/workflows/worker.py`.
-- Modify `backend/app/api/projects.py`.
-- Modify `backend/app/mcp_bridge/server.py`.
-- Modify the MCP/direct-tool allowlists used by the selected agent runtime.
-- Modify `backend/app/agent/turn_context.py` and
-  `backend/app/agent/workspace_instructions.py`.
-- Add API, durable-run, MCP, turn-context, and chat-acceptance tests.
-
-### Capability
-
-Add `trade_procurement` as a core capability requiring confirmed building class,
-work type, and state. It must not reuse Tender Comparison’s Class 1/state
-coverage restriction. Missing profile values yield `needs_input`; a named custom
-trade is not `unsupported` merely because it is absent from suggestions.
-
-### Durable workflow
-
-Add base run type `trade_procurement` with parameters:
-
-- request ID when an existing hub draft is being generated;
-- request kind (`rft` or `rfq`);
-- package code/name;
-- delivery basis;
-- optional max-length/instructions; and
-- the existing frozen snapshot, profile revision, decision-set revision,
-  idempotency, thread, and turn inputs.
-
-The start service creates or reuses the request idempotently, then queues the
-run. The worker calls the Stage 4 generator, attaches the draft, and publishes
-the normal workflow result and artefact event. Do not add a legacy synchronous
-trade-drafting tool.
-
-### API
-
-Add project-owned JSON endpoints for:
-
-- list/create/get procurement request;
-- read/update request decisions;
-- start a trade request run;
-- mark ready, issued, closed, or cancelled through validated transitions; and
-- read current register rollups.
-
-Use the existing API client response conventions, entitlement seam, and
-project-owner checks.
-
-### MCP
-
-Add `start_trade_procurement` as the durable action tool. It authorizes the
-project at the tool layer, validates package/kind, delegates to the same start
-service as HTTP, and returns the normal run metadata.
-
-Chat routing:
-
-- consultant fee proposal, consultant services, and named design consultant ->
-  `start_consultant_procurement`;
-- RFT, invite to tender, trade tender, contractor tender ->
-  `start_trade_procurement(kind=rft)`;
-- RFQ, quotation request, quote this defined package ->
-  `start_trade_procurement(kind=rfq)`;
-- head-contractor EOI or shortlist -> `start_contractor_eoi`;
-- compare, evaluate, normalise, recommend, select, award, or analyse received
-  tenders -> Tender Comparison or an explicit unsupported/downstream response,
-  never a new request.
-
-“Request for services” routes from the named target. If the target does not
-establish consultant versus trade/service, ask one short clarification and do
-not queue a run.
-
-### Tests
-
-- Capability supported across representative residential/commercial/industrial
-  profiles and needs input only for missing required context.
-- Durable-run idempotency and worker dispatch.
-- Retry, lease, cancellation, and result publication.
-- HTTP ownership, entitlement, stale snapshot, and validation failures.
-- MCP tool authorization and cross-project rejection.
-- Status and artefact events use the existing SSE contract.
-- Positive chat phrases route correctly.
-- Negative compare/evaluate/award phrases never queue procurement drafting.
-
-### Gate
-
-A real chat turn can queue a structural-steel RFT, show progress, and open the
-completed artefact without a synchronous tool fallback.
-
-## Stage 6 — RFP / RFT Hub and Navigation Split
-
-**Outcome:** Users can browse and create procurement requests from a dedicated
-hub while Tender Comparison remains a separate adjacent workflow.
-
-### Files
-
-- Modify `frontend/src/components/project/workflow/workflowTiles.ts`.
-- Modify `frontend/src/components/project/workflow/workflowRouting.ts`.
-- Modify `frontend/src/pages/ProjectCockpitPage.tsx`.
-- Modify `frontend/src/App.tsx`.
-- Create `frontend/src/components/project/procurement/` components for the route
-  frame, request list, request detail, creation form, package picker, issue
-  readiness, and status controls.
-- Create `frontend/src/lib/types/procurement.ts`.
-- Create `frontend/src/lib/queries/procurement.ts`.
-- Extend `frontend/src/lib/api.ts` through its existing typed API surface.
-- Add Vitest render and routing tests.
-
-### Navigation
-
-Replace the overloaded internal `procurement` tile identity with two explicit
-IDs:
-
-- `procurement-requests` -> label `RFP / RFT` -> `/requests`;
-- `tender-comparison` -> label `Tender Comparison` -> existing `/tender`.
-
-Update workspace routing:
-
-- consultant procurement, contractor EOI, and RFT slugs route to requests;
-- tender evaluation/recommendation slugs route to Tender Comparison.
-
-Preserve existing `/tender` URLs and browser history. Generalise cockpit helpers
-that currently assume the only nested route is Tender Comparison so selecting a
-file, draft, request, or comparison leaves/keeps the correct nested route.
-
-### Hub
-
-The request list shows:
-
-- target/package;
-- request kind;
-- current draft version/status;
-- issue/close dates;
-- recipient count;
-- received count; and
-- last updated time.
-
-The creation form provides:
-
-- consultant versus trade request choice;
-- RFP/RFT/RFQ selection constrained by target category;
-- chronological grouped package picker plus custom target;
-- delivery basis;
-- close/required dates when known; and
-- concise additional instructions.
-
-Consultant creation delegates to the current consultant run. Trade creation
-delegates to the new run. EOI remains available for head-contractor shortlisting.
-
-The detail view shows issue decisions, current draft/open action, recipients,
-responses, and activity. Reuse current buttons, tables, loading patterns,
-workflow progress strip, and draft review rather than adding a new design system.
-
-### Request decisions
-
-Create a request-scoped control visually consistent with `DecisionControl`, but
-backed by request decision endpoints. It displays suggestion/evidence status,
-uses optimistic revisions, and recomputes ready-for-issue after each save.
-
-### Tests
-
-- Exact left-nav order and labels.
-- Requests and Tender Comparison open distinct routes.
-- Existing tender deep links remain valid.
-- Package picker groups/sorts chronologically and resolves aliases/custom input.
-- Consultant/trade forms call the correct endpoint.
-- Workflow progress, failure, cancellation, and completed artefact states.
-- Decision update conflict and readiness refresh.
-- Empty, loading, error, and populated request lists.
-
-### Gate
-
-Manual navigation check passes on desktop widths supported by the cockpit, with
-back/forward navigation correct across requests, tender comparison, files, and
-chat artefact links.
-
-## Stage 7 — Recipients and Received-Response Register
-
-**Outcome:** Users can record who was invited and which proposal/tender/quote
-files were received, including revisions.
-
-### Backend files
-
-- Add recipient and response endpoints to the project API or a focused
-  procurement router mounted by the main app.
-- Extend procurement service and schemas only where Stage 2 did not already
-  expose the required methods.
-- Reuse project upload, storage, workspace-file, ingestion-queue, and path
-  services.
-- Add backend tests under `backend/tests/procurement/`.
-
-### Frontend files
-
-- Add recipient and response controls under the procurement component folder.
-- Extend procurement queries/types.
-- Reuse repository upload progress and API error patterns where practical;
-  extract shared upload code only if doing so produces a clear, tested interface.
-- Add Vitest tests for add/edit/receive/revise/link flows.
-
-### Behaviour
-
-- Add a recipient before or after issue.
-- Record invited timestamp and contact details without sending anything.
-- Record declined/withdrawn/no-response outcomes with notes.
-- “Add response” supports:
-  1. uploading one or more new files directly to the canonical submissions
-     folder; or
-  2. selecting existing project workspace files.
-- New uploads go through the existing storage and core ingestion pipeline so
-  they remain normal project documents available to retrieval.
-- Register the response only after file persistence succeeds. Surface partial
-  upload failures explicitly; do not silently claim a complete response.
-- Adding a later response creates a new immutable revision and marks it current.
-- Display late status from the close/received timestamps.
-- Never infer and commit a request/recipient match solely from filename or LLM
-  classification. Suggestions require user confirmation.
-
-### Tests
-
-- Recipient CRUD and outcome transitions with owner/entitlement checks.
-- Direct upload uses canonical package/respondent path and queues ingestion.
-- Existing-file attachment checks project ownership.
-- Multi-file response is one revision.
-- Revised response retains prior revision/files.
-- Partial failure returns an accurate result.
-- Received and late rollups update in the UI.
-- No automatic issue, email, award, or comparison side effect occurs.
-
-### Gate
-
-For one RFT, record four recipients, receive three multi-file submissions (one
-late and one revised), and confirm the hub reports the correct counts and audit
-history.
-
-## Stage 8 — Document Schedule Artefact Rows
-
-**Outcome:** Existing RFPs/EOIs and new RFT/RFQs are visible and openable from
-both repository views without changing their evidentiary classification.
-
-### Backend files
-
-- Generalise the consultant-only latest-draft-summary query in
-  `backend/app/database/draft_artifacts.py` into a procurement-aware query or a
-  safe general latest-by-prefix interface.
-- Modify cockpit bootstrap and workspace-tree assembly in
-  `backend/app/api/projects.py` to include consultant RFP, contractor EOI, trade
-  RFT, and trade RFQ latest summaries and workspace self-heal.
-- Extend bootstrap/workspace API tests.
-
-### Frontend files
-
-- Modify `frontend/src/components/project/DocumentRepositoryPanel.tsx`.
-- Modify its tests.
-- Modify `frontend/src/pages/ProjectCockpitPage.tsx` and project types as needed.
-- Extend workspace/draft routing helpers and tests.
-
-### Schedule row contract
-
-Introduce a discriminated presentation row:
-
-- `source`: existing evidence preview, source selection, usage marks, and source
-  deletion behaviour;
-- `artefact`: draft ID, workflow type, title, version, workspace path, category,
-  status, and updated time.
-
-Schedule rows include latest procurement artefacts. Clicking:
-
-- a source row follows the existing source-document path;
-- an artefact row opens `DraftReviewPanel` using its draft identity/path.
-
-Artefact rows:
-
-- are labelled RFP, EOI, RFT, or RFQ;
-- cannot enter source multi-select or delete controls;
-- do not become `selectedRepositoryEvidence` for Tender Comparison;
-- update from project artefact events; and
-- remain visible even when no `source_document_id` exists.
-
-Historical draft versions remain workspace files in tree mode. Schedule mode
-shows only the current request revision to avoid duplicate clutter.
-
-### Tests
-
-- Existing consultant RFP appears in schedule and tree.
-- Existing contractor EOI opens as a draft.
-- New RFT/RFQ rows render correct category/version.
-- Artefact click opens Markdown review in the main panel.
-- Source click and shift/control selection remain unchanged.
-- Artefacts never enter source deletion or tender document selection.
-- Live artefact events add/update the schedule row.
-- Workspace self-heal is invoked for all procurement draft families.
-
-### Gate
-
-The same latest RFP/RFT artefact can be opened from chat, hub, tree, and schedule,
-and every path resolves to the same draft revision.
-
-## Stage 9 — Legacy Backfill, Acceptance, and Rollout
-
-**Outcome:** Existing procurement history is represented without rewriting
-artefacts, and the full feature is proven before individual stages are marked
-ready for autonomous implementation.
-
-### Backfill
-
-- Create an idempotent application backfill command/script rather than embedding
-  filename parsing into normal request reads.
-- Scan existing draft artefacts with consultant-procurement and contractor-EOI
-  workflow families.
-- Group by project and workflow lineage.
-- Create one procurement request per lineage when absent.
-- Derive request kind and target from trusted provenance first, then canonical
-  workflow suffix as a fallback.
-- Attach the latest draft as current while preserving every existing path,
-  version, status, and storage key.
-- Do not invent recipients, issue dates, or responses.
-- Record counts and conflicts; rerunning produces zero duplicates.
+Do not infer recipients, responses, decisions, or issue dates.
 
 ### Automated verification
 
 Backend, from `backend/`:
 
 ```powershell
-uv run pytest tests/procurement tests/workflows tests/mcp_bridge tests/agent -q
+uv run pytest tests/workflows tests/sitewise tests/mcp_bridge tests/agent -q
+uv run pytest tests/workflows/test_consultant_procurement.py tests/workflows/test_consultant_procurement_golden.py tests/workflows/test_contractor_eoi.py tests/sitewise/test_rfp_renderer.py -q
 uv run pytest tests/test_project_cockpit_bootstrap.py tests/test_project_draft_versioning.py -q
-uv run ruff check app tests/procurement
+uv run ruff check app tests
 ```
-
-Run the existing consultant RFP and contractor EOI suites explicitly even if
-included above. Run the broader backend suite before merge.
 
 Frontend, from `frontend/`:
 
@@ -796,128 +579,155 @@ pnpm tsc --noEmit
 pnpm lint
 ```
 
-Run the procurement, repository, workspace-routing, workflow-routing, and
-ProjectCockpitPage tests explicitly before the full frontend suite.
+Run the focused cockpit, routing, workflow-tile, progress, draft-review, and
+repository tests explicitly before the full frontend suite.
 
-### Scripted acceptance scenarios
+### Acceptance scenarios
 
-1. **Consultant regression:** chat creates a structural-engineer fee proposal;
-   it appears in hub, tree, schedule, and draft review with current citations.
-2. **Early trade RFT:** chat creates a structural-steel supply-and-install RFT;
-   request status is draft until blocking decisions are resolved.
-3. **Supply RFQ:** hub creates a windows supply-only RFQ with lead-time, options,
-   unit pricing, and exclusions but without unnecessary RFT formality.
-4. **Custom package:** chat creates a specialist aquarium-glazing RFT; output
-   states missing scope rather than inventing specialist requirements.
-5. **Receipt audit:** four invitees, three responses, one late, one revised; all
-   files open and counts/history are correct.
-6. **Negative intent:** “compare the three roofing quotes” does not create an
-   RFT/RFQ and remains routed to Tender Comparison or its governed capability
-   response.
-7. **Tenancy:** a second project/user cannot access request, recipient, response,
-   draft, or file identifiers from the first.
-8. **Legacy:** pre-feature RFP and EOI drafts are backfilled once and open from
-   every intended surface.
+1. Chat creates a consultant fee proposal with existing output unchanged.
+2. Chat creates a structural-steel RFT with cited scope, interfaces, price
+   schedule, and visible TBC issue inputs.
+3. Chat creates an electrical RFQ with complete core procurement coverage and
+   proportionate, quotation-oriented language.
+4. A custom specialist request remains generic and flags missing scope.
+5. “Compare the three roofing quotes” never queues a drafting workflow.
+6. A second user/project cannot access the first project’s request or draft.
+7. Existing RFP/EOI artefacts backfill once and open from intended surfaces.
+8. The user opens the electrical RFQ in the cockpit, edits a section, accepts
+   the revision, and copies the content for Outlook or Word.
+9. Project Plan and Cost Plan drafts also appear in schedule mode without
+   becoming evidence rows.
 
-### Manual quality gate
-
-Review at least one civil, structural, services, envelope, finishes, and
-supply-only output against real project evidence. Confirm:
-
-- concise Project Summary;
-- correct package identity and interfaces;
-- correct document revisions;
-- useful, package-specific price schedule;
-- no unsupported project fact;
-- no model arithmetic;
-- visible issue decisions/TBC gaps; and
-- clear distinction between draft preparation and external issue.
+The edit-and-copy pass is the user-visible v1 acceptance criterion.
 
 ### Rollout
 
-- Apply schema migration.
-- Deploy code with the hub visible only once endpoints and backfill are ready;
-  do not add a speculative feature flag unless the deployment sequence requires
-  one of the existing phase gates.
-- Run the idempotent backfill and retain its report.
-- Complete smoke scenarios on a non-production project.
-- Enable the nav item and update product/runbook documentation.
-- Monitor workflow failures, register conflicts, and unmatched legacy artefacts.
+- Apply the one-table migration.
+- Deploy generation and chat only after Stage A’s red-pen gate passes.
+- Run the backfill and retain its report.
+- Complete acceptance on a non-production project.
+- Add the tile after API and backfill readiness.
+- Monitor workflow failures, unmatched legacy artefacts, and schedule-row
+  reconciliation.
 
-## Cross-Cutting Security and Quality Rules
+Do not add a speculative feature flag unless an existing phase gate or deployment
+sequence requires it.
 
-- Every API/MCP mutation performs project authorization at its boundary.
-- Turn-token project binding remains mandatory for agent tools.
-- Response files are commercially sensitive project evidence in private storage.
-- File paths are canonicalised and traversal-safe.
-- Source documents and generated artefacts keep distinct identities.
-- External actions are never inferred from a draft/status update.
-- Request and decision updates use optimistic concurrency.
-- Workflow starts are idempotent and snapshot-bound.
-- Project evidence outranks platform guidance.
-- Platform guidance is labelled guidance in provenance.
-- Custom package fallback cannot add ungrounded specialist scope.
-- Existing consultant RFP and EOI behaviour is regression-protected.
-- No new Clerk core imports from `backend/tender/`.
-- No dependency is added unless it satisfies the repository dependency policy.
+## Deferred Evolution
+
+### Recipients and responses
+
+If users later need an in-product receipt register, attach recipient, response,
+and response-file tables to `procurement_requests`. The slim v1 row remains
+the anchor; no v1 table needs reshaping.
+
+### Per-request decisions
+
+Reuse `project_decisions` with namespaced IDs such as
+`trade_rfq_electrical:contract-form` and add the workflow family to
+`_DECISION_DRAFT_WORKFLOWS`. Do not introduce a duplicate decisions table.
+
+### Governed trade catalogue
+
+Grow `TRADE_PACKAGES` from real use. If bulk curation becomes worthwhile,
+`data/tender/taxonomy.yaml` and the existing synonym datasets may inform a
+copied, Clerk-core dataset. Never import TCM implementation code at runtime.
+
+### DOCX export
+
+Add after content has passed repeated red-pen review and formatting is stable.
+The cost-plan binary export path is the precedent; the required document library
+is already available, so no new dependency should be necessary.
+
+### Dedicated requests route
+
+Introduce only when the product has enough request detail—such as recipients
+and responses—to justify a standalone workspace. `TenderRouteFrame` is the
+reference at that point.
+
+## Cross-Cutting Rules
+
+- Authorize every API and MCP operation against the project.
+- Preserve turn-token project binding for agent tools.
+- Keep workflow starts idempotent and snapshot-bound.
+- Keep source evidence and generated artefacts as distinct identities.
+- Use project evidence for project facts and platform knowledge only as labelled
+  guidance.
+- Bound custom-package narrative to user input and cited evidence.
+- Perform all price arithmetic deterministically outside the LLM.
+- Canonicalise and validate every workspace/storage path.
+- Regression-protect consultant RFP and contractor EOI output and editability.
+- Keep Clerk core independent of `backend/tender/`.
+- Add no dependency unless it satisfies repository policy.
 
 ## Risks and Mitigations
 
 | Risk | Mitigation |
 | --- | --- |
-| “All trades” becomes an unmaintainable hard-coded list | Governed data catalogue plus custom fallback; keep workflow code catalogue-agnostic |
-| Package aliases create duplicate draft lineages | Globally validate normalised aliases and canonicalise before request creation |
-| Generic model knowledge invents trade scope | Catalogue/evidence boundary, citation validation, explicit gap output, custom-package constraints |
-| RFT drafting is confused with Tender Comparison | Separate nav IDs/routes/tools plus negative intent tests |
-| Request decisions collide across packages | Request-scoped decision rows, not global ProjectDecision IDs |
-| Artefacts are ingested as evidence to appear in schedule | Merge presentation rows; keep draft artefacts authoritative |
-| Received files are attached to the wrong request | Explicit user confirmation and same-project validation; inference remains a suggestion only |
-| Existing RFP/EOI data disappears from the new surface | Idempotent provenance-first backfill and compatibility tests |
-| Refactor changes consultant output | Byte-identical golden gate before new generator work |
-| New hub bloats ProjectCockpitPage | Nested route and focused procurement component/query modules |
-| Formal RFT language implies automatic legal issue | Draft watermark/status, blocking readiness, manual issue record, explicit out-of-scope boundary |
+| RFQ becomes unclear or over-formal | Shared core coverage, quotation-oriented instructions, and construction-professional red-pen review without length rejection |
+| Unknown trade is rejected | Accept any non-empty target and construct a generic profile |
+| Generic scope invents specialist obligations | Limit narrative to user instruction, curated prompts, and cited project evidence; show TBC gaps |
+| RFT drafting is confused with comparison | Separate tiles/tools plus negative-intent routing tests |
+| Shared refactor changes consultant output | Byte-identical consultant fixtures before trade generation merges |
+| Generated artefact cannot be edited | Register EOI/RFT/RFQ in the existing artefact policy during Stage A |
+| Platform guidance parity silently skips workflows | Add existing EOI and new trade keys to the knowledge catalogue tests |
+| Dashboard repeats removed cockpit complexity | One in-place branch and one small list component; no route or component subsystem |
+| Schedule rows become evidence | Discriminated row type and explicit exclusion from evidence actions |
+| Slim table later proves insufficient | Deferred schemas attach by FK to the request anchor without changing v1 identity |
+| Markdown is mistaken for a sendable tender file | Make copy-to-Outlook/Word explicit; defer DOCX until format is stable |
 
-## Proposed Issue Split After Plan Sign-Off
+## Peer-Review Disposition
 
-| Issue | Slice | Depends on |
+| Finding | Disposition in this plan |
+| --- | --- |
+| F1: five tables where one will do | Adopted: one slim request table; decisions/recipients/responses deferred |
+| F2: catalogue is a dict, not a subsystem | Adopted: small in-adapter profiles plus free-text generic fallback |
+| F3: generalise narrative and validation | Adopted: one trade renderer, two section variants, shared generalised narrative/validation |
+| F4: enforce RFQ concision | Superseded by product direction: RFT and RFQ have comparable coverage and a three-page nominal target, with no hard output cap |
+| F5: engine changes are mostly unnecessary | Adopted: existing workspace injection retained; only provenance hook added |
+| F6: no new frontend route/folder | Adopted: lean in-place cockpit branch plus one small list component |
+| F7: do not split `procurement` tile ID | Adopted: add a new tile; preserve Tender Comparison identity and routes; fix routing bugs |
+| F8: schedule work is mostly widening | Adopted: generalise existing query/checks and add only the required discriminated row |
+| F9: editability, catalogue, redirect, dead code, progress gaps | Adopted in Stage A/C with explicit tests |
+| F10: Markdown and copy for v1 | Adopted; DOCX has a recorded migration path |
+
+No review finding is rejected. Repository inspection corrected one cited frontend
+path: the workspace routing helpers live under
+`frontend/src/components/project/workflow/workspaceRouting.ts`, not
+`frontend/src/lib/workspaceRouting.ts`.
+
+## Implementation Issue Split
+
+| Issue | Vertical slice | Depends on |
 | --- | --- | --- |
-| PRQ-001 | Catalogue schema, seed, loader, validator | none |
-| PRQ-002 | Procurement register models, migration, RLS | none |
-| PRQ-003 | Procurement register deep service | PRQ-002 |
-| PRQ-004 | Shared renderer seam with no RFP/EOI drift | none |
-| PRQ-005 | Trade RFT/RFQ renderer and hybrid compiler | PRQ-001, PRQ-004 |
-| PRQ-006 | Trade request artefact integration with register | PRQ-003, PRQ-005 |
-| PRQ-007 | Durable workflow, capability, API, and worker | PRQ-006 |
-| PRQ-008 | MCP tool and chat routing | PRQ-007 |
-| PRQ-009 | Requests nav split, route, list, and creation | PRQ-007 |
-| PRQ-010 | Request decisions and issue-readiness UI | PRQ-003, PRQ-009 |
-| PRQ-011 | Recipient and response backend | PRQ-003 |
-| PRQ-012 | Recipient/response UI and upload/link flow | PRQ-009, PRQ-011 |
-| PRQ-013 | Repository schedule artefact rows | PRQ-006, PRQ-009 |
-| PRQ-014 | Legacy backfill and rollout runbook | PRQ-002, PRQ-013 |
-| PRQ-015 | Scripted acceptance and red-pen quality gate | all prior |
+| PRQ-001 | Remove dead consultant helpers; section-contract renderer and generalised narrative/citation validation with no fixture drift | none |
+| PRQ-002 | Trade adapter, profiles/fallback, RFT/RFQ renderer, length contracts, and red-pen fixtures | PRQ-001 |
+| PRQ-003 | Durable trade run, MCP/chat routing, provenance, knowledge parity, and EOI/trade editability | PRQ-002 |
+| PRQ-004 | Slim request model, migration/RLS, service/API, and draft attachment | PRQ-003 |
+| PRQ-005 | New tile, lean dashboard panel, routing fixes, and procurement progress | PRQ-004 |
+| PRQ-006 | General source/artefact schedule rows for procurement, Project Plan, and Cost Plan | PRQ-005 |
+| PRQ-007 | Idempotent legacy backfill and rollout checks | PRQ-004, PRQ-006 |
+| PRQ-008 | End-to-end edit/copy acceptance, tenancy test, and final red-pen gate | all prior |
 
-Do not publish these as implementation issues until the PRD and this plan have
-been reviewed. When published, mark independently implementable code slices
-`ready-for-agent`; keep the construction-professional red-pen and production
-rollout gates `ready-for-human`.
+Create these as local Markdown issues after product sign-off. Use
+`ready-for-agent` for independently implementable code slices and
+`ready-for-human` for construction red-pen and release acceptance.
 
 ## Definition of Done
 
-- Consultant RFP, contractor EOI, trade RFT, and trade RFQ are reachable from
-  one RFP / RFT hub.
-- Chat reliably distinguishes request creation from tender comparison.
-- Representative packages across the construction sequence generate concise,
-  cited, validated, package-specific drafts.
-- Custom packages work without fabricated scope.
-- Price schedules are useful and deterministic.
-- Blocking issue decisions govern ready-for-issue state.
-- Recipients and response revisions form an auditable register with file links.
-- Existing procurement artefacts are backfilled without duplication.
-- Latest procurement drafts appear and open in schedule and tree views.
-- Generated artefacts remain distinct from project evidence.
-- Project authorization, RLS, path safety, idempotency, cancellation, and
-  optimistic concurrency tests pass.
-- Existing consultant RFP, contractor EOI, Tender Comparison, Project Plan, Cost
-  Plan, chat, and repository behaviours remain green.
-- Manual quality and end-to-end acceptance gates are recorded before rollout.
+- Chat produces evidence-grounded consultant RFP, trade RFT, and short trade RFQ
+  artefacts while preserving contractor EOI.
+- RFT and RFQ use a three-page nominal target without length-based rejection;
+  both retain complete core procurement coverage.
+- Custom trade names work without fabricated specialist scope.
+- Documents use the existing Project Summary and deterministic price schedules.
+- Every RFT/RFQ can be opened, revised, accepted, and copied.
+- The slim request history is project-secure and backfilled idempotently.
+- RFP / RFT appears immediately before the unchanged Tender Comparison tile.
+- The cockpit panel remains lean and requires no new route.
+- Latest Project Plan, Cost Plan, RFP, EOI, RFT, and RFQ artefacts appear and
+  open in schedule and tree modes without becoming evidence.
+- Chat reliably distinguishes drafting from comparison/evaluation.
+- Consultant RFP and contractor EOI regression suites remain green.
+- Backend, frontend, tenancy, manual red-pen, and edit/copy acceptance gates are
+  recorded before rollout.

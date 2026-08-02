@@ -11,270 +11,252 @@ source: product-planning-conversation-2026-08-02
 
 ## Problem Statement
 
-Clerk can already create evidence-grounded requests for fee proposal for
-individual consultant disciplines, and it can separately compare a limited set
-of residential builder tenders. It does not yet give a project team one place to
-prepare priced requests for contractors, subcontractors, trades, suppliers, or
-specialist service providers across the construction sequence.
+Clerk can create evidence-grounded requests for consultant fee proposals and a
+head-contractor expression of interest. It can also compare a governed subset
+of residential builder tenders. It cannot yet prepare priced requests for the
+broad range of contractors, subcontractors, trades, suppliers, and specialist
+service providers used across residential and commercial construction.
 
-Users therefore have to draft trade tender requests outside Clerk, manually
-adapt generic templates for different packages, and keep a separate record of
-who was invited and whose tender or quotation was received. The existing
-consultant RFP artefacts are also discoverable in the document tree but are not
-shown in the document schedule, which makes the same repository behave
-differently depending on the selected view.
+Users therefore adapt generic templates outside Clerk. That loses the
+consistent Project Summary, project-evidence grounding, citations, price
+schedule, revision history, and workspace publication already established by
+Project Plan, Cost Plan, and consultant procurement.
 
-The product must distinguish three related but materially different intents:
+The product must distinguish:
 
 - asking a consultant to propose services and fees;
-- asking a trade contractor or supplier to tender or quote; and
+- asking a contractor, trade, supplier, or specialist to tender or quote;
+- short quotation requests from full tenders; and
 - comparing responses that have already been received.
 
-Conflating these intents risks generating the wrong contractual document or
-routing a drafting request into Tender Comparison. Building separate,
-duplicated workflows for every request type would create a second problem:
-inconsistent project summaries, evidence handling, storage paths, versioning,
-and document quality.
+Conflating those intents can create the wrong contractual document or send a
+drafting request into Tender Comparison. Building a separate workflow per trade
+would duplicate the existing procurement engine and make document quality
+inconsistent.
+
+Generated consultant requests are also visible in repository tree mode but not
+schedule mode. Users should be able to find and open current artefacts from
+either repository preference without representing generated work as project
+evidence.
 
 ## Solution
 
-Add a single **RFP / RFT** project workflow that covers client-issued
-procurement requests while preserving the existing Tender Comparison workflow
-as a separate downstream activity.
+Add a lean **RFP / RFT** project workflow while preserving Tender Comparison as
+a separate adjacent activity.
 
-The workflow will:
+V1 will:
 
-- retain the existing consultant request-for-fee-proposal behaviour;
-- add full Request for Tender and concise Request for Quotation variants for
-  contractors, subcontractors, trades, suppliers, and specialist services;
-- use a chronological, extensible trade-package catalogue that covers common
-  residential, commercial, multi-residential, industrial, fitout, and
-  specialist packages;
-- allow a custom package when the catalogue does not contain the required
-  trade, without inventing an unsupported scope;
-- generate concise, evidence-grounded, versioned Markdown artefacts using the
-  same project summary, citation, validation, storage, and review methodology as
-  the existing Project Plan, Cost Plan, and consultant RFP workflows;
-- provide package-specific price breakdowns and returnable schedules;
-- surface material issue decisions and prevent a draft being marked ready for
-  issue while blocking decisions remain unresolved;
-- keep a durable register of recipients and received proposals, tenders, or
-  quotations, including revised submissions and their source files;
-- expose the workflow through both a dedicated project navigation item and
-  natural-language chat triggers; and
-- show the latest RFP, EOI, RFT, and RFQ artefacts in document schedule mode as
-  well as tree mode, without treating generated artefacts as independent
-  project evidence.
+- retain the existing consultant request-for-fee-proposal and head-contractor
+  EOI behaviour;
+- add full RFT and concise RFQ variants for main works, trades, suppliers, and
+  specialist services;
+- accept any non-empty trade/package name through free text;
+- tailor a small set of frequently used packages with in-code profiles and use
+  a safe generic fallback for everything else;
+- generate evidence-grounded, versioned Markdown using the existing Project
+  Summary, retrieval, citation, validation, storage, and review methodology;
+- provide deterministic package-appropriate price and returnable schedules;
+- use a three-page nominal target for both RFT and RFQ without rejecting a
+  complete document that reasonably runs longer;
+- expose creation through natural-language chat and a small in-place cockpit
+  panel;
+- keep a slim project-scoped history of requests and their current draft;
+- let users review, edit, accept, and copy the Markdown into Outlook or Word;
+  and
+- show latest Project Plan, Cost Plan, RFP, EOI, RFT, and RFQ artefacts in
+  document schedule mode as well as tree mode without treating artefacts as
+  evidence.
 
-The initial product prepares and records procurement requests. It does not send
-them externally, accept offers, award packages, execute contracts, or expand
-Tender Comparison beyond its governed coverage.
+V1 does not send documents or manage invitees and responses. Users continue to
+use Outlook and their existing document process. Recipient/response tracking,
+DOCX export, and a dedicated requests route have recorded migration paths but
+are not prerequisites for proving document quality.
 
 ## User Stories
 
-1. As a project owner, I want one procurement-request area, so that I do not have to remember separate locations for consultant and trade requests.
-2. As a project manager, I want consultant RFPs, head-contractor EOIs, trade RFTs, and RFQs shown together, so that I can understand current procurement activity at a glance.
-3. As a user, I want Tender Comparison to remain a separate navigation item, so that creating a request is not confused with analysing received responses.
-4. As a user, I want to ask Clerk in chat to prepare a request for tender, so that I can start the workflow without navigating through a form.
-5. As a user, I want to ask for a quotation or RFQ in ordinary language, so that I do not need to know the internal workflow name.
-6. As a user, I want requests for consultant services or fees to continue producing consultant RFPs, so that existing behaviour is preserved.
-7. As a user, I want named trades and suppliers to route to RFT or RFQ drafting, so that they are not incorrectly treated as consultant disciplines.
-8. As a user, I want “compare the tenders” to remain a comparison request, so that Clerk does not draft another invitation after tenders have been received.
-9. As a user, I want Clerk to ask one concise question when the target or request type is genuinely ambiguous, so that it does not guess a contractual intent.
-10. As a residential builder, I want requests for all common house trades, so that I can procure work from civil and structure through finishes and external works.
-11. As a commercial project manager, I want packages for structure, façade, services, fitout, vertical transport, specialist equipment, and FF&E, so that the catalogue is not limited to Class 1 housing.
-12. As an industrial project manager, I want packages such as structural steel, precast, services infrastructure, specialist doors, and process equipment to be supported, so that the workflow remains useful for warehouses and industrial projects.
-13. As a user, I want trade packages presented in construction sequence, so that I can find the appropriate package without searching an arbitrary alphabetical list.
-14. As a user, I want common aliases such as “windows”, “glazing”, and “aluminium windows” to resolve to the same package, so that duplicate request lineages are not created.
-15. As a user, I want to enter a custom specialist package, so that an unusual trade does not block procurement.
-16. As a user, I want a custom package to use a safe generic scope, so that Clerk does not fabricate specialist requirements.
-17. As a project manager, I want the request to begin with the same concise Project Summary used by existing Clerk artefacts, so that the project identity is consistent.
-18. As a tenderer, I want the package and procurement basis stated clearly, so that I know whether the request is supply-only, install-only, design-and-supply, or supply-and-install.
-19. As a tenderer, I want the documents issued for pricing listed by document number and revision, so that I can identify the pricing baseline.
-20. As a project manager, I want scope interfaces and responsibility boundaries stated, so that gaps between adjacent trades are visible before pricing.
-21. As a project manager, I want project-specific scope statements cited to uploaded project evidence, so that the request can be audited.
-22. As a user, I want missing project information labelled as unresolved rather than guessed, so that a plausible draft is not mistaken for an issue-ready document.
-23. As a project manager, I want an RFT variant for material or risk-bearing packages, so that tender conditions, returnables, departures, and evaluation requirements are captured.
-24. As a builder, I want a shorter RFQ variant for defined, lower-risk, or supply-only packages, so that simple quotation requests remain concise.
-25. As a user, I want the package-specific pricing breakdown pre-populated, so that tenderers return prices in a comparable structure.
-26. As a user, I want the price schedule to capture lump sum, GST, allowances, options, rates, exclusions, and qualifications, so that key commercial differences are not hidden.
-27. As a project manager, I want applicable design, shop-drawing, sample, testing, commissioning, warranty, as-built, and O&M obligations included, so that post-award deliverables are priced.
-28. As a user, I want key issue decisions shown as interactive controls, so that I can resolve the procurement basis without rewriting Markdown.
-29. As a user, I want request decisions scoped to one procurement request, so that changing the roofing basis does not change the electrical request.
-30. As a user, I want a request to remain a draft while blocking decisions are unresolved, so that incomplete documents are not represented as ready for issue.
-31. As a user, I want non-blocking missing information marked TBC, so that I can create a useful working draft before every detail is known.
-32. As a user, I want to record the companies or consultants invited, so that the intended market can be distinguished from actual responses.
-33. As a user, I want to record when a response was received, so that I can see who responded before or after the closing time.
-34. As a user, I want to attach multiple files to one response, so that a tender form, price breakdown, programme, and qualifications remain one submission.
-35. As a user, I want to record revised responses without deleting earlier returns, so that the procurement audit trail is preserved.
-36. As a user, I want to upload a response directly from the request register, so that it is stored under the correct package and submission folder.
-37. As a user, I want to attach an existing repository file to a response, so that I do not have to upload the same document twice.
-38. As a user, I want late, declined, withdrawn, and no-response outcomes distinguished, so that the register reflects what happened without rewriting history.
-39. As a user, I want the register to show invited and received counts, so that I can see response coverage quickly.
-40. As a user, I want each response file to remain project-scoped and private, so that commercially sensitive tender information cannot leak between projects.
-41. As a user, I want each completed workflow to produce a normal Clerk artefact card in chat, so that I can open the draft from the conversation.
-42. As a user, I want workflow progress and failure states to use the existing durable run controls, so that long-running drafting survives the chat turn and can be retried or cancelled.
-43. As a user, I want the latest procurement draft shown in document schedule mode, so that schedule and tree users can both find it.
-44. As a user, I want clicking a procurement artefact in schedule mode to open the Markdown review panel, so that it does not fail as though it were a source document.
-45. As a user, I want historical revisions retained in tree mode, so that the audit trail is available without cluttering the document schedule.
-46. As a user, I want generated artefacts visibly distinguished from uploaded evidence, so that I understand their evidentiary status.
-47. As an existing user, I want earlier consultant RFP and contractor EOI drafts to appear in the new hub, so that the feature does not start with an empty history.
-48. As an administrator, I want the backfill of existing procurement artefacts to be idempotent, so that rollout and retries do not create duplicate register entries.
-49. As a maintainer, I want the consultant RFP output to remain regression-tested while shared renderer code is extracted, so that adding trade requests does not reduce existing quality.
-50. As a maintainer, I want the trade catalogue validated for unique codes, aliases, ordering, and references, so that ambiguous package routing fails during development rather than in production.
-51. As a maintainer, I want all request and response mutations protected by project ownership and entitlement checks, so that the new register follows Clerk’s existing security model.
-52. As a maintainer, I want all tender arithmetic performed deterministically, so that language models never calculate totals, percentages, or commercial comparisons.
+1. As a project owner, I want one RFP / RFT area, so that consultant and trade request drafting is easy to find.
+2. As a user, I want Tender Comparison to remain a separate navigation item, so that drafting is not confused with analysis.
+3. As a user, I want existing Tender Comparison links to continue working, so that the new workflow does not break active comparisons.
+4. As a user, I want to ask Clerk in chat to prepare a request for tender, so that I can begin without navigating to a form.
+5. As a user, I want “request for quotation”, “RFQ”, and ordinary quote language to start the short quotation workflow.
+6. As a user, I want requests for consultant services or fees to continue producing consultant RFPs.
+7. As a user, I want a head-contractor shortlist or EOI request to retain the existing EOI workflow.
+8. As a user, I want named trades and suppliers to route to RFT/RFQ rather than consultant procurement or contractor EOI.
+9. As a user, I want “compare these tenders” to remain a comparison intent and never generate a new request.
+10. As a user, I want one concise clarification when “request for services” does not establish consultant versus trade intent.
+11. As a residential builder, I want to name any trade from civil and substructure through finishes and external works.
+12. As a commercial project manager, I want to name structure, façade, services, fitout, equipment, FF&E, and specialist packages.
+13. As an industrial project manager, I want to name structural steel, precast, services infrastructure, specialist doors, and process equipment.
+14. As a user, I want common trade aliases resolved where Clerk has a curated profile.
+15. As a user, I want an unknown specialist package accepted rather than blocked by a finite list.
+16. As a user, I want a custom package to remain generic when project evidence does not support specialist obligations.
+17. As a project manager, I want every request to begin with Clerk’s existing concise Project Summary.
+18. As a tenderer, I want the package and procurement basis stated clearly.
+19. As a tenderer, I want the documents issued for pricing listed by document number and revision.
+20. As a project manager, I want evidenced scope interfaces and responsibility boundaries made visible.
+21. As a project manager, I want project-specific scope claims cited to uploaded project evidence.
+22. As a user, I want missing issue information shown as TBC rather than guessed.
+23. As a project manager, I want a full RFT for packages needing formal conditions, departures, returnables, and evaluation context.
+24. As a builder, I want an RFQ with the same core procurement coverage as an RFT, tailored in language for a quotation.
+25. As a user, I want both RFT and RFQ to aim for proportionate, clear documents without a hard page limit that can truncate a complete request.
+26. As a user, I want a package-appropriate price breakdown pre-populated with blank/TBC return cells.
+27. As a user, I want price controls for lump sum, GST, allowances, options, rates, exclusions, and qualifications where applicable.
+28. As a project manager, I want design, shop-drawing, sample, testing, commissioning, warranty, as-built, and O&M returnables included only when applicable.
+29. As a user, I want to edit unresolved details directly in the draft before sending it.
+30. As a user, I want RFP, EOI, RFT, and RFQ drafts to support the same revise and accept workflow.
+31. As a user, I want a copy action so that I can move the approved content into Outlook or Word.
+32. As a user, I want each completed workflow to produce a normal artefact card in chat.
+33. As a user, I want long-running generation to use the existing progress, retry, cancellation, and failure controls.
+34. As a user, I want a compact dashboard panel rather than a separate procurement application.
+35. As a user, I want to select a previous request and open its current draft from the same panel.
+36. As a user, I want latest generated drafts shown in repository schedule mode.
+37. As a user, I want clicking an artefact schedule row to open Markdown review rather than a source-document action.
+38. As a user, I want historical revisions retained in tree mode without cluttering schedule mode.
+39. As a user, I want generated artefacts visibly distinguished from uploaded evidence.
+40. As an existing user, I want earlier consultant RFP and contractor EOI artefacts represented in the new request history.
+41. As an administrator, I want legacy backfill to be idempotent.
+42. As a maintainer, I want consultant RFP and contractor EOI fixtures protected while shared content code is generalised.
+43. As a maintainer, I want project authorization and row-level security applied to every request record and mutation.
+44. As a maintainer, I want all tender arithmetic performed deterministically rather than by an LLM.
 
 ## Implementation Decisions
 
-- The project navigation label is **RFP / RFT**. RFQ is a trade-request variant
-  within that surface rather than a third navigation item.
-- The new surface is a Procurement Requests hub. Tender Comparison remains a
-  separate adjacent workflow and retains its existing deep links.
-- Consultant RFPs continue to use the existing consultant workflow and naming
-  lineage. New trade RFT/RFQ documents extend the shared procurement-document
-  engine rather than duplicating retrieval, guidance selection, versioning,
-  provenance, storage, or artefact publication.
-- Head-contractor EOIs are included in the hub because they are client-issued
-  procurement requests, but their current output and behaviour remain intact.
-- The trade-package catalogue is Clerk core platform data. It is not imported
-  from Tender Comparison because Tender Comparison is a bounded Class 1 module
-  with a one-way integration boundary.
-- The catalogue is chronological and data-driven. A package carries canonical
-  identity, aliases, applicability, delivery modes, baseline scope prompts,
-  typical interfaces, pricing breakdown lines, and returnable requirements.
-- A custom-package fallback is required for long-tail coverage. It may organise
-  user-provided and project-evidenced scope but must not invent specialist
-  obligations.
-- Request kinds are consultant RFP, contractor EOI, trade RFT, and trade RFQ.
-  Internal names may differ, but the user-facing terminology remains explicit.
-- Trade requests use the same hybrid compilation model as the improved
-  consultant RFP: deterministic structure plus a bounded evidence-grounded
-  narrative, followed by citation and completeness validation.
-- The existing Project Summary renderer is the only source for the summary at
-  the start of RFP/RFT/RFQ documents.
-- RFT and RFQ share a document model. RFT includes the full conditions,
-  departures, returnables, and evaluation context; RFQ omits inapplicable
-  formality while preserving price, scope, programme, exclusions, and
-  qualification controls.
-- Blank price schedules are deterministic templates. If response figures are
-  later captured, totals and comparisons are computed in Python rather than by
-  an LLM.
-- Trade request artefacts are stored in the package-specific procurement
-  lifecycle structure under the tender-pack stage. Consultant RFP paths remain
-  unchanged.
-- A durable procurement register is introduced in Clerk core using
-  procurement-prefixed data structures. It does not add tables to or import
-  implementation code from Tender Comparison.
-- The register distinguishes a request, its recipients, response revisions,
-  and the files belonging to each response. Earlier response revisions remain
-  immutable audit records when a later revision becomes current.
-- Request lifecycle state is draft, ready for issue, issued, closed, or
-  cancelled. External sending is manual in v1; marking a request issued records
-  the human action and date.
-- Recipient outcomes distinguish invited, received, declined, withdrawn, and
-  no response. Lateness is derived from timestamps rather than stored as an
-  editable opinion.
-- Issue-readiness decisions are request-scoped. They reuse the interaction and
-  optimistic-concurrency pattern of current project decisions but do not reuse
-  project-global decision identifiers.
-- Blocking issue decisions cover package identity and basis, scope/document
-  baseline, pricing format, programme/closing dates, and contract/design
-  responsibility. Other missing information may remain explicitly TBC.
-- Chat starts a durable workflow run and returns normal status and artefact
-  events. Chat does not synchronously generate a long document inside the turn.
-- Chat intent routing includes negative cases so compare, evaluate, recommend,
-  award, and analyse language does not start a new procurement request.
-- Document schedule mode merges uploaded source-document rows with latest
-  generated-artefact rows. Artefacts open through the draft-review path and are
-  never passed to source-document deletion or evidence APIs.
-- Schedule mode shows the latest revision per procurement request. Tree mode
-  remains the version-complete repository view.
-- Existing consultant RFP and contractor EOI artefacts are backfilled into the
-  procurement register idempotently. Existing workspace paths are preserved.
-- External issuance, email, tender portal functionality, automatic market
-  invitations, and contractual acceptance require separate authority and are
-  not inferred from creating a draft.
+- The project navigation label is **RFP / RFT**. RFQ is a variant inside that
+  surface.
+- Add a new tile before the existing Tender Comparison tile. Do not rename or
+  repurpose Tender Comparison’s load-bearing `procurement` tile ID.
+- V1 uses an in-place `ProjectControlBoard` branch rather than a dedicated
+  route or component subsystem.
+- The panel contains kind, free-text target, create, compact request list,
+  workflow progress, draft review, and trace.
+- Consultant RFP and contractor EOI keep their existing adapters and naming
+  lineages.
+- Trade RFT/RFQ extends the shared `ProcurementDocument` engine. Retrieval,
+  platform guidance, versioning, provenance, storage, and publication are not
+  reimplemented.
+- RFT and RFQ use one deterministic renderer with ordered section contracts and
+  the same core procurement coverage. RFQ uses quotation-oriented wording and
+  may use lighter formality where suitable.
+- Both variants use bounded narrative with a three-page nominal target. The
+  target guides concision but is not a hard output limit or failure condition.
+- The existing narrative and evidence-validation modules are generalised over
+  target/output fields rather than copied into trade-specific equivalents.
+- The existing Project Summary renderer remains the only source for the opening
+  summary.
+- A small `TRADE_PACKAGES` map lives with the trade adapter. It covers common
+  early-use packages and aliases. Any unknown non-empty target receives a
+  generic profile.
+- There is no YAML catalogue, loader, validator, package database, or catalogue
+  CI gate in v1.
+- Cost-plan rows may provide grouping language but are not used as package
+  identity because they are too coarse for trade procurement.
+- Blank price schedules and returnables are deterministic. The model never
+  calculates prices, totals, percentages, or comparisons.
+- V1 introduces one `procurement_requests` table with project, creator, kind,
+  target, status, current draft, issue/close timestamps, revision, and
+  timestamps.
+- Request status is draft, issued, closed, or cancelled. Recording issued does
+  not send anything.
+- Missing issue information remains visible as TBC in editable Markdown. V1
+  does not introduce request-specific decision tables or readiness controls.
+- Recipient, contact, response, and response-file records are deferred. The v1
+  request row is their future FK anchor.
+- Markdown plus the existing copy action is the delivery format. DOCX export is
+  deferred until content and formatting are stable.
+- Chat starts a durable workflow run and returns normal progress and artefact
+  events.
+- Negative intent tests protect comparison/evaluation language from starting a
+  drafting run.
+- Contractor EOI and the new trade workflow families are registered in the
+  artefact edit/accept policy and platform-knowledge parity list.
+- Document schedule mode merges source-document and latest generated-artefact
+  presentation rows. Artefacts never enter evidence selection or deletion.
+- Project Plan and Cost Plan artefacts are included because they have the same
+  schedule-mode presentation gap.
+- Existing consultant RFP and contractor EOI artefacts are backfilled
+  idempotently without changing their paths or revisions.
+- Tender Comparison remains a bounded downstream module. Clerk core does not
+  import implementation code from `backend/tender/`.
+- External email, tender portals, issue, lodgement, acceptance, and award remain
+  human/out-of-product actions in v1.
 
 ## Testing Decisions
 
-- Tests assert externally observable behaviour through catalogue, service,
-  workflow, API, MCP, and rendered UI interfaces. Tests should not assert
-  private helper structure merely to freeze an implementation.
-- The trade-package catalogue receives deterministic tests for unique package
-  codes, unique normalised aliases, sequence ordering, valid applicability,
-  valid delivery modes, and complete baseline price-breakdown data.
-- Existing consultant RFP golden fixtures remain unchanged during shared
-  renderer extraction. Their current workflow tests are the regression oracle.
-- Trade request renderer tests cover one early works package, one structural
-  package, one services package, one finishes package, one supply-only RFQ, and
-  one custom specialist package.
-- Narrative tests verify that project-specific claims use assigned citations,
-  unsupported citations are rejected, validation retries are bounded, and no
-  project evidence produces explicit gaps rather than invented facts.
-- Procurement-register service tests cover request lifecycle transitions,
-  optimistic decision updates, recipient outcomes, response revision history,
-  late-response derivation, and cross-project isolation.
-- Migration tests verify constraints, indexes, foreign keys, row-level security,
-  and idempotent legacy backfill.
-- Durable workflow tests follow existing Project Plan, Cost Plan, consultant
-  procurement, and contractor EOI run tests: idempotent start, worker dispatch,
-  result publication, retry, cancellation, and artefact metadata.
-- MCP tests verify per-project authorization, capability gating, exact workflow
-  parameters, natural-language entry tools, status events, and cross-project
-  rejection.
-- Chat prompt/acceptance tests cover positive RFP/RFT/RFQ triggers and negative
-  Tender Comparison/evaluation triggers.
-- Frontend component tests cover navigation order, request list and detail,
-  creation form, chronological package picker, issue-readiness controls,
-  recipients, response revisions, upload/link behaviour, and error states.
-- Repository tests prove that existing RFPs and new RFT/RFQ artefacts appear in
-  both views, schedule clicks open the draft review panel, source selection still
-  works, and artefacts cannot enter source-document bulk deletion.
-- End-to-end acceptance uses at least a consultant RFP, structural-steel RFT,
-  supply-only windows RFQ, received multi-file response, revised response, and a
-  “compare the tenders” request that remains routed to Tender Comparison.
-- Unit and integration tests use no live network. Real model and storage checks
-  remain explicit manual acceptance gates using a non-production project.
+- Existing consultant RFP golden fixtures and contractor EOI tests are the
+  regression gate for shared renderer/narrative changes.
+- Tests prove the old consultant duplicate-helper chain is unused before it is
+  deleted.
+- Trade tests cover main-works RFT, structural-steel RFT, electrical RFQ, and a
+  custom specialist package.
+- RFT/RFQ tests assert complete core sections, quotation-oriented RFQ wording,
+  and that generation remains successful when a document reasonably exceeds
+  the nominal three-page target.
+- Narrative tests validate assigned citations, reject unsupported citations,
+  bound retries, and turn missing evidence into explicit gaps.
+- Price schedule tests assert blank/TBC commercial values and no model-derived
+  arithmetic.
+- Artefact-policy tests cover revise/accept for existing contractor EOI and new
+  RFT/RFQ workflows.
+- Knowledge-catalog tests cover existing head-contractor and new trade workflow
+  keys.
+- Durable workflow tests cover idempotent start, worker dispatch, result
+  publication, retry, cancellation, and artefact metadata.
+- MCP/chat tests cover project authorization, trade-shaped consultant redirect,
+  positive RFP/RFT/RFQ triggers, and negative comparison/evaluation triggers.
+- Migration/service tests cover the single-table constraints, indexes, FKs,
+  RLS, lifecycle transitions, optimistic revision, same-project attachment,
+  and cross-project isolation.
+- Frontend tests cover exact nav order, unchanged Tender Comparison identity,
+  corrected workflow routing, procurement progress, compact creation/list
+  states, edit/accept/copy, and error states.
+- Repository tests prove source interactions remain unchanged, latest artefacts
+  open in schedule mode, and artefacts cannot enter evidence actions.
+- Backfill tests prove provenance-first grouping and idempotency.
+- End-to-end acceptance chat-queues an electrical RFQ, observes progress, opens
+  it in the cockpit, edits a section, accepts it, and copies the content.
+- Unit and integration suites use no live network. Real model/storage and
+  construction-professional red-pen checks remain explicit manual gates.
 
 ## Out of Scope
 
-- Sending RFPs, RFTs, RFQs, invitations, addenda, reminders, or award notices by
-  email or through an external tender portal.
+- Sending requests, invitations, addenda, reminders, or award notices through
+  Outlook, email, or a tender portal.
+- Recipient, consultant, trade, or supplier contact management.
+- Recording received submissions, response revisions, lateness, or response
+  files in v1.
+- Per-request decision controls or a separate ready-for-issue state.
 - Electronic tender lodgement by external tenderers.
+- DOCX/PDF tender export in v1.
+- A dedicated `/requests` route or full procurement application.
+- A governed YAML/database trade catalogue or re-authoring every TCM alias.
 - Digital signatures, offer acceptance, subcontract execution, purchase-order
   issue, or automatic award.
-- Automatically recommending or ranking tenderers from the receipt register.
-- Expanding Tender Comparison to every commercial trade package or building
-  class.
-- Importing Tender Comparison’s taxonomy or internal services into Clerk core.
-- Performing legal review or generating bespoke contract conditions without a
-  confirmed contract basis and human review.
-- Automatically treating generated procurement artefacts as independent
-  project evidence.
-- Automatically moving or linking an uploaded response based only on an
-  inferred filename, respondent, or package without user confirmation.
-- Market directories, licence-register integrations, financial checks, or
-  automated tenderer discovery.
-- Automatic contract-cost-plan handoff following an award.
+- Automatically recommending/ranking tenderers from received documents.
+- Expanding Tender Comparison to all trade packages or building classes.
+- Importing Tender Comparison implementation code into Clerk core.
+- Legal review or bespoke contract conditions without a confirmed basis and
+  human review.
+- Treating generated procurement artefacts as independent project evidence.
+- Market directories, licence integrations, financial checks, or automated
+  tenderer discovery.
+- Automatic contract/cost-plan handoff following award.
 
 ## Further Notes
 
-- This PRD supersedes the earlier “RFT later” placeholder in the
-  head-contractor EOI plan while preserving the shared procurement-engine
-  architecture established by that work.
-- The current consultant-status follow-up should be absorbed into this generic
-  request/recipient/response register rather than implemented as a second,
-  consultant-only status system.
-- “All trades” is satisfied through a reviewed common-package catalogue plus a
-  safe custom-package route. No finite catalogue should be represented as
-  exhaustive for every specialist construction sector.
-- The feature should ship as a draft-and-register workflow first. External issue
-  and award actions can be planned later after the internal audit trail and
-  document quality are proven.
-- The implementation sequence and file-level tasks are governed by the linked
-  staged implementation plan.
+- The lean staging and deferred migration paths are outcomes of the
+  [peer review](../../plans/2026-08-02-procurement-requests-rfp-rft-rfq-review.md).
+- “All trades” is satisfied by accepting any non-empty target, not by claiming a
+  finite catalogue is exhaustive.
+- If recipient/response tracking is later prioritised, new tables attach to the
+  slim request row without reshaping its identity.
+- If per-request decisions are later needed, reuse `project_decisions` with
+  namespaced decision IDs rather than creating a duplicate decisions table.
+- A future bulk catalogue may use existing tender taxonomy and synonym data as
+  a curation source, but Clerk core must not import TCM runtime code.
+- DOCX export follows document red-pen validation; the v1 user journey is
+  generate, edit, accept, and copy into Outlook or Word.
+- The linked staged plan governs implementation order and file-level work.
 
 ## Linked Plan
 
-- [Staged implementation plan](../../plans/2026-08-02-procurement-requests-rfp-rft-rfq.md)
+- [Revised staged implementation plan](../../plans/2026-08-02-procurement-requests-rfp-rft-rfq.md)

@@ -276,10 +276,28 @@ def test_contractor_eoi_capability() -> None:
     assert set(capability.required_fields) == set()
 
 
+def test_trade_procurement_uses_general_project_coverage() -> None:
+    capability = workflow_capabilities(_snapshot(subclasses=["apartments"])).capabilities[
+        "trade_procurement"
+    ]
+
+    assert capability.status == "supported"
+    assert capability.required_fields == []
+
+
 def test_contractor_eoi_requires_project_and_jurisdiction_context() -> None:
     capability = workflow_capabilities(
         _snapshot(building_class=None, work_type=None, state=None)
     ).capabilities["contractor_eoi"]
+
+    assert capability.status == "needs_input"
+    assert set(capability.required_fields) == {"building_class", "work_type", "state"}
+
+
+def test_trade_procurement_requires_project_and_jurisdiction_context() -> None:
+    capability = workflow_capabilities(
+        _snapshot(building_class=None, work_type=None, state=None)
+    ).capabilities["trade_procurement"]
 
     assert capability.status == "needs_input"
     assert set(capability.required_fields) == {"building_class", "work_type", "state"}

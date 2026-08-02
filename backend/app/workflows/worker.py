@@ -22,9 +22,14 @@ from app.database.project import Project
 from app.database.draft_artifact import DraftArtifact
 from app.database.session import get_session_factory
 from app.logging import configure_logging, get_logger
+from app.procurement.requests import (
+    attach_generated_draft,
+    request_kind_for_workflow,
+)
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.workflows.consultant_procurement import draft_consultant_procurement_artifact
 from app.workflows.contractor_procurement import draft_contractor_eoi_artifact
+from app.workflows.trade_procurement import draft_trade_procurement_artifact
 from app.workflows.create_cost_plan import run_create_cost_plan_workflow
 from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.schemas import CostItemInput
@@ -141,9 +146,68 @@ async def _dispatch(
             instructions=parameters.get("instructions"),
             auto_commit=False,
         )
+    elif run.workflow_type == "trade_procurement":
+        result = await draft_trade_procurement_artifact(
+            session,
+            project=project,
+            user_id=run.requested_by_user_id,
+            package=str(parameters["package"]),
+            kind=str(parameters["kind"]),
+            max_pages=int(parameters.get("max_pages", 3)),
+            instructions=parameters.get("instructions"),
+            auto_commit=False,
+        )
     else:
         raise ValueError(f"Unknown workflow type: {run.workflow_type}")
-    return _json_result(result)
+    payload = _json_result(result)
+    request_id = await _attach_procurement_result(
+        session,
+        run=run,
+        result=result,
+        parameters=parameters,
+    )
+    if request_id is not None:
+        payload["procurement_request_id"] = str(request_id)
+    return payload
+
+
+async def _attach_procurement_result(
+    session: AsyncSession,
+    *,
+    run,
+    result: Any,
+    parameters: dict[str, Any],
+) -> uuid.UUID | None:
+    draft = getattr(result, "draft", None)
+    target_name = getattr(result, "discipline", None) or getattr(
+        result, "package", None
+    )
+    if draft is None or not isinstance(target_name, str) or not target_name.strip():
+        return None
+    try:
+        kind = request_kind_for_workflow(
+            draft.workflow_type,
+            trade_kind=getattr(result, "kind", None),
+        )
+    except ValueError:
+        return None
+    raw_request_id = parameters.get("procurement_request_id")
+    request_id = uuid.UUID(str(raw_request_id)) if raw_request_id else None
+    request = await attach_generated_draft(
+        session,
+        project_id=draft.project_id,
+        created_by_user_id=run.requested_by_user_id,
+        draft=draft,
+        target_name=target_name,
+        kind=kind,
+        request_id=request_id,
+    )
+    metadata = dict(getattr(draft, "provenance_metadata", None) or {})
+    metadata["procurement_request_id"] = str(request.id)
+    metadata["procurement_request_kind"] = request.kind
+    draft.provenance_metadata = metadata
+    await session.flush()
+    return request.id
 
 
 async def _stamp_result_dependencies(

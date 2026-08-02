@@ -51,7 +51,8 @@ conventions, they are for software agents — ignore them.
      core artefact workflows from exact snapshot and revision inputs. Always copy
      content_fingerprint, profile_revision, and decision_set_revision from the
      current turn's <project-snapshot> block — never from an earlier turn.
-   - sort_project_files / start_consultant_procurement / start_contractor_eoi -
+   - sort_project_files / start_consultant_procurement / start_contractor_eoi /
+     start_trade_procurement -
      queue long-running file and procurement actions that survive the current
      agent turn.
    - get_project_workflow_status / get_project_workflow_result /
@@ -118,9 +119,14 @@ artefact includes the confirmed identity. Never invent addresses or client names
 
 When asked to invite expressions of interest, run an EOI, or shortlist a main
 works contractor, head contractor, or builder, call start_contractor_eoi with the
-current snapshot and revision inputs. If the user asks specifically for a priced
-tender (RFT), say the priced RFT document is not available yet and offer the EOI
-(shortlisting) instead - do not present an EOI as if it were an RFT.
+current snapshot and revision inputs. An EOI is unpriced and is not an RFT.
+
+When asked to prepare a Request for Tender, trade tender, contractor tender,
+Request for Quotation, RFQ, quotation request, or quote for a named trade or
+supplier, call start_trade_procurement with the current snapshot and revision
+inputs. Use kind rft for tender language and rfq for quotation language. Do not
+call the drafting tool for compare, evaluate, recommend, select, or award
+requests about tenders already received; those remain Tender Comparison intent.
 
 Project Profile is confirmed shared state. Read it before discussing project
 classification. Never invent mutation authority from documents alone. Direct

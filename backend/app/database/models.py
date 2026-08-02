@@ -11,6 +11,7 @@ from app.database.project import Project
 from app.database.project_decision import ProjectDecision
 from app.database.project_event import ProjectEvent
 from app.database.project_profile_proposal import ProjectProfileProposal
+from app.database.procurement_request import ProcurementRequest
 from app.database.project_document_selection import (
     ProjectDocumentSelection,
     ProjectDocumentSelectionGroup,
@@ -40,6 +41,7 @@ __all__ = [
     "ProjectDecision",
     "ProjectEvent",
     "ProjectProfileProposal",
+    "ProcurementRequest",
     "ProjectDocumentSelection",
     "ProjectDocumentSelectionRevision",
     "ProjectDocumentSelectionGroup",

@@ -18,7 +18,7 @@ const SUBLINE_ROTATE_MS = 5_000;
 
 export type WorkflowProgressMode = "create" | "update";
 
-export type WorkflowProgressKind = "project_plan" | "cost_plan";
+export type WorkflowProgressKind = "project_plan" | "cost_plan" | "procurement";
 
 export type WorkflowProgressSnapshot = {
   /** Overall progress in [0, 1]; monotonic non-decreasing while active. */
@@ -72,6 +72,23 @@ const COST_PLAN_EXECUTING: PhaseDef[] = [
   },
   { id: "validating", message: "Checking citations and structure…", weight: 0.15 },
   { id: "saving", message: "Saving draft…", weight: 0.15 },
+];
+
+const PROCUREMENT_EXECUTING: PhaseDef[] = [
+  { id: "evidence", message: "Reviewing project evidence...", weight: 0.2 },
+  { id: "platform", message: "Checking procurement guidance...", weight: 0.15 },
+  {
+    id: "drafting",
+    message: "Preparing the request...",
+    weight: 0.45,
+    sublines: [
+      "Building the package summary...",
+      "Setting scope and interfaces...",
+      "Preparing the price and returnable schedules...",
+    ],
+  },
+  { id: "validating", message: "Checking citations and controls...", weight: 0.1 },
+  { id: "saving", message: "Saving draft...", weight: 0.1 },
 ];
 
 export class WorkflowRunEstimator {
@@ -133,6 +150,11 @@ export function workflowProgressTitle(
   if (kind === "cost_plan") {
     return mode === "update" ? "Refreshing Cost Plan" : "Creating Cost Plan";
   }
+  if (kind === "procurement") {
+    return mode === "update"
+      ? "Refreshing Procurement Request"
+      : "Preparing Procurement Request";
+  }
   return mode === "update" ? "Updating Project Plan" : "Creating Project Plan";
 }
 
@@ -167,7 +189,11 @@ export function resolveWorkflowDisplayStage(options: {
 
   // executing / running / unknown-while-active → timed phases
   const phases =
-    options.kind === "cost_plan" ? COST_PLAN_EXECUTING : PROJECT_PLAN_EXECUTING;
+    options.kind === "cost_plan"
+      ? COST_PLAN_EXECUTING
+      : options.kind === "procurement"
+        ? PROCUREMENT_EXECUTING
+        : PROJECT_PLAN_EXECUTING;
   const phase = pickExecutingPhase(phases, options.elapsedSeconds, budget);
   return withRotatedSubline(phase, nowMs);
 }

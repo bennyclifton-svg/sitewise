@@ -13,6 +13,7 @@ from app.workflows.worker import _json_result
 from app.workflows.document_ingest import DocumentIngestResult
 from app.workflows.consultant_procurement import ConsultantProcurementResult
 from app.workflows.contractor_procurement import ContractorEoiResult
+from app.workflows.trade_procurement import TradeProcurementResult
 from app.workflows import worker as workflow_worker
 from tests.conftest import run_async
 from unittest.mock import AsyncMock
@@ -80,9 +81,9 @@ def test_canonical_request_hash_is_order_independent_and_excludes_key() -> None:
         parameters={"nested": {"a": 1, "b": 2}, "alpha": 1},
     )
 
-    assert canonical_request_hash("create_project_plan", first) == canonical_request_hash(
-        "create_project_plan", reordered
-    )
+    assert canonical_request_hash(
+        "create_project_plan", first
+    ) == canonical_request_hash("create_project_plan", reordered)
 
 
 def test_canonical_request_hash_changes_with_frozen_input_or_workflow() -> None:
@@ -108,6 +109,10 @@ def test_snapshot_fixture_carries_all_frozen_revision_inputs() -> None:
 
 def test_contractor_eoi_is_supported_by_durable_run_boundary() -> None:
     assert "contractor_eoi" in SUPPORTED_WORKFLOWS
+
+
+def test_trade_procurement_is_supported_by_durable_run_boundary() -> None:
+    assert "trade_procurement" in SUPPORTED_WORKFLOWS
 
 
 def test_document_ingest_is_supported_by_durable_run_boundary() -> None:
@@ -176,6 +181,13 @@ def test_dispatches_contractor_eoi_to_durable_draft(monkeypatch) -> None:
         )
     )
     monkeypatch.setattr(workflow_worker, "draft_contractor_eoi_artifact", draft_eoi)
+    attach_request = AsyncMock(
+        return_value=SimpleNamespace(
+            id=uuid.UUID("00000000-0000-0000-0000-000000000020"),
+            kind="contractor_eoi",
+        )
+    )
+    monkeypatch.setattr(workflow_worker, "attach_generated_draft", attach_request)
 
     payload = run_async(workflow_worker._dispatch(AsyncMock(), run))
 
@@ -184,6 +196,66 @@ def test_dispatches_contractor_eoi_to_durable_draft(monkeypatch) -> None:
         "/02-procurement/contractor_eoi_main_works_v01.draft.md"
     )
     assert draft_eoi.await_args.kwargs["auto_commit"] is False
+    assert payload["procurement_request_id"] == "00000000-0000-0000-0000-000000000020"
+
+
+def test_dispatches_trade_procurement_to_durable_draft(monkeypatch) -> None:
+    draft = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000010",
+        project_id="00000000-0000-0000-0000-000000000001",
+        workflow_type="trade_rfq_electrical_services",
+        version=1,
+        status="draft",
+        title="Request for Quotation - Electrical Services",
+        workspace_path=(
+            "04-projects/test/05-procurement/electrical_services/02-tender-pack/"
+            "electrical_services_rfq_v01.draft.md"
+        ),
+    )
+    run = SimpleNamespace(
+        workflow_type="trade_procurement",
+        requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        requested_by_thread_id=None,
+        frozen_artefact_version=None,
+        run_brief={
+            "snapshot": _snapshot().model_dump(mode="json"),
+            "project": {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "owner_user_id": "00000000-0000-0000-0000-000000000002",
+                "slug": "test",
+                "title": "Test",
+                "workspace_path": "04-projects/test",
+                "phase": "procurement",
+                "status": "active",
+            },
+            "parameters": {"package": "Electrical", "kind": "rfq", "max_pages": 3},
+        },
+    )
+    draft_trade = AsyncMock(
+        return_value=TradeProcurementResult(
+            draft=draft,
+            package="Electrical Services",
+            kind="rfq",
+            source_trace={"project_documents": []},
+        )
+    )
+    monkeypatch.setattr(
+        workflow_worker, "draft_trade_procurement_artifact", draft_trade
+    )
+    attach_request = AsyncMock(
+        return_value=SimpleNamespace(
+            id=uuid.UUID("00000000-0000-0000-0000-000000000020"),
+            kind="trade_rfq",
+        )
+    )
+    monkeypatch.setattr(workflow_worker, "attach_generated_draft", attach_request)
+
+    payload = run_async(workflow_worker._dispatch(AsyncMock(), run))
+
+    assert payload["draft"]["workflow_type"] == "trade_rfq_electrical_services"
+    assert payload["kind"] == "rfq"
+    assert payload["procurement_request_id"] == "00000000-0000-0000-0000-000000000020"
+    assert draft_trade.await_args.kwargs["auto_commit"] is False
 
 
 def test_dispatches_document_ingest_to_the_worker(monkeypatch) -> None:
@@ -241,7 +313,9 @@ def _session_returning(run: SimpleNamespace) -> AsyncMock:
 
 
 def test_heartbeat_keeps_a_published_preview_while_advancing_the_stage() -> None:
-    run = _running_run({"stage": "starting", "percent": 1, "preview": {"markdown": "# Draft"}})
+    run = _running_run(
+        {"stage": "starting", "percent": 1, "preview": {"markdown": "# Draft"}}
+    )
     session = _session_returning(run)
 
     run_async(
@@ -398,7 +472,9 @@ def test_run_once_gives_the_workflow_a_publisher_bound_to_this_run(monkeypatch) 
     assert run.progress["preview"] == {"stage": "scaffold", "markdown": "# Draft"}
 
 
-def test_dispatch_hands_the_cost_plan_workflow_its_preview_publisher(monkeypatch) -> None:
+def test_dispatch_hands_the_cost_plan_workflow_its_preview_publisher(
+    monkeypatch,
+) -> None:
     create_cost_plan = AsyncMock(return_value=SimpleNamespace(status="complete"))
     monkeypatch.setattr(
         workflow_worker, "run_create_cost_plan_workflow", create_cost_plan

@@ -57,6 +57,9 @@ import type {
   InboxUploadResult,
   PdfAnalyzeResult,
   PlatformKnowledgeStatus,
+  ProcurementRequest,
+  ProcurementRequestKind,
+  ProcurementRequestListResponse,
   ProjectActivityResponse,
   ProjectCockpitBootstrap,
   ProjectChatBootstrap,
@@ -760,6 +763,24 @@ export const api = {
       expected_version: expectedVersion,
     }),
 
+  listProcurementRequests: async (
+    projectId: string,
+  ): Promise<ProcurementRequest[]> => {
+    const response = await api.get<ProcurementRequestListResponse>(
+      `/projects/${projectId}/procurement-requests`,
+    );
+    return response.requests;
+  },
+
+  createProcurementRequest: async (
+    projectId: string,
+    input: { kind: ProcurementRequestKind; target_name: string },
+  ): Promise<ProcurementRequest> =>
+    api.post<ProcurementRequest>(
+      `/projects/${projectId}/procurement-requests`,
+      input,
+    ),
+
   acceptProfileProposal: async (
     projectId: string,
     proposalId: string,
@@ -801,7 +822,8 @@ export const api = {
       | "cost-plan"
       | "cost-plan/refresh"
       | "sort-files"
-      | "consultant-procurement",
+      | "consultant-procurement"
+      | "trade-procurement",
     input: WorkflowRunStartInput,
   ): Promise<WorkflowRun> =>
     api.post<WorkflowRun>(

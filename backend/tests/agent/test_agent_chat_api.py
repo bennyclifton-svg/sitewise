@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.api import chat as chat_api
 from app.agent.mutation_intent import classify_mutation_intent
-from app.agent.turn_context import _ROLE_GUIDANCE
+from app.agent.turn_context import _DOCUMENT_ACCESS_GUIDANCE, _ROLE_GUIDANCE
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.config import settings
 from app.database.chat_message import ChatMessage
@@ -425,41 +425,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "site_address: (not declared)\n"
         "client: (not declared)\n"
         "</project-context>\n"
-        "\n"
-        "<document-access>\n"
-        "For questions about uploaded source documents, use project document tools before OCR:\n"
-        "find_document_text is the first choice for simple keyword or phrase lookups.\n"
-        "search_documents finds semantic matches, and get_document reads longer ingested text.\n"
-        "For generated Clerk artefacts such as cost plans, PMP drafts, and Excel workbooks,\n"
-        "use list_project_files to find the stored file. Read generated markdown drafts with\n"
-        "read_workspace_file, and read generated .xlsx workbooks with read_project_workbook.\n"
-        "For missing consultant-fee estimates, call forecast_consultant_fees before\n"
-        "answering. Only call apply_consultant_fee_forecast when the user asks to apply,\n"
-        "write, update, or save the forecast into the cost plan.\n"
-        "For consultant procurement drafting requests, call\n"
-        'start_consultant_procurement. This includes phrases like "draft a\n'
-        'request for fee proposal", "draft consultant procurement", "prepare an RFP for\n'
-        'the structural engineer", "get me a fee proposal request for the hydraulic\n'
-        'consultant", and "prepare scope for BASIX assessor". Do not answer these as\n'
-        "free text only; queue the artefact. Confirm briefly what is being prepared and\n"
-        "that the draft will appear when ready. Do not lead with internal run ids or\n"
-            "workflow type names; use get_project_workflow_status / get_project_workflow_result\n"
-            "only when the user asks about progress or the result.\n"
-            "For a main works contractor, head contractor, or builder EOI, call\n"
-            "start_contractor_eoi. This capability is separate from Tender Comparison and\n"
-            "does not use Tender Comparison's Class 1a coverage gate. Use the\n"
-            "workflow.contractor_eoi capability result only; never copy an unsupported reason\n"
-            "from workflow.tender_comparison. An EOI is unpriced and is not an RFT.\n"
-            "When asked to add a site address, client, or owners onto an RFP/EOI or the\n"
-        "project profile, search project documents first with find_document_text /\n"
-        "search_documents. Propose evidence-backed values; do not invent them.\n"
-        "Generated artefacts are not independent project evidence unless they point to an\n"
-        "ingested source_document_id.\n"
-        "Do not inspect repository files, run shell commands, or query the database directly\n"
-        "to answer questions about uploaded source documents.\n"
-        "Only use OCR or document-conversion skills when these tools report text is unavailable,\n"
-        "or when the ingested text is clearly garbled or insufficient for the user's question.\n"
-        "</document-access>\n"
+        "\n" + _DOCUMENT_ACCESS_GUIDANCE + "\n"
         "\n"
         '<project-snapshot schema-version="1">\n'
         "content_fingerprint: snapshot-fingerprint\n"
@@ -470,14 +436,15 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "active_evidence_count: 0\n"
         "ingest_failure_count: 0\n"
         "open_profile_proposals: 0\n"
-            "workflow.approved_tender_cost_handoff=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
+        "workflow.approved_tender_cost_handoff=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
         "workflow.consultant_procurement=needs_input; required_fields=building_class,work_type; reasons=Complete the required project profile fields.\n"
         "workflow.contractor_eoi=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
-            "workflow.create_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
+        "workflow.create_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
         "workflow.create_pmp=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
-            "workflow.edit_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
-            "workflow.refresh_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
+        "workflow.edit_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
+        "workflow.refresh_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
         "workflow.tender_comparison=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Tender Comparison requires confirmed Class 1a project context.\n"
+        "workflow.trade_procurement=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
         "workflow.update_pmp=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
         "site_address=(not declared)\n"
         "client=(not declared)\n"
@@ -879,9 +846,12 @@ def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disa
     assert response.status_code == 200
     assert seen_runtimes == ["pi"]
     assert "Proposed evidence-backed profile updates." in stream_body
-    assert chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
-        "runtime"
-    ] == "pi"
+    assert (
+        chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
+            "runtime"
+        ]
+        == "pi"
+    )
 
 
 def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
@@ -986,9 +956,12 @@ def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
     assert response.status_code == 200
     assert seen_runtimes == ["pi"]
     assert "Queued the Structural Engineer RFP." in stream_body
-    assert chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
-        "runtime"
-    ] == "pi"
+    assert (
+        chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
+            "runtime"
+        ]
+        == "pi"
+    )
 
 
 def test_agent_cancel_requires_thread_owner_and_cancels(

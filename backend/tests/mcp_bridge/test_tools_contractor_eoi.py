@@ -48,5 +48,29 @@ def test_consultant_tool_blocks_contractor_before_queueing(monkeypatch) -> None:
     )
 
     assert result["kind"] == "blocked"
-    assert result["redirect"] == "start_contractor_eoi"
+    assert result["redirect"] == "start_trade_procurement"
     start.assert_not_awaited()
+
+
+def test_start_trade_procurement_queues_expected_workflow(monkeypatch) -> None:
+    start = AsyncMock(return_value={"kind": "workflow_run", "status": "queued"})
+    monkeypatch.setattr(server, "_start_mcp_workflow", start)
+
+    result = run_async(
+        server.start_trade_procurement(
+            **_workflow_args(),
+            package="Electrical contractor",
+            kind="rfq",
+            max_pages=5,
+            instructions="Include lead times.",
+        )
+    )
+
+    assert result["status"] == "queued"
+    assert start.await_args.kwargs["workflow_type"] == "trade_procurement"
+    assert start.await_args.kwargs["parameters"] == {
+        "package": "Electrical contractor",
+        "kind": "rfq",
+        "max_pages": 5,
+        "instructions": "Include lead times.",
+    }

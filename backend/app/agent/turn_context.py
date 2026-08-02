@@ -50,6 +50,11 @@ start_contractor_eoi. This capability is separate from Tender Comparison and
 does not use Tender Comparison's Class 1a coverage gate. Use the
 workflow.contractor_eoi capability result only; never copy an unsupported reason
 from workflow.tender_comparison. An EOI is unpriced and is not an RFT.
+For a priced request for tender, trade tender, request for quotation, RFQ, or
+named trade/supplier package, call start_trade_procurement with kind rft or rfq
+and the current snapshot/revision inputs. Use rft for RFT/tender language and
+rfq for quotation/quote language. Do not route comparison, evaluation,
+recommendation, selection, or award of received responses to drafting.
 When asked to add a site address, client, or owners onto an RFP/EOI or the
 project profile, search project documents first with find_document_text /
 search_documents. Propose evidence-backed values; do not invent them.
@@ -91,6 +96,11 @@ Ground every answer in project evidence and platform knowledge:
   workflow.contractor_eoi capability result; never copy an unsupported reason
   from workflow.tender_comparison. Treat the EOI as unpriced and distinct from
   an RFT.
+- For a priced tender, trade package, supplier package, request for quotation,
+  RFQ, or quote request, call start_trade_procurement with kind rft or rfq and
+  the current snapshot/revision inputs. Treat comparison, evaluation,
+  recommendation, selection, and award language as Tender Comparison intent,
+  not drafting intent.
 - For project identity facts used in RFPs and EOIs (site_address, client /
   owners): read get_project_profile / get_project_snapshot first. If the field
   is missing, search project documents with find_document_text or
@@ -330,7 +340,8 @@ _WORKFLOW_MUTATION_RE = re.compile(
     r"("
     r"\b(create|draft|prepare|queue|generate|start|run)\b.{0,60}\b("
     r"rfp|request\s+for\s+fee|fee\s+proposal|consultant\s+procurement|"
-    r"eoi|expression\s+of\s+interest|project\s+plan|cost\s+plan|pmp|"
+    r"eoi|expression\s+of\s+interest|rft|rfq|request\s+for\s+(?:tender|quotation)|"
+    r"trade\s+tender|trade\s+package|project\s+plan|cost\s+plan|pmp|"
     r"sort(?:ing)?\s+(?:the\s+)?(?:project\s+)?files?"
     r")\b"
     r"|"

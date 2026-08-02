@@ -60,6 +60,16 @@ describe("buildLifecycleTiles workflow capabilities", () => {
 
     expect(tiles.find((tile) => tile.id === "create-pmp")?.status).toBe("ready");
     expect(tiles.find((tile) => tile.id === "cost-plan")?.status).toBe("blocked");
+    expect(tiles.map((tile) => tile.id)).toEqual([
+      "project-profile",
+      "create-pmp",
+      "cost-plan",
+      "procurement-requests",
+      "procurement",
+    ]);
+    expect(tiles.find((tile) => tile.id === "procurement-requests")?.label).toBe(
+      "RFP / RFT",
+    );
     expect(tiles.find((tile) => tile.id === "procurement")?.status).toBe("blocked");
   });
 });

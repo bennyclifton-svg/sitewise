@@ -33,32 +33,26 @@ def build_rfp_citation_index(project_evidence: list[dict[str, Any]]) -> Citation
     return build_citation_index(documents)
 
 
-def render_rfp_scaffold(
+def render_procurement_project_summary(
     *,
     project: Project,
-    target: DisciplineProfile,
+    target_label: str,
     citation_index: CitationIndex,
     forecast: dict[str, Any],
-    max_pages: int,
-    project_evidence: list[dict[str, Any]] | None = None,
-    assumptions: list[str] | None = None,
-    instructions: str | None = None,
+    project_evidence: list[dict[str, Any]],
 ) -> str:
-    """Render the RFP sections that do not require language-model judgement."""
-    del max_pages, assumptions, instructions
-    # Consultant RFP scope is not truncated to a page target. Assumptions and
-    # user instructions remain internal provenance, never issue-document copy.
-    identity = resolve_project_identity(project, evidence=project_evidence or [])
+    """Render the shared Project Summary used by procurement artefacts."""
+    identity = resolve_project_identity(project, evidence=project_evidence)
     classification = classification_summary(project)
     site_citation = _identity_citation(
         identity.get("site_address"),
-        project_evidence or [],
+        project_evidence,
         citation_index,
         field="site_address",
     )
     client_citation = _identity_citation(
         identity.get("client"),
-        project_evidence or [],
+        project_evidence,
         citation_index,
         field="client",
     )
@@ -68,7 +62,7 @@ def render_rfp_scaffold(
         f"- Client / owners: {identity.get('client') or 'TBC'}",
         f"- State / phase: {getattr(project, 'state', None) or 'TBC'} / "
         f"{getattr(project, 'phase', None) or 'TBC'}",
-        f"- Consultant discipline: {target.name}",
+        target_label,
     ]
     if classification:
         project_lines.append(f"- Project type: {classification}")
@@ -76,11 +70,11 @@ def render_rfp_scaffold(
     try:
         project_title, project_title_source = _project_title(
             project,
-            project_evidence or [],
+            project_evidence,
             citation_index,
         )
         budget, budget_source = _construction_budget_summary(forecast)
-        project_summary = render_project_summary_table(
+        return render_project_summary_table(
             project,
             project_title=project_title,
             project_title_source=project_title_source,
@@ -103,7 +97,31 @@ def render_rfp_scaffold(
             compact_sources=True,
         )
     except ValueError:
-        project_summary = "\n".join(project_lines)
+        return "\n".join(project_lines)
+
+
+def render_rfp_scaffold(
+    *,
+    project: Project,
+    target: DisciplineProfile,
+    citation_index: CitationIndex,
+    forecast: dict[str, Any],
+    max_pages: int,
+    project_evidence: list[dict[str, Any]] | None = None,
+    assumptions: list[str] | None = None,
+    instructions: str | None = None,
+) -> str:
+    """Render the RFP sections that do not require language-model judgement."""
+    del max_pages, assumptions, instructions
+    # Consultant RFP scope is not truncated to a page target. Assumptions and
+    # user instructions remain internal provenance, never issue-document copy.
+    project_summary = render_procurement_project_summary(
+        project=project,
+        target_label=f"- Consultant discipline: {target.name}",
+        citation_index=citation_index,
+        forecast=forecast,
+        project_evidence=project_evidence or [],
+    )
 
     sections = [
         f"# Request for Fee Proposal - {target.name}",
@@ -182,7 +200,7 @@ def _construction_budget_summary(
     return f"${value:,.0f} ex GST", source
 
 
-def _information_to_review_table(
+def render_information_to_review_table(
     evidence: list[dict[str, Any]], citation_index: CitationIndex
 ) -> str:
     rows: list[tuple[str, str, str, str, str]] = []
@@ -213,6 +231,10 @@ def _information_to_review_table(
     if not rows:
         lines.append("| TBC | No project documents identified for issue | TBC | TBC | — |")
     return "\n".join(lines)
+
+
+# Retained as a private compatibility alias while current RFP callers migrate.
+_information_to_review_table = render_information_to_review_table
 
 
 def _fee_breakdown_table() -> list[str]:

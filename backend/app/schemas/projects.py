@@ -470,7 +470,6 @@ class DraftArtifactResponse(BaseModel):
     updated_at: datetime
 
 
-
 class DraftArtifactSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -487,6 +486,50 @@ class DraftArtifactSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
+ProcurementRequestKind = Literal[
+    "consultant_rfp", "contractor_eoi", "trade_rft", "trade_rfq"
+]
+ProcurementRequestStatus = Literal["draft", "issued", "closed", "cancelled"]
+
+
+class ProcurementRequestCreateRequest(BaseModel):
+    kind: ProcurementRequestKind
+    target_name: str = Field(min_length=1, max_length=512)
+
+    @field_validator("target_name")
+    @classmethod
+    def strip_target_name(cls, value: str) -> str:
+        stripped = " ".join(value.split())
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
+
+
+class ProcurementRequestStatusUpdate(BaseModel):
+    status: ProcurementRequestStatus
+    expected_revision: int = Field(ge=1)
+
+
+class ProcurementRequestView(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    created_by_user_id: uuid.UUID
+    kind: ProcurementRequestKind
+    target_name: str
+    target_slug: str
+    status: ProcurementRequestStatus
+    current_draft_artifact_id: uuid.UUID | None = None
+    current_draft: DraftArtifactSummary | None = None
+    issued_at: datetime | None = None
+    closed_at: datetime | None = None
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProcurementRequestListResponse(BaseModel):
+    requests: list[ProcurementRequestView]
 
 
 class ProjectCockpitBootstrapResponse(BaseModel):

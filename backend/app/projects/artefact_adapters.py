@@ -19,11 +19,19 @@ from app.workflows.consultant_procurement import (
     is_consultant_procurement_workflow,
     sync_consultant_procurement_draft_workspace,
 )
+from app.workflows.contractor_procurement import (
+    is_contractor_eoi_workflow,
+    sync_contractor_eoi_draft_workspace,
+)
 from app.workflows.create_cost_plan import (
     is_cost_plan_workflow,
     sync_cost_plan_revision_artifacts,
 )
 from app.workflows.create_pmp import is_pmp_workflow, sync_pmp_draft_workspace
+from app.workflows.trade_procurement import (
+    is_trade_procurement_workflow,
+    sync_trade_procurement_draft_workspace,
+)
 
 
 async def revise_workflow_artefact(
@@ -80,6 +88,14 @@ async def revise_workflow_artefact(
         )
     elif is_consultant_procurement_workflow(revision.workflow_type):
         await sync_consultant_procurement_draft_workspace(
+            session, project=project, draft=revision, markdown=content_markdown
+        )
+    elif is_contractor_eoi_workflow(revision.workflow_type):
+        await sync_contractor_eoi_draft_workspace(
+            session, project=project, draft=revision, markdown=content_markdown
+        )
+    elif is_trade_procurement_workflow(revision.workflow_type):
+        await sync_trade_procurement_draft_workspace(
             session, project=project, draft=revision, markdown=content_markdown
         )
     else:
@@ -140,6 +156,14 @@ async def accept_workflow_artefact(
         )
     elif is_consultant_procurement_workflow(draft.workflow_type):
         await sync_consultant_procurement_draft_workspace(
+            session, project=project, draft=draft, markdown=draft.content_markdown
+        )
+    elif is_contractor_eoi_workflow(draft.workflow_type):
+        await sync_contractor_eoi_draft_workspace(
+            session, project=project, draft=draft, markdown=draft.content_markdown
+        )
+    elif is_trade_procurement_workflow(draft.workflow_type):
+        await sync_trade_procurement_draft_workspace(
             session, project=project, draft=draft, markdown=draft.content_markdown
         )
     else:

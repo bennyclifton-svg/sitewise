@@ -500,6 +500,39 @@ export type DraftArtifact = DraftArtifactSummary & {
   provenance_metadata: Record<string, unknown> | null;
 };
 
+export type ProcurementRequestKind =
+  | "consultant_rfp"
+  | "contractor_eoi"
+  | "trade_rft"
+  | "trade_rfq";
+
+export type ProcurementRequestStatus =
+  | "draft"
+  | "issued"
+  | "closed"
+  | "cancelled";
+
+export type ProcurementRequest = {
+  id: string;
+  project_id: string;
+  created_by_user_id: string;
+  kind: ProcurementRequestKind;
+  target_name: string;
+  target_slug: string;
+  status: ProcurementRequestStatus;
+  current_draft_artifact_id: string | null;
+  current_draft: DraftArtifactSummary | null;
+  issued_at: string | null;
+  closed_at: string | null;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProcurementRequestListResponse = {
+  requests: ProcurementRequest[];
+};
+
 export type ProjectCockpitBootstrap = {
   project: ProjectDetail;
   projects: ProjectSummary[];

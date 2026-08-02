@@ -1,7 +1,7 @@
 import uuid
 from pathlib import PurePosixPath
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.draft_artifact import DraftArtifact
@@ -153,12 +153,15 @@ async def get_latest_draft_artifact_summaries(
     return summaries
 
 
-async def get_latest_consultant_procurement_draft_summaries(
+async def get_latest_prefixed_draft_artifact_summaries(
     session: AsyncSession,
     *,
     project_id: uuid.UUID,
-    prefix: str = "consultant_procurement_",
+    prefixes: tuple[str, ...],
 ) -> dict[str, dict]:
+    if not prefixes:
+        return {}
+
     result = await session.execute(
         select(
             DraftArtifact.id,
@@ -176,7 +179,7 @@ async def get_latest_consultant_procurement_draft_summaries(
         )
         .where(
             DraftArtifact.project_id == project_id,
-            DraftArtifact.workflow_type.like(f"{prefix}%"),
+            or_(*(DraftArtifact.workflow_type.like(f"{prefix}%") for prefix in prefixes)),
         )
         .order_by(DraftArtifact.workflow_type.asc(), DraftArtifact.version.desc())
     )

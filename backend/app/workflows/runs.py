@@ -29,6 +29,7 @@ SUPPORTED_WORKFLOWS = frozenset(
         "ingest_project_document",
         "consultant_procurement",
         "contractor_eoi",
+        "trade_procurement",
     }
 )
 

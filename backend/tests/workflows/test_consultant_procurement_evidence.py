@@ -6,23 +6,9 @@ Covers two generator fixes:
   same-discipline fee proposal already in the corpus.
 """
 
-from types import SimpleNamespace
 from typing import Any
 
 from app.workflows import consultant_procurement as workflow
-
-
-def _overlay_project(**overrides: Any) -> SimpleNamespace:
-    fields: dict[str, Any] = {
-        "archetype": "renovation",
-        "user_role": "architect-pm",
-        "building_class": None,
-        "work_type": None,
-    }
-    fields.update(overrides)
-    return SimpleNamespace(**fields)
-
-
 def _item(**overrides: Any) -> dict[str, Any]:
     base: dict[str, Any] = {
         "role": "cost_plan_pmp",
@@ -98,8 +84,6 @@ def test_reconcile_forecast_ignores_other_discipline_proposal() -> None:
     updated = workflow._reconcile_forecast_with_received(forecast, evidence, profile)
 
     assert "received_proposal_on_file" not in updated
-
-
 def test_reconcile_forecast_noop_without_received_proposal() -> None:
     profile = workflow.normalise_discipline("structural engineer")
     forecast = {"used": True, "label": "benchmark"}
@@ -109,47 +93,3 @@ def test_reconcile_forecast_noop_without_received_proposal() -> None:
     assert "received_proposal_on_file" not in updated
 
 
-# --- Fix 5: resolve mandatory guidance from the knowledge catalog ----------
-
-
-def test_required_guidance_paths_returns_consultant_procurement_doctrine() -> None:
-    # A residential renovation run by an architect-PM (the Walsh shape).
-    project = _overlay_project()
-
-    paths = workflow._required_guidance_paths(project)
-
-    assert "seed/procurement-quoting-guide.md" in paths
-    # Doctrine core / archetype / role scaffolding is not presented as
-    # consultant-procurement guidance.
-    assert "docs/clerk-brief.md" not in paths
-
-
-def test_required_guidance_paths_empty_without_overlays() -> None:
-    project = _overlay_project(archetype=None, user_role=None)
-
-    assert workflow._required_guidance_paths(project) == []
-
-
-def test_merge_required_guidance_surfaces_doctrine_when_semantic_empty() -> None:
-    project = _overlay_project()
-
-    merged = workflow._merge_required_guidance([], project)
-
-    assert any(item["path"] == "seed/procurement-quoting-guide.md" for item in merged)
-    assert any(item.get("source_type") == "required-doctrine" for item in merged)
-
-
-def test_merge_required_guidance_does_not_duplicate_semantic_hit() -> None:
-    project = _overlay_project()
-    existing = [
-        {
-            "path": "seed/procurement-quoting-guide.md",
-            "title": "Procurement guide",
-            "source_type": "reference",
-        }
-    ]
-
-    merged = workflow._merge_required_guidance(existing, project)
-
-    quoting = [i for i in merged if i["path"] == "seed/procurement-quoting-guide.md"]
-    assert len(quoting) == 1

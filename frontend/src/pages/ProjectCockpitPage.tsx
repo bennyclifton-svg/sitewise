@@ -35,6 +35,7 @@ import type {
   DraftArtifactSummary,
   EvidencePreview,
   PlatformKnowledgeStatus,
+  ProcurementRequestKind,
   ProjectDetail,
   ProjectEvent,
   ProjectSummary,
@@ -114,6 +115,15 @@ function workflowPayload<T>(
   return payload as T;
 }
 
+function isProcurementDraftWorkflow(workflowType: string): boolean {
+  return (
+    workflowType.startsWith("consultant_procurement_") ||
+    workflowType.startsWith("contractor_eoi_") ||
+    workflowType.startsWith("trade_rft_") ||
+    workflowType.startsWith("trade_rfq_")
+  );
+}
+
 /**
  * Context handed to nested cockpit routes (e.g. the tender comparison views)
  * that render inside the project shell's middle panel.
@@ -178,8 +188,10 @@ export function ProjectCockpitPage() {
   const [chatReloadToken, setChatReloadToken] = useState(0);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [costPlanWorkflowError, setCostPlanWorkflowError] = useState<string | null>(null);
+  const [procurementError, setProcurementError] = useState<string | null>(null);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [isRunningCostPlan, setIsRunningCostPlan] = useState(false);
+  const [isRunningProcurement, setIsRunningProcurement] = useState(false);
   const [pmpRunMode, setPmpRunMode] = useState<WorkflowProgressMode | null>(null);
   const [costPlanRunMode, setCostPlanRunMode] = useState<WorkflowProgressMode | null>(
     null,
@@ -189,9 +201,12 @@ export function ProjectCockpitPage() {
   const [costPlanProgressKey, setCostPlanProgressKey] = useState<string | null>(null);
   const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
   const [costPlanRunId, setCostPlanRunId] = useState<string | null>(null);
+  const [procurementRunId, setProcurementRunId] = useState<string | null>(null);
+  const [procurementRefreshToken, setProcurementRefreshToken] = useState(0);
   const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
   const activeWorkflowRunQuery = useWorkflowRun(projectId ?? "", workflowRunId);
   const activeCostPlanRunQuery = useWorkflowRun(projectId ?? "", costPlanRunId);
+  const activeProcurementRunQuery = useWorkflowRun(projectId ?? "", procurementRunId);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
   const reconcileArtefactEvent = useCallback(
     (event: ProjectEvent) => {
@@ -201,7 +216,10 @@ export function ProjectCockpitPage() {
       const tracked =
         workflowType === "create_pmp" ||
         workflowType === "create_cost_plan" ||
-        workflowType.startsWith("consultant_procurement");
+        workflowType.startsWith("consultant_procurement") ||
+        workflowType.startsWith("contractor_eoi") ||
+        workflowType.startsWith("trade_rft") ||
+        workflowType.startsWith("trade_rfq");
       if (!tracked) return;
       void api.getLatestDraft(projectId, workflowType).then((draft) => {
         if (!draft) return;
@@ -211,6 +229,7 @@ export function ProjectCockpitPage() {
         }));
         if (workflowType === "create_cost_plan") setLatestCostPlanDraft(draft);
         else if (workflowType === "create_pmp") setLatestDraft(draft);
+        else setProcurementRefreshToken((current) => current + 1);
       });
     },
     [projectId],
@@ -221,6 +240,7 @@ export function ProjectCockpitPage() {
     active:
       isRunningWorkflow ||
       isRunningCostPlan ||
+      isRunningProcurement ||
       isRunningSortFiles,
     onEvent: reconcileArtefactEvent,
   });
@@ -327,8 +347,8 @@ export function ProjectCockpitPage() {
       setSelectedWorkflowId(
         draft.workflow_type === "create_cost_plan"
           ? "cost-plan"
-          : draft.workflow_type.startsWith("consultant_procurement")
-            ? "procurement"
+          : isProcurementDraftWorkflow(draft.workflow_type)
+            ? "procurement-requests"
             : "create-pmp",
       );
       setChatPanelCollapsed(true);
@@ -479,6 +499,12 @@ export function ProjectCockpitPage() {
       setActiveView("workbench");
       return;
     }
+    if (isProcurementDraftWorkflow(draft.workflow_type)) {
+      setSelectedWorkflowId("procurement-requests");
+      setProcurementRefreshToken((current) => current + 1);
+      setActiveView("workbench");
+      return;
+    }
     setActiveView("draft");
   }
 
@@ -495,8 +521,9 @@ export function ProjectCockpitPage() {
     if (draft.workflow_type === "create_cost_plan") {
       setLatestCostPlanDraft(draft);
       setSelectedWorkspacePath(draft.workspace_path);
-    } else if (draft.workflow_type.startsWith("consultant_procurement_")) {
+    } else if (isProcurementDraftWorkflow(draft.workflow_type)) {
       setSelectedWorkspacePath(draft.workspace_path);
+      setProcurementRefreshToken((current) => current + 1);
     } else {
       setLatestDraft(draft);
       const pmpPath = isPmpWorkspaceFile(draft.workspace_path)
@@ -804,6 +831,59 @@ export function ProjectCockpitPage() {
     }
   }
 
+  async function runProcurementRequest(
+    kind: ProcurementRequestKind,
+    targetName: string,
+  ) {
+    if (!project) return;
+    setIsRunningProcurement(true);
+    setProcurementError(null);
+    try {
+      const request = await api.createProcurementRequest(project.id, {
+        kind,
+        target_name: targetName,
+      });
+      const parameters =
+        kind === "consultant_rfp"
+          ? {
+              discipline: targetName,
+              max_pages: 3,
+              procurement_request_id: request.id,
+            }
+          : {
+              package: targetName,
+              kind: kind === "trade_rft" ? "rft" : "rfq",
+              max_pages: 3,
+              procurement_request_id: request.id,
+            };
+      const queued = await api.startWorkflowRun(
+        project.id,
+        kind === "consultant_rfp" ? "consultant-procurement" : "trade-procurement",
+        {
+          ...(await freshWorkflowRunInput()),
+          parameters,
+        },
+      );
+      setProcurementRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(
+          run.error_message ?? `Procurement request ${run.state}.`,
+        );
+      }
+      await api.getWorkflowResult(project.id, run.id);
+      setProcurementRefreshToken((current) => current + 1);
+      refreshWorkflowSurfaces();
+    } catch (runError) {
+      setProcurementError(
+        formatApiError(runError, "Procurement request could not be created."),
+      );
+    } finally {
+      setProcurementRunId(null);
+      setIsRunningProcurement(false);
+    }
+  }
+
   // Nested tender routes render in the middle panel via <Outlet>. Any
   // interaction that switches the middle panel back to a state-driven view must
   // also leave the tender route so the outlet stops taking precedence.
@@ -950,6 +1030,8 @@ export function ProjectCockpitPage() {
     costPlanWorkflowError,
     isRunningWorkflow,
     isRunningCostPlan,
+    procurementError,
+    isRunningProcurement,
   });
 
   function selectWorkflow(workflowId: string) {
@@ -1078,6 +1160,10 @@ export function ProjectCockpitPage() {
           costPlanProgressKey={costPlanProgressKey}
           activeWorkflowRun={activeWorkflowRunQuery.data ?? null}
           activeCostPlanRun={activeCostPlanRunQuery.data ?? null}
+          activeProcurementRun={activeProcurementRunQuery.data ?? null}
+          procurementError={procurementError}
+          isRunningProcurement={isRunningProcurement}
+          procurementRefreshToken={procurementRefreshToken}
           selectedWorkflowId={selectedWorkflowId}
           onSelectWorkflow={selectWorkflow}
           onRunCreatePmp={() => void runCreatePmp()}
@@ -1091,6 +1177,12 @@ export function ProjectCockpitPage() {
           onCancelCostPlan={() => {
             if (costPlanRunId) void api.cancelWorkflowRun(project.id, costPlanRunId);
           }}
+          onCancelProcurement={() => {
+            if (procurementRunId) void api.cancelWorkflowRun(project.id, procurementRunId);
+          }}
+          onRunProcurement={(kind, targetName) =>
+            void runProcurementRequest(kind, targetName)
+          }
           onCancelSortFiles={() => {
             if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);
           }}

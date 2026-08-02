@@ -21,11 +21,16 @@ if TYPE_CHECKING:
 _INSTRUCTIONS_PATH = Path(__file__).with_name("rfp_narrative_instructions.md")
 
 
-class RfpNarrativeOutput(BaseModel):
+class ProcurementNarrativeOutput(BaseModel):
     background: str = Field(min_length=1)
     requested_services: list[str] = Field(default_factory=list)
     programme: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
+
+
+# Preserve the established public name while allowing trade procurement to use
+# the same bounded output contract.
+RfpNarrativeOutput = ProcurementNarrativeOutput
 
 
 def _load_instructions() -> str:
@@ -80,6 +85,42 @@ def build_rfp_narrative_prompt(
     return "\n\n".join(parts)
 
 
+def build_procurement_narrative_prompt(
+    *,
+    project: Project,
+    target_name: str,
+    target_label: str,
+    baseline_scope: tuple[str, ...],
+    project_evidence: list[dict[str, Any]],
+    platform_knowledge: list[dict[str, Any]],
+    citation_index: CitationIndex,
+    validation_feedback: str | None = None,
+) -> str:
+    """Build the shared narrow prompt for a non-consultant procurement target."""
+    parts = [
+        f"Project: {project.title}",
+        f"{target_label}: {target_name}",
+        "Project profile:",
+        _format_project_profile(project),
+        "Relevant taxonomy emphasis:",
+        _format_taxonomy_emphasis(project),
+        "Baseline scope items to tailor:",
+        "\n".join(f"- {item}" for item in baseline_scope),
+        "Write only the Background, Requested services, and Programme narrative slots.",
+        "Project evidence (use the assigned token exactly; do not invent citations):",
+        _format_project_evidence(project_evidence, citation_index),
+        "Platform knowledge (guidance only, not project evidence):",
+        _format_platform_knowledge(platform_knowledge),
+    ]
+    if validation_feedback:
+        parts.append(
+            "REVISION REQUIRED — previous narrative failed validation:\n"
+            f"{validation_feedback}\n"
+            "Regenerate the narrative output fixing every issue."
+        )
+    return "\n\n".join(parts)
+
+
 async def run_rfp_narrative_model(
     *,
     project: Project,
@@ -103,6 +144,39 @@ async def run_rfp_narrative_model(
         prompt,
         model=settings.pmp_model,
     )
+    return result.output
+
+
+async def run_procurement_narrative_model(
+    *,
+    project: Project,
+    target_name: str,
+    target_label: str,
+    baseline_scope: tuple[str, ...],
+    project_evidence: list[dict[str, Any]],
+    platform_knowledge: list[dict[str, Any]],
+    citation_index: CitationIndex,
+    instructions_path: Path,
+    validation_feedback: str | None = None,
+) -> ProcurementNarrativeOutput:
+    """Run the shared bounded narrative with variant-specific instructions."""
+    prompt = build_procurement_narrative_prompt(
+        project=project,
+        target_name=target_name,
+        target_label=target_label,
+        baseline_scope=baseline_scope,
+        project_evidence=project_evidence,
+        platform_knowledge=platform_knowledge,
+        citation_index=citation_index,
+        validation_feedback=validation_feedback,
+    )
+    agent = Agent(
+        f"openai-responses:{settings.pmp_model}",
+        output_type=ProcurementNarrativeOutput,
+        instructions=instructions_path.read_text(encoding="utf-8"),
+        defer_model_check=True,
+    )
+    result = await run_agent_with_retry(agent, prompt, model=settings.pmp_model)
     return result.output
 
 

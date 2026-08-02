@@ -5,10 +5,12 @@ const WORKFLOW_SLUG_TO_TILE: Record<string, string> = {
   create_pmp: "create-pmp",
   update_pmp: "create-pmp",
   create_cost_plan: "cost-plan",
-  consultant_procurement: "design",
-  contractor_eoi: "procurement",
+  consultant_procurement: "procurement-requests",
+  contractor_eoi: "procurement-requests",
   design_review: "design",
-  rft: "procurement",
+  rft: "procurement-requests",
+  rfq: "procurement-requests",
+  trade_procurement: "procurement-requests",
   tender_evaluation: "procurement",
   tender_recommendation: "procurement",
   programme: "delivery",
@@ -19,9 +21,18 @@ const WORKFLOW_SLUG_TO_TILE: Record<string, string> = {
   sort_files: "document-intake",
 };
 
-const IMPLEMENTED_TILES = new Set(["create-pmp", "cost-plan", "document-intake"]);
+const IMPLEMENTED_TILES = new Set([
+  "create-pmp",
+  "cost-plan",
+  "document-intake",
+  "procurement-requests",
+]);
 
-const DRAFT_WORKFLOW_TILES = new Set(["create-pmp", "cost-plan"]);
+const DRAFT_WORKFLOW_TILES = new Set([
+  "create-pmp",
+  "cost-plan",
+  "procurement-requests",
+]);
 
 export function resolveWorkflowTileId(relatedWorkflows: string[]): string | null {
   for (const slug of relatedWorkflows) {

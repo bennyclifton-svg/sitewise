@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
+import { ProcurementRequestPanel } from "@/components/project/ProcurementRequestPanel";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
   TaxonomyPicker,
@@ -40,6 +41,7 @@ import type {
   OverlayIssue,
   ProjectDetail,
   ProjectProfileProposal,
+  ProcurementRequestKind,
   SortFilesResponse,
   WorkflowCapability,
   WorkflowRun,
@@ -89,6 +91,10 @@ export function ProjectControlBoard({
   costPlanProgressKey = null,
   activeWorkflowRun = null,
   activeCostPlanRun = null,
+  activeProcurementRun = null,
+  procurementError = null,
+  isRunningProcurement = false,
+  procurementRefreshToken = 0,
   selectedWorkflowId,
   onSelectWorkflow,
   onRunCreatePmp,
@@ -98,6 +104,8 @@ export function ProjectControlBoard({
   onRunSortFiles,
   onCancelWorkflow,
   onCancelCostPlan,
+  onCancelProcurement,
+  onRunProcurement,
   onCancelSortFiles,
   onOpenTenderComparison,
   inboxCount,
@@ -129,6 +137,10 @@ export function ProjectControlBoard({
   costPlanProgressKey?: string | null;
   activeWorkflowRun?: WorkflowRun | null;
   activeCostPlanRun?: WorkflowRun | null;
+  activeProcurementRun?: WorkflowRun | null;
+  procurementError?: string | null;
+  isRunningProcurement?: boolean;
+  procurementRefreshToken?: number;
   selectedWorkflowId: string;
   onSelectWorkflow?: (workflowId: string) => void;
   onRunCreatePmp: () => void;
@@ -138,6 +150,8 @@ export function ProjectControlBoard({
   onRunSortFiles: () => void;
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
+  onCancelProcurement?: () => void;
+  onRunProcurement?: (kind: ProcurementRequestKind, targetName: string) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -157,6 +171,8 @@ export function ProjectControlBoard({
     costPlanWorkflowError,
     isRunningWorkflow,
     isRunningCostPlan,
+    procurementError,
+    isRunningProcurement,
   });
   const recurring = buildRecurringTiles({
     inboxCount,
@@ -198,6 +214,10 @@ export function ProjectControlBoard({
           costPlanProgressKey={costPlanProgressKey}
           activeWorkflowRun={activeWorkflowRun}
           activeCostPlanRun={activeCostPlanRun}
+          activeProcurementRun={activeProcurementRun}
+          procurementError={procurementError}
+          isRunningProcurement={isRunningProcurement}
+          procurementRefreshToken={procurementRefreshToken}
           onSelectWorkflow={onSelectWorkflow}
           onRunCreatePmp={onRunCreatePmp}
           onRunUpdatePmp={onRunUpdatePmp}
@@ -206,6 +226,8 @@ export function ProjectControlBoard({
           onRunSortFiles={onRunSortFiles}
           onCancelWorkflow={onCancelWorkflow}
           onCancelCostPlan={onCancelCostPlan}
+          onCancelProcurement={onCancelProcurement}
+          onRunProcurement={onRunProcurement}
           onCancelSortFiles={onCancelSortFiles}
           onOpenTenderComparison={onOpenTenderComparison}
           inboxCount={inboxCount}
@@ -631,6 +653,10 @@ function WorkflowDetail({
   costPlanProgressKey,
   activeWorkflowRun,
   activeCostPlanRun,
+  activeProcurementRun,
+  procurementError,
+  isRunningProcurement,
+  procurementRefreshToken,
   onSelectWorkflow,
   onRunCreatePmp,
   onRunUpdatePmp,
@@ -639,6 +665,8 @@ function WorkflowDetail({
   onRunSortFiles,
   onCancelWorkflow,
   onCancelCostPlan,
+  onCancelProcurement,
+  onRunProcurement,
   onCancelSortFiles,
   onOpenTenderComparison,
   inboxCount,
@@ -665,6 +693,10 @@ function WorkflowDetail({
   costPlanProgressKey: string | null;
   activeWorkflowRun: WorkflowRun | null;
   activeCostPlanRun: WorkflowRun | null;
+  activeProcurementRun: WorkflowRun | null;
+  procurementError: string | null;
+  isRunningProcurement: boolean;
+  procurementRefreshToken: number;
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
@@ -672,6 +704,8 @@ function WorkflowDetail({
   onRunSortFiles: () => void;
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
+  onCancelProcurement?: () => void;
+  onRunProcurement?: (kind: ProcurementRequestKind, targetName: string) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -687,6 +721,7 @@ function WorkflowDetail({
   const isCreatePmp = tile.id === "create-pmp";
   const isCostPlan = tile.id === "cost-plan";
   const isDocumentIntake = tile.id === "document-intake";
+  const isProcurementRequests = tile.id === "procurement-requests";
   const isProcurement = tile.id === "procurement";
   // Only while the run owns the panel: a completed run clears its preview, so
   // the accepted draft takes the space back.
@@ -905,6 +940,32 @@ function WorkflowDetail({
               </Suspense>
             )}
           </>
+        ) : isProcurementRequests ? (
+          <ProcurementRequestPanel
+            project={project}
+            activeRun={activeProcurementRun}
+            isRunning={isRunningProcurement}
+            error={procurementError}
+            refreshToken={procurementRefreshToken}
+            renderGate={(kind) => {
+              const capability =
+                kind === "consultant_rfp"
+                  ? project.workflow_capabilities?.capabilities.consultant_procurement
+                  : project.workflow_capabilities?.capabilities.trade_procurement;
+              if (capability && capability.status !== "supported") {
+                return (
+                  <CapabilityGateNotice
+                    workflow={kind === "consultant_rfp" ? "RFP" : "Trade procurement"}
+                    capability={capability}
+                  />
+                );
+              }
+              return null;
+            }}
+            onCreate={(kind, targetName) => onRunProcurement?.(kind, targetName)}
+            onCancel={onCancelProcurement}
+            onDraftUpdated={onDraftUpdated}
+          />
         ) : isDocumentIntake ? (
           <>
             <div className="grid gap-3 md:grid-cols-3">
