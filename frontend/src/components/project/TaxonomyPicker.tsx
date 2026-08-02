@@ -164,7 +164,7 @@ export function TaxonomyPicker({
   const otherLabel = selectedOtherLabel(value.subclasses);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <section className="grid gap-2" aria-label="Building class">
         <h3 className="text-sm font-medium">Class</h3>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -212,8 +212,8 @@ export function TaxonomyPicker({
       ) : null}
 
       {selectedClass && value.work_type ? (
-        <section className="grid gap-3 lg:grid-cols-3" aria-label="Project profile">
-          <div className="grid content-start gap-3 rounded-md border p-3">
+        <section className="grid min-w-0 gap-3 lg:grid-cols-3" aria-label="Project profile">
+          <div className="grid min-w-0 content-start gap-3 rounded-md border p-3">
             <h3 className="text-sm font-medium">Subclass</h3>
             <div className="grid gap-2">
               {selectedClass.subclasses.map((subclass) => {
@@ -256,7 +256,7 @@ export function TaxonomyPicker({
             </div>
           </div>
 
-          <div className="grid content-start gap-3 rounded-md border p-3">
+          <div className="grid min-w-0 content-start gap-3 rounded-md border p-3">
             <h3 className="text-sm font-medium">Scale</h3>
             {scaleFields.length ? (
               <div className="grid gap-3">
@@ -304,9 +304,9 @@ export function TaxonomyPicker({
             )}
           </div>
 
-          <div className="grid content-start gap-3 rounded-md border p-3">
+          <div className="grid min-w-0 content-start gap-3 rounded-md border p-3">
             <h3 className="text-sm font-medium">Complexity</h3>
-            <div className="grid gap-3">
+            <div className="grid min-w-0 gap-3">
               {dimensions.map((dimension) => {
                 const selectId = `${idPrefix}-complexity-${dimension.key}`;
                 const selectedValue =
@@ -314,13 +314,13 @@ export function TaxonomyPicker({
                   dimension.options[0]?.value ??
                   "";
                 return (
-                  <div key={dimension.key} className="grid gap-1.5">
+                  <div key={dimension.key} className="grid min-w-0 gap-1.5">
                     <Label htmlFor={selectId}>{dimension.label}</Label>
                     <select
                       id={selectId}
                       value={selectedValue}
                       disabled={disabled}
-                      className="h-9 rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="h-9 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       onChange={(event) =>
                         updateComplexity(dimension.key, event.target.value)
                       }

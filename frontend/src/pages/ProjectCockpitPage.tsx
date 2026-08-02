@@ -1021,6 +1021,12 @@ export function ProjectCockpitPage() {
   const activeWorkflowType =
     reviewDraft?.workflow_type ??
     (selectedWorkflowId === "cost-plan" ? "create_cost_plan" : "create_pmp");
+  const usageHighlightArtefactId =
+    activeDraft?.workflow_type === "create_pmp" &&
+    ((activeView === "workbench" && selectedWorkflowId === "create-pmp") ||
+      activeView === "draft")
+      ? activeDraft.id
+      : null;
   const inboxCount = evidence.filter((item) => item.relative_path.includes("/_inbox/")).length;
   const selectedEvidence =
     evidence.find((item) => item.id === selectedEvidenceId) ?? evidence[0] ?? null;
@@ -1144,6 +1150,7 @@ export function ProjectCockpitPage() {
             (draft): draft is DraftArtifactSummary => draft !== null,
           )}
           onOpenDraft={openDraftReview}
+          usageHighlightArtefactId={usageHighlightArtefactId}
         />
       }
     >

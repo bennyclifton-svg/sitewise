@@ -1,37 +1,27 @@
 import {
   AlertCircle,
-  Bot,
   CreditCard,
   FileText,
   FolderOpen,
   Globe,
   LayoutDashboard,
-  MessageCircle,
-  Plus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreateProjectPanel } from "@/components/project/CreateProjectPanel";
 import { api } from "@/lib/api";
 import { signOut } from "@/lib/auth";
 import { ApiError } from "@/lib/http";
 import { supabase } from "@/lib/supabase";
-import type { ChatThread } from "@/lib/types/chat";
 import type { ProjectDetail, ProjectSummary } from "@/lib/types/project";
 
 type MeResponse = {
   id: string;
   email: string;
 };
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 function formatApiError(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -43,42 +33,14 @@ export function HomePage() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [meError, setMeError] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [threadsLoading, setThreadsLoading] = useState(true);
-  const [threadsError, setThreadsError] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null);
     });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadThreads() {
-      setThreadsLoading(true);
-      setThreadsError(null);
-      try {
-        const data = await api.listThreads();
-        if (!cancelled) setThreads(data);
-      } catch (error) {
-        if (!cancelled) {
-          setThreadsError(formatApiError(error, "Could not load conversations."));
-        }
-      } finally {
-        if (!cancelled) setThreadsLoading(false);
-      }
-    }
-
-    void loadThreads();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   useEffect(() => {
@@ -110,7 +72,6 @@ export function HomePage() {
     setMe(null);
     setMeError(null);
     setEmail(null);
-    setThreads([]);
   }
 
   async function handleCheckBackendAuth() {
@@ -138,62 +99,49 @@ export function HomePage() {
     }
   }
 
-  async function handleNewChat() {
-    setIsCreating(true);
-    setThreadsError(null);
-    try {
-      const thread = await api.createThread();
-      setThreads((current) => [thread, ...current]);
-      navigate(`/chat/${thread.id}`);
-    } catch (error) {
-      setThreadsError(formatApiError(error, "Could not create a new conversation."));
-    } finally {
-      setIsCreating(false);
-    }
-  }
-
   function handleProjectCreated(project: ProjectDetail) {
     setProjects((current) => [project, ...current]);
     navigate(`/projects/${project.id}`);
   }
 
   const backendUnavailable = Boolean(projectsError);
-  const conversationsUnavailable = Boolean(threadsError);
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <LayoutDashboard className="size-5 text-muted-foreground" aria-hidden />
-              <h1 className="text-2xl font-semibold tracking-tight">Clerk Cockpit</h1>
+    <div className="cockpit-page min-h-screen bg-[var(--bg-app)]">
+      <header className="cockpit-shell-header">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-5">
+            <span
+              className="cockpit-sitewise-mark relative inline-flex shrink-0 items-center justify-center"
+              aria-hidden
+            >
+              <span className="text-center text-[1.04rem] font-semibold lowercase leading-[1.05] tracking-tight text-black">
+                site
+                <br />
+                wise
+              </span>
+            </span>
+            <div className="flex min-w-0 flex-col gap-0.5 pl-2">
+              <h1 className="truncate text-[1.3rem] font-semibold leading-[1.05] tracking-tight text-[var(--cockpit-sitewise-surface)]">
+                SiteWise
+              </h1>
+              <p className="truncate text-sm font-medium leading-snug tracking-tight text-[var(--cockpit-sitewise-surface)]/90">
+                Project workspaces, evidence, workflow drafts, and grounded chat.
+              </p>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Project workspaces, evidence, workflow drafts, and grounded chat.
-            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={backendUnavailable ? "outline" : "secondary"}>
-              {backendUnavailable ? "Projects API offline" : "Backend connected"}
-            </Badge>
-            <Button asChild variant="secondary">
+          <div className="flex shrink-0 items-center gap-2">
+            <Button asChild variant="outline">
               {/* Static marketing page outside the SPA router — must be a full page load. */}
               <a href="/landing.html">
                 <Globe className="size-4" aria-hidden />
                 Landing page
               </a>
             </Button>
-            <Button asChild variant="secondary">
+            <Button asChild variant="outline">
               <Link to="/billing">
                 <CreditCard className="size-4" aria-hidden />
                 Billing
-              </Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link to="/cockpit-preview">
-                <LayoutDashboard className="size-4" aria-hidden />
-                Open cockpit preview
               </Link>
             </Button>
             <Button variant="outline" onClick={() => void handleSignOut()}>
@@ -223,33 +171,13 @@ export function HomePage() {
                 </div>
               </div>
             </div>
-          ) : conversationsUnavailable ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <p className="font-medium">Projects are connected, but conversations could not load.</p>
-              <p className="mt-1 text-xs">
-                The cockpit and project catalog are working. Global chat history is unavailable
-                until the chat API responds.
-              </p>
-              {threadsError ? <p className="mt-2 text-xs">{threadsError}</p> : null}
-            </div>
           ) : null}
 
           <CreateProjectPanel onCreated={handleProjectCreated} />
 
-          <section className="rounded-md border bg-background">
-            <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-              <div>
-                <h2 className="text-base font-semibold">Project workspaces</h2>
-                <p className="text-sm text-muted-foreground">
-                  Open a hosted SiteWise cockpit with documents, workflows, drafts, and chat.
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/cockpit-preview">
-                  <FolderOpen className="size-4" aria-hidden />
-                  Preview shell
-                </Link>
-              </Button>
+          <section className="rounded-md border border-border bg-card">
+            <header className="border-b px-4 py-3">
+              <h2 className="text-base font-semibold">Projects</h2>
             </header>
 
             <div className="p-4">
@@ -266,23 +194,13 @@ export function HomePage() {
                     <li key={project.id}>
                       <Link
                         to={`/projects/${project.id}`}
-                        className="block rounded-md border p-4 transition-colors hover:bg-muted/50"
+                        className="flex items-center gap-2 rounded-md border border-border bg-card p-4 font-medium transition-colors hover:border-[var(--info-border)] hover:bg-[var(--info-bg)]"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="min-w-0">
-                            <span className="flex items-center gap-2 font-medium">
-                              <FolderOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                              <span className="truncate">{project.title}</span>
-                            </span>
-                            <span className="mt-1 block break-all text-sm text-muted-foreground">
-                              {project.workspace_path}
-                            </span>
-                          </span>
-                        </div>
-                        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                          <ProjectMeta label="Phase" value={project.phase} />
-                          <ProjectMeta label="Status" value={project.status} />
-                        </div>
+                        <FolderOpen
+                          className="size-4 shrink-0 text-[var(--info-text)]"
+                          aria-hidden
+                        />
+                        <span className="truncate">{project.title}</span>
                       </Link>
                     </li>
                   ))}
@@ -297,75 +215,10 @@ export function HomePage() {
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-2">
-            <CapabilityTile
-              icon={FileText}
-              label="Document repository"
-              value="Evidence panel"
-            />
-            <CapabilityTile
-              icon={Bot}
-              label="Workflow drafts"
-              value="Create PMP first"
-            />
-          </section>
         </section>
 
         <aside className="space-y-4">
-          <section className="rounded-md border bg-background">
-            <header className="border-b px-4 py-3">
-              <h2 className="text-base font-semibold">Recent conversations</h2>
-              <p className="text-sm text-muted-foreground">
-                Chat remains available, but the cockpit is the main workspace.
-              </p>
-            </header>
-            <div className="space-y-4 p-4">
-              <Button onClick={() => void handleNewChat()} disabled={isCreating}>
-                {!isCreating ? <Plus className="size-4" aria-hidden /> : null}
-                {isCreating ? "Creating..." : "New chat"}
-              </Button>
-
-              {threadsLoading ? (
-                <p className="text-sm text-muted-foreground" role="status">
-                  Loading conversations...
-                </p>
-              ) : threads.length === 0 ? (
-                <div className="rounded-md border border-dashed p-4 text-sm">
-                  <p className="font-medium">No conversations yet</p>
-                  <p className="mt-1 text-muted-foreground">
-                    Project chat opens inside each cockpit once the backend is available.
-                  </p>
-                </div>
-              ) : (
-                <ul className="divide-y rounded-md border">
-                  {threads.map((thread) => (
-                    <li key={thread.id}>
-                      <Link
-                        to={`/chat/${thread.id}`}
-                        className="block px-3 py-3 text-sm hover:bg-muted/50"
-                      >
-                        <span className="block truncate font-medium">
-                          {thread.title ?? "Untitled chat"}
-                        </span>
-                        <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                          <MessageCircle className="size-3" aria-hidden />
-                          {dateFormatter.format(new Date(thread.updated_at))}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {threadsError ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {threadsError}
-                </p>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="rounded-md border bg-background">
+          <section className="rounded-md border border-border bg-card">
             <header className="border-b px-4 py-3">
               <h2 className="text-base font-semibold">Session</h2>
               <p className="text-sm text-muted-foreground">
@@ -443,45 +296,10 @@ function EmptyProjectState({ backendUnavailable }: { backendUnavailable: boolean
   );
 }
 
-function ProjectMeta({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="rounded-md bg-muted px-2 py-1">
-      <span className="block text-muted-foreground">{label}</span>
-      <span className="block truncate font-medium">{value}</span>
-    </span>
-  );
-}
-
-function CapabilityTile({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof FileText;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-md border bg-background p-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Icon className="size-4" aria-hidden />
-        {label}
-      </div>
-      <p className="mt-2 text-sm font-medium">{value}</p>
-    </div>
-  );
-}
-
 function SkeletonProject() {
   return (
     <div className="rounded-md border p-4">
       <div className="h-5 w-40 animate-pulse rounded bg-muted" />
-      <div className="mt-3 h-4 w-full animate-pulse rounded bg-muted" />
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="h-10 animate-pulse rounded bg-muted" />
-        <div className="h-10 animate-pulse rounded bg-muted" />
-        <div className="h-10 animate-pulse rounded bg-muted" />
-      </div>
     </div>
   );
 }

@@ -28,6 +28,8 @@ dependencies = [
     "jinja2==3.1.6",
     "weasyprint==69.0",
     "pillow==12.2.0",
+    "torch==2.12.1",
+    "torchvision==0.27.1",
     "opendataloader-pdf[hybrid]==2.4.7",
     "fastmcp==3.4.2",
     "stripe==15.3.0",
@@ -35,6 +37,15 @@ dependencies = [
 
 [tool.uv]
 add-bounds = "exact"
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [

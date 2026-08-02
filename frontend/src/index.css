@@ -521,13 +521,15 @@
   .cockpit-shell-header::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: -10%;
     z-index: 0;
     pointer-events: none;
     background:
       radial-gradient(ellipse 48% 140% at 8% 50%, rgb(42 40 36 / 0.42), transparent 58%),
       radial-gradient(ellipse 34% 125% at 58% 48%, rgb(255 255 255 / 0.22), transparent 58%),
       radial-gradient(ellipse 42% 140% at 88% 50%, rgb(255 255 255 / 0.58), transparent 62%);
+    animation: cockpit-ribbon-drift 32s ease-in-out infinite;
+    will-change: transform, opacity;
   }
 
   .cockpit-shell-header::after {
@@ -541,6 +543,43 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 220px 220px;
+    animation: cockpit-ribbon-grain 40s linear infinite;
+    will-change: background-position;
+  }
+
+  @keyframes cockpit-ribbon-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+    }
+    50% {
+      transform: translate3d(1.4%, -1.1%, 0);
+      opacity: 0.9;
+    }
+  }
+
+  @keyframes cockpit-ribbon-grain {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 220px 110px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cockpit-shell-header::before,
+    .cockpit-shell-header::after {
+      animation: none;
+      will-change: auto;
+    }
+
+    .cockpit-shell-header::before {
+      inset: 0;
+      opacity: 1;
+      transform: none;
+    }
   }
 
   .cockpit-shell-header > * {

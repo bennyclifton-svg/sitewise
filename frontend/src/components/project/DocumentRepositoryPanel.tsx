@@ -133,6 +133,7 @@ export function DocumentRepositoryPanel({
   platformStatus = null,
   artefactDrafts = [],
   onOpenDraft,
+  usageHighlightArtefactId = null,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
@@ -153,6 +154,8 @@ export function DocumentRepositoryPanel({
   platformStatus?: PlatformKnowledgeStatus | null;
   artefactDrafts?: DraftArtifactSummary[];
   onOpenDraft?: (draft: DraftArtifactSummary) => void;
+  /** When set, show source-doc dots only for this displayed artefact (e.g. open PMP). */
+  usageHighlightArtefactId?: string | null;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
@@ -952,7 +955,7 @@ export function DocumentRepositoryPanel({
               <col />
               <col className="w-[2.25rem]" />
               <col className="w-[4.75rem]" />
-              <col className="w-[1.75rem]" />
+              <col className="w-[3rem]" />
             </colgroup>
             <thead className="sticky top-0 z-[1] border-b bg-background">
               <tr className="text-muted-foreground">
@@ -1053,7 +1056,10 @@ export function DocumentRepositoryPanel({
                         <span className="truncate" title={row.title}>
                           {row.title}
                         </span>
-                        <UsageMarks marks={row.used_by} />
+                        <UsageMarks
+                          marks={row.used_by}
+                          activeArtefactId={usageHighlightArtefactId}
+                        />
                       </div>
                     </td>
                     <td className="truncate px-1 py-2">
@@ -1159,27 +1165,29 @@ function isInboxEvidence(row: EvidencePreview): boolean {
   return row.relative_path.replace("\\", "/").includes("/_inbox/");
 }
 
-const USAGE_MARK_LABELS: Record<string, string> = {
-  create_pmp: "PMP",
-  create_cost_plan: "Cost",
-};
-
 /**
- * Marks the documents the latest drafts were actually built from, so the answer
- * to "which of my files did it read?" outlives the run that read them.
+ * Quiet source markers for the artefact currently open in the middle panel.
+ * Letter chips clutter the schedule; a single azure dot is enough.
  */
-function UsageMarks({ marks }: { marks?: DocumentUsageMark[] }) {
-  if (!marks?.length) return null;
+function UsageMarks({
+  marks,
+  activeArtefactId,
+}: {
+  marks?: DocumentUsageMark[];
+  activeArtefactId?: string | null;
+}) {
+  if (!activeArtefactId || !marks?.length) return null;
+  const visible = marks.filter((mark) => mark.artefact_id === activeArtefactId);
+  if (!visible.length) return null;
   return (
     <span className="flex shrink-0 items-center gap-1">
-      {marks.map((mark) => (
+      {visible.map((mark) => (
         <span
           key={mark.artefact_id}
           title={`Used by ${mark.title} v${mark.version}`}
-          className="rounded-sm bg-primary/10 px-1 py-px text-[10px] font-medium leading-tight text-primary/80"
-        >
-          {USAGE_MARK_LABELS[mark.workflow_type] ?? "Used"}
-        </span>
+          aria-label={`Used by ${mark.title} v${mark.version}`}
+          className="size-1.5 shrink-0 rounded-full bg-[var(--info-text)]"
+        />
       ))}
     </span>
   );

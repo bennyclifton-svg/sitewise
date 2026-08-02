@@ -335,7 +335,10 @@ function usageMark(overrides: Partial<DocumentUsageMark> = {}): DocumentUsageMar
   };
 }
 
-function renderWithEvidence(evidence: EvidencePreview[]) {
+function renderWithEvidence(
+  evidence: EvidencePreview[],
+  options: { usageHighlightArtefactId?: string | null } = {},
+) {
   return render(
     <DocumentRepositoryPanel
       projectId="project-1"
@@ -349,6 +352,7 @@ function renderWithEvidence(evidence: EvidencePreview[]) {
       onViewWorkbench={vi.fn()}
       onViewFolder={vi.fn()}
       onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+      usageHighlightArtefactId={options.usageHighlightArtefactId}
     />,
   );
 }
@@ -358,57 +362,62 @@ describe("DocumentRepositoryPanel usage marks", () => {
     vi.clearAllMocks();
   });
 
-  it("marks a document that the latest project plan was drafted from", () => {
+  it("hides usage marks until a matching artefact is open in the middle panel", () => {
     renderWithEvidence([evidenceRow({ used_by: [usageMark()] })]);
 
-    expect(
-      screen.getByTitle("Used by Project Management Plan v3"),
-    ).toHaveTextContent("PMP");
+    expect(screen.queryByTitle(/^Used by /)).not.toBeInTheDocument();
+  });
+
+  it("marks a source document with a dot when its PMP is open", () => {
+    renderWithEvidence([evidenceRow({ used_by: [usageMark()] })], {
+      usageHighlightArtefactId: "artefact-1",
+    });
+
+    const mark = screen.getByTitle("Used by Project Management Plan v3");
+    expect(mark).toBeInTheDocument();
+    expect(mark).toHaveAttribute(
+      "aria-label",
+      "Used by Project Management Plan v3",
+    );
+    expect(mark).toBeEmptyDOMElement();
   });
 
   it("leaves an unused document unmarked", () => {
-    renderWithEvidence([evidenceRow()]);
+    renderWithEvidence([evidenceRow()], {
+      usageHighlightArtefactId: "artefact-1",
+    });
 
     expect(screen.getByText("Owner Brief")).toBeInTheDocument();
     expect(screen.queryByTitle(/^Used by /)).not.toBeInTheDocument();
   });
 
-  it("marks a document used by both a plan and a cost plan", () => {
-    renderWithEvidence([
-      evidenceRow({
-        used_by: [
-          usageMark(),
-          usageMark({
-            artefact_id: "artefact-2",
-            workflow_type: "create_cost_plan",
-            title: "Cost Plan",
-            version: 2,
-          }),
-        ],
-      }),
-    ]);
+  it("only highlights the open artefact when a document feeds multiple drafts", () => {
+    renderWithEvidence(
+      [
+        evidenceRow({
+          used_by: [
+            usageMark(),
+            usageMark({
+              artefact_id: "artefact-2",
+              workflow_type: "create_cost_plan",
+              title: "Cost Plan",
+              version: 2,
+            }),
+          ],
+        }),
+      ],
+      { usageHighlightArtefactId: "artefact-1" },
+    );
 
     expect(screen.getByTitle("Used by Project Management Plan v3")).toBeInTheDocument();
-    expect(screen.getByTitle("Used by Cost Plan v2")).toHaveTextContent("Cost");
-  });
-
-  it("falls back to a generic mark for an unrecognised workflow type", () => {
-    renderWithEvidence([
-      evidenceRow({
-        used_by: [
-          usageMark({ workflow_type: "contractor_eoi", title: "EOI Pack", version: 1 }),
-        ],
-      }),
-    ]);
-
-    expect(screen.getByTitle("Used by EOI Pack v1")).toHaveTextContent("Used");
+    expect(screen.queryByTitle("Used by Cost Plan v2")).not.toBeInTheDocument();
   });
 
   it("tolerates evidence rows from an older API response with no used_by field", () => {
     const legacy = evidenceRow();
     delete (legacy as { used_by?: unknown }).used_by;
 
-    renderWithEvidence([legacy]);
+    renderWithEvidence([legacy], { usageHighlightArtefactId: "artefact-1" });
 
     expect(screen.getByText("Owner Brief")).toBeInTheDocument();
   });
