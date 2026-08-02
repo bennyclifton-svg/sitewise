@@ -21,7 +21,7 @@ only if they still exist in git history.
    and back into the comparison panel plus an editable report artefact.
 5. Phase 6 completes workspace/document/artefact editing with Supabase Storage
    as canonical source storage and traversal-safe scratch paths for the agent.
-6. Phase 7 swaps Polar to Stripe behind the entitlement seam and adds quotas.
+6. Phase 7 put Stripe behind the entitlement seam and added quotas.
 7. Phase 8 deploys to `sitewise.au` through Dokploy and removes legacy runtime
    code after production acceptance passes.
 
@@ -113,9 +113,9 @@ math, totals, deltas, comparables, percentages, and benchmark calculations.
 
 ## Billing
 
-Polar exists in the current codebase and remains a safety valve until Phase 7.
-Phase 7 adds Stripe Checkout, Customer Portal, webhook sync, entitlement reads,
-and monthly agent quota checks behind the existing
+Stripe is the only billing provider; Polar was removed on 2026-08-02.
+Billing provides Stripe Checkout, Customer Portal, webhook sync, entitlement
+reads, and monthly agent quota checks behind the existing
 `require_active_entitlement(session, user)` seam.
 
 Do not add a second entitlement seam.
@@ -139,7 +139,6 @@ Do not delete these before Phase 8.5:
 
 - `backend/app/chat/orchestrator.py`
 - `backend/app/assistant/*`
-- Polar billing modules, migrations, env examples, and repair scripts
 - old cockpit pages/routes still used as safety valves
 
 After the Phase 8 production acceptance gate passes, remove them in small,

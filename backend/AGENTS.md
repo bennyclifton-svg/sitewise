@@ -14,8 +14,8 @@ Hermes-backed agent runtime:
 - Phase 8.5 removes the old PydanticAI chat/orchestrator only after production
   acceptance passes.
 
-Do not delete `app/assistant/`, `app/chat/orchestrator.py`, or Polar billing
-early. They are live legacy modules until the planned cutover.
+Do not delete `app/assistant/` or `app/chat/orchestrator.py` early. They are
+live legacy modules until the planned cutover.
 
 ## Stack
 
@@ -44,7 +44,7 @@ backend/
 |   |-- mcp_bridge/          # Phase 2 MCP tools and turn-token auth
 |   |-- api/                 # FastAPI routers
 |   |-- auth/                # Supabase JWT verification
-|   |-- billing/             # Polar today, Stripe in Phase 7
+|   |-- billing/             # Stripe billing, entitlements, usage quotas
 |   |-- chat/                # legacy grounded-RAG chat and AI SDK streaming
 |   |-- assistant/           # legacy PydanticAI agent modules
 |   |-- retrieval/           # project/platform document retrieval

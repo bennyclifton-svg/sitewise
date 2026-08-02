@@ -17,8 +17,8 @@ and artefact editing, Stripe billing, and the final `sitewise.au` deployment.
 
 Tender Comparison internals are governed by the
 [Tender Comparison Module PRD](docs/plans/2026-06-11-tender-comparison-module-prd.md).
-The July Hermes plans supersede older migration, cockpit, local-first, and Polar
-deployment plans wherever they disagree.
+The July Hermes plans supersede older migration, cockpit, local-first, and
+billing deployment plans wherever they disagree.
 
 ## Stack
 
@@ -34,7 +34,7 @@ deployment plans wherever they disagree.
 | Migrations | SQLAlchemy models + Alembic |
 | Retrieval | Supabase `pgvector` + Postgres full-text search |
 | Auth | Supabase Auth |
-| Billing | Polar today; Stripe in Phase 7 |
+| Billing | Stripe |
 | Hosting | Docker + Dokploy on the `sitewise.au` VPS |
 | LLM + embeddings | OpenAI and Hermes platform-key routing |
 
@@ -127,6 +127,6 @@ See [data/README.md](data/README.md).
 
 ## Legacy Modules
 
-The existing PydanticAI grounded-RAG chat, Polar billing, and cockpit pages are
-still live until the planned Phase 8.5 cutover. Do not delete them early; the
-Hermes plan keeps them as a safety valve until the production demo passes.
+The existing PydanticAI grounded-RAG chat and cockpit pages are still live until
+the planned Phase 8.5 cutover. Do not delete them early; the Hermes plan keeps
+them as a safety valve until the production demo passes.

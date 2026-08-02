@@ -30,7 +30,7 @@ Hermes plans, the July Hermes plans win.
 - **Agent runtime:** Hermes CLI headless, invoked by `backend/app/agent/`
 - **Tool bridge:** FastMCP mounted on FastAPI at `/mcp`
 - **LLM + embeddings:** OpenAI, with Hermes platform-key routing in later phases
-- **Billing:** Polar exists today; Stripe replaces it in Phase 7
+- **Billing:** Stripe
 - **Hosting:** Docker + Dokploy on the `sitewise.au` VPS, Supabase external
 
 Stack is locked unless explicitly changed. Do not propose alternatives without a
@@ -59,9 +59,8 @@ Clerk is the canonical hosted product repo. The current direction is:
 - Phases 3-8 add the Hermes runtime, AI-SDK-compatible SSE relay, chat polish,
   natural-language Tender Comparison, workspace/artefact editing, Stripe
   billing, VPS deployment, and legacy cutover.
-- The existing PydanticAI grounded-RAG chat, Polar billing, and cockpit pages are
-  legacy-retained until the Phase 8.5 cutover gate passes. Do not delete or
-  rewrite them early.
+- The existing PydanticAI grounded-RAG chat and cockpit pages are legacy-retained
+  until the Phase 8.5 cutover gate passes. Do not delete or rewrite them early.
 
 ## Platform Knowledge
 

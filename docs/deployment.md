@@ -12,8 +12,8 @@ The deployed shape is a Dokploy compose app with:
 - external Docker network `sitewise-public`
 - hosted Supabase for Auth, Postgres, and Storage
 
-Stripe is the Phase 7+ billing provider. Polar remains importable and disabled
-as a safety valve until the Phase 8.5 cutover gate passes.
+Stripe is the billing provider. Polar was removed from the codebase on
+2026-08-02; `BILLING_PROVIDER` now accepts only `none` or `stripe`.
 
 The Phase 8 deploy scaffold bundles Hermes CLI, MCP runtime config, an agent
 workspace volume, and a separate Tender Comparison worker. Final Linux
@@ -29,12 +29,12 @@ Phase 8 deploys the agent-first product to `sitewise.au`:
 2. Backend has a persistent `AGENT_WORKSPACE_ROOT` volume for scratch/artefact
    files. Supabase Storage remains canonical for uploaded source documents.
 3. nginx keeps `/api/*` and SSE streams unbuffered.
-4. Stripe env and webhook secrets replace Polar env after Phase 7 is complete.
+4. Stripe env and webhook secrets are the only billing configuration.
 5. Production acceptance proves signup, subscription, project creation, tender
    upload, chat-triggered comparison, tool chips, comparison panel, report
    artefact, and artefact editing.
-6. Only after that gate passes, legacy chat runtime, old cockpit pages, and
-   Polar code are removed.
+6. Only after that gate passes, legacy chat runtime and old cockpit pages are
+   removed.
 
 ## Services
 
@@ -62,14 +62,8 @@ Current required backend values:
 - `PUBLIC_APP_URL=https://sitewise.au`
 - `ALLOWED_ORIGINS=https://sitewise.au`
 
-Legacy billing values, retained disabled until Phase 8.5:
-
-- `POLAR_ENABLED`
-- `POLAR_ENVIRONMENT`
-- `POLAR_ACCESS_TOKEN`
-- `POLAR_WEBHOOK_SECRET`
-- `POLAR_STARTER_PRODUCT_ID`
-- `POLAR_PROFESSIONAL_PRODUCT_ID`
+Any `POLAR_*` values still set in Dokploy are inert and can be deleted — the
+settings model ignores unknown keys, so they neither load nor break boot.
 
 Phase 7/8 agent and Stripe values:
 

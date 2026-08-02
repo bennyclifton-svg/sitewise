@@ -1,1 +1,1 @@
-"""Polar-backed billing and entitlement helpers."""
+"""Stripe-backed billing and entitlement helpers."""

@@ -63,14 +63,6 @@ class Settings(BaseSettings):
     cost_plan_model: str = "gpt-5.6-luna"
     public_app_url: str = "http://localhost:5173"
     billing_provider: str = "none"
-    polar_enabled: bool = False
-    polar_environment: str = "sandbox"
-    polar_access_token: str | None = None
-    polar_webhook_secret: str | None = None
-    polar_starter_product_id: str | None = None
-    polar_professional_product_id: str | None = None
-    polar_checkout_success_path: str = "/billing?checkout=success"
-    polar_customer_portal_return_path: str = "/billing"
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
     stripe_price_id: str | None = None
@@ -160,40 +152,12 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
-    @field_validator("polar_environment")
-    @classmethod
-    def validate_polar_environment(cls, value: str) -> str:
-        if value not in {"sandbox", "production"}:
-            raise ValueError("POLAR_ENVIRONMENT must be sandbox or production")
-        return value
-
     @field_validator("billing_provider")
     @classmethod
     def validate_billing_provider(cls, value: str) -> str:
-        if value not in {"none", "polar", "stripe"}:
-            raise ValueError("BILLING_PROVIDER must be none, polar, or stripe")
+        if value not in {"none", "stripe"}:
+            raise ValueError("BILLING_PROVIDER must be none or stripe")
         return value
-
-    @model_validator(mode="after")
-    def require_polar_settings_when_enabled(self) -> "Settings":
-        if not self.polar_enabled and self.billing_provider != "polar":
-            return self
-
-        missing = [
-            name
-            for name, value in {
-                "POLAR_ACCESS_TOKEN": self.polar_access_token,
-                "POLAR_WEBHOOK_SECRET": self.polar_webhook_secret,
-                "POLAR_STARTER_PRODUCT_ID": self.polar_starter_product_id,
-                "POLAR_PROFESSIONAL_PRODUCT_ID": self.polar_professional_product_id,
-            }.items()
-            if not value
-        ]
-        if missing:
-            raise ValueError(
-                f"Polar is enabled, but these settings are missing: {', '.join(missing)}"
-            )
-        return self
 
     @model_validator(mode="after")
     def validate_tender_embedding_dimensions(self) -> "Settings":

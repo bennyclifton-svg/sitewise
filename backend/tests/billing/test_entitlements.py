@@ -19,27 +19,19 @@ def test_entitlement_provider_none_is_internal(monkeypatch):
     assert state.billing_provider == "none"
 
 
-def test_entitlement_provider_polar_retains_legacy_path(monkeypatch):
-    customer_id = uuid.uuid4()
+def test_entitlement_unknown_provider_falls_back_to_internal(monkeypatch):
+    """Anything that is not stripe is treated as unbilled rather than read-only.
+
+    BILLING_PROVIDER is validated to none/stripe, so this only fires if a value is
+    forced past that gate. Failing open keeps a misconfiguration from locking every
+    user out of their own projects.
+    """
     monkeypatch.setattr(settings, "billing_provider", "polar")
-    monkeypatch.setattr(settings, "polar_enabled", True)
-    monkeypatch.setattr(settings, "polar_starter_product_id", "polar_prod_123")
-    monkeypatch.setattr(
-        entitlements,
-        "get_polar_customer_by_user_id",
-        AsyncMock(return_value=SimpleNamespace(id=customer_id)),
-    )
-    monkeypatch.setattr(
-        entitlements,
-        "get_active_polar_subscription_for_user",
-        AsyncMock(return_value=SimpleNamespace(status="active", product_id="polar_prod_123")),
-    )
 
     state = run_async(entitlements.get_entitlement_state(AsyncMock(), USER_ID))
 
-    assert state.billing_provider == "polar"
-    assert state.plan_id == "starter"
-    assert state.subscription_status == "active"
+    assert state.plan_id == "internal"
+    assert state.billing_provider == "none"
     assert state.read_only is False
 
 

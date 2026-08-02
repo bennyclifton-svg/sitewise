@@ -23,7 +23,6 @@ describe("BillingPage", () => {
     vi.mocked(api.getBillingPlans).mockResolvedValue({
       billing_provider: "stripe",
       billing_enabled: true,
-      polar_enabled: false,
       environment: "stripe",
       plans: [
         {
@@ -38,13 +37,11 @@ describe("BillingPage", () => {
     vi.mocked(api.getBillingStatus).mockResolvedValue({
       billing_provider: "stripe",
       billing_enabled: true,
-      polar_enabled: false,
       environment: "stripe",
       current_plan_id: "starter",
       subscription_status: "active",
       read_only: false,
       has_customer: true,
-      has_polar_customer: false,
       quota: {
         used_turns: 80,
         quota: 100,

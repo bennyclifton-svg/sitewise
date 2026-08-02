@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from urllib.parse import urljoin
 
 import stripe
 from fastapi import HTTPException, status
 
 from app.auth.dependencies import CurrentUser
 from app.billing.plans import BillingPlan
-from app.billing.polar import absolute_app_url
 from app.config import settings
 from app.logging import get_logger
 
 log = get_logger(__name__)
+
+
+def absolute_app_url(path: str) -> str:
+    return urljoin(f"{settings.public_app_url.rstrip('/')}/", path.lstrip("/"))
 
 
 class StripeBillingError(RuntimeError):
