@@ -58,6 +58,11 @@ RUN addgroup --system sitewise \
     && chown -R sitewise:sitewise /opt/hermes /app/agent-workspaces
 
 COPY --from=builder --chown=sitewise:sitewise /app/backend /app/backend
+COPY --chown=sitewise:sitewise data/seed /app/data/seed
+COPY --chown=sitewise:sitewise data/skills/reference /app/data/skills/reference
+COPY --chown=sitewise:sitewise data/taxonomy /app/data/taxonomy
+COPY --chown=sitewise:sitewise data/tender /app/data/tender
+COPY --chown=sitewise:sitewise docs/clerk-brief.md /app/docs/clerk-brief.md
 
 USER sitewise
 
