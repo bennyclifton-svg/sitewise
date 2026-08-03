@@ -20,6 +20,7 @@ from openai import OpenAIError
 from pydantic import ValidationError
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
 from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.workspace_paths import (
     WorkspacePathError,
@@ -94,7 +95,7 @@ from app.projects.workflow_capabilities import (
     workflow_capabilities,
 )
 from app.cost_plan.dependencies import dependency_snapshot as cost_dependency_snapshot
-from app.cost_plan.schemas import CostItemInput
+from app.cost_plan.schemas import CostItemInput, CostPlanState
 from app.cost_plan.service import (
     apply_external_proposal,
     get_cost_plan as read_typed_cost_plan,
@@ -341,6 +342,14 @@ def _is_xlsx_workspace_file(record) -> bool:
     return filename.endswith(".xlsx") or path.endswith(".xlsx")
 
 
+def _is_cost_plan_markdown_workspace_file(record) -> bool:
+    path = (getattr(record, "workspace_path", "") or "").replace("\\", "/").lower()
+    folder, _, filename = path.rpartition("/")
+    return folder.endswith("/01-cost") and filename.startswith("cost_plan_v") and filename.endswith(
+        ".md"
+    )
+
+
 def _project_file_summary(record) -> dict:
     path = record.workspace_path.replace("\\", "/")
     source_document_id = (
@@ -416,6 +425,25 @@ async def _load_cost_plan_draft(session, *, project_id: uuid.UUID, path: str | N
     if draft.workflow_type != CREATE_COST_PLAN_WORKFLOW_TYPE:
         raise ToolError("draft is not a cost plan")
     return draft
+
+
+async def _sync_cost_plan_workbook(
+    session: AsyncSession,
+    *,
+    project: Any,
+    state: CostPlanState,
+) -> dict[str, Any]:
+    if state.artefact_revision_id is None:
+        raise ToolError("updated Cost Plan revision was not found")
+    draft = await get_draft_artifact(session, state.artefact_revision_id)
+    if draft is None:
+        raise ToolError("updated Cost Plan revision was not found")
+    return await sync_cost_plan_revision_artifacts(
+        session,
+        project=project,
+        draft=draft,
+        typed_state=state,
+    )
 
 
 def _turn_id(authorization) -> str | None:
@@ -930,6 +958,32 @@ def _consultant_procurement_status_metadata(source_trace: dict) -> dict:
     }
 
 
+def _clip_status_text(value: str, *, max_len: int = 72) -> str:
+    text = " ".join(value.split())
+    if len(text) <= max_len:
+        return text
+    return f"{text[: max_len - 1]}…"
+
+
+def _activity_message(verb: str, *, subject: str | None = None) -> str:
+    if subject and subject.strip():
+        return f"{verb} · {_clip_status_text(subject.strip())}"
+    return verb
+
+
+def _document_list_subject(filenames: list[str], *, limit: int = 2) -> str | None:
+    names = [
+        _clip_status_text(name, max_len=48) for name in filenames if name.strip()
+    ]
+    if not names:
+        return None
+    shown = ", ".join(names[:limit])
+    remainder = len(names) - limit
+    if remainder > 0:
+        return f"{shown} +{remainder} more"
+    return shown
+
+
 @asynccontextmanager
 async def _tool_status(
     turn_id: str | None,
@@ -957,12 +1011,16 @@ async def _tool_status(
         )
         raise
     else:
+        payload = dict(extra)
+        message = payload.pop("message", done)
+        if not isinstance(message, str) or not message.strip():
+            message = done
         await agent_turn_status_bus.publish(
             turn_id,
-            message=done,
+            message=message,
             tool=tool,
             state="done",
-            **extra,
+            **payload,
         )
 
 
@@ -1272,6 +1330,11 @@ async def upsert_cost_item(
                 item=CostItemInput.model_validate(item),
                 current_snapshot=snapshot,
             )
+            workbook_metadata = await _sync_cost_plan_workbook(
+                session,
+                project=authorization.project,
+                state=result.state,
+            )
             await session.commit()
         except (
             ToolAuthError,
@@ -1281,7 +1344,7 @@ async def upsert_cost_item(
             LookupError,
         ) as exc:
             raise ToolError(str(exc)) from exc
-    return result.model_dump(mode="json")
+    return {**result.model_dump(mode="json"), "workbook": workbook_metadata}
 
 
 @mcp.tool
@@ -1310,10 +1373,15 @@ async def set_contingency(
                 percent=Decimal(percent),
                 current_snapshot=snapshot,
             )
+            workbook_metadata = await _sync_cost_plan_workbook(
+                session,
+                project=authorization.project,
+                state=result.state,
+            )
             await session.commit()
         except (ToolAuthError, ValueError, RuntimeError, LookupError) as exc:
             raise ToolError(str(exc)) from exc
-    return result.model_dump(mode="json")
+    return {**result.model_dump(mode="json"), "workbook": workbook_metadata}
 
 
 @mcp.tool
@@ -1344,10 +1412,15 @@ async def set_cost_plan_assumption(
                 value=value,
                 current_snapshot=snapshot,
             )
+            workbook_metadata = await _sync_cost_plan_workbook(
+                session,
+                project=authorization.project,
+                state=result.state,
+            )
             await session.commit()
         except (ToolAuthError, ValueError, RuntimeError, LookupError) as exc:
             raise ToolError(str(exc)) from exc
-    return result.model_dump(mode="json")
+    return {**result.model_dump(mode="json"), "workbook": workbook_metadata}
 
 
 @mcp.tool
@@ -1398,6 +1471,11 @@ async def apply_approved_tender_to_cost_plan(
                     runtime_version="clerk-tender-cost-handoff-v1",
                 ),
             )
+            workbook_metadata = await _sync_cost_plan_workbook(
+                session,
+                project=authorization.project,
+                state=state,
+            )
             await session.commit()
         except (
             ToolAuthError,
@@ -1408,7 +1486,7 @@ async def apply_approved_tender_to_cost_plan(
             LookupError,
         ) as exc:
             raise ToolError(str(exc)) from exc
-    return state.model_dump(mode="json")
+    return {**state.model_dump(mode="json"), "workbook": workbook_metadata}
 
 
 @mcp.tool
@@ -2301,7 +2379,11 @@ async def list_project_files(
                 path_prefix=prefix,
                 limit=result_limit,
             )
-    return [_project_file_summary(record) for record in records]
+    return [
+        _project_file_summary(record)
+        for record in records
+        if not _is_cost_plan_markdown_workspace_file(record)
+    ]
 
 
 @mcp.tool
@@ -2797,13 +2879,18 @@ async def get_document(
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         project = authorization.project
+        running_subject = (
+            Path(_tool_workspace_path(workspace_path)).name
+            if workspace_path
+            else None
+        )
         async with _tool_status(
             _turn_id(authorization),
             tool="get_document",
-            running="Reading ingested document text",
-            done="Read ingested document text",
+            running=_activity_message("Reading", subject=running_subject),
+            done="Read document",
             error="Document read failed",
-        ):
+        ) as extra:
             document = None
             if document_id:
                 try:
@@ -2842,6 +2929,10 @@ async def get_document(
 
             if document is None:
                 raise ToolError("document not found or not ingested")
+            filename = document.filename or running_subject
+            if filename:
+                extra["documents"] = [filename]
+                extra["message"] = _activity_message("Read", subject=filename)
             return _source_document_payload(document, max_chars=max_chars)
 
 
@@ -2874,24 +2965,26 @@ async def find_document_text(
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         project = authorization.project
+        hint = filename_hint.strip() if filename_hint and filename_hint.strip() else None
+        running_subject = hint or f"“{_clip_status_text(query, max_len=48)}”"
         async with _tool_status(
             _turn_id(authorization),
             tool="find_document_text",
-            running="Searching ingested document text",
-            done="Searched ingested document text",
+            running=_activity_message("Searching", subject=running_subject),
+            done="Searched documents",
             error="Ingested document text search failed",
-        ):
+        ) as extra:
             content_filters = [
                 func.lower(SourceDocument.normalized_content).contains(term)
                 for term in terms
             ]
             filters = [SourceDocument.project_id == project.id, or_(*content_filters)]
-            if filename_hint and filename_hint.strip():
-                hint = filename_hint.strip().lower()
+            if hint:
+                hint_lower = hint.lower()
                 filters.append(
                     or_(
-                        func.lower(SourceDocument.filename).contains(hint),
-                        func.lower(SourceDocument.relative_path).contains(hint),
+                        func.lower(SourceDocument.filename).contains(hint_lower),
+                        func.lower(SourceDocument.relative_path).contains(hint_lower),
                     )
                 )
             stmt = (
@@ -2902,30 +2995,41 @@ async def find_document_text(
             )
             rows = (await session.execute(stmt)).scalars().all()
 
-        matches: list[dict] = []
-        for document in rows:
-            snippets = _find_text_snippets(
-                document.normalized_content or "",
-                query=query,
-                terms=terms,
-                context_chars=snippet_context,
-            )
-            if not snippets:
-                continue
-            matches.append(
-                {
-                    "kind": "source_document_match",
-                    "document_id": str(document.id),
-                    "filename": document.filename,
-                    "relative_path": document.relative_path,
-                    "document_class": document.document_class,
-                    "content_chars": len(document.normalized_content or ""),
-                    "snippets": snippets,
-                }
-            )
-            if len(matches) >= result_limit:
-                break
-        return matches
+            matches: list[dict] = []
+            for document in rows:
+                snippets = _find_text_snippets(
+                    document.normalized_content or "",
+                    query=query,
+                    terms=terms,
+                    context_chars=snippet_context,
+                )
+                if not snippets:
+                    continue
+                matches.append(
+                    {
+                        "kind": "source_document_match",
+                        "document_id": str(document.id),
+                        "filename": document.filename,
+                        "relative_path": document.relative_path,
+                        "document_class": document.document_class,
+                        "content_chars": len(document.normalized_content or ""),
+                        "snippets": snippets,
+                    }
+                )
+                if len(matches) >= result_limit:
+                    break
+
+            filenames = [
+                match["filename"]
+                for match in matches
+                if isinstance(match.get("filename"), str) and match["filename"]
+            ]
+            subject = _document_list_subject(filenames) or running_subject
+            extra["query"] = _clip_status_text(query, max_len=120)
+            if filenames:
+                extra["documents"] = filenames
+            extra["message"] = _activity_message("Searched", subject=subject)
+            return matches
 
 
 @mcp.tool
@@ -3004,13 +3108,14 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         project = authorization.project
+        running_subject = f"“{_clip_status_text(query, max_len=48)}”"
         async with _tool_status(
             _turn_id(authorization),
             tool="search_documents",
-            running="Searching project documents",
+            running=_activity_message("Searching", subject=running_subject),
             done="Searched project documents",
             error="Project document search failed",
-        ):
+        ) as extra:
             retriever = DocumentRetriever(session)
             passages = await retriever.retrieve(
                 query,
@@ -3023,6 +3128,19 @@ async def search_documents(project_id: str, query: str) -> list[dict]:
                 ),
                 include_neighbours=False,
             )
+            filenames: list[str] = []
+            seen_names: set[str] = set()
+            for passage in passages:
+                name = passage.filename
+                if not name or name in seen_names:
+                    continue
+                seen_names.add(name)
+                filenames.append(name)
+            subject = _document_list_subject(filenames) or running_subject
+            extra["query"] = _clip_status_text(query, max_len=120)
+            if filenames:
+                extra["documents"] = filenames
+            extra["message"] = _activity_message("Searched", subject=subject)
         return [
             {
                 "document_id": str(p.document_id),

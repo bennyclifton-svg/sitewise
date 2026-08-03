@@ -782,12 +782,6 @@ async def sync_cost_plan_revision_artifacts(
     typed_state: CostPlanState | None = None,
 ) -> dict:
     content = markdown or draft.content_markdown
-    await sync_cost_plan_draft_workspace(
-        session,
-        project=project,
-        draft=draft,
-        markdown=content,
-    )
     workbook_metadata = await save_cost_plan_workbook_artifact(
         session,
         project=project,
@@ -1374,12 +1368,6 @@ async def run_create_cost_plan_workflow(
         project_id=project.id,
         markdown=output.markdown,
         workflow_type=WORKFLOW_TYPE,
-    )
-    await sync_cost_plan_draft_workspace(
-        session,
-        project=project,
-        draft=draft,
-        markdown=output.markdown,
     )
     trace.append(
         _trace(

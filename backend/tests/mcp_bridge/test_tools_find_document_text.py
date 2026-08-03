@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from types import SimpleNamespace
 from typing import Any
@@ -6,6 +7,7 @@ import pytest
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
+from app.agent.status_bus import agent_turn_status_bus
 from app.config import settings
 from app.mcp_bridge.tokens import mint_turn_token
 from tests.conftest import run_async
@@ -81,10 +83,16 @@ def _install(
     session: _Session,
     *,
     token_project: uuid.UUID = PROJECT_ID,
+    turn_id: uuid.UUID | None = None,
 ):
     from app.mcp_bridge import server
 
-    token = mint_turn_token(user_id=USER_ID, project_id=token_project, secret=SECRET)
+    token = mint_turn_token(
+        user_id=USER_ID,
+        project_id=token_project,
+        secret=SECRET,
+        turn_id=turn_id,
+    )
     monkeypatch.setattr(
         server,
         "get_http_headers",
@@ -129,6 +137,41 @@ def test_find_document_text_returns_keyword_snippets(monkeypatch) -> None:
     excerpts = [snippet["excerpt"] for snippet in result.data[0]["snippets"]]
     assert any("Caesarstone reconstituted stone" in excerpt for excerpt in excerpts)
     assert any("Laundry, bathroom and ensuite" in excerpt for excerpt in excerpts)
+
+
+def test_find_document_text_publishes_document_name_in_status(monkeypatch) -> None:
+    turn_id = uuid.uuid4()
+    content = "Gross floor area is 225.84 m2 across two storeys."
+    session = _Session(
+        project=_project(),
+        source_documents=[_source_document(content)],
+    )
+    server = _install(monkeypatch, session, turn_id=turn_id)
+
+    async def _run():
+        async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
+            async with Client(server.mcp) as client:
+                result = await client.call_tool(
+                    "find_document_text",
+                    {
+                        "project_id": str(PROJECT_ID),
+                        "query": "gross floor area",
+                        "filename_hint": "Specification",
+                    },
+                )
+            running = await asyncio.wait_for(anext(statuses), timeout=0.1)
+            done = await asyncio.wait_for(anext(statuses), timeout=0.1)
+            return result, running, done
+
+    result, running, done = run_async(_run())
+
+    assert result.data
+    assert running["tool"] == "find_document_text"
+    assert running["state"] == "running"
+    assert "Specification" in running["message"]
+    assert done["state"] == "done"
+    assert done["documents"] == ["Specification.docx"]
+    assert "Specification.docx" in done["message"]
 
 
 def test_find_document_text_rejects_empty_search_terms(monkeypatch) -> None:

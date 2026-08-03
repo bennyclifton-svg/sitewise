@@ -219,9 +219,9 @@ from app.workflows.consultant_procurement import (
 )
 from app.workflows.contractor_procurement import sync_contractor_eoi_draft_workspace
 from app.workflows.create_cost_plan import (
-    draft_workspace_path as cost_plan_draft_workspace_path,
     run_create_cost_plan_workflow,
-    sync_cost_plan_draft_workspace,
+    sync_cost_plan_revision_artifacts,
+    workbook_workspace_path as cost_plan_workbook_workspace_path,
 )
 from app.workflows.create_pmp import (
     canonical_pmp_workspace_path,
@@ -543,7 +543,9 @@ async def _ensure_cost_plan_workspace_file(
     if cost_plan_summary is None:
         return workspace_files
 
-    canonical_path = cost_plan_draft_workspace_path(project, cost_plan_summary.version)
+    canonical_path = cost_plan_workbook_workspace_path(
+        project, cost_plan_summary.version
+    )
     if any(record.workspace_path == canonical_path for record in workspace_files):
         return workspace_files
 
@@ -555,7 +557,7 @@ async def _ensure_cost_plan_workspace_file(
     if draft is None:
         return workspace_files
 
-    await sync_cost_plan_draft_workspace(session, project=project, draft=draft)
+    await sync_cost_plan_revision_artifacts(session, project=project, draft=draft)
     return await list_workspace_files_for_project(session, project_id=project.id)
 
 
@@ -653,16 +655,32 @@ def _workspace_paths_for_tree(
     *,
     draft_summaries: dict[str, DraftArtifactSummary | None],
 ) -> list[str]:
-    paths = {record.workspace_path for record in workspace_files}
+    paths = {
+        record.workspace_path
+        for record in workspace_files
+        if not _is_cost_plan_markdown_workspace_path(record.workspace_path)
+    }
     for draft in draft_summaries.values():
         if draft is None:
             continue
-        paths.add(draft.workspace_path)
+        if draft.workflow_type == "create_cost_plan":
+            folder = draft.workspace_path.rsplit("/", maxsplit=1)[0]
+            paths.add(f"{folder}/Cost_Plan_v{draft.version:02d}.draft.xlsx")
+        else:
+            paths.add(draft.workspace_path)
         if is_pmp_workflow(draft.workflow_type):
             canonical = canonical_pmp_workspace_path(draft.workspace_path)
             if canonical is not None:
                 paths.add(canonical)
     return sorted(paths)
+
+
+def _is_cost_plan_markdown_workspace_path(path: str) -> bool:
+    normalised = path.replace("\\", "/").lower()
+    folder, _, filename = normalised.rpartition("/")
+    return folder.endswith("/01-cost") and filename.startswith("cost_plan_v") and filename.endswith(
+        ".md"
+    )
 
 
 async def _list_project_evidence_previews(

@@ -137,7 +137,34 @@ def test_update_cost_plan_with_adopted_budget_needs_mutation_tools() -> None:
     )
     assert "<adopted-cost-plan-budget-request>" in prompt
     assert "apply_cost_plan_budget_forecast" in prompt
+    assert "budget forecast in parallel" in prompt
     assert "Do not ask the user to regenerate" in prompt
+
+
+def test_construction_price_budget_request_needs_mutation_tools() -> None:
+    """Recognize explicit cost allocation requests without requiring 'Cost Plan'."""
+    user_text = (
+        "adopt a construction price of $520,000 distribute costs, and estimate "
+        "all other fees and charges"
+    )
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_mutation_tools(user_text, intent) is True
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Kellyville 2 Story",
+        archetype="new home",
+        state="NSW",
+        phase="design",
+        building_class="1a",
+        work_type="new",
+        history=[],
+        mutation_intent=intent,
+    )
+
+    assert "<adopted-cost-plan-budget-request>" in prompt
+    assert "apply_cost_plan_budget_forecast" in prompt
 
 
 def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:

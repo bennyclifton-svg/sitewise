@@ -6,10 +6,10 @@ export function isPmpWorkspaceFile(path: string): boolean {
   return /\/00-brief-pmp\/PMP(\.md|-draft-v\d+\.md)$/i.test(normalised);
 }
 
-/** True when the explorer path points at a cost plan draft markdown file. */
+/** True when the explorer path points at a Cost Plan revision export. */
 export function isCostPlanWorkspaceFile(path: string): boolean {
   const normalised = path.replaceAll("\\", "/");
-  return /\/01-cost\/cost_plan_v\d+\.md$/i.test(normalised);
+  return /\/01-cost\/(?:cost_plan_v\d+\.md|Cost_Plan_v\d+\.draft\.xlsx)$/i.test(normalised);
 }
 
 /** True when the explorer path points at a consultant procurement RFP draft. */
@@ -49,7 +49,19 @@ export function findDraftByWorkspacePath(
 ): DraftArtifactSummary | null {
   const normalised = path.replaceAll("\\", "/");
   for (const draft of Object.values(drafts)) {
-    if (draft && draft.workspace_path.replaceAll("\\", "/") === normalised) {
+    if (!draft) continue;
+    if (draft.workspace_path.replaceAll("\\", "/") === normalised) {
+      return draft;
+    }
+    const costPlanWorkbook = normalised.match(
+      /^(.*\/01-cost)\/Cost_Plan_v(\d+)\.draft\.xlsx$/i,
+    );
+    if (
+      costPlanWorkbook &&
+      draft.workflow_type === "create_cost_plan" &&
+      draft.version === Number(costPlanWorkbook[2]) &&
+      draft.workspace_path.replaceAll("\\", "/").startsWith(`${costPlanWorkbook[1]}/`)
+    ) {
       return draft;
     }
   }

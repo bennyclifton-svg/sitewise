@@ -4,7 +4,7 @@ import { AnswerTrace } from "@/components/chat/AnswerTrace";
 import { ArtefactCard } from "@/components/chat/ArtefactCard";
 import { CitationChip } from "@/components/chat/CitationChip";
 import { InsufficientEvidenceBanner } from "@/components/chat/InsufficientEvidenceBanner";
-import { ToolCallChip } from "@/components/chat/ToolCallChip";
+import { ToolActivityFeed } from "@/components/chat/ToolActivityFeed";
 import { WorkflowRunCard } from "@/components/chat/WorkflowRunCard";
 import {
   assistantMetaFromMessageData,
@@ -84,16 +84,7 @@ export function AssistantMessage({
         citations={citations}
       />
 
-      {toolEvents.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {toolEvents.map((event, index) => (
-            <ToolCallChip
-              key={`${event.tool}-${event.state}-${index}`}
-              event={event}
-            />
-          ))}
-        </div>
-      ) : null}
+      {toolEvents.length > 0 ? <ToolActivityFeed events={toolEvents} /> : null}
 
       {artefacts.map((artefact, index) => (
         <ArtefactCard

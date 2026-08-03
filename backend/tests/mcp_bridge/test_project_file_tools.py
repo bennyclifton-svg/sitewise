@@ -181,6 +181,28 @@ def test_list_project_files_finds_generated_workbook(monkeypatch) -> None:
     )
 
 
+def test_list_project_files_hides_legacy_cost_plan_markdown(monkeypatch) -> None:
+    session = _Session(project=_project())
+    server = _install(monkeypatch, session)
+    workbook = _workspace_file(
+        workspace_path="04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
+        filename="Cost_Plan_v10.draft.xlsx",
+    )
+    markdown = _workspace_file(
+        workspace_path="04-projects/walsh-reno/01-cost/cost_plan_v10.md",
+        filename="cost_plan_v10.md",
+    )
+    monkeypatch.setattr(
+        server,
+        "search_workspace_files_for_project",
+        AsyncMock(return_value=[markdown, workbook]),
+    )
+
+    result = _call(server, "list_project_files", {"project_id": str(PROJECT_ID)})
+
+    assert [item["filename"] for item in result.data] == ["Cost_Plan_v10.draft.xlsx"]
+
+
 def test_list_project_files_includes_ingested_document_identity(monkeypatch) -> None:
     session = _Session(project=_project())
     server = _install(monkeypatch, session)
@@ -224,6 +246,8 @@ def test_pi_runtime_allows_project_file_tools() -> None:
     assert "forecast_consultant_fees" in PI_MCP_DIRECT_TOOLS
     assert "apply_consultant_fee_forecast" in PI_MCP_DIRECT_TOOLS
     assert "apply_cost_plan_budget_forecast" in PI_MCP_DIRECT_TOOLS
+    assert "get_cost_plan" in PI_MCP_DIRECT_TOOLS
+    assert "upsert_cost_item" in PI_MCP_DIRECT_TOOLS
     assert "draft_consultant_procurement_artifact" in PI_MCP_DIRECT_TOOLS
 
 
@@ -381,6 +405,78 @@ def test_apply_consultant_fee_forecast_rejects_cross_project_token(monkeypatch) 
             "apply_consultant_fee_forecast",
             {"project_id": str(PROJECT_ID)},
         )
+
+
+def test_upsert_cost_item_publishes_its_workbook_revision(monkeypatch) -> None:
+    session = _Session(project=_project())
+    server = _install(monkeypatch, session)
+    updated = _draft(version=10, content="# typed Cost Plan v10")
+    dependencies = DependencySnapshot(
+        profile_revision=2,
+        evidence_fingerprint="current-evidence",
+        decision_set_revision=3,
+        runtime_version="cost-plan-tool-test",
+    )
+    state = CostPlanState(
+        project_id=PROJECT_ID,
+        artefact_revision_id=updated.id,
+        version=10,
+        dependency_snapshot=dependencies,
+        items=[],
+    )
+    persist = AsyncMock(
+        return_value=CostPlanMutationResult(
+            state=state,
+            changed_item_keys=["kitchen-engineered-stone"],
+        )
+    )
+    sync_artifacts = AsyncMock(
+        return_value={
+            "file_name": "Cost_Plan_v10.draft.xlsx",
+            "workspace_path": "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
+            "version": 10,
+        }
+    )
+    monkeypatch.setattr(
+        server,
+        "read_project_snapshot",
+        AsyncMock(return_value=SimpleNamespace()),
+    )
+    monkeypatch.setattr(server, "persist_cost_item", persist)
+    monkeypatch.setattr(server, "get_draft_artifact", AsyncMock(return_value=updated))
+    monkeypatch.setattr(server, "sync_cost_plan_revision_artifacts", sync_artifacts)
+
+    result = _call(
+        server,
+        "upsert_cost_item",
+        {
+            "project_id": str(PROJECT_ID),
+            "expected_base_version": 9,
+            "item": {
+                "item_key": "kitchen-engineered-stone",
+                "cost_code": "14-010",
+                "category": "Construction",
+                "item": "Kitchen — including engineered stone benchtops",
+                "budget": "33000",
+                "forecast": "33000",
+                "allowance_type": "pc",
+                "basis": "User-adopted planning allowance",
+            },
+        },
+    )
+
+    assert result.data["workbook"] == {
+        "file_name": "Cost_Plan_v10.draft.xlsx",
+        "workspace_path": "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
+        "version": 10,
+    }
+    sync_artifacts.assert_awaited_once_with(
+        session,
+        project=session.project,
+        draft=updated,
+        typed_state=state,
+    )
+    session.commit.assert_awaited_once()
 
 
 def test_apply_cost_plan_budget_forecast_refreshes_all_rows_and_workbook(

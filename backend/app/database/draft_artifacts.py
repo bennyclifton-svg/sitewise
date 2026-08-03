@@ -41,13 +41,7 @@ async def create_draft_artifact(
     from app.inbox.paths import build_storage_key
     from app.projects.artefact_revisions import ExportSpec, publish
 
-    exports = [
-        ExportSpec(
-            export_type="markdown",
-            workspace_path=workspace_path,
-            storage_key=build_storage_key(str(project_id), workspace_path),
-        )
-    ]
+    exports = []
     if workflow_type == "create_cost_plan":
         workbook_path = str(
             PurePosixPath(workspace_path).parent
@@ -58,6 +52,14 @@ async def create_draft_artifact(
                 export_type="workbook",
                 workspace_path=workbook_path,
                 storage_key=build_storage_key(str(project_id), workbook_path),
+            )
+        )
+    else:
+        exports.append(
+            ExportSpec(
+                export_type="markdown",
+                workspace_path=workspace_path,
+                storage_key=build_storage_key(str(project_id), workspace_path),
             )
         )
 

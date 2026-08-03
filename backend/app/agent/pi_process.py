@@ -23,6 +23,8 @@ PI_MCP_DIRECT_TOOLS = (
     "forecast_consultant_fees",
     "apply_consultant_fee_forecast",
     "apply_cost_plan_budget_forecast",
+    "get_cost_plan",
+    "upsert_cost_item",
     "draft_consultant_procurement_artifact",
     "start_project_plan",
     "refresh_project_plan",

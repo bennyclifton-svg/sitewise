@@ -166,11 +166,6 @@ async def _publish_state(
         actor_source=actor_source,
         exports=(
             ExportSpec(
-                "markdown",
-                markdown_path,
-                build_storage_key(str(project.id), markdown_path),
-            ),
-            ExportSpec(
                 "workbook",
                 workbook_path,
                 build_storage_key(str(project.id), workbook_path),

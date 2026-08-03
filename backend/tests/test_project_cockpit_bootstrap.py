@@ -226,7 +226,7 @@ def test_cockpit_bootstrap_includes_canonical_pmp_path_for_legacy_draft(
     assert "PMP.md" in file_names
 
 
-def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
+def test_cockpit_bootstrap_includes_only_cost_plan_workbook_for_existing_draft(
     client: TestClient,
 ) -> None:
     cost_plan_draft = {
@@ -248,7 +248,10 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
                 return_value=[
                     SimpleNamespace(
                         workspace_path="04-projects/demo/01-cost/Cost_Plan_v01.draft.xlsx"
-                    )
+                    ),
+                    SimpleNamespace(
+                        workspace_path="04-projects/demo/01-cost/cost_plan_v01.md"
+                    ),
                 ]
             ),
         ),
@@ -277,7 +280,7 @@ def test_cockpit_bootstrap_includes_cost_plan_markdown_for_existing_draft(
     tree = response.json()["workspace_tree"]["tree"]
     cost_node = next(node for node in tree if node["name"] == "01-cost")
     file_names = [child["name"] for child in cost_node["children"] if child["kind"] == "file"]
-    assert "cost_plan_v01.md" in file_names
+    assert "cost_plan_v01.md" not in file_names
     assert "Cost_Plan_v01.draft.xlsx" in file_names
 
 

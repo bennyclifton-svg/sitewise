@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SiteWise — Cockpit colorize mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --blaze-50: oklch(0.972 0.012 54);
+        --blaze-200: oklch(0.885 0.04 54);
+        --blaze-600: oklch(0.55 0.12 52);
+        --blaze-700: oklch(0.48 0.11 51.5);
+        --gr-0: oklch(0.993 0.003 92);
+        --gr-50: oklch(0.977 0.004 92);
+        --gr-100: oklch(0.955 0.005 92);
+        --gr-200: oklch(0.908 0.006 92);
+        --gr-300: oklch(0.852 0.007 92);
+        --gr-600: oklch(0.47 0.008 90);
+        --gr-800: oklch(0.278 0.007 86);
+        --gr-900: oklch(0.196 0.006 86);
+        --ochre: oklch(0.7 0.13 70);
+        --ochre-strong: oklch(0.56 0.12 65);
+        --azure: oklch(0.62 0.12 245);
+        --azure-strong: oklch(0.52 0.12 245);
+        --clay-strong: oklch(0.52 0.15 28);
+
+        --bg-app: var(--gr-100);
+        --bg-surface: var(--gr-0);
+        --border-hair: var(--gr-200);
+        --text-body: var(--gr-800);
+        --text-muted: var(--gr-600);
+        --text-faint: oklch(0.585 0.008 92);
+        --brand: var(--blaze-600);
+
+        --wf-ok-bg: var(--blaze-50);
+        --wf-ok-border: var(--blaze-200);
+        --wf-ok-text: var(--blaze-700);
+        --wf-ready-bg: oklch(0.7 0.13 70 / 0.12);
+        --wf-ready-border: oklch(0.7 0.13 70 / 0.3);
+        --wf-ready-text: var(--ochre-strong);
+        --wf-info-bg: oklch(0.62 0.12 245 / 0.1);
+        --wf-info-border: oklch(0.62 0.12 245 / 0.26);
+        --wf-info-text: var(--azure-strong);
+        --wf-danger-bg: oklch(0.6 0.15 28 / 0.1);
+        --wf-danger-border: oklch(0.6 0.15 28 / 0.26);
+        --wf-danger-text: var(--clay-strong);
+
+        --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+        --radius: 0.4375rem;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font-sans);
+        font-size: 13.5px;
+        line-height: 1.5;
+        color: var(--text-body);
+        background: var(--bg-app);
+      }
+
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 28px 20px 48px;
+      }
+
+      .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+      }
+
+      .eyebrow::before {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 1px;
+        margin-right: 8px;
+        vertical-align: middle;
+        background: var(--brand);
+      }
+
+      h1 {
+        margin: 8px 0 6px;
+        font-size: 1.35rem;
+        font-weight: 600;
+        color: var(--gr-900);
+      }
+
+      .lede {
+        margin: 0 0 28px;
+        max-width: 62ch;
+        color: var(--text-muted);
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: 1fr;
+      }
+
+      @media (min-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      .column {
+        border: 1px solid var(--border-hair);
+        border-radius: 10px;
+        background: var(--bg-surface);
+        padding: 16px;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+      }
+
+      .column-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-hair);
+      }
+
+      .column-head h2 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--gr-900);
+      }
+
+      .tag {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* ——— Current (generic Tailwind chroma) ——— */
+      .now-warn {
+        border: 1px solid rgb(251 191 36 / 0.55);
+        background: #fffbeb;
+        color: #92400e;
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+
+      .now-info {
+        border: 1px solid rgb(56 189 248 / 0.45);
+        background: #f0f9ff;
+        color: #075985;
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+
+      .now-danger {
+        border: 1px solid rgb(248 113 113 / 0.45);
+        background: #fef2f2;
+        color: #991b1b;
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+
+      .now-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fbbf24;
+        color: #111;
+      }
+
+      .now-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #f59e0b;
+      }
+
+      .now-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 14px;
+        background: #fff;
+      }
+
+      /* ——— Proposed Drawing Office ——— */
+      .sw-warn {
+        border: 1px solid var(--wf-ready-border);
+        background: var(--wf-ready-bg);
+        color: var(--wf-ready-text);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+      }
+
+      .sw-info {
+        border: 1px solid var(--wf-info-border);
+        background: var(--wf-info-bg);
+        color: var(--wf-info-text);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+      }
+
+      .sw-danger {
+        border: 1px solid var(--wf-danger-border);
+        background: var(--wf-danger-bg);
+        color: var(--wf-danger-text);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+      }
+
+      .sw-ok {
+        border: 1px solid var(--wf-ok-border);
+        background: var(--wf-ok-bg);
+        color: var(--wf-ok-text);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+      }
+
+      .sw-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        background: var(--brand);
+        color: var(--gr-0);
+      }
+
+      .sw-badge-info {
+        background: var(--wf-info-bg);
+        color: var(--wf-info-text);
+        border: 1px solid var(--wf-info-border);
+      }
+
+      .sw-badge-ready {
+        background: var(--wf-ready-bg);
+        color: var(--wf-ready-text);
+        border: 1px solid var(--wf-ready-border);
+      }
+
+      .sw-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--brand);
+      }
+
+      .signature {
+        position: relative;
+        border: 1px solid var(--border-hair);
+        border-radius: 10px;
+        padding: 14px;
+        background: var(--bg-surface);
+      }
+
+      .signature::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 9px;
+        height: 9px;
+        border-top: 1.5px solid var(--blaze-200);
+        border-right: 1.5px solid var(--blaze-200);
+      }
+
+      .signature::after {
+        content: "";
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        width: 9px;
+        height: 9px;
+        border-bottom: 1.5px solid var(--gr-300);
+        border-left: 1.5px solid var(--gr-300);
+      }
+
+      .title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .title-row strong {
+        font-weight: 600;
+        color: var(--gr-900);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 10px;
+        border-radius: var(--radius);
+        border: 1px solid transparent;
+        font: inherit;
+        font-weight: 500;
+        cursor: default;
+      }
+
+      .btn-primary {
+        background: var(--brand);
+        color: var(--gr-0);
+      }
+
+      .btn-outline {
+        background: var(--gr-50);
+        border-color: var(--border-hair);
+        color: var(--gr-900);
+      }
+
+      .btn-muted {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        color: #111;
+      }
+
+      .btn-amber {
+        background: #f59e0b;
+        color: #111;
+      }
+
+      .nav-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border-hair);
+        background: var(--gr-50);
+      }
+
+      .nav-row.active {
+        background: oklch(0.63 0.11 52.5 / 0.12);
+        border-color: var(--blaze-200);
+      }
+
+      .note {
+        margin-top: 24px;
+        padding: 14px 16px;
+        border: 1px solid var(--border-hair);
+        border-radius: 10px;
+        background: var(--bg-surface);
+        color: var(--text-muted);
+      }
+
+      .note strong {
+        color: var(--gr-900);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <p class="eyebrow">Mockup · not wired</p>
+      <h1>Cockpit colorize — before / after</h1>
+      <p class="lede">
+        Side-by-side of today’s amber/sky utility notices versus Drawing Office
+        <code>--wf-*</code> tokens (Formwork Ember for brand/evidenced, Blueprint Azure for
+        AI/info, Survey Ochre for ready/warn, Kiln Clay for danger). No product code changed.
+      </p>
+
+      <div class="grid">
+        <section class="column" aria-labelledby="now-title">
+          <div class="column-head">
+            <h2 id="now-title">Current</h2>
+            <span class="tag">Amber / sky utilities</span>
+          </div>
+          <div class="stack">
+            <div class="nav-row">
+              <span class="now-dot" aria-hidden="true"></span>
+              <span>Create PMP</span>
+              <span class="now-badge" style="margin-left: auto">Blocked</span>
+            </div>
+
+            <div class="now-card">
+              <div class="title-row">
+                <strong>Create project management plan</strong>
+              </div>
+              <div class="stack">
+                <div class="now-warn">
+                  Project profile incomplete — set role, state, and building class before
+                  running this workflow.
+                  <div class="actions">
+                    <button class="btn btn-amber" type="button">Set project profile</button>
+                  </div>
+                </div>
+                <div class="now-info">
+                  AI assumed site address from ingested brief. Confirm before treating as
+                  evidence.
+                </div>
+                <div class="now-danger">Sort files failed — inbox path not found.</div>
+              </div>
+              <div class="actions">
+                <button class="btn btn-amber" type="button">Create PMP</button>
+                <button class="btn btn-muted" type="button">Update PMP</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="column" aria-labelledby="next-title">
+          <div class="column-head">
+            <h2 id="next-title">Proposed</h2>
+            <span class="tag">Drawing Office · --wf-*</span>
+          </div>
+          <div class="stack">
+            <div class="nav-row active">
+              <span class="sw-dot" aria-hidden="true"></span>
+              <span>Create PMP</span>
+              <span class="sw-badge-ready" style="margin-left: auto; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500">
+                Blocked
+              </span>
+            </div>
+
+            <div class="signature">
+              <div class="title-row">
+                <strong>Create project management plan</strong>
+                <span class="sw-badge">Primary</span>
+              </div>
+              <div class="stack">
+                <div class="sw-warn">
+                  Project profile incomplete — set role, state, and building class before
+                  running this workflow.
+                  <div class="actions">
+                    <button class="btn btn-outline" type="button">Set project profile</button>
+                  </div>
+                </div>
+                <div class="sw-info">
+                  AI assumed site address from ingested brief. Confirm before treating as
+                  evidence.
+                  <div class="chips" style="margin-top: 8px">
+                    <span class="sw-badge-info" style="border-radius: 999px; padding: 2px 10px; font-size: 12px">
+                      Assumed
+                    </span>
+                  </div>
+                </div>
+                <div class="sw-danger">Sort files failed — inbox path not found.</div>
+                <div class="sw-ok">Draft v2 saved · evidence ledger attached.</div>
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" type="button">Create PMP</button>
+                <button class="btn btn-outline" type="button">Update PMP</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="note">
+        <strong>What this proposes:</strong> keep layout and copy; swap chroma to semantic
+        workflow tokens; one hot Formwork Ember primary; Blueprint Azure only for
+        assumed/AI/info; quieter secondary actions. Nav status chip shown on the right as a
+        taste of the separate P0 — not part of this colorize pass unless you want it.
+      </div>
+    </div>
+  </body>
+</html>

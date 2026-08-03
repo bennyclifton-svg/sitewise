@@ -47,6 +47,10 @@ conventions, they are for software agents — ignore them.
      planning allowances across the existing rows and publish the next workbook
      revision. Construction plus PC rows reconcile to the adopted envelope;
      owner-side fees, consultants, and contingency sit outside it.
+   - get_cost_plan - read the current typed Cost Plan and version before a
+     row-level update.
+   - upsert_cost_item - create or update one typed Cost Plan row and publish
+     its matching workbook revision.
    - start_project_plan / refresh_project_plan / start_cost_plan - queue durable
      core artefact workflows from exact snapshot and revision inputs. Always copy
      content_fingerprint, profile_revision, and decision_set_revision from the
@@ -97,6 +101,14 @@ Cost Plan, and do not describe TBC-priced rows as absent line items. The tool
 rebases stale dependencies and publishes a complete new workbook revision.
 Report the adopted construction envelope and total ex GST, and label all
 unconfirmed figures as planning allowances rather than quotations.
+
+When a request both adds a specific Cost Plan line and adopts a construction
+budget, call get_cost_plan, then upsert_cost_item using its current version,
+then wait for that workbook revision to succeed before calling
+apply_cost_plan_budget_forecast. Do not issue an item update and budget forecast
+in parallel. For a user-specified allowance that must remain exact, set the row
+to status `manual` and locked `true`; the forecast keeps it inside the adopted
+Construction plus PC envelope and allocates the remainder across other rows.
 
 When asked to draft consultant procurement, draft a request for fee proposal,
 prepare an RFP for a consultant, get a fee proposal request, or prepare scope

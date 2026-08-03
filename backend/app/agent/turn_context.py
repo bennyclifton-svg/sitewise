@@ -195,6 +195,12 @@ single action reads the existing cost-item schedule, refreshes it against the
 current project snapshot, allocates deterministic planning allowances, and
 publishes the next Cost Plan workbook revision.
 
+If the request also adds or changes a specific line item, first read the
+current Cost Plan and publish that item update. Do not issue an item update and
+budget forecast in parallel; wait for the item update's new version before
+calling this tool. Mark a user-specified fixed allowance as manual and locked
+so the forecast keeps that exact value within the construction envelope.
+
 Do not ask the user to regenerate, reconfirm, or provide project evidence for
 the supplied budget. Do not describe TBC-priced rows as missing line items. The
 tool treats Construction plus PC allowances as the adopted construction
@@ -355,9 +361,15 @@ _WORKFLOW_MUTATION_RE = re.compile(
 )
 
 _ADOPTED_COST_PLAN_BUDGET_RE = re.compile(
+    r"(?:"
     r"(?=.*\bcost\s+plan\b)"
     r"(?=.*\b(?:adopt|budget|construction\s+cost|estimate|allowance|line\s+items?)\b)"
-    r"(?=.*\b(?:apply|write|save|update|revise|amend|refresh|populate|fill|allocate|adopt)\b)",
+    r"(?=.*\b(?:apply|write|save|update|revise|amend|refresh|populate|fill|allocate|adopt)\b)"
+    r"|"
+    r"(?=.*\badopt(?:ed|ing)?\b)"
+    r"(?=.*\bconstruction\s+(?:price|budget|cost)\b)"
+    r"(?=.*\b(?:distribute|allocation|allocate|populate|fill|estimate)\b)"
+    r")",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -378,7 +390,9 @@ def turn_needs_mutation_tools(
     """True when the turn may call any MCP tool that requires mutation auth."""
     return turn_needs_profile_mutation_tools(
         user_text, mutation_intent
-    ) or is_workflow_mutation_request(user_text)
+    ) or is_adopted_cost_plan_budget_request(user_text) or is_workflow_mutation_request(
+        user_text
+    )
 
 
 def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:

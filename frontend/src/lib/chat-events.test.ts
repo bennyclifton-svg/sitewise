@@ -85,6 +85,29 @@ describe("toolStatusFromPart", () => {
       sectionIds: ["brief", "budget"],
     });
   });
+
+  it("carries document filenames from search tool status", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "tool",
+        tool: "find_document_text",
+        state: "done",
+        message: "Searched · L09 CC Plans - 02 Site Plan.pdf",
+        query: "gross floor area",
+        documents: ["L09 CC Plans - 02 Site Plan.pdf"],
+      },
+    } as MessagePart;
+
+    expect(toolStatusFromPart(part)).toEqual({
+      kind: "tool",
+      tool: "find_document_text",
+      state: "done",
+      message: "Searched · L09 CC Plans - 02 Site Plan.pdf",
+      query: "gross floor area",
+      documents: ["L09 CC Plans - 02 Site Plan.pdf"],
+    });
+  });
 });
 
 describe("resourceFromPart", () => {

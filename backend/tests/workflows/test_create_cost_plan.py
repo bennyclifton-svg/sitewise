@@ -449,7 +449,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     assert result.status == "complete"
     assert result.draft is not None
     create_draft.assert_awaited_once()
-    sync_markdown.assert_awaited_once()
+    sync_markdown.assert_not_awaited()
     save_workbook.assert_awaited_once()
     assert (
         create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"]
@@ -832,7 +832,7 @@ def test_normalize_cost_plan_markdown_strips_bullet_prefixed_table_rows() -> Non
     assert "| Col | Val |" in normalized
 
 
-def test_revision_sync_passes_typed_state_only_to_workbook_export() -> None:
+def test_revision_sync_exports_only_the_workbook_from_typed_state() -> None:
     session = AsyncMock()
     draft = SimpleNamespace(content_markdown="# Cost Plan", provenance_metadata={})
     typed_state = object()
@@ -857,5 +857,5 @@ def test_revision_sync_passes_typed_state_only_to_workbook_export() -> None:
         )
 
     assert result == workbook_metadata
-    assert "typed_state" not in sync_markdown.await_args.kwargs
+    sync_markdown.assert_not_awaited()
     assert save_workbook.await_args.kwargs["typed_state"] is typed_state

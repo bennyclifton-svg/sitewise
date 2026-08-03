@@ -151,8 +151,11 @@ def test_authorized_search_publishes_tool_status(monkeypatch):
     assert result.data
     assert running["tool"] == "search_documents"
     assert running["state"] == "running"
+    assert "bearing capacity" in running["message"]
     assert done["tool"] == "search_documents"
     assert done["state"] == "done"
+    assert done["documents"] == ["geotech-report.pdf"]
+    assert "geotech-report.pdf" in done["message"]
 
 
 def test_unauthorized_search_rejected(monkeypatch):

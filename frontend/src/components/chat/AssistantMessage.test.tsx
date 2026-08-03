@@ -53,7 +53,9 @@ describe("AssistantMessage", () => {
     );
 
     expect(screen.getByText("Tender review complete.")).toBeInTheDocument();
-    expect(screen.getByText("list_tender_comparisons")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tool activity")).toHaveTextContent(
+      "Listed tender comparisons",
+    );
     expect(screen.getByText("Tender comparison report")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Citation 1: Quote A.pdf" })).toBeInTheDocument();
   });

@@ -92,6 +92,34 @@ def test_adopted_budget_preserves_confirmed_prices_and_allocates_the_remainder()
     assert forecast.construction_envelope_total == Decimal("300000.00")
 
 
+def test_adopted_budget_preserves_manual_kitchen_pc_allowance() -> None:
+    markdown = GREENBANK_COST_PLAN.replace(
+        "| 25 | Contingency / allowances | Owner-held contingency | TBC | Assumption | 5-10% construction |",
+        "\n".join(
+            (
+                "| 25 | Contingency / allowances | Owner-held contingency | TBC | Assumption | 5-10% construction |",
+                "| 26 | PC allowances | Kitchen — including engineered stone benchtops | $33,000 | Manual | User-adopted planning allowance |",
+            )
+        ),
+    )
+
+    forecast = build_adopted_budget_forecast(
+        markdown,
+        construction_budget=Decimal("555555"),
+        work_type="extend",
+    )
+
+    kitchen = next(
+        item
+        for item in forecast.items
+        if item.item == "Kitchen — including engineered stone benchtops"
+    )
+    assert kitchen.budget == Decimal("33000.00")
+    assert kitchen.status == "manual"
+    assert kitchen.locked is True
+    assert forecast.construction_envelope_total == Decimal("555555.00")
+
+
 def test_adopted_budget_rejects_a_plan_without_cost_rows() -> None:
     with pytest.raises(AdoptedBudgetForecastError, match="cost item rows"):
         build_adopted_budget_forecast(

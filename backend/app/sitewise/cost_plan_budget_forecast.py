@@ -13,7 +13,15 @@ from app.sitewise.cost_plan_workbook import CostPlanLine, parse_cost_breakdown
 ALLOCATION_QUANTUM = Decimal("500")
 USER_ASSUMPTION_REF = "user_instruction"
 PROTECTED_STATUS_TOKENS = frozenset(
-    {"approved", "contracted", "evidenced", "fact", "grounded", "locked"}
+    {
+        "approved",
+        "contracted",
+        "evidenced",
+        "fact",
+        "grounded",
+        "locked",
+        "manual",
+    }
 )
 
 
@@ -91,6 +99,7 @@ def build_adopted_budget_forecast(
     seen_keys: set[str] = set()
     for index, line in enumerate(lines):
         protected = _is_protected(line)
+        manual = _is_manual(line)
         if index in allocated_envelope:
             budget = allocated_envelope[index]
         elif protected:
@@ -116,7 +125,16 @@ def build_adopted_budget_forecast(
         source_refs = (
             [{"ref": reference, "type": "user_provided_assumption"}]
             if not protected
-            else [{"ref": "current_cost_plan", "type": "confirmed_cost"}]
+            else [
+                {
+                    "ref": "current_cost_plan",
+                    "type": (
+                        "manual_cost_plan_allowance"
+                        if manual
+                        else "confirmed_cost"
+                    ),
+                }
+            ]
         )
         committed = (
             money(Decimal(str(line.approved_contract or line.budget)))
@@ -143,7 +161,7 @@ def build_adopted_budget_forecast(
                 ),
                 source_refs=source_refs,
                 confidence=Decimal("0.35") if not protected else None,
-                status="confirmed" if protected else "proposed",
+                status="manual" if manual else "confirmed" if protected else "proposed",
                 locked=protected,
             )
         )
@@ -396,6 +414,10 @@ def _is_protected(line: CostPlanLine) -> bool:
         return False
     status = _label_key(line.status)
     return any(token in status for token in PROTECTED_STATUS_TOKENS)
+
+
+def _is_manual(line: CostPlanLine) -> bool:
+    return "manual" in _label_key(line.status)
 
 
 def _allowance_type(line: CostPlanLine) -> str:

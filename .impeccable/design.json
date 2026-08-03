@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-03T09:59:00.000Z",
+  "title": "Design System: SiteWise",
+  "extensions": {
+    "colorMeta": {
+      "formwork-ember": {
+        "role": "primary",
+        "displayName": "Formwork Ember",
+        "canonical": "oklch(0.55 0.12 52)",
+        "tonalRamp": [
+          "oklch(0.33 0.07 50)",
+          "oklch(0.41 0.09 51)",
+          "oklch(0.48 0.11 51.5)",
+          "oklch(0.55 0.12 52)",
+          "oklch(0.63 0.11 52.5)",
+          "oklch(0.72 0.09 53)",
+          "oklch(0.885 0.04 54)",
+          "oklch(0.972 0.012 54)"
+        ]
+      },
+      "signal-orange": {
+        "role": "primary",
+        "displayName": "Signal Orange",
+        "canonical": "#F96416",
+        "tonalRamp": [
+          "#6B2808",
+          "#9A3A0C",
+          "#C74D10",
+          "#F96416",
+          "#FA7F3D",
+          "#FB9E6A",
+          "#FDC9A8",
+          "#FEEDE3"
+        ]
+      },
+      "blueprint-azure": {
+        "role": "secondary",
+        "displayName": "Blueprint Azure",
+        "canonical": "oklch(0.52 0.12 245)",
+        "tonalRamp": [
+          "oklch(0.32 0.08 245)",
+          "oklch(0.4 0.1 245)",
+          "oklch(0.52 0.12 245)",
+          "oklch(0.62 0.12 245)",
+          "oklch(0.68 0.15 245)",
+          "oklch(0.76 0.09 245)",
+          "oklch(0.88 0.04 245)",
+          "oklch(0.96 0.015 245)"
+        ]
+      },
+      "survey-ochre": {
+        "role": "tertiary",
+        "displayName": "Survey Ochre",
+        "canonical": "oklch(0.56 0.12 65)",
+        "tonalRamp": [
+          "oklch(0.35 0.08 65)",
+          "oklch(0.45 0.1 65)",
+          "oklch(0.56 0.12 65)",
+          "oklch(0.7 0.13 70)",
+          "oklch(0.78 0.11 72)",
+          "oklch(0.86 0.08 72)",
+          "oklch(0.92 0.04 70)",
+          "oklch(0.97 0.02 70)"
+        ]
+      },
+      "kiln-clay": {
+        "role": "tertiary",
+        "displayName": "Kiln Clay",
+        "canonical": "oklch(0.52 0.15 28)",
+        "tonalRamp": [
+          "oklch(0.32 0.1 28)",
+          "oklch(0.42 0.13 28)",
+          "oklch(0.52 0.15 28)",
+          "oklch(0.6 0.15 28)",
+          "oklch(0.74 0.13 28)",
+          "oklch(0.84 0.08 28)",
+          "oklch(0.92 0.04 28)",
+          "oklch(0.97 0.015 28)"
+        ]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(0.993 0.003 92)",
+        "tonalRamp": [
+          "oklch(0.15 0.006 84)",
+          "oklch(0.196 0.006 86)",
+          "oklch(0.278 0.007 86)",
+          "oklch(0.47 0.008 90)",
+          "oklch(0.715 0.008 92)",
+          "oklch(0.908 0.006 92)",
+          "oklch(0.955 0.005 92)",
+          "oklch(0.993 0.003 92)"
+        ]
+      },
+      "sheet-bg": {
+        "role": "neutral",
+        "displayName": "Sheet Bg",
+        "canonical": "#E4E4E4",
+        "tonalRamp": [
+          "#0C0C0C",
+          "#111111",
+          "#5A5A56",
+          "#ABABA6",
+          "#C8C8C3",
+          "#E4E4E4",
+          "#EFEFEC",
+          "#F2F2EF"
+        ]
+      },
+      "charcoal-base": {
+        "role": "neutral",
+        "displayName": "Charcoal Base",
+        "canonical": "#1a1a1a",
+        "tonalRamp": [
+          "#0C0C0C",
+          "#181818",
+          "#1a1a1a",
+          "#1c1c1c",
+          "#2a2a2a",
+          "#3a3a3a",
+          "#6b7280",
+          "#e8eaed"
+        ]
+      },
+      "clay-3d": {
+        "role": "neutral",
+        "displayName": "Clay 3D",
+        "canonical": "#F2F2EF",
+        "tonalRamp": [
+          "#5A5A56",
+          "#ABABA6",
+          "#C8C8C3",
+          "#E4E4E4",
+          "#E9E9E6",
+          "#EFEFEC",
+          "#F2F2EF",
+          "#FAFAF8"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Persuade headlines, marquee, SITEFORM/SiteWise wordmarks — Oxanium only."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default product UI reading size (IBM Plex Sans 13.5px)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Workbench card and panel titles."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tracked uppercase mono eyebrows, zone titles, traces."
+      },
+      "marketing-body": {
+        "displayName": "Marketing Body",
+        "purpose": "Landing running text and nav (Space Mono)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting-chip",
+        "value": "var(--shadow-xs, 0 1px 2px rgb(0 0 0 / 0.05))",
+        "purpose": "Outline controls, inputs, subtle resting edges."
+      },
+      {
+        "name": "floating-chrome",
+        "value": "var(--shadow-sm, 0 1px 3px rgb(0 0 0 / 0.1))",
+        "purpose": "Composer, light cards, elevated chips."
+      },
+      {
+        "name": "menu",
+        "value": "var(--shadow-md, 0 4px 12px rgb(0 0 0 / 0.12))",
+        "purpose": "Popovers and dropdown menus."
+      },
+      {
+        "name": "sitewise-mark",
+        "value": "0 0 0 1px rgb(236 236 234 / 0.95), 0 6px 18px rgb(0 0 0 / 0.16), 0 14px 36px rgb(80 80 80 / 0.28), 0 0 40px rgb(236 236 234 / 0.45)",
+        "purpose": "Lifted SiteWise seal on cockpit ribbon only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control",
+        "value": "180ms ease",
+        "purpose": "Mark hover and small control transitions."
+      },
+      {
+        "name": "marketing-press",
+        "value": "120ms linear",
+        "purpose": "Landing button filter/transform press."
+      },
+      {
+        "name": "ribbon-drift",
+        "value": "32s ease-in-out infinite",
+        "purpose": "Subtle cockpit ribbon atmosphere; disabled under reduced motion."
+      },
+      {
+        "name": "skeleton-sweep",
+        "value": "1.6s ease-in-out infinite",
+        "purpose": "Ingest/upload placeholder bars."
+      }
+    ],
+    "breakpoints": [
+      { "name": "landing-collapse", "value": "720px" },
+      { "name": "cockpit-desktop", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Product primary — Formwork Ember fill, quiet hardware height.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Run comparison</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 10px; border: 0; border-radius: 0.4375rem; background: oklch(0.55 0.12 52); color: oklch(0.993 0.003 92); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 180ms ease; } .ds-btn-primary:hover { background: oklch(0.48 0.11 51.5); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px oklch(0.55 0.12 52 / 0.3); } .ds-btn-primary:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Marketing CTA",
+      "kind": "button",
+      "refersTo": "button-marketing",
+      "description": "SITEFORM sheet CTA — sharp, tracked mono, Signal Orange.",
+      "html": "<a class=\"ds-btn-marketing\" href=\"#\">Book a Demo</a>",
+      "css": ".ds-btn-marketing { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 28px; border: 0; border-radius: 0; background: #F96416; color: #111111; font-family: \"Space Mono\", \"IBM Plex Mono\", ui-monospace, monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: filter 120ms linear, transform 120ms linear; } .ds-btn-marketing:hover { filter: brightness(0.92); transform: translateY(1px); } .ds-btn-marketing:focus-visible { outline: 2px solid #F96416; outline-offset: 2px; } .ds-btn-marketing:active { filter: brightness(0.86); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Quiet secondary control on paper.",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">Review draft</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 10px; border: 1px solid oklch(0.908 0.006 92); border-radius: 0.4375rem; background: oklch(0.977 0.004 92); color: oklch(0.196 0.006 86); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); cursor: pointer; transition: background 180ms ease; } .ds-btn-outline:hover { background: oklch(0.955 0.005 92); } .ds-btn-outline:focus-visible { outline: none; border-color: oklch(0.55 0.12 52); box-shadow: 0 0 0 3px oklch(0.55 0.12 52 / 0.3); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Workbench field — hair border, brand focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Project name\" />",
+      "css": ".ds-input { width: 100%; height: 36px; padding: 4px 10px; border: 1px solid oklch(0.908 0.006 92); border-radius: 0.4375rem; background: transparent; color: oklch(0.278 0.007 86); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: 14px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); outline: none; transition: border-color 180ms ease, box-shadow 180ms ease; } .ds-input::placeholder { color: oklch(0.47 0.008 90); } .ds-input:focus-visible { border-color: oklch(0.55 0.12 52); box-shadow: 0 0 0 3px oklch(0.55 0.12 52 / 0.3); }"
+    },
+    {
+      "name": "Workbench Card",
+      "kind": "card",
+      "refersTo": "card-workbench",
+      "description": "Product surface with optional registration-tick language.",
+      "html": "<section class=\"ds-card\"><p class=\"ds-card-eyebrow\">Cost plan</p><h3 class=\"ds-card-title\">Elemental summary</h3><p class=\"ds-card-body\">Totals computed in Python. Claims trace to evidence.</p></section>",
+      "css": ".ds-card { position: relative; padding: 24px; border: 1px solid oklch(0.908 0.006 92); border-radius: 10px; background: oklch(0.993 0.003 92); color: oklch(0.278 0.007 86); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); } .ds-card::before { content: \"\"; position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-top: 1.5px solid oklch(0.885 0.04 54); border-right: 1.5px solid oklch(0.885 0.04 54); } .ds-card-eyebrow { margin: 0 0 8px; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.585 0.008 92); } .ds-card-title { margin: 0 0 8px; font-size: 16px; font-weight: 500; color: oklch(0.196 0.006 86); } .ds-card-body { margin: 0; font-size: 13.5px; line-height: 1.5; }"
+    },
+    {
+      "name": "Sheet Cell",
+      "kind": "card",
+      "refersTo": "card-workbench",
+      "description": "Marketing hairline cell — flat sheet, no radius.",
+      "html": "<div class=\"ds-sheet-cell\"><span class=\"ds-marker\" aria-hidden=\"true\"></span><p class=\"ds-sheet-label\">Platform</p><p class=\"ds-sheet-copy\">One sheet from concept to contract.</p></div>",
+      "css": ".ds-sheet-cell { position: relative; padding: 20px; border: 1px solid #ABABA6; border-radius: 0; background: #E4E4E4; color: #111111; font-family: \"Space Mono\", \"IBM Plex Mono\", ui-monospace, monospace; } .ds-marker { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #F96416; } .ds-sheet-label { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #5A5A56; } .ds-sheet-copy { margin: 0; font-size: 15px; line-height: 1.55; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "Compact pill — ember default, use sparingly.",
+      "html": "<span class=\"ds-badge\">Live</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 10px; border: 0; border-radius: 9999px; background: oklch(0.55 0.12 52); color: oklch(0.993 0.003 92); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; }"
+    },
+    {
+      "name": "Zone Title",
+      "kind": "nav",
+      "refersTo": "label",
+      "description": "Cockpit mono zone label with ember structural tick.",
+      "html": "<div class=\"ds-zone\"><span class=\"ds-zone-title\">Workflows</span></div>",
+      "css": ".ds-zone { display: flex; align-items: center; } .ds-zone-title { display: inline-flex; align-items: center; gap: 8px; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.585 0.008 92); } .ds-zone-title::before { content: \"\"; width: 14px; height: 1px; background: oklch(0.55 0.12 52); flex: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Drawing Office",
+    "overview": "Not the cliché architect loft with mood boards and espresso — a working drawing office where sheets are pinned, dimensions are checked, and decisions leave marks. SiteWise fuses two already-shipping visual dialects into one identity: the SITEFORM marketing sheet and the product cockpit workbench. Persuade surfaces speak in hairline frames, zero-radius machined chrome, Oxanium display, and clay 3D massing. Operate surfaces speak in dense IBM Plex UI, warm paper greys, micro-radii for finger targets, and a charcoal dark shell with subtle grain. The shared soul is the same: handcrafted texture, multi-scale structure (from sheet grid to Y-frame / BIM-like volumetric undertone), and one hot construction accent against quiet hardware.\n\nThe technology undertone is structural, not neon. 3D clay models, viewfinder brackets, registration-tick corners, and tracked mono labels carry “agentic construction intelligence” the way a building information model carries coordination — visible as frame and mass, never as purple glow or chatbot chrome. Quiet hardware with one hot accent. Hope earned by substance.",
+    "keyCharacteristics": [
+      "Dual-register system: sheet marketing vs workbench product, one brand spine",
+      "Warm paper greys + Formwork Ember / Signal Orange as the only hot voice",
+      "Mono eyebrows and labels; Oxanium for persuade display; IBM Plex for operate body",
+      "Hairlines, brackets, corner ticks — drawn structure over soft SaaS cards",
+      "Subtle grain/texture and clay 3D for material + BIM undertone",
+      "Flat sheet on marketing; tonal stack + restrained lift in the app"
+    ],
+    "rules": [
+      {
+        "name": "The One Hot Accent Rule",
+        "body": "On any given surface, either Formwork Ember (operate) or Signal Orange (persuade) is the hot voice — never both competing, never rainbow status chrome.",
+        "section": "colors"
+      },
+      {
+        "name": "The Evidence vs Inference Rule",
+        "body": "Blaze/ember marks evidenced or brand-owned actions; Blueprint Azure marks AI/assumed/info. Do not swap those meanings.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Before Paint Rule",
+        "body": "Most of the UI is warm grey paper or charcoal plate. Color arrives as signal, not decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Eyebrow is Structure Rule",
+        "body": "Uppercase tracked mono labels are frame, not decoration. Keep them faint with an optional ember tick — never loud pill soup.",
+        "section": "typography"
+      },
+      {
+        "name": "The Dual Face Rule",
+        "body": "Oxanium/Space Mono own persuade; IBM Plex owns operate. Crossing faces needs intent, not drift.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sheet vs Bench Rule",
+        "body": "Marketing stays on the hairline sheet; product stays on the tonal workbench. Borrow motifs across — do not paste landing zero-radius chrome into dense forms without reason.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Sheet Rule",
+        "body": "Persuade surfaces do not grow drop shadows to look premium. If it needs depth, use a clay model, a bracket, or a hairline.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Lift Is Earned Rule",
+        "body": "In product, shadows mark floating or interactive chrome. Surfaces at rest stay tonal.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Bracket is a Viewfinder Rule",
+        "body": "Corner ticks and brackets mean scoped / registered / under inspection. Use sparingly on signature work surfaces.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do fuse sheet language (hairlines, brackets, mono labels, clay 3D) with workbench language (Plex, tonal greys, micro-radii) under one Drawing Office north star.",
+      "Do keep Formwork Ember / Signal Orange rare and purposeful — quiet hardware, one hot accent.",
+      "Do use Blueprint Azure for inference/AI/info and ember for evidenced/brand.",
+      "Do prefer subtle grain, paper texture, and structural 3D over decorative gradients.",
+      "Do synthesise and reduce — architect clarity over dashboard clutter."
+    ],
+    "donts": [
+      "Don't run purple/indigo “AI” gradients, glow stacks, or chatbot-bubble aesthetics.",
+      "Don't mix Signal Orange and Formwork Ember as competing accents on one screen.",
+      "Don't apply marketing zero-radius + heavy uppercase mono to every dense form control — operate needs Plex and soft hit targets.",
+      "Don't fake depth on the marketing sheet with soft drop shadows; use models and hairlines.",
+      "Don't invent testimonials, partner proof, or metric theatre without real evidence (product constraint)."
+    ]
+  }
+}

@@ -39,11 +39,13 @@ function SiteWiseMarkButton({ onShowWorkbench }: { onShowWorkbench: () => void }
       title="SiteWise"
       onClick={onShowWorkbench}
     >
+
       <span className="text-center text-[1.04rem] font-semibold lowercase leading-[1.05] tracking-tight text-black transition-colors group-hover:text-black">
         site
         <br />
         wise
       </span>
+
     </button>
   );
 }

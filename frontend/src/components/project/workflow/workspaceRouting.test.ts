@@ -4,6 +4,7 @@ import {
   findDraftByWorkspacePath,
   isDraftArtifactWorkspaceFile,
   isConsultantProcurementWorkspaceFile,
+  isCostPlanWorkspaceFile,
   isContractorEoiWorkspaceFile,
   isTradeProcurementWorkspaceFile,
 } from "@/components/project/workflow/workspaceRouting";
@@ -24,6 +25,31 @@ const structuralDraft: DraftArtifactSummary = {
   created_at: "2026-07-06T10:00:00.000Z",
   updated_at: "2026-07-06T10:00:00.000Z",
 };
+
+const costPlanDraft: DraftArtifactSummary = {
+  id: "draft-2",
+  project_id: "project-1",
+  workflow_type: "create_cost_plan",
+  version: 10,
+  status: "draft",
+  title: "Project Cost Plan",
+  workspace_path: "04-projects/walsh-reno/01-cost/cost_plan_v10.md",
+  author_user_id: "user-1",
+  model: null,
+  runtime: "clerk-cost-plan",
+  created_at: "2026-08-02T10:00:00.000Z",
+  updated_at: "2026-08-02T10:00:00.000Z",
+};
+
+describe("isCostPlanWorkspaceFile", () => {
+  it("matches the workbook export", () => {
+    expect(
+      isCostPlanWorkspaceFile(
+        "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
+      ),
+    ).toBe(true);
+  });
+});
 
 describe("isConsultantProcurementWorkspaceFile", () => {
   it("matches consultant procurement draft paths", () => {
@@ -94,5 +120,14 @@ describe("findDraftByWorkspacePath", () => {
         structuralDraft.workspace_path,
       ),
     ).toEqual(structuralDraft);
+  });
+
+  it("resolves a Cost Plan workbook to its draft revision", () => {
+    expect(
+      findDraftByWorkspacePath(
+        { create_cost_plan: costPlanDraft },
+        "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
+      ),
+    ).toEqual(costPlanDraft);
   });
 });
