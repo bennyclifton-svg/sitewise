@@ -214,6 +214,25 @@ def test_database_errors_return_cors_503() -> None:
     }
 
 
+def test_database_deadlocks_return_retryable_cors_409() -> None:
+    from psycopg.errors import DeadlockDetected
+
+    path = f"/__test_database_deadlock_{uuid.uuid4().hex}"
+
+    async def raise_deadlock() -> None:
+        raise OperationalError("SELECT 1", {}, DeadlockDetected("deadlock detected"))
+
+    app.add_api_route(path, raise_deadlock, methods=["GET"])
+    with TestClient(cors_app, raise_server_exceptions=False) as test_client:
+        response = test_client.get(path, headers={"Origin": "http://localhost:5173"})
+
+    assert response.status_code == 409
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.json() == {
+        "detail": "Concurrent project update. Retry the workflow.",
+    }
+
+
 def test_integrity_errors_return_cors_409() -> None:
     path = f"/__test_integrity_error_{uuid.uuid4().hex}"
 

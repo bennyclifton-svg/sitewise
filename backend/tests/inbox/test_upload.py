@@ -90,6 +90,10 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
             patch("app.inbox.service.get_workspace_file_by_path", new=AsyncMock(return_value=None)),
             patch("app.inbox.service.upload_project_file") as mock_upload,
             patch(
+                "app.inbox.service.lock_project",
+                new=AsyncMock(return_value=project),
+            ) as mock_lock_project,
+            patch(
                 "app.inbox.service.sort_inbox_files",
                 new=AsyncMock(),
                 create=True,
@@ -123,6 +127,7 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
             )
 
         mock_upload.assert_called_once()
+        mock_lock_project.assert_awaited_once_with(mock_session, project_id=project.id)
         mock_ingest.assert_not_called()
         mock_sort.assert_not_called()
         mock_start.assert_awaited_once()

@@ -10,6 +10,7 @@ from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.workspace_files import get_workspace_file_by_path, upsert_workspace_file
 from app.inbox.paths import InboxPathError, build_inbox_workspace_path, build_storage_key, sanitize_filename
+from app.projects.locks import lock_project
 from app.schemas.projects import WorkflowTraceEvent
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
@@ -236,6 +237,10 @@ async def _upload_single_file(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to store '{filename}' in object storage: {exc}",
         ) from exc
+
+    project = await lock_project(session, project_id=project.id)
+    if project is None:
+        raise RuntimeError("Project was deleted while the file upload was in progress")
 
     record = await upsert_workspace_file(
         session,

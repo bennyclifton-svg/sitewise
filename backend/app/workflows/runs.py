@@ -14,6 +14,7 @@ from app.database.project import Project
 from app.database.draft_artifact import DraftArtifact
 from app.database.workflow_run import WorkflowRun
 from app.projects.events import publish_project_event
+from app.projects.locks import lock_project
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
 
@@ -80,6 +81,10 @@ async def start_workflow_run(
 ) -> tuple[WorkflowRun, bool]:
     if workflow_type not in SUPPORTED_WORKFLOWS:
         raise ValueError(f"Unsupported core workflow: {workflow_type!r}")
+    project_id = project.id
+    project = await lock_project(session, project_id=project_id)
+    if project is None:
+        raise WorkflowRunNotFound(str(project_id))
     request_hash = canonical_request_hash(workflow_type, request)
     existing = await _find_idempotent_run(
         session,
@@ -589,10 +594,7 @@ def _require_matching_request(run: WorkflowRun, request_hash: str) -> None:
 
 
 async def _locked_project(session: AsyncSession, project_id: uuid.UUID) -> Project:
-    result = await session.execute(
-        select(Project).where(Project.id == project_id).with_for_update()
-    )
-    project = result.scalar_one_or_none()
+    project = await lock_project(session, project_id=project_id)
     if project is None:
         raise WorkflowRunNotFound(str(project_id))
     return project

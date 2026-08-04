@@ -62,7 +62,10 @@ async def publish_project_event(
     project = locked_project
     if project is None:
         result = await session.execute(
-            select(Project).where(Project.id == project_id).with_for_update()
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         project = result.scalar_one_or_none()
     if project is None or project.id != project_id:

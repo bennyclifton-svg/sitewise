@@ -5,6 +5,7 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from psycopg.errors import DeadlockDetected
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 import app.database.models  # noqa: F401 — register all SQLAlchemy mappers before API routes
@@ -96,6 +97,13 @@ async def integrity_error_handler(request: Request, exc: IntegrityError):
 @fastapi_app.exception_handler(SQLAlchemyError)
 async def database_error_handler(request: Request, exc: SQLAlchemyError):
     log.exception("database_error", path=request.url.path, error=str(exc))
+    if isinstance(exc, OperationalError) and isinstance(exc.orig, DeadlockDetected):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": "Concurrent project update. Retry the workflow.",
+            },
+        )
     detail = (
         "Database unavailable. Check DATABASE_URL and network access."
         if isinstance(exc, OperationalError)

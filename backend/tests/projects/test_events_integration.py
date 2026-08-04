@@ -47,6 +47,11 @@ def test_project_event_outbox_is_atomic_ordered_and_deduplicated() -> None:
     asyncio.run(_exercise_project_event_outbox())
 
 
+def test_project_event_sequence_refreshes_after_concurrent_preload() -> None:
+    _upgrade_head()
+    asyncio.run(_exercise_concurrent_distinct_event_writes())
+
+
 async def _exercise_project_event_outbox() -> None:
     engine = create_async_engine(
         _test_url().replace("postgresql://", "postgresql+psycopg://", 1)
@@ -137,6 +142,69 @@ async def _exercise_project_event_outbox() -> None:
             project = await session.get(Project, project_id)
             assert project is not None
             assert project.event_sequence == 1
+    finally:
+        async with factory.begin() as session:
+            await session.execute(delete(User).where(User.id == user_id))
+        await engine.dispose()
+
+
+async def _exercise_concurrent_distinct_event_writes() -> None:
+    engine = create_async_engine(
+        _test_url().replace("postgresql://", "postgresql+psycopg://", 1)
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    user_id = uuid.uuid4()
+    project_id = uuid.uuid4()
+    try:
+        async with factory.begin() as session:
+            session.add(User(id=user_id, email=f"events-{user_id}@example.com"))
+            session.add(
+                Project(
+                    id=project_id,
+                    owner_user_id=user_id,
+                    slug=f"events-{project_id}",
+                    title="Concurrent event fixture",
+                    workspace_path=f"04-projects/events-{project_id}",
+                    phase="brief-planning",
+                    archetype=None,
+                    building_class="residential",
+                    work_type="new",
+                    user_role="architect-pm",
+                    state="NSW",
+                    profile_revision=1,
+                    event_sequence=0,
+                    status="active",
+                    project_metadata={"taxonomy": {"subclasses": ["house"]}},
+                )
+            )
+
+        barrier = asyncio.Barrier(4)
+
+        async def produce_distinct(index: int) -> int:
+            async with factory.begin() as session:
+                project = await session.get(Project, project_id)
+                assert project is not None
+                await barrier.wait()
+                event = await publish_project_event(
+                    session,
+                    project_id=project_id,
+                    actor_source="workflow_run",
+                    resource_type="workflow_run",
+                    resource_id=f"run-{index}",
+                    resource_revision=1,
+                    action="queued",
+                    payload={"index": index},
+                    deduplication_key=f"workflow:run-{index}:queued",
+                )
+                return event.sequence
+
+        sequences = await asyncio.gather(*(produce_distinct(index) for index in range(4)))
+        assert sorted(sequences) == [1, 2, 3, 4]
+
+        async with factory() as session:
+            project = await session.get(Project, project_id)
+            assert project is not None
+            assert project.event_sequence == 4
     finally:
         async with factory.begin() as session:
             await session.execute(delete(User).where(User.id == user_id))
