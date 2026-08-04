@@ -119,6 +119,7 @@ def test_reservation_persists_message_hash_and_bound_mutation_intent(monkeypatch
             user_message_hash="a" * 64,
             mutation_scopes=["profile_mutation"],
             mutation_intent={"profile_patch": {"state": "VIC"}},
+            input_context={"selected_documents": [{"workspace_file_id": "file-1"}]},
             runtime="pi",
             model="test-model",
         )
@@ -128,6 +129,9 @@ def test_reservation_persists_message_hash_and_bound_mutation_intent(monkeypatch
     assert turn.user_message_hash == "a" * 64
     assert turn.mutation_scopes == ["profile_mutation"]
     assert turn.mutation_intent["profile_patch"] == {"state": "VIC"}
+    assert turn.input_context == {
+        "selected_documents": [{"workspace_file_id": "file-1"}]
+    }
 
 
 def _active_turn(*, runtime: str = "pi", state: str = "active") -> SimpleNamespace:

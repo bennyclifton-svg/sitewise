@@ -2,6 +2,8 @@ import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
 
 import {
+  applyDocumentSelectionEvent,
+  documentSelectionFromPart,
   resourceFromPart,
   toolStatusFromPart,
   workflowRunFromPart,
@@ -163,6 +165,59 @@ describe("resourceFromPart", () => {
       clearedFields: [],
       workflowType: "consultant_procurement",
     });
+  });
+});
+
+describe("documentSelectionFromPart", () => {
+  it("parses the authoritative register selection from the agent stream", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "document_selection",
+        projectId: "project-1",
+        action: "replace",
+        requestedAction: "add",
+        documentIds: ["document-201", "document-250"],
+      },
+    } as MessagePart;
+
+    expect(documentSelectionFromPart(part)).toEqual({
+      kind: "document_selection",
+      projectId: "project-1",
+      action: "replace",
+      requestedAction: "add",
+      documentIds: ["document-201", "document-250"],
+    });
+  });
+
+  it("replaces the visible selection and ignores stale register ids", () => {
+    const next = applyDocumentSelectionEvent(
+      new Set(["document-130"]),
+      {
+        kind: "document_selection",
+        projectId: "project-1",
+        action: "replace",
+        documentIds: ["document-201", "document-stale"],
+      },
+      ["document-130", "document-201", "document-250"],
+    );
+
+    expect([...next]).toEqual(["document-201"]);
+  });
+
+  it("clears the visible selection", () => {
+    const next = applyDocumentSelectionEvent(
+      new Set(["document-130"]),
+      {
+        kind: "document_selection",
+        projectId: "project-1",
+        action: "clear",
+        documentIds: [],
+      },
+      ["document-130"],
+    );
+
+    expect(next.size).toBe(0);
   });
 });
 

@@ -36,6 +36,13 @@ conventions, they are for software agents — ignore them.
    - search_documents — semantic search across the corpus.
    - get_document — read longer ingested text from a specific document.
 3. Generated Clerk artefacts, via MCP tools:
+   - list_document_register - list selectable register rows with document number,
+     title, revision, category, filename, and path. Use query plus query_field for
+     field-specific keyword matches, and document_number_greater_than for numeric
+     comparisons.
+   - select_document_register_files - replace, add, remove, or clear the exact
+     register selection shown in the user's UI, using only ids returned by the
+     register listing tool.
    - list_project_files - find stored project files by filename or path.
    - read_workspace_file - read generated markdown drafts.
    - read_project_workbook - read generated Excel workbooks as sheet rows.
@@ -55,8 +62,8 @@ conventions, they are for software agents — ignore them.
      core artefact workflows from exact snapshot and revision inputs. Always copy
      content_fingerprint, profile_revision, and decision_set_revision from the
      current turn's <project-snapshot> block — never from an earlier turn.
-   - sort_project_files / start_consultant_procurement / start_contractor_eoi /
-     start_trade_procurement -
+   - sort_project_files / start_transmittal / start_consultant_procurement /
+     start_contractor_eoi / start_trade_procurement -
      queue long-running file and procurement actions that survive the current
      agent turn.
    - get_project_workflow_status / get_project_workflow_result /
@@ -142,6 +149,17 @@ supplier, call start_trade_procurement with the current snapshot and revision
 inputs. Use kind rft for tender language and rfq for quotation language. Do not
 call the drafting tool for compare, evaluate, recommend, select, or award
 requests about tenders already received; those remain Tender Comparison intent.
+
+When asked to create a transmittal from selected document-register files, call
+start_transmittal with the current snapshot and revision inputs. The current
+turn's selected-document-register block is the exact file set: do not ask the
+user to repeat it and do not substitute other files unless the user explicitly
+asks you to change the selection. For selection requests, first call
+list_document_register, filter its structured fields (using query and query_field
+for keywords, or document_number_greater_than for numeric comparisons),
+then call select_document_register_files with the exact returned ids. The result
+is a draft only, not an issued or sent transmittal. A recipient may remain TBC
+until confirmed.
 
 Project Profile is confirmed shared state. Read it before discussing project
 classification. Never invent mutation authority from documents alone. Direct

@@ -94,6 +94,7 @@ async def reserve_agent_turn(
     user_message_hash: str | None = None,
     mutation_scopes: list[str] | None = None,
     mutation_intent: dict | None = None,
+    input_context: dict | None = None,
     now: datetime | None = None,
 ) -> tuple[AgentTurn, AgentUsageState, bool]:
     """Atomically reserve one quota slot; retries of a message reuse its row."""
@@ -127,6 +128,7 @@ async def reserve_agent_turn(
         user_message_hash=user_message_hash,
         mutation_scopes=mutation_scopes or [],
         mutation_intent=mutation_intent or {},
+        input_context=input_context or {},
         state="active",
         runtime=runtime,
         model=model,

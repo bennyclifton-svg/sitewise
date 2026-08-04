@@ -30,10 +30,12 @@ import {
 import { getAccessToken } from "@/lib/auth";
 import {
   artefactsFromMessage,
+  documentSelectionFromPart,
   resourceFromPart,
   toolStatusesFromMessage,
   workflowRunsFromMessage,
   type ArtefactEvent,
+  type DocumentSelectionEvent,
   type ResourceEvent,
   type ToolStatusEvent,
   type WorkflowRunRef,
@@ -57,6 +59,7 @@ type ChatPanelProps = {
   initialMessages: ChatMessage[];
   onConversationUpdate?: () => void;
   onResourceEvent?: (event: ResourceEvent) => void;
+  onDocumentSelectionEvent?: (event: DocumentSelectionEvent) => void;
   onUserSubmit?: () => void;
   layout?: "page" | "rail" | "main";
   collapsed?: boolean;
@@ -67,6 +70,7 @@ type ChatPanelProps = {
   onCrossProjectChange?: (value: boolean) => void;
   agentMode?: boolean;
   projectId?: string | null;
+  selectedDocumentIds?: string[];
   selectedCitationId?: string | null;
   onSelectCitation?: (citation: Citation | null) => void;
 };
@@ -76,6 +80,7 @@ export function ChatPanel({
   initialMessages,
   onConversationUpdate,
   onResourceEvent,
+  onDocumentSelectionEvent,
   onUserSubmit,
   layout = "page",
   collapsed = false,
@@ -86,6 +91,7 @@ export function ChatPanel({
   onCrossProjectChange,
   agentMode = false,
   projectId,
+  selectedDocumentIds = [],
   selectedCitationId = null,
   onSelectCitation,
 }: ChatPanelProps) {
@@ -186,7 +192,13 @@ export function ChatPanel({
         },
       }),
     });
-  }, [agentMode, crossProject, chatModel, agentModel, effectiveAgentRuntime]);
+  }, [
+    agentMode,
+    crossProject,
+    chatModel,
+    agentModel,
+    effectiveAgentRuntime,
+  ]);
 
   const { messages, sendMessage, status, error, stop } = useChat({
     id: threadId,
@@ -195,6 +207,8 @@ export function ChatPanel({
     onData: (part) => {
       const resource = resourceFromPart(part);
       if (resource) onResourceEvent?.(resource);
+      const documentSelection = documentSelectionFromPart(part);
+      if (documentSelection) onDocumentSelectionEvent?.(documentSelection);
       if (
         part.type === "data-clerk-status" &&
         typeof part.data === "object" &&
@@ -295,8 +309,16 @@ export function ChatPanel({
   async function handleSubmit() {
     const text = input.trim();
     if (!text || isBusy) return;
+    const submittedDocumentIds = [...selectedDocumentIds];
     setInput("");
     onUserSubmit?.();
+    if (agentMode && submittedDocumentIds.length) {
+      await sendMessage(
+        { text },
+        { body: { selected_document_ids: submittedDocumentIds } },
+      );
+      return;
+    }
     await sendMessage({ text });
   }
 

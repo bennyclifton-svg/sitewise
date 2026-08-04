@@ -445,6 +445,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "workflow.refresh_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
         "workflow.tender_comparison=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Tender Comparison requires confirmed Class 1a project context.\n"
         "workflow.trade_procurement=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
+        "workflow.transmittal=supported; required_fields=(none); reasons=A transmittal can be drafted from the files selected in the current document register. It remains unissued until the recipient and issue details are confirmed.\n"
         "workflow.update_pmp=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
         "site_address=(not declared)\n"
         "client=(not declared)\n"

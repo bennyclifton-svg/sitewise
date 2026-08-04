@@ -1,5 +1,6 @@
 import pytest
 
+from app.agent.document_context import SelectedTurnDocument
 from app.agent.mutation_intent import classify_mutation_intent
 from app.agent.turn_context import (
     HistoryMessage,
@@ -165,6 +166,71 @@ def test_construction_price_budget_request_needs_mutation_tools() -> None:
 
     assert "<adopted-cost-plan-budget-request>" in prompt
     assert "apply_cost_plan_budget_forecast" in prompt
+
+
+def test_transmittal_request_uses_the_selected_document_register_block() -> None:
+    user_text = "Create a transmittal with the selected files."
+    document = SelectedTurnDocument(
+        workspace_file_id="22222222-2222-2222-2222-222222222222",
+        workspace_path="04-projects/harbour-house/02-design/A101.pdf",
+        filename="A101.pdf",
+        content_hash="a" * 64,
+        size_bytes=1234,
+        document_number="A101",
+        title="Ground floor plan",
+        revision="C02",
+        category="Architectural",
+    )
+
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Harbour House",
+        archetype="renovation",
+        state="NSW",
+        phase="procurement",
+        building_class="residential",
+        work_type="refurb",
+        history=[],
+        selected_documents=[document],
+    )
+
+    assert turn_needs_mutation_tools(user_text, classify_mutation_intent(user_text))
+    assert "<selected-document-register>" in prompt
+    assert '"document_number": "A101"' in prompt
+    assert "use start_transmittal" in prompt
+    assert "Do not ask the user to repeat the file list." in prompt
+
+
+@pytest.mark.parametrize(
+    "user_text",
+    [
+        "Select files with document number greater than 200.",
+        "Select all documents with Basement in the title.",
+    ],
+)
+def test_register_selection_requests_use_structured_selection_tools(
+    user_text: str,
+) -> None:
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Harbour House",
+        archetype="renovation",
+        state="NSW",
+        phase="design",
+        building_class="residential",
+        work_type="refurb",
+        history=[],
+    )
+
+    assert "call list_document_register first" in prompt
+    assert "select_document_register_files" in prompt
+    assert "structured document_number, title" in prompt
+    assert '"Basement" in the title' in prompt
+    assert "document_number_greater_than" in prompt
+    assert "full list of" in prompt
+    assert "available files" in prompt
 
 
 def test_check_and_fix_profile_phrasing_runs_document_enrichment() -> None:

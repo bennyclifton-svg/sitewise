@@ -30,6 +30,7 @@ SUPPORTED_WORKFLOWS = frozenset(
         "consultant_procurement",
         "contractor_eoi",
         "trade_procurement",
+        "create_transmittal",
     }
 )
 

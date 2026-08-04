@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
@@ -29,8 +30,9 @@ def _settings(monkeypatch):
 
 
 class _Session:
-    def __init__(self, *, project: Any) -> None:
+    def __init__(self, *, project: Any, turn: Any | None = None) -> None:
         self.project = project
+        self.turn = turn
         self.commit = AsyncMock()
 
     async def __aenter__(self) -> "_Session":
@@ -39,9 +41,11 @@ class _Session:
     async def __aexit__(self, *exc_info: Any) -> None:
         return None
 
-    async def get(self, model: type, item_id: uuid.UUID) -> Any:
+    async def get(self, model: type, item_id: uuid.UUID, **_kwargs: Any) -> Any:
         if item_id == self.project.id:
             return self.project
+        if self.turn is not None and item_id == self.turn.id:
+            return self.turn
         return None
 
 
@@ -114,6 +118,7 @@ def _install(
     session: _Session,
     *,
     token_project: uuid.UUID = PROJECT_ID,
+    turn_id: uuid.UUID | None = None,
 ):
     from app.mcp_bridge import server
 
@@ -123,7 +128,12 @@ def _install(
         server.authorize_project_access_with_claims,
     )
 
-    token = mint_turn_token(user_id=USER_ID, project_id=token_project, secret=SECRET)
+    token = mint_turn_token(
+        user_id=USER_ID,
+        project_id=token_project,
+        turn_id=turn_id,
+        secret=SECRET,
+    )
     monkeypatch.setattr(
         server,
         "get_http_headers",
@@ -183,7 +193,7 @@ def test_list_project_files_finds_generated_workbook(monkeypatch) -> None:
 
 def test_list_project_files_hides_legacy_cost_plan_markdown(monkeypatch) -> None:
     session = _Session(project=_project())
-    server = _install(monkeypatch, session)
+    installed_server = _install(monkeypatch, session)
     workbook = _workspace_file(
         workspace_path="04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
         filename="Cost_Plan_v10.draft.xlsx",
@@ -193,12 +203,16 @@ def test_list_project_files_hides_legacy_cost_plan_markdown(monkeypatch) -> None
         filename="cost_plan_v10.md",
     )
     monkeypatch.setattr(
-        server,
+        installed_server,
         "search_workspace_files_for_project",
         AsyncMock(return_value=[markdown, workbook]),
     )
 
-    result = _call(server, "list_project_files", {"project_id": str(PROJECT_ID)})
+    result = _call(
+        installed_server,
+        "list_project_files",
+        {"project_id": str(PROJECT_ID)},
+    )
 
     assert [item["filename"] for item in result.data] == ["Cost_Plan_v10.draft.xlsx"]
 
@@ -249,6 +263,150 @@ def test_pi_runtime_allows_project_file_tools() -> None:
     assert "get_cost_plan" in PI_MCP_DIRECT_TOOLS
     assert "upsert_cost_item" in PI_MCP_DIRECT_TOOLS
     assert "draft_consultant_procurement_artifact" in PI_MCP_DIRECT_TOOLS
+    assert "list_document_register" in PI_MCP_DIRECT_TOOLS
+    assert "select_document_register_files" in PI_MCP_DIRECT_TOOLS
+    assert "start_transmittal" in PI_MCP_DIRECT_TOOLS
+
+
+def test_list_document_register_supports_keyword_and_numeric_filters(monkeypatch) -> None:
+    from app.projects.document_register import DocumentRegisterRow
+
+    session = _Session(project=_project())
+    installed_server = _install(monkeypatch, session)
+    basement = DocumentRegisterRow(
+        id=uuid.uuid4(),
+        workspace_file_id=uuid.uuid4(),
+        source_document_id=uuid.uuid4(),
+        workspace_path="04-projects/walsh-reno/03-design/A250.pdf",
+        filename="A250.pdf",
+        document_number="250",
+        title="Basement floor plan",
+        revision="C02",
+        category="Architectural",
+    )
+    roof = DocumentRegisterRow(
+        id=uuid.uuid4(),
+        workspace_file_id=uuid.uuid4(),
+        workspace_path="04-projects/walsh-reno/_inbox/roof.pdf",
+        filename="roof.pdf",
+        title="Roof plan",
+    )
+    monkeypatch.setattr(
+        installed_server,
+        "list_document_register_rows",
+        AsyncMock(return_value=[basement, roof]),
+    )
+
+    result = _call(
+        installed_server,
+        "list_document_register",
+        {
+            "project_id": str(PROJECT_ID),
+            "query": "Basement",
+            "query_field": "title",
+        },
+    )
+
+    assert [item["id"] for item in result.data] == [str(basement.id)]
+    assert result.data[0]["document_number"] == "250"
+
+    numeric_result = _call(
+        installed_server,
+        "list_document_register",
+        {
+            "project_id": str(PROJECT_ID),
+            "document_number_greater_than": 200,
+        },
+    )
+
+    assert [item["id"] for item in numeric_result.data] == [str(basement.id)]
+
+
+def test_select_document_register_files_updates_turn_and_publishes_ui_event(
+    monkeypatch,
+) -> None:
+    from app.agent.document_context import SelectedTurnDocument
+    from app.projects.document_register import DocumentRegisterRow
+
+    turn_id = uuid.uuid4()
+    turn = SimpleNamespace(
+        id=turn_id,
+        project_id=PROJECT_ID,
+        user_id=USER_ID,
+        state="active",
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        input_context={
+            "selected_documents": [],
+            "unrelated": "preserved",
+        },
+    )
+    session = _Session(project=_project(), turn=turn)
+    installed_server = _install(monkeypatch, session, turn_id=turn_id)
+    source_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    row = DocumentRegisterRow(
+        id=source_id,
+        workspace_file_id=workspace_id,
+        source_document_id=source_id,
+        workspace_path="04-projects/walsh-reno/03-design/A250.pdf",
+        filename="A250.pdf",
+        document_number="250",
+        title="Basement floor plan",
+        revision="C02",
+        category="Architectural",
+    )
+    selected = SelectedTurnDocument(
+        workspace_file_id=workspace_id,
+        source_document_id=source_id,
+        workspace_path=row.workspace_path,
+        filename=row.filename,
+        content_hash="a" * 64,
+        size_bytes=1234,
+        document_number=row.document_number,
+        title=row.title,
+        revision=row.revision,
+        category=row.category,
+    )
+    monkeypatch.setattr(
+        installed_server,
+        "list_document_register_rows",
+        AsyncMock(return_value=[row]),
+    )
+    resolve = AsyncMock(return_value=[selected])
+    monkeypatch.setattr(installed_server, "resolve_selected_turn_documents", resolve)
+    publish = AsyncMock()
+    monkeypatch.setattr(installed_server.agent_turn_status_bus, "publish", publish)
+
+    result = _call(
+        installed_server,
+        "select_document_register_files",
+        {
+            "project_id": str(PROJECT_ID),
+            "document_ids": [str(source_id)],
+            "action": "replace",
+        },
+    )
+
+    assert result.data["selected_count"] == 1
+    assert turn.input_context["unrelated"] == "preserved"
+    assert turn.input_context["selected_documents"][0]["source_document_id"] == str(
+        source_id
+    )
+    resolve.assert_awaited_once_with(
+        session,
+        project_id=PROJECT_ID,
+        document_ids=[source_id],
+    )
+    session.commit.assert_awaited_once()
+    publish.assert_awaited_once_with(
+        str(turn_id),
+        kind="document_selection",
+        message="Selected 1 document",
+        projectId=str(PROJECT_ID),
+        action="replace",
+        requestedAction="replace",
+        documentIds=[str(source_id)],
+    )
 
 
 def test_pi_runtime_allows_project_profile_tools() -> None:

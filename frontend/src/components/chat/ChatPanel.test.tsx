@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -204,6 +204,51 @@ describe("ChatPanel submit promotion", () => {
 
     expect(onUserSubmit).toHaveBeenCalledOnce();
     expect(sendMessage).toHaveBeenCalledWith({ text: "What next?" });
+  });
+});
+
+describe("ChatPanel document selection events", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+    vi.mocked(api.cancelAgentTurn).mockResolvedValue(true);
+  });
+
+  it("forwards an agent register selection to the project workspace", () => {
+    const onDocumentSelectionEvent = vi.fn();
+    mockUseChat();
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        onDocumentSelectionEvent={onDocumentSelectionEvent}
+      />,
+    );
+
+    const options = useChatMock.mock.calls.at(-1)?.[0] as {
+      onData: (part: unknown) => void;
+    };
+    act(() => {
+      options.onData({
+        type: "data-clerk-status",
+        data: {
+          kind: "document_selection",
+          projectId: "project-1",
+          action: "replace",
+          documentIds: ["document-201", "document-250"],
+        },
+      });
+    });
+
+    expect(onDocumentSelectionEvent).toHaveBeenCalledWith({
+      kind: "document_selection",
+      projectId: "project-1",
+      action: "replace",
+      documentIds: ["document-201", "document-250"],
+    });
   });
 });
 

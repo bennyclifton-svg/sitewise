@@ -17,6 +17,8 @@ from app.config import settings
 from app.agent.process_tree import subprocess_group_options, terminate_process_tree
 
 PI_MCP_DIRECT_TOOLS = (
+    "list_document_register",
+    "select_document_register_files",
     "list_project_files",
     "read_project_workbook",
     "read_workspace_file",
@@ -30,6 +32,7 @@ PI_MCP_DIRECT_TOOLS = (
     "refresh_project_plan",
     "start_cost_plan",
     "sort_project_files",
+    "start_transmittal",
     "start_consultant_procurement",
     "get_project_workflow_status",
     "get_project_workflow_result",

@@ -887,3 +887,38 @@
     background: transparent !important;
   }
 }
+
+/* Unlayered so these beat Tailwind utility bg/hover on outline buttons. */
+.cockpit-shell-header .cockpit-concrete-btn {
+  border-color: rgb(59 52 44 / 0.38);
+  color: #2a2620;
+  background-color: #c9c4bb;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.28) 0%,
+      transparent 45%,
+      rgb(0 0 0 / 0.14) 100%
+    ),
+    url("../assets/texture/concrete-cast.svg");
+  background-size: auto, 320px auto;
+  background-position: center, 28% 42%;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    0 1px 2px rgb(0 0 0 / 0.14);
+}
+
+.cockpit-shell-header .cockpit-concrete-btn:hover {
+  border-color: rgb(59 52 44 / 0.48);
+  color: #1f1c18;
+  background-color: #b8b2a7;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.14) 0%,
+      transparent 45%,
+      rgb(0 0 0 / 0.2) 100%
+    ),
+    url("../assets/texture/concrete-cast.svg");
+}

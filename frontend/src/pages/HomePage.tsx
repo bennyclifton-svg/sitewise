@@ -131,20 +131,24 @@ export function HomePage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="cockpit-concrete-btn">
               {/* Static marketing page outside the SPA router — must be a full page load. */}
               <a href="/landing.html">
                 <Globe className="size-4" aria-hidden />
                 Landing page
               </a>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="cockpit-concrete-btn">
               <Link to="/billing">
                 <CreditCard className="size-4" aria-hidden />
                 Billing
               </Link>
             </Button>
-            <Button variant="outline" onClick={() => void handleSignOut()}>
+            <Button
+              variant="outline"
+              className="cockpit-concrete-btn"
+              onClick={() => void handleSignOut()}
+            >
               Sign out
             </Button>
           </div>

@@ -14,6 +14,8 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "construction management intelligence agent" in WORKSPACE_AGENTS_MD
     assert "Clerk software" in WORKSPACE_AGENTS_MD
     assert "repository" in WORKSPACE_AGENTS_MD
+    assert "list_document_register" in WORKSPACE_AGENTS_MD
+    assert "select_document_register_files" in WORKSPACE_AGENTS_MD
 
 
 def test_rewrite_is_skipped_when_content_is_current(tmp_path: Path) -> None:

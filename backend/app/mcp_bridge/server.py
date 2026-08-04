@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 from collections import Counter
 from collections.abc import AsyncIterator
@@ -28,12 +29,23 @@ from app.agent.workspace_paths import (
     project_workspace_root,
     resolve_workspace_path,
 )
+from app.agent.document_context import (
+    SelectedDocumentContextError,
+    documents_from_turn_context,
+    resolve_selected_turn_documents,
+)
+from app.database.agent_turn import AgentTurn
 from app.database.draft_artifacts import (
     get_draft_artifact,
     get_latest_draft_artifact,
     get_latest_draft_artifact_by_workspace_path,
 )
 from app.projects.artefact_adapters import revise_workflow_artefact
+from app.projects.document_register import (
+    DocumentRegisterRow,
+    list_document_register_rows,
+    search_document_register_rows,
+)
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
@@ -87,10 +99,12 @@ from app.projects.document_selections import (
     SelectionValidationError,
     read_selection as read_document_selection,
     replace_selection as persist_document_selection,
+    lock_workflow_inputs,
 )
 from app.schemas.document_selections import QuoteCandidateInput
 from app.projects.workflow_capabilities import (
     CONSULTANT_PROCUREMENT,
+    TRANSMITTAL,
     capability_block_message,
     workflow_capabilities,
 )
@@ -138,6 +152,7 @@ from app.workflows.consultant_procurement import (
     normalise_discipline as _normalise_consultant_discipline,
 )
 from app.workflows.trade_procurement import normalise_trade_target
+from app.workflows.transmittal import WORKFLOW_TYPE as TRANSMITTAL_WORKFLOW_TYPE
 from app.workflows.create_pmp import _upstream_failure_message
 from app.workflows.runs import (
     WorkflowRunCapabilityConflict,
@@ -448,6 +463,38 @@ async def _sync_cost_plan_workbook(
 
 def _turn_id(authorization) -> str | None:
     return str(authorization.claims.turn_id) if authorization.claims.turn_id else None
+
+
+def _document_register_summary(row: DocumentRegisterRow) -> dict[str, Any]:
+    return row.model_dump(mode="json")
+
+
+def _document_register_ids(values: list[str] | None) -> list[uuid.UUID]:
+    parsed: list[uuid.UUID] = []
+    for value in values or []:
+        try:
+            parsed.append(uuid.UUID(value))
+        except (TypeError, ValueError) as exc:
+            raise ToolError(f"invalid document register id: {value}") from exc
+    if len(set(parsed)) != len(parsed):
+        raise ToolError("A document register id was included more than once.")
+    return parsed
+
+
+async def _active_selection_turn(session: AsyncSession, authorization) -> AgentTurn:
+    turn_id = authorization.claims.turn_id
+    if turn_id is None:
+        raise ToolError("document selection requires a durable agent turn")
+    turn = await session.get(AgentTurn, turn_id, with_for_update=True)
+    if (
+        turn is None
+        or turn.project_id != authorization.claims.project_id
+        or turn.user_id != authorization.claims.user_id
+        or turn.state != "active"
+        or turn.expires_at <= datetime.now(UTC)
+    ):
+        raise ToolError("agent turn is revoked or expired")
+    return turn
 
 
 def _coerce_json_object(value: Any, *, field_name: str) -> dict[str, Any]:
@@ -1121,7 +1168,26 @@ _MCP_WORKFLOW_CAPABILITIES = {
     "consultant_procurement": "consultant_procurement",
     "contractor_eoi": "contractor_eoi",
     "trade_procurement": "trade_procurement",
+    TRANSMITTAL_WORKFLOW_TYPE: TRANSMITTAL,
 }
+
+
+def _normalise_optional_workflow_text(
+    value: str | None,
+    *,
+    field: str,
+    maximum: int,
+) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ToolError(f"{field} must be text")
+    normalised = " ".join(value.split())
+    if not normalised:
+        return None
+    if len(normalised) > maximum:
+        raise ToolError(f"{field} must be {maximum} characters or fewer")
+    return normalised
 
 
 async def _start_mcp_workflow(
@@ -1506,6 +1572,106 @@ async def sort_project_files(
         expected_profile_revision=expected_profile_revision,
         expected_decision_set_revision=expected_decision_set_revision,
     )
+
+
+@mcp.tool
+async def start_transmittal(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    recipient: str | None = None,
+    purpose: str | None = None,
+) -> dict:
+    """Queue an unissued transmittal from the current turn's selected documents.
+
+    The model cannot supply document ids to this tool. The selection is resolved
+    by the API before the turn starts and read back here from the authenticated
+    durable turn, preventing a prompt from broadening or changing the issue set.
+    """
+    pid = uuid.UUID(project_id)
+    recipient = _normalise_optional_workflow_text(
+        recipient, field="recipient", maximum=512
+    )
+    purpose = _normalise_optional_workflow_text(purpose, field="purpose", maximum=1024)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            turn = await session.get(AgentTurn, authorization.claims.turn_id)
+            documents = documents_from_turn_context(
+                turn.input_context if turn is not None else None
+            )
+            if not documents:
+                raise ToolError(
+                    "Select one or more project documents in the document register "
+                    "before creating a transmittal."
+                )
+            snapshot = await read_project_snapshot(
+                session,
+                project_id=pid,
+                owner_user_id=authorization.project.owner_user_id,
+            )
+            message = capability_block_message(snapshot, TRANSMITTAL)
+            if message:
+                raise WorkflowRunCapabilityConflict(message)
+            request = WorkflowRunStartRequest(
+                idempotency_key=idempotency_key,
+                expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+                expected_profile_revision=expected_profile_revision,
+                expected_decision_set_revision=expected_decision_set_revision,
+                turn_id=authorization.claims.turn_id,
+                parameters={
+                    "selected_documents": [
+                        document.model_dump(mode="json") for document in documents
+                    ],
+                    "recipient": recipient,
+                    "purpose": purpose,
+                },
+            )
+            run, created = await persist_workflow_run(
+                session,
+                project=authorization.project,
+                user_id=authorization.claims.user_id,
+                workflow_type=TRANSMITTAL_WORKFLOW_TYPE,
+                request=request,
+                snapshot=snapshot,
+            )
+            if created:
+                await lock_workflow_inputs(
+                    session,
+                    project_id=pid,
+                    workflow_type=TRANSMITTAL_WORKFLOW_TYPE,
+                    workflow_id=run.id,
+                    workspace_file_ids=[
+                        document.workspace_file_id for document in documents
+                    ],
+                )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except ToolError:
+            raise
+        except (
+            ValidationError,
+            ValueError,
+            WorkflowRunConflict,
+            WorkflowRunCapabilityConflict,
+        ) as exc:
+            raise ToolError(f"workflow_run_conflict: {exc}") from exc
+    await agent_turn_status_bus.publish(
+        _turn_id(authorization),
+        kind="resource",
+        message="Transmittal draft queued",
+        projectId=str(pid),
+        resourceType="workflow_run",
+        resourceId=str(run.id),
+        action="queued",
+        workflowType=TRANSMITTAL_WORKFLOW_TYPE,
+    )
+    return WorkflowRunView.model_validate(run).model_dump(mode="json")
 
 
 @mcp.tool
@@ -2332,6 +2498,161 @@ async def replace_tender_quote_selection(
         ) as exc:
             raise ToolError(str(exc)) from exc
         return selection.model_dump(mode="json")
+
+
+@mcp.tool
+async def list_document_register(
+    project_id: str,
+    query: str | None = None,
+    query_field: str = "any",
+    document_number_greater_than: int | None = None,
+    max_results: int = 200,
+) -> list[dict]:
+    """List selectable document-register rows with structured metadata.
+
+    Use query with query_field="title" for requests such as files with
+    "Basement" in the title. Supported fields are any, document_number, title,
+    revision, category, filename, and path. Use document_number_greater_than for
+    numeric comparisons; non-numeric document numbers do not match that filter.
+    """
+    pid = uuid.UUID(project_id)
+    query_text = query.strip() if query and query.strip() else None
+    normalized_query_field = query_field.strip().lower()
+    if normalized_query_field not in {
+        "any",
+        "document_number",
+        "title",
+        "revision",
+        "category",
+        "filename",
+        "path",
+    }:
+        raise ToolError(
+            "query_field must be any, document_number, title, revision, category, "
+            "filename, or path"
+        )
+    result_limit = max(1, min(max_results, 500))
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="list_document_register",
+            running="Searching the document register",
+            done="Searched the document register",
+            error="Document register search failed",
+        ):
+            rows = await list_document_register_rows(session, project_id=pid)
+            matches = search_document_register_rows(
+                rows,
+                query=query_text,
+                query_field=normalized_query_field,
+                document_number_greater_than=document_number_greater_than,
+                limit=result_limit,
+            )
+    return [_document_register_summary(row) for row in matches]
+
+
+@mcp.tool
+async def select_document_register_files(
+    project_id: str,
+    document_ids: list[str] | None = None,
+    action: str = "replace",
+) -> dict:
+    """Select exact project document-register rows in the user's current UI.
+
+    First call list_document_register and pass only ids returned by it. Action
+    may be replace, add, remove, or clear. The server validates project
+    ownership and stores the resulting set on this active agent turn, so a
+    later workflow call in the same turn uses exactly the files shown selected.
+    """
+    pid = uuid.UUID(project_id)
+    normalized_action = action.strip().lower()
+    if normalized_action not in {"replace", "add", "remove", "clear"}:
+        raise ToolError("action must be replace, add, remove, or clear")
+    requested_ids = _document_register_ids(document_ids)
+    if normalized_action == "clear" and requested_ids:
+        raise ToolError("clear does not accept document ids")
+
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            turn = await _active_selection_turn(session, authorization)
+            rows = await list_document_register_rows(session, project_id=pid)
+            row_by_id = {row.id: row for row in rows}
+            missing_ids = [item for item in requested_ids if item not in row_by_id]
+            if missing_ids:
+                raise ToolError(
+                    "One or more document ids are not selectable in this project's "
+                    "current register. List the document register again."
+                )
+
+            current_documents = documents_from_turn_context(turn.input_context)
+            current_ids = [
+                document.source_document_id or document.workspace_file_id
+                for document in current_documents
+            ]
+            current_ids = [item for item in current_ids if item in row_by_id]
+            if normalized_action == "replace":
+                selected_ids = requested_ids
+            elif normalized_action == "add":
+                selected_ids = list(dict.fromkeys([*current_ids, *requested_ids]))
+            elif normalized_action == "remove":
+                removed = set(requested_ids)
+                selected_ids = [item for item in current_ids if item not in removed]
+            else:
+                selected_ids = []
+
+            selected_documents = await resolve_selected_turn_documents(
+                session,
+                project_id=pid,
+                document_ids=selected_ids,
+            )
+            input_context = (
+                dict(turn.input_context) if isinstance(turn.input_context, dict) else {}
+            )
+            input_context["selected_documents"] = [
+                document.model_dump(mode="json") for document in selected_documents
+            ]
+            turn.input_context = input_context
+            await session.commit()
+        except (ToolAuthError, SelectedDocumentContextError) as exc:
+            raise ToolError(str(exc)) from exc
+
+    selected_id_strings = [str(item) for item in selected_ids]
+    message = (
+        "Cleared the document selection"
+        if not selected_ids
+        else f"Selected {len(selected_ids)} document"
+        + ("" if len(selected_ids) == 1 else "s")
+    )
+    await agent_turn_status_bus.publish(
+        _turn_id(authorization),
+        kind="document_selection",
+        message=message,
+        projectId=str(pid),
+        action="clear" if not selected_ids else "replace",
+        requestedAction=normalized_action,
+        documentIds=selected_id_strings,
+    )
+    return {
+        "project_id": str(pid),
+        "action": normalized_action,
+        "selected_count": len(selected_ids),
+        "selected_documents": [
+            _document_register_summary(row_by_id[item]) for item in selected_ids
+        ],
+    }
 
 
 @mcp.tool

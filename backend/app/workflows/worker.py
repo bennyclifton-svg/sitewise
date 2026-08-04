@@ -50,6 +50,7 @@ from app.workflows.runs import (
     mark_cancelled_after_rollback,
 )
 from app.workflows.sort_files import run_sort_files_workflow
+from app.workflows.transmittal import run_create_transmittal_workflow
 from app.workflows.update_pmp import run_update_pmp_workflow
 
 log = get_logger(__name__)
@@ -176,6 +177,15 @@ async def _dispatch(
             max_pages=int(parameters.get("max_pages", 3)),
             instructions=parameters.get("instructions"),
             auto_commit=False,
+        )
+    elif run.workflow_type == "create_transmittal":
+        result = await run_create_transmittal_workflow(
+            session,
+            project=project,
+            user_id=run.requested_by_user_id,
+            selected_documents=list(parameters.get("selected_documents") or []),
+            recipient=parameters.get("recipient"),
+            purpose=parameters.get("purpose"),
         )
     else:
         raise ValueError(f"Unknown workflow type: {run.workflow_type}")

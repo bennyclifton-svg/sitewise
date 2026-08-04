@@ -14,6 +14,11 @@ from pydantic_ai.exceptions import ModelHTTPError
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
+from app.agent.document_context import (
+    SelectedDocumentContextError,
+    documents_from_turn_context,
+    resolve_selected_turn_documents,
+)
 from app.agent.agent_runtimes import (
     PI_RUNTIME_ID,
     InvalidAgentRuntimeError,
@@ -546,6 +551,17 @@ async def post_agent_stream(
             detail="Hermes agent chat requires a project thread.",
         )
     project = await require_project_owner(session, thread.project_id, user.id)
+    try:
+        selected_documents = await resolve_selected_turn_documents(
+            session,
+            project_id=project.id,
+            document_ids=body.selected_document_ids,
+        )
+    except SelectedDocumentContextError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
     auth_ms = int((time.perf_counter() - request_started) * 1000)
 
     # History is read before the new user message is persisted so the window
@@ -578,6 +594,7 @@ async def post_agent_stream(
         ],
         mutation_intent=mutation_intent,
         snapshot=snapshot,
+        selected_documents=selected_documents,
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     try:
@@ -617,6 +634,11 @@ async def post_agent_stream(
         user_message_hash=mutation_intent.user_message_hash,
         mutation_scopes=list(mutation_intent.scopes),
         mutation_intent=mutation_intent.as_turn_payload(),
+        input_context={
+            "selected_documents": [
+                document.model_dump(mode="json") for document in selected_documents
+            ]
+        },
         runtime=agent_runtime,
         model=(
             model_override.model
@@ -625,6 +647,30 @@ async def post_agent_stream(
         ),
     )
     turn_id = turn.id
+    if not reserved:
+        # A transport retry must describe the same selection the first request
+        # froze. The workflow tool independently reads this stored context too.
+        selected_documents = documents_from_turn_context(
+            getattr(turn, "input_context", None)
+        )
+        agent_prompt = build_agent_prompt(
+            user_text,
+            project_id=str(thread.project_id),
+            title=project.title,
+            archetype=project.archetype,
+            state=project.state,
+            phase=project.phase,
+            building_class=project.building_class,
+            work_type=project.work_type,
+            project_metadata=getattr(project, "project_metadata", None),
+            history=[
+                HistoryMessage(role=message.role, content=message.content)
+                for message in prior_messages
+            ],
+            mutation_intent=mutation_intent,
+            snapshot=snapshot,
+            selected_documents=selected_documents,
+        )
     confirmed_profile_change = None
     if reserved:
         proposal = _profile_proposal_to_accept(
@@ -668,6 +714,7 @@ async def post_agent_stream(
                     mutation_intent=mutation_intent,
                     snapshot=snapshot,
                     confirmed_profile_values=confirmed_values,
+                    selected_documents=selected_documents,
                 )
     quota_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms - prompt_build_ms
     try:

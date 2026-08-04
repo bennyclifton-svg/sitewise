@@ -56,6 +56,11 @@ class StreamChatRequest(BaseModel):
         validation_alias=AliasChoices("threadId", "thread_id", "id"),
     )
     messages: list[dict[str, Any]] = Field(default_factory=list)
+    selected_document_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        max_length=50,
+        validation_alias=AliasChoices("selectedDocumentIds", "selected_document_ids"),
+    )
     chat_model: str | None = Field(
         default=None,
         max_length=128,

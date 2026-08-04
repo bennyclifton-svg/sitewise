@@ -63,6 +63,93 @@ function uiMessageStreamBody(deltaCount: number): string {
 }
 
 describe("ChatPanel long answer streaming", () => {
+  it("sends the selected document-register rows with an agent message", async () => {
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(
+      async () =>
+        new Response(new TextEncoder().encode(uiMessageStreamBody(1)), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+        selectedDocumentIds={["document-1", "document-2"]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Message"), {
+      target: { value: "Create a transmittal with the selected files" },
+    });
+    fireEvent.click(screen.getByLabelText("Send message"));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(request).toBeDefined();
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      thread_id: "thread-1",
+      selected_document_ids: ["document-1", "document-2"],
+    });
+  });
+
+  it("uses documents selected after the chat initially mounts", async () => {
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(
+      async () =>
+        new Response(new TextEncoder().encode(uiMessageStreamBody(1)), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { rerender } = render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+        selectedDocumentIds={[]}
+      />,
+    );
+
+    rerender(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+        selectedDocumentIds={["document-1", "document-2"]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Message"), {
+      target: { value: "Create a transmittal with the selected files" },
+    });
+    fireEvent.click(screen.getByLabelText("Send message"));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(request).toBeDefined();
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      thread_id: "thread-1",
+      selected_document_ids: ["document-1", "document-2"],
+    });
+  });
+
   it("streams a long agent answer to completion", async () => {
     const body = uiMessageStreamBody(DELTA_COUNT);
     vi.stubGlobal(

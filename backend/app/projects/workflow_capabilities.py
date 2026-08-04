@@ -20,6 +20,7 @@ TENDER_COMPARISON = "tender_comparison"
 CONSULTANT_PROCUREMENT = "consultant_procurement"
 CONTRACTOR_EOI = "contractor_eoi"
 TRADE_PROCUREMENT = "trade_procurement"
+TRANSMITTAL = "transmittal"
 
 _PROJECT_PLAN_FIELDS = ("building_class", "work_type", "state")
 _COST_PLAN_FIELDS = ("building_class", "subclasses", "work_type", "state")
@@ -53,6 +54,14 @@ def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix
         TRADE_PROCUREMENT: _required_profile_capability(
             snapshot,
             _CONTRACTOR_FIELDS,
+        ),
+        TRANSMITTAL: WorkflowCapability(
+            status="supported",
+            reasons=[
+                "A transmittal can be drafted from the files selected in the "
+                "current document register. It remains unissued until the "
+                "recipient and issue details are confirmed."
+            ],
         ),
     }
     return WorkflowCapabilityMatrix(

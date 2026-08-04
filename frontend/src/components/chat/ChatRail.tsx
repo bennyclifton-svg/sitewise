@@ -2,7 +2,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Button } from "@/components/ui/button";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
-import type { ResourceEvent } from "@/lib/chat-events";
+import type { DocumentSelectionEvent, ResourceEvent } from "@/lib/chat-events";
 import { cn } from "@/lib/utils";
 
 type ChatRailProps = {
@@ -15,7 +15,9 @@ type ChatRailProps = {
   selectedCitationId: string | null;
   onConversationUpdate: () => void;
   onResourceEvent?: (event: ResourceEvent) => void;
+  onDocumentSelectionEvent?: (event: DocumentSelectionEvent) => void;
   onUserSubmit?: () => void;
+  selectedDocumentIds?: string[];
   onSelectCitation: (citation: Citation | null) => void;
   layout?: "rail" | "main";
   collapsed?: boolean;
@@ -32,7 +34,9 @@ export function ChatRail({
   selectedCitationId,
   onConversationUpdate,
   onResourceEvent,
+  onDocumentSelectionEvent,
   onUserSubmit,
+  selectedDocumentIds,
   onSelectCitation,
   layout = "rail",
   collapsed = false,
@@ -75,6 +79,7 @@ export function ChatRail({
             initialMessages={messages}
             onConversationUpdate={onConversationUpdate}
             onResourceEvent={onResourceEvent}
+            onDocumentSelectionEvent={onDocumentSelectionEvent}
             onUserSubmit={onUserSubmit}
             layout={layout === "main" ? "main" : "rail"}
             collapsed={collapsed}
@@ -82,6 +87,7 @@ export function ChatRail({
             onCollapsedChange={onCollapsedChange}
             agentMode
             projectId={thread.project_id}
+            selectedDocumentIds={selectedDocumentIds}
             crossProject={false}
             selectedCitationId={selectedCitationId}
             onSelectCitation={onSelectCitation}

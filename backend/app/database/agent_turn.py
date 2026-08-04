@@ -31,6 +31,9 @@ class AgentTurn(Base):
     mutation_intent: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
     )
+    input_context: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     state: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     runtime: Mapped[str] = mapped_column(String(32), nullable=False)
     model: Mapped[str | None] = mapped_column(String(255))

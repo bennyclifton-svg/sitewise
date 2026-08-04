@@ -43,6 +43,14 @@ export type ResourceEvent = {
   workflowType?: string;
 };
 
+export type DocumentSelectionEvent = {
+  kind: "document_selection";
+  projectId: string;
+  action: "replace" | "clear";
+  documentIds: string[];
+  requestedAction?: "replace" | "add" | "remove" | "clear";
+};
+
 export type WorkflowRunRef = {
   kind: "workflow_run";
   projectId: string;
@@ -134,6 +142,53 @@ export function resourceFromPart(part: MessagePart): ResourceEvent | null {
     workflowType:
       typeof data.workflowType === "string" ? data.workflowType : undefined,
   };
+}
+
+export function documentSelectionFromPart(
+  part: MessagePart,
+): DocumentSelectionEvent | null {
+  const data = clerkStatusData(part);
+  if (!data || data.kind !== "document_selection") return null;
+  if (
+    typeof data.projectId !== "string" ||
+    (data.action !== "replace" && data.action !== "clear") ||
+    !Array.isArray(data.documentIds) ||
+    !data.documentIds.every((item) => typeof item === "string")
+  ) {
+    return null;
+  }
+  const requestedAction =
+    data.requestedAction === "replace" ||
+    data.requestedAction === "add" ||
+    data.requestedAction === "remove" ||
+    data.requestedAction === "clear"
+      ? data.requestedAction
+      : undefined;
+  return {
+    kind: "document_selection",
+    projectId: data.projectId,
+    action: data.action,
+    documentIds: data.documentIds,
+    requestedAction,
+  };
+}
+
+export function applyDocumentSelectionEvent(
+  current: Set<string>,
+  event: DocumentSelectionEvent,
+  availableDocumentIds: Iterable<string>,
+): Set<string> {
+  if (event.action === "clear") {
+    return current.size ? new Set<string>() : current;
+  }
+  const available = new Set(availableDocumentIds);
+  const selected = new Set(
+    event.documentIds.filter((documentId) => available.has(documentId)),
+  );
+  return selected.size === current.size &&
+    [...selected].every((documentId) => current.has(documentId))
+    ? current
+    : selected;
 }
 
 export function workflowRunFromPart(part: MessagePart): WorkflowRunRef | null {

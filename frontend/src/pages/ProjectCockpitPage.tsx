@@ -19,6 +19,7 @@ import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { applyDocumentSelectionEvent } from "@/lib/chat-events";
 import { ApiError } from "@/lib/http";
 import { projectSiteAddress } from "@/lib/project-taxonomy";
 import {
@@ -982,6 +983,10 @@ export function ProjectCockpitPage() {
     () => evidence.filter((item) => selectedRepositoryEvidenceIds.has(item.id)),
     [evidence, selectedRepositoryEvidenceIds],
   );
+  const selectedRepositoryDocumentIds = useMemo(
+    () => selectedRepositoryEvidence.map((item) => item.id),
+    [selectedRepositoryEvidence],
+  );
   const tenderOutlet = useOutlet({
     project,
     selectedRepositoryEvidence,
@@ -1110,7 +1115,18 @@ export function ProjectCockpitPage() {
             projectEvents.pollNow();
           }}
           onResourceEvent={projectEvents.applyResource}
+          onDocumentSelectionEvent={(event) => {
+            if (event.projectId !== project.id) return;
+            setSelectedRepositoryEvidenceIds((current) =>
+              applyDocumentSelectionEvent(
+                current,
+                event,
+                evidence.map((item) => item.id),
+              ),
+            );
+          }}
           onUserSubmit={promoteChatFromComposer}
+          selectedDocumentIds={selectedRepositoryDocumentIds}
           onSelectCitation={handleSelectCitation}
         />
       }
