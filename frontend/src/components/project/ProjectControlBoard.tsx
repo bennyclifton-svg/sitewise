@@ -839,20 +839,7 @@ function WorkflowDetail({
                 <RefreshCw className="size-4" aria-hidden />
                 Update PMP
               </Button>
-              <Suspense
-                fallback={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled
-                    aria-label="Copy project management plan"
-                    title="Copy project management plan"
-                  >
-                    <span className="size-3.5 rounded-sm border" aria-hidden />
-                  </Button>
-                }
-              >
+              <Suspense fallback={null}>
                 <CopyContentButton
                   loadContent={async () => {
                     if (!latestDraft) return "";
