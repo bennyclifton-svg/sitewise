@@ -238,6 +238,14 @@ export type EvidencePreview = {
   document_number?: string | null;
   revision?: string | null;
   category?: string | null;
+  invoice_status?:
+    | "reading"
+    | "ready_to_process"
+    | "processing"
+    | "booked"
+    | "needs_review"
+    | "failed"
+    | null;
   /** Latest drafts that were built from this document. */
   used_by?: DocumentUsageMark[];
 };
@@ -452,6 +460,45 @@ export type WorkbookPreview = {
   workspace_path: string;
   sheets: WorkbookSheetPreview[];
   warnings: string[];
+};
+
+export type InvoiceCostItemOption = {
+  item_key: string;
+  cost_code: string;
+  category: string;
+  item: string;
+  budget: string | null;
+};
+
+export type InvoiceLedgerRow = {
+  allocation_id: string;
+  invoice_id: string;
+  invoice_revision: number;
+  invoice_date: string;
+  company: string;
+  po_number: string | null;
+  invoice_number: string;
+  description: string;
+  cost_item_key: string | null;
+  cost_item_label: string;
+  amount_ex_gst: string;
+  billing_month: string;
+  paid: boolean;
+  review_status: "mapped" | "needs_review";
+  mapping_method:
+    | "exact"
+    | "related_reference"
+    | "keyword"
+    | "model"
+    | "manual"
+    | "unidentified";
+};
+
+export type InvoiceLedger = {
+  cost_plan_version: number;
+  workbook_path: string;
+  rows: InvoiceLedgerRow[];
+  cost_items: InvoiceCostItemOption[];
 };
 
 export type PlatformKnowledgeBucket = {

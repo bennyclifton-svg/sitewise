@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.cost_plan.calculations import calculate_totals, resolved_budget
+from app.cost_plan.calculations import calculate_totals, optional_budget, resolved_budget
 from app.cost_plan.models import CostPlanItem, CostPlanVersion
 from app.cost_plan.schemas import CostItemInput, DependencySnapshot
 from app.database.draft_artifact import DraftArtifact
@@ -60,6 +60,17 @@ def _money(value: str) -> Decimal | None:
     elif match.group(2) == "k":
         amount *= Decimal("1000")
     return -amount if negative else amount
+
+
+def _is_tbc_money(value: str) -> bool:
+    return value.strip().lower().replace("$", "").replace(",", "") in {
+        "",
+        "-",
+        "--",
+        "n/a",
+        "na",
+        "tbc",
+    }
 
 
 def parse_legacy_draft(draft: DraftArtifact) -> LegacyImportResult:
@@ -112,8 +123,14 @@ def parse_legacy_draft(draft: DraftArtifact) -> LegacyImportResult:
             item_name = value("item")
             if "total" in f"{cost_code} {category} {item_name}".lower():
                 continue
-            budget = _money(value("budget"))
-            if not cost_code or not category or not item_name or budget is None:
+            budget_text = value("budget")
+            budget = _money(budget_text)
+            if (
+                not cost_code
+                or not category
+                or not item_name
+                or (budget is None and not _is_tbc_money(budget_text))
+            ):
                 warnings.append(
                     f"Row {row_number} was not imported because required typed values were missing or invalid."
                 )
@@ -242,7 +259,7 @@ async def import_legacy_draft(
     row.items = [
         CostPlanItem(
             **item.model_dump(exclude={"budget"}),
-            budget=resolved_budget(item),
+            budget=optional_budget(item),
         )
         for item in parsed.items
     ]

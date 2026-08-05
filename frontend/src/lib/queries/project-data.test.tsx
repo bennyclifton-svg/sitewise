@@ -65,7 +65,7 @@ describe("project event reconciliation", () => {
     });
   });
 
-  it("invalidates project detail when a workflow run completes", () => {
+  it("invalidates detail and document statuses when a workflow run changes", () => {
     const queryClient = client();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -76,6 +76,10 @@ describe("project event reconciliation", () => {
 
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: projectKeys.detail("project-1"),
+      exact: true,
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: projectKeys.evidence("project-1"),
       exact: true,
     });
   });

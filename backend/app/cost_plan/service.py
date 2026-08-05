@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.cost_plan.calculations import calculate_totals, resolved_budget
+from app.cost_plan.calculations import calculate_totals, optional_budget
 from app.cost_plan.dependencies import stale_reasons
 from app.cost_plan.models import CostPlanItem, CostPlanVersion
 from app.cost_plan.renderer import render_cost_plan_markdown
@@ -36,6 +36,63 @@ class CostPlanNotFound(LookupError):
 
 class CostPlanStaleError(ArtefactRevisionConflict):
     pass
+
+
+async def complete_cost_plan_state(
+    session: AsyncSession,
+    *,
+    project: Project,
+    state: CostPlanState,
+) -> CostPlanState:
+    """Restore missing taxonomy identities without overwriting existing facts."""
+    from app.sitewise.cost_plan_evidence import CostPlanEvidencePack
+    from app.sitewise.cost_plan_lines import cost_plan_lines
+    from app.sitewise.mobilisation_evidence import MobilisationEvidencePack
+
+    pack = CostPlanEvidencePack(
+        mobilisation=MobilisationEvidencePack(),
+    )
+    try:
+        scaffold = cost_plan_lines(project, pack).lines
+    except ValueError:
+        return state
+    existing_codes = {item.cost_code for item in state.items}
+    used_keys = {item.item_key for item in state.items}
+    additions: list[CostItemInput] = []
+    for line in scaffold:
+        if line.cost_code in existing_codes:
+            continue
+        item_key = re.sub(r"[^a-z0-9]+", "-", line.cost_code.lower()).strip("-")
+        if item_key in used_keys:
+            item_key = f"scaffold:{item_key}"
+        used_keys.add(item_key)
+        budget = Decimal(str(line.budget)) if line.budget is not None else None
+        allowance_type = (
+            "contingency"
+            if line.category == "Contingency / allowances"
+            else "pc"
+            if line.category in {"PC allowances", "Client-direct and landlord works"}
+            else "none"
+        )
+        additions.append(
+            CostItemInput(
+                item_key=item_key,
+                cost_code=line.cost_code,
+                category=line.category,
+                item=line.cost_item,
+                budget=budget,
+                allowance_type=allowance_type,
+                basis=line.basis,
+                source_refs=[{"kind": "cost_plan_taxonomy_scaffold"}],
+                status="proposed",
+            )
+        )
+    if not additions:
+        return state
+    return state.model_copy(
+        update={"items": sorted([*state.items, *additions], key=_cost_item_sort_key)},
+        deep=True,
+    )
 
 
 def _cost_item_sort_key(item: CostItemInput) -> tuple[tuple[int, int | str], ...]:
@@ -134,7 +191,12 @@ async def _publish_state(
     if project.owner_user_id != author_user_id:
         raise ArtefactPolicyViolation("project is not owned by the user")
     version = expected_base_version + 1
-    proposed = state.model_copy(
+    complete_state = await complete_cost_plan_state(
+        session,
+        project=project,
+        state=state,
+    )
+    proposed = complete_state.model_copy(
         update={"version": version, "status": "proposed"}, deep=True
     )
     totals = calculate_totals(
@@ -194,7 +256,7 @@ async def _publish_state(
             cost_code=item.cost_code,
             category=item.category,
             item=item.item,
-            budget=resolved_budget(item),
+            budget=optional_budget(item),
             committed=item.committed,
             forecast=item.forecast,
             paid=item.paid,
@@ -252,6 +314,7 @@ async def republish_cost_plan_for_ledger(
     expected_base_version: int,
     dependency_snapshot: DependencySnapshot,
     external_idempotency_key: str,
+    actor_source: str = "process_invoices",
 ) -> CostPlanState:
     """Publish unchanged budget state after a canonical ledger mutation."""
     base = await _base_for_mutation(
@@ -271,7 +334,7 @@ async def republish_cost_plan_for_ledger(
         author_user_id=author_user_id,
         expected_base_version=expected_base_version,
         state=state,
-        actor_source="process_invoices",
+        actor_source=actor_source,
         external_idempotency_key=external_idempotency_key,
     )
 

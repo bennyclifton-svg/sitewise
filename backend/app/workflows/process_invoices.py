@@ -198,13 +198,18 @@ async def _cost_plan_for_mapping(
     user_id: uuid.UUID,
     version: int,
 ):
-    from app.cost_plan.service import get_cost_plan
+    from app.cost_plan.service import complete_cost_plan_state, get_cost_plan
 
-    return await get_cost_plan(
+    state = await get_cost_plan(
         session,
         project_id=project.id,
         owner_user_id=user_id,
         version=version,
+    )
+    return await complete_cost_plan_state(
+        session,
+        project=project,
+        state=state,
     )
 
 

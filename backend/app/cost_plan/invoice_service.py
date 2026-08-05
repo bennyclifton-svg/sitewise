@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Literal
 
@@ -13,13 +14,25 @@ from sqlalchemy.orm import selectinload
 from app.cost_plan.invoice_candidates import InvoiceCandidate
 from app.cost_plan.models import CostInvoice, CostInvoiceAllocation
 from app.cost_plan.schemas import (
+    CostPlanState,
     ExtractedInvoice,
     InvoiceAllocationInput,
+    InvoiceCostItemOption,
+    InvoiceLedgerResponse,
+    InvoiceLedgerRow,
     InvoiceRegisterRow,
 )
 
 
 BookingStatus = Literal["booked", "duplicate", "conflict"]
+
+
+class InvoiceNotFound(LookupError):
+    pass
+
+
+class InvoiceRevisionConflict(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +184,145 @@ async def list_invoice_register_rows(
         for invoice in invoices
         for allocation in invoice.allocations
     ]
+
+
+async def invoice_ledger_response(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    state: CostPlanState,
+    workbook_path: str,
+) -> InvoiceLedgerResponse:
+    invoices = (
+        await session.execute(
+            select(CostInvoice)
+            .where(
+                CostInvoice.project_id == project_id,
+                CostInvoice.processing_status != "void",
+            )
+            .options(selectinload(CostInvoice.allocations))
+            .order_by(
+                CostInvoice.invoice_date,
+                CostInvoice.supplier_key,
+                CostInvoice.invoice_key,
+            )
+        )
+    ).scalars().all()
+    return InvoiceLedgerResponse(
+        cost_plan_version=state.version,
+        workbook_path=workbook_path,
+        rows=[
+            InvoiceLedgerRow(
+                allocation_id=allocation.id,
+                invoice_id=invoice.id,
+                invoice_revision=invoice.revision,
+                invoice_date=invoice.invoice_date,
+                company=invoice.supplier_name,
+                po_number=invoice.po_number,
+                invoice_number=invoice.invoice_number,
+                description=allocation.description,
+                cost_item_key=allocation.cost_item_key,
+                cost_item_label=allocation.cost_item_label,
+                amount_ex_gst=allocation.amount_ex_gst,
+                billing_month=invoice.billing_month,
+                paid=invoice.paid,
+                review_status=allocation.review_status,
+                mapping_method=allocation.mapping_method,
+            )
+            for invoice in invoices
+            for allocation in invoice.allocations
+        ],
+        cost_items=[
+            InvoiceCostItemOption(
+                item_key=item.item_key,
+                cost_code=item.cost_code,
+                category=item.category,
+                item=item.item,
+                budget=item.budget,
+            )
+            for item in state.items
+        ],
+    )
+
+
+async def update_invoice_fields(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    expected_revision: int,
+    paid: bool | None,
+    billing_month: date | None,
+) -> CostInvoice:
+    invoice = (
+        await session.execute(
+            select(CostInvoice)
+            .where(
+                CostInvoice.id == invoice_id,
+                CostInvoice.project_id == project_id,
+            )
+            .options(selectinload(CostInvoice.allocations))
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if invoice is None:
+        raise InvoiceNotFound(str(invoice_id))
+    if invoice.revision != expected_revision:
+        raise InvoiceRevisionConflict(
+            f"Expected invoice revision {expected_revision}, current revision is {invoice.revision}"
+        )
+    if paid is not None:
+        invoice.paid = paid
+    if billing_month is not None:
+        invoice.billing_month = billing_month
+    invoice.revision += 1
+    await session.flush()
+    return invoice
+
+
+async def update_invoice_allocation(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    allocation_id: uuid.UUID,
+    expected_revision: int,
+    cost_item_key: str,
+    cost_item_label: str,
+) -> CostInvoice:
+    invoice = (
+        await session.execute(
+            select(CostInvoice)
+            .join(CostInvoiceAllocation)
+            .where(
+                CostInvoice.project_id == project_id,
+                CostInvoiceAllocation.id == allocation_id,
+            )
+            .options(selectinload(CostInvoice.allocations))
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if invoice is None:
+        raise InvoiceNotFound(str(allocation_id))
+    if invoice.revision != expected_revision:
+        raise InvoiceRevisionConflict(
+            f"Expected invoice revision {expected_revision}, current revision is {invoice.revision}"
+        )
+    allocation = next(
+        item for item in invoice.allocations if item.id == allocation_id
+    )
+    allocation.cost_item_key = cost_item_key
+    allocation.cost_item_label = cost_item_label
+    allocation.mapping_method = "manual"
+    allocation.mapping_confidence = None
+    allocation.review_status = "mapped"
+    invoice.processing_status = (
+        "needs_review"
+        if any(item.review_status == "needs_review" for item in invoice.allocations)
+        else "booked"
+    )
+    invoice.revision += 1
+    await session.flush()
+    return invoice
 
 
 def _same_financial_facts(existing: CostInvoice, extracted: ExtractedInvoice) -> bool:

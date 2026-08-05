@@ -15,7 +15,7 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
-from app.cost_plan.calculations import resolved_budget
+from app.cost_plan.calculations import optional_budget
 from app.cost_plan.schemas import CostPlanState, InvoiceRegisterRow
 from app.sitewise.cost_plan_lines import CostPlanLine
 
@@ -122,7 +122,7 @@ def build_typed_cost_plan_workbook(
             cost_code=item.cost_code,
             category=item.category,
             cost_item=item.item,
-            budget=resolved_budget(item),
+            budget=optional_budget(item),
             approved_contract=item.committed,
             status=item.status,
             basis=item.basis,

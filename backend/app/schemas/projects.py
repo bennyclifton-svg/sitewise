@@ -397,6 +397,14 @@ class EvidencePreview(BaseModel):
     document_number: str | None = None
     revision: str | None = None
     category: str | None = None
+    invoice_status: Literal[
+        "reading",
+        "ready_to_process",
+        "processing",
+        "booked",
+        "needs_review",
+        "failed",
+    ] | None = None
     used_by: list[DocumentUsageMark] = Field(default_factory=list)
 
 

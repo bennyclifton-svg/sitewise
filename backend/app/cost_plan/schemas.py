@@ -12,7 +12,7 @@ GstTreatment = Literal["exclusive", "inclusive", "not_applicable"]
 AllowanceType = Literal["none", "pc", "ps", "contingency"]
 InvoiceGstTreatment = Literal["taxable", "gst_free", "derived"]
 InvoiceMappingMethod = Literal[
-    "exact", "related_reference", "keyword", "model", "unidentified"
+    "exact", "related_reference", "keyword", "model", "manual", "unidentified"
 ]
 
 
@@ -69,8 +69,6 @@ class CostItemInput(BaseModel):
             value is not None for value in unit_values
         ):
             raise ValueError("quantity, unit, and rate must be supplied together")
-        if self.budget is None and self.quantity is None:
-            raise ValueError("budget or complete quantity/unit/rate input is required")
         if self.paid > self.forecast and self.forecast != 0:
             raise ValueError("paid cannot exceed forecast")
         return self
@@ -281,3 +279,61 @@ class InvoiceRegisterRow(BaseModel):
     @classmethod
     def register_amount_decimal_only(cls, value: object) -> Decimal:
         return _decimal(value, field="amount_ex_gst")
+
+
+class InvoiceCostItemOption(BaseModel):
+    item_key: str
+    cost_code: str
+    category: str
+    item: str
+    budget: Money | None = None
+
+
+class InvoiceLedgerRow(BaseModel):
+    allocation_id: uuid.UUID
+    invoice_id: uuid.UUID
+    invoice_revision: int = Field(ge=1)
+    invoice_date: date
+    company: str
+    po_number: str | None = None
+    invoice_number: str
+    description: str
+    cost_item_key: str | None = None
+    cost_item_label: str
+    amount_ex_gst: Money
+    billing_month: date
+    paid: bool
+    review_status: Literal["mapped", "needs_review"]
+    mapping_method: InvoiceMappingMethod
+
+
+class InvoiceLedgerResponse(BaseModel):
+    cost_plan_version: int = Field(ge=1)
+    workbook_path: str
+    rows: list[InvoiceLedgerRow]
+    cost_items: list[InvoiceCostItemOption]
+
+
+class InvoiceFieldsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    expected_cost_plan_version: int = Field(ge=1)
+    paid: bool | None = None
+    billing_month: date | None = None
+
+    @model_validator(mode="after")
+    def validate_changes(self) -> "InvoiceFieldsUpdate":
+        if self.paid is None and self.billing_month is None:
+            raise ValueError("paid or billing_month is required")
+        if self.billing_month is not None and self.billing_month.day != 1:
+            raise ValueError("billing_month must be the first day of a month")
+        return self
+
+
+class InvoiceAllocationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    expected_cost_plan_version: int = Field(ge=1)
+    cost_item_key: str = Field(min_length=1, max_length=255)

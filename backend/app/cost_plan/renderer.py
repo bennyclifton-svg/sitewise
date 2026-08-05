@@ -2,13 +2,18 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from app.cost_plan.calculations import calculate_totals, resolved_budget
+from app.cost_plan.calculations import calculate_totals, optional_budget
 from app.cost_plan.schemas import CostPlanState
 
 
 def _currency(value: Decimal) -> str:
     sign = "-" if value < 0 else ""
     return f"{sign}${abs(value):,.2f}"
+
+
+def _budget(item) -> str:
+    value = optional_budget(item)
+    return "TBC" if value is None else _currency(value)
 
 
 def render_cost_plan_markdown(state: CostPlanState) -> str:
@@ -34,7 +39,7 @@ def render_cost_plan_markdown(state: CostPlanState) -> str:
                     item.cost_code,
                     item.category,
                     item.item,
-                    _currency(resolved_budget(item)),
+                    _budget(item),
                     _currency(item.committed),
                     _currency(item.forecast),
                     _currency(item.paid),

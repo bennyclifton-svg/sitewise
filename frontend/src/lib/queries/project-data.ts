@@ -329,7 +329,12 @@ function invalidationKeys(projectId: string, resourceType: string) {
       return [projectKeys.workspaceTree(projectId), projectActivityKeys.root(projectId)];
     case "workflow_run":
       // Create/refresh workflows sync decisions and bump decision_set_revision.
-      return [projectKeys.detail(projectId), projectActivityKeys.root(projectId)];
+      // Invoice runs also change per-document processing state in the registry.
+      return [
+        projectKeys.detail(projectId),
+        projectKeys.evidence(projectId),
+        projectActivityKeys.root(projectId),
+      ];
     case "tender_job":
       return [projectActivityKeys.root(projectId)];
     default:

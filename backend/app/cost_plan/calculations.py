@@ -17,7 +17,7 @@ def money(value: Decimal) -> Decimal:
     return value.quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
 
 
-def resolved_budget(item: CostItemInput) -> Decimal:
+def optional_budget(item: CostItemInput) -> Decimal | None:
     if item.quantity is not None:
         calculated = money(item.quantity * item.rate)  # type: ignore[operator]
         if item.budget is not None and money(item.budget) != calculated:
@@ -26,8 +26,13 @@ def resolved_budget(item: CostItemInput) -> Decimal:
             )
         return calculated
     if item.budget is None:
-        raise CostPlanCalculationError(f"{item.item_key}: budget is required")
+        return None
     return money(item.budget)
+
+
+def resolved_budget(item: CostItemInput) -> Decimal:
+    """Return the arithmetic value of a cost item; an unpriced TBC row is zero."""
+    return optional_budget(item) or Decimal("0.00")
 
 
 def calculate_totals(

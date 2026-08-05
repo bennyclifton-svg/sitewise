@@ -11,6 +11,7 @@ from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.workflows.runs import (
     SUPPORTED_WORKFLOWS,
     canonical_request_hash,
+    complete_workflow_run,
     heartbeat_run,
 )
 from app.workflows.worker import _json_result
@@ -20,7 +21,7 @@ from app.workflows.contractor_procurement import ContractorEoiResult
 from app.workflows.trade_procurement import TradeProcurementResult
 from app.workflows import worker as workflow_worker
 from tests.conftest import run_async
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 import uuid
 from types import SimpleNamespace
 
@@ -109,6 +110,42 @@ def test_snapshot_fixture_carries_all_frozen_revision_inputs() -> None:
     assert snapshot.profile.profile_revision == 2
     assert snapshot.decisions.set_revision == 3
     assert snapshot.evidence.fingerprint == "b" * 64
+
+
+def test_successful_retry_clears_stale_workflow_error_fields() -> None:
+    run = SimpleNamespace(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        workflow_type="process_invoices",
+        attempt=2,
+        state="running",
+        result=None,
+        result_artefact_id=None,
+        result_reference=None,
+        progress={},
+        stage_durations_ms={},
+        error_class="RuntimeError",
+        error_message="Unknown workflow type: process_invoices",
+        completed_at=None,
+        lock_owner="worker-1",
+        lease_expires_at=datetime.now(UTC),
+    )
+
+    with patch(
+        "app.workflows.runs.publish_project_event", new=AsyncMock(return_value=None)
+    ):
+        run_async(
+            complete_workflow_run(
+                AsyncMock(),
+                run=run,
+                result={"status": "complete"},
+                duration_ms=125,
+            )
+        )
+
+    assert run.state == "complete"
+    assert run.error_class is None
+    assert run.error_message is None
 
 
 def test_contractor_eoi_is_supported_by_durable_run_boundary() -> None:

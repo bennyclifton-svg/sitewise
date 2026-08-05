@@ -38,6 +38,13 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "completion": ("completion", "hand over", "handover", "defects", "commissioning"),
 }
 
+_PROFESSIONAL_TRADE_MARKERS = {
+    "architect",
+    "structural",
+    "hydraulic",
+    "cost_advisory",
+}
+
 
 def map_invoice_allocations(
     invoice: ExtractedInvoice,
@@ -55,12 +62,19 @@ def _map_line(
     line_number: int,
     items: list[CostItemInput],
 ) -> InvoiceAllocationInput:
-    exact = [item for item in items if _normalize(item.item) == _normalize(line.description)]
+    eligible_items = _eligible_items(line, items)
+    exact = [
+        item
+        for item in eligible_items
+        if _normalize(item.item) == _normalize(line.description)
+    ]
     if len(exact) == 1:
         return _mapped(line, line_number, exact[0], "exact", Decimal("1"))
 
-    related = [item for item in items if _source_ref_matches(item, invoice)]
-    scored = _scored_candidates(invoice, line, items)
+    related = [
+        item for item in eligible_items if _source_ref_matches(item, invoice)
+    ]
+    scored = _scored_candidates(invoice, line, eligible_items)
     if scored:
         best_score = scored[0][0]
         best = [item for score, item in scored if score == best_score]
@@ -79,6 +93,28 @@ def _map_line(
         review_status="needs_review",
         source_locators=line.source_locators,
     )
+
+
+def _eligible_items(
+    line: InvoiceLineInput,
+    items: list[CostItemInput],
+) -> list[CostItemInput]:
+    """Keep explicit professional services out of construction trade rows.
+
+    Structural invoices often mention framing, slabs, or roofs as design scope.
+    Those words describe the engineer's service and must not outweigh the
+    professional discipline when an existing consultant identity is available.
+    """
+    professional_markers = _markers(line.description) & _PROFESSIONAL_TRADE_MARKERS
+    if not professional_markers:
+        return items
+    return [
+        item
+        for item in items
+        if "construction" not in _normalize(item.category)
+        and professional_markers
+        & _markers(" ".join((item.category, item.item, item.basis)))
+    ]
 
 
 def _scored_candidates(

@@ -161,6 +161,8 @@ from app.schemas.document_selections import (
     TenderQuoteSelection,
 )
 from app.projects.workflow_capabilities import capability_for, workflow_capabilities
+from app.cost_plan.invoice_candidates import is_invoice_document
+from app.cost_plan.models import CostInvoice
 from app.cost_plan.schemas import CostItemInput
 from app.projects.artefact_adapters import (
     accept_workflow_artefact,
@@ -201,6 +203,7 @@ from app.inbox.split_service import (
     split_staged_pdf,
 )
 from app.database.workspace_file import WorkspaceFile
+from app.database.workflow_run import WorkflowRun
 from app.database.workspace_files import (
     get_workspace_file_by_path,
     list_workspace_files_for_project,
@@ -443,7 +446,18 @@ def _evidence_preview_from_workspace_file(record: WorkspaceFile) -> EvidencePrev
         document_number=None,
         revision=None,
         category=None,
+        invoice_status=_pending_invoice_status(record),
     )
+
+
+def _pending_invoice_status(record: WorkspaceFile) -> str | None:
+    if "invoice" not in record.filename.lower():
+        return None
+    if record.ingest_status in {"failed", "error"}:
+        return "failed"
+    if record.ingest_status in {"pending", "queued", "ingesting"}:
+        return "reading"
+    return None
 
 
 def _append_unindexed_inbox_workspace_files(
@@ -743,8 +757,84 @@ async def _list_project_evidence_previews(
     if workspace_files:
         previews = _append_unindexed_inbox_workspace_files(previews, workspace_files)
         previews.sort(key=lambda preview: preview.relative_path)
+    previews = await _apply_invoice_statuses(
+        session,
+        project_id=project_id,
+        previews=previews,
+    )
     usage = await latest_document_usage(session, project_id=project_id)
     return _apply_document_usage(previews, usage)
+
+
+async def _apply_invoice_statuses(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    previews: list[EvidencePreview],
+) -> list[EvidencePreview]:
+    invoice_rows = (
+        await session.execute(
+            select(
+                CostInvoice.source_document_id,
+                CostInvoice.workspace_file_id,
+                CostInvoice.processing_status,
+            ).where(
+                CostInvoice.project_id == project_id,
+                CostInvoice.processing_status != "void",
+            )
+        )
+    ).all()
+    by_document = {
+        row.source_document_id: row.processing_status
+        for row in invoice_rows
+        if row.source_document_id is not None
+    }
+    by_workspace_file = {
+        row.workspace_file_id: row.processing_status
+        for row in invoice_rows
+        if row.workspace_file_id is not None
+    }
+    active_briefs = (
+        await session.execute(
+            select(WorkflowRun.run_brief).where(
+                WorkflowRun.project_id == project_id,
+                WorkflowRun.workflow_type == "process_invoices",
+                WorkflowRun.state.in_(("queued", "running")),
+            )
+        )
+    ).scalars().all()
+    process_all = False
+    selected_documents: set[uuid.UUID] = set()
+    for brief in active_briefs:
+        parameters = brief.get("parameters", {}) if isinstance(brief, dict) else {}
+        raw_ids = parameters.get("source_document_ids")
+        if raw_ids is None:
+            process_all = True
+            continue
+        if isinstance(raw_ids, list):
+            for raw_id in raw_ids:
+                try:
+                    selected_documents.add(uuid.UUID(str(raw_id)))
+                except (TypeError, ValueError):
+                    continue
+
+    for preview in previews:
+        booked_status = by_document.get(preview.id) or by_workspace_file.get(
+            preview.workspace_file_id
+        )
+        if booked_status in {"booked", "needs_review"}:
+            preview.invoice_status = booked_status
+            continue
+        if preview.invoice_status in {"reading", "failed"}:
+            continue
+        if not is_invoice_document(filename=preview.filename, content=preview.excerpt):
+            continue
+        preview.invoice_status = (
+            "processing"
+            if process_all or preview.id in selected_documents
+            else "ready_to_process"
+        )
+    return previews
 
 
 def _apply_document_usage(

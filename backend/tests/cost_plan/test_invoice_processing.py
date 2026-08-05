@@ -5,6 +5,8 @@ import uuid
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -12,13 +14,16 @@ from pydantic import ValidationError
 from app.cost_plan.invoice_candidates import InvoiceCandidate, is_invoice_document
 from app.cost_plan.invoice_extraction import InvoiceExtractionError, extract_invoice
 from app.cost_plan.invoice_mapping import map_invoice_allocations
+from app.cost_plan.invoice_service import update_invoice_allocation, update_invoice_fields
 from app.cost_plan.schemas import (
     CostItemInput,
     CostPlanState,
     DependencySnapshot,
     ExtractedInvoice,
+    InvoiceFieldsUpdate,
     InvoiceLineInput,
 )
+from tests.conftest import run_async
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -43,6 +48,7 @@ def _item(
     code: str,
     label: str,
     category: str = "Consultants",
+    basis: str = "Fixture",
     source_refs: list[dict[str, object]] | None = None,
 ) -> CostItemInput:
     return CostItemInput(
@@ -52,7 +58,7 @@ def _item(
         item=label,
         budget="100000",
         forecast="100000",
-        basis="Fixture",
+        basis=basis,
         source_refs=source_refs or [],
     )
 
@@ -165,6 +171,53 @@ def test_invoice_mapping_withholds_an_ambiguous_allocation() -> None:
     assert allocation.review_status == "needs_review"
 
 
+def test_structural_invoice_prefers_consultant_trade_over_construction_wording() -> None:
+    state = _state(
+        [
+            _item(
+                key="structural-engineer",
+                code="6",
+                label="Structural engineer",
+            ),
+            _item(
+                key="framing-and-roof",
+                code="15",
+                label="Framing and roof",
+                category="Construction",
+                basis="Structural steel and timber framing allowance",
+            ),
+        ]
+    )
+    invoice = extract_invoice(_candidate("21-tax-invoice-catenary-structures-01.md"))
+
+    allocation = map_invoice_allocations(invoice, state)[0]
+
+    assert allocation.cost_item_key == "structural-engineer"
+    assert allocation.cost_item_label == "Structural engineer"
+    assert allocation.review_status == "mapped"
+
+
+def test_structural_invoice_is_not_forced_into_construction_without_trade_row() -> None:
+    state = _state(
+        [
+            _item(
+                key="framing-and-roof",
+                code="15",
+                label="Framing and roof",
+                category="Construction",
+                basis="Structural steel and timber framing allowance",
+            )
+        ]
+    )
+    invoice = extract_invoice(_candidate("21-tax-invoice-catenary-structures-01.md"))
+
+    allocation = map_invoice_allocations(invoice, state)[0]
+
+    assert allocation.cost_item_key is None
+    assert allocation.cost_item_label == "Unidentified"
+    assert allocation.review_status == "needs_review"
+
+
 def test_invoice_schema_rejects_model_arithmetic_and_float_inputs() -> None:
     with pytest.raises(ValidationError, match="must not be supplied as float"):
         InvoiceLineInput(
@@ -200,3 +253,85 @@ def test_non_invoice_document_is_rejected() -> None:
     assert not is_invoice_document(filename=candidate.filename, content=candidate.content)
     with pytest.raises(InvoiceExtractionError, match="is not an invoice"):
         extract_invoice(candidate)
+
+
+def test_manual_invoice_controls_increment_revision_and_resolve_review() -> None:
+    allocation_id = uuid.uuid4()
+    allocation = SimpleNamespace(
+        id=allocation_id,
+        cost_item_key=None,
+        cost_item_label="Unidentified",
+        mapping_method="unidentified",
+        mapping_confidence=None,
+        review_status="needs_review",
+    )
+    invoice = SimpleNamespace(
+        id=uuid.uuid4(),
+        revision=3,
+        paid=False,
+        billing_month=date(2026, 3, 1),
+        processing_status="needs_review",
+        allocations=[allocation],
+    )
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = invoice
+    session = AsyncMock()
+    session.execute.return_value = result
+
+    updated = run_async(
+        update_invoice_allocation(
+            session,
+            project_id=uuid.uuid4(),
+            allocation_id=allocation_id,
+            expected_revision=3,
+            cost_item_key="structural-engineer",
+            cost_item_label="Structural engineer",
+        )
+    )
+
+    assert updated.revision == 4
+    assert updated.processing_status == "booked"
+    assert allocation.cost_item_key == "structural-engineer"
+    assert allocation.mapping_method == "manual"
+    assert allocation.review_status == "mapped"
+    session.flush.assert_awaited_once()
+
+
+def test_paid_and_billing_month_update_is_invoice_level() -> None:
+    invoice = SimpleNamespace(
+        id=uuid.uuid4(),
+        revision=1,
+        paid=False,
+        billing_month=date(2026, 3, 1),
+        allocations=[],
+    )
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = invoice
+    session = AsyncMock()
+    session.execute.return_value = result
+
+    updated = run_async(
+        update_invoice_fields(
+            session,
+            project_id=uuid.uuid4(),
+            invoice_id=invoice.id,
+            expected_revision=1,
+            paid=True,
+            billing_month=date(2026, 4, 1),
+        )
+    )
+
+    assert updated.revision == 2
+    assert updated.paid is True
+    assert updated.billing_month == date(2026, 4, 1)
+
+
+def test_invoice_field_update_requires_a_change_and_month_start() -> None:
+    with pytest.raises(ValidationError, match="paid or billing_month is required"):
+        InvoiceFieldsUpdate(expected_revision=1, expected_cost_plan_version=2)
+    with pytest.raises(ValidationError, match="must be the first day"):
+        InvoiceFieldsUpdate(
+            expected_revision=1,
+            expected_cost_plan_version=2,
+            billing_month=date(2026, 4, 12),
+        )

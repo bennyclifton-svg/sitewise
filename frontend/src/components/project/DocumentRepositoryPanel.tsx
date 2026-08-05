@@ -1059,6 +1059,7 @@ export function DocumentRepositoryPanel({
                         <span className="truncate" title={row.title}>
                           {row.title}
                         </span>
+                        <InvoiceStatusMark status={row.invoice_status} />
                         <UsageMarks
                           marks={row.used_by}
                           activeArtefactId={usageHighlightArtefactId}
@@ -1166,6 +1167,65 @@ function displayValue(value: string | null | undefined): string {
 
 function isInboxEvidence(row: EvidencePreview): boolean {
   return row.relative_path.replace("\\", "/").includes("/_inbox/");
+}
+
+const INVOICE_STATUS_PRESENTATION = {
+  reading: {
+    label: "Reading",
+    className: "text-[var(--info-text)]",
+    dotClassName: "bg-[var(--info-text)]",
+  },
+  ready_to_process: {
+    label: "Ready",
+    className: "text-[var(--warn-text)]",
+    dotClassName: "bg-[var(--warn-text)]",
+  },
+  processing: {
+    label: "Processing",
+    className: "text-[var(--info-text)]",
+    dotClassName: "bg-[var(--info-text)] animate-pulse motion-reduce:animate-none",
+  },
+  booked: {
+    label: "Booked",
+    className: "text-[var(--ok-text)]",
+    dotClassName: "bg-[var(--ok-text)]",
+  },
+  needs_review: {
+    label: "Review",
+    className: "text-[var(--warn-text)]",
+    dotClassName: "bg-[var(--warn-text)]",
+  },
+  failed: {
+    label: "Failed",
+    className: "text-[var(--alert-text)]",
+    dotClassName: "bg-[var(--alert-text)]",
+  },
+} as const;
+
+function InvoiceStatusMark({
+  status,
+}: {
+  status: EvidencePreview["invoice_status"];
+}) {
+  if (!status) return null;
+  const presentation = INVOICE_STATUS_PRESENTATION[status];
+  const description = `Invoice status: ${presentation.label}`;
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 text-[0.62rem] font-medium",
+        presentation.className,
+      )}
+      aria-label={description}
+      title={description}
+    >
+      <span
+        className={cn("size-1.5 rounded-full", presentation.dotClassName)}
+        aria-hidden
+      />
+      {presentation.label}
+    </span>
+  );
 }
 
 /**

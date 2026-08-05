@@ -55,6 +55,7 @@ import type {
   DocumentRepairPreview,
   EvidencePreview,
   InboxUploadResult,
+  InvoiceLedger,
   PdfAnalyzeResult,
   PlatformKnowledgeStatus,
   ProcurementRequest,
@@ -546,6 +547,38 @@ export const api = {
       `/projects/${projectId}/workspace-files/preview?path=${encodeURIComponent(
         workspacePath,
       )}`,
+  ),
+
+  getInvoiceLedger: async (projectId: string): Promise<InvoiceLedger> =>
+    api.get<InvoiceLedger>(`/projects/${projectId}/invoices`),
+
+  updateInvoice: async (
+    projectId: string,
+    invoiceId: string,
+    input: {
+      expected_revision: number;
+      expected_cost_plan_version: number;
+      paid?: boolean;
+      billing_month?: string;
+    },
+  ): Promise<InvoiceLedger> =>
+    api.patch<InvoiceLedger>(`/projects/${projectId}/invoices/${invoiceId}`, input, {
+      timeoutMs: WORKFLOW_TIMEOUT_MS,
+    }),
+
+  updateInvoiceAllocation: async (
+    projectId: string,
+    allocationId: string,
+    input: {
+      expected_revision: number;
+      expected_cost_plan_version: number;
+      cost_item_key: string;
+    },
+  ): Promise<InvoiceLedger> =>
+    api.patch<InvoiceLedger>(
+      `/projects/${projectId}/invoice-allocations/${allocationId}`,
+      input,
+      { timeoutMs: WORKFLOW_TIMEOUT_MS },
     ),
 
   downloadWorkspaceFile: async (

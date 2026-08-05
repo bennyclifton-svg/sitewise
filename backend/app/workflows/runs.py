@@ -415,6 +415,9 @@ async def complete_workflow_run(
     if terminal_state == "failed":
         run.error_class = "WorkflowResultFailed"
         run.error_message = str(result.get("message") or "Workflow failed")[:4000]
+    else:
+        run.error_class = None
+        run.error_message = None
     run.completed_at = datetime.now(UTC)
     run.lock_owner = None
     run.lease_expires_at = None

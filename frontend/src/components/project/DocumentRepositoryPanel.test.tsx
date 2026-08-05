@@ -424,6 +424,27 @@ describe("DocumentRepositoryPanel usage marks", () => {
   });
 });
 
+describe("DocumentRepositoryPanel invoice status", () => {
+  it.each([
+    ["reading", "Reading"],
+    ["ready_to_process", "Ready"],
+    ["processing", "Processing"],
+    ["booked", "Booked"],
+    ["needs_review", "Review"],
+    ["failed", "Failed"],
+  ] as const)("shows %s with a text label as well as colour", (status, label) => {
+    renderWithEvidence([
+      evidenceRow({
+        title: "Structural invoice",
+        filename: "structural-invoice.pdf",
+        invoice_status: status,
+      }),
+    ]);
+
+    expect(screen.getByLabelText(`Invoice status: ${label}`)).toBeInTheDocument();
+  });
+});
+
 describe("DocumentRepositoryPanel generated artefacts", () => {
   it("opens an RFT artefact without selecting or exposing source-document actions", () => {
     const onSelectEvidence = vi.fn();

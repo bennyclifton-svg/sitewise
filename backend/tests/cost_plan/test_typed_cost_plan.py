@@ -20,7 +20,7 @@ from app.cost_plan.dependencies import (
 from app.cost_plan.import_legacy import parse_legacy_draft
 from app.cost_plan.renderer import render_cost_plan_markdown
 from app.cost_plan.schemas import CostItemInput, CostPlanState, DependencySnapshot
-from app.cost_plan.service import refresh_cost_plan, upsert_cost_item
+from app.cost_plan.service import complete_cost_plan_state, refresh_cost_plan, upsert_cost_item
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.mcp_bridge.tender_cost_handoff import map_tender_handoff
@@ -214,6 +214,39 @@ def test_float_and_incomplete_unit_rate_inputs_are_rejected() -> None:
         )
 
 
+def test_tbc_cost_item_remains_typed_and_contributes_zero_to_totals() -> None:
+    tbc = _item(
+        item_key="structural-engineer",
+        cost_code="6",
+        category="Consultants",
+        item="Structural engineer",
+        budget=None,
+        committed="0",
+        forecast="0",
+        paid="0",
+        quantity=None,
+        unit=None,
+        rate=None,
+        basis="Not yet appointed",
+    )
+
+    state = _state(items=[tbc], contingency_percent="0", escalation_percent="0")
+    totals = calculate_totals(
+        state.items,
+        contingency_percent=state.contingency_percent,
+        escalation_percent=state.escalation_percent,
+        gst_treatment=state.gst_treatment,
+    )
+    markdown = render_cost_plan_markdown(state)
+    workbook = build_typed_cost_plan_workbook(project_title="House", state=state)
+    summary = load_workbook(BytesIO(workbook.content), data_only=False)["Summary"]
+
+    assert totals.budget == Decimal("0.00")
+    assert "| 6 | Consultants | Structural engineer | TBC |" in markdown
+    assert summary["C5"].value == "Structural engineer"
+    assert summary["D5"].value is None
+
+
 def test_markdown_and_workbook_render_the_same_typed_rows_and_totals() -> None:
     state = _state()
     markdown = render_cost_plan_markdown(state)
@@ -251,11 +284,46 @@ def test_legacy_import_never_invents_invalid_rows_and_reports_reconciliation() -
         runtime="legacy",
     )
     result = parse_legacy_draft(draft)
-    assert [item.cost_code for item in result.items] == ["01"]
+    assert [item.cost_code for item in result.items] == ["01", "03"]
+    assert result.items[1].budget is None
+    assert result.items[1].item == "Electrical"
     assert result.parsed_budget_total == Decimal("80000.00")
     assert result.source_budget_total == Decimal("200000")
-    assert len(result.warnings) == 3
+    assert len(result.warnings) == 2
     assert all(item.item_key != "2" for item in result.items)
+
+
+def test_existing_partial_typed_plan_is_completed_from_project_taxonomy() -> None:
+    project = Project(
+        id=PROJECT_ID,
+        owner_user_id=USER_ID,
+        slug="house",
+        title="House",
+        workspace_path="projects/house",
+        building_class="residential",
+        work_type="new",
+        project_metadata={"taxonomy": {"subclasses": ["house"]}},
+    )
+    partial = _state(
+        items=[
+            _item(
+                item_key="1",
+                cost_code="1",
+                category="Fees and charges",
+                item="Architect / PM fee",
+            )
+        ]
+    )
+
+    complete = run_async(
+        complete_cost_plan_state(AsyncMock(), project=project, state=partial)
+    )
+
+    assert len(complete.items) == 25
+    structural = next(item for item in complete.items if item.item == "Structural engineer")
+    assert structural.cost_code == "6"
+    assert structural.budget is None
+    assert structural.basis == "Not yet appointed"
 
 
 def test_dependency_graph_and_stale_reasons_are_deterministic() -> None:

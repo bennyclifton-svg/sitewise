@@ -908,6 +908,67 @@
     line-height: 1.25;
     word-break: break-word;
   }
+
+  .workbook-inline-control {
+    min-height: 1.75rem;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-body);
+    background: var(--bg-surface);
+    padding: 0.2rem 0.3rem;
+    font: inherit;
+    line-height: 1.2;
+  }
+
+  .workbook-inline-control:focus-visible,
+  .workbook-paid-toggle:focus-visible {
+    outline: 2px solid var(--brand-ring);
+    outline-offset: 1px;
+  }
+
+  .workbook-inline-control:disabled,
+  .workbook-paid-toggle:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  .workbook-inline-control--review {
+    border-color: var(--warn-text);
+    color: var(--warn-text);
+    background: var(--warn-bg);
+  }
+
+  .workbook-inline-control--month {
+    font-feature-settings: "tnum" 1;
+  }
+
+  .workbook-paid-toggle {
+    display: inline-flex;
+    min-height: 1.75rem;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    background: var(--bg-surface);
+    font-weight: 600;
+  }
+
+  .workbook-paid-toggle--paid {
+    border-color: color-mix(in oklch, var(--ok-text) 45%, transparent);
+    color: var(--ok-text);
+    background: var(--ok-bg);
+  }
+
+  @media (max-width: 767px) {
+    .workbook-inline-control {
+      font-size: 1rem;
+    }
+  }
 }
 
 @media print {

@@ -124,7 +124,7 @@ class CostPlanItem(Base):
     cost_code: Mapped[str] = mapped_column(String(128), nullable=False)
     category: Mapped[str] = mapped_column(String(255), nullable=False)
     item: Mapped[str] = mapped_column(String(512), nullable=False)
-    budget: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    budget: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     committed: Mapped[Decimal] = mapped_column(
         Numeric(18, 2), nullable=False, default=0
     )
@@ -340,7 +340,7 @@ class CostInvoiceAllocation(Base):
             name="ck_cost_invoice_allocations_gst_treatment",
         ),
         CheckConstraint(
-            "mapping_method IN ('exact','related_reference','keyword','model','unidentified')",
+            "mapping_method IN ('exact','related_reference','keyword','model','manual','unidentified')",
             name="ck_cost_invoice_allocations_mapping_method",
         ),
         CheckConstraint(
