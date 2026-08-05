@@ -861,9 +861,6 @@ function WorkflowDetail({
               </Suspense>
             )}
 
-            {!isRunningWorkflow ? (
-              <WorkflowTracePanel trace={activeTrace} isRunning={false} />
-            ) : null}
           </>
         ) : isCostPlan ? (
           <>

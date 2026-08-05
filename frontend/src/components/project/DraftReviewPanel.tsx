@@ -1,5 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, Download, FileText, Pencil, RefreshCw, RotateCcw, Save, Table2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  ChevronRight,
+  Download,
+  FileText,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Table2,
+} from "lucide-react";
 
 import { CopyContentButton } from "@/components/project/CopyContentButton";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
@@ -51,6 +61,7 @@ export function DraftReviewPanel({
   const [actionError, setActionError] = useState<string | null>(null);
   const [sectionEditHeading, setSectionEditHeading] = useState<string | null>(null);
   const [sectionEditorValue, setSectionEditorValue] = useState("");
+  const draftDetailsRef = useRef<HTMLDetailsElement>(null);
   const [decisionState, setDecisionState] = useState<{
     key: string;
     decisions: ProjectDecision[] | null;
@@ -204,6 +215,16 @@ export function DraftReviewPanel({
     setActionError(null);
   }
 
+  function openWorkflowTrace() {
+    if (draftDetailsRef.current) {
+      draftDetailsRef.current.open = true;
+    }
+    document.getElementById("draft-workflow-trace")?.scrollIntoView?.({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   async function saveSectionEdit() {
     if (!loadedDraft || !sectionEditHeading) return;
     const section = sections.find((item) => item.heading === sectionEditHeading);
@@ -336,12 +357,7 @@ export function DraftReviewPanel({
             {evidenceChanged ? (
               <EvidenceChangeStrip
                 summary={evidenceChanged}
-                onOpenTrace={() => {
-                  document.getElementById("draft-workflow-trace")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  });
-                }}
+                onOpenTrace={openWorkflowTrace}
               />
             ) : null}
           </div>
@@ -439,109 +455,127 @@ export function DraftReviewPanel({
         </section>
       ) : null}
 
-      <header className="rounded-md border bg-background p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <FileText className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="min-w-0 truncate text-xl font-semibold">{displayDraft.title}</h2>
-              {loadedDraft ? (
-                <CopyContentButton
-                  content={isEditing ? editorValue : loadedDraft.content_markdown}
-                  label={`Copy ${displayDraft.title}`}
-                />
-              ) : null}
-            </div>
-            <p className="mt-1 break-all text-sm text-muted-foreground">
-              {displayDraft.workspace_path}
-            </p>
+      <details
+        ref={draftDetailsRef}
+        className="group rounded-md border bg-background"
+        data-testid="draft-supporting-details"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <ChevronRight
+              className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+              aria-hidden
+            />
+            <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="min-w-0 truncate text-sm font-semibold">{displayDraft.title}</span>
           </div>
-          <div className="flex gap-2">
+          <div className="hidden shrink-0 gap-2 sm:flex">
             <Badge variant="secondary">v{displayDraft.version}</Badge>
             <Badge variant={isAccepted ? "default" : "outline"}>
               {isAccepted ? "Accepted" : "Draft"}
             </Badge>
           </div>
-        </div>
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <MetaItem label="Saved" value={dateFormatter.format(new Date(displayDraft.created_at))} />
-          <MetaItem label="Model" value={draftModelLabel(displayDraft)} />
-          <MetaItem label="Runtime" value={displayDraft.runtime} />
-          <MetaItem label="Workflow" value={displayDraft.workflow_type} />
-          <MetaItem
-            label="Draft mode"
-            value={draftModeLabel(loadedDraft?.provenance_metadata?.draft_mode)}
-          />
-        </dl>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            variant={isAccepted ? "outline" : "secondary"}
-            size="sm"
-            onClick={() => void acceptDraft()}
-            disabled={isAccepting || isAccepted}
-          >
-            <Check className="size-4" aria-hidden />
-            {isAccepting ? "Accepting..." : isAccepted ? "Accepted" : acceptLabel}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing((current) => !current)}
-            disabled={isSaving || isLoadingDraft || !loadedDraft}
-          >
-            <Pencil className="size-4" aria-hidden />
-            {isEditing ? "Preview" : "Edit markdown"}
-          </Button>
-          {isEditing ? (
-            <Button size="sm" onClick={() => void saveEdits()} disabled={isSaving || !loadedDraft}>
-              <Save className="size-4" aria-hidden />
-              {isSaving ? "Saving..." : "Save edits"}
+        </summary>
+
+        <div className="border-t p-4">
+          <div className="flex min-w-0 items-start gap-2">
+            <p className="min-w-0 flex-1 break-all text-sm text-muted-foreground">
+              {displayDraft.workspace_path}
+            </p>
+            {loadedDraft ? (
+              <CopyContentButton
+                content={isEditing ? editorValue : loadedDraft.content_markdown}
+                label={`Copy ${displayDraft.title}`}
+              />
+            ) : null}
+          </div>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <MetaItem
+              label="Saved"
+              value={dateFormatter.format(new Date(displayDraft.created_at))}
+            />
+            <MetaItem label="Model" value={draftModelLabel(displayDraft)} />
+            <MetaItem label="Runtime" value={displayDraft.runtime} />
+            <MetaItem label="Workflow" value={displayDraft.workflow_type} />
+            <MetaItem
+              label="Draft mode"
+              value={draftModeLabel(loadedDraft?.provenance_metadata?.draft_mode)}
+            />
+          </dl>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant={isAccepted ? "outline" : "secondary"}
+              size="sm"
+              onClick={() => void acceptDraft()}
+              disabled={isAccepting || isAccepted}
+            >
+              <Check className="size-4" aria-hidden />
+              {isAccepting ? "Accepting..." : isAccepted ? "Accepted" : acceptLabel}
             </Button>
-          ) : null}
-          {workbook ? (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void downloadWorkbook()}
-              disabled={isDownloadingWorkbook}
+              onClick={() => setIsEditing((current) => !current)}
+              disabled={isSaving || isLoadingDraft || !loadedDraft}
             >
-              <Download className="size-4" aria-hidden />
-              {isDownloadingWorkbook ? "Downloading..." : "Download workbook"}
+              <Pencil className="size-4" aria-hidden />
+              {isEditing ? "Preview" : "Edit markdown"}
             </Button>
-          ) : null}
-          {isPmpDraft(displayDraft.workflow_type) && onRunUpdatePmp ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRunUpdatePmp}
-              disabled={isRunningUpdatePmp || isAccepting || isEditing}
-            >
-              <RefreshCw className="size-4" aria-hidden />
-              {isRunningUpdatePmp ? "Refreshing..." : "Refresh PMP from documents"}
+            {isEditing ? (
+              <Button
+                size="sm"
+                onClick={() => void saveEdits()}
+                disabled={isSaving || !loadedDraft}
+              >
+                <Save className="size-4" aria-hidden />
+                {isSaving ? "Saving..." : "Save edits"}
+              </Button>
+            ) : null}
+            {workbook ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void downloadWorkbook()}
+                disabled={isDownloadingWorkbook}
+              >
+                <Download className="size-4" aria-hidden />
+                {isDownloadingWorkbook ? "Downloading..." : "Download workbook"}
+              </Button>
+            ) : null}
+            {isPmpDraft(displayDraft.workflow_type) && onRunUpdatePmp ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRunUpdatePmp}
+                disabled={isRunningUpdatePmp || isAccepting || isEditing}
+              >
+                <RefreshCw className="size-4" aria-hidden />
+                {isRunningUpdatePmp ? "Refreshing..." : "Refresh PMP from documents"}
+              </Button>
+            ) : null}
+            <Button disabled variant="outline" size="sm">
+              <RotateCcw className="size-4" aria-hidden />
+              Reopen
             </Button>
+          </div>
+          {actionError ? (
+            <p className="mt-3 text-sm text-destructive">{actionError}</p>
           ) : null}
-          <Button disabled variant="outline" size="sm">
-            <RotateCcw className="size-4" aria-hidden />
-            Reopen
-          </Button>
+          {decisionLoadError ? (
+            <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
+          ) : null}
+
+          <div id="draft-workflow-trace" className="mt-4">
+            <WorkflowTracePanel trace={trace} />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <ReferenceList title="Seed consulted" items={seed} />
+            <ReferenceList title="Evidence refs" items={evidence} />
+            <ReferenceList title="Context refs" items={context} />
+          </div>
         </div>
-        {actionError ? (
-          <p className="mt-3 text-sm text-destructive">{actionError}</p>
-        ) : null}
-        {decisionLoadError ? (
-          <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
-        ) : null}
-      </header>
-
-      <div id="draft-workflow-trace">
-        <WorkflowTracePanel trace={trace} />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ReferenceList title="Seed consulted" items={seed} />
-        <ReferenceList title="Evidence refs" items={evidence} />
-        <ReferenceList title="Context refs" items={context} />
-      </div>
+      </details>
     </article>
   );
 }

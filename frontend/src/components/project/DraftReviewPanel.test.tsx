@@ -76,7 +76,44 @@ describe("DraftReviewPanel", () => {
     });
   });
 
-  it("shows refresh provenance strips for update drafts", () => {
+  it.each([
+    ["create_pmp", "Project Management Plan"],
+    ["consultant_procurement_structural_engineer", "Structural Engineer RFP"],
+    ["trade_rft_electrical_services", "Electrical Services RFT"],
+    ["trade_rfq_joinery", "Joinery RFQ"],
+  ])("collapses supporting details for %s drafts by default", async (workflowType, title) => {
+    const user = userEvent.setup();
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: workflowType,
+          title,
+          provenance_metadata: {
+            seed_consulted: ["data/seed/setup-and-commission-guide.md"],
+            evidence_refs: ["04-projects/demo/brief.pdf"],
+            context_refs: ["project-profile"],
+          },
+        })}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    const details = screen.getByTestId("draft-supporting-details");
+    expect(details).not.toHaveAttribute("open");
+
+    const summary = details.querySelector("summary");
+    expect(summary).not.toBeNull();
+    await user.click(summary!);
+
+    expect(details).toHaveAttribute("open");
+    expect(screen.getByText("Seed consulted")).toBeVisible();
+    expect(screen.getByText("Evidence refs")).toBeVisible();
+    expect(screen.getByText("Context refs")).toBeVisible();
+  });
+
+  it("opens the collapsed trace from the refresh provenance strip", async () => {
+    const user = userEvent.setup();
     render(
       <DraftReviewPanel
         projectId={PROJECT_ID}
@@ -109,6 +146,12 @@ describe("DraftReviewPanel", () => {
     expect(screen.getByText("What changed in v3")).toBeInTheDocument();
     expect(screen.getByText("Scope & client requirements")).toBeInTheDocument();
     expect(screen.getByText(/Evidence changes:/)).toBeInTheDocument();
+    const details = screen.getByTestId("draft-supporting-details");
+    expect(details).not.toHaveAttribute("open");
+
+    await user.click(screen.getByRole("button", { name: "View sweep trace" }));
+
+    expect(details).toHaveAttribute("open");
     expect(screen.getByRole("button", { name: /refresh pmp from documents/i })).toBeInTheDocument();
   });
 
