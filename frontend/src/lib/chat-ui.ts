@@ -121,7 +121,7 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
     return {
       kind: "rate_limit",
       message:
-        "Clerk is being rate limited. Wait a moment, then retry this turn.",
+        "Pi is being rate limited. Wait a moment, then retry this turn.",
     };
   }
 
@@ -132,7 +132,7 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
     return {
       kind: "grounding",
       message:
-        "Clerk could not verify the answer against retrieved sources. Try rephrasing your question or narrowing the topic.",
+        "Pi could not verify the answer against retrieved sources. Try rephrasing your question or narrowing the topic.",
     };
   }
 
@@ -140,7 +140,7 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
     return {
       kind: "retrieval",
       message:
-        "Clerk had trouble searching your project documents. Check that ingestion has completed, then try again.",
+        "Pi had trouble searching your project documents. Check that ingestion has completed, then try again.",
       };
   }
 
@@ -163,7 +163,7 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
     return {
       kind: "tool",
       message:
-        "A Clerk tool failed while handling this turn. Retry once; if it repeats, check the project data and tool logs.",
+        "A Pi tool failed while handling this turn. Retry once; if it repeats, check the project data and tool logs.",
     };
   }
 

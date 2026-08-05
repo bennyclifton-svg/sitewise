@@ -109,7 +109,7 @@ def build_drawing_register_answer(rows: list[DrawingRegisterRow]) -> GroundedAns
             evidence_sufficient=False,
         )
 
-    lines = ["These drawings are indexed in the Clerk document register:", ""]
+    lines = ["These drawings are indexed in the SiteWise document register:", ""]
     citations: list[Citation] = []
     for row in rows:
         number = row.drawing_number or row.filename

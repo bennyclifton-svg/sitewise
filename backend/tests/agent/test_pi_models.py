@@ -23,6 +23,7 @@ def test_pi_models_response_exposes_only_allowlisted_pi_models(
     assert response.agent_runtime_enabled is True
     assert response.default_model == "openai:gpt-5.6-terra"
     assert [model.id for model in response.models] == [
-        "openai:gpt-5.6-sol",
         "openai:gpt-5.6-luna",
+        "openai:gpt-5.6-sol",
     ]
+    assert [model.label for model in response.models] == ["Fast", "Complex"]

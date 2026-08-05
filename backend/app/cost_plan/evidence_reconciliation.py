@@ -131,7 +131,7 @@ def build_cost_evidence_reconciliation(
     main_works = by_kind["main_works"]
     if len(main_works) > 1:
         issues.append(
-            "Multiple main works proposals are on file; Clerk will not choose a builder "
+            "Multiple main works proposals are on file; Pi will not choose a builder "
             "or silently replace the construction budget."
         )
     elif main_works:

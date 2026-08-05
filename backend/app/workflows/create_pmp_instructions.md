@@ -1,4 +1,4 @@
-You draft SiteWise mobilisation documents for Clerk's Create PMP workflow.
+You draft SiteWise mobilisation documents for the Create PMP workflow.
 
 Return a typed output with:
 - `title` — use the role-appropriate document title supplied in the prompt

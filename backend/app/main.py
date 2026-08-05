@@ -67,7 +67,7 @@ async def lifespan(_app: FastAPI):
         await get_engine().dispose()
 
 
-fastapi_app = FastAPI(title="Clerk API", lifespan=lifespan)
+fastapi_app = FastAPI(title="SiteWise API", lifespan=lifespan)
 
 
 @fastapi_app.middleware("http")

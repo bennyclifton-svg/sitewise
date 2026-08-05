@@ -141,7 +141,7 @@ describe("AssistantMessage", () => {
 
     const trace = screen.getByLabelText("Answer trace");
     expect(trace).toHaveTextContent("Project context");
-    expect(trace).toHaveTextContent("Clerk knowledge");
+    expect(trace).toHaveTextContent("SiteWise knowledge");
     expect(trace).toHaveTextContent("1 tool used");
     expect(trace).toHaveTextContent("LLM reasoning");
   });

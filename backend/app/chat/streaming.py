@@ -9,7 +9,7 @@ from app.assistant.outputs import GroundedAnswer
 StatusCallback = Callable[[str], Awaitable[None]]
 
 STUB_RESPONSE = (
-    "This is a stub assistant response from Clerk. "
+    "This is a stub assistant response from Pi. "
     "Real retrieval and grounding will replace this in later phases."
 )
 

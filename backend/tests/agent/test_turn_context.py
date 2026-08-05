@@ -30,6 +30,7 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     )
 
     assert prompt.index("<persona>") < prompt.index("<project-context>")
+    assert "You are Pi" in prompt
     assert prompt.index("<project-context>") < prompt.index("<document-access>")
     assert prompt.index("<document-access>") < prompt.index("<recent-conversation>")
     assert "refresh_cost_plan with reconcile_evidence=true" in prompt

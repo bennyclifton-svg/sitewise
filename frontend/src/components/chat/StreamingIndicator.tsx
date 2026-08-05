@@ -5,7 +5,7 @@ type StreamingIndicatorProps = {
 const TRACE_POINT_DELAYS = ["0ms", "90ms", "180ms", "270ms", "360ms", "450ms"];
 
 export function StreamingIndicator({ message }: StreamingIndicatorProps) {
-  const label = message?.trim() ? message : "Clerk is writing…";
+  const label = message?.trim() ? message : "Pi is writing…";
 
   return (
     <div

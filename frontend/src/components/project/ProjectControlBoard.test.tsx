@@ -373,7 +373,7 @@ describe("ProjectControlBoard project profile", () => {
     expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
   });
 
-  it("shows one progress strip while Project Plan runs and hides Clerk is working copy", async () => {
+  it("shows one progress strip while Project Plan runs and hides Pi is working copy", async () => {
     render(
       <ProjectControlBoard
         project={project}
@@ -406,7 +406,7 @@ describe("ProjectControlBoard project profile", () => {
     expect(screen.getByTestId("workflow-progress-strip")).toHaveTextContent(
       "Updating Project Plan",
     );
-    expect(screen.queryByText("Clerk is working…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pi is working…")).not.toBeInTheDocument();
     expect(screen.queryByText("working…")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /create pmp/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /update pmp/i })).toBeDisabled();

@@ -134,7 +134,7 @@ def build_platform_inventory_answer(
 def build_seed_inventory_answer(rows: list[PlatformDocumentRow]) -> GroundedAnswer:
     return build_platform_inventory_answer(
         rows,
-        title="These SiteWise seed knowledge files are indexed in Clerk:",
+        title="These SiteWise seed knowledge files are indexed in SiteWise:",
         empty_message=(
             "No seed knowledge files are indexed yet. "
             "Ingest the `seed/` folder to populate platform knowledge."
@@ -147,6 +147,6 @@ def build_platform_knowledge_inventory_answer(
 ) -> GroundedAnswer:
     return build_platform_inventory_answer(
         rows,
-        title="These SiteWise platform knowledge documents are indexed in Clerk:",
+        title="These SiteWise platform knowledge documents are indexed in SiteWise:",
         empty_message="No SiteWise platform knowledge documents are indexed yet.",
     )

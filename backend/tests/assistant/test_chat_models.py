@@ -22,3 +22,8 @@ def test_chat_models_response_includes_default_flag() -> None:
     response = chat_models_response()
     assert response.default_model in {model.id for model in response.models}
     assert any(model.is_default for model in response.models)
+    assert {model.label for model in response.models} == {
+        "Fast",
+        "Balanced",
+        "Complex",
+    }

@@ -96,7 +96,7 @@ export function LoginPage() {
     <div className="flex min-h-svh items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Clerk</CardTitle>
+          <CardTitle>SiteWise</CardTitle>
           <CardDescription>
             {mode === "sign-in"
               ? "Sign in with your work email."

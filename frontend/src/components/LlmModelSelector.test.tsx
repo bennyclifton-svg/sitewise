@@ -35,33 +35,40 @@ describe("LlmModelSelector", () => {
       default_model: "openai:gpt-5.6-terra",
       models: [
         {
-          id: "openai:gpt-5.6-sol",
-          label: "GPT-5.6 Sol (complex)",
+          id: "openai:gpt-5.6-luna",
+          label: "Fast",
           is_default: false,
           provider: "openai",
-          model: "gpt-5.6-sol",
+          model: "gpt-5.6-luna",
         },
         {
           id: "openai:gpt-5.6-terra",
-          label: "GPT-5.6 Terra (balanced)",
+          label: "Balanced",
           is_default: true,
           provider: "openai",
           model: "gpt-5.6-terra",
+        },
+        {
+          id: "openai:gpt-5.6-sol",
+          label: "Complex",
+          is_default: false,
+          provider: "openai",
+          model: "gpt-5.6-sol",
         },
       ],
     });
 
     renderSelector();
 
-    const select = await screen.findByLabelText(/pi model/i);
-    expect(select).toHaveValue("openai:gpt-5.6-terra");
-    expect(screen.getByRole("option", { name: "Pi default" })).toHaveValue(
+    const select = screen.getByLabelText(/model tier/i);
+    await waitFor(() => {
+      expect(select).toHaveValue("openai:gpt-5.6-terra");
+    });
+    expect(screen.getByRole("option", { name: "Balanced" })).toHaveValue(
       "openai:gpt-5.6-terra",
     );
-    expect(
-      screen.queryByRole("option", { name: "GPT-5.6 Terra (balanced)" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "GPT-5.6 Sol (complex)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Fast" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Complex" })).toBeInTheDocument();
 
     await userEvent.selectOptions(select, "openai:gpt-5.6-sol");
 

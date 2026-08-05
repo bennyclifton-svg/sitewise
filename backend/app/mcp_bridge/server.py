@@ -2472,7 +2472,7 @@ async def prepare_tender_comparison(
 async def find_candidate_tender_documents(project_id: str) -> list[dict]:
     """Return candidate tender PDFs from the project workspace.
 
-    Clerk does not yet persist a backend document-selection model. This tool
+    SiteWise does not yet persist a backend document-selection model. This tool
     therefore returns likely tender/quote PDFs so Pi can ask the user to
     confirm explicit workspace_paths before starting a comparison.
     """
@@ -2711,7 +2711,7 @@ async def list_project_files(
     path_prefix: str | None = None,
     max_results: int = 50,
 ) -> list[dict]:
-    """List stored Clerk project files, including generated drafts and workbooks.
+    """List stored SiteWise project files, including generated drafts and workbooks.
 
     Use this when the user names a file or artefact that may not be an ingested
     source document. Generated files are project artefacts; they are not
@@ -2762,7 +2762,7 @@ async def read_project_workbook(
     path: str,
     max_rows: int = 80,
 ) -> dict:
-    """Read an Excel workbook stored in Clerk project files as sheet rows.
+    """Read an Excel workbook stored in SiteWise project files as sheet rows.
 
     This is for generated or uploaded .xlsx project artefacts. It previews cell
     values; it does not make the workbook an ingested source document.

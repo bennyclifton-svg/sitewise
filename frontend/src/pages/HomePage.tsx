@@ -293,7 +293,7 @@ function EmptyProjectState({ backendUnavailable }: { backendUnavailable: boolean
           <span className="rounded-md bg-background px-2 py-1 font-medium">Right</span>
           <span className="rounded-md bg-background px-2 py-1">Document repository</span>
           <span className="rounded-md bg-background px-2 py-1 font-medium">Bottom</span>
-          <span className="rounded-md bg-background px-2 py-1">Clerk chat bar</span>
+          <span className="rounded-md bg-background px-2 py-1">Pi chat bar</span>
         </div>
       </div>
     </div>

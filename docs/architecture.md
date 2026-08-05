@@ -287,7 +287,7 @@ travel in the prompt.
 ```mermaid
 flowchart TB
     subgraph prompt["Assembled turn prompt"]
-        persona["&lt;persona&gt;<br/>Clerk — CM intelligence agent.<br/>'the project' = the construction project,<br/>never this repository."]
+        persona["&lt;persona&gt;<br/>Pi — CM intelligence agent.<br/>'the project' = the construction project,<br/>never this repository."]
         ctx["&lt;project-context&gt;<br/>three-overlay declaration:<br/>building class · work type · state<br/>+ subclasses, scale fields"]
         caps["&lt;capabilities&gt;<br/>workflow capability matrix<br/>(what is legal to start right now)"]
         doc["&lt;document-access&gt;<br/>source doctrine: which tool for which question"]

@@ -45,7 +45,7 @@ export function WorkflowTracePanel({
           <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         )}
         <span className={embedded ? "font-medium" : "text-sm font-semibold"}>
-          {isRunning ? "Clerk is working…" : complete ? "Run complete" : "Workflow trace"}
+          {isRunning ? "Pi is working…" : complete ? "Run complete" : "Workflow trace"}
         </span>
         <span className="ml-auto text-xs text-muted-foreground">
           {trace.length} {trace.length === 1 ? "step" : "steps"}

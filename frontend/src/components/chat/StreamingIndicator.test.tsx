@@ -7,7 +7,7 @@ describe("StreamingIndicator", () => {
   it("shows the default writing state with six trace points", () => {
     const { container } = render(<StreamingIndicator />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Clerk is writing");
+    expect(screen.getByRole("status")).toHaveTextContent("Pi is writing");
     expect(container.querySelectorAll(".streaming-trace__point")).toHaveLength(6);
   });
 

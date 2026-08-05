@@ -66,9 +66,9 @@ export function LlmModelSelector({
     : loading
       ? "Loading LLM models..."
       : mode === "agent"
-        ? "Choose the Pi model for this chat turn"
-        : "LLM model for legacy chat and workflows";
-  const label = mode === "agent" ? "Pi model" : "LLM model";
+        ? "Choose the model tier Pi uses for this chat turn"
+        : "Choose the model tier for legacy chat and workflows";
+  const label = "Model tier";
 
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
@@ -100,16 +100,11 @@ export function LlmModelSelector({
           setSelectedChatModel(next);
         }}
       >
-        {mode === "agent" && defaultModel ? (
-          <option value={defaultModel}>Pi default</option>
-        ) : null}
-        {models
-          .filter((model) => mode !== "agent" || model.id !== defaultModel)
-          .map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.label}
-            </option>
-          ))}
+        {models.map((model) => (
+          <option key={model.id} value={model.id}>
+            {model.label}
+          </option>
+        ))}
       </select>
     </div>
   );

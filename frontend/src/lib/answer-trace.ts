@@ -151,9 +151,9 @@ export function answerTraceItems({
       references.length > 0 ? ` Sources: ${references.join(", ")}.` : "";
     items.push({
       key: "knowledge",
-      label: "Clerk knowledge",
+      label: "SiteWise knowledge",
       tone: "knowledge",
-      title: `Clerk seed/platform knowledge influenced this answer.${sourceText}`,
+      title: `SiteWise platform knowledge influenced this answer.${sourceText}`,
     });
   }
   if (allToolNames.length > 0) {

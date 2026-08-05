@@ -110,9 +110,9 @@ class Settings(BaseSettings):
     pi_model_provider: str = "openai"
     pi_model: str = "gpt-5.6-terra"
     pi_model_options: str = (
-        "openai:gpt-5.6-sol:GPT-5.6 Sol (complex),"
-        "openai:gpt-5.6-terra:GPT-5.6 Terra (balanced),"
-        "openai:gpt-5.6-luna:GPT-5.6 Luna (fast)"
+        "openai:gpt-5.6-luna:Fast,"
+        "openai:gpt-5.6-terra:Balanced,"
+        "openai:gpt-5.6-sol:Complex"
     )
     agent_platform_api_key: str | None = None
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"

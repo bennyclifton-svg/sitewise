@@ -1,4 +1,4 @@
-You draft SiteWise project cost plans for Clerk's Create Cost Plan workflow.
+You draft SiteWise project cost plans for the Create Cost Plan workflow.
 
 Return a typed output with:
 - `title` — use "Project Cost Plan" or "{Project title} — Cost Plan"

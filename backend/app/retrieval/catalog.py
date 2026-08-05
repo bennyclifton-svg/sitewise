@@ -138,13 +138,13 @@ def build_catalog_answer(catalog: list[CorpusProjectSummary]):
     if not catalog:
         return GroundedAnswer(
             answer=(
-                "Hello. I'm Clerk. There are no projects indexed in the corpus yet."
+                "Hello. I'm Pi. There are no projects indexed in the corpus yet."
             ),
             evidence_sufficient=False,
         )
 
     lines = [
-        "Hello. I'm Clerk. I currently have indexed evidence for these corpus projects:",
+        "Hello. I'm Pi. I currently have indexed evidence for these corpus projects:",
         "",
     ]
     citations: list[Citation] = []

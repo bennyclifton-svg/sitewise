@@ -130,7 +130,7 @@ def test_resolve_subprocess_binary_uses_shutil_which(monkeypatch) -> None:
 def test_prompt_file_arg_points_to_full_multiline_prompt(tmp_path: Path) -> None:
     prompt = (
         "<persona>\n"
-        "You are Clerk.\n"
+        "You are Pi.\n"
         "</persona>\n\n"
         "<project-context>\n"
         "project_title: Walsh Reno\n"
@@ -193,7 +193,7 @@ def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(
     )
     prompt = (
         "<persona>\n"
-        "You are Clerk.\n"
+        "You are Pi.\n"
         "</persona>\n\n"
         "<project-context>\n"
         "project_title: Walsh Reno\n"

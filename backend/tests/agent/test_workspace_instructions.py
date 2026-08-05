@@ -12,7 +12,8 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     target = tmp_path / "AGENTS.md"
     assert target.read_text(encoding="utf-8") == WORKSPACE_AGENTS_MD
     assert "construction management intelligence agent" in WORKSPACE_AGENTS_MD
-    assert "Clerk software" in WORKSPACE_AGENTS_MD
+    assert "You are Pi" in WORKSPACE_AGENTS_MD
+    assert "SiteWise software" in WORKSPACE_AGENTS_MD
     assert "repository" in WORKSPACE_AGENTS_MD
     assert "list_document_register" in WORKSPACE_AGENTS_MD
     assert "select_document_register_files" in WORKSPACE_AGENTS_MD
