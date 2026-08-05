@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Check,
   ChevronRight,
-  Download,
-  FileText,
-  Pencil,
-  RefreshCw,
-  RotateCcw,
-  Save,
   Table2,
 } from "lucide-react";
 
-import { CopyContentButton } from "@/components/project/CopyContentButton";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { WorkbookGrid } from "@/components/project/WorkbookGrid";
@@ -38,26 +30,18 @@ export function DraftReviewPanel({
   draft,
   onDraftUpdated,
   workflowType,
-  onRunUpdatePmp,
-  isRunningUpdatePmp = false,
   embedded = false,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
   onDraftUpdated: (draft: DraftArtifact) => void;
   workflowType?: string;
-  onRunUpdatePmp?: () => void;
-  isRunningUpdatePmp?: boolean;
   /** Compact layout when nested inside a workflow panel. */
   embedded?: boolean;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editorValue, setEditorValue] = useState("");
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isAccepting, setIsAccepting] = useState(false);
-  const [isDownloadingWorkbook, setIsDownloadingWorkbook] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [sectionEditHeading, setSectionEditHeading] = useState<string | null>(null);
   const [sectionEditorValue, setSectionEditorValue] = useState("");
@@ -85,8 +69,6 @@ export function DraftReviewPanel({
       setActionError(null);
       if (!draft) {
         setLoadedDraft(null);
-        setEditorValue("");
-        setIsEditing(false);
         setSectionEditHeading(null);
         setIsLoadingDraft(false);
         return;
@@ -94,21 +76,16 @@ export function DraftReviewPanel({
 
       if (isFullDraft(draft)) {
         setLoadedDraft(draft);
-        setEditorValue(draft.content_markdown);
-        setIsEditing(false);
         setIsLoadingDraft(false);
         return;
       }
 
       setLoadedDraft(null);
-      setEditorValue("");
-      setIsEditing(false);
       setIsLoadingDraft(true);
       try {
         const data = await api.getProjectDraft(projectId, draft.id);
         if (!cancelled) {
           setLoadedDraft(data);
-          setEditorValue(data.content_markdown);
         }
       } catch (error) {
         if (!cancelled) {
@@ -194,7 +171,6 @@ export function DraftReviewPanel({
   }
 
   const displayDraft = loadedDraft ?? draft;
-  const acceptLabel = acceptDraftLabel(displayDraft.workflow_type);
 
   const seed = metadataList(loadedDraft?.provenance_metadata?.seed_consulted);
   const evidence = metadataList(loadedDraft?.provenance_metadata?.evidence_refs);
@@ -211,7 +187,6 @@ export function DraftReviewPanel({
     if (!section) return;
     setSectionEditHeading(heading);
     setSectionEditorValue(loadedDraft.content_markdown.slice(section.start, section.end));
-    setIsEditing(false);
     setActionError(null);
   }
 
@@ -251,68 +226,6 @@ export function DraftReviewPanel({
       setActionError(error instanceof ApiError ? error.message : "Could not save section.");
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function saveEdits() {
-    if (!loadedDraft) return;
-    setIsSaving(true);
-    setActionError(null);
-    try {
-      const updated = await api.patchDraft(
-        projectId,
-        loadedDraft.id,
-        editorValue,
-        loadedDraft.version,
-      );
-      setLoadedDraft(updated);
-      onDraftUpdated(updated);
-      setIsEditing(false);
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "Could not save draft.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function acceptDraft() {
-    setIsAccepting(true);
-    setActionError(null);
-    try {
-      const updated = await api.acceptDraft(
-        projectId,
-        displayDraft.id,
-        displayDraft.version,
-      );
-      setLoadedDraft(updated);
-      onDraftUpdated(updated);
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "Could not accept draft.");
-    } finally {
-      setIsAccepting(false);
-    }
-  }
-
-  async function downloadWorkbook() {
-    if (!workbook) return;
-    setIsDownloadingWorkbook(true);
-    setActionError(null);
-    try {
-      const blob = await api.downloadWorkspaceFile(projectId, workbook.workspace_path);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = workbook.file_name;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setActionError(
-        error instanceof ApiError ? error.message : "Could not download workbook.",
-      );
-    } finally {
-      setIsDownloadingWorkbook(false);
     }
   }
 
@@ -370,13 +283,6 @@ export function DraftReviewPanel({
           <p className="p-4 text-sm text-muted-foreground">
             Draft content could not be loaded.
           </p>
-        ) : isEditing ? (
-          <textarea
-            className="min-h-[38rem] w-full resize-y border-0 bg-transparent p-4 font-mono text-sm leading-relaxed outline-none focus-visible:ring-0"
-            value={editorValue}
-            onChange={(event) => setEditorValue(event.target.value)}
-            spellCheck={false}
-          />
         ) : sectionEditHeading ? (
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -433,7 +339,7 @@ export function DraftReviewPanel({
                 );
               }}
               onEditSection={
-                isAccepted || isEditing ? undefined : (heading) => startSectionEdit(heading)
+                isAccepted ? undefined : (heading) => startSectionEdit(heading)
               }
             />
           </div>
@@ -460,35 +366,18 @@ export function DraftReviewPanel({
         className="group rounded-md border bg-background"
         data-testid="draft-supporting-details"
       >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-          <div className="flex min-w-0 items-center gap-2">
-            <ChevronRight
-              className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
-              aria-hidden
-            />
-            <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <span className="min-w-0 truncate text-sm font-semibold">{displayDraft.title}</span>
-          </div>
-          <div className="hidden shrink-0 gap-2 sm:flex">
-            <Badge variant="secondary">v{displayDraft.version}</Badge>
-            <Badge variant={isAccepted ? "default" : "outline"}>
-              {isAccepted ? "Accepted" : "Draft"}
-            </Badge>
-          </div>
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <ChevronRight
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+            aria-hidden
+          />
+          <span className="text-sm font-semibold">Workflow trace</span>
         </summary>
 
         <div className="border-t p-4">
-          <div className="flex min-w-0 items-start gap-2">
-            <p className="min-w-0 flex-1 break-all text-sm text-muted-foreground">
-              {displayDraft.workspace_path}
-            </p>
-            {loadedDraft ? (
-              <CopyContentButton
-                content={isEditing ? editorValue : loadedDraft.content_markdown}
-                label={`Copy ${displayDraft.title}`}
-              />
-            ) : null}
-          </div>
+          <p className="break-all text-sm text-muted-foreground">
+            {displayDraft.workspace_path}
+          </p>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <MetaItem
               label="Saved"
@@ -502,64 +391,8 @@ export function DraftReviewPanel({
               value={draftModeLabel(loadedDraft?.provenance_metadata?.draft_mode)}
             />
           </dl>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              variant={isAccepted ? "outline" : "secondary"}
-              size="sm"
-              onClick={() => void acceptDraft()}
-              disabled={isAccepting || isAccepted}
-            >
-              <Check className="size-4" aria-hidden />
-              {isAccepting ? "Accepting..." : isAccepted ? "Accepted" : acceptLabel}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditing((current) => !current)}
-              disabled={isSaving || isLoadingDraft || !loadedDraft}
-            >
-              <Pencil className="size-4" aria-hidden />
-              {isEditing ? "Preview" : "Edit markdown"}
-            </Button>
-            {isEditing ? (
-              <Button
-                size="sm"
-                onClick={() => void saveEdits()}
-                disabled={isSaving || !loadedDraft}
-              >
-                <Save className="size-4" aria-hidden />
-                {isSaving ? "Saving..." : "Save edits"}
-              </Button>
-            ) : null}
-            {workbook ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void downloadWorkbook()}
-                disabled={isDownloadingWorkbook}
-              >
-                <Download className="size-4" aria-hidden />
-                {isDownloadingWorkbook ? "Downloading..." : "Download workbook"}
-              </Button>
-            ) : null}
-            {isPmpDraft(displayDraft.workflow_type) && onRunUpdatePmp ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRunUpdatePmp}
-                disabled={isRunningUpdatePmp || isAccepting || isEditing}
-              >
-                <RefreshCw className="size-4" aria-hidden />
-                {isRunningUpdatePmp ? "Refreshing..." : "Refresh PMP from documents"}
-              </Button>
-            ) : null}
-            <Button disabled variant="outline" size="sm">
-              <RotateCcw className="size-4" aria-hidden />
-              Reopen
-            </Button>
-          </div>
           {actionError ? (
-            <p className="mt-3 text-sm text-destructive">{actionError}</p>
+            <p className="mt-4 text-sm text-destructive">{actionError}</p>
           ) : null}
           {decisionLoadError ? (
             <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
@@ -702,16 +535,6 @@ function draftModelLabel(draft: DraftArtifact | DraftArtifactSummary): string {
     }
   }
   return draft.model ?? "Unknown";
-}
-
-function acceptDraftLabel(workflowType: string): string {
-  if (workflowType === "create_cost_plan") {
-    return "Accept cost plan";
-  }
-  if (workflowType === "create_pmp" || workflowType === "update_pmp") {
-    return "Accept PMP";
-  }
-  return "Accept draft";
 }
 
 function draftModeLabel(value: unknown): string {

@@ -1340,8 +1340,6 @@ export function ProjectCockpitPage() {
           projectId={project.id}
           draft={activeDraft}
           workflowType={activeWorkflowType}
-          onRunUpdatePmp={() => void runUpdatePmp()}
-          isRunningUpdatePmp={isRunningWorkflow}
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);
           }}

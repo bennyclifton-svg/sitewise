@@ -101,6 +101,7 @@ describe("DraftReviewPanel", () => {
 
     const details = screen.getByTestId("draft-supporting-details");
     expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("Workflow trace");
 
     const summary = details.querySelector("summary");
     expect(summary).not.toBeNull();
@@ -110,6 +111,12 @@ describe("DraftReviewPanel", () => {
     expect(screen.getByText("Seed consulted")).toBeVisible();
     expect(screen.getByText("Evidence refs")).toBeVisible();
     expect(screen.getByText("Context refs")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /accept/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /refresh pmp from documents/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reopen/i })).not.toBeInTheDocument();
   });
 
   it("opens the collapsed trace from the refresh provenance strip", async () => {
@@ -139,7 +146,6 @@ describe("DraftReviewPanel", () => {
           },
         })}
         onDraftUpdated={vi.fn()}
-        onRunUpdatePmp={vi.fn()}
       />,
     );
 
@@ -152,41 +158,26 @@ describe("DraftReviewPanel", () => {
     await user.click(screen.getByRole("button", { name: "View sweep trace" }));
 
     expect(details).toHaveAttribute("open");
-    expect(screen.getByRole("button", { name: /refresh pmp from documents/i })).toBeInTheDocument();
+    expect(screen.getByText("Swept evidence batch 1 of 1.")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /refresh pmp from documents/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
   });
 
-  it("saves edits and swaps to the returned draft version", async () => {
-    const user = userEvent.setup();
-    const updated = draft({
-      id: "draft-2",
-      version: 2,
-      content_markdown: "# Edited",
-      created_at: "2026-07-04T12:05:00.000Z",
-      updated_at: "2026-07-04T12:05:00.000Z",
-    });
-    vi.mocked(api.patchDraft).mockResolvedValue(updated);
-    const onDraftUpdated = vi.fn();
-
+  it("keeps section editing available without exposing the legacy document commands", () => {
     render(
       <DraftReviewPanel
         projectId={PROJECT_ID}
-        draft={draft()}
-        onDraftUpdated={onDraftUpdated}
+        draft={draft({ content_markdown: "# Project plan\n\n## Scope\n\nCurrent scope." })}
+        onDraftUpdated={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /edit markdown/i }));
-    const editor = screen.getByRole("textbox");
-    await user.clear(editor);
-    await user.type(editor, "# Edited");
-    await user.click(screen.getByRole("button", { name: /save edits/i }));
-
-    await waitFor(() => {
-      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
-    });
-    expect(api.patchDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1", "# Edited", 1);
-    expect(screen.getAllByText("v2")[0]).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Edited" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit section" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
   });
 
   it("loads the selected summary draft by id", async () => {

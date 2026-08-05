@@ -6,6 +6,7 @@ import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type {
+  DraftArtifact,
   DraftArtifactSummary,
   ProcessInvoicesResult,
   ProjectDetail,
@@ -417,7 +418,8 @@ describe("ProjectControlBoard project profile", () => {
       "Running",
     );
     expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /accept pmp/i })).toBeInTheDocument();
+    expect(await screen.findByText("Workflow trace")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
@@ -491,7 +493,50 @@ describe("ProjectControlBoard project profile", () => {
     render(runningPmpBoard(runningWorkflowRun));
 
     expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /accept pmp/i })).toBeInTheDocument();
+    expect(await screen.findByText("Workflow trace")).toBeInTheDocument();
+  });
+
+  it("copies the complete PMP from the top control without workflow metadata", async () => {
+    const user = userEvent.setup();
+    const documentMarkdown = [
+      "# Project Management Plan",
+      "",
+      "## Citation key",
+      "",
+      "- [P1] Project brief",
+    ].join("\n");
+    const getProjectDraft = vi.fn().mockResolvedValue({
+      ...draftSummary,
+      content_markdown: documentMarkdown,
+      provenance_metadata: {
+        trace: [
+          {
+            step: "compose",
+            status: "complete",
+            message: "This workflow trace is not document content.",
+            metadata: {},
+          },
+        ],
+      },
+    } as DraftArtifact);
+    Object.assign(api, { getProjectDraft });
+
+    try {
+      render(runningPmpBoard(runningWorkflowRun));
+
+      await user.click(
+        screen.getByRole("button", { name: "Copy project management plan" }),
+      );
+
+      await waitFor(async () => {
+        expect(await navigator.clipboard.readText()).toBe(documentMarkdown);
+      });
+      expect(await navigator.clipboard.readText()).not.toContain(
+        "This workflow trace is not document content.",
+      );
+    } finally {
+      Reflect.deleteProperty(api, "getProjectDraft");
+    }
   });
 
   it("shows the cost plan taking shape once its run publishes a scaffold", async () => {

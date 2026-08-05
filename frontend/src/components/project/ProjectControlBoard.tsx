@@ -72,6 +72,11 @@ const DraftReviewPanel = lazy(() =>
     default: module.DraftReviewPanel,
   })),
 );
+const CopyContentButton = lazy(() =>
+  import("@/components/project/CopyContentButton").then((module) => ({
+    default: module.CopyContentButton,
+  })),
+);
 const WorkflowDraftPreview = lazy(() =>
   import("@/components/project/WorkflowDraftPreview").then((module) => ({
     default: module.WorkflowDraftPreview,
@@ -834,6 +839,31 @@ function WorkflowDetail({
                 <RefreshCw className="size-4" aria-hidden />
                 Update PMP
               </Button>
+              <Suspense
+                fallback={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled
+                    aria-label="Copy project management plan"
+                    title="Copy project management plan"
+                  >
+                    <span className="size-3.5 rounded-sm border" aria-hidden />
+                  </Button>
+                }
+              >
+                <CopyContentButton
+                  loadContent={async () => {
+                    if (!latestDraft) return "";
+                    const fullDraft = await api.getProjectDraft(project.id, latestDraft.id);
+                    return fullDraft.content_markdown;
+                  }}
+                  label="Copy project management plan"
+                  disabled={!latestDraft}
+                  size="icon"
+                />
+              </Suspense>
             </div>
 
             {pmpPreview ? (
@@ -852,8 +882,6 @@ function WorkflowDetail({
                   draft={latestDraft}
                   workflowType="create_pmp"
                   embedded
-                  onRunUpdatePmp={onRunUpdatePmp}
-                  isRunningUpdatePmp={isRunningWorkflow}
                   onDraftUpdated={(draft) => {
                     onDraftUpdated?.(draft);
                   }}
