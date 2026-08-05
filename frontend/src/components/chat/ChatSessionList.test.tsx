@@ -25,7 +25,13 @@ const thread: ChatThread = {
   updated_at: "2026-07-03T00:00:00Z",
 };
 
-function renderList() {
+function renderList({
+  variant,
+  onSelectThread,
+}: {
+  variant?: "nav";
+  onSelectThread?: (threadId: string) => void;
+} = {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -36,7 +42,12 @@ function renderList() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ChatSessionList activeThreadId="thread-1" projectId="project-1" />
+        <ChatSessionList
+          activeThreadId="thread-1"
+          projectId="project-1"
+          variant={variant}
+          onSelectThread={onSelectThread}
+        />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -105,5 +116,28 @@ describe("ChatSessionList", () => {
       expect(api.createThread).toHaveBeenCalledWith(undefined, "project-1"),
     );
     expect(await screen.findByRole("link", { name: "New session" })).toBeInTheDocument();
+  });
+
+  it("renders navigation actions outside the scrolling session list", async () => {
+    renderList({ variant: "nav" });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for Tender review" }));
+
+    const menu = await screen.findByRole("menu");
+    expect(screen.getByLabelText("Chat sessions")).not.toContainElement(menu);
+
+    await userEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    expect(screen.getByLabelText("Thread title")).toHaveValue("Tender review");
+  });
+
+  it("truncates long navigation titles without hiding their actions", async () => {
+    const title = "Create a cost plan with a comprehensive breakdown of every trade";
+    vi.mocked(api.listThreads).mockResolvedValue([{ ...thread, title }]);
+    renderList({ variant: "nav", onSelectThread: vi.fn() });
+
+    const threadButton = await screen.findByRole("button", { name: title });
+    expect(threadButton).toHaveClass("min-w-0", "flex-1", "truncate");
+    expect(threadButton.parentElement).toHaveClass("min-w-0", "flex-1");
+    expect(screen.getByRole("button", { name: `Actions for ${title}` })).toHaveClass("shrink-0");
   });
 });

@@ -104,24 +104,9 @@ class Settings(BaseSettings):
     tender_odl_hybrid_fallback: bool = True
     agent_turn_token_secret: str = ""
     agent_runtime_enabled: bool = False
-    hermes_mutations_enabled: bool = False
-    hermes_binary_path: str = "hermes"
-    hermes_invocation_mode: str = "chat_stream"
-    hermes_model_provider: str = "openai-api"
-    hermes_model: str = "gpt-5.6-terra"
-    # The openai-api:* options bill to AGENT_PLATFORM_API_KEY. The openai-codex option
-    # is the one path that runs on a Codex subscription instead — hermes_process
-    # withholds the platform key and copies local credentials for that provider.
-    # Pinned to gpt-5.5 because the Codex model list is not verifiable from here;
-    # change the id if Codex exposes a 5.6 tier.
-    hermes_model_options: str = (
-        "openai-api:gpt-5.6-sol:GPT-5.6 Sol (complex),"
-        "openai-api:gpt-5.6-terra:GPT-5.6 Terra (balanced),"
-        "openai-api:gpt-5.6-luna:GPT-5.6 Luna (fast),"
-        "openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)"
-    )
-    pi_runtime_enabled: bool = False
+    # Pi's OpenAI provider uses the platform key injected into each turn.
     pi_binary_path: str = "pi"
+    pi_mcp_adapter_path: str = ""
     pi_model_provider: str = "openai"
     pi_model: str = "gpt-5.6-terra"
     pi_model_options: str = (
@@ -193,13 +178,6 @@ class Settings(BaseSettings):
                 "or weaker than 32 characters"
             )
         return self
-
-    @field_validator("hermes_invocation_mode")
-    @classmethod
-    def validate_hermes_invocation_mode(cls, value: str) -> str:
-        if value not in {"chat_stream", "oneshot"}:
-            raise ValueError("HERMES_INVOCATION_MODE must be chat_stream or oneshot")
-        return value
 
     @field_validator("pmp_model_provider")
     @classmethod

@@ -1,7 +1,7 @@
-"""Run the Phase 5 Hermes -> TCM acceptance flow.
+"""Run the Phase 5 Pi -> TCM acceptance flow.
 
 This is a local gate script, not production app code. It creates a disposable
-project in the configured database/storage, drives the real Hermes agent endpoint,
+project in the configured database/storage, drives the real Pi agent endpoint,
 drains the real tender worker, and verifies the report artefact SSE event.
 
 Usage from WSL:
@@ -9,7 +9,7 @@ Usage from WSL:
     cd backend
     AGENT_TURN_TOKEN_SECRET=phase5-acceptance \
     AGENT_RUNTIME_ENABLED=true \
-    HERMES_BINARY_PATH=/home/bennyclifton/.local/bin/hermes \
+    PI_BINARY_PATH=/home/bennyclifton/.local/bin/pi \
     UV_PROJECT_ENVIRONMENT=/home/bennyclifton/.cache/clerk-phase5-wsl-venv \
     uv run python scripts/phase5_acceptance.py
 """
@@ -95,12 +95,12 @@ async def main() -> None:
     try:
         await _wait_for_backend()
         first_turn = await _agent_turn(seed, _start_prompt(seed), timeout_s=360)
-        _assert_tool_event(first_turn, "list_selected_documents")
+        _assert_tool_event(first_turn, "find_candidate_tender_documents")
         _assert_tool_event(first_turn, "start_tender_comparison")
 
         comparison = await _latest_comparison(seed.project_id)
         if comparison is None:
-            raise RuntimeError("Hermes completed without creating a tender comparison")
+            raise RuntimeError("Pi completed without creating a tender comparison")
 
         await _drain_worker(comparison.id, timeout_s=1500)
         await _clear_qa_if_needed(comparison.id, seed.user_id)
@@ -134,13 +134,13 @@ async def main() -> None:
 
 
 def _configure_runtime() -> None:
-    hermes = shutil.which("hermes") or settings.hermes_binary_path
+    pi = shutil.which("pi") or settings.pi_binary_path
     settings.agent_runtime_enabled = True
     settings.agent_turn_token_secret = (
         settings.agent_turn_token_secret or "phase5-acceptance-secret"
     )
     settings.agent_mcp_url = f"{BASE_URL}/mcp"
-    settings.hermes_binary_path = hermes
+    settings.pi_binary_path = pi
     settings.agent_turn_timeout_seconds = max(settings.agent_turn_timeout_seconds, 360)
     settings.tender_worker_inproc_enabled = False
     settings.tender_odl_hybrid_enabled = False
@@ -284,9 +284,15 @@ Phase 5 acceptance run. Use Clerk MCP tools only.
 
 Project id: {seed.project_id}
 
-First call list_selected_documents for the project. Then call
-start_tender_comparison with exactly these quotes:
+First call find_candidate_tender_documents and get_project_profile for the
+project. From the candidate result, call replace_tender_quote_selection with
+expected_revision 0 and exactly three quote candidates, one per builder. Use
+the candidate workspace file IDs for the quotes below:
 {quote_lines}
+
+Then call start_tender_comparison using the profile revision returned by
+get_project_profile, the selection revision returned by
+replace_tender_quote_selection, and the context below.
 
 Use this context:
 {{"context_version": 1, "state": "NSW", "region": "metro",
@@ -315,7 +321,7 @@ def _assert_tool_event(events: list[dict[str, Any]], tool: str) -> None:
         data = event.get("data") or {}
         if data.get("kind") == "tool" and data.get("tool") == tool:
             return
-    raise RuntimeError(f"Hermes did not call expected tool: {tool}")
+    raise RuntimeError(f"Pi did not call expected tool: {tool}")
 
 
 def _artefact_event(events: list[dict[str, Any]]) -> dict[str, Any] | None:

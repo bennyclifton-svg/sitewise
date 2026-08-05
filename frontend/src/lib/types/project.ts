@@ -401,6 +401,24 @@ export type WorkflowRunResult = {
   result: Record<string, unknown> | null;
 };
 
+export type ProcessInvoicesResult = {
+  candidate_count: number;
+  pending_ingest_count: number;
+  booked_invoice_count: number;
+  register_row_count: number;
+  duplicate_count: number;
+  conflict_count: number;
+  review_count: number;
+  extraction_error_count: number;
+  conflicts: string[];
+  review_items: string[];
+  extraction_errors: string[];
+  cost_plan_version: number;
+  workbook_path: string | null;
+  draft_id: string | null;
+  draft?: DraftArtifact;
+};
+
 export type WorkspaceTreeNode = {
   name: string;
   path: string;

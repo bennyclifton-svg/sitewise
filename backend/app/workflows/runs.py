@@ -26,6 +26,7 @@ SUPPORTED_WORKFLOWS = frozenset(
         "refresh_project_plan",
         "create_cost_plan",
         "refresh_cost_plan",
+        "process_invoices",
         "sort_project_files",
         "ingest_project_document",
         "consultant_procurement",
@@ -97,7 +98,11 @@ async def start_workflow_run(
         return existing, False
 
     _validate_expected_snapshot(snapshot, request)
-    if workflow_type in {"refresh_project_plan", "refresh_cost_plan"}:
+    if workflow_type in {
+        "refresh_project_plan",
+        "refresh_cost_plan",
+        "process_invoices",
+    }:
         artefact_workflow = (
             "create_pmp"
             if workflow_type == "refresh_project_plan"
@@ -346,8 +351,13 @@ async def heartbeat_run(
     progress: dict[str, Any] | None = None,
     lease_seconds: int = 90,
 ) -> bool:
+    # Invoice booking retains a foreign-key key-share lock on this row until
+    # publish. A no-key update still serializes heartbeat writers without
+    # blocking on that provenance reference.
     result = await session.execute(
-        select(WorkflowRun).where(WorkflowRun.id == run_id).with_for_update()
+        select(WorkflowRun)
+        .where(WorkflowRun.id == run_id)
+        .with_for_update(key_share=True)
     )
     run = result.scalar_one_or_none()
     if run is None or run.state != "running" or run.lock_owner != worker_id:

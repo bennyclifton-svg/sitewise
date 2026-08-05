@@ -95,7 +95,7 @@ def test_relay_agent_turn_finishes_without_waiting_for_status_stream_end() -> No
 
 async def _failing_chunks() -> AsyncIterator[str]:
     yield "Partial"
-    raise RuntimeError("Hermes stopped")
+    raise RuntimeError("Pi stopped")
 
 
 def test_relay_agent_turn_emits_error_and_done_on_failure() -> None:
@@ -110,4 +110,4 @@ def test_relay_agent_turn_emits_error_and_done_on_failure() -> None:
         "[DONE]",
     ]
     assert payloads[-1] == "[DONE]"
-    assert "Hermes stopped" in payloads[-2]["errorText"]
+    assert "Pi stopped" in payloads[-2]["errorText"]

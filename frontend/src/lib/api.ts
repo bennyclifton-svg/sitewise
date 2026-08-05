@@ -829,6 +829,7 @@ export const api = {
       | "project-plan/refresh"
       | "cost-plan"
       | "cost-plan/refresh"
+      | "cost-plan/invoices"
       | "sort-files"
       | "consultant-procurement"
       | "trade-procurement",

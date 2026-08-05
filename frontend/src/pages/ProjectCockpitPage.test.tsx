@@ -10,6 +10,7 @@ import { ProjectCockpitPage } from "@/pages/ProjectCockpitPage";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
+  ProcessInvoicesResult,
   ProjectDetail,
 } from "@/lib/types/project";
 
@@ -127,18 +128,22 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     isRunningCostPlan,
     onRunCreateCostPlan,
     onRunRefreshCostPlan,
+    onRunProcessInvoices,
     costPlanWorkflowError,
     onCancelCostPlan,
     latestCostPlanDraft,
+    invoiceProcessResult,
     isRunningProcurement,
     onRunProcurement,
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
     onRunRefreshCostPlan?: () => void;
+    onRunProcessInvoices?: () => void;
     costPlanWorkflowError: string | null;
     onCancelCostPlan?: () => void;
     latestCostPlanDraft: DraftArtifactSummary | null;
+    invoiceProcessResult?: ProcessInvoicesResult | null;
     isRunningProcurement: boolean;
     onRunProcurement?: (kind: string, targetName: string) => void;
   }) => (
@@ -154,6 +159,11 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
           Refresh cost plan
         </button>
       ) : null}
+      {onRunProcessInvoices ? (
+        <button type="button" onClick={onRunProcessInvoices}>
+          Process invoices
+        </button>
+      ) : null}
       {isRunningCostPlan && onCancelCostPlan ? (
         <button type="button" onClick={onCancelCostPlan}>
           Cancel cost plan
@@ -163,6 +173,11 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
       <div data-testid="inline-cost-workbook">
         {latestCostPlanDraft ? `draft-v${latestCostPlanDraft.version}` : "no-draft"}
       </div>
+      {invoiceProcessResult ? (
+        <div data-testid="invoice-process-result">
+          {JSON.stringify(invoiceProcessResult)}
+        </div>
+      ) : null}
       <div data-testid="control-procurement-state">
         {isRunningProcurement ? "running" : "idle"}
       </div>
@@ -311,6 +326,75 @@ describe("ProjectCockpitPage cost plan workflow", () => {
         expected_artefact_version: 1,
         parameters: { proposed_items: [] },
       }),
+    );
+  });
+
+  it("processes all ingested invoices against the current Cost Plan", async () => {
+    const user = userEvent.setup();
+    const baseDraft = { ...costPlanSummary, version: 5 };
+    mocks.api.getProjectCockpitBootstrap.mockResolvedValueOnce({
+      project,
+      projects: [project],
+      evidence: [],
+      workspace_tree: {
+        project_id: project.id,
+        root_path: project.workspace_path,
+        tree: [],
+      },
+      platform_knowledge: { available: true, buckets: [] },
+      latest_drafts: {
+        create_pmp: null,
+        create_cost_plan: baseDraft,
+        sort_files: null,
+      },
+      timings_ms: {},
+    });
+    mocks.api.getWorkflowResult.mockResolvedValueOnce({
+      run: { id: "run-1", project_id: project.id, state: "complete" },
+      result: {
+        candidate_count: 4,
+        pending_ingest_count: 1,
+        booked_invoice_count: 1,
+        register_row_count: 1,
+        duplicate_count: 0,
+        conflict_count: 1,
+        review_count: 1,
+        extraction_error_count: 1,
+        conflicts: ["Duplicate financial facts conflict"],
+        review_items: ["INV-2: Unidentified line"],
+        extraction_errors: ["INV-3 could not be extracted"],
+        cost_plan_version: 6,
+        workbook_path: "projects/kavanagh/01-cost/Cost_Plan_v06.draft.xlsx",
+        draft_id: costPlanDraft.id,
+        draft: { ...costPlanDraft, version: 6 },
+      },
+    });
+
+    renderProjectCockpit();
+    await user.click(await screen.findByRole("button", { name: "Process invoices" }));
+
+    await waitFor(() => {
+      expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
+        project.id,
+        "cost-plan/invoices",
+        expect.objectContaining({
+          expected_artefact_version: 5,
+          parameters: { source_document_ids: null },
+        }),
+      );
+    });
+    expect(screen.getByTestId("inline-cost-workbook")).toHaveTextContent("draft-v6");
+    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
+      '"conflict_count":1',
+    );
+    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
+      '"review_count":1',
+    );
+    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
+      '"extraction_error_count":1',
+    );
+    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
+      '"pending_ingest_count":1',
     );
   });
 

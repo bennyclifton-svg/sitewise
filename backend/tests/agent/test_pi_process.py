@@ -1,4 +1,6 @@
 import asyncio
+import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -6,7 +8,10 @@ import pytest
 
 from app.agent.pi_process import (
     PiTurnError,
+    _build_argv,
+    pi_builtin_tools_flag,
     _prompt_file_arg,
+    _write_pi_mcp_config,
     _write_prompt_file,
     resolve_subprocess_binary,
     stream_pi_turn,
@@ -99,7 +104,46 @@ def test_prompt_file_arg_points_to_full_multiline_prompt(tmp_path: Path) -> None
         prompt_path.unlink(missing_ok=True)
 
 
-def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(tmp_path: Path) -> None:
+def test_pi_mcp_config_allows_the_tender_comparison_workflow(tmp_path: Path) -> None:
+    _write_pi_mcp_config(tmp_path, mcp_url="http://test/mcp")
+
+    config = json.loads((tmp_path / ".pi" / "mcp.json").read_text(encoding="utf-8"))
+    direct_tools = config["mcpServers"]["clerk"]["directTools"]
+
+    assert {
+        "list_tender_comparisons",
+        "get_tender_comparison",
+        "get_comparison_status",
+        "get_comparison_result",
+        "start_tender_comparison",
+        "prepare_tender_comparison",
+        "find_candidate_tender_documents",
+        "get_tender_quote_selection",
+        "replace_tender_quote_selection",
+    } <= set(direct_tools)
+
+
+def test_pi_builtin_tools_flag_uses_the_legacy_flag_when_needed(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout="--no-tools Disable all built-in tools\n",
+            stderr="",
+        ),
+    )
+
+    assert pi_builtin_tools_flag("pi") == "--no-tools"
+
+
+def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.pi_builtin_tools_flag",
+        lambda _binary: "--no-builtin-tools",
+    )
     prompt = (
         "<persona>\n"
         "You are Clerk.\n"
@@ -142,14 +186,32 @@ def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(tmp_path: Path) -
     )
 
     assert chunks == ["ok"]
+    assert "--no-builtin-tools" in seen["argv"]
+    assert "--no-tools" not in seen["argv"]
+    assert {"--no-skills", "--no-prompt-templates", "--no-themes"} <= set(seen["argv"])
     assert seen["argv"][seen["argv"].index("--provider") + 1] == "openai"
     assert seen["argv"][seen["argv"].index("--model") + 1] == "gpt-5.6-sol"
+    assert seen["argv"][seen["argv"].index("--mcp-config") + 1] == ".pi/mcp.json"
     assert seen["argv"][-2:] == ["-p", seen["prompt_arg"]]
     assert seen["prompt_arg"].startswith("@.pi/turn-prompts/")
     assert prompt not in seen["argv"]
     assert all("\n" not in part for part in seen["argv"])
     assert seen["prompt_text"] == prompt
     assert not seen["prompt_path"].exists()
+
+
+def test_pi_uses_only_the_explicit_mcp_adapter_in_production(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.pi_mcp_adapter_path",
+        "/usr/local/lib/node_modules/pi-mcp-adapter/index.ts",
+    )
+
+    argv = _build_argv(prompt_arg="@.pi/turn-prompts/turn.md")
+
+    assert "--no-extensions" in argv
+    assert argv[argv.index("--extension") + 1] == (
+        "/usr/local/lib/node_modules/pi-mcp-adapter/index.ts"
+    )
 
 
 def test_stream_pi_turn_cleans_prompt_file_when_spawn_fails(tmp_path: Path) -> None:

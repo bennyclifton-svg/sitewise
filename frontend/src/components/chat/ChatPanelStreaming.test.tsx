@@ -21,9 +21,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
     data: {
       agent: {
         agent_runtime_enabled: false,
-        default_model: "__hermes_config__",
-        default_runtime: "hermes",
-        runtimes: [],
+        default_model: "openai:gpt-5.6-terra",
         models: [],
       },
       legacy: { default_model: "gpt-5.6-luna", models: [] },

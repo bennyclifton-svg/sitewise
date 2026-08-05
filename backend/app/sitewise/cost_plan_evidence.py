@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.cost_plan.schemas import CostItemInput
 from app.sitewise.mobilisation_evidence import (
     GAP_CERTIFIER,
     MobilisationEvidencePack,
@@ -54,6 +56,22 @@ class OwnerSuppliedItem(BaseModel):
     amount_ex_gst: str | None = None
 
 
+class ReceivedCostProposal(BaseModel):
+    """A reconciled received proposal retained as evidence, not a commitment."""
+
+    kind: Literal[
+        "architecture",
+        "structural",
+        "hydraulic",
+        "cost_advisory",
+        "main_works",
+    ]
+    supplier: str
+    proposal_reference: str
+    total_ex_gst: str
+    evidence_ref: str
+
+
 _GAP_RESOLVED_BY_OWNER_BRIEF = frozenset(
     {
         "Owner project brief formal sign-off",
@@ -77,6 +95,8 @@ class CostPlanEvidencePack(BaseModel):
     planning_memo_on_file: bool = False
     certifier_name: str | None = None
     certifier_fee_ex_gst: str | None = None
+    received_cost_proposals: list[ReceivedCostProposal] = Field(default_factory=list)
+    reconciled_items: list[CostItemInput] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 
     @property

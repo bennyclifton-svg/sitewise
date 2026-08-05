@@ -16,7 +16,7 @@ export const WORKFLOW_BUDGET_SECONDS_DEFAULT = 4 * 60;
 const ACTIVE_FRACTION_CAP = 0.98;
 const SUBLINE_ROTATE_MS = 5_000;
 
-export type WorkflowProgressMode = "create" | "update";
+export type WorkflowProgressMode = "create" | "update" | "invoices";
 
 export type WorkflowProgressKind = "project_plan" | "cost_plan" | "procurement";
 
@@ -148,6 +148,7 @@ export function workflowProgressTitle(
   mode: WorkflowProgressMode,
 ): string {
   if (kind === "cost_plan") {
+    if (mode === "invoices") return "Processing Invoices";
     return mode === "update" ? "Refreshing Cost Plan" : "Creating Cost Plan";
   }
   if (kind === "procurement") {
@@ -185,6 +186,16 @@ export function resolveWorkflowDisplayStage(options: {
 
   if (stage === "starting") {
     return { id: "preparing", message: "Loading project profile…" };
+  }
+
+  const invoiceStages: Record<string, string> = {
+    discovering_invoices: "Finding ingested invoices…",
+    extracting_and_mapping: "Extracting and mapping invoices…",
+    publishing_cost_plan: "Publishing the updated Cost Plan…",
+    verifying_workbook: "Checking invoice register and totals…",
+  };
+  if (invoiceStages[stage]) {
+    return { id: stage, message: invoiceStages[stage] };
   }
 
   // executing / running / unknown-while-active → timed phases

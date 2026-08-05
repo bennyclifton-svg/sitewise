@@ -101,6 +101,20 @@ describe("resolveWorkflowDisplayStage", () => {
     expect(second.id).toBe("drafting");
     expect(first.message).not.toBe(second.message);
   });
+
+  it("shows deterministic invoice processing stages", () => {
+    expect(
+      resolveWorkflowDisplayStage({
+        kind: "cost_plan",
+        backendStage: "extracting_and_mapping",
+        runState: "running",
+        elapsedSeconds: 3,
+      }),
+    ).toEqual({
+      id: "extracting_and_mapping",
+      message: "Extracting and mapping invoices…",
+    });
+  });
 });
 
 describe("workflowProgressTitle", () => {
@@ -113,6 +127,7 @@ describe("workflowProgressTitle", () => {
     );
     expect(workflowProgressTitle("cost_plan", "create")).toBe("Creating Cost Plan");
     expect(workflowProgressTitle("cost_plan", "update")).toBe("Refreshing Cost Plan");
+    expect(workflowProgressTitle("cost_plan", "invoices")).toBe("Processing Invoices");
     expect(workflowProgressTitle("procurement", "create")).toBe(
       "Preparing Procurement Request",
     );

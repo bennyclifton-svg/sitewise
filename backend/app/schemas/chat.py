@@ -71,12 +71,6 @@ class StreamChatRequest(BaseModel):
         max_length=256,
         validation_alias=AliasChoices("agentModel", "agent_model"),
     )
-    agent_runtime: str | None = Field(
-        default=None,
-        max_length=32,
-        validation_alias=AliasChoices("agentRuntime", "agent_runtime"),
-    )
-
     @field_validator("chat_model")
     @classmethod
     def validate_chat_model(cls, value: str | None) -> str | None:
@@ -100,38 +94,10 @@ class StreamChatRequest(BaseModel):
         stripped = value.strip()
         if not stripped:
             return None
-        from app.agent.hermes_models import (
-            HERMES_DEFAULT_MODEL_ID,
-            InvalidHermesModelError,
-            resolve_hermes_model_override,
-        )
-        from app.agent.agent_runtimes import InvalidPiModelError, resolve_pi_model_override
-
-        if stripped == HERMES_DEFAULT_MODEL_ID:
-            return None
-        try:
-            resolve_hermes_model_override(stripped)
-        except InvalidHermesModelError:
-            try:
-                resolve_pi_model_override(stripped)
-            except InvalidPiModelError as exc:
-                raise ValueError(str(exc)) from exc
-        return stripped
-
-    @field_validator("agent_runtime")
-    @classmethod
-    def validate_agent_runtime(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        stripped = value.strip().lower()
-        if not stripped:
-            return None
-        from app.agent.agent_runtimes import (
-            InvalidAgentRuntimeError,
-            resolve_agent_runtime,
-        )
+        from app.agent.pi_models import InvalidPiModelError, resolve_pi_model_override
 
         try:
-            return resolve_agent_runtime(stripped)
-        except InvalidAgentRuntimeError as exc:
+            resolve_pi_model_override(stripped)
+        except InvalidPiModelError as exc:
             raise ValueError(str(exc)) from exc
+        return stripped

@@ -1,6 +1,6 @@
-"""Prompt assembly for Hermes agent turns.
+"""Prompt assembly for Pi agent turns.
 
-Hermes runs headless once per turn, so anything it should know beyond the
+Pi runs headless once per turn, so anything it should know beyond the
 user's words must travel in the prompt: the project's three-overlay
 declaration (the same gate the knowledge tools enforce) and a bounded window
 of recent conversation. String assembly only — bounded, deterministic, no
@@ -45,6 +45,16 @@ available files.
 For missing consultant-fee estimates, call forecast_consultant_fees before
 answering. Only call apply_consultant_fee_forecast when the user asks to apply,
 write, update, or save the forecast into the cost plan.
+When asked to update or refresh the Cost Plan from the latest project files,
+call refresh_cost_plan with reconcile_evidence=true and proposed_items=[]. The
+durable workflow verifies and maps ingested received fee and main-works
+proposals; do not apply benchmark consultant forecasts over received prices.
+When asked to process, book, record, or update invoices, call process_invoices.
+For a named invoice, find its project source_document_id first and pass only
+that id. For all uploaded invoices, omit source_document_ids. Invoice booking
+updates the invoice register and derived claim totals; it must not call
+upsert_cost_item or change Original Budget / Approved Contract. Never infer
+that an uploaded invoice has been paid.
 For consultant procurement drafting requests, call
 start_consultant_procurement. This includes phrases like "draft a
 request for fee proposal", "draft consultant procurement", "prepare an RFP for
@@ -106,6 +116,15 @@ Ground every answer in project evidence and platform knowledge:
   Use apply_consultant_fee_forecast only on an explicit apply/write/update/save
   request. Explain forecast values as Judgement allowances, not received fee
   proposals.
+- For a Cost Plan update or refresh from the latest project files, call
+  refresh_cost_plan with reconcile_evidence=true and proposed_items=[]. It
+  verifies received proposal totals and produces a reviewable typed revision;
+  it must not silently choose between competing main-works proposals.
+- For invoice processing, booking, or invoice-register updates, call
+  process_invoices. Pass exact source_document_ids for named invoices and omit
+  them for all eligible uploads. Never use upsert_cost_item for an invoice:
+  booking affects the invoice ledger and claimed totals, not budget or contract.
+  Paid defaults to No unless the user separately supplies payment evidence.
 - For consultant procurement drafting requests, call
   start_consultant_procurement. Trigger it for phrases like "draft a
   request for fee proposal", "draft consultant procurement", "prepare an RFP for
@@ -398,9 +417,8 @@ def turn_needs_profile_mutation_tools(
     ) or is_profile_proposal_confirmation_request(user_text, mutation_intent)
 
 
-# Artefact/workflow writes also require a durable mutation turn. While Hermes
-# mutations stay disabled, these phrases must route to Pi the same way profile
-# enrichment already does.
+# Artefact/workflow writes require a durable mutation turn, so identify them
+# before reserving the turn's mutation scopes.
 _WORKFLOW_MUTATION_RE = re.compile(
     r"("
     r"\b(create|draft|prepare|queue|generate|start|run)\b.{0,60}\b("
@@ -414,6 +432,9 @@ _WORKFLOW_MUTATION_RE = re.compile(
     r"|"
     r"\b(apply|write|save|update|revise|amend|refresh|populate|fill|allocate)\b"
     r".{0,60}\bcost\s+plan\b"
+    r"|"
+    r"\b(process|book|record|add|apply|write|save|update)\b"
+    r".{0,80}\b(invoice|invoices|invoice\s+(?:schedule|register))\b"
     r")",
     re.IGNORECASE | re.DOTALL,
 )

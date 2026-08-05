@@ -291,6 +291,26 @@
   }
 }
 
+@keyframes streaming-trace-signal {
+  0%,
+  6%,
+  100% {
+    background-color: var(--streaming-trace-rest);
+    opacity: 0.42;
+    transform: scale(0.78);
+  }
+  18% {
+    background-color: var(--cockpit-workflow-icon);
+    opacity: 1;
+    transform: scale(1.55);
+  }
+  34% {
+    background-color: var(--cockpit-workflow-icon);
+    opacity: 0.68;
+    transform: scale(1);
+  }
+}
+
 @layer components {
   /* Placeholder bars for register rows that are still uploading/ingesting.
      A soft gradient sweeps across the bar; static under reduced motion. */
@@ -318,6 +338,59 @@
   @media (prefers-reduced-motion: reduce) {
     .cockpit-skeleton::after {
       animation: none;
+    }
+  }
+
+  /* Six survey points pass a signal along a datum line while the agent works. */
+  .streaming-trace {
+    --streaming-trace-rest: color-mix(
+      in oklab,
+      var(--muted-foreground) 64%,
+      transparent
+    );
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    flex: none;
+    width: 2.5rem;
+    height: 0.75rem;
+    grid-template-columns: repeat(6, 1fr);
+    place-items: center;
+  }
+
+  .streaming-trace::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    right: 0.125rem;
+    left: 0.125rem;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--border-strong) 16%,
+      var(--border-strong) 84%,
+      transparent
+    );
+    opacity: 0.56;
+  }
+
+  .streaming-trace__point {
+    width: 0.2rem;
+    height: 0.2rem;
+    border-radius: 9999px;
+    background-color: var(--streaming-trace-rest);
+    opacity: 0.42;
+    animation: streaming-trace-signal 1.35s ease-in-out infinite;
+    will-change: background-color, opacity, transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .streaming-trace__point {
+      animation: none;
+      opacity: 0.58;
+      transform: none;
+      will-change: auto;
     }
   }
 

@@ -2455,6 +2455,7 @@ _ASYNC_CAPABILITIES = {
     "refresh_project_plan": "update_pmp",
     "create_cost_plan": "create_cost_plan",
     "refresh_cost_plan": "refresh_cost_plan",
+    "process_invoices": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
     "trade_procurement": "trade_procurement",
 }
@@ -2545,7 +2546,29 @@ async def _start_core_workflow(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=exc.errors(),
             ) from exc
-    if workflow_type in {"refresh_project_plan", "refresh_cost_plan"}:
+    if workflow_type == "process_invoices":
+        raw_source_ids = body.parameters.get("source_document_ids")
+        if raw_source_ids is not None and not isinstance(raw_source_ids, list):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="parameters.source_document_ids must be a list",
+            )
+        try:
+            body.parameters["source_document_ids"] = (
+                [str(uuid.UUID(str(value))) for value in raw_source_ids]
+                if raw_source_ids is not None
+                else None
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="parameters.source_document_ids must contain UUIDs",
+            ) from exc
+    if workflow_type in {
+        "refresh_project_plan",
+        "refresh_cost_plan",
+        "process_invoices",
+    }:
         artefact_workflow = (
             "create_pmp"
             if workflow_type == "refresh_project_plan"
@@ -2559,9 +2582,10 @@ async def _start_core_workflow(
                 status_code=409, detail=f"{artefact_workflow} does not exist"
             )
         if body.expected_artefact_version != latest.version:
+            label = "Project Plan" if artefact_workflow == "create_pmp" else "Cost Plan"
             raise HTTPException(
                 status_code=409,
-                detail=f"Expected Project Plan v{body.expected_artefact_version}, current is v{latest.version}",
+                detail=f"Expected {label} v{body.expected_artefact_version}, current is v{latest.version}",
             )
     try:
         run, _created = await start_workflow_run(
@@ -2648,6 +2672,25 @@ async def post_cost_plan_refresh_run(
         session,
         project_id=project_id,
         workflow_type="refresh_cost_plan",
+        body=body,
+        user=user,
+    )
+
+
+@router.post(
+    "/{project_id}/workflow-runs/cost-plan/invoices",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def post_cost_plan_invoice_run(
+    project_id: uuid.UUID,
+    body: WorkflowRunStartRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> WorkflowRunView:
+    return await _start_core_workflow(
+        session,
+        project_id=project_id,
+        workflow_type="process_invoices",
         body=body,
         user=user,
     )

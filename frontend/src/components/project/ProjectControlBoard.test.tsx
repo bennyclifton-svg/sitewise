@@ -6,6 +6,8 @@ import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type {
+  DraftArtifactSummary,
+  ProcessInvoicesResult,
   ProjectDetail,
   TaxonomyCatalog,
   WorkflowCapability,
@@ -544,6 +546,42 @@ describe("ProjectControlBoard project profile", () => {
       await screen.findByText("Create cost plan to generate the workbook."),
     ).toBeInTheDocument();
   });
+
+  it("surfaces invoice conflicts, review items, and extraction errors", async () => {
+    render(
+      costPlanBoard(costPlanSupportedProject, {
+        latestCostPlanDraft: {
+          ...draftSummary,
+          workflow_type: "create_cost_plan",
+          title: "Cost Plan",
+        },
+        invoiceProcessResult: {
+          candidate_count: 4,
+          pending_ingest_count: 1,
+          booked_invoice_count: 1,
+          register_row_count: 1,
+          duplicate_count: 0,
+          conflict_count: 1,
+          review_count: 1,
+          extraction_error_count: 1,
+          conflicts: ["conflict"],
+          review_items: ["review"],
+          extraction_errors: ["extraction"],
+          cost_plan_version: 6,
+          workbook_path: null,
+          draft_id: null,
+        },
+      }),
+    );
+
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("1 conflict requires review");
+    expect(status).toHaveTextContent("1 allocation needs review");
+    expect(status).toHaveTextContent("1 invoice could not be extracted");
+    expect(status).toHaveTextContent(
+      "1 invoice upload is still ingesting; run Process invoices again when ready",
+    );
+  });
 });
 
 const project: ProjectDetail = {
@@ -676,13 +714,17 @@ const runningWorkflowRun: WorkflowRun = {
 
 function costPlanBoard(
   projectValue: ProjectDetail,
-  overrides: { onRunCreateCostPlan?: () => void } = {},
+  overrides: {
+    onRunCreateCostPlan?: () => void;
+    latestCostPlanDraft?: DraftArtifactSummary | null;
+    invoiceProcessResult?: ProcessInvoicesResult | null;
+  } = {},
 ) {
   return (
     <ProjectControlBoard
       project={projectValue}
       latestDraft={null}
-      latestCostPlanDraft={null}
+      latestCostPlanDraft={overrides.latestCostPlanDraft ?? null}
       trace={[]}
       costPlanTrace={[]}
       workflowError={null}
@@ -694,6 +736,7 @@ function costPlanBoard(
       onRunUpdatePmp={vi.fn()}
       onRunCreateCostPlan={overrides.onRunCreateCostPlan ?? vi.fn()}
       onRunRefreshCostPlan={vi.fn()}
+      invoiceProcessResult={overrides.invoiceProcessResult}
       onRunSortFiles={vi.fn()}
       onOpenTenderComparison={vi.fn()}
       inboxCount={0}

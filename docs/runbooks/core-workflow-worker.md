@@ -6,12 +6,18 @@ queue. It is separate from the Tender worker and uses the same backend image.
 
 ## Production start and health
 
-Run `python -m app.workflows.worker`. Dokploy defines this as
-`sitewise-core-workflow-worker`; the process logs `workflow_worker_started` only
-after settings and the database session factory load successfully. Container
-restart policy is `unless-stopped`. Operational health is a running container
-plus a fresh workflow-run heartbeat while a job is active; queued work older
-than two poll intervals should alert.
+Dokploy runs `python -m app.workflows.worker_entrypoint process_invoices` as
+`sitewise-core-workflow-worker`. The entrypoint verifies that the deployed image
+supports every workflow capability named on its command line before starting
+the queue poller. This fails closed when Compose has been updated but the worker
+container still has an older backend image. Add each newly advertised workflow
+to both the worker command and healthcheck when it is released.
+
+The process logs `workflow_worker_started` only after capability validation,
+settings, and the database session factory load successfully. Container restart
+policy is `unless-stopped`. Operational health is a running container plus a
+fresh workflow-run heartbeat while a job is active; queued work older than two
+poll intervals should alert.
 
 Only local development may set `WORKFLOW_WORKER_INPROC_ENABLED=true`. Production
 keeps it false so API restarts cannot own or lose workflow execution.
@@ -23,7 +29,8 @@ Chat-queued Project Plan, Cost Plan, file sort, and consultant RFP runs stay
 
 1. Set `WORKFLOW_WORKER_INPROC_ENABLED=true` in `backend/.env` (see
    `.env.example`), then restart the API; or
-2. Run a separate worker: `cd backend && uv run python -m app.workflows.worker`.
+2. Run a separate worker from `backend/`:
+   `uv run python -m app.workflows.worker_entrypoint process_invoices`.
 
 Without one of those, agent replies that queue an RFP will never produce a
 draft. The in-process worker covers every `consultant_procurement` discipline

@@ -104,7 +104,29 @@ def _owner_supplied_total_ex_gst(items: list[OwnerSuppliedItem]) -> int:
     return total
 
 
+def _received_proposal(pack: CostPlanEvidencePack, kind: str):
+    return next(
+        (proposal for proposal in pack.received_cost_proposals if proposal.kind == kind),
+        None,
+    )
+
+
+def _received_main_works_proposal(pack: CostPlanEvidencePack):
+    return _received_proposal(pack, "main_works")
+
+
+def _received_architecture_proposal(pack: CostPlanEvidencePack):
+    return _received_proposal(pack, "architecture")
+
+
 def _known_indicative_total_ex_gst(pack: CostPlanEvidencePack) -> int | None:
+    if pack.reconciled_items:
+        proposal_total = sum(
+            int(item.budget or 0) for item in pack.reconciled_items
+        )
+        contingency = _parse_amount(pack.contingency_amount) or 0
+        return proposal_total + contingency
+
     parts = [
         _parse_amount(pack.construction_budget_ceiling),
         _parse_amount(pack.contingency_amount),
@@ -201,19 +223,40 @@ def _render_summary(
     engagement = _citation_for_markers(
         pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
     )
-    construction = _money(pack.construction_budget_ceiling) if pack.construction_budget_ceiling else "TBC"
+    main_works = _received_main_works_proposal(pack)
+    architecture = _received_architecture_proposal(pack)
     lines = [
         "## Cost plan summary and control decision",
         "",
         f"**Project:** {pack.project_name or project.title} — {pack.site_address or 'site not evidenced'}.",
         f"**Owners:** {pack.owners or 'TBC'}.",
         f"**Profile:** {_project_profile_label(project)}. All figures below are ex GST.",
-        f"**Construction cost-control reference:** {construction} {brief}.",
-        (
-            f"**Architect / PM fee:** {_money(pack.fee_total_ex_gst)} {engagement}; "
-            "additional to the construction ceiling."
-        ),
     ]
+    if pack.construction_budget_ceiling:
+        lines.append(
+            f"**Construction cost-control reference:** {_money(pack.construction_budget_ceiling)} {brief}."
+        )
+    elif main_works:
+        main_works_ref = citations.token_for(_evidence_path(main_works.evidence_ref))
+        lines.append(
+            f"**Received main-works proposal:** {_money(main_works.total_ex_gst)} "
+            f"{main_works_ref}; proposal on file, not an accepted contract."
+        )
+    else:
+        lines.append(
+            "**Construction cost-control reference:** TBC — no owner brief or priced proposal on file."
+        )
+    architect_fee = pack.fee_total_ex_gst or (
+        architecture.total_ex_gst if architecture else None
+    )
+    architect_status = (
+        "proposed and additional to construction."
+        if architecture and not pack.fee_total_ex_gst
+        else "additional to the construction ceiling."
+    )
+    lines.append(
+        f"**Architect / PM fee:** {_money(architect_fee)} {engagement}; {architect_status}"
+    )
     if pack.contingency_amount:
         lines.append(
             f"**Owner-held contingency:** {_money(pack.contingency_amount)} "
@@ -240,11 +283,26 @@ def _render_budget_and_breakdown(
     engagement = _citation_for_markers(
         pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
     )
+    main_works = _received_main_works_proposal(pack)
+    architecture = _received_architecture_proposal(pack)
     rows = [
         "| Figure | Amount (ex GST) | Control treatment | Ref |",
         "| --- | --- | --- | --- |",
-        f"| Construction ceiling | {_money(pack.construction_budget_ceiling)} | Cost-control reference | {brief} |",
-        f"| Architect / PM fee | {_money(pack.fee_total_ex_gst)} | Additional to construction | {engagement} |",
+        (
+            f"| Construction ceiling | {_money(pack.construction_budget_ceiling)} | Cost-control reference | {brief} |"
+            if pack.construction_budget_ceiling
+            else "| Construction ceiling | TBC | Owner control reference not supplied | — |"
+        ),
+        (
+            f"| Received main-works proposal | {_money(main_works.total_ex_gst)} | Proposal on file, not accepted or committed | "
+            f"{citations.token_for(_evidence_path(main_works.evidence_ref))} |"
+            if main_works
+            else "| Received main-works proposal | TBC | No fixed-price proposal on file | — |"
+        ),
+        (
+            f"| Architect / PM fee | {_money(pack.fee_total_ex_gst or (architecture.total_ex_gst if architecture else None))} | "
+            f"{'Proposal on file, not committed' if architecture and not pack.fee_total_ex_gst else 'Additional to construction'} | {engagement} |"
+        ),
         (
             f"| Owner contingency | {_money(pack.contingency_amount)} | Owner-held, outside contract sum | {brief} |"
             if pack.contingency_amount
@@ -254,10 +312,15 @@ def _render_budget_and_breakdown(
     ]
     family = _coverage_family(project)
     breakdown_intro = (
-        "Construction rows are an indicative benchmark split until a tendered "
-        "trade schedule is available."
-        if family == "residential_class1_new"
-        else _no_rate_pack_disclosure(family)
+        "Construction rows are mapped from the received fixed-price main-works proposal; "
+        "they remain proposed until the contract is accepted."
+        if main_works
+        else (
+            "Construction rows are an indicative benchmark split until a tendered "
+            "trade schedule is available."
+            if family == "residential_class1_new"
+            else _no_rate_pack_disclosure(family)
+        )
     )
     return "\n".join(
         [
@@ -279,13 +342,16 @@ def _render_commitments_allowances(
     engagement = _citation_for_markers(
         pack, citations, "engagement-letter", "engagement_letter", "fee-proposal"
     )
+    main_works = _received_main_works_proposal(pack)
+    architecture = _received_architecture_proposal(pack)
     brief = _citation_for_markers(
         pack, citations, "owner-project-brief", "owner_project_brief", "owner-brief", "project-brief", "00-brief-pmp"
     )
     rows = [
         "| Commitment / allowance | Amount (ex GST) | Status | Ref |",
         "| --- | --- | --- | --- |",
-        f"| {_appointee_label(pack)} architect / PM | {_money(pack.fee_total_ex_gst)} | Locked | {engagement} |",
+        f"| {_appointee_label(pack)} architect / PM | {_money(pack.fee_total_ex_gst or (architecture.total_ex_gst if architecture else None))} | "
+        f"{'Proposed' if architecture and not pack.fee_total_ex_gst else 'Locked'} | {engagement} |",
     ]
     if pack.certifier_name and not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
         rows.append(
@@ -294,9 +360,13 @@ def _render_commitments_allowances(
         )
     family = _coverage_family(project)
     construction_rows_note = (
-        "- Construction rows are lump-sum TBC placeholders, not tendered prices."
-        if coverage_spec(family).structure_only
-        else "- Construction benchmark rows are assumptions, not tendered prices."
+        "- Construction rows map a received fixed-price proposal; they are not an accepted or committed contract."
+        if main_works
+        else (
+            "- Construction rows are lump-sum TBC placeholders, not tendered prices."
+            if coverage_spec(family).structure_only
+            else "- Construction benchmark rows are assumptions, not tendered prices."
+        )
     )
     lines = [
         "## Commitments, allowances and exclusions",
@@ -648,15 +718,31 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
     )
 
     mob = pack.mobilisation
-    fee_subtotal = _money(mob.fee_total_ex_gst)
     contingency = _money(pack.contingency_amount) if pack.contingency_amount else "TBC"
-    ceiling = _parse_amount(pack.construction_budget_ceiling)
-    benchmark_pct = _CONSTRUCTION_BENCHMARK_PCT_BY_FAMILY[family]
-    # Structure-only families have no benchmark split, so the subtotal stays TBC
-    # even when a construction ceiling is evidenced.
-    construction_subtotal = (
-        f"${ceiling:,}" if benchmark_pct is not None and ceiling is not None else "TBC"
-    )
+    cost_lines = cost_plan_lines(project, pack).lines
+
+    def category_subtotal(marker: str) -> str:
+        amounts = [
+            line.budget
+            for line in cost_lines
+            if marker in line.category.lower() and line.budget is not None
+        ]
+        return f"${sum(amounts):,.0f}" if amounts else "TBC"
+
+    if pack.reconciled_items:
+        fee_subtotal = category_subtotal("fee")
+        consultant_subtotal = category_subtotal("consult")
+        construction_subtotal = category_subtotal("construct")
+    else:
+        fee_subtotal = _money(mob.fee_total_ex_gst)
+        consultant_subtotal = "TBC"
+        ceiling = _parse_amount(pack.construction_budget_ceiling)
+        benchmark_pct = _CONSTRUCTION_BENCHMARK_PCT_BY_FAMILY[family]
+        # Structure-only families have no benchmark split, so the subtotal stays TBC
+        # even when a construction ceiling is evidenced.
+        construction_subtotal = (
+            f"${ceiling:,}" if benchmark_pct is not None and ceiling is not None else "TBC"
+        )
 
     rows = [
         "| Cost Code | Category | Cost Items | Budget | Status | Basis |",
@@ -665,7 +751,7 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
     rows.extend(
         f"| {line.cost_code} | {line.category} | {line.cost_item} | "
         f"{_budget_cell(line)} | {line.status} | {line.basis} |"
-        for line in cost_plan_lines(project, pack).lines
+        for line in cost_lines
     )
 
     # The grounded certifier fee is owner-direct (outside the builder contract), so it is
@@ -673,6 +759,7 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
     # treatment as owner-supplied items. Consultants subtotal stays TBC until appointments.
     subtotal_amounts = [
         _parse_amount(fee_subtotal),
+        _parse_amount(consultant_subtotal),
         _parse_amount(construction_subtotal),
         _parse_amount(contingency),
     ]
@@ -683,11 +770,21 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
         if is_structure_only
         else "Sum of itemised subtotals — construction is benchmark % of ceiling, consultants/PC TBC"
     )
+    if pack.reconciled_items:
+        grand_basis = (
+            "Sum of reconciled received proposal rows; proposals are not accepted or committed"
+        )
+
     subtotal_rows = [
         f"| | | **Subtotal — Fees and charges** | {fee_subtotal} | | |",
         "| | | **Subtotal — Consultants** | TBC | | |",
         f"| | | **Subtotal — Construction** | {construction_subtotal} | | |",
     ]
+    if pack.reconciled_items:
+        subtotal_rows[1] = (
+            f"| | | **Subtotal — Consultants** | {consultant_subtotal} | | |"
+        )
+
     if pc_allowance_rows:
         subtotal_rows.append(
             f"| | | **Subtotal — {allowance_category}** | TBC | | |"

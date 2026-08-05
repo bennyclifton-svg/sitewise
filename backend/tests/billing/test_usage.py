@@ -45,8 +45,7 @@ def test_over_quota_blocks_agent_turn(monkeypatch):
     assert exc_info.value.status_code == 402
 
 
-@pytest.mark.parametrize("runtime", ["hermes", "pi"])
-def test_reservation_charges_both_agent_runtimes_equally(monkeypatch, runtime: str) -> None:
+def test_reservation_charges_pi_agent_turns(monkeypatch) -> None:
     monkeypatch.setattr(settings, "agent_monthly_turn_quota", 100)
     monkeypatch.setattr(usage, "count_monthly_agent_turns", AsyncMock(return_value=0))
     monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
@@ -61,15 +60,15 @@ def test_reservation_charges_both_agent_runtimes_equally(monkeypatch, runtime: s
             project_id=uuid.uuid4(),
             user_id=USER_ID,
             thread_id=uuid.uuid4(),
-            user_message_id=f"message-{runtime}",
-            runtime=runtime,
+            user_message_id="message-pi",
+            runtime="pi",
             model="test-model",
         )
     )
 
     assert created is True
     assert state.used_turns == 1
-    assert turn.runtime == runtime
+    assert turn.runtime == "pi"
     session.add.assert_called_once_with(turn)
 
 
@@ -191,24 +190,6 @@ def test_mutation_authorization_requires_bound_scope_and_exact_values(monkeypatc
                 user_id=turn.user_id,
                 required_scope="profile_mutation",
                 requested_profile_patch={"state": "QLD"},
-            )
-        )
-
-
-def test_hermes_mutations_are_blocked_until_prompt_transport_is_safe(monkeypatch) -> None:
-    turn = _active_turn(runtime="hermes")
-    monkeypatch.setattr(settings, "hermes_mutations_enabled", False)
-    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
-    session = MagicMock()
-    session.get = AsyncMock(return_value=turn)
-
-    with pytest.raises(PermissionError, match="non-argv"):
-        run_async(
-            usage.require_active_mutation_turn(
-                session,
-                turn_id=turn.id,
-                project_id=turn.project_id,
-                user_id=turn.user_id,
             )
         )
 

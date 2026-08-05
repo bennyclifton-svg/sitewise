@@ -16,6 +16,9 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "repository" in WORKSPACE_AGENTS_MD
     assert "list_document_register" in WORKSPACE_AGENTS_MD
     assert "select_document_register_files" in WORKSPACE_AGENTS_MD
+    assert "refresh_cost_plan with reconcile_evidence=true" in WORKSPACE_AGENTS_MD
+    assert "process_invoices" in WORKSPACE_AGENTS_MD
+    assert "Never call upsert_cost_item" in WORKSPACE_AGENTS_MD
 
 
 def test_rewrite_is_skipped_when_content_is_current(tmp_path: Path) -> None:

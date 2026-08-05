@@ -27,10 +27,8 @@ vi.mock("@/lib/api", () => ({
     cancelAgentTurn: vi.fn(),
     getAgentModels: vi.fn().mockResolvedValue({
       agent_runtime_enabled: true,
-      default_model: "__hermes_config__",
-      default_runtime: "hermes",
-      runtimes: [{ id: "hermes", label: "Hermes", enabled: true }],
-      models: [{ id: "__hermes_config__", label: "Hermes default", is_default: true }],
+      default_model: "openai:gpt-5.6-terra",
+      models: [],
     }),
     getLlmModels: vi.fn().mockResolvedValue({
       default_model: "gpt-5.6-luna",
@@ -48,9 +46,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
     data: {
       agent: {
         agent_runtime_enabled: true,
-        default_model: "__hermes_config__",
-        default_runtime: "hermes",
-        runtimes: [{ id: "hermes", label: "Hermes", enabled: true }],
+        default_model: "openai:gpt-5.6-terra",
         models: [],
       },
       legacy: { default_model: "gpt-5.6-luna", models: [] },
@@ -149,7 +145,7 @@ describe("ChatPanel runtime failure", () => {
       messages: [],
       sendMessage: vi.fn(),
       status: "ready",
-      error: new Error("Hermes runtime unavailable"),
+      error: new Error("Pi runtime unavailable"),
       stop: stopMock,
     });
 
@@ -163,7 +159,7 @@ describe("ChatPanel runtime failure", () => {
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Hermes runtime unavailable",
+      "Pi runtime unavailable",
     );
     expect(screen.getByRole("textbox", { name: /message/i })).toBeInTheDocument();
   });
@@ -259,33 +255,8 @@ describe("ChatPanel agent model selection", () => {
     vi.mocked(api.cancelAgentTurn).mockResolvedValue(true);
   });
 
-  it("sends the selected Hermes model with agent chat requests", () => {
-    window.localStorage.setItem("clerk.agentModel.v2", "openai:gpt-5.6-sol");
-    renderPanel("ready");
-
-    const config = transportMock.mock.calls[0][0] as {
-      prepareSendMessagesRequest: (input: {
-        id: string;
-        messages: unknown[];
-        body: Record<string, unknown>;
-      }) => { body: Record<string, unknown> };
-    };
-
-    const request = config.prepareSendMessagesRequest({
-      id: "thread-1",
-      messages: [],
-      body: {},
-    });
-
-    expect(request.body).toMatchObject({
-      thread_id: "thread-1",
-      agent_model: "openai:gpt-5.6-sol",
-    });
-  });
-
   it("sends the selected Pi model with agent chat requests", () => {
     window.localStorage.setItem("clerk.agentModel.pi", "openai:gpt-5.6-sol");
-    window.localStorage.setItem("clerk.agentRuntime", "pi");
     renderPanel("ready");
 
     const config = transportMock.mock.calls[0][0] as {
@@ -304,12 +275,10 @@ describe("ChatPanel agent model selection", () => {
 
     expect(request.body).toMatchObject({
       thread_id: "thread-1",
-      agent_runtime: "pi",
-    });
-    expect(request.body).toMatchObject({
       agent_model: "openai:gpt-5.6-sol",
     });
   });
+
 });
 
 describe("ChatPanel collapse control", () => {

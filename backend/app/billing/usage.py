@@ -175,10 +175,6 @@ async def require_active_mutation_turn(
         or turn.expires_at <= now
     ):
         raise PermissionError("agent mutation turn is revoked or expired")
-    if turn.runtime == "hermes" and not settings.hermes_mutations_enabled:
-        raise PermissionError(
-            "Hermes mutations are disabled until a non-argv prompt transport is verified"
-        )
     if required_scope is not None and required_scope not in (turn.mutation_scopes or []):
         raise PermissionError(f"agent turn lacks required mutation scope: {required_scope}")
     if requested_profile_patch is not None:

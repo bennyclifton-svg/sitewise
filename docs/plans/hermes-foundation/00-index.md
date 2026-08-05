@@ -1,4 +1,9 @@
-# Hermes Foundation Execution Shards
+# Historical Hermes Foundation Execution Shards
+
+> Superseded for runtime and deployment decisions by
+> [`2026-08-04-pi-only-agent-runtime.md`](../2026-08-04-pi-only-agent-runtime.md).
+> This directory is retained as implementation history for the MCP, SSE, Tender
+> Comparison, workspace, billing, and deployment phases.
 
 This directory shards the canonical Phase 3-8 overview into implementation
 files that can be executed one gate at a time.
@@ -9,8 +14,9 @@ Canonical overview:
 Predecessor plan:
 `docs/plans/2026-07-02-hermes-foundation-phases-0-2.md`
 
-The July Hermes plans remain the source of truth when they conflict with older
-cockpit, local-first, or Practice Intelligence docs.
+The July plans remain historical context for non-runtime product flow. The
+Pi-only runtime decision wins when they conflict on agent execution or
+deployment.
 
 ## Execution Order
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from app.config import Settings
@@ -17,6 +19,7 @@ from app.sitewise.cost_plan_sources import (
 from app.workflows.create_cost_plan import (
     RUNTIME_HYBRID_NAME,
     RUNTIME_NAME,
+    run_create_cost_plan_hybrid,
     run_create_cost_plan_workflow,
     validate_cost_plan_output,
     CostPlanDraftOutput,
@@ -35,6 +38,14 @@ from tests.workflows.hybrid_cost_plan_fixtures import (
 from tests.workflows.hybrid_pmp_fixtures import evidence_passage, platform_passage
 
 
+KAVANAGH_COST_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[3]
+    / "data"
+    / "synthetic-mobilisation-evidence"
+    / "kavanagh-residence-cost-files"
+)
+
+
 def _typed_import(draft):
     return replace(parse_legacy_draft(draft), typed_version_id=draft.id)
 
@@ -50,6 +61,24 @@ def _harrison_clarke_source_texts() -> list[str]:
         "12-certifier-appointment-chen-residence.md",
     ]
     return [(FIXTURE_DIR / name).read_text(encoding="utf-8") for name in fixture_names]
+
+
+def _kavanagh_cost_passages(project) -> list:
+    fixture_names = [
+        "01-fee-proposal-quoin-architecture.md",
+        "02-fee-proposal-catenary-structures.md",
+        "03-fee-proposal-flowline-hydraulics.md",
+        "04-fee-proposal-vertex-cost-advisory.md",
+        "05-building-proposal-ironbark-main-works.md",
+    ]
+    return [
+        evidence_passage(
+            f"{project.slug}/01-cost/received/{name}",
+            (KAVANAGH_COST_FIXTURE_DIR / name).read_text(encoding="utf-8"),
+            project_slug=project.slug,
+        ).model_copy(update={"project_id": project.id})
+        for name in fixture_names
+    ]
 
 
 def _section_headings(markdown: str) -> list[str]:
@@ -209,6 +238,46 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
     steps = {event.step for event in result.trace}
     assert {"extract", "scaffold", "narrative", "assemble", "validation"}.issubset(
         steps
+    )
+
+
+def test_hybrid_create_cost_plan_maps_received_main_works_proposal_to_typed_rows() -> None:
+    """A structured fixed-price proposal must price a newly created Cost Plan."""
+    project = harrison_clarke_cost_project()
+    passages = [
+        *_kavanagh_cost_passages(project),
+        *platform_passages_for_cost_plan(project),
+    ]
+
+    with patch(
+        "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
+        new=AsyncMock(return_value=harrison_clarke_cost_narrative()),
+    ):
+        output = run_async(
+            run_create_cost_plan_hybrid(
+                project=project,
+                passages=passages,
+                draft_mode="evidence_grounded",
+                chat_model="gpt-5.6-terra",
+                project_source_texts=[passage.content for passage in passages[:5]],
+                trace=[],
+            )
+        )
+
+    assert "$1,234,000" in output.markdown
+    assert "$298,000" in output.markdown
+    assert "$96,000" in output.markdown
+    assert "$41,800" in output.markdown
+    assert "$32,500" in output.markdown
+    assert "$45,000" in output.markdown
+
+    draft = mock_cost_plan_draft()
+    draft.content_markdown = output.markdown
+    typed = parse_legacy_draft(draft)
+    assert typed.parsed_budget_total == Decimal("1449300")
+    assert any(
+        item.item == "Preliminaries" and item.budget == Decimal("136000")
+        for item in typed.items
     )
 
 

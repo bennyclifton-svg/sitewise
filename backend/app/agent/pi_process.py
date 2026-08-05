@@ -10,6 +10,7 @@ import subprocess
 import uuid
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
+from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
@@ -31,6 +32,8 @@ PI_MCP_DIRECT_TOOLS = (
     "start_project_plan",
     "refresh_project_plan",
     "start_cost_plan",
+    "refresh_cost_plan",
+    "process_invoices",
     "sort_project_files",
     "start_transmittal",
     "start_consultant_procurement",
@@ -50,6 +53,15 @@ PI_MCP_DIRECT_TOOLS = (
     "list_platform_knowledge",
     "search_platform_knowledge",
     "read_platform_knowledge",
+    "list_tender_comparisons",
+    "get_tender_comparison",
+    "get_comparison_status",
+    "get_comparison_result",
+    "start_tender_comparison",
+    "prepare_tender_comparison",
+    "find_candidate_tender_documents",
+    "get_tender_quote_selection",
+    "replace_tender_quote_selection",
 )
 
 
@@ -161,15 +173,48 @@ def resolve_subprocess_binary(binary: str) -> str:
     return binary
 
 
+@lru_cache(maxsize=8)
+def pi_builtin_tools_flag(binary: str) -> str:
+    """Use the flag that disables built-ins without suppressing MCP tools."""
+    try:
+        result = subprocess.run(
+            [binary, "--help"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "--no-tools"
+    output = f"{result.stdout}\n{result.stderr}"
+    return "--no-builtin-tools" if "--no-builtin-tools" in output else "--no-tools"
+
+
 def _build_argv(
     *,
     prompt_arg: str,
     provider: str | None = None,
     model: str | None = None,
 ) -> list[str]:
+    binary = resolve_subprocess_binary(settings.pi_binary_path)
+    argv = [
+        binary,
+        pi_builtin_tools_flag(binary),
+        "--no-skills",
+        "--no-prompt-templates",
+        "--no-themes",
+    ]
+    if settings.pi_mcp_adapter_path:
+        argv.extend(
+            [
+                "--no-extensions",
+                "--extension",
+                settings.pi_mcp_adapter_path,
+            ]
+        )
     return [
-        resolve_subprocess_binary(settings.pi_binary_path),
-        "--no-tools",
+        *argv,
         "--provider",
         provider or settings.pi_model_provider,
         "--model",
@@ -179,6 +224,8 @@ def _build_argv(
         "--no-session",
         "--mode",
         "json",
+        "--mcp-config",
+        ".pi/mcp.json",
         "-p",
         prompt_arg,
     ]

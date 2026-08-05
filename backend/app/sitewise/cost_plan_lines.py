@@ -643,7 +643,35 @@ def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLi
             ),
         )
     )
-    return rows
+    return _overlay_received_proposal_rows(rows, pack)
+
+
+def _overlay_received_proposal_rows(
+    rows: list[CostPlanLine], pack: CostPlanEvidencePack
+) -> list[CostPlanLine]:
+    """Replace scaffold allowances with reconciled, still-uncommitted proposal values."""
+    if not pack.reconciled_items:
+        return rows
+
+    by_code = {row.cost_code: row for row in rows}
+    for item in pack.reconciled_items:
+        if item.budget is None:
+            continue
+        by_code[item.cost_code] = CostPlanLine(
+            cost_code=item.cost_code,
+            category=item.category,
+            cost_item=item.item,
+            budget=float(item.budget),
+            approved_contract=None,
+            status="Proposed",
+            basis=item.basis,
+        )
+
+    def sort_key(row: CostPlanLine) -> tuple[int, str]:
+        first = row.cost_code.split(".", 1)[0]
+        return (int(first) if first.isdigit() else 999, row.cost_code.lower())
+
+    return sorted(by_code.values(), key=sort_key)
 
 
 def _assign_basis_keys(

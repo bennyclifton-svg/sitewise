@@ -116,6 +116,24 @@ Drop in **numeric order** (simulate mobilisation timeline):
 
 ---
 
+## Pack G — Kavanagh Residence cost files
+
+**Project overlays:** `new-dwelling`, `architect-pm`, `NSW`
+
+**Folder:** `kavanagh-residence-cost-files/`
+**Use when:** Fee-proposal and tax-invoice extraction, stage reconciliation, GST treatment and works-progress testing for one residential project.
+
+| File group | Content |
+| --- | --- |
+| `01`–`04` | Four consultant fee proposals: architect, structural/civil, hydraulic and quantity surveying |
+| `05` | Fixed-price main-works building proposal with a five-stage progress schedule |
+| `11`–`55` | Five progressive tax invoices for each supplier (25 invoices total) |
+| `PACK.md` | Filing guidance, expected comparison posture and intentional edge cases |
+
+**Expected cost posture:** Four consultant professional-fee commitments total **$215,300 ex GST**. The main-works base contract is **$1,234,000 ex GST**. Consultant invoices reconcile to their fee stages; separately identified GST-free architect and hydraulic authority disbursements must not be rolled into professional fees. The main-works invoices reconcile to 100% of the base contract.
+
+---
+
 ## Automated tests
 
 Harrison Clarke baseline (`01` + `02`) is wired in `backend/tests/workflows/hybrid_pmp_fixtures.py`. Additional packs are for manual / future parametrized tests.

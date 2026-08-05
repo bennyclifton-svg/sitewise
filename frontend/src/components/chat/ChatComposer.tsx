@@ -1,7 +1,6 @@
 import { CircleStop, Mic, Send } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import { AgentRuntimeSelector } from "@/components/chat/AgentRuntimeSelector";
 import { LlmModelSelector } from "@/components/LlmModelSelector";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,7 +14,6 @@ type ChatComposerProps = {
   onSubmit: () => void;
   onStop?: () => void;
   isBusy: boolean;
-  agentMode?: boolean;
   crossProject?: boolean;
   onCrossProjectChange?: (value: boolean) => void;
   showScopeControls?: boolean;
@@ -27,7 +25,6 @@ export function ChatComposer({
   onSubmit,
   onStop,
   isBusy,
-  agentMode = false,
   crossProject = false,
   onCrossProjectChange,
   showScopeControls = false,
@@ -101,7 +98,6 @@ export function ChatComposer({
         )}
 
         <div className="flex min-w-0 items-center gap-0.5">
-          {agentMode ? <AgentRuntimeSelector compact /> : null}
           <LlmModelSelector compact />
           <Button
             type="button"

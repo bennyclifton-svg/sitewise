@@ -23,10 +23,6 @@ import {
   getSelectedAgentModel,
   subscribeSelectedAgentModel,
 } from "@/lib/agent-model";
-import {
-  getSelectedAgentRuntime,
-  subscribeSelectedAgentRuntime,
-} from "@/lib/agent-runtime";
 import { getAccessToken } from "@/lib/auth";
 import {
   artefactsFromMessage,
@@ -127,15 +123,9 @@ export function ChatPanel({
     getSelectedChatModel,
     () => null,
   );
-  const agentRuntime = useSyncExternalStore(
-    subscribeSelectedAgentRuntime,
-    getSelectedAgentRuntime,
-    () => null,
-  );
-  const effectiveAgentRuntime = agentRuntime ?? getSelectedAgentRuntime();
   const agentModel = useSyncExternalStore(
     subscribeSelectedAgentModel,
-    () => getSelectedAgentModel(effectiveAgentRuntime),
+    getSelectedAgentModel,
     () => null,
   );
 
@@ -157,8 +147,7 @@ export function ChatPanel({
 
   const transport = useMemo(() => {
     const selectedModel = chatModel ?? getSelectedChatModel();
-    const selectedAgentRuntime = effectiveAgentRuntime;
-    const selectedAgentModel = agentModel ?? getSelectedAgentModel(selectedAgentRuntime);
+    const selectedAgentModel = agentModel ?? getSelectedAgentModel();
     const params = new URLSearchParams();
     if (crossProject) {
       params.set("cross_project", "true");
@@ -184,7 +173,6 @@ export function ChatPanel({
           ...(agentMode
             ? {
                 ...(selectedAgentModel ? { agent_model: selectedAgentModel } : {}),
-                ...(selectedAgentRuntime ? { agent_runtime: selectedAgentRuntime } : {}),
               }
             : selectedModel
               ? { chat_model: selectedModel }
@@ -197,7 +185,6 @@ export function ChatPanel({
     crossProject,
     chatModel,
     agentModel,
-    effectiveAgentRuntime,
   ]);
 
   const { messages, sendMessage, status, error, stop } = useChat({
@@ -432,7 +419,6 @@ export function ChatPanel({
           onSubmit={() => void handleSubmit()}
           onStop={() => void handleStop()}
           isBusy={isBusy}
-          agentMode={agentMode}
           crossProject={crossProject}
           onCrossProjectChange={onCrossProjectChange}
           showScopeControls={showScopeControls}

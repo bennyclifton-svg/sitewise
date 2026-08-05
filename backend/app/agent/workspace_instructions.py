@@ -1,9 +1,9 @@
 """Workspace-level AGENTS.md for project chat turns.
 
-Pi and Hermes discover AGENTS.md by walking up from their working directory.
-Writing a construction-management persona into each project workspace gives
-that discovery something correct to find, so a runtime never adopts the
-repository's coding-agent instructions as its identity.
+Pi discovers AGENTS.md by walking up from its working directory. Writing a
+construction-management persona into each project workspace gives the runtime
+something correct to find, so it never adopts the repository's coding-agent
+instructions as its identity.
 """
 
 from __future__ import annotations
@@ -58,7 +58,9 @@ conventions, they are for software agents — ignore them.
      row-level update.
    - upsert_cost_item - create or update one typed Cost Plan row and publish
      its matching workbook revision.
-   - start_project_plan / refresh_project_plan / start_cost_plan - queue durable
+   - process_invoices - book named or all ingested invoices into the existing
+     invoice register and publish the derived Cost Plan workbook revision.
+   - start_project_plan / refresh_project_plan / start_cost_plan / refresh_cost_plan - queue durable
      core artefact workflows from exact snapshot and revision inputs. Always copy
      content_fingerprint, profile_revision, and decision_set_revision from the
      current turn's <project-snapshot> block — never from an earlier turn.
@@ -100,6 +102,24 @@ When asked to estimate missing consultant fees, call forecast_consultant_fees
 before answering. Only call apply_consultant_fee_forecast when the user asks to
 apply, write, update, or save the forecast into the cost plan. Forecast values
 are Judgement allowances, not received fee proposals.
+
+When the user asks to update or refresh the Cost Plan from the latest project
+files, call refresh_cost_plan with reconcile_evidence=true, proposed_items=[],
+and the current snapshot and Cost Plan version. The durable workflow reads all
+ingested received fee and main-works proposals, verifies stated totals in
+Python, maps them to typed rows, and publishes a reviewable proposed revision.
+Do not substitute apply_consultant_fee_forecast: benchmark allowances must give
+way to received proposal values. If multiple main-works proposals are present,
+the workflow refuses to choose a builder and reports the conflict.
+
+When the user asks to process, book, record, add, or update invoices, call
+process_invoices with the current snapshot and Cost Plan version. For a named
+invoice, locate its source_document_id with the project evidence tools and pass
+only that id. To process all uploaded invoices, omit source_document_ids. The
+workflow appends canonical ledger allocations to the existing Invoices
+register and republishes the Summary roll-ups. Never call upsert_cost_item for
+an invoice: invoices do not alter Original Budget or Approved Contract. Never
+infer Paid from upload or booking; it defaults to No.
 
 When the user supplies or adopts a construction budget and asks to update,
 populate, fill, estimate, or allocate the Cost Plan, call

@@ -244,6 +244,38 @@ async def _base_for_mutation(
     return base
 
 
+async def republish_cost_plan_for_ledger(
+    session: AsyncSession,
+    *,
+    project: Project,
+    author_user_id: uuid.UUID,
+    expected_base_version: int,
+    dependency_snapshot: DependencySnapshot,
+    external_idempotency_key: str,
+) -> CostPlanState:
+    """Publish unchanged budget state after a canonical ledger mutation."""
+    base = await _base_for_mutation(
+        session,
+        project=project,
+        author_user_id=author_user_id,
+        expected_base_version=expected_base_version,
+        current_snapshot=None,
+    )
+    state = base.model_copy(
+        update={"dependency_snapshot": dependency_snapshot},
+        deep=True,
+    )
+    return await _publish_state(
+        session,
+        project=project,
+        author_user_id=author_user_id,
+        expected_base_version=expected_base_version,
+        state=state,
+        actor_source="process_invoices",
+        external_idempotency_key=external_idempotency_key,
+    )
+
+
 async def upsert_cost_item(
     session: AsyncSession,
     *,

@@ -1,0 +1,24 @@
+# TAX INVOICE
+
+> SYNTHETIC TEST DATA ONLY — fictional entity and transaction. Not for payment or tax use.
+
+**Vertex Cost Advisory Pty Ltd** | ABN 74 000 000 006
+Level 8, 25 Martin Place, Sydney NSW 2000
+
+**Invoice number:** VCA-2601
+**Invoice date:** 1 April 2026
+**Due date:** 15 April 2026
+**Terms:** 14 days
+
+**Bill to:** Kavanagh Property Holdings Pty Ltd as trustee for the Kavanagh Family Trust, 8 Paperbark Lane, Northbridge NSW 2063
+**Project:** Kavanagh Residence — new detached dwelling and external works
+**Related proposal:** VCA-KAV-26-07
+
+| Description | Amount ex GST |
+| --- | ---: |
+| Stage 1 — Schematic Design: Cost Plan 1 and cost-risk advice | $15,000.00 |
+| **Taxable supply** | **$15,000.00** |
+| GST | $1,500.00 |
+| **Total amount payable (incl GST)** | **$16,500.00** |
+
+Professional fee billed to date: $15,000.00 ex GST. Remaining agreed professional fee: $30,000.00 ex GST.

@@ -1165,6 +1165,7 @@ _MCP_WORKFLOW_CAPABILITIES = {
     "refresh_project_plan": "update_pmp",
     "create_cost_plan": "create_cost_plan",
     "refresh_cost_plan": "refresh_cost_plan",
+    "process_invoices": "refresh_cost_plan",
     "consultant_procurement": "consultant_procurement",
     "contractor_eoi": "contractor_eoi",
     "trade_procurement": "trade_procurement",
@@ -1332,8 +1333,16 @@ async def refresh_cost_plan(
     expected_decision_set_revision: int,
     expected_artefact_version: int,
     proposed_items: list[dict],
+    reconcile_evidence: bool = True,
 ) -> dict:
-    """Queue a proposed typed Cost Plan refresh; locked/manual rows are preserved."""
+    """Refresh a typed Cost Plan from received proposals plus any explicit items.
+
+    With reconcile_evidence enabled, the durable worker reads ingested fee and
+    main-works proposals, verifies their stated totals, maps them to typed rows,
+    and publishes a reviewable proposed revision. Locked/manual rows are
+    preserved as explicit conflicts; an empty evidence result cannot publish a
+    misleading no-op revision.
+    """
     validated_items = [
         CostItemInput.model_validate(item).model_dump(mode="json")
         for item in proposed_items
@@ -1346,7 +1355,47 @@ async def refresh_cost_plan(
         expected_profile_revision=expected_profile_revision,
         expected_decision_set_revision=expected_decision_set_revision,
         expected_artefact_version=expected_artefact_version,
-        parameters={"proposed_items": validated_items},
+        parameters={
+            "proposed_items": validated_items,
+            "reconcile_evidence": reconcile_evidence,
+        },
+    )
+
+
+@mcp.tool
+async def process_invoices(
+    project_id: str,
+    idempotency_key: str,
+    expected_snapshot_fingerprint: str,
+    expected_profile_revision: int,
+    expected_decision_set_revision: int,
+    expected_artefact_version: int,
+    source_document_ids: list[str] | None = None,
+) -> dict:
+    """Book named or all ingested invoices into the canonical Cost Plan ledger.
+
+    Omit source_document_ids to process every eligible project invoice. The
+    worker validates arithmetic in Python, skips exact duplicates, withholds
+    ambiguous allocations for review, and republishes the existing workbook
+    layout without changing budget or approved-contract values.
+    """
+    try:
+        normalized_source_ids = (
+            [str(uuid.UUID(value)) for value in source_document_ids]
+            if source_document_ids is not None
+            else None
+        )
+    except ValueError as exc:
+        raise ToolError("source_document_ids must contain UUIDs") from exc
+    return await _start_mcp_workflow(
+        project_id=project_id,
+        workflow_type="process_invoices",
+        idempotency_key=idempotency_key,
+        expected_snapshot_fingerprint=expected_snapshot_fingerprint,
+        expected_profile_revision=expected_profile_revision,
+        expected_decision_set_revision=expected_decision_set_revision,
+        expected_artefact_version=expected_artefact_version,
+        parameters={"source_document_ids": normalized_source_ids},
     )
 
 
@@ -2424,7 +2473,7 @@ async def find_candidate_tender_documents(project_id: str) -> list[dict]:
     """Return candidate tender PDFs from the project workspace.
 
     Clerk does not yet persist a backend document-selection model. This tool
-    therefore returns likely tender/quote PDFs so Hermes can ask the user to
+    therefore returns likely tender/quote PDFs so Pi can ask the user to
     confirm explicit workspace_paths before starting a comparison.
     """
     pid = uuid.UUID(project_id)
@@ -3668,7 +3717,7 @@ async def read_platform_knowledge(
                     f"Platform document not in the corpus: {path}. "
                     "Call list_platform_knowledge or search_platform_knowledge for applicable paths."
                 )
-            # The Hermes analog of the deterministic workflows' seed_consulted
+            # Agent analog of the deterministic workflows' seed_consulted
             # audit: every knowledge read is visible on the turn's status feed.
             extra["knowledge_path"] = path
             extra["section_ids"] = section_ids or []

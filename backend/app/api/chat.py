@@ -19,23 +19,13 @@ from app.agent.document_context import (
     documents_from_turn_context,
     resolve_selected_turn_documents,
 )
-from app.agent.agent_runtimes import (
-    PI_RUNTIME_ID,
-    InvalidAgentRuntimeError,
-    InvalidPiModelError,
-    default_agent_runtime,
-    resolve_pi_model_override,
-    resolve_agent_runtime_for_turn,
-)
-from app.agent.hermes_process import HermesTurnError, HermesTurnTimeout, stream_hermes_turn
-from app.agent.hermes_models import resolve_hermes_model_override
+from app.agent.pi_models import PI_RUNTIME_ID, resolve_pi_model_override
 from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.turn_context import (
     HistoryMessage,
     build_agent_prompt,
-    turn_needs_mutation_tools,
 )
 from app.projects.snapshot import get_project_snapshot
 from app.projects.profile_proposals import accept_profile_proposal
@@ -532,7 +522,7 @@ async def post_agent_stream(
     if not settings.agent_runtime_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Hermes agent runtime is not enabled.",
+            detail="Pi agent runtime is not enabled.",
         )
 
     user_text = extract_last_user_message(body.messages)
@@ -548,7 +538,7 @@ async def post_agent_stream(
     if thread.project_id is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Hermes agent chat requires a project thread.",
+            detail="Pi agent chat requires a project thread.",
         )
     project = await require_project_owner(session, thread.project_id, user.id)
     try:
@@ -597,28 +587,8 @@ async def post_agent_stream(
         selected_documents=selected_documents,
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
-    try:
-        agent_runtime = resolve_agent_runtime_for_turn(
-            body.agent_runtime or default_agent_runtime(),
-            needs_mutation_tools=turn_needs_mutation_tools(
-                user_text, mutation_intent
-            ),
-        )
-    except InvalidAgentRuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
-
-    if agent_runtime == PI_RUNTIME_ID:
-        try:
-            model_override = resolve_pi_model_override(body.agent_model)
-        except InvalidPiModelError:
-            if body.agent_runtime == PI_RUNTIME_ID:
-                raise
-            model_override = None
-    else:
-        model_override = resolve_hermes_model_override(body.agent_model)
+    agent_runtime = PI_RUNTIME_ID
+    model_override = resolve_pi_model_override(body.agent_model)
 
     proposed_turn_id = uuid.uuid4()
     last_message = body.messages[-1] if body.messages else {}
@@ -640,11 +610,7 @@ async def post_agent_stream(
             ]
         },
         runtime=agent_runtime,
-        model=(
-            model_override.model
-            if model_override
-            else settings.pi_model if agent_runtime == PI_RUNTIME_ID else settings.hermes_model
-        ),
+        model=model_override.model if model_override else settings.pi_model,
     )
     turn_id = turn.id
     if not reserved:
@@ -726,7 +692,7 @@ async def post_agent_stream(
     except TurnTokenConfigurationError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Hermes agent turn tokens are not configured.",
+            detail="Pi agent turn tokens are not configured.",
         ) from exc
 
     if reserved:
@@ -761,31 +727,21 @@ async def post_agent_stream(
 
         async def agent_chunks() -> AsyncIterator[str]:
             nonlocal completed, first_text_ms
-            if agent_runtime == PI_RUNTIME_ID:
-                pi_kwargs = (
-                    {
-                        "provider": model_override.provider,
-                        "model": model_override.model,
-                    }
-                    if model_override
-                    else {}
-                )
-                stream = stream_pi_turn(
-                    prompt=agent_prompt,
-                    mcp_url=settings.agent_mcp_url,
-                    turn_token=turn_token,
-                    cwd=workspace,
-                    **pi_kwargs,
-                )
-            else:
-                stream = stream_hermes_turn(
-                    prompt=agent_prompt,
-                    mcp_url=settings.agent_mcp_url,
-                    turn_token=turn_token,
-                    cwd=workspace,
-                    provider=model_override.provider if model_override else None,
-                    model=model_override.model if model_override else None,
-                )
+            pi_kwargs = (
+                {
+                    "provider": model_override.provider,
+                    "model": model_override.model,
+                }
+                if model_override
+                else {}
+            )
+            stream = stream_pi_turn(
+                prompt=agent_prompt,
+                mcp_url=settings.agent_mcp_url,
+                turn_token=turn_token,
+                cwd=workspace,
+                **pi_kwargs,
+            )
             async for chunk in stream:
                 if first_text_ms is None:
                     first_text_ms = int((time.perf_counter() - stream_start) * 1000)
@@ -841,17 +797,6 @@ async def post_agent_stream(
             async for event in stream_error("Agent turn cancelled."):
                 yield event
             return
-        except HermesTurnTimeout:
-            log.warning(
-                "agent_stream_timeout",
-                user_id=str(user.id),
-                thread_id=str(body.thread_id),
-                turn_id=str(turn_id),
-                agent_runtime=agent_runtime,
-            )
-            async for event in stream_error("Hermes took too long to respond. Please try again."):
-                yield event
-            return
         except PiTurnTimeout:
             log.warning(
                 "agent_stream_timeout",
@@ -861,18 +806,6 @@ async def post_agent_stream(
                 agent_runtime=agent_runtime,
             )
             async for event in stream_error("Pi took too long to respond. Please try again."):
-                yield event
-            return
-        except HermesTurnError as exc:
-            log.warning(
-                "agent_stream_failed",
-                user_id=str(user.id),
-                thread_id=str(body.thread_id),
-                turn_id=str(turn_id),
-                agent_runtime=agent_runtime,
-                error_type=type(exc).__name__,
-            )
-            async for event in stream_error("Hermes could not complete this turn. Please try again."):
                 yield event
             return
         except PiTurnError as exc:

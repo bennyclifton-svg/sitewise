@@ -1,1 +1,1 @@
-"""Hermes-backed agent runtime for Clerk chat."""
+"""Pi-backed agent runtime for Clerk chat."""

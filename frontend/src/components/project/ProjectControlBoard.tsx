@@ -6,6 +6,7 @@ import {
   LoaderCircle,
   MessageSquareWarning,
   Play,
+  ReceiptText,
   RefreshCw,
   Save,
   Scale,
@@ -42,6 +43,7 @@ import type {
   DraftArtifact,
   DraftArtifactSummary,
   OverlayIssue,
+  ProcessInvoicesResult,
   ProjectDetail,
   ProjectProfileProposal,
   SortFilesResponse,
@@ -75,6 +77,11 @@ const WorkflowDraftPreview = lazy(() =>
     default: module.WorkflowDraftPreview,
   })),
 );
+const InvoiceProcessStatus = lazy(() =>
+  import("@/components/project/InvoiceProcessStatus").then((module) => ({
+    default: module.InvoiceProcessStatus,
+  })),
+);
 
 export function ProjectControlBoard({
   project,
@@ -103,6 +110,7 @@ export function ProjectControlBoard({
   onRunUpdatePmp,
   onRunCreateCostPlan,
   onRunRefreshCostPlan,
+  onRunProcessInvoices,
   onRunSortFiles,
   onCancelWorkflow,
   onCancelCostPlan,
@@ -118,6 +126,7 @@ export function ProjectControlBoard({
   onProjectUpdated,
   onProfileProposalsResolved,
   onDraftUpdated,
+  invoiceProcessResult = null,
 }: {
   project: ProjectDetail;
   profileProposals?: ProjectProfileProposal[];
@@ -149,6 +158,7 @@ export function ProjectControlBoard({
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
   onRunRefreshCostPlan?: () => void;
+  onRunProcessInvoices?: () => void;
   onRunSortFiles: () => void;
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
@@ -164,6 +174,7 @@ export function ProjectControlBoard({
   onProjectUpdated?: (project: ProjectDetail) => void;
   onProfileProposalsResolved?: () => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  invoiceProcessResult?: ProcessInvoicesResult | null;
 }) {
   const lifecycle = buildLifecycleTiles({
     project,
@@ -225,6 +236,7 @@ export function ProjectControlBoard({
           onRunUpdatePmp={onRunUpdatePmp}
           onRunCreateCostPlan={onRunCreateCostPlan}
           onRunRefreshCostPlan={onRunRefreshCostPlan}
+          onRunProcessInvoices={onRunProcessInvoices}
           onRunSortFiles={onRunSortFiles}
           onCancelWorkflow={onCancelWorkflow}
           onCancelCostPlan={onCancelCostPlan}
@@ -239,6 +251,7 @@ export function ProjectControlBoard({
           isRunningSortFiles={isRunningSortFiles}
           onProjectUpdated={onProjectUpdated}
           onDraftUpdated={onDraftUpdated}
+          invoiceProcessResult={invoiceProcessResult}
         />
       </section>
     </div>
@@ -664,6 +677,7 @@ function WorkflowDetail({
   onRunUpdatePmp,
   onRunCreateCostPlan,
   onRunRefreshCostPlan,
+  onRunProcessInvoices,
   onRunSortFiles,
   onCancelWorkflow,
   onCancelCostPlan,
@@ -678,6 +692,7 @@ function WorkflowDetail({
   isRunningSortFiles,
   onProjectUpdated,
   onDraftUpdated,
+  invoiceProcessResult,
 }: {
   tile: WorkflowTile;
   project: ProjectDetail;
@@ -703,6 +718,7 @@ function WorkflowDetail({
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
   onRunRefreshCostPlan?: () => void;
+  onRunProcessInvoices?: () => void;
   onRunSortFiles: () => void;
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
@@ -718,6 +734,7 @@ function WorkflowDetail({
   onSelectWorkflow?: (workflowId: string) => void;
   onProjectUpdated?: (project: ProjectDetail) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  invoiceProcessResult: ProcessInvoicesResult | null;
 }) {
   const isProjectProfile = tile.id === "project-profile";
   const isCreatePmp = tile.id === "create-pmp";
@@ -916,7 +933,27 @@ function WorkflowDetail({
                 <RefreshCw className="size-4" aria-hidden />
                 Refresh cost plan
               </Button>
+              <Button
+                variant="outline"
+                onClick={onRunProcessInvoices}
+                disabled={
+                  !onRunProcessInvoices ||
+                  isRunningCostPlan ||
+                  !project.overlay_status.ready ||
+                  !costPlanSupported ||
+                  !activeDraft
+                }
+              >
+                <ReceiptText className="size-4" aria-hidden />
+                Process invoices
+              </Button>
             </div>
+
+            {invoiceProcessResult ? (
+              <Suspense fallback={null}>
+                <InvoiceProcessStatus result={invoiceProcessResult} />
+              </Suspense>
+            ) : null}
 
             {costPlanPreview ? (
               <Suspense fallback={<DraftReviewFallback label="Building cost plan..." />}>

@@ -2,21 +2,22 @@
 
 This file is the source of truth for coding agents working in this repo. Read it
 before touching code. Product direction changed in July 2026: Clerk is moving
-toward a Hermes-backed, agent-first hosted product with Tender Comparison as the
+toward a Pi-backed, agent-first hosted product with Tender Comparison as the
 flagship workflow.
 
 ## Canonical Docs
 
 Read these in order when direction matters:
 
-1. `docs/plans/2026-07-02-hermes-foundation-phases-0-2.md`
-2. `docs/plans/2026-07-03-hermes-foundation-phases-3-8.md`
-3. `docs/plans/2026-06-11-tender-comparison-module-prd.md`
-4. `docs/architecture.md`
+1. `docs/plans/2026-08-04-pi-only-agent-runtime.md`
+2. `docs/plans/2026-07-02-hermes-foundation-phases-0-2.md`
+3. `docs/plans/2026-07-03-hermes-foundation-phases-3-8.md`
+4. `docs/plans/2026-06-11-tender-comparison-module-prd.md`
+5. `docs/architecture.md`
 
-The Hermes phase plans govern product flow and migration sequence. The TCM PRD
-governs Tender Comparison internals. If an older doc disagrees with the July
-Hermes plans, the July Hermes plans win.
+The Pi-only runtime decision governs agent process and deployment behaviour.
+The July plans otherwise govern product flow and migration sequence, and the
+TCM PRD governs Tender Comparison internals.
 
 ## Stack
 
@@ -27,9 +28,9 @@ Hermes plans, the July Hermes plans win.
 - **Migrations:** SQLAlchemy models + Alembic from the backend
 - **Retrieval:** Supabase `pgvector` + Postgres full-text search
 - **Auth:** Supabase Auth
-- **Agent runtime:** Hermes CLI headless, invoked by `backend/app/agent/`
+- **Agent runtime:** Pi CLI headless, invoked by `backend/app/agent/`
 - **Tool bridge:** FastMCP mounted on FastAPI at `/mcp`
-- **LLM + embeddings:** OpenAI, with Hermes platform-key routing in later phases
+- **LLM + embeddings:** OpenAI, with Pi platform-key routing
 - **Billing:** Stripe
 - **Hosting:** Docker + Dokploy on the `sitewise.au` VPS, Supabase external
 
@@ -56,7 +57,7 @@ clerk/
 Clerk is the canonical hosted product repo. The current direction is:
 
 - Phase 2 lands the MCP tool bridge with per-project turn-token authorization.
-- Phases 3-8 add the Hermes runtime, AI-SDK-compatible SSE relay, chat polish,
+- Phases 3-8 add the Pi runtime, AI-SDK-compatible SSE relay, chat polish,
   natural-language Tender Comparison, workspace/artefact editing, Stripe
   billing, VPS deployment, and legacy cutover.
 - The existing PydanticAI grounded-RAG chat and cockpit pages are legacy-retained
@@ -69,7 +70,7 @@ them once as `sitewise-platform` reference rows with
 `document_metadata.knowledge_scope = platform`; do not copy them into projects
 or store them as `project_evidence`.
 
-Pi/Hermes source strategy is binding:
+Pi source strategy is binding:
 
 - For factual questions about the active project, use project evidence tools
   (`find_document_text`, `search_documents`, `get_document`).
@@ -112,7 +113,7 @@ OK to depend on:
 - Things that are genuinely hard to get right: HTTP clients, ASGI servers, SQL
   drivers, parsers, LLM SDKs, ORM, migrations, auth SDKs.
 - The declared stack: FastAPI, React, Vite, Supabase clients, OpenAI SDK,
-  FastMCP, Hermes CLI integration, Stripe SDK when Phase 7 begins.
+  FastMCP, Pi CLI integration, Stripe SDK when Phase 7 begins.
 
 Not OK:
 

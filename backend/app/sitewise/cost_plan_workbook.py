@@ -16,7 +16,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
 from app.cost_plan.calculations import resolved_budget
-from app.cost_plan.schemas import CostPlanState
+from app.cost_plan.schemas import CostPlanState, InvoiceRegisterRow
 from app.sitewise.cost_plan_lines import CostPlanLine
 
 SUMMARY_HEADERS = (
@@ -113,6 +113,7 @@ def build_typed_cost_plan_workbook(
     *,
     project_title: str,
     state: CostPlanState,
+    invoice_rows: list[InvoiceRegisterRow] | None = None,
     generated_at: datetime | None = None,
 ) -> CostPlanWorkbook:
     """Render a workbook directly from canonical typed state without Markdown parsing."""
@@ -134,6 +135,7 @@ def build_typed_cost_plan_workbook(
         version=state.version,
         generated_at=generated_at or datetime.now(UTC),
         warnings=[],
+        invoice_rows=invoice_rows or [],
     )
 
 
@@ -143,6 +145,7 @@ def build_cost_plan_workbook_for_export(
     markdown: str,
     version: int,
     typed_state: CostPlanState | None = None,
+    invoice_rows: list[InvoiceRegisterRow] | None = None,
     generated_at: datetime | None = None,
 ) -> CostPlanWorkbook:
     """Export from typed state only when it preserves every workbook row.
@@ -166,6 +169,7 @@ def build_cost_plan_workbook_for_export(
         return build_typed_cost_plan_workbook(
             project_title=project_title,
             state=typed_state,
+            invoice_rows=invoice_rows,
             generated_at=generated_at,
         )
     return _build_workbook(
@@ -174,6 +178,7 @@ def build_cost_plan_workbook_for_export(
         version=version,
         generated_at=generated_at,
         warnings=warnings,
+        invoice_rows=invoice_rows or [],
     )
 
 
@@ -184,6 +189,7 @@ def _build_workbook(
     version: int,
     generated_at: datetime,
     warnings: list[str],
+    invoice_rows: list[InvoiceRegisterRow] | None = None,
 ) -> CostPlanWorkbook:
 
     wb = Workbook()
@@ -195,7 +201,7 @@ def _build_workbook(
     wb.calculation.forceFullCalc = True
 
     _build_summary_sheet(summary, project_title, generated_at, items)
-    _build_invoices_sheet(invoices, project_title)
+    _build_invoices_sheet(invoices, project_title, invoice_rows or [])
     _build_variations_sheet(variations, project_title)
     _add_defined_names(wb, max(len(items) + 1, 2))
     _verify_workbook(wb)
@@ -377,7 +383,11 @@ def _build_summary_sheet(
     _style_summary_sheet(worksheet, row_number)
 
 
-def _build_invoices_sheet(worksheet: Worksheet, project_title: str) -> None:
+def _build_invoices_sheet(
+    worksheet: Worksheet,
+    project_title: str,
+    invoice_rows: list[InvoiceRegisterRow],
+) -> None:
     worksheet.sheet_view.showGridLines = False
     worksheet.freeze_panes = "A5"
     worksheet.merge_cells("A1:I1")
@@ -388,6 +398,20 @@ def _build_invoices_sheet(worksheet: Worksheet, project_title: str) -> None:
     for column, header in enumerate(INVOICE_HEADERS, start=1):
         worksheet.cell(row=4, column=column, value=header)
     _style_register_headers(worksheet, len(INVOICE_HEADERS))
+    for row_number, invoice in enumerate(invoice_rows, start=5):
+        values = (
+            invoice.invoice_date,
+            invoice.company,
+            invoice.po_number or "",
+            invoice.invoice_number,
+            invoice.description,
+            invoice.cost_item,
+            invoice.amount_ex_gst,
+            invoice.billing_month,
+            "Yes" if invoice.paid else "No",
+        )
+        for column, value in enumerate(values, start=1):
+            worksheet.cell(row=row_number, column=column, value=value)
     _set_widths(
         worksheet,
         {
@@ -402,12 +426,23 @@ def _build_invoices_sheet(worksheet: Worksheet, project_title: str) -> None:
             "I": 10,
         },
     )
-    for row in range(5, 501):
+    validation_last_row = max(500, len(invoice_rows) + 4)
+    for row in range(5, validation_last_row + 1):
         worksheet.cell(row=row, column=1).number_format = "dd-mmm-yy"
         worksheet.cell(row=row, column=7).number_format = "$#,##0"
         worksheet.cell(row=row, column=8).number_format = "mmm-yy"
-    _add_list_validation(worksheet, "F5:F500", "CostItemLookup", "Invalid Cost Item")
-    _add_list_validation(worksheet, "I5:I500", '"Yes,No"', "Invalid Paid value")
+    _add_list_validation(
+        worksheet,
+        f"F5:F{validation_last_row}",
+        "CostItemLookup",
+        "Invalid Cost Item",
+    )
+    _add_list_validation(
+        worksheet,
+        f"I5:I{validation_last_row}",
+        '"Yes,No"',
+        "Invalid Paid value",
+    )
 
 
 def _build_variations_sheet(worksheet: Worksheet, project_title: str) -> None:

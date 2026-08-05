@@ -36,10 +36,16 @@ from app.workflows.create_cost_plan import (
     sync_cost_plan_revision_artifacts,
 )
 from app.cost_plan.dependencies import dependency_snapshot
+from app.cost_plan.evidence_reconciliation import (
+    build_cost_evidence_reconciliation,
+    load_cost_evidence_documents,
+)
 from app.cost_plan.schemas import CostItemInput
+from app.cost_plan.service import get_cost_plan as read_typed_cost_plan
 from app.cost_plan.service import refresh_cost_plan
 from app.workflows.create_pmp import PreviewPublisher, run_create_pmp_workflow
 from app.workflows.document_ingest import ingest_project_document
+from app.workflows.process_invoices import process_invoices
 from app.workflows.runs import (
     WorkflowRunCancelled,
     claim_next_run,
@@ -86,6 +92,7 @@ async def _dispatch(
     chat_model = run.run_brief.get("chat_model")
     parameters = run.run_brief.get("parameters") or {}
     refreshed_cost_plan_draft: DraftArtifact | None = None
+    cost_evidence_reconciliation: dict[str, Any] | None = None
     common = {
         "session": session,
         "user_id": run.requested_by_user_id,
@@ -105,16 +112,68 @@ async def _dispatch(
             **common, chat_model=chat_model, snapshot=snapshot, on_preview=on_preview
         )
     elif run.workflow_type == "refresh_cost_plan":
+        explicit_items = [
+            CostItemInput.model_validate(item)
+            for item in parameters.get("proposed_items", [])
+        ]
+        reconcile_evidence = bool(
+            parameters.get("reconcile_evidence", not explicit_items)
+        )
+        proposed_by_key: dict[str, CostItemInput] = {}
+        if reconcile_evidence:
+            base = await read_typed_cost_plan(
+                session,
+                project_id=project.id,
+                owner_user_id=project.owner_user_id,
+                version=run.frozen_artefact_version,
+            )
+            documents = await load_cost_evidence_documents(
+                session, project_id=project.id
+            )
+            reconciliation = build_cost_evidence_reconciliation(base, documents)
+            proposed_by_key.update(
+                {item.item_key: item for item in reconciliation.proposed_items}
+            )
+            cost_evidence_reconciliation = {
+                "source_document_count": len(documents),
+                "received_proposals": [
+                    {
+                        "kind": proposal.kind,
+                        "supplier": proposal.supplier,
+                        "proposal_reference": proposal.proposal_reference,
+                        "amount_ex_gst": str(proposal.total_ex_gst),
+                        "source_document_id": str(proposal.source_document_id),
+                        "relative_path": proposal.relative_path,
+                    }
+                    for proposal in reconciliation.received_proposals
+                ],
+                "issues": list(reconciliation.issues),
+            }
+        proposed_by_key.update({item.item_key: item for item in explicit_items})
+        proposed_items = list(proposed_by_key.values())
+        if not proposed_items:
+            issues = (
+                "; ".join(cost_evidence_reconciliation["issues"])
+                if cost_evidence_reconciliation
+                and cost_evidence_reconciliation["issues"]
+                else "No reconciled fee or main works proposal was found in the ingested project evidence."
+            )
+            raise RuntimeError(
+                "Refresh Cost Plan found no evidence-backed item changes. " + issues
+            )
+        if reconcile_evidence:
+            current_by_key = {item.item_key: item for item in base.items}
+            if all(current_by_key.get(item.item_key) == item for item in proposed_items):
+                raise RuntimeError(
+                    "The current Cost Plan already reflects every reconciled received proposal."
+                )
         result = await refresh_cost_plan(
             session,
             project=project,
             author_user_id=run.requested_by_user_id,
             expected_base_version=run.frozen_artefact_version,
             current_snapshot=snapshot,
-            proposed_items=[
-                CostItemInput.model_validate(item)
-                for item in parameters.get("proposed_items", [])
-            ],
+            proposed_items=proposed_items,
             dependency_snapshot=dependency_snapshot(
                 snapshot,
                 model_version=chat_model,
@@ -134,6 +193,33 @@ async def _dispatch(
             typed_state=result.state,
         )
         refreshed_cost_plan_draft = draft
+    elif run.workflow_type == "process_invoices":
+        if run.frozen_artefact_version is None:
+            raise RuntimeError("Process invoices requires a current Cost Plan version")
+        raw_source_ids = parameters.get("source_document_ids")
+
+        async def invoice_progress(stage: str, percent: int) -> None:
+            if on_preview is not None:
+                await on_preview({"stage": stage, "percent": percent})
+
+        result = await process_invoices(
+            session,
+            project=project,
+            user_id=run.requested_by_user_id,
+            workflow_run_id=run.id,
+            expected_cost_plan_version=run.frozen_artefact_version,
+            snapshot=snapshot,
+            source_document_ids=(
+                [uuid.UUID(str(value)) for value in raw_source_ids]
+                if raw_source_ids is not None
+                else None
+            ),
+            progress=invoice_progress,
+        )
+        if result.draft_id is not None:
+            refreshed_cost_plan_draft = await session.get(DraftArtifact, result.draft_id)
+            if refreshed_cost_plan_draft is None:
+                raise RuntimeError("processed invoice Cost Plan draft was not found")
     elif run.workflow_type == "sort_project_files":
         # Sorting touches non-transactional object storage. Commit its durable
         # workspace state before the worker publishes the run result, so a
@@ -190,6 +276,8 @@ async def _dispatch(
     else:
         raise ValueError(f"Unknown workflow type: {run.workflow_type}")
     payload = _json_result(result)
+    if cost_evidence_reconciliation is not None:
+        payload["evidence_reconciliation"] = cost_evidence_reconciliation
     if refreshed_cost_plan_draft is not None:
         payload["draft"] = DraftArtifactResponse.model_validate(
             refreshed_cost_plan_draft
@@ -334,11 +422,16 @@ def _preview_publisher(
 
     async def publish(preview: dict[str, Any]) -> None:
         async with session_factory() as preview_session:
+            progress = (
+                {"preview": preview}
+                if isinstance(preview.get("markdown"), str)
+                else preview
+            )
             await heartbeat_run(
                 preview_session,
                 run_id=run_id,
                 worker_id=worker_id,
-                progress={"preview": preview},
+                progress=progress,
                 lease_seconds=settings.workflow_worker_lease_seconds,
             )
 

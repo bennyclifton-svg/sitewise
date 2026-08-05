@@ -149,7 +149,7 @@ flowchart TB
         tcm["backend/tender/<br/>Tender Comparison Module"]
     end
 
-    cli["<b>Agent subprocess</b><br/>Hermes CLI or Pi CLI<br/>headless · one process per turn"]
+    cli["<b>Agent subprocess</b><br/>Pi CLI<br/>headless · one process per turn"]
 
     wfw["<b>sitewise-core-workflow-worker</b><br/>python -m app.workflows.worker"]
     tw["<b>sitewise-worker</b><br/>python -m tender.worker"]
@@ -182,7 +182,7 @@ flowchart TB
 ```
 
 **Why the agent is a subprocess.** The reasoning runtime is a headless CLI
-(`hermes` or `pi`) spawned per turn, not an in-process SDK loop. That choice
+(`pi`) spawned per turn, not an in-process SDK loop. That choice
 buys hard isolation: the agent inherits no database handle, no Supabase
 credential and no application object graph. Its entire capability surface is
 the MCP endpoint it is handed, and its entire authority is the token in its
@@ -194,7 +194,7 @@ not a cooperative flag that may or may not be observed.
 | Path | Responsibility |
 | --- | --- |
 | `app/api/` | HTTP surface: auth, projects, chat/agent streaming, billing, config |
-| `app/agent/` | Runtime selection, subprocess supervision, prompt assembly, SSE relay, concurrency, cancellation |
+| `app/agent/` | Pi subprocess supervision, prompt assembly, SSE relay, concurrency, cancellation |
 | `app/mcp_bridge/` | FastMCP server, turn-token mint/verify, per-call project authorisation |
 | `app/workflows/` | Durable run engine + workflow implementations (PMP, cost plan, procurement, ingest, sort) |
 | `app/sitewise/` | Domain intelligence: taxonomy, section contracts, assemblers, renderers, evidence ledgers, coverage gates, knowledge catalog |
@@ -222,13 +222,13 @@ sequenceDiagram
     participant A as FastAPI /chat/agent/stream
     participant B as Billing / quota
     participant P as Prompt assembly<br/>(turn_context)
-    participant R as Agent subprocess<br/>(Hermes / Pi)
+    participant R as Agent subprocess<br/>(Pi)
     participant M as MCP bridge /mcp
     participant D as Domain + Postgres
     participant Q as Workflow queue
 
     U->>W: "Draft an RFP for the structural engineer"
-    W->>A: POST message (thread, project, runtime, model)
+    W->>A: POST message (thread, project, model)
 
     A->>B: reserve_agent_turn(mutation_scopes)
     B-->>A: turn_id + quota OK
@@ -241,7 +241,7 @@ sequenceDiagram
     P-->>A: system context + persona + tool doctrine + user text
 
     A->>R: spawn(argv, env={CLERK_MCP_TOKEN}, cwd=scoped workspace)
-    Note over R: .pi/mcp.json or Hermes config<br/>declares the allowed tool set
+    Note over R: .pi/mcp.json declares the allowed tool set
 
     loop reasoning
         R->>M: tool call + Bearer turn token
@@ -261,29 +261,21 @@ sequenceDiagram
     Q-->>W: run progress → draft artefact card
 ```
 
-### 4.1 Runtime and model selection
+### 4.1 Pi runtime and model selection
 
-Two interchangeable reasoning runtimes are supported behind one interface
-(`app/agent/agent_runtimes.py`):
+Pi is the sole reasoning runtime. It is launched stateless for every turn;
+continuity remains in Clerk's bounded, inspectable Postgres-backed prompt
+context rather than a CLI session cache.
 
 ```mermaid
 flowchart LR
-    req["Turn request<br/>runtime + model id"] --> sel{"Runtime?"}
-    sel -->|hermes| h["hermes_process<br/>chat -q / oneshot -z<br/>ephemeral HERMES_HOME"]
-    sel -->|pi| p["pi_process<br/>--no-tools --mode json<br/>--no-session --thinking off"]
-    h --> tok["Shared: turn token in env,<br/>MCP URL, scoped cwd"]
-    p --> tok
+    req["Turn request<br/>optional Pi model id"] --> p["pi_process<br/>--no-builtin-tools --mode json<br/>--no-session --thinking off"]
+    p --> tok["Turn token in env,<br/>MCP URL, scoped cwd"]
     tok --> stream["stdout JSON events →<br/>text_delta extraction"]
 ```
 
-Both runtimes are launched **stateless**: no session file, no persisted
-history. Continuity is supplied entirely by the prompt SiteWise assembles, which
-means conversation state is owned by Postgres and is inspectable, replayable,
-and bounded — never hidden inside a CLI's session cache.
-
-Pi additionally receives a `directTools` allowlist in `.pi/mcp.json`,
-pre-declaring the 30 tools it may reach so the runtime does not have to
-discover and reason over the whole surface each turn.
+Pi receives a `directTools` allowlist in `.pi/mcp.json`, so it reaches only
+the Clerk domain tools deliberately exposed for the product workflow.
 
 ### 4.2 Prompt assembly
 
@@ -1066,7 +1058,7 @@ flowchart TB
 
     subgraph vps["VPS · AU-SY Sydney · Dokploy compose"]
         ng["<b>sitewise-web</b><br/>nginx + React bundle<br/>SSE unbuffered for /api/*"]
-        api["<b>sitewise-api</b><br/>FastAPI + MCP + agent CLI<br/>(bundles Hermes w/ JVM/ODL)"]
+        api["<b>sitewise-api</b><br/>FastAPI + MCP + Pi CLI<br/>(bundles Pi w/ JVM/ODL)"]
         w1["<b>sitewise-core-workflow-worker</b><br/>app.workflows.worker"]
         w2["<b>sitewise-worker</b><br/>tender.worker"]
         vol[("AGENT_WORKSPACE_ROOT<br/>persistent volume")]
@@ -1201,12 +1193,13 @@ staged progress rather than an indeterminate spinner.
 | --- | --- |
 | Coding rules, stack lock, dependency policy | `AGENTS.md` (plus `backend/AGENTS.md`, `frontend/AGENTS.md`) |
 | Deployment and recovery | `DEPLOYMENT.md` |
-| Product flow and migration sequence | `docs/plans/2026-07-02-hermes-foundation-phases-0-2.md`, `docs/plans/2026-07-03-hermes-foundation-phases-3-8.md` |
+| Agent runtime decision | `docs/plans/2026-08-04-pi-only-agent-runtime.md` |
+| Product flow and migration sequence | July foundation plans, except where superseded by the Pi-only decision |
 | Tender Comparison internals | `docs/plans/2026-06-11-tender-comparison-module-prd.md` |
 | System shape (this document) | `docs/architecture.md` |
 
-Where an older document disagrees with the July Hermes plans, the July Hermes
-plans win.
+Where the July plans prescribe Hermes runtime or deployment behaviour, the
+Pi-only runtime decision wins.
 
 ### Phase ladder
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, MessageSquarePlus, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,12 @@ import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { api } from "@/lib/api";
 import type { ChatThread } from "@/lib/types/chat";
 import { cn } from "@/lib/utils";
+
+const ChatThreadActionsMenu = lazy(() =>
+  import("@/components/chat/ChatThreadActionsMenu").then((module) => ({
+    default: module.ChatThreadActionsMenu,
+  })),
+);
 
 type ChatSessionListProps = {
   activeThreadId?: string;
@@ -178,31 +184,6 @@ export function ChatSessionList({
   const visibleError =
     error ?? (threadsQuery.isError ? "Could not load sessions." : null);
 
-  const menuContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuThreadId) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!menuContainerRef.current?.contains(event.target as Node)) {
-        setMenuThreadId(null);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMenuThreadId(null);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuThreadId]);
-
   function renderThreadRow(thread: ChatThread) {
     const title = thread.title ?? "Untitled chat";
     const isEditing = editingId === thread.id;
@@ -214,7 +195,7 @@ export function ChatSessionList({
         className={cn(
           isNav
             ? cn(
-                "flex items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors",
+                "flex w-full min-w-0 items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors",
                 thread.id === activeThreadId
                   ? "bg-muted/40 text-foreground"
                   : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
@@ -254,7 +235,7 @@ export function ChatSessionList({
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1">
             {isEmbedded ? (
               <button
                 type="button"
@@ -299,54 +280,44 @@ export function ChatSessionList({
                 </Button>
               </>
             ) : isNav ? (
-              <div
-                ref={menuThreadId === thread.id ? menuContainerRef : undefined}
-                className="relative shrink-0"
-              >
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Actions for ${title}`}
-                  title="Actions"
-                  aria-expanded={menuThreadId === thread.id}
-                  onClick={() =>
-                    setMenuThreadId((current) => (current === thread.id ? null : thread.id))
+              menuThreadId === thread.id ? (
+                <Suspense
+                  fallback={
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Actions for ${title}`}
+                      title="Actions"
+                      disabled
+                    >
+                      <MoreHorizontal className="size-3" aria-hidden />
+                    </Button>
                   }
                 >
-                  <MoreHorizontal className="size-3" aria-hidden />
-                </Button>
-                {menuThreadId === thread.id ? (
-                  <div
-                    className="absolute top-full right-0 z-50 mt-1 min-w-[6.5rem] rounded-md border bg-popover p-1 shadow-md"
-                    role="menu"
+                  <ChatThreadActionsMenu
+                    title={title}
+                    onClose={() => setMenuThreadId(null)}
+                    onRename={() => {
+                      setEditingId(thread.id);
+                      setDraftTitle(title);
+                    }}
+                    onDelete={() => setConfirmingDeleteId(thread.id)}
+                  />
+                </Suspense>
+              ) : (
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Actions for ${title}`}
+                    title="Actions"
+                    aria-expanded="false"
+                    onClick={() => setMenuThreadId(thread.id)}
                   >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-                      onClick={() => {
-                        setEditingId(thread.id);
-                        setDraftTitle(title);
-                        setMenuThreadId(null);
-                      }}
-                    >
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-destructive hover:bg-muted"
-                      onClick={() => {
-                        setConfirmingDeleteId(thread.id);
-                        setMenuThreadId(null);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+                    <MoreHorizontal className="size-3" aria-hidden />
+                  </Button>
+              )
             ) : (
               <>
                 <Button

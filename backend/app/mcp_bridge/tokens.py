@@ -1,4 +1,4 @@
-"""Short-lived HMAC turn tokens binding a Hermes turn to (user, project)."""
+"""Short-lived HMAC turn tokens binding an agent turn to (user, project)."""
 from __future__ import annotations
 
 import base64

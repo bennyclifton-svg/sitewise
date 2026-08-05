@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
+import pytest
+
+from app.cost_plan.schemas import CostItemInput
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.workflows.runs import (
@@ -493,6 +497,29 @@ def test_dispatch_hands_the_cost_plan_workflow_its_preview_publisher(
     assert create_cost_plan.await_args.kwargs["on_preview"] is publisher
 
 
+def test_dispatch_process_invoices_uses_the_frozen_cost_plan_version(
+    monkeypatch,
+) -> None:
+    run = _plan_run("process_invoices")
+    run.frozen_artefact_version = 8
+    process = AsyncMock(
+        return_value=SimpleNamespace(status="complete", draft_id=None)
+    )
+    monkeypatch.setattr(workflow_worker, "process_invoices", process)
+    monkeypatch.setattr(
+        workflow_worker,
+        "_json_result",
+        lambda result: {"status": result.status},
+    )
+
+    payload = run_async(workflow_worker._dispatch(AsyncMock(), run))
+
+    assert payload == {"status": "complete"}
+    assert process.await_args.kwargs["workflow_run_id"] == run.id
+    assert process.await_args.kwargs["expected_cost_plan_version"] == 8
+    assert process.await_args.kwargs["source_document_ids"] is None
+
+
 def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> None:
     run = _plan_run("refresh_cost_plan")
     run.frozen_artefact_version = 1
@@ -522,7 +549,33 @@ def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> N
     synchronize = AsyncMock()
     session = AsyncMock()
     session.get.return_value = refreshed_draft
+    current_item = CostItemInput(
+        item_key="architect",
+        cost_code="3",
+        category="Consultants",
+        item="Architect / PM",
+        budget=Decimal("12500"),
+        forecast=Decimal("12500"),
+        basis="Planning allowance",
+    )
+    received_item = current_item.model_copy(
+        update={
+            "budget": Decimal("96000"),
+            "forecast": Decimal("96000"),
+            "basis": "Received fee proposal",
+        }
+    )
+    read_cost_plan = AsyncMock(return_value=SimpleNamespace(items=[current_item]))
+    load_documents = AsyncMock(return_value=[SimpleNamespace(filename="fee.md")])
+    reconcile = lambda _base, _documents: SimpleNamespace(  # noqa: E731
+        proposed_items=(received_item,),
+        received_proposals=(),
+        issues=(),
+    )
     monkeypatch.setattr(workflow_worker, "refresh_cost_plan", refresh)
+    monkeypatch.setattr(workflow_worker, "read_typed_cost_plan", read_cost_plan)
+    monkeypatch.setattr(workflow_worker, "load_cost_evidence_documents", load_documents)
+    monkeypatch.setattr(workflow_worker, "build_cost_evidence_reconciliation", reconcile)
     monkeypatch.setattr(
         workflow_worker,
         "sync_cost_plan_revision_artifacts",
@@ -533,6 +586,7 @@ def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> N
 
     payload = run_async(workflow_worker._dispatch(session, run))
 
+    assert refresh.await_args.kwargs["proposed_items"] == [received_item]
     synchronize.assert_awaited_once_with(
         session,
         project=refresh.await_args.kwargs["project"],
@@ -541,3 +595,32 @@ def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> N
     )
     assert payload["draft"]["id"] == str(refreshed_draft.id)
     assert payload["draft"]["provenance_metadata"] == refreshed_draft.provenance_metadata
+
+
+def test_refresh_cost_plan_rejects_an_empty_evidence_reconciliation(monkeypatch) -> None:
+    run = _plan_run("refresh_cost_plan")
+    run.frozen_artefact_version = 2
+    monkeypatch.setattr(
+        workflow_worker,
+        "read_typed_cost_plan",
+        AsyncMock(return_value=SimpleNamespace(items=[])),
+    )
+    monkeypatch.setattr(
+        workflow_worker,
+        "load_cost_evidence_documents",
+        AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(
+        workflow_worker,
+        "build_cost_evidence_reconciliation",
+        lambda _base, _documents: SimpleNamespace(
+            proposed_items=(), received_proposals=(), issues=()
+        ),
+    )
+    refresh = AsyncMock()
+    monkeypatch.setattr(workflow_worker, "refresh_cost_plan", refresh)
+
+    with pytest.raises(RuntimeError, match="no evidence-backed item changes"):
+        run_async(workflow_worker._dispatch(AsyncMock(), run))
+
+    refresh.assert_not_awaited()

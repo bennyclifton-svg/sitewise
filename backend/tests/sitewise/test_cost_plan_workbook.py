@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from io import BytesIO
 
 from openpyxl import load_workbook
 
-from app.cost_plan.schemas import CostPlanState, DependencySnapshot
+from app.cost_plan.schemas import CostPlanState, DependencySnapshot, InvoiceRegisterRow
 from app.sitewise.cost_plan_workbook import (
     build_cost_plan_workbook,
     build_cost_plan_workbook_for_export,
@@ -101,6 +102,50 @@ def test_workbook_preview_rolls_up_invoice_and_variation_values() -> None:
     assert planning_row[9] == "$3,000"
     assert planning_row[10] == "$3,000"
     assert planning_row[11] == "$9,000"
+
+
+def test_canonical_invoice_rows_populate_existing_register_and_summary() -> None:
+    workbook = build_cost_plan_workbook_for_export(
+        project_title="Greenfield Demo",
+        markdown=_valid_cost_plan_markdown(),
+        version=6,
+        generated_at=datetime(2026, 3, 31, tzinfo=UTC),
+        invoice_rows=[
+            InvoiceRegisterRow(
+                allocation_id=uuid.uuid4(),
+                invoice_date=date(2026, 3, 18),
+                company="Quoin Architecture Pty Ltd",
+                invoice_number="QUA-2601",
+                description="Stage 1 — Schematic Design, completed",
+                cost_item="Architect PM",
+                amount_ex_gst=Decimal("24000.00"),
+                billing_month=date(2026, 3, 1),
+            )
+        ],
+    )
+
+    loaded = load_workbook(BytesIO(workbook.content), data_only=False)
+    invoices = loaded["Invoices"]
+    assert [invoices.cell(row=5, column=column).value for column in range(1, 10)] == [
+        datetime(2026, 3, 18),
+        "Quoin Architecture Pty Ltd",
+        None,
+        "QUA-2601",
+        "Stage 1 — Schematic Design, completed",
+        "Architect PM",
+        24000,
+        datetime(2026, 3, 1),
+        "No",
+    ]
+
+    preview = workbook_preview_from_bytes(workbook.content)
+    summary_preview = next(sheet for sheet in preview.sheets if sheet.name == "Summary")
+    architect_row = next(row for row in summary_preview.rows if row[2] == "Architect PM")
+    assert architect_row[3] == "$148,500"
+    assert architect_row[4] == ""
+    assert architect_row[9] == "$24,000"
+    assert architect_row[10] == "$24,000"
+    assert architect_row[11] == "$124,500"
 
 
 def test_export_keeps_greenbank_tbc_rows_when_typed_import_is_empty() -> None:

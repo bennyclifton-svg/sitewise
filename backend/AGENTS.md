@@ -6,10 +6,10 @@ direction and code rules live there. This file adds backend-specific guidance.
 ## Current Direction
 
 The backend is moving from the legacy PydanticAI grounded-RAG chat path toward a
-Hermes-backed agent runtime:
+Pi-backed agent runtime:
 
 - Phase 2 adds `app/mcp_bridge/` and mounts FastMCP at `/mcp`.
-- Phase 3 adds `app/agent/` for Hermes process invocation, AI-SDK-compatible
+- Phase 3 adds `app/agent/` for Pi process invocation, AI-SDK-compatible
   SSE relay, session mapping, bounded concurrency, and cancellation.
 - Phase 8.5 removes the old PydanticAI chat/orchestrator only after production
   acceptance passes.
@@ -25,7 +25,7 @@ live legacy modules until the planned cutover.
 - SQLAlchemy models + Alembic migrations
 - Supabase Auth, Supabase Postgres, Supabase Storage
 - OpenAI SDK for current LLM/embedding calls
-- Hermes CLI via the planned `app/agent/` module
+- Pi CLI via the `app/agent/` module
 - FastMCP via `app/mcp_bridge/`
 - `pytest` and `ruff`
 - `uv` for dependency and project management
@@ -40,7 +40,7 @@ backend/
 |-- app/
 |   |-- main.py              # FastAPI entrypoint and router/mount wiring
 |   |-- config.py            # single backend env source of truth
-|   |-- agent/               # Phase 3 Hermes runtime, SSE relay, concurrency
+|   |-- agent/               # Pi runtime, SSE relay, concurrency
 |   |-- mcp_bridge/          # Phase 2 MCP tools and turn-token auth
 |   |-- api/                 # FastAPI routers
 |   |-- auth/                # Supabase JWT verification
@@ -78,7 +78,7 @@ backend/
 needed. Never call `os.getenv` in app code and never call `load_dotenv`.
 
 If an SDK reads env vars directly, expose the values through `config.py` first.
-For Hermes, inject per-turn secrets into the spawned child process environment,
+For Pi, inject per-turn secrets into the spawned child process environment,
 not argv.
 
 ## Database Migrations

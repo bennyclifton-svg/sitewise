@@ -35,12 +35,11 @@ BODY = {
 
 BODY_WITH_AGENT_MODEL = {
     **BODY,
-    "agent_model": "openai-api:gpt-5.6-sol",
+    "agent_model": "openai:gpt-5.6-sol",
 }
 
 BODY_WITH_PI_RUNTIME = {
     **BODY,
-    "agent_runtime": "pi",
     "agent_model": "openai:gpt-5.6-sol",
     "messages": [
         {
@@ -310,7 +309,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
             created_at=NOW,
         )
 
-    async def fake_stream_hermes_turn(
+    async def fake_stream_pi_turn(
         *,
         prompt,
         mcp_url,
@@ -336,7 +335,6 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
 
     monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
-    monkeypatch.setattr(settings, "hermes_model_options", "openai-api:gpt-5.6-sol")
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
@@ -392,7 +390,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         AsyncMock(side_effect=fake_create_message),
     )
     monkeypatch.setattr(chat_api, "mint_turn_token", token_mint)
-    monkeypatch.setattr(chat_api, "stream_hermes_turn", fake_stream_hermes_turn)
+    monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
     monkeypatch.setattr(
         chat_api,
         "get_session_factory",
@@ -463,7 +461,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "mcp_url": "http://testserver/mcp",
         "turn_token": "turn-token",
         "cwd": str(tmp_path / str(PROJECT_ID)),
-        "provider": "openai-api",
+        "provider": "openai",
         "model": "gpt-5.6-sol",
     }
     assert (tmp_path / str(PROJECT_ID) / "AGENTS.md").exists()
@@ -479,7 +477,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     assert calls[0].kwargs["content"] == "Compare the tender quotes"
     assert calls[1].kwargs["role"] == "assistant"
     assert calls[1].kwargs["content"] == "Hello there"
-    assert calls[1].kwargs["message_data"]["agent"]["runtime"] == "hermes"
+    assert calls[1].kwargs["message_data"]["agent"]["runtime"] == "pi"
     assert calls[1].kwargs["message_data"]["agent"]["sourceTrace"] == {
         "context": {"used": True, "label": "Project context"},
         "documents": {"used": False, "tools": []},
@@ -615,7 +613,7 @@ def test_agent_source_trace_includes_consultant_procurement_sources() -> None:
     }
 
 
-def test_agent_stream_pi_runtime_receives_project_context(
+def test_agent_stream_pi_receives_project_context(
     client: TestClient,
     mock_session: AsyncMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -656,7 +654,6 @@ def test_agent_stream_pi_runtime_receives_project_context(
 
     monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
-    monkeypatch.setattr(settings, "pi_runtime_enabled", True)
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
@@ -744,7 +741,7 @@ def test_agent_stream_pi_runtime_receives_project_context(
     )
 
 
-def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disabled(
+def test_agent_stream_uses_pi_for_profile_enrichment(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -770,14 +767,8 @@ def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disa
         assert "<profile-enrichment-request>" in prompt
         yield "Proposed evidence-backed profile updates."
 
-    async def fake_stream_hermes_turn(**_kwargs):
-        seen_runtimes.append("hermes")
-        yield "should not run"
-
     monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
-    monkeypatch.setattr(settings, "pi_runtime_enabled", True)
-    monkeypatch.setattr(settings, "hermes_mutations_enabled", False)
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
@@ -818,7 +809,6 @@ def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disa
     )
     monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="turn-token"))
     monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
-    monkeypatch.setattr(chat_api, "stream_hermes_turn", fake_stream_hermes_turn)
     monkeypatch.setattr(
         chat_api,
         "get_session_factory",
@@ -827,7 +817,6 @@ def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disa
 
     body = {
         "threadId": str(THREAD_ID),
-        "agent_runtime": "hermes",
         "messages": [
             {
                 "role": "user",
@@ -855,7 +844,7 @@ def test_agent_stream_routes_profile_enrichment_to_pi_when_hermes_mutations_disa
     )
 
 
-def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
+def test_agent_stream_uses_pi_for_rfp_request(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -880,14 +869,8 @@ def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
         seen_runtimes.append("pi")
         yield "Queued the Structural Engineer RFP."
 
-    async def fake_stream_hermes_turn(**_kwargs):
-        seen_runtimes.append("hermes")
-        yield "should not run"
-
     monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
-    monkeypatch.setattr(settings, "pi_runtime_enabled", True)
-    monkeypatch.setattr(settings, "hermes_mutations_enabled", False)
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
     monkeypatch.setattr(
@@ -928,7 +911,6 @@ def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
     )
     monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="turn-token"))
     monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
-    monkeypatch.setattr(chat_api, "stream_hermes_turn", fake_stream_hermes_turn)
     monkeypatch.setattr(
         chat_api,
         "get_session_factory",
@@ -937,7 +919,6 @@ def test_agent_stream_routes_rfp_request_to_pi_when_hermes_mutations_disabled(
 
     body = {
         "threadId": str(THREAD_ID),
-        "agent_runtime": "hermes",
         "messages": [
             {
                 "role": "user",

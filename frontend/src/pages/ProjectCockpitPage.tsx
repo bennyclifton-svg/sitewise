@@ -43,6 +43,7 @@ import type {
   EvidencePreview,
   InboxUploadResult,
   PlatformKnowledgeStatus,
+  ProcessInvoicesResult,
   ProjectDetail,
   ProjectEvent,
   ProjectSummary,
@@ -176,6 +177,8 @@ export function ProjectCockpitPage() {
   const [costPlanWorkflowResult, setCostPlanWorkflowResult] = useState<CreatePmpResponse | null>(
     null,
   );
+  const [invoiceProcessResult, setInvoiceProcessResult] =
+    useState<ProcessInvoicesResult | null>(null);
   const [sortFilesResult, setSortFilesResult] = useState<SortFilesResponse | null>(null);
   const [sortFilesDraft, setSortFilesDraft] = useState<DraftArtifactSummary | null>(null);
   const [sortFilesError, setSortFilesError] = useState<string | null>(null);
@@ -476,9 +479,13 @@ export function ProjectCockpitPage() {
       .then((draft) => {
         if (!draft) return;
         if (workflowType === "create_cost_plan") {
-          setLatestCostPlanDraft(draft);
+          setLatestCostPlanDraft((current) =>
+            current && current.version > draft.version ? current : draft,
+          );
         } else {
-          setLatestDraft(draft);
+          setLatestDraft((current) =>
+            current && current.version > draft.version ? current : draft,
+          );
         }
       })
       .catch(() => undefined);
@@ -702,6 +709,7 @@ export function ProjectCockpitPage() {
     setCostPlanProgressKey(`cost-${Date.now()}`);
     setIsRunningCostPlan(true);
     setCostPlanWorkflowError(null);
+    setInvoiceProcessResult(null);
     try {
       const queued = await api.startWorkflowRun(
         project.id,
@@ -745,6 +753,7 @@ export function ProjectCockpitPage() {
     setCostPlanProgressKey(`cost-${Date.now()}`);
     setIsRunningCostPlan(true);
     setCostPlanWorkflowError(null);
+    setInvoiceProcessResult(null);
     try {
       if (!latestCostPlanDraft) {
         throw new WorkflowRunError("Create a Cost Plan before refreshing it.");
@@ -781,6 +790,55 @@ export function ProjectCockpitPage() {
     } catch (runError) {
       setCostPlanWorkflowError(
         formatApiError(runError, "Refresh Cost Plan could not run."),
+      );
+    } finally {
+      setCostPlanRunId(null);
+      setCostPlanRunMode(null);
+      setCostPlanProgressKey(null);
+      setIsRunningCostPlan(false);
+    }
+  }
+
+  async function runProcessInvoices() {
+    if (!project) return;
+    setCostPlanRunMode("invoices");
+    setCostPlanProgressKey(`cost-invoices-${Date.now()}`);
+    setIsRunningCostPlan(true);
+    setCostPlanWorkflowError(null);
+    setInvoiceProcessResult(null);
+    try {
+      if (!latestCostPlanDraft) {
+        throw new WorkflowRunError("Create a Cost Plan before processing invoices.");
+      }
+      const queued = await api.startWorkflowRun(
+        project.id,
+        "cost-plan/invoices",
+        {
+          ...(await freshWorkflowRunInput(latestCostPlanDraft.version)),
+          parameters: { source_document_ids: null },
+        },
+      );
+      setCostPlanRunId(queued.id);
+      const run = await waitForWorkflowRun(queryClient, project.id, queued);
+      if (run.state === "failed" || run.state === "cancelled") {
+        throw new WorkflowRunError(
+          run.error_message ?? `Process invoices ${run.state}.`,
+        );
+      }
+      const response = await api.getWorkflowResult(project.id, run.id);
+      const result = workflowPayload<ProcessInvoicesResult>(
+        response.result,
+        "Process invoices completed without a result.",
+      );
+      setInvoiceProcessResult(result);
+      if (result.draft) {
+        showCostPlanDraft(result.draft);
+      }
+      refreshLatestDraftInBackground("create_cost_plan");
+      refreshWorkflowSurfaces();
+    } catch (runError) {
+      setCostPlanWorkflowError(
+        formatApiError(runError, "Invoices could not be processed."),
       );
     } finally {
       setCostPlanRunId(null);
@@ -1209,6 +1267,7 @@ export function ProjectCockpitPage() {
           onRunUpdatePmp={() => void runUpdatePmp()}
           onRunCreateCostPlan={() => void runCreateCostPlan()}
           onRunRefreshCostPlan={() => void runRefreshCostPlan()}
+          onRunProcessInvoices={() => void runProcessInvoices()}
           onRunSortFiles={() => void runSortFiles()}
           onCancelWorkflow={() => {
             if (workflowRunId) void api.cancelWorkflowRun(project.id, workflowRunId);
@@ -1228,6 +1287,7 @@ export function ProjectCockpitPage() {
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);
           }}
+          invoiceProcessResult={invoiceProcessResult}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
+from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -9,6 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 Money = Decimal
 GstTreatment = Literal["exclusive", "inclusive", "not_applicable"]
 AllowanceType = Literal["none", "pc", "ps", "contingency"]
+InvoiceGstTreatment = Literal["taxable", "gst_free", "derived"]
+InvoiceMappingMethod = Literal[
+    "exact", "related_reference", "keyword", "model", "unidentified"
+]
 
 
 def _decimal(value: object, *, field: str) -> Decimal:
@@ -137,3 +142,142 @@ class CostPlanMutationResult(BaseModel):
     state: CostPlanState
     changed_item_keys: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
+
+
+class InvoiceLineInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    description: str = Field(min_length=1, max_length=2000)
+    amount_ex_gst: Money
+    gst_treatment: InvoiceGstTreatment = "taxable"
+    source_locators: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("amount_ex_gst", mode="before")
+    @classmethod
+    def amount_decimal_only(cls, value: object) -> Decimal:
+        return _decimal(value, field="amount_ex_gst")
+
+    @model_validator(mode="after")
+    def positive_amount(self) -> "InvoiceLineInput":
+        if self.amount_ex_gst <= 0:
+            raise ValueError("amount_ex_gst must be greater than zero")
+        return self
+
+
+class ExtractedInvoice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    supplier_name: str = Field(min_length=1, max_length=512)
+    supplier_abn: str | None = Field(default=None, max_length=32)
+    invoice_number: str = Field(min_length=1, max_length=128)
+    invoice_date: date
+    due_date: date | None = None
+    po_number: str | None = Field(default=None, max_length=128)
+    related_reference: str | None = Field(default=None, max_length=255)
+    subtotal_ex_gst: Money
+    gst: Money
+    total_including_gst: Money
+    currency: Literal["AUD"] = "AUD"
+    lines: list[InvoiceLineInput] = Field(min_length=1)
+    provenance: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator(
+        "subtotal_ex_gst", "gst", "total_including_gst", mode="before"
+    )
+    @classmethod
+    def invoice_decimal_only(cls, value: object, info) -> Decimal:
+        return _decimal(value, field=info.field_name)
+
+    @model_validator(mode="after")
+    def reconcile_totals(self) -> "ExtractedInvoice":
+        line_total = sum(
+            (line.amount_ex_gst for line in self.lines), Decimal("0")
+        ).quantize(Decimal("0.01"))
+        subtotal = self.subtotal_ex_gst.quantize(Decimal("0.01"))
+        gst = self.gst.quantize(Decimal("0.01"))
+        inclusive = self.total_including_gst.quantize(Decimal("0.01"))
+        if subtotal <= 0 or gst < 0 or inclusive <= 0:
+            raise ValueError("invoice totals must be positive and GST cannot be negative")
+        if line_total != subtotal:
+            raise ValueError(
+                f"invoice line total {line_total} does not equal subtotal {subtotal}"
+            )
+        if subtotal + gst != inclusive:
+            raise ValueError(
+                f"subtotal plus GST {subtotal + gst} does not equal total {inclusive}"
+            )
+        taxable_total = sum(
+            (
+                line.amount_ex_gst
+                for line in self.lines
+                if line.gst_treatment != "gst_free"
+            ),
+            Decimal("0"),
+        )
+        expected_gst = (taxable_total * Decimal("0.10")).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+        if gst != expected_gst:
+            raise ValueError(
+                f"GST {gst} does not equal 10% of taxable lines {expected_gst}"
+            )
+        if self.due_date is not None and self.due_date < self.invoice_date:
+            raise ValueError("due_date cannot be before invoice_date")
+        return self
+
+    @property
+    def billing_month(self) -> date:
+        return self.invoice_date.replace(day=1)
+
+
+class InvoiceAllocationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    line_number: int = Field(ge=1)
+    description: str = Field(min_length=1, max_length=2000)
+    amount_ex_gst: Money
+    gst_treatment: InvoiceGstTreatment
+    cost_item_key: str | None = Field(default=None, max_length=255)
+    cost_item_label: str = Field(default="Unidentified", min_length=1, max_length=512)
+    mapping_method: InvoiceMappingMethod = "unidentified"
+    mapping_confidence: Decimal | None = Field(default=None, ge=0, le=1)
+    review_status: Literal["mapped", "needs_review"] = "needs_review"
+    source_locators: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("amount_ex_gst", "mapping_confidence", mode="before")
+    @classmethod
+    def allocation_decimal_only(cls, value: object, info) -> object:
+        if value is None:
+            return None
+        return _decimal(value, field=info.field_name)
+
+    @model_validator(mode="after")
+    def validate_mapping_state(self) -> "InvoiceAllocationInput":
+        if self.amount_ex_gst <= 0:
+            raise ValueError("amount_ex_gst must be greater than zero")
+        if self.review_status == "mapped" and not self.cost_item_key:
+            raise ValueError("mapped allocations require cost_item_key")
+        if self.review_status == "needs_review" and self.cost_item_key is not None:
+            raise ValueError("review allocations must not select cost_item_key")
+        return self
+
+
+class InvoiceRegisterRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: uuid.UUID
+    invoice_date: date
+    company: str
+    po_number: str | None = None
+    invoice_number: str
+    description: str
+    cost_item: str
+    amount_ex_gst: Money
+    billing_month: date
+    paid: bool = False
+
+    @field_validator("amount_ex_gst", mode="before")
+    @classmethod
+    def register_amount_decimal_only(cls, value: object) -> Decimal:
+        return _decimal(value, field="amount_ex_gst")

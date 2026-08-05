@@ -1,5 +1,15 @@
 # syntax=docker/dockerfile:1
 
+FROM node:22-bookworm-slim AS pi-cli
+
+ARG PI_CLI_VERSION=0.83.0
+ARG PI_MCP_ADAPTER_VERSION=2.19.0
+
+RUN npm install --global \
+        "@earendil-works/pi-coding-agent@${PI_CLI_VERSION}" \
+        "pi-mcp-adapter@${PI_MCP_ADAPTER_VERSION}" \
+    && pi --version
+
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 WORKDIR /app/backend
@@ -17,45 +27,30 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app/backend
 
-ARG HERMES_RELEASE_TAG=v2026.6.19
-
 ENV PATH="/app/backend/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV HERMES_HOME=/opt/hermes
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
-        curl \
         default-jre-headless \
         git \
         libreoffice \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh -o /tmp/hermes-install.sh \
-    && bash /tmp/hermes-install.sh \
-        --branch "${HERMES_RELEASE_TAG}" \
-        --non-interactive \
-        --no-skills \
-    && rm /tmp/hermes-install.sh \
-    && hermes --version
+COPY --from=pi-cli /usr/local/bin/node /usr/local/bin/node
+COPY --from=pi-cli /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 RUN addgroup --system sitewise \
     && adduser --system --ingroup sitewise --home /home/sitewise sitewise \
-    && mkdir -p /opt/hermes /app/agent-workspaces \
-    && printf '%s\n' \
-        'model:' \
-        '  provider: openai-api' \
-        '  default: gpt-5.1' \
-        'mcp_servers:' \
-        '  clerk:' \
-        '    url: "http://127.0.0.1:8000/mcp"' \
-        '    headers:' \
-        '      Authorization: "Bearer ${AGENT_TURN_TOKEN}"' \
-        > /opt/hermes/config.yaml \
-    && chown -R sitewise:sitewise /opt/hermes /app/agent-workspaces
+    && mkdir -p /app/agent-workspaces \
+    && ln -s ../lib/node_modules/@earendil-works/pi-coding-agent/dist/cli.js /usr/local/bin/pi \
+    && pi --no-extensions \
+        --extension /usr/local/lib/node_modules/pi-mcp-adapter/index.ts \
+        --help | grep -F -- "--mcp-config" \
+    && chown -R sitewise:sitewise /app/agent-workspaces
 
 COPY --from=builder --chown=sitewise:sitewise /app/backend /app/backend
 COPY --chown=sitewise:sitewise data/seed /app/data/seed

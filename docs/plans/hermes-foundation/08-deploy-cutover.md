@@ -1,5 +1,8 @@
 # Phase 8: Deploy And Legacy Cutover
 
+> Historical implementation record. Pi replaces Hermes as the deployed agent
+> runtime under [`2026-08-04-pi-only-agent-runtime.md`](../2026-08-04-pi-only-agent-runtime.md).
+
 ## Objective
 
 Deploy the Hermes-backed product to `sitewise.au`, validate the full production

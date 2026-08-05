@@ -23,8 +23,13 @@ from app.projects.workflow_capabilities import (
     CREATE_COST_PLAN,
     capability_block_message,
 )
+from app.cost_plan.evidence_reconciliation import (
+    CostEvidenceDocument,
+    build_cost_evidence_reconciliation,
+)
 from app.cost_plan.import_legacy import import_legacy_draft
-from app.cost_plan.schemas import CostPlanState, DependencySnapshot
+from app.cost_plan.schemas import CostItemInput, CostPlanState, DependencySnapshot
+from app.cost_plan.invoice_service import list_invoice_register_rows
 from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
@@ -102,6 +107,12 @@ COST_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
     "engagement_letter",
     "fee-proposal",
     "fee_proposal",
+    "building-proposal",
+    "building_proposal",
+    "fixed-price",
+    "fixed_price",
+    "main-works",
+    "main_works",
     "owner-project-brief",
     "owner-brief",
     "project-brief",
@@ -140,6 +151,8 @@ COST_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
 _COST_DOC_PRIORITY: tuple[str, ...] = (
     "engagement-letter",
     "fee-proposal",
+    "building-proposal",
+    "main-works",
     "owner-project-brief",
     "owner-brief",
     "project-brief",
@@ -166,6 +179,10 @@ _COST_DOC_PRIORITY: tuple[str, ...] = (
 _COST_EVIDENCE_RESERVATIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("engagement", ("engagement-letter", "engagement_letter")),
     ("fee", ("fee-proposal", "fee_proposal")),
+    (
+        "main_works",
+        ("building-proposal", "building_proposal", "fixed-price", "main-works"),
+    ),
     (
         "brief",
         (
@@ -542,6 +559,100 @@ def _project_source_texts(
     ]
 
 
+def _cost_evidence_documents(
+    passages: list[SourcePassage], *, project_id: uuid.UUID
+) -> list[CostEvidenceDocument]:
+    """Preserve whole-document proposal evidence for deterministic reconciliation."""
+    documents: list[CostEvidenceDocument] = []
+    seen: set[uuid.UUID] = set()
+    for passage in passages:
+        if not _is_project_passage(passage, project_id) or not passage.content.strip():
+            continue
+        if passage.document_id in seen:
+            continue
+        seen.add(passage.document_id)
+        documents.append(
+            CostEvidenceDocument(
+                id=passage.document_id,
+                filename=passage.filename,
+                relative_path=passage.relative_path,
+                content=passage.content,
+            )
+        )
+    return documents
+
+
+def _reconciliation_base(project: Project, pack) -> CostPlanState:
+    """Create a zero-valued taxonomy solely for proposal-to-row matching."""
+    from app.sitewise.cost_plan_lines import cost_plan_lines
+
+    items = [
+        CostItemInput(
+            item_key=f"scaffold:{line.cost_code}",
+            cost_code=line.cost_code,
+            category=line.category,
+            item=line.cost_item,
+            budget=0,
+            forecast=0,
+            basis=line.basis,
+        )
+        for line in cost_plan_lines(project, pack).lines
+    ]
+    return CostPlanState(
+        project_id=project.id,
+        version=1,
+        dependency_snapshot=DependencySnapshot(
+            profile_revision=max(project.profile_revision or 1, 1),
+            evidence_fingerprint="received-proposal-scaffold",
+            decision_set_revision=max(project.decision_set_revision or 1, 1),
+            runtime_version="received-proposal-reconciliation",
+        ),
+        items=items,
+    )
+
+
+def _apply_received_cost_proposals(
+    project: Project,
+    pack,
+    passages: list[SourcePassage],
+):
+    """Attach reconciled proposal rows to the deterministic cost-plan evidence pack."""
+    from app.sitewise.cost_plan_evidence import ReceivedCostProposal
+
+    documents = _cost_evidence_documents(passages, project_id=project.id)
+    reconciliation = build_cost_evidence_reconciliation(
+        _reconciliation_base(project, pack),
+        documents,
+    )
+    refs_by_document_id = {
+        passage.document_id: _source_ref(passage)
+        for passage in passages
+        if _is_project_passage(passage, project.id)
+    }
+    received = [
+        ReceivedCostProposal(
+            kind=proposal.kind,
+            supplier=proposal.supplier,
+            proposal_reference=proposal.proposal_reference,
+            total_ex_gst=f"{proposal.total_ex_gst:,.0f}",
+            evidence_ref=refs_by_document_id.get(
+                proposal.source_document_id,
+                f"project_evidence:{proposal.relative_path}",
+            ),
+        )
+        for proposal in reconciliation.received_proposals
+    ]
+    return (
+        pack.model_copy(
+            update={
+                "received_cost_proposals": received,
+                "reconciled_items": list(reconciliation.proposed_items),
+            }
+        ),
+        list(reconciliation.issues),
+    )
+
+
 def _money_variants(value: str | None) -> set[str]:
     if not value:
         return set()
@@ -808,11 +919,17 @@ async def save_cost_plan_workbook_artifact(
     typed_state: CostPlanState | None = None,
 ) -> dict:
     generated_at = datetime.now(UTC)
+    invoice_rows = await list_invoice_register_rows(
+        session,
+        project_id=project.id,
+        through_cost_plan_version=draft.version,
+    )
     workbook = build_cost_plan_workbook_for_export(
         project_title=project.title,
         markdown=markdown,
         version=draft.version,
         typed_state=typed_state,
+        invoice_rows=invoice_rows,
         generated_at=generated_at,
     )
     workspace_path = workbook_workspace_path(project, draft.version)
@@ -853,6 +970,7 @@ async def save_cost_plan_workbook_artifact(
         "content_hash": content_hash,
         "size_bytes": len(workbook.content),
         "row_count": workbook.row_count,
+        "invoice_row_count": len(invoice_rows),
         "cost_item_lookup_count": workbook.cost_item_lookup_count,
         "warnings": list(workbook.warnings),
         "generated_at": generated_at.isoformat(),
@@ -908,6 +1026,24 @@ async def run_create_cost_plan_hybrid(
 
     evidence_refs = _evidence_refs_from_passages(passages, project.id)
     pack = extract_cost_plan_evidence_pack(project_source_texts, evidence_refs)
+    pack, reconciliation_issues = _apply_received_cost_proposals(
+        project,
+        pack,
+        passages,
+    )
+    has_fixed_price_main_works = any(
+        "fixed-price building proposal" in passage.content.lower()
+        for passage in passages
+        if _is_project_passage(passage, project.id)
+    )
+    if has_fixed_price_main_works and not any(
+        proposal.kind == "main_works" for proposal in pack.received_cost_proposals
+    ):
+        details = "; ".join(reconciliation_issues) or "no reconciled proposal total"
+        raise WorkflowValidationError(
+            "Create Cost Plan could not reconcile the fixed-price main works proposal: "
+            + details
+        )
     trace.append(
         _trace(
             "extract",
@@ -915,6 +1051,9 @@ async def run_create_cost_plan_hybrid(
             "Extracted cost plan evidence pack.",
             gap_count=len(pack.gaps),
             owner_brief_on_file=pack.owner_brief_on_file,
+            received_proposal_count=len(pack.received_cost_proposals),
+            reconciled_item_count=len(pack.reconciled_items),
+            reconciliation_issues=reconciliation_issues or None,
         )
     )
 
