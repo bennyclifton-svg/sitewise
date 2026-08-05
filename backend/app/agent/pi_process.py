@@ -64,6 +64,10 @@ PI_MCP_DIRECT_TOOLS = (
     "replace_tender_quote_selection",
 )
 
+# Pi serializes complete tool results and terminal events as single JSONL records.
+# Keep bounded headroom above asyncio's 64 KiB default for document-heavy turns.
+PI_STREAM_READER_LIMIT_BYTES = 16 * 1024 * 1024
+
 
 class PiTurnError(Exception):
     pass
@@ -151,6 +155,7 @@ async def _default_spawn(*, argv: list[str], env: dict[str, str], cwd: str) -> _
             env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            limit=PI_STREAM_READER_LIMIT_BYTES,
             **subprocess_group_options(),
         )
     except NotImplementedError:

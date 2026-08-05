@@ -8,7 +8,9 @@ import pytest
 
 from app.agent.pi_process import (
     PiTurnError,
+    _default_spawn,
     _build_argv,
+    _iter_pi_stdout,
     pi_builtin_tools_flag,
     _prompt_file_arg,
     _write_pi_mcp_config,
@@ -70,6 +72,51 @@ def test_text_delta_from_pi_event_returns_assistant_text_delta() -> None:
 def test_text_delta_from_pi_event_ignores_non_text_events() -> None:
     line = '{"type":"tool_execution_start","toolName":"clerk_search_documents"}'
     assert text_delta_from_pi_event(line) is None
+
+
+def test_default_spawn_reads_large_terminal_event_after_text_delta(
+    monkeypatch, tmp_path: Path
+) -> None:
+    seen: dict[str, Any] = {}
+
+    async def fake_create_subprocess_exec(*argv: str, **kwargs: Any):
+        seen["limit"] = kwargs.get("limit")
+        reader = asyncio.StreamReader(limit=kwargs.get("limit", 2**16))
+        text_delta = json.dumps(
+            {
+                "type": "message_update",
+                "assistantMessageEvent": {
+                    "type": "text_delta",
+                    "delta": "final answer",
+                },
+            }
+        ).encode()
+        terminal_event = json.dumps(
+            {
+                "type": "agent_end",
+                "messages": [{"role": "toolResult", "content": "x" * (2**16)}],
+            }
+        ).encode()
+        reader.feed_data(text_delta + b"\n" + terminal_event + b"\n")
+        reader.feed_eof()
+
+        class FakeProcess:
+            stdout = reader
+            stderr = None
+
+        return FakeProcess()
+
+    monkeypatch.setattr(
+        "app.agent.pi_process.asyncio.create_subprocess_exec",
+        fake_create_subprocess_exec,
+    )
+
+    async def run_replay() -> list[str]:
+        process = await _default_spawn(argv=["pi"], env={}, cwd=str(tmp_path))
+        return [chunk async for chunk in _iter_pi_stdout(process.stdout)]
+
+    assert run_async(run_replay()) == ["final answer"]
+    assert seen["limit"] == 16 * 1024 * 1024
 
 
 def test_resolve_subprocess_binary_uses_shutil_which(monkeypatch) -> None:
