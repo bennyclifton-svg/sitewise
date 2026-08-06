@@ -6,7 +6,6 @@ import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-rout
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
-import { ChatRail } from "@/components/chat/ChatRail";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import {
@@ -91,6 +90,11 @@ const WorkspaceFilePanel = lazy(() =>
 const WorkspaceFolderPanel = lazy(() =>
   import("@/components/project/WorkspaceFolderPanel").then((module) => ({
     default: module.WorkspaceFolderPanel,
+  })),
+);
+const ChatRail = lazy(() =>
+  import("@/components/chat/ChatRail").then((module) => ({
+    default: module.ChatRail,
   })),
 );
 
@@ -1167,36 +1171,38 @@ export function ProjectCockpitPage() {
         />
       }
       chatPanel={
-        <ChatRail
-          layout="main"
-          collapsed={chatCollapsed}
-          onCollapsedChange={handleChatCollapsedChange}
-          thread={thread}
-          messages={messages}
-          chatRevision={chatRevision}
-          chatLoading={chatLoading}
-          chatError={chatError}
-          onRetry={() => setChatReloadToken((current) => current + 1)}
-          selectedCitationId={selectedCitationId}
-          onConversationUpdate={() => {
-            void Promise.allSettled([refreshMessages(), refreshChatThread()]);
-            projectEvents.pollNow();
-          }}
-          onResourceEvent={projectEvents.applyResource}
-          onDocumentSelectionEvent={(event) => {
-            if (event.projectId !== project.id) return;
-            setSelectedRepositoryEvidenceIds((current) =>
-              applyDocumentSelectionEvent(
-                current,
-                event,
-                evidence.map((item) => item.id),
-              ),
-            );
-          }}
-          onUserSubmit={promoteChatFromComposer}
-          selectedDocumentIds={selectedRepositoryDocumentIds}
-          onSelectCitation={handleSelectCitation}
-        />
+        <Suspense fallback={null}>
+          <ChatRail
+            layout="main"
+            collapsed={chatCollapsed}
+            onCollapsedChange={handleChatCollapsedChange}
+            thread={thread}
+            messages={messages}
+            chatRevision={chatRevision}
+            chatLoading={chatLoading}
+            chatError={chatError}
+            onRetry={() => setChatReloadToken((current) => current + 1)}
+            selectedCitationId={selectedCitationId}
+            onConversationUpdate={() => {
+              void Promise.allSettled([refreshMessages(), refreshChatThread()]);
+              projectEvents.pollNow();
+            }}
+            onResourceEvent={projectEvents.applyResource}
+            onDocumentSelectionEvent={(event) => {
+              if (event.projectId !== project.id) return;
+              setSelectedRepositoryEvidenceIds((current) =>
+                applyDocumentSelectionEvent(
+                  current,
+                  event,
+                  evidence.map((item) => item.id),
+                ),
+              );
+            }}
+            onUserSubmit={promoteChatFromComposer}
+            selectedDocumentIds={selectedRepositoryDocumentIds}
+            onSelectCitation={handleSelectCitation}
+          />
+        </Suspense>
       }
       repository={
         <DocumentRepositoryPanel

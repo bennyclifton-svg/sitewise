@@ -796,6 +796,14 @@ export function DocumentRepositoryPanel({
             </button>
           )}
         </div>
+        <button
+          type="button"
+          className="shrink-0 text-xs text-primary hover:underline disabled:text-muted-foreground"
+          disabled={isPreviewingRepairs || isUploading}
+          onClick={() => void handlePreviewExistingRepairs()}
+        >
+          {isPreviewingRepairs ? "Inspecting…" : "Review files"}
+        </button>
         {inboxCount && onRunSortFiles ? (
           <Button
             type="button"

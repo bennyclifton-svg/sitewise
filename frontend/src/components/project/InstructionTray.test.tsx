@@ -387,7 +387,7 @@ describe("SelectionInstructionCard", () => {
     expect(container.querySelector("[data-instruction-ui]")).not.toBeNull();
   });
 
-  it("paints on the opaque overlay token, never bg-background", () => {
+  it("paints on the Sitewise opaque overlay surface, never bg-background", () => {
     // The card floats over document text. `--background` is transparent inside
     // the dark cockpit panels, so bg-background would render it see-through.
     const { container } = render(
@@ -400,7 +400,8 @@ describe("SelectionInstructionCard", () => {
     );
 
     const card = container.querySelector("[role='dialog']")!;
-    expect(card).toHaveClass("bg-popover");
+    expect(card).toHaveClass("sw-surface");
+    expect(card).toHaveClass("sw-contact");
     expect(card.className).not.toMatch(/\bbg-background\b/);
   });
 });

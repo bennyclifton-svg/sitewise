@@ -310,7 +310,7 @@ export function DraftReviewPanel({
       // carrying their reason; anything that landed is dropped.
       const reseeded = trayItems
         .map((item, index) => ({ ...item, error: reasons.get(index) }))
-        .filter((item): item is InstructionItem => Boolean(item.error));
+        .filter((item): item is typeof item & { error: string } => Boolean(item.error));
       clearTray(loadedDraft.id, loadedDraft.version);
       writeTray(response.draft.id, response.draft.version, reseeded);
       dropStaleTrays(response.draft.id, response.draft.version);

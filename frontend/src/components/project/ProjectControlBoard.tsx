@@ -820,38 +820,36 @@ function WorkflowDetail({
               />
             ) : null}
 
-            <div className="sw-bounce-blue -m-2 p-2">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={onRunCreatePmp}
-                  disabled={isRunningWorkflow || !project.overlay_status.ready}
-                >
-                  <Play className="size-4" aria-hidden />
-                  Create PMP
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onRunUpdatePmp}
-                  disabled={
-                    isRunningWorkflow || !project.overlay_status.ready || !latestDraft
-                  }
-                >
-                  <RefreshCw className="size-4" aria-hidden />
-                  Update PMP
-                </Button>
-                <Suspense fallback={null}>
-                  <CopyContentButton
-                    loadContent={async () => {
-                      if (!latestDraft) return "";
-                      const fullDraft = await api.getProjectDraft(project.id, latestDraft.id);
-                      return fullDraft.content_markdown;
-                    }}
-                    label="Copy project management plan"
-                    disabled={!latestDraft}
-                    size="icon"
-                  />
-                </Suspense>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={onRunCreatePmp}
+                disabled={isRunningWorkflow || !project.overlay_status.ready}
+              >
+                <Play className="size-4" aria-hidden />
+                Create PMP
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onRunUpdatePmp}
+                disabled={
+                  isRunningWorkflow || !project.overlay_status.ready || !latestDraft
+                }
+              >
+                <RefreshCw className="size-4" aria-hidden />
+                Update PMP
+              </Button>
+              <Suspense fallback={null}>
+                <CopyContentButton
+                  loadContent={async () => {
+                    if (!latestDraft) return "";
+                    const fullDraft = await api.getProjectDraft(project.id, latestDraft.id);
+                    return fullDraft.content_markdown;
+                  }}
+                  label="Copy project management plan"
+                  disabled={!latestDraft}
+                  size="icon"
+                />
+              </Suspense>
             </div>
 
             {pmpPreview ? (
