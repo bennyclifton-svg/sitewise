@@ -1061,7 +1061,7 @@ export function DocumentRepositoryPanel({
                   return (
                     <tr
                       key={draft.id}
-                      className="cursor-pointer border-b border-l-2 border-l-[color-mix(in_oklch,var(--sw-beam)_50%,transparent)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] hover:text-foreground"
+                      className="sw-table-row sw-table-row--accent cursor-pointer border-b text-muted-foreground hover:text-foreground"
                       onClick={() => onOpenDraft?.(draft)}
                     >
                       <td className="truncate px-1 py-2 tabular-nums">-</td>
@@ -1103,9 +1103,8 @@ export function DocumentRepositoryPanel({
                   <tr
                     key={row.id}
                     className={cn(
-                      "cursor-pointer select-none border-b border-l-2 border-l-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground",
-                      highlighted &&
-                        "border-l-primary bg-primary/15 text-foreground hover:bg-primary/20",
+                      "sw-table-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
+                      highlighted && "sw-table-row--active",
                     )}
                     onClick={(event) => handleRowClick(event, row)}
                   >
@@ -1158,7 +1157,7 @@ export function DocumentRepositoryPanel({
               {pendingUploads.map((pending) => (
                 <tr
                   key={pending.id}
-                  className="animate-in fade-in border-b border-l-2 border-l-transparent text-muted-foreground duration-300"
+                  className="sw-table-row animate-in fade-in border-b text-muted-foreground duration-300"
                 >
                   <td className="px-1 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-7" aria-hidden />

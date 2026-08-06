@@ -93,7 +93,7 @@ export function DecisionControl({
 
   return (
     <div
-      className="my-4 rounded-md border bg-background p-4"
+      className="sw-specular my-4 p-4"
       data-decision-id={decision.id}
       data-evidenced={evidenced ? "true" : "false"}
     >
@@ -107,12 +107,18 @@ export function DecisionControl({
         <Badge
           variant="outline"
           className={cn(
-            "border-transparent",
+            "evidence-status-chip border-transparent",
             source === "user" || evidenced
               ? "bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)]"
               : "bg-[var(--decision-assumed-bg)] text-[var(--decision-assumed-text)]",
           )}
         >
+          <span
+            data-status-dot={
+              source === "user" || evidenced ? "positive" : "caution"
+            }
+            aria-hidden
+          />
           {badgeLabel}
         </Badge>
       </div>

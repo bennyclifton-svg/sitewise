@@ -151,7 +151,7 @@ function baseComponents(changedRanges: readonly MarkdownRange[]): Components {
     // `tr` is the addressable unit for a table, never `td`/`th` — renderEvidenceCell
     // replaces cell content with badges, so a cell's rendered text is not its source.
     tr: ({ children, node }) => (
-      <tr className="even:bg-muted/20" {...position(node)}>
+      <tr className="sw-table-row even:bg-muted/20" {...position(node)}>
         {children}
       </tr>
     ),
@@ -307,6 +307,7 @@ function renderEvidenceCell(children: ReactNode): ReactNode {
         variant="outline"
         className="evidence-status-chip border-transparent bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)]"
       >
+        <span data-status-dot="info" aria-hidden />
         {text}
       </Badge>
     );
@@ -321,6 +322,7 @@ function renderEvidenceCell(children: ReactNode): ReactNode {
         variant={evidenceBadgeVariant(match)}
         className={evidenceBadgeClassName(match)}
       >
+        <span data-status-dot={evidenceStatusDot(match)} aria-hidden />
         {match}
       </Badge>
       {text !== match ? <span>{text.replace(match, "").trim()}</span> : null}
@@ -328,12 +330,29 @@ function renderEvidenceCell(children: ReactNode): ReactNode {
   );
 }
 
-function evidenceBadgeVariant(status: (typeof EVIDENCE_STATUSES)[number]) {
+function evidenceBadgeVariant(_status: (typeof EVIDENCE_STATUSES)[number]) {
+  return "outline" as const;
+}
+
+function evidenceStatusDot(
+  status: (typeof EVIDENCE_STATUSES)[number],
+): "positive" | "caution" | "critical" | "info" | "quiet" {
   switch (status) {
+    case "Grounded":
+    case "User provided":
+      return "positive";
     case "Conflict":
-      return "destructive" as const;
+      return "critical";
+    case "Confirm":
+    case "Partial":
+    case "Assumption":
+    case "Gap":
+    case "Not evidenced":
+      return "caution";
+    case "Profile":
+      return "info";
     default:
-      return "outline" as const;
+      return "quiet";
   }
 }
 
@@ -347,9 +366,11 @@ function evidenceBadgeClassName(status: (typeof EVIDENCE_STATUSES)[number]): str
     case "Profile":
       return "evidence-status-chip border-transparent bg-[var(--decision-assumed-bg)] text-[var(--decision-assumed-text)]";
     case "Confirm":
+    case "Gap":
+    case "Not evidenced":
       return "evidence-status-chip border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)]";
     case "Conflict":
-      return "evidence-status-chip";
+      return "evidence-status-chip border-[color-mix(in_oklch,var(--sw-critical)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-critical)_14%,transparent)] text-[var(--sw-critical)]";
     default:
       return "evidence-status-chip";
   }

@@ -16,11 +16,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "border-transparent bg-[var(--sw-facet-blue-hex)] text-white shadow-[0_12px_40px_-10px_rgba(47,114,196,0.42)] hover:-translate-y-0.5 hover:bg-[#4A87D2] hover:shadow-[0_16px_48px_-8px_rgba(74,135,210,0.62)]",
+          "border-t-[rgba(255,255,255,0.3)] bg-[var(--sw-facet-blue-hex)] text-white shadow-[0_12px_40px_-10px_rgba(47,114,196,0.42)] hover:-translate-y-0.5 hover:bg-[#4A87D2] hover:shadow-[0_16px_48px_-8px_rgba(74,135,210,0.62)]",
         outline:
-          "border-[#33353B] bg-[var(--sw-void-hex)] text-[var(--sw-text-primary)] hover:border-[var(--sw-beam-hex)] hover:bg-[color-mix(in_oklch,var(--sw-panel)_88%,white)] hover:text-[var(--sw-beam-hex)] aria-expanded:border-[var(--sw-beam-hex)] aria-expanded:text-[var(--sw-beam-hex)]",
+          "border-[var(--sw-edge-side)] border-t-[var(--sw-edge-lit)] border-b-[var(--sw-edge-shade)] bg-[var(--sw-void-hex)] text-[var(--sw-text-primary)] hover:border-[var(--sw-beam-hex)] hover:bg-[color-mix(in_oklch,var(--sw-panel)_88%,white)] hover:text-[var(--sw-beam-hex)] aria-expanded:border-[var(--sw-beam-hex)] aria-expanded:text-[var(--sw-beam-hex)]",
         secondary:
-          "border-[#33353B] bg-[var(--sw-void-hex)] text-[var(--sw-text-primary)] hover:border-[var(--sw-beam-hex)] hover:bg-[color-mix(in_oklch,var(--sw-panel)_88%,white)] hover:text-[var(--sw-beam-hex)] aria-expanded:border-[var(--sw-beam-hex)] aria-expanded:text-[var(--sw-beam-hex)]",
+          "border-[var(--sw-edge-side)] border-t-[var(--sw-edge-lit)] border-b-[var(--sw-edge-shade)] bg-[var(--sw-void-hex)] text-[var(--sw-text-primary)] hover:border-[var(--sw-beam-hex)] hover:bg-[color-mix(in_oklch,var(--sw-panel)_88%,white)] hover:text-[var(--sw-beam-hex)] aria-expanded:border-[var(--sw-beam-hex)] aria-expanded:text-[var(--sw-beam-hex)]",
         ghost:
           "border-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         destructive:

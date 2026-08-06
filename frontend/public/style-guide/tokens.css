@@ -45,13 +45,16 @@
   /* ---------------------------------------------------------------
      TYPOGRAPHY
      Primary is a neo-grotesque. Söhne is the specified face; Hanken
-     Grotesk is the open-licence substitute currently in use. Labels and
-     all numeric/data display use the mono.
+     Grotesk is the open-licence substitute currently in use. Display
+     (landing headlines, brand word, cockpit project title) uses Expose.
+     Labels and all numeric/data display use the mono.
      --------------------------------------------------------------- */
   --sw-font-sans: 'Söhne', 'Hanken Grotesk', Helvetica, Arial, sans-serif;
   --sw-font-mono: 'Söhne Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --sw-font-display: 'Expose', 'Hanken Grotesk', Helvetica, Arial, sans-serif;
 
-  --sw-weight-display: 200;
+  /* Expose's axis floor is 400; body/UI weights stay on Hanken. */
+  --sw-weight-display: 400;
   --sw-weight-body:    300;
   --sw-weight-medium:  400;
   --sw-weight-strong:  500;

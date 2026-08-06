@@ -110,6 +110,16 @@
               transform var(--sw-dur-state) var(--sw-ease-state);
 }
 
+/* In-flow raised chrome: specular edge only — no contact, no lift. */
+.sw-specular {
+  background: var(--sw-surface-raised);
+  border: 1px solid var(--sw-edge-side);
+  border-top-color: var(--sw-edge-lit);
+  border-bottom-color: var(--sw-edge-shade);
+  border-radius: var(--sw-radius);
+  box-shadow: none;
+}
+
 /* Two elevation levels only. Raised gets a brighter top edge — the
    shadow does not grow. */
 .sw-surface--raised {

@@ -91,6 +91,7 @@
 
   --font-sans: var(--sw-font-sans);
   --font-mono: var(--sw-font-mono);
+  --font-display: var(--sw-font-display);
   --fs-micro: var(--sw-type-label-size);
   --fs-body: 15px;
   --tr-label: var(--sw-type-label-track);
@@ -108,6 +109,7 @@ html.sw-atmosphere-dense {
 @theme inline {
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  --font-display: var(--font-display);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -775,4 +777,72 @@ html.sw-atmosphere-dense {
   border-top-color: var(--sw-edge-lit-raised);
   color: var(--sw-bone);
   background: color-mix(in oklch, var(--sw-panel) 88%, white);
+}
+
+/* Dense schedule / draft table rows — soft hover + left accent, no lift */
+.sw-table-row {
+  border-left: 2px solid transparent;
+  transition:
+    background-color var(--sw-dur-state) var(--sw-ease-state),
+    border-left-color var(--sw-dur-state) var(--sw-ease-state),
+    color var(--sw-dur-state) var(--sw-ease-state);
+}
+
+.sw-table-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-left-color: color-mix(in oklch, var(--sw-facet-blue) 70%, transparent);
+}
+
+.sw-table-row--active {
+  border-left-color: var(--sw-facet-blue);
+  background: color-mix(in oklch, var(--sw-facet-blue) 15%, transparent);
+  color: var(--sw-text-primary);
+}
+
+.sw-table-row--active:hover {
+  background: color-mix(in oklch, var(--sw-facet-blue) 20%, transparent);
+}
+
+.sw-table-row--accent {
+  border-left-color: color-mix(in oklch, var(--sw-beam) 50%, transparent);
+}
+
+.sw-table-row--accent:hover {
+  background: color-mix(in oklch, var(--sw-beam) 10%, transparent);
+}
+
+/* Evidence / conflict status chips — square chip + LED dot */
+.evidence-status-chip {
+  gap: 0.375rem;
+}
+
+.evidence-status-chip [data-status-dot] {
+  width: 0.375rem;
+  height: 0.375rem;
+  flex-shrink: 0;
+  border-radius: var(--sw-radius-round, 9999px);
+}
+
+.evidence-status-chip [data-status-dot="positive"] {
+  background: var(--sw-positive);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--sw-positive) 35%, transparent);
+}
+
+.evidence-status-chip [data-status-dot="caution"] {
+  background: var(--sw-caution);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--sw-caution) 35%, transparent);
+}
+
+.evidence-status-chip [data-status-dot="critical"] {
+  background: var(--sw-critical);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--sw-critical) 40%, transparent);
+}
+
+.evidence-status-chip [data-status-dot="info"] {
+  background: var(--sw-beam);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--sw-beam) 35%, transparent);
+}
+
+.evidence-status-chip [data-status-dot="quiet"] {
+  background: var(--sw-text-quiet);
 }

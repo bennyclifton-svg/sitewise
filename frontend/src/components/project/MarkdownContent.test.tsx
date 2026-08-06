@@ -59,13 +59,33 @@ describe("MarkdownContent", () => {
 | --- | --- | --- |
 | Site | 88 Westgate Street | [2] |
 | State | NSW | Profile |
-| Budget | TBC | Confirm |`}
+| Budget | TBC | Confirm |
+| Risk | Clash | Conflict |`}
       />,
     );
 
-    expect(screen.getByText("[2]")).toHaveClass("evidence-status-chip");
-    expect(screen.getByText("Profile")).toHaveClass("evidence-status-chip");
-    expect(screen.getByText("Confirm")).toHaveClass("evidence-status-chip");
+    const citation = screen.getByText("[2]");
+    const profile = screen.getByText("Profile");
+    const confirm = screen.getByText("Confirm");
+    const conflict = screen.getByText("Conflict");
+
+    expect(citation).toHaveClass("evidence-status-chip");
+    expect(profile).toHaveClass("evidence-status-chip");
+    expect(confirm).toHaveClass("evidence-status-chip");
+    expect(conflict).toHaveClass("evidence-status-chip");
+    expect(citation.querySelector("[data-status-dot='info']")).toBeTruthy();
+    expect(profile.querySelector("[data-status-dot='info']")).toBeTruthy();
+    expect(confirm.querySelector("[data-status-dot='caution']")).toBeTruthy();
+    expect(conflict.querySelector("[data-status-dot='critical']")).toBeTruthy();
+  });
+
+  it("marks grounded evidence chips with a positive status dot", () => {
+    render(
+      <MarkdownContent markdown={MARKDOWN} projectId="project-1" version={2} />,
+    );
+    const grounded = screen.getByText("Grounded");
+    expect(grounded).toHaveClass("evidence-status-chip");
+    expect(grounded.querySelector("[data-status-dot='positive']")).toBeTruthy();
   });
 
   it("stamps source offsets on block elements that slice back to the markdown", () => {

@@ -39,7 +39,10 @@ describe("DecisionControl", () => {
 
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(5);
-    expect(screen.getByText("AI selection")).toBeInTheDocument();
+    const badge = screen.getByText("AI selection");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveClass("evidence-status-chip");
+    expect(badge.querySelector("[data-status-dot='caution']")).toBeTruthy();
   });
 
   it("marks evidenced agent selections and saves a new selection", async () => {

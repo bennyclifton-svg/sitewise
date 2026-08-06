@@ -1,0 +1,11 @@
+/* Expose — display face (Fontshare / Indian Type Foundry, FFL).
+   Self-hosted under /style-guide/fonts/expose/. */
+
+@font-face {
+  font-family: "Expose";
+  src: url("./fonts/expose/Expose-Variable.woff2") format("woff2-variations"),
+    url("./fonts/expose/Expose-Variable.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
