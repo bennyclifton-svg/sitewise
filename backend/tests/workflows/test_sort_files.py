@@ -1,11 +1,17 @@
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.database.workspace_file import WorkspaceFile
-from app.intake.sort_service import SortFilesResult, _move_workspace_file, sort_inbox_files
+from app.intake.sort_service import (
+    SortFilesResult,
+    _move_workspace_file,
+    _resolve_destination_filename,
+    sort_inbox_files,
+)
 from app.workflows.sort_files import run_sort_files_workflow
 from tests.conftest import run_async
 
@@ -305,6 +311,84 @@ def test_move_workspace_file_purges_old_source_document_id() -> None:
     purge.assert_called_once_with(source.workspace_path, PROJECT_ID, old_source_document_id)
     session.delete.assert_awaited_once_with(source)
     session.flush.assert_awaited_once()
+
+
+def test_split_schedule_identity_controls_sorted_filename() -> None:
+    result = run_async(
+        _resolve_destination_filename(
+            source_path="04-projects/greenfield-demo/_inbox/sheet.pdf",
+            destination_folder="03-design/landscape-architect",
+            filename="Landscape Design - 03 Landscape [D].pdf",
+            project=_project(),
+            preview_snippet="Drawing Title DETAILS\nRevision D",
+            document_metadata={
+                "split_from": "Landscape Design [D].pdf",
+                "split_method": "drawing_schedule_v1",
+                "document_number": "LPCC 23 - 226 / 3",
+                "title": "Section & Details",
+                "revision": "D",
+            },
+        )
+    )
+
+    assert result == "LPCC 23 - 226 - 3 - Section & Details Rev D.pdf"
+
+
+def test_move_workspace_file_preserves_split_identity_after_reingest() -> None:
+    session = AsyncMock()
+    old_source_document_id = uuid.uuid4()
+    new_source_document_id = uuid.uuid4()
+    source = _workspace_file(source_document_id=old_source_document_id)
+    moved_record = _workspace_file(
+        workspace_path="04-projects/greenfield-demo/03-design/landscape-architect/sheet.pdf",
+        filename="sheet.pdf",
+        source_document_id=new_source_document_id,
+    )
+    old_document = SimpleNamespace(
+        document_metadata={
+            "split_from": "Landscape Design [D].pdf",
+            "split_method": "drawing_schedule_v1",
+            "document_number": "LPCC 23 - 226 / 3",
+            "title": "Section & Details",
+            "revision": "D",
+        }
+    )
+    new_document = SimpleNamespace(
+        document_metadata={
+            "document_number": "LPCC 23 - 226 / 3",
+            "title": "Details",
+            "revision": "D",
+        }
+    )
+    session.get.side_effect = [old_document, new_document]
+
+    with (
+        patch("app.intake.sort_service.download_project_file", return_value=b"content"),
+        patch("app.intake.sort_service.upload_project_file"),
+        patch("app.intake.sort_service.delete_project_files"),
+        patch("app.intake.sort_service._purge_source_document"),
+        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=new_source_document_id,
+        ),
+        patch(
+            "app.intake.sort_service.upsert_workspace_file",
+            new=AsyncMock(return_value=moved_record),
+        ),
+    ):
+        run_async(
+            _move_workspace_file(
+                session,
+                project=_project(),
+                record=source,
+                destination_workspace_path=moved_record.workspace_path,
+                destination_filename=moved_record.filename,
+            )
+        )
+
+    assert new_document.document_metadata["title"] == "Section & Details"
+    assert new_document.document_metadata["split_from"] == "Landscape Design [D].pdf"
 
 
 def test_move_workspace_file_deletes_source_blob_only_after_commit() -> None:

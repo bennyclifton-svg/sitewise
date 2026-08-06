@@ -47,6 +47,42 @@ class AnalyzeResult:
     pages: list[SheetProposal]
 
 
+def _split_metadata(
+    plan: SheetPlan,
+    *,
+    source_filename: str,
+    source_hash: str,
+    sheet_total: int,
+) -> dict[str, object]:
+    metadata: dict[str, object] = {
+        "split_from": source_filename,
+        "split_source_hash": source_hash,
+        "sheet_index": plan.index,
+        "sheet_total": sheet_total,
+        "sheet_number_label": plan.sheet_number_label,
+        "sheet_scale": plan.scale,
+        "split_method": plan.title_method,
+        "split_proposed_title": plan.title,
+        "title": plan.title,
+    }
+    if plan.document_number:
+        metadata.update(
+            {
+                "document_number": plan.document_number,
+                "drawing_number": plan.document_number,
+                "split_document_number_method": plan.document_number_method,
+            }
+        )
+    if plan.revision:
+        metadata.update(
+            {
+                "revision": plan.revision,
+                "split_revision_method": plan.revision_method,
+            }
+        )
+    return {key: value for key, value in metadata.items() if value is not None}
+
+
 def _staging_storage_key(project_id: uuid.UUID, staging_id: str) -> str:
     return f"{project_id}/_staging/{staging_id}.pdf"
 
@@ -106,16 +142,12 @@ async def _attach_split_provenance(
     for outcome, plan in zip(outcomes, sheet_plans, strict=True):
         if outcome.ingest_status not in _SUCCESS_STATUSES:
             continue
-        provenance = {
-            "split_from": source_filename,
-            "split_source_hash": source_hash,
-            "sheet_index": plan.index,
-            "sheet_total": len(sheet_plans),
-            "sheet_number_label": plan.sheet_number_label,
-            "sheet_scale": plan.scale,
-            "split_method": "heuristic_v1",
-            "title": plan.title,
-        }
+        provenance = _split_metadata(
+            plan,
+            source_filename=source_filename,
+            source_hash=source_hash,
+            sheet_total=len(sheet_plans),
+        )
         doc = await session.scalar(
             select(SourceDocument).where(
                 SourceDocument.project_id == project_id,
@@ -149,16 +181,12 @@ async def split_staged_pdf(
         InboxUploadItem(
             filename=plan.filename,
             content=blob,
-            ingest_metadata={
-                "split_from": source_filename,
-                "split_source_hash": source_hash,
-                "sheet_index": plan.index,
-                "sheet_total": len(sheet_plans),
-                "sheet_number_label": plan.sheet_number_label,
-                "sheet_scale": plan.scale,
-                "split_method": "heuristic_v1",
-                "title": plan.title,
-            },
+            ingest_metadata=_split_metadata(
+                plan,
+                source_filename=source_filename,
+                source_hash=source_hash,
+                sheet_total=len(sheet_plans),
+            ),
         )
         for plan, blob in zip(sheet_plans, page_blobs)
     ]

@@ -50,7 +50,7 @@ _LABELS: dict[str, tuple[str, ...]] = {
         "DRAWING/SKETCH NO", "SKETCH NO", "SHEET NUMBER", "SHEET NO",
         "DOCUMENT NO", "DOCUMENT NUMBER", "DWG NO", "DRG NO",
     ),
-    "title": ("DRAWING TITLE", "SHEET TITLE", "DOCUMENT TITLE"),
+    "title": ("DRAWING TITLE", "SHEET TITLE", "DOCUMENT TITLE", "TITLE"),
     "revision": ("REV", "REVISION", "ISSUE", "AMENDMENT", "VERSION"),
 }
 
@@ -83,10 +83,12 @@ _REVISION_TOKEN_RE = re.compile(r"^[A-Z0-9]{1,4}$")
 # no next label exists.
 _MAX_ROW_GAP = 220.0
 _MAX_STACK_GAP = 90.0
+_REGULATED_RECORD_LABEL_GAP = 140.0
 
 
 def _normalize_label(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip().rstrip(":.#").strip().upper()
+    without_periods = re.sub(r"\.+", " ", text)
+    return re.sub(r"\s+", " ", without_periods).strip().rstrip(":#").strip().upper()
 
 
 def _field_for_label(text: str) -> tuple[str, int] | None:
@@ -105,6 +107,25 @@ def _is_label(span: TextSpan) -> bool:
     if text.endswith(":"):
         return True
     return _normalize_label(text) in _ALL_LABELS
+
+
+def _is_regulated_record_label(label: TextSpan, spans: Sequence[TextSpan]) -> bool:
+    """Exclude the identity-looking fields inside a statutory design stamp."""
+    for anchor in spans:
+        if _normalize_label(anchor.text) != "REGULATED DESIGN RECORD":
+            continue
+        vertical_gap = label.y0 - anchor.y1
+        horizontal_gap = max(
+            anchor.x0 - label.x1,
+            label.x0 - anchor.x1,
+            0.0,
+        )
+        if (
+            -10.0 <= vertical_gap <= _REGULATED_RECORD_LABEL_GAP
+            and horizontal_gap <= _REGULATED_RECORD_LABEL_GAP
+        ):
+            return True
+    return False
 
 
 def _shares_row(label: TextSpan, other: TextSpan) -> bool:
@@ -141,13 +162,9 @@ def _cell_right_edge(label: TextSpan, spans: Sequence[TextSpan]) -> float:
     return min(edges) if edges else float("inf")
 
 
-def _overlaps_columns(label: TextSpan, other: TextSpan) -> bool:
-    return other.x0 < label.x1 and other.x1 > label.x0
-
-
 def _values_below(label: TextSpan, spans: Sequence[TextSpan]) -> list[tuple[float, str]]:
     right_edge = _cell_right_edge(label, spans)
-    found: list[tuple[float, str]] = []
+    found: list[TextSpan] = []
     for span in spans:
         if span is label or _is_label(span):
             continue
@@ -156,12 +173,28 @@ def _values_below(label: TextSpan, spans: Sequence[TextSpan]) -> list[tuple[floa
             continue
         if span.x0 < label.x0 - 4.0 or span.x0 >= right_edge:
             continue
-        # A big sheet number can sit anywhere inside its cell, but without a next
-        # label to bound that cell, only a value under the label itself is safe.
-        if right_edge == float("inf") and not _overlaps_columns(label, span):
+        # Without a next label, cap the open-ended cell instead of requiring
+        # every fragment to overlap the narrow label. CAD commonly emits the
+        # final digit of a drawing number as a separate span to its right.
+        if right_edge == float("inf") and span.x0 - label.x1 > _MAX_ROW_GAP:
             continue
-        found.append((gap, span.text.strip()))
-    return sorted(found, key=lambda item: item[0])
+        found.append(span)
+
+    rows: list[list[TextSpan]] = []
+    for span in sorted(found, key=lambda item: (item.y0, item.x0)):
+        row = next((row for row in rows if _shares_row(row[0], span)), None)
+        if row is None:
+            rows.append([span])
+        else:
+            row.append(span)
+
+    values: list[tuple[float, str]] = []
+    for row in rows:
+        ordered = sorted(row, key=lambda item: item.x0)
+        text = " ".join(dict.fromkeys(item.text.strip() for item in ordered))
+        gap = min(item.y0 for item in ordered) - label.y1
+        values.append((gap, text))
+    return sorted(values, key=lambda item: item[0])
 
 
 def _clean(value: str) -> str:
@@ -177,7 +210,9 @@ def _resolve_title(candidates: Iterable[str]) -> str | None:
 
 
 def _resolve_revision(candidates: Iterable[str]) -> str | None:
-    for candidate in candidates:
+    # Revision tables conventionally append the current issue as the last row.
+    # Walking bottom-up avoids reading the first historical issue (usually A).
+    for candidate in reversed(list(candidates)):
         # Issue cells often stack "C1 / CONSTRUCTION ISSUE / 06.11.2023".
         first_line = _clean(candidate.splitlines()[0] if candidate else "")
         token = first_line.split(" ")[0] if first_line else ""
@@ -206,6 +241,8 @@ def extract_title_block_fields(spans: Sequence[TextSpan]) -> TitleBlockFields:
         matched = _field_for_label(span.text)
         if matched is None:
             continue
+        if _is_regulated_record_label(span, spans):
+            continue
         field, alias_rank = matched
         beside = _value_right_of(span, spans)
         if beside is not None:
@@ -217,6 +254,20 @@ def extract_title_block_fields(spans: Sequence[TextSpan]) -> TitleBlockFields:
         field: [text for _, _, _, text in sorted(entries, key=lambda item: item[:3])]
         for field, entries in candidates.items()
     }
+    revision_entries = candidates["revision"]
+    if revision_entries:
+        best_revision_alias = min(entry[0] for entry in revision_entries)
+        ordered["revision"] = [
+            text
+            for _, _, _, text in sorted(
+                (
+                    entry
+                    for entry in revision_entries
+                    if entry[0] == best_revision_alias
+                ),
+                key=lambda item: item[:3],
+            )
+        ]
     return TitleBlockFields(
         document_number=_resolve_document_number(ordered["document_number"]),
         title=_resolve_title(ordered["title"]),

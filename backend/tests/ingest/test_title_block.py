@@ -104,6 +104,51 @@ def test_returns_empty_fields_when_no_labels_are_present():
     assert fields.revision is None
 
 
+def test_ignores_identity_labels_inside_a_regulated_design_record_stamp():
+    fields = extract_title_block_fields(
+        [
+            TextSpan(
+                x0=163,
+                y0=78,
+                x1=281,
+                y1=87,
+                text="Regulated Design Record",
+            ),
+            TextSpan(x0=53, y0=146, x1=113, y1=156, text="Drawing Title:"),
+            TextSpan(x0=216, y0=146, x1=270, y1=156, text="Drawing No:"),
+            TextSpan(x0=54, y0=166, x1=72, y1=176, text="Rev"),
+            TextSpan(x0=53, y0=168, x1=96, y1=178, text="dd.mm.yy"),
+            TextSpan(x0=216, y0=186, x1=280, y1=196, text="XIAOGUANG GU"),
+            TextSpan(x0=54, y0=186, x1=68, y1=196, text="01"),
+        ]
+    )
+
+    assert fields.document_number is None
+    assert fields.title is None
+    assert fields.revision is None
+
+
+def test_reads_consultant_title_block_with_generic_title_fragmented_number_and_revision_table():
+    fields = extract_title_block_fields(
+        [
+            TextSpan(x0=483, y0=742, x1=497, y1=749, text="REV"),
+            TextSpan(x0=925, y0=743, x1=937, y1=747, text="TITLE:"),
+            TextSpan(x0=1082, y0=743, x1=1099, y1=747, text="DWG.No:"),
+            TextSpan(x0=933, y0=751, x1=1034, y1=763, text="HARDSCAPE PLAN"),
+            TextSpan(x0=487, y0=752, x1=492, y1=759, text="A"),
+            TextSpan(x0=1095, y0=752, x1=1146, y1=760, text="LPCC 23 - 226 /"),
+            TextSpan(x0=1147, y0=752, x1=1151, y1=760, text="1"),
+            TextSpan(x0=487, y0=762, x1=492, y1=769, text="B"),
+            TextSpan(x0=487, y0=771, x1=492, y1=778, text="C"),
+            TextSpan(x0=487, y0=781, x1=492, y1=788, text="D"),
+        ]
+    )
+
+    assert fields.document_number == "LPCC 23 - 226 / 1"
+    assert fields.title == "HARDSCAPE PLAN"
+    assert fields.revision == "D"
+
+
 def _rotated_sheet_pdf() -> bytes:
     """A 90-degree rotated sheet, as CAD tools commonly export.
 

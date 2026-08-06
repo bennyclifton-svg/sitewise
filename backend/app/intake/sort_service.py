@@ -79,6 +79,17 @@ def _extension(filename: str) -> str:
 
 
 _PREVIEW_BYTE_LIMIT = 4096
+_TRUSTED_SPLIT_IDENTITY_METHODS = {"drawing_schedule_v1", "title_block_v1"}
+_SPLIT_IDENTITY_KEYS = {
+    "document_number",
+    "drawing_number",
+    "revision",
+    "sheet_index",
+    "sheet_number_label",
+    "sheet_scale",
+    "sheet_total",
+    "title",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,10 +272,25 @@ async def _resolve_destination_filename(
     filename: str,
     project: Project,
     preview_snippet: str | None = None,
+    document_metadata: dict[str, object] | None = None,
 ) -> str:
     filed_path = _destination_workspace_path(project, destination_folder, filename)
+    parse_filename = filename
+    split_method = (document_metadata or {}).get("split_method")
+    if split_method in _TRUSTED_SPLIT_IDENTITY_METHODS:
+        title = (document_metadata or {}).get("title")
+        document_number = (document_metadata or {}).get("document_number")
+        revision = (document_metadata or {}).get("revision")
+        if isinstance(title, str) and title.strip():
+            identity_lines = [f"Drawing Title {title.strip()}"]
+            if isinstance(document_number, str) and document_number.strip():
+                identity_lines.insert(0, f"Drawing No. {document_number.strip()}")
+            if isinstance(revision, str) and revision.strip():
+                identity_lines.append(f"Revision {revision.strip()}")
+            preview_snippet = "\n".join(identity_lines)
+            parse_filename = f"split-sheet{_extension(filename)}"
     parsed = parse_document_metadata(
-        file_name=filename,
+        file_name=parse_filename,
         filed_path=filed_path,
         source_path=source_path,
         preview_snippet=preview_snippet,
@@ -272,6 +298,16 @@ async def _resolve_destination_filename(
     if parsed.confidence == "low":
         return filename
     return parsed.canonical_file_name
+
+
+def _split_metadata_to_preserve(metadata: object) -> dict[str, object]:
+    if not isinstance(metadata, dict) or not metadata.get("split_from"):
+        return {}
+    return {
+        key: value
+        for key, value in metadata.items()
+        if key.startswith("split_") or key in _SPLIT_IDENTITY_KEYS
+    }
 
 
 async def _move_workspace_file(
@@ -287,6 +323,13 @@ async def _move_workspace_file(
     if not destination_workspace_path.endswith(destination_filename):
         folder = destination_workspace_path.rsplit("/", maxsplit=1)[0]
         destination_workspace_path = f"{folder}/{destination_filename}"
+
+    preserved_metadata: dict[str, object] = {}
+    if record.source_document_id is not None:
+        source_document = await session.get(SourceDocument, record.source_document_id)
+        preserved_metadata = _split_metadata_to_preserve(
+            getattr(source_document, "document_metadata", None)
+        )
 
     content = await asyncio.to_thread(
         download_project_file,
@@ -327,6 +370,14 @@ async def _move_workspace_file(
         destination_workspace_path,
         project_id=project.id,
     )
+    if source_doc_id is not None and preserved_metadata:
+        destination_document = await session.get(SourceDocument, source_doc_id)
+        current_metadata = getattr(destination_document, "document_metadata", None)
+        if isinstance(current_metadata, dict):
+            destination_document.document_metadata = {
+                **current_metadata,
+                **preserved_metadata,
+            }
 
     moved = await upsert_workspace_file(
         session,
@@ -430,12 +481,21 @@ async def sort_inbox_files(
             result.counts.unresolved += 1
             continue
 
+        source_document = (
+            await session.get(SourceDocument, record.source_document_id)
+            if record.source_document_id is not None
+            else None
+        )
+        document_metadata = getattr(source_document, "document_metadata", None)
         destination_filename = await _resolve_destination_filename(
             source_path=record.workspace_path,
             destination_folder=destination_folder,
             filename=record.filename,
             project=project,
             preview_snippet=previews.for_identity,
+            document_metadata=(
+                document_metadata if isinstance(document_metadata, dict) else None
+            ),
         )
         destination_path = _destination_workspace_path(
             project,

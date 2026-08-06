@@ -93,6 +93,67 @@ def test_split_staged_pdf_ingests_each_sheet_and_deletes_staging():
     run_async(_run())
 
 
+def test_split_staged_pdf_passes_recovered_sheet_identity_to_ingest():
+    from app.inbox.service import InboxUploadOutcome
+    from app.inbox.split_service import split_staged_pdf
+
+    data = _make_pdf([
+        (
+            1191,
+            842,
+            "DRAWING LIST\n"
+            "M01  MECHANICAL SERVICES - GENERAL NOTES\n"
+            "M02  MECHANICAL SERVICES - EQUIPMENT SCHEDULE",
+        ),
+        (1191, 842, "EQUIPMENT SCHEDULE"),
+    ])
+    project = _project()
+    captured_items = []
+
+    async def fake_upload(session, *, project, items, user_id, snapshot):
+        captured_items.extend(items)
+        return [
+            InboxUploadOutcome(
+                id=uuid.uuid4(),
+                filename=item.filename,
+                workspace_path=f"{project.workspace_path}/_inbox/{item.filename}",
+                content_hash="h",
+                size_bytes=len(item.content),
+                ingest_status="queued",
+                message="ok",
+            )
+            for item in items
+        ]
+
+    async def _run():
+        with (
+            patch("app.inbox.split_service.download_project_file", return_value=data),
+            patch("app.inbox.split_service.upload_inbox_files", side_effect=fake_upload),
+            patch("app.inbox.split_service.delete_project_file"),
+            patch("app.inbox.split_service._attach_split_provenance", new=AsyncMock()),
+        ):
+            await split_staged_pdf(
+                AsyncMock(),
+                project=project,
+                staging_id="abc123",
+                source_filename="Mechanical Design & Spec [C].pdf",
+                user_id=project.owner_user_id,
+                snapshot=object(),
+            )
+
+    run_async(_run())
+
+    assert [item.ingest_metadata["document_number"] for item in captured_items] == [
+        "M01",
+        "M02",
+    ]
+    assert [item.ingest_metadata["drawing_number"] for item in captured_items] == [
+        "M01",
+        "M02",
+    ]
+    assert [item.ingest_metadata["revision"] for item in captured_items] == ["C", "C"]
+
+
 def test_split_staged_pdf_keeps_staging_when_all_fail():
     from app.inbox.service import InboxUploadOutcome
     from app.inbox.split_service import split_staged_pdf
