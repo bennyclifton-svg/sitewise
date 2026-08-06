@@ -131,24 +131,25 @@ export function sourceTypeStyle(sourceType: SourceType): SourceTypeStyle {
       return {
         label: "Project evidence",
         chipClassName:
-          "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-100",
-        panelClassName: "border-sky-200 bg-sky-50/60 dark:border-sky-900/60 dark:bg-sky-950/30",
+          "border-[color-mix(in_oklch,var(--sw-beam)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_22%,transparent)]",
+        panelClassName:
+          "border-[color-mix(in_oklch,var(--sw-beam)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)]",
       };
     case "doctrine":
       return {
         label: "Doctrine",
         chipClassName:
-          "border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/50 dark:text-violet-100",
+          "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-facet-blue)_28%,transparent)]",
         panelClassName:
-          "border-violet-200 bg-violet-50/60 dark:border-violet-900/60 dark:bg-violet-950/30",
+          "border-[color-mix(in_oklch,var(--sw-facet-blue)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_12%,transparent)]",
       };
     case "reference":
       return {
         label: "Reference",
         chipClassName:
-          "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100",
+          "border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]",
         panelClassName:
-          "border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/30",
+          "border-[color-mix(in_oklch,var(--sw-caution)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_10%,transparent)]",
       };
     default:
       return {

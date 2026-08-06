@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Sitewise">
+  <title>Sitewise mark — solid</title>
+  <desc>Filled variant for small sizes. The open corner is retained as a cut, but the glazed and roof planes are flattened to two tones so the silhouette survives below 48px.</desc>
+
+  <path d="M120 13.86 L211.92 66.93 L120 120 L28.08 66.93 Z" fill="#2C3037"></path>
+
+  <path d="M120 120 L28.08 173.07 L120 226.14 Z" fill="#D6D6D0"></path>
+
+  <path d="M120 120 L211.92 66.93 L211.92 173.07 L120 226.14 Z" fill="#2F72C4"></path>
+</svg>

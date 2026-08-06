@@ -196,101 +196,7 @@ describe("DocumentRepositoryPanel pending uploads", () => {
     expect(api.uploadInboxFiles).not.toHaveBeenCalled();
   });
 
-  it("previews repairs for existing files without applying them", async () => {
-    vi.mocked(api.previewExistingDocumentRepairs).mockResolvedValue({
-      inspected: 1,
-      changes: 1,
-      needs_review: 0,
-      conflicts: 0,
-      unchanged: 0,
-      rows: [
-        {
-          status: "change",
-          current_path: "04-projects/demo/03-design/architect/HY-SK~1.PDF",
-          current_filename: "HY-SK~1.PDF",
-          proposed_path:
-            "04-projects/demo/03-design/hydraulic/HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF",
-          proposed_filename: "HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF",
-          document_number: "HY-SK-06",
-          title: "ROOF DRAINAGE PLAN",
-          revision: "P1",
-          category: "Hydraulic",
-          confidence: "high",
-          changes: ["folder", "filename", "metadata"],
-          reason: null,
-        },
-      ],
-    });
-    renderPanel();
-
-    fireEvent.click(screen.getByRole("button", { name: "Review existing files" }));
-
-    expect(await screen.findByText("1 proposed change")).toBeInTheDocument();
-    expect(
-      screen.getByText("HY-SK-06 - ROOF DRAINAGE PLAN Rev P1.PDF"),
-    ).toBeInTheDocument();
-    expect(api.previewExistingDocumentRepairs).toHaveBeenCalledWith("project-1");
-  });
-
-  it("applies only the conflict-free changes after confirmation", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    vi.mocked(api.previewExistingDocumentRepairs).mockResolvedValue({
-      inspected: 2,
-      changes: 1,
-      needs_review: 1,
-      conflicts: 0,
-      unchanged: 0,
-      rows: [
-        {
-          status: "change",
-          current_path: "04-projects/demo/03-design/architect/HY-SK~1.PDF",
-          current_filename: "HY-SK~1.PDF",
-          proposed_path: "04-projects/demo/03-design/hydraulic/HY-SK-06.pdf",
-          proposed_filename: "HY-SK-06.pdf",
-          document_number: "HY-SK-06",
-          title: "ROOF DRAINAGE PLAN",
-          revision: "P1",
-          category: "Hydraulic",
-          confidence: "high",
-          changes: ["folder", "filename", "metadata"],
-          reason: null,
-        },
-        {
-          status: "needs_review",
-          current_path: "04-projects/demo/03-design/architect/unknown.pdf",
-          current_filename: "unknown.pdf",
-          proposed_path: "04-projects/demo/03-design/architect/unknown.pdf",
-          proposed_filename: "unknown.pdf",
-          document_number: null,
-          title: null,
-          revision: null,
-          category: "Architectural",
-          confidence: "low",
-          changes: [],
-          reason: "Document identity could not be read confidently",
-        },
-      ],
-    });
-    vi.mocked(api.applyExistingDocumentRepairs).mockResolvedValue({
-      applied: 1,
-      failed: 0,
-      skipped: 0,
-      rows: [],
-    });
-    const { onUploadComplete } = renderPanel();
-
-    fireEvent.click(screen.getByRole("button", { name: "Review existing files" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Apply 1 change" }));
-
-    await waitFor(() =>
-      expect(api.applyExistingDocumentRepairs).toHaveBeenCalledWith("project-1", [
-        "04-projects/demo/03-design/architect/HY-SK~1.PDF",
-      ]),
-    );
-    expect(onUploadComplete).toHaveBeenCalled();
-  });
 });
-
 function evidenceRow(overrides: Partial<EvidencePreview> = {}): EvidencePreview {
   return {
     id: "doc-1",
@@ -474,5 +380,142 @@ describe("DocumentRepositoryPanel generated artefacts", () => {
     expect(onOpenDraft).toHaveBeenCalledWith(draft);
     expect(onSelectEvidence).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: `Delete ${draft.title}` })).toBeNull();
+  });
+});
+
+describe("DocumentRepositoryPanel schedule sorting", () => {
+  function scheduleTitles(): string[] {
+    return screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.querySelector("td:nth-child(2)")?.textContent?.trim() ?? "");
+  }
+
+  it("defaults to ascending document number order", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-b",
+        title: "Structural",
+        document_number: "A-200",
+      }),
+      evidenceRow({
+        id: "doc-a",
+        title: "Architectural",
+        document_number: "A-100",
+      }),
+      evidenceRow({
+        id: "doc-c",
+        title: "Services",
+        document_number: "A-300",
+      }),
+    ]);
+
+    expect(scheduleTitles()).toEqual(["Architectural", "Structural", "Services"]);
+    const documentNumberHeader = screen.getByRole("columnheader", {
+      name: "Document number",
+    });
+    expect(documentNumberHeader).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    expect(documentNumberHeader).toHaveTextContent("#");
+    expect(documentNumberHeader.closest("table")?.querySelector("col")).toHaveClass(
+      "w-[3.75rem]",
+    );
+    expect(screen.getByText("A-100").closest("td")).toHaveAttribute(
+      "title",
+      "A-100",
+    );
+  });
+
+  it("sorts by title when the Title header is clicked", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-b",
+        title: "Structural",
+        document_number: "A-100",
+      }),
+      evidenceRow({
+        id: "doc-a",
+        title: "Architectural",
+        document_number: "A-200",
+      }),
+      evidenceRow({
+        id: "doc-c",
+        title: "Services",
+        document_number: "A-300",
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Title" }));
+
+    expect(scheduleTitles()).toEqual(["Architectural", "Services", "Structural"]);
+    expect(screen.getByRole("columnheader", { name: "Title" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+  });
+
+  it("toggles descending order on a second click of the same header", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-b",
+        title: "Structural",
+        document_number: "A-100",
+        category: "Structural",
+      }),
+      evidenceRow({
+        id: "doc-a",
+        title: "Architectural",
+        document_number: "A-200",
+        category: "Architectural",
+      }),
+      evidenceRow({
+        id: "doc-c",
+        title: "Services",
+        document_number: "A-300",
+        category: "Services",
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Category" }));
+    fireEvent.click(screen.getByRole("button", { name: "Category" }));
+
+    expect(scheduleTitles()).toEqual(["Structural", "Services", "Architectural"]);
+    expect(screen.getByRole("columnheader", { name: "Category" })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+  });
+
+  it("sorts by revision when the Rev header is clicked", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-b",
+        title: "Structural",
+        document_number: "A-100",
+        revision: "B",
+      }),
+      evidenceRow({
+        id: "doc-a",
+        title: "Architectural",
+        document_number: "A-200",
+        revision: "A",
+      }),
+      evidenceRow({
+        id: "doc-c",
+        title: "Services",
+        document_number: "A-300",
+        revision: "C",
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Rev" }));
+
+    expect(scheduleTitles()).toEqual(["Architectural", "Structural", "Services"]);
+    expect(screen.getByRole("columnheader", { name: "Rev" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
   });
 });

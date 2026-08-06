@@ -36,6 +36,8 @@ _DRAWING_NAME_HINTS = (
 
 def _looks_like_drawing(filename: str) -> bool:
     lowered = filename.lower()
+    if re.search(r"^M\d{2,3}\b", filename, re.I):
+        return True
     if parse_drawing_filename(filename).drawing_number:
         return True
     if any(hint in lowered for hint in _DRAWING_NAME_HINTS):

@@ -6,14 +6,25 @@ import { cn } from "@/lib/utils";
 
 export function CopyContentButton({
   content,
+  loadContent,
   label = "Copy content",
   className,
-}: {
+  disabled = false,
+  size = "icon-xs",
+}: ({
   content: string;
+  loadContent?: never;
+} | {
+  content?: never;
+  loadContent: () => Promise<string>;
+}) & {
   label?: string;
   className?: string;
+  disabled?: boolean;
+  size?: "icon-xs" | "icon-sm" | "icon";
 }) {
   const [copied, setCopied] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
   useEffect(() => {
     if (!copied) return;
@@ -22,13 +33,25 @@ export function CopyContentButton({
   }, [copied]);
 
   async function copyContent() {
-    if (!content.trim()) return;
+    setIsCopying(true);
+    let resolvedContent: string;
     try {
-      await navigator.clipboard.writeText(content);
+      resolvedContent = loadContent ? await loadContent() : content;
+    } catch {
+      setIsCopying(false);
+      return;
+    }
+
+    if (!resolvedContent.trim()) {
+      setIsCopying(false);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(resolvedContent);
       setCopied(true);
     } catch {
       const textarea = document.createElement("textarea");
-      textarea.value = content;
+      textarea.value = resolvedContent;
       textarea.setAttribute("readonly", "");
       textarea.style.position = "absolute";
       textarea.style.left = "-9999px";
@@ -37,6 +60,8 @@ export function CopyContentButton({
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
+    } finally {
+      setIsCopying(false);
     }
   }
 
@@ -44,15 +69,17 @@ export function CopyContentButton({
     <Button
       type="button"
       variant="ghost"
-      size="icon-xs"
+      size={size}
       className={cn("shrink-0 text-muted-foreground hover:text-foreground", className)}
       onClick={() => void copyContent()}
-      disabled={!content.trim()}
+      disabled={
+        disabled || isCopying || (loadContent === undefined && !content.trim())
+      }
       aria-label={copied ? "Copied" : label}
       title={copied ? "Copied" : label}
     >
       {copied ? (
-        <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+        <Check className="size-3.5 text-[var(--sw-positive)]" aria-hidden />
       ) : (
         <Copy className="size-3.5" aria-hidden />
       )}

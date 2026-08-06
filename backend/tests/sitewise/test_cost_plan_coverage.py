@@ -10,6 +10,7 @@ from app.sitewise.knowledge_catalog import file_catalog, select_required_paths
         ("residential", "new", "house", "residential_class1_new"),
         ("residential", "extend", "townhouses", "residential_class1_refurb"),
         ("residential", "new", "apartments", "multi_residential"),
+        ("mixed", "new", "residential_retail", "multi_residential"),
         ("commercial", "refurb", "office", "commercial_fitout"),
         ("commercial", "new", "retail_standalone", "commercial_base_building"),
         ("industrial", "new", "warehouse", "industrial_warehouse"),
@@ -65,6 +66,7 @@ def test_building_remediation_requires_a_supported_rectification_scope() -> None
         ("industrial", "new", "dangerous_goods"),
         ("industrial", "new", "battery_manufacturing"),
         ("industrial", "advisory", "warehouse"),
+        ("mixed", "new", "hotel_residential"),
     ],
 )
 def test_specialist_or_non_construction_gaps_remain_unsupported(
@@ -88,6 +90,7 @@ def test_specialist_or_non_construction_gaps_remain_unsupported(
         ("residential", "new", "house", ()),
         ("residential", "extend", "townhouses", ()),
         ("residential", "new", "apartments", ()),
+        ("mixed", "new", "residential_retail", ()),
         ("commercial", "refurb", "office", ("partitions_walls",)),
         ("commercial", "new", "retail_standalone", ()),
         (

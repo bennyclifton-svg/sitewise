@@ -2,10 +2,11 @@ import asyncio
 import time
 import uuid
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 from pydantic_ai import Agent
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +27,7 @@ from app.projects.workflow_capabilities import (
 from app.cost_plan.evidence_reconciliation import (
     CostEvidenceDocument,
     build_cost_evidence_reconciliation,
+    is_main_works_cost_document,
 )
 from app.cost_plan.import_legacy import import_legacy_draft
 from app.cost_plan.schemas import CostItemInput, CostPlanState, DependencySnapshot
@@ -84,8 +86,8 @@ RUNTIME_NAME = "clerk-sitewise-create-cost-plan"
 RUNTIME_HYBRID_NAME = "clerk-sitewise-create-cost-plan-hybrid"
 HYBRID_NARRATIVE_MAX_ATTEMPTS = 3
 CREATE_COST_PLAN_PROJECT_QUERY = (
-    "cost plan budget contingency claims variations fee proposals tender "
-    "contract sum schedule of values invoices progress payment"
+    "cost plan pricing schedule budget contingency claims variations fee "
+    "proposals tender contract sum schedule of values invoices progress payment"
 )
 CREATE_COST_PLAN_PLATFORM_CONTENT_CHARS = 10_000
 CREATE_COST_PLAN_EVIDENCE_DOC_CHARS = 5_000
@@ -126,6 +128,15 @@ COST_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
     "payment_claim",
     "schedule-of-values",
     "schedule_of_values",
+    "pricing-schedule",
+    "pricing_schedule",
+    "pricing schedule",
+    "price-schedule",
+    "price_schedule",
+    "price schedule",
+    "cost-plan",
+    "cost_plan",
+    "cost plan",
     "00-brief-pmp",
     "00-brief",
     "07-construction/05-progress-claims",
@@ -153,6 +164,12 @@ _COST_DOC_PRIORITY: tuple[str, ...] = (
     "fee-proposal",
     "building-proposal",
     "main-works",
+    "pricing-schedule",
+    "pricing schedule",
+    "price-schedule",
+    "price schedule",
+    "cost-plan",
+    "cost plan",
     "owner-project-brief",
     "owner-brief",
     "project-brief",
@@ -181,7 +198,21 @@ _COST_EVIDENCE_RESERVATIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("fee", ("fee-proposal", "fee_proposal")),
     (
         "main_works",
-        ("building-proposal", "building_proposal", "fixed-price", "main-works"),
+        (
+            "building-proposal",
+            "building_proposal",
+            "fixed-price",
+            "main-works",
+            "pricing-schedule",
+            "pricing_schedule",
+            "pricing schedule",
+            "price-schedule",
+            "price_schedule",
+            "price schedule",
+            "cost-plan",
+            "cost_plan",
+            "cost plan",
+        ),
     ),
     (
         "brief",
@@ -213,6 +244,7 @@ class CostPlanDraftOutput(BaseModel):
     seed_consulted: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     context_refs: list[str] = Field(default_factory=list)
+    _cost_items: list[CostItemInput] = PrivateAttr(default_factory=list)
 
 
 def _load_agent_instructions() -> str:
@@ -653,6 +685,49 @@ def _apply_received_cost_proposals(
     )
 
 
+def _typed_cost_items(project: Project, pack) -> list[CostItemInput]:
+    """Build canonical rows from the same deterministic lines as the workbook."""
+    from app.sitewise.cost_plan_lines import cost_plan_lines
+
+    reconciled_by_code = {item.cost_code: item for item in pack.reconciled_items}
+    items: list[CostItemInput] = []
+    for line in cost_plan_lines(project, pack).lines:
+        reconciled = reconciled_by_code.get(line.cost_code)
+        if reconciled is not None:
+            items.append(reconciled)
+            continue
+        budget = Decimal(str(line.budget)) if line.budget is not None else None
+        normalized = line.cost_item.lower()
+        allowance_type = (
+            "contingency"
+            if "contingency" in line.category.lower()
+            else "ps"
+            if "provisional sum" in normalized
+            else "pc"
+            if "pc allowance" in line.category.lower() or " pc " in f" {normalized} "
+            else "none"
+        )
+        items.append(
+            CostItemInput(
+                item_key=f"scaffold:{line.cost_code}",
+                cost_code=line.cost_code,
+                category=line.category,
+                item=line.cost_item,
+                budget=budget,
+                forecast=budget or Decimal("0"),
+                allowance_type=allowance_type,
+                basis=line.basis,
+                source_refs=[{"kind": "cost_plan_taxonomy_scaffold"}],
+                status=(
+                    "confirmed"
+                    if line.status.lower() in {"approved", "evidenced"}
+                    else "proposed"
+                ),
+            )
+        )
+    return items
+
+
 def _money_variants(value: str | None) -> set[str]:
     if not value:
         return set()
@@ -1031,17 +1106,21 @@ async def run_create_cost_plan_hybrid(
         pack,
         passages,
     )
-    has_fixed_price_main_works = any(
-        "fixed-price building proposal" in passage.content.lower()
-        for passage in passages
-        if _is_project_passage(passage, project.id)
+    cost_documents = _cost_evidence_documents(passages, project_id=project.id)
+    has_main_works_cost_document = any(
+        is_main_works_cost_document(document) for document in cost_documents
     )
-    if has_fixed_price_main_works and not any(
+    received_main_works = any(
         proposal.kind == "main_works" for proposal in pack.received_cost_proposals
-    ):
+    )
+    priced_main_works = any(
+        item.category == "Construction" and item.budget is not None
+        for item in pack.reconciled_items
+    )
+    if has_main_works_cost_document and not (received_main_works and priced_main_works):
         details = "; ".join(reconciliation_issues) or "no reconciled proposal total"
         raise WorkflowValidationError(
-            "Create Cost Plan could not reconcile the fixed-price main works proposal: "
+            "Create Cost Plan could not reconcile the main-works pricing document: "
             + details
         )
     trace.append(
@@ -1121,6 +1200,7 @@ async def run_create_cost_plan_hybrid(
             evidence_refs=evidence_refs,
             context_refs=_context_refs_from_passages(passages),
         )
+        output._cost_items = _typed_cost_items(project, pack)
         try:
             validate_cost_plan_output(
                 output,
@@ -1487,6 +1567,7 @@ async def run_create_cost_plan_workflow(
         draft=draft,
         apply=True,
         require_accepted=False,
+        source_items=output._cost_items if use_hybrid else None,
     )
     typed_state = CostPlanState(
         id=typed_import.typed_version_id,

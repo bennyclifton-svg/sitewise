@@ -644,6 +644,29 @@ class PatchDraftRequest(BaseModel):
     expected_base_version: int = Field(ge=1)
 
 
+class DraftInstructionInput(BaseModel):
+    anchor_start: int = Field(ge=0)
+    anchor_end: int = Field(ge=1)
+    quoted_text: str = Field(min_length=1, max_length=4000)
+    instruction: str = Field(min_length=1, max_length=1000)
+
+
+class ApplyDraftInstructionsRequest(BaseModel):
+    expected_base_version: int = Field(ge=1)
+    instructions: list[DraftInstructionInput] = Field(min_length=1, max_length=20)
+
+
+class FailedInstructionResponse(BaseModel):
+    index: int
+    reason: str
+
+
+class ApplyDraftInstructionsResponse(BaseModel):
+    draft: DraftArtifactResponse
+    applied_count: int
+    failed: list[FailedInstructionResponse]
+
+
 class AcceptDraftRequest(BaseModel):
     expected_version: int = Field(ge=1)
 

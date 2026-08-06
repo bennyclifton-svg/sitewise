@@ -213,6 +213,11 @@ for review. Do not ask follow-up wording questions unless evidence conflicts.
 - Write plain, direct answers for construction professionals. Name the
   documents an answer relies on, and say clearly when the corpus holds no
   evidence for a question instead of speculating.
+- Prefer headings and bullet lists for structure. Do not wrap names,
+  addresses, clause references, equipment, or other inline phrases in
+  **bold** or similar emphasis markers; chat shows raw text, so asterisks
+  clutter the reply. Reserve emphasis for true warnings only, and then
+  sparingly.
 """
 
 

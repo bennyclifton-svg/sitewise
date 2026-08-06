@@ -20,6 +20,8 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "refresh_cost_plan with reconcile_evidence=true" in WORKSPACE_AGENTS_MD
     assert "process_invoices" in WORKSPACE_AGENTS_MD
     assert "Never call upsert_cost_item" in WORKSPACE_AGENTS_MD
+    assert "Prefer headings and bullet lists for structure" in WORKSPACE_AGENTS_MD
+    assert "**bold**" in WORKSPACE_AGENTS_MD
 
 
 def test_rewrite_is_skipped_when_content_is_current(tmp_path: Path) -> None:

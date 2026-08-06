@@ -62,7 +62,7 @@ export function ChatHistoryPopover({
 
       {open ? (
         <div
-          className="absolute top-full left-0 z-50 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-md border bg-popover p-2 shadow-md"
+          className="sw-surface sw-contact absolute top-full left-0 z-50 mt-1 w-[min(18rem,calc(100vw-2rem))] p-2 hover:translate-y-0"
           role="dialog"
           aria-label="Chat history"
         >

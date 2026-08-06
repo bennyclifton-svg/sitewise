@@ -75,7 +75,7 @@ export function ComparisonList({
         selectedEvidence={selectedEvidence}
       />
 
-      <section className="rounded-md border bg-card shadow-sm">
+      <section className="rounded-md border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <p className="cockpit-zone-title">Comparisons</p>
         </header>

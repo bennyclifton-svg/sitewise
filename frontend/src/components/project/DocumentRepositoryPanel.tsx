@@ -1,5 +1,7 @@
 import {
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   FolderTree,
   Inbox,
   Loader2,
@@ -65,6 +67,8 @@ type SplitProposal = {
 type RepositoryPanelView = "schedule" | "tree";
 type RepositoryTreeSectionId = "activity" | "skills" | "knowledge" | "admin";
 type SelectionUpdater = Set<string> | ((current: Set<string>) => Set<string>);
+type ScheduleSortKey = "document_number" | "title" | "revision" | "category";
+type SortDirection = "asc" | "desc";
 
 type PendingUploadStage = "queued" | "uploading" | "ingesting";
 
@@ -185,21 +189,43 @@ export function DocumentRepositoryPanel({
   const [bulkDeletingIds, setBulkDeletingIds] = useState<Set<string>>(
     () => new Set<string>(),
   );
+  const [sortKey, setSortKey] = useState<ScheduleSortKey>("document_number");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const dragDepthRef = useRef(0);
-  const registerRows = useMemo(() => sortRegisterRows(evidence), [evidence]);
   const scheduleRows = useMemo<ScheduleRow[]>(
-    () => [
-      ...artefactDrafts
-        .filter((draft) => draft.workflow_type !== "sort_files")
-        .map((draft) => ({ kind: "artefact" as const, draft })),
-      ...registerRows.map((evidence) => ({ kind: "source" as const, evidence })),
-    ],
-    [artefactDrafts, registerRows],
+    () =>
+      sortScheduleRows(
+        [
+          ...artefactDrafts
+            .filter((draft) => draft.workflow_type !== "sort_files")
+            .map((draft) => ({ kind: "artefact" as const, draft })),
+          ...evidence.map((item) => ({ kind: "source" as const, evidence: item })),
+        ],
+        sortKey,
+        sortDirection,
+      ),
+    [artefactDrafts, evidence, sortDirection, sortKey],
+  );
+  const registerRows = useMemo(
+    () =>
+      scheduleRows.flatMap((row) =>
+        row.kind === "source" ? [row.evidence] : [],
+      ),
+    [scheduleRows],
   );
   const registerRowIds = useMemo(
     () => new Set(registerRows.map((row) => row.id)),
     [registerRows],
   );
+
+  function handleSortHeaderClick(key: ScheduleSortKey) {
+    if (sortKey === key) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  }
   const selectedIds = selectedEvidenceIds ?? internalSelectedIds;
   const selectedRows = useMemo(
     () => registerRows.filter((row) => selectedIds.has(row.id)),
@@ -711,6 +737,44 @@ export function DocumentRepositoryPanel({
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            className="flex shrink-0 items-center rounded-none border border-[color-mix(in_oklch,var(--sw-beam)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] p-0.5"
+            role="group"
+            aria-label="Right panel view"
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className={
+                activePanelView === "schedule"
+                  ? "text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_18%,transparent)] hover:text-[var(--sw-beam)]"
+                  : "text-[color-mix(in_oklch,var(--sw-beam)_55%,transparent)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] hover:text-[var(--sw-beam)]"
+              }
+              aria-label="Document schedule"
+              aria-pressed={activePanelView === "schedule"}
+              title="Document schedule"
+              onClick={() => setActivePanelView("schedule")}
+            >
+              <TableProperties className="size-3.5" aria-hidden />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className={
+                activePanelView === "tree"
+                  ? "text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_18%,transparent)] hover:text-[var(--sw-beam)]"
+                  : "text-[color-mix(in_oklch,var(--sw-beam)_55%,transparent)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] hover:text-[var(--sw-beam)]"
+              }
+              aria-label="Tree view"
+              aria-pressed={activePanelView === "tree"}
+              title="Tree view"
+              onClick={() => setActivePanelView("tree")}
+            >
+              <FolderTree className="size-3.5" aria-hidden />
+            </Button>
+          </div>
           {activePanelView === "schedule" && selectedRows.length ? (
             <span className="shrink-0 text-xs text-muted-foreground">
               {selectedRows.length} selected
@@ -723,66 +787,31 @@ export function DocumentRepositoryPanel({
           ) : (
             <button
               type="button"
-              className="inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"
+              className="inline-flex shrink-0 items-center text-primary"
+              aria-label="Upload files"
+              title="Upload files"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="size-3 shrink-0" aria-hidden />
-              upload files
+              <Upload className="size-3.5 shrink-0" aria-hidden />
             </button>
           )}
-          {inboxCount && onRunSortFiles ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-7 shrink-0 border-amber-400/50 bg-amber-50/80 px-2 text-xs text-amber-900 hover:bg-amber-100/80"
-              disabled={!overlayReady || isRunningSortFiles}
-              onClick={onRunSortFiles}
-            >
-              {isRunningSortFiles ? (
-                <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Play className="size-3.5" aria-hidden />
-              )}
-              {isRunningSortFiles ? "Running" : "Sort Files"}
-            </Button>
-          ) : null}
-          <button
-            type="button"
-            className="shrink-0 text-xs text-primary hover:underline disabled:text-muted-foreground"
-            disabled={isPreviewingRepairs || isUploading}
-            onClick={() => void handlePreviewExistingRepairs()}
-          >
-            {isPreviewingRepairs ? "Inspecting…" : "Review existing files"}
-          </button>
         </div>
-        <div
-          className="flex shrink-0 items-center rounded-md border bg-muted/30 p-0.5"
-          role="group"
-          aria-label="Right panel view"
-        >
+        {inboxCount && onRunSortFiles ? (
           <Button
             type="button"
-            variant={activePanelView === "schedule" ? "secondary" : "ghost"}
-            size="icon-xs"
-            aria-label="Document schedule"
-            aria-pressed={activePanelView === "schedule"}
-            title="Document schedule"
-            onClick={() => setActivePanelView("schedule")}
+            size="sm"
+            className="h-7 shrink-0 border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] px-2 text-xs text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]"
+            disabled={!overlayReady || isRunningSortFiles}
+            onClick={onRunSortFiles}
           >
-            <TableProperties className="size-3.5" aria-hidden />
+            {isRunningSortFiles ? (
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Play className="size-3.5" aria-hidden />
+            )}
+            {isRunningSortFiles ? "Running" : "Sort"}
           </Button>
-          <Button
-            type="button"
-            variant={activePanelView === "tree" ? "secondary" : "ghost"}
-            size="icon-xs"
-            aria-label="Tree view"
-            aria-pressed={activePanelView === "tree"}
-            title="Tree view"
-            onClick={() => setActivePanelView("tree")}
-          >
-            <FolderTree className="size-3.5" aria-hidden />
-          </Button>
-        </div>
+        ) : null}
       </div>
 
       {uploadProgress ? (
@@ -800,7 +829,7 @@ export function DocumentRepositoryPanel({
       ) : null}
 
       {repairPreview ? (
-        <div className="mx-3 mt-3 rounded-md border border-sky-400/40 bg-sky-50/50 p-3 text-xs dark:bg-sky-950/20">
+        <div className="mx-3 mt-3 border border-[color-mix(in_oklch,var(--sw-beam)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_12%,transparent)] p-3 text-xs">
           <div className="flex items-center justify-between gap-3">
             <p className="font-medium">
               {repairPreview.changes} proposed{" "}
@@ -843,7 +872,7 @@ export function DocumentRepositoryPanel({
                       {row.current_filename} → {row.category ?? "Unclassified"}
                     </p>
                     {row.reason ? (
-                      <p className="text-amber-700 dark:text-amber-300">{row.reason}</p>
+                      <p className="text-amber-700">{row.reason}</p>
                     ) : null}
                   </li>
                 ))}
@@ -860,9 +889,9 @@ export function DocumentRepositoryPanel({
         return (
           <div
             key={analysis.staging_id}
-            className="mx-3 mt-3 rounded-md border border-amber-400/50 bg-amber-50/60 p-3 text-xs dark:bg-amber-950/20"
+            className="mx-3 mt-3 border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] p-3 text-xs"
           >
-            <p className="font-medium text-amber-900 dark:text-amber-100">
+            <p className="font-medium text-[var(--sw-caution)]">
               {proposal.sourceFile.name} — looks like a drawing set
             </p>
             <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
@@ -954,18 +983,47 @@ export function DocumentRepositoryPanel({
         ) : scheduleRows.length || pendingUploads.length ? (
           <table className="w-full table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
-              <col className="w-[2.75rem]" />
+              <col className="w-[3.75rem]" />
               <col />
               <col className="w-[2.25rem]" />
               <col className="w-[4.75rem]" />
               <col className="w-[3rem]" />
             </colgroup>
-            <thead className="sticky top-0 z-[1] border-b bg-background">
+            <thead className="sticky top-0 z-[1] border-b bg-[var(--sw-panel)]">
               <tr className="text-muted-foreground">
-                <th className="px-1 py-2 font-medium">Doc No</th>
-                <th className="px-2 py-2 font-medium">Title</th>
-                <th className="px-1 py-2 font-medium">Rev</th>
-                <th className="px-1.5 py-2 font-medium">Category</th>
+                <SortableScheduleHeader
+                  label="#"
+                  accessibleLabel="Document number"
+                  columnKey="document_number"
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  className="px-1 py-2"
+                  onSort={handleSortHeaderClick}
+                />
+                <SortableScheduleHeader
+                  label="Title"
+                  columnKey="title"
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  className="px-2 py-2"
+                  onSort={handleSortHeaderClick}
+                />
+                <SortableScheduleHeader
+                  label="Rev"
+                  columnKey="revision"
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  className="px-1 py-2"
+                  onSort={handleSortHeaderClick}
+                />
+                <SortableScheduleHeader
+                  label="Category"
+                  columnKey="category"
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  className="px-1.5 py-2"
+                  onSort={handleSortHeaderClick}
+                />
                 <th className="px-0.5 py-1 text-center" aria-label="Actions">
                   <button
                     type="button"
@@ -1003,7 +1061,7 @@ export function DocumentRepositoryPanel({
                   return (
                     <tr
                       key={draft.id}
-                      className="cursor-pointer border-b border-l-2 border-l-sky-500/60 text-muted-foreground transition-colors hover:bg-sky-50/60 hover:text-foreground dark:hover:bg-sky-950/20"
+                      className="cursor-pointer border-b border-l-2 border-l-[color-mix(in_oklch,var(--sw-beam)_50%,transparent)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] hover:text-foreground"
                       onClick={() => onOpenDraft?.(draft)}
                     >
                       <td className="truncate px-1 py-2 tabular-nums">-</td>
@@ -1051,7 +1109,10 @@ export function DocumentRepositoryPanel({
                     )}
                     onClick={(event) => handleRowClick(event, row)}
                   >
-                    <td className="truncate px-1 py-2 tabular-nums">
+                    <td
+                      className="truncate px-1 py-2 tabular-nums"
+                      title={row.document_number?.trim() || undefined}
+                    >
                       {displayValue(row.document_number)}
                     </td>
                     <td className="max-w-0 px-2 py-2 font-medium">
@@ -1169,6 +1230,57 @@ function isInboxEvidence(row: EvidencePreview): boolean {
   return row.relative_path.replace("\\", "/").includes("/_inbox/");
 }
 
+function SortableScheduleHeader({
+  label,
+  accessibleLabel,
+  columnKey,
+  sortKey,
+  sortDirection,
+  className,
+  onSort,
+}: {
+  label: string;
+  accessibleLabel?: string;
+  columnKey: ScheduleSortKey;
+  sortKey: ScheduleSortKey;
+  sortDirection: SortDirection;
+  className?: string;
+  onSort: (key: ScheduleSortKey) => void;
+}) {
+  const active = sortKey === columnKey;
+  const ariaSort = active
+    ? sortDirection === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
+  return (
+    <th
+      className={cn("font-medium", className)}
+      aria-label={accessibleLabel}
+      aria-sort={ariaSort}
+    >
+      <button
+        type="button"
+        className={cn(
+          "inline-flex max-w-full items-center gap-0.5 rounded-sm text-left transition-colors hover:text-foreground",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
+        aria-label={accessibleLabel}
+        onClick={() => onSort(columnKey)}
+      >
+        <span className="truncate">{label}</span>
+        {active ? (
+          sortDirection === "asc" ? (
+            <ChevronUp className="size-3 shrink-0" aria-hidden />
+          ) : (
+            <ChevronDown className="size-3 shrink-0" aria-hidden />
+          )
+        ) : null}
+      </button>
+    </th>
+  );
+}
+
 const INVOICE_STATUS_PRESENTATION = {
   reading: {
     label: "Reading",
@@ -1256,15 +1368,67 @@ function UsageMarks({
   );
 }
 
-function sortRegisterRows(evidence: EvidencePreview[]): EvidencePreview[] {
-  return [...evidence].sort((left, right) => {
-    const docCompare = compareDocumentNumbers(
-      left.document_number,
-      right.document_number,
+function sortScheduleRows(
+  rows: ScheduleRow[],
+  key: ScheduleSortKey,
+  direction: SortDirection,
+): ScheduleRow[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...rows].sort((left, right) => {
+    const primary = compareScheduleSortValues(left, right, key);
+    if (primary !== 0) return primary * sign;
+    return scheduleSortValue(left, "title").localeCompare(
+      scheduleSortValue(right, "title"),
+      undefined,
+      { sensitivity: "base" },
     );
-    if (docCompare !== 0) return docCompare;
-    return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
   });
+}
+
+function compareScheduleSortValues(
+  left: ScheduleRow,
+  right: ScheduleRow,
+  key: ScheduleSortKey,
+): number {
+  if (key === "document_number" || key === "revision") {
+    return compareDocumentNumbers(
+      scheduleSortValue(left, key),
+      scheduleSortValue(right, key),
+    );
+  }
+  return scheduleSortValue(left, key).localeCompare(
+    scheduleSortValue(right, key),
+    undefined,
+    { sensitivity: "base", numeric: true },
+  );
+}
+
+function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
+  if (row.kind === "artefact") {
+    switch (key) {
+      case "document_number":
+        return "";
+      case "title":
+        return row.draft.title;
+      case "revision":
+        return String(row.draft.version);
+      case "category":
+        return artefactScheduleLabel(row.draft.workflow_type);
+    }
+  }
+
+  switch (key) {
+    case "document_number":
+      return row.evidence.document_number?.trim() ?? "";
+    case "title":
+      return row.evidence.title;
+    case "revision":
+      return row.evidence.revision?.trim() ?? "";
+    case "category":
+      return isInboxEvidence(row.evidence)
+        ? "Inbox"
+        : (row.evidence.category?.trim() ?? "");
+  }
 }
 
 function compareDocumentNumbers(

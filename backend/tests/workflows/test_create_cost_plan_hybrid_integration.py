@@ -7,6 +7,8 @@ from decimal import Decimal
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from app.config import Settings
 from app.cost_plan.import_legacy import parse_legacy_draft
 from app.sitewise.cost_plan_evidence_validation import (
@@ -23,6 +25,7 @@ from app.workflows.create_cost_plan import (
     run_create_cost_plan_workflow,
     validate_cost_plan_output,
     CostPlanDraftOutput,
+    WorkflowValidationError,
 )
 from tests.conftest import run_async
 from tests.sitewise.test_cost_plan_evidence import FIXTURE_DIR
@@ -43,6 +46,12 @@ KAVANAGH_COST_FIXTURE_DIR = (
     / "data"
     / "synthetic-mobilisation-evidence"
     / "kavanagh-residence-cost-files"
+)
+CONTRACT_PRICE_SCHEDULE_FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "cost_plan"
+    / "fixtures"
+    / "large_contract_price_schedule.md"
 )
 
 
@@ -279,6 +288,76 @@ def test_hybrid_create_cost_plan_maps_received_main_works_proposal_to_typed_rows
         item.item == "Preliminaries" and item.budget == Decimal("136000")
         for item in typed.items
     )
+
+
+def test_hybrid_cost_plan_adopts_contract_schedule_as_typed_construction_rows() -> None:
+    project = harrison_clarke_cost_project()
+    schedule = evidence_passage(
+        f"{project.slug}/_inbox/ANX V CONTACT PRICE SCHEDULE [B].pdf",
+        CONTRACT_PRICE_SCHEDULE_FIXTURE.read_text(encoding="utf-8"),
+        project_slug=project.slug,
+    ).model_copy(update={"project_id": project.id})
+    passages = [schedule, *platform_passages_for_cost_plan(project)]
+
+    with patch(
+        "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
+        new=AsyncMock(return_value=harrison_clarke_cost_narrative()),
+    ):
+        output = run_async(
+            run_create_cost_plan_hybrid(
+                project=project,
+                passages=passages,
+                draft_mode="evidence_grounded",
+                chat_model="gpt-5.6-terra",
+                project_source_texts=[schedule.content],
+                trace=[],
+            )
+        )
+
+    construction = [
+        item for item in output._cost_items if item.category == "Construction"
+    ]
+    assert len(construction) == 37
+    assert sum((item.budget or Decimal("0")) for item in construction) == Decimal(
+        "5870686.00"
+    )
+    assert construction[0].cost_code == "1.01"
+    assert construction[0].item == "Preliminaries"
+    assert all(item.source_refs for item in construction)
+    assert "5,870,686" in output.markdown
+
+
+def test_hybrid_cost_plan_rejects_an_unreconciled_contract_schedule() -> None:
+    project = harrison_clarke_cost_project()
+    content = CONTRACT_PRICE_SCHEDULE_FIXTURE.read_text(encoding="utf-8").replace(
+        "5,870,686", "5,870,685"
+    )
+    schedule = evidence_passage(
+        f"{project.slug}/_inbox/contract-price-schedule.pdf",
+        content,
+        project_slug=project.slug,
+    ).model_copy(update={"project_id": project.id})
+    narrative = AsyncMock(return_value=harrison_clarke_cost_narrative())
+
+    with (
+        patch(
+            "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
+            new=narrative,
+        ),
+        pytest.raises(WorkflowValidationError, match="could not reconcile"),
+    ):
+        run_async(
+            run_create_cost_plan_hybrid(
+                project=project,
+                passages=[schedule, *platform_passages_for_cost_plan(project)],
+                draft_mode="evidence_grounded",
+                chat_model="gpt-5.6-terra",
+                project_source_texts=[schedule.content],
+                trace=[],
+            )
+        )
+
+    narrative.assert_not_awaited()
 
 
 def test_legacy_create_cost_plan_when_hybrid_compiler_disabled() -> None:

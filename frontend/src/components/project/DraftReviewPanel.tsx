@@ -1,15 +1,41 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, Download, FileText, Pencil, RefreshCw, RotateCcw, Save, Table2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Table2,
+} from "lucide-react";
 
-import { CopyContentButton } from "@/components/project/CopyContentButton";
-import { MarkdownContent } from "@/components/project/MarkdownContent";
+import { InstructionTray } from "@/components/project/InstructionTray";
+import {
+  MarkdownContent,
+  normalizeDraftMarkdown,
+} from "@/components/project/MarkdownContent";
+import { SelectionInstructionCard } from "@/components/project/SelectionInstructionCard";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { WorkbookGrid } from "@/components/project/WorkbookGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import { splitMarkdownSections, spliceMarkdownSection } from "@/lib/markdown-sections";
+import {
+  clearTray,
+  dropStaleTrays,
+  loadTray,
+  saveTray,
+  type InstructionItem,
+} from "@/lib/instruction-tray";
+import {
+  splitMarkdownSections,
+  spliceMarkdownSection,
+  type MarkdownSectionSlice,
+} from "@/lib/markdown-sections";
+import {
+  isAnchorError,
+  resolveSelectionAnchor,
+  type MarkdownAnchor,
+  type MarkdownRange,
+} from "@/lib/markdown-selection";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
@@ -23,34 +49,72 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
+/**
+ * Anchored instructions route through `revise_workflow_artefact`, which refuses
+ * cost plans (canonical typed state) and tender reports (TCM owns them). The
+ * affordance must not render where the server would reject the batch.
+ */
+function supportsAnchoredInstructions(workflowType: string): boolean {
+  return workflowType !== "create_cost_plan" && workflowType !== "tender_report";
+}
+
+function changedRangesFrom(value: unknown): MarkdownRange[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (entry): entry is MarkdownRange =>
+      typeof entry === "object" &&
+      entry !== null &&
+      typeof (entry as MarkdownRange).start === "number" &&
+      typeof (entry as MarkdownRange).end === "number",
+  );
+}
+
+function headingForOffset(sections: MarkdownSectionSlice[], offset: number): string {
+  return (
+    sections.find((section) => section.start <= offset && offset < section.end)
+      ?.heading ?? "Document"
+  );
+}
+
+function rebaseMessage(error: ApiError): string {
+  const moved = /current version is v(\d+)/.exec(error.message);
+  return moved
+    ? `Draft moved to v${moved[1]} — review the current text and re-apply.`
+    : `${error.message} Review the current text and re-apply.`;
+}
+
 export function DraftReviewPanel({
   projectId,
   draft,
   onDraftUpdated,
   workflowType,
-  onRunUpdatePmp,
-  isRunningUpdatePmp = false,
   embedded = false,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
   onDraftUpdated: (draft: DraftArtifact) => void;
   workflowType?: string;
-  onRunUpdatePmp?: () => void;
-  isRunningUpdatePmp?: boolean;
   /** Compact layout when nested inside a workflow panel. */
   embedded?: boolean;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editorValue, setEditorValue] = useState("");
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isAccepting, setIsAccepting] = useState(false);
-  const [isDownloadingWorkbook, setIsDownloadingWorkbook] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [sectionEditHeading, setSectionEditHeading] = useState<string | null>(null);
   const [sectionEditorValue, setSectionEditorValue] = useState("");
+  const [anchor, setAnchor] = useState<MarkdownAnchor | null>(null);
+  const [selectionHint, setSelectionHint] = useState<string | null>(null);
+  const [trayOverride, setTrayOverride] = useState<{
+    key: string;
+    items: InstructionItem[];
+  } | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
+  /** Kept separate from `actionError`, which renders inside the collapsed trace. */
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [showChanges, setShowChanges] = useState(true);
+  const draftDetailsRef = useRef<HTMLDetailsElement>(null);
+  const markdownRef = useRef<HTMLDivElement>(null);
   const [decisionState, setDecisionState] = useState<{
     key: string;
     decisions: ProjectDecision[] | null;
@@ -74,8 +138,6 @@ export function DraftReviewPanel({
       setActionError(null);
       if (!draft) {
         setLoadedDraft(null);
-        setEditorValue("");
-        setIsEditing(false);
         setSectionEditHeading(null);
         setIsLoadingDraft(false);
         return;
@@ -83,21 +145,16 @@ export function DraftReviewPanel({
 
       if (isFullDraft(draft)) {
         setLoadedDraft(draft);
-        setEditorValue(draft.content_markdown);
-        setIsEditing(false);
         setIsLoadingDraft(false);
         return;
       }
 
       setLoadedDraft(null);
-      setEditorValue("");
-      setIsEditing(false);
       setIsLoadingDraft(true);
       try {
         const data = await api.getProjectDraft(projectId, draft.id);
         if (!cancelled) {
           setLoadedDraft(data);
-          setEditorValue(data.content_markdown);
         }
       } catch (error) {
         if (!cancelled) {
@@ -147,12 +204,134 @@ export function DraftReviewPanel({
     };
   }, [projectId, draft]);
 
-  const sections = useMemo(
-    () => (loadedDraft ? splitMarkdownSections(loadedDraft.content_markdown) : []),
+  /**
+   * One normalization for the whole panel (design decision D3). Section slices,
+   * anchors, and the offsets the renderer stamps must all live in this same
+   * offset space, and the server normalizes identically before verifying an
+   * anchor — so `MarkdownContent` receives `source`, never the raw markdown.
+   */
+  const source = useMemo(
+    () => (loadedDraft ? normalizeDraftMarkdown(loadedDraft.content_markdown) : ""),
     [loadedDraft],
   );
+  const sections = useMemo(() => splitMarkdownSections(source), [source]);
+  const changedRanges = useMemo(
+    () => changedRangesFrom(loadedDraft?.provenance_metadata?.changed_ranges),
+    [loadedDraft],
+  );
+
+  const trayKey = loadedDraft ? `${loadedDraft.id}:v${loadedDraft.version}` : "";
+  const persistedTray = useMemo(
+    () => (loadedDraft ? loadTray(loadedDraft.id, loadedDraft.version) : []),
+    [loadedDraft],
+  );
+  const trayItems =
+    trayOverride && trayOverride.key === trayKey ? trayOverride.items : persistedTray;
+
+  const canInstruct =
+    !!loadedDraft &&
+    loadedDraft.status !== "accepted" &&
+    !sectionEditHeading &&
+    supportsAnchoredInstructions(loadedDraft.workflow_type);
+
+  useEffect(() => {
+    if (!canInstruct) return;
+    const container = markdownRef.current;
+    if (!container) return;
+
+    function handleSelection() {
+      const result = resolveSelectionAnchor(
+        window.getSelection(),
+        container as HTMLElement,
+        source,
+      );
+      if (result === null) return;
+      if (isAnchorError(result)) {
+        setAnchor(null);
+        setSelectionHint(result.error);
+        return;
+      }
+      setSelectionHint(null);
+      setAnchor(result);
+    }
+
+    document.addEventListener("mouseup", handleSelection);
+    document.addEventListener("selectionchange", handleSelection);
+    return () => {
+      document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("selectionchange", handleSelection);
+    };
+  }, [canInstruct, source]);
+
   const isCostPlanWorkflow =
     workflowType === "create_cost_plan" || draft?.workflow_type === "create_cost_plan";
+
+  function writeTray(draftId: string, version: number, items: InstructionItem[]) {
+    setTrayOverride({ key: `${draftId}:v${version}`, items });
+    saveTray(draftId, version, items);
+  }
+
+  function addInstruction(instruction: string) {
+    if (!loadedDraft || !anchor) return;
+    writeTray(loadedDraft.id, loadedDraft.version, [
+      ...trayItems,
+      {
+        id: crypto.randomUUID(),
+        kind: "revise",
+        anchorStart: anchor.start,
+        anchorEnd: anchor.end,
+        quotedText: anchor.quotedText,
+        instruction,
+        sectionHeading: headingForOffset(sections, anchor.start),
+      },
+    ]);
+    setAnchor(null);
+    window.getSelection()?.removeAllRanges();
+  }
+
+  async function applyInstructions() {
+    if (!loadedDraft || trayItems.length === 0) return;
+    setIsApplying(true);
+    setApplyError(null);
+    try {
+      const response = await api.applyDraftInstructions(
+        projectId,
+        loadedDraft.id,
+        loadedDraft.version,
+        trayItems.map((item) => ({
+          anchor_start: item.anchorStart,
+          anchor_end: item.anchorEnd,
+          quoted_text: item.quotedText,
+          instruction: item.instruction,
+        })),
+      );
+      const reasons = new Map(response.failed.map((item) => [item.index, item.reason]));
+      // Items the server could not apply are re-seeded against the NEW version
+      // carrying their reason; anything that landed is dropped.
+      const reseeded = trayItems
+        .map((item, index) => ({ ...item, error: reasons.get(index) }))
+        .filter((item): item is InstructionItem => Boolean(item.error));
+      clearTray(loadedDraft.id, loadedDraft.version);
+      writeTray(response.draft.id, response.draft.version, reseeded);
+      dropStaleTrays(response.draft.id, response.draft.version);
+      setAnchor(null);
+      setShowChanges(true);
+      setLoadedDraft(response.draft);
+      onDraftUpdated(response.draft);
+    } catch (error) {
+      // A 409 leaves the tray untouched: the anchors are stale, so the user
+      // must re-read the current text rather than silently re-send them.
+      setApplyError(
+        error instanceof ApiError && error.status === 409
+          ? rebaseMessage(error)
+          : error instanceof ApiError
+            ? error.message
+            : "Could not apply changes.",
+      );
+    } finally {
+      setIsApplying(false);
+    }
+  }
 
   if (!draft) {
     if (isCostPlanWorkflow) {
@@ -183,7 +362,6 @@ export function DraftReviewPanel({
   }
 
   const displayDraft = loadedDraft ?? draft;
-  const acceptLabel = acceptDraftLabel(displayDraft.workflow_type);
 
   const seed = metadataList(loadedDraft?.provenance_metadata?.seed_consulted);
   const evidence = metadataList(loadedDraft?.provenance_metadata?.evidence_refs);
@@ -199,20 +377,26 @@ export function DraftReviewPanel({
     const section = sections.find((item) => item.heading === heading);
     if (!section) return;
     setSectionEditHeading(heading);
-    setSectionEditorValue(loadedDraft.content_markdown.slice(section.start, section.end));
-    setIsEditing(false);
+    setSectionEditorValue(source.slice(section.start, section.end));
+    setAnchor(null);
     setActionError(null);
+  }
+
+  function openWorkflowTrace() {
+    if (draftDetailsRef.current) {
+      draftDetailsRef.current.open = true;
+    }
+    document.getElementById("draft-workflow-trace")?.scrollIntoView?.({
+      behavior: "smooth",
+      block: "start",
+    });
   }
 
   async function saveSectionEdit() {
     if (!loadedDraft || !sectionEditHeading) return;
     const section = sections.find((item) => item.heading === sectionEditHeading);
     if (!section) return;
-    const nextMarkdown = spliceMarkdownSection(
-      loadedDraft.content_markdown,
-      section,
-      sectionEditorValue,
-    );
+    const nextMarkdown = spliceMarkdownSection(source, section, sectionEditorValue);
     setIsSaving(true);
     setActionError(null);
     try {
@@ -230,68 +414,6 @@ export function DraftReviewPanel({
       setActionError(error instanceof ApiError ? error.message : "Could not save section.");
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function saveEdits() {
-    if (!loadedDraft) return;
-    setIsSaving(true);
-    setActionError(null);
-    try {
-      const updated = await api.patchDraft(
-        projectId,
-        loadedDraft.id,
-        editorValue,
-        loadedDraft.version,
-      );
-      setLoadedDraft(updated);
-      onDraftUpdated(updated);
-      setIsEditing(false);
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "Could not save draft.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function acceptDraft() {
-    setIsAccepting(true);
-    setActionError(null);
-    try {
-      const updated = await api.acceptDraft(
-        projectId,
-        displayDraft.id,
-        displayDraft.version,
-      );
-      setLoadedDraft(updated);
-      onDraftUpdated(updated);
-    } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "Could not accept draft.");
-    } finally {
-      setIsAccepting(false);
-    }
-  }
-
-  async function downloadWorkbook() {
-    if (!workbook) return;
-    setIsDownloadingWorkbook(true);
-    setActionError(null);
-    try {
-      const blob = await api.downloadWorkspaceFile(projectId, workbook.workspace_path);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = workbook.file_name;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setActionError(
-        error instanceof ApiError ? error.message : "Could not download workbook.",
-      );
-    } finally {
-      setIsDownloadingWorkbook(false);
     }
   }
 
@@ -321,9 +443,26 @@ export function DraftReviewPanel({
           <div className="space-y-3 border-b px-4 py-3">
             {sectionsChanged.length ? (
               <div>
-                <h3 className="text-sm font-semibold">
-                  What changed in v{displayDraft.version}
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">
+                    What changed in v{displayDraft.version}
+                  </h3>
+                  {changedRanges.length ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="print:hidden"
+                      onClick={() => setShowChanges((current) => !current)}
+                    >
+                      {showChanges ? (
+                        <EyeOff className="size-4" aria-hidden />
+                      ) : (
+                        <Eye className="size-4" aria-hidden />
+                      )}
+                      {showChanges ? "Hide changes" : "Show changes"}
+                    </Button>
+                  ) : null}
+                </div>
                 <ul className="mt-2 flex flex-wrap gap-2">
                   {sectionsChanged.map((section) => (
                     <Badge key={section} variant="secondary">
@@ -336,12 +475,7 @@ export function DraftReviewPanel({
             {evidenceChanged ? (
               <EvidenceChangeStrip
                 summary={evidenceChanged}
-                onOpenTrace={() => {
-                  document.getElementById("draft-workflow-trace")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  });
-                }}
+                onOpenTrace={openWorkflowTrace}
               />
             ) : null}
           </div>
@@ -354,13 +488,6 @@ export function DraftReviewPanel({
           <p className="p-4 text-sm text-muted-foreground">
             Draft content could not be loaded.
           </p>
-        ) : isEditing ? (
-          <textarea
-            className="min-h-[38rem] w-full resize-y border-0 bg-transparent p-4 font-mono text-sm leading-relaxed outline-none focus-visible:ring-0"
-            value={editorValue}
-            onChange={(event) => setEditorValue(event.target.value)}
-            spellCheck={false}
-          />
         ) : sectionEditHeading ? (
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -391,12 +518,15 @@ export function DraftReviewPanel({
         ) : (
           <div className="p-4">
             <MarkdownContent
-              markdown={loadedDraft.content_markdown}
+              markdown={source}
+              containerRef={markdownRef}
               version={displayDraft.version}
               projectId={projectId}
               decisions={projectDecisions ?? undefined}
               projectTitle={displayDraft.title}
               readOnly={isAccepted || projectDecisions === null}
+              changedRanges={changedRanges}
+              showChanges={showChanges}
               onDraftUpdated={(updated) => {
                 setLoadedDraft(updated);
                 onDraftUpdated(updated);
@@ -417,12 +547,50 @@ export function DraftReviewPanel({
                 );
               }}
               onEditSection={
-                isAccepted || isEditing ? undefined : (heading) => startSectionEdit(heading)
+                isAccepted ? undefined : (heading) => startSectionEdit(heading)
               }
             />
+            {selectionHint ? (
+              <p className="mt-2 text-xs text-muted-foreground print:hidden" role="status">
+                {selectionHint}
+              </p>
+            ) : null}
           </div>
         )}
       </section>
+
+      {canInstruct && anchor ? (
+        <SelectionInstructionCard
+          anchor={anchor}
+          sectionHeading={headingForOffset(sections, anchor.start)}
+          onAdd={addInstruction}
+          onDismiss={() => {
+            setAnchor(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        />
+      ) : null}
+
+      {canInstruct ? (
+        <InstructionTray
+          items={trayItems}
+          isApplying={isApplying}
+          error={applyError}
+          onRemove={(id) => {
+            setApplyError(null);
+            writeTray(
+              loadedDraft!.id,
+              loadedDraft!.version,
+              trayItems.filter((item) => item.id !== id),
+            );
+          }}
+          onClearAll={() => {
+            setApplyError(null);
+            writeTray(loadedDraft!.id, loadedDraft!.version, []);
+          }}
+          onApply={() => void applyInstructions()}
+        />
+      ) : null}
 
       {workbook ? (
         <section className="rounded-md border bg-background">
@@ -439,109 +607,54 @@ export function DraftReviewPanel({
         </section>
       ) : null}
 
-      <header className="rounded-md border bg-background p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <FileText className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="min-w-0 truncate text-xl font-semibold">{displayDraft.title}</h2>
-              {loadedDraft ? (
-                <CopyContentButton
-                  content={isEditing ? editorValue : loadedDraft.content_markdown}
-                  label={`Copy ${displayDraft.title}`}
-                />
-              ) : null}
-            </div>
-            <p className="mt-1 break-all text-sm text-muted-foreground">
-              {displayDraft.workspace_path}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="secondary">v{displayDraft.version}</Badge>
-            <Badge variant={isAccepted ? "default" : "outline"}>
-              {isAccepted ? "Accepted" : "Draft"}
-            </Badge>
-          </div>
-        </div>
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <MetaItem label="Saved" value={dateFormatter.format(new Date(displayDraft.created_at))} />
-          <MetaItem label="Model" value={draftModelLabel(displayDraft)} />
-          <MetaItem label="Runtime" value={displayDraft.runtime} />
-          <MetaItem label="Workflow" value={displayDraft.workflow_type} />
-          <MetaItem
-            label="Draft mode"
-            value={draftModeLabel(loadedDraft?.provenance_metadata?.draft_mode)}
+      <details
+        ref={draftDetailsRef}
+        className="group rounded-md border bg-background"
+        data-testid="draft-supporting-details"
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <ChevronRight
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+            aria-hidden
           />
-        </dl>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            variant={isAccepted ? "outline" : "secondary"}
-            size="sm"
-            onClick={() => void acceptDraft()}
-            disabled={isAccepting || isAccepted}
-          >
-            <Check className="size-4" aria-hidden />
-            {isAccepting ? "Accepting..." : isAccepted ? "Accepted" : acceptLabel}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing((current) => !current)}
-            disabled={isSaving || isLoadingDraft || !loadedDraft}
-          >
-            <Pencil className="size-4" aria-hidden />
-            {isEditing ? "Preview" : "Edit markdown"}
-          </Button>
-          {isEditing ? (
-            <Button size="sm" onClick={() => void saveEdits()} disabled={isSaving || !loadedDraft}>
-              <Save className="size-4" aria-hidden />
-              {isSaving ? "Saving..." : "Save edits"}
-            </Button>
+          <span className="text-sm font-semibold">Workflow trace</span>
+        </summary>
+
+        <div className="border-t p-4">
+          <p className="break-all text-sm text-muted-foreground">
+            {displayDraft.workspace_path}
+          </p>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <MetaItem
+              label="Saved"
+              value={dateFormatter.format(new Date(displayDraft.created_at))}
+            />
+            <MetaItem label="Model" value={draftModelLabel(displayDraft)} />
+            <MetaItem label="Runtime" value={displayDraft.runtime} />
+            <MetaItem label="Workflow" value={displayDraft.workflow_type} />
+            <MetaItem
+              label="Draft mode"
+              value={draftModeLabel(loadedDraft?.provenance_metadata?.draft_mode)}
+            />
+          </dl>
+          {actionError ? (
+            <p className="mt-4 text-sm text-destructive">{actionError}</p>
           ) : null}
-          {workbook ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void downloadWorkbook()}
-              disabled={isDownloadingWorkbook}
-            >
-              <Download className="size-4" aria-hidden />
-              {isDownloadingWorkbook ? "Downloading..." : "Download workbook"}
-            </Button>
+          {decisionLoadError ? (
+            <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
           ) : null}
-          {isPmpDraft(displayDraft.workflow_type) && onRunUpdatePmp ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRunUpdatePmp}
-              disabled={isRunningUpdatePmp || isAccepting || isEditing}
-            >
-              <RefreshCw className="size-4" aria-hidden />
-              {isRunningUpdatePmp ? "Refreshing..." : "Refresh PMP from documents"}
-            </Button>
-          ) : null}
-          <Button disabled variant="outline" size="sm">
-            <RotateCcw className="size-4" aria-hidden />
-            Reopen
-          </Button>
+
+          <div id="draft-workflow-trace" className="mt-4">
+            <WorkflowTracePanel trace={trace} />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <ReferenceList title="Seed consulted" items={seed} />
+            <ReferenceList title="Evidence refs" items={evidence} />
+            <ReferenceList title="Context refs" items={context} />
+          </div>
         </div>
-        {actionError ? (
-          <p className="mt-3 text-sm text-destructive">{actionError}</p>
-        ) : null}
-        {decisionLoadError ? (
-          <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
-        ) : null}
-      </header>
-
-      <div id="draft-workflow-trace">
-        <WorkflowTracePanel trace={trace} />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ReferenceList title="Seed consulted" items={seed} />
-        <ReferenceList title="Evidence refs" items={evidence} />
-        <ReferenceList title="Context refs" items={context} />
-      </div>
+      </details>
     </article>
   );
 }
@@ -560,11 +673,7 @@ function CostWorkbookSection({
   emptyMessage: string;
 }) {
   return (
-    <section className="rounded-md border bg-background">
-      <header className="flex items-center gap-2 border-b px-4 py-3">
-        <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <h2 className="text-sm font-semibold">Cost workbook</h2>
-      </header>
+    <section className="overflow-hidden rounded-md border bg-background">
       {error ? (
         <p className="p-4 text-sm text-destructive">{error}</p>
       ) : isLoading ? (
@@ -668,16 +777,6 @@ function draftModelLabel(draft: DraftArtifact | DraftArtifactSummary): string {
     }
   }
   return draft.model ?? "Unknown";
-}
-
-function acceptDraftLabel(workflowType: string): string {
-  if (workflowType === "create_cost_plan") {
-    return "Accept cost plan";
-  }
-  if (workflowType === "create_pmp" || workflowType === "update_pmp") {
-    return "Accept PMP";
-  }
-  return "Accept draft";
 }
 
 function draftModeLabel(value: unknown): string {

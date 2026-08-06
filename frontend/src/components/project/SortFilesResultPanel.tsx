@@ -11,9 +11,12 @@ const OUTCOME_LABELS: Record<string, string> = {
 };
 
 const OUTCOME_CLASSES: Record<string, string> = {
-  moved: "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300",
-  "already-filed": "border-sky-500/30 bg-sky-500/5 text-sky-700 dark:text-sky-300",
-  unresolved: "border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-200",
+  moved:
+    "border-[color-mix(in_oklch,var(--sw-positive)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-positive)_10%,transparent)] text-[var(--sw-positive)]",
+  "already-filed":
+    "border-[color-mix(in_oklch,var(--sw-beam)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] text-[var(--sw-beam)]",
+  unresolved:
+    "border-[color-mix(in_oklch,var(--sw-caution)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_10%,transparent)] text-[var(--sw-caution)]",
   skipped: "border-muted-foreground/20 bg-muted/40 text-muted-foreground",
   refused: "border-destructive/30 bg-destructive/5 text-destructive",
 };

@@ -1,8 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ChatSessionList } from "@/components/chat/ChatSessionList";
+import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { ThreadTitle } from "@/components/chat/ThreadTitle";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +20,7 @@ import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 
 export function ChatPage() {
   const { threadId } = useParams<{ threadId: string }>();
+  const queryClient = useQueryClient();
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [threadLoading, setThreadLoading] = useState(true);
@@ -92,6 +95,9 @@ export function ChatPage() {
         api.getThreadMessages(threadId),
       ]);
       setThread(threadData);
+      queryClient.setQueryData<ChatThread[]>(chatThreadQueryKey, (current) =>
+        current?.map((item) => (item.id === threadData.id ? threadData : item)),
+      );
       // Keep ChatPanel mounted; remounting resets scroll through full history.
       setMessages(messageData);
     } catch {
@@ -100,13 +106,13 @@ export function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+    <div className="relative z-[3] mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           {threadLoading ? (
             <div className="space-y-2">
-              <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-              <div className="h-4 w-64 animate-pulse rounded-md bg-muted" />
+              <div className="h-8 w-48 animate-pulse bg-muted" />
+              <div className="h-4 w-64 animate-pulse bg-muted" />
             </div>
           ) : thread ? (
             <>
@@ -122,7 +128,9 @@ export function ChatPage() {
               </p>
             </>
           ) : (
-            <h1 className="text-2xl font-semibold tracking-tight">Chat</h1>
+            <h1 className="text-2xl font-medium tracking-tight text-[var(--sw-text-primary)]">
+              Chat
+            </h1>
           )}
         </div>
         <Button asChild variant="outline">

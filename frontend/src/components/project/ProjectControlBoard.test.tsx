@@ -6,6 +6,7 @@ import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type {
+  DraftArtifact,
   DraftArtifactSummary,
   ProcessInvoicesResult,
   ProjectDetail,
@@ -154,13 +155,88 @@ describe("ProjectControlBoard project profile", () => {
         building_class: "commercial",
         work_type: "refurb",
         subclasses: [{ value: "other", label: "Laboratory office" }],
+        scale: {},
         complexity: { operational_constraints: "live_environment" },
+        work_scope: [],
         state: "NSW",
         site_address: null,
         client: null,
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
+  });
+
+  it("persists explicit dependent-field clears when the building class changes", async () => {
+    const user = userEvent.setup();
+    const residentialCatalog: TaxonomyCatalog = {
+      ...catalog,
+      building_classes: [
+        {
+          value: "residential",
+          label: "Residential",
+          multi_subclass: false,
+          work_types: ["new", "refurb"],
+          subclasses: [
+            {
+              value: "apartments",
+              label: "Apartments",
+              ncc_class: "2",
+              scale_fields: [],
+            },
+          ],
+        },
+        ...catalog.building_classes,
+      ],
+      complexity_dimensions: {
+        ...catalog.complexity_dimensions,
+        residential: [],
+      },
+    };
+    vi.mocked(useTaxonomy).mockReturnValue({
+      data: residentialCatalog,
+      error: null,
+    } as unknown as ReturnType<typeof useTaxonomy>);
+    vi.mocked(api.updateProject).mockResolvedValue({
+      profile: {
+        project_id: project.id,
+        profile_revision: 2,
+        building_class: "residential",
+        work_type: null,
+        subclasses: [],
+        scale: {},
+        complexity: {},
+        work_scope: [],
+        state: "NSW",
+        site_address: null,
+        client: null,
+      },
+      previous_revision: 1,
+      new_revision: 2,
+      changed_fields: ["building_class"],
+      cleared_fields: ["work_type", "subclasses", "complexity"],
+      overlay_status: project.overlay_status,
+      risk_flags: [],
+    });
+
+    render(profileBoard(project, vi.fn()));
+
+    await user.click(screen.getByRole("button", { name: "Residential" }));
+    await user.click(screen.getByRole("button", { name: "Save profile" }));
+
+    await waitFor(() =>
+      expect(api.updateProject).toHaveBeenCalledWith("project-1", {
+        expected_revision: 1,
+        building_class: "residential",
+        work_type: null,
+        subclasses: [],
+        scale: {},
+        complexity: {},
+        work_scope: [],
+        state: "NSW",
+        site_address: null,
+        client: null,
+      }),
+    );
   });
 
   it("creates a trade RFQ from the RFP / RFT panel", async () => {
@@ -285,7 +361,9 @@ describe("ProjectControlBoard project profile", () => {
         building_class: "commercial",
         work_type: "refurb",
         subclasses: ["office"],
+        scale: {},
         complexity: { operational_constraints: "live_environment" },
+        work_scope: [],
         state: "QLD",
         site_address: null,
         client: null,
@@ -417,7 +495,8 @@ describe("ProjectControlBoard project profile", () => {
       "Running",
     );
     expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /accept pmp/i })).toBeInTheDocument();
+    expect(await screen.findByText("Workflow trace")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
@@ -491,10 +570,53 @@ describe("ProjectControlBoard project profile", () => {
     render(runningPmpBoard(runningWorkflowRun));
 
     expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /accept pmp/i })).toBeInTheDocument();
+    expect(await screen.findByText("Workflow trace")).toBeInTheDocument();
   });
 
-  it("shows the cost plan taking shape once its run publishes a scaffold", async () => {
+  it("copies the complete PMP from the top control without workflow metadata", async () => {
+    const user = userEvent.setup();
+    const documentMarkdown = [
+      "# Project Management Plan",
+      "",
+      "## Citation key",
+      "",
+      "- [P1] Project brief",
+    ].join("\n");
+    const getProjectDraft = vi.fn().mockResolvedValue({
+      ...draftSummary,
+      content_markdown: documentMarkdown,
+      provenance_metadata: {
+        trace: [
+          {
+            step: "compose",
+            status: "complete",
+            message: "This workflow trace is not document content.",
+            metadata: {},
+          },
+        ],
+      },
+    } as DraftArtifact);
+    Object.assign(api, { getProjectDraft });
+
+    try {
+      render(runningPmpBoard(runningWorkflowRun));
+
+      await user.click(
+        screen.getByRole("button", { name: "Copy project management plan" }),
+      );
+
+      await waitFor(async () => {
+        expect(await navigator.clipboard.readText()).toBe(documentMarkdown);
+      });
+      expect(await navigator.clipboard.readText()).not.toContain(
+        "This workflow trace is not document content.",
+      );
+    } finally {
+      Reflect.deleteProperty(api, "getProjectDraft");
+    }
+  });
+
+  it("keeps narrative previews hidden while the cost workbook is generating", () => {
     render(
       <ProjectControlBoard
         project={costPlanSupportedProject}
@@ -532,16 +654,61 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    expect(await screen.findByTestId("workflow-draft-preview")).toHaveTextContent(
-      "1. Cost Summary",
+    expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
+    expect(screen.getByTestId("cost-plan-running-placeholder")).toHaveTextContent(
+      "Preparing workbook",
     );
+  });
+
+  it("replaces the prior Cost Plan while a new workbook is generating", async () => {
+    render(
+      <ProjectControlBoard
+        project={costPlanSupportedProject}
+        latestDraft={null}
+        latestCostPlanDraft={{
+          ...draftSummary,
+          workflow_type: "create_cost_plan",
+          title: "Prior Cost Plan",
+        }}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan
+        costPlanRunMode="create"
+        costPlanProgressKey="cost-session-2"
+        activeCostPlanRun={{
+          ...runningWorkflowRun,
+          workflow_type: "create_cost_plan",
+          progress: { stage: "executing", percent: 20 },
+        }}
+        selectedWorkflowId="cost-plan"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunRefreshCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+
+    expect(screen.getByTestId("cost-plan-running-placeholder")).toHaveTextContent(
+      "Preparing workbook",
+    );
+    expect(screen.queryByText("Prior Cost Plan")).not.toBeInTheDocument();
   });
 
   it("shows the cost workbook directly under Cost Plan actions", async () => {
     render(costPlanBoard(costPlanSupportedProject));
 
     expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Cost workbook" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Cost workbook" })).not.toBeInTheDocument();
     expect(
       await screen.findByText("Create cost plan to generate the workbook."),
     ).toBeInTheDocument();

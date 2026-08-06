@@ -1,27 +1,8 @@
-import { Moon, Sun, User } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { User } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { isDarkMode, toggleThemeMode } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-
-function subscribeToTheme(onStoreChange: () => void) {
-  const observer = new MutationObserver(onStoreChange);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-  return () => observer.disconnect();
-}
-
-function getDarkSnapshot() {
-  return isDarkMode();
-}
-
-function getDarkServerSnapshot() {
-  return false;
-}
 
 function userDisplayName(email: string | null): string {
   if (!email) return "Loading…";
@@ -40,11 +21,6 @@ function userInitials(email: string | null): string | null {
 }
 
 export function AppSystemFooter({ className }: { className?: string }) {
-  const dark = useSyncExternalStore(
-    subscribeToTheme,
-    getDarkSnapshot,
-    getDarkServerSnapshot,
-  );
   const [email, setEmail] = useState<string | null>(null);
   const initials = userInitials(email);
 
@@ -90,18 +66,6 @@ export function AppSystemFooter({ className }: { className?: string }) {
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
         {userDisplayName(email)}
       </span>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="shrink-0"
-        aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-        title={dark ? "Light mode" : "Dark mode"}
-        onClick={() => toggleThemeMode()}
-      >
-        {dark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-      </Button>
     </div>
   );
 }

@@ -568,6 +568,24 @@ export type DraftArtifact = DraftArtifactSummary & {
   provenance_metadata: Record<string, unknown> | null;
 };
 
+export type DraftInstructionInput = {
+  anchor_start: number;
+  anchor_end: number;
+  quoted_text: string;
+  instruction: string;
+};
+
+export type FailedInstruction = {
+  index: number;
+  reason: string;
+};
+
+export type ApplyDraftInstructionsResponse = {
+  draft: DraftArtifact;
+  applied_count: number;
+  failed: FailedInstruction[];
+};
+
 export type ProcurementRequestKind =
   | "consultant_rfp"
   | "contractor_eoi"

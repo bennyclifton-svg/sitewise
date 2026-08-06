@@ -10,7 +10,11 @@ from pydantic_ai.exceptions import ModelHTTPError
 
 from app.database.project import Project
 from app.retrieval.schemas import SourcePassage
-from app.sitewise.pmp_sources import required_platform_paths, required_section_headings
+from app.sitewise.pmp_sources import (
+    required_platform_paths,
+    required_section_headings,
+    seed_consulted_includes_required,
+)
 from app.schemas.projects import WorkflowTraceEvent
 from app.workflows.create_pmp import (
     PmpDraftOutput,
@@ -18,6 +22,7 @@ from app.workflows.create_pmp import (
     canonical_pmp_workspace_path,
     draft_workspace_path,
     RUNTIME_HYBRID_NAME,
+    _format_mandatory_seeds,
     _source_excerpt_chars,
     normalize_pmp_markdown,
     retrieve_create_pmp_sources,
@@ -1179,6 +1184,25 @@ def test_validate_pmp_output_fails_when_mandatory_seed_missing() -> None:
         assert "mandatory seeds" in str(exc)
     else:
         raise AssertionError("Expected validation to fail for missing seeds")
+
+
+@pytest.mark.parametrize(
+    "archetype",
+    ["new-dwelling", "renovation", "multi-dwelling", "ancillary", "small-commercial"],
+)
+def test_mandatory_seed_prompt_covers_every_validated_path(archetype: str) -> None:
+    """The prompt must name every path the validator later demands.
+
+    The prompt block and the validator read the same catalog, so a model that
+    consults exactly what it was told to consult must pass validation.
+    """
+    required = required_platform_paths(archetype=archetype)
+    prompt_paths = [
+        line[2:]
+        for line in _format_mandatory_seeds(required).splitlines()
+        if line.startswith("- ")
+    ]
+    assert not seed_consulted_includes_required(prompt_paths, archetype=archetype)
 
 
 def test_validate_pmp_output_fails_evidence_grounded_contradictions() -> None:

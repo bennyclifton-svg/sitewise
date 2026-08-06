@@ -1,0 +1,317 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1580" width="1200" height="1580" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+
+  <defs>
+    <style>
+      .mono { font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace; }
+      .eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; fill: #7C8A9C; }
+      .h1 { font-size: 34px; font-weight: 700; fill: #E9EFF5; letter-spacing: -0.01em; }
+      .sub { font-size: 15px; fill: #94A3B5; }
+      .lbl { font-size: 13px; font-weight: 600; fill: #D6E0EA; }
+      .lblsm { font-size: 11.5px; fill: #8B98A9; }
+      .prompt { font-size: 13.5px; fill: #C3CEDB; }
+      .tag { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
+      .det { stroke: #3F6E85; }
+      .llmtxt { fill: #E8933A; }
+    </style>
+
+    <marker id="arrDet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,1 L9,5 L0,9 z" fill="#4E8AA6"/>
+    </marker>
+    <marker id="arrAmb" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,1 L9,5 L0,9 z" fill="#E8933A"/>
+    </marker>
+    <marker id="arrPaper" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,1 L9,5 L0,9 z" fill="#C9BFA8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="1580" fill="#0E1116"/>
+
+  <!-- ============ TITLE ============ -->
+  <text x="60" y="62" class="eyebrow">How it works</text>
+  <text x="60" y="104" class="h1">AI where judgement is needed.</text>
+  <text x="60" y="140" class="h1" fill="#56A8C7">Ordinary code everywhere else.</text>
+  <text x="60" y="176" class="sub">Most of what happens in SiteWise is ordinary deterministic software — exact, fast, repeatable.</text>
+  <text x="60" y="198" class="sub">A language model is called only at the four points that genuinely call for judgement.</text>
+
+  <!-- legend -->
+  <g transform="translate(795, 52)">
+    <rect x="0" y="0" width="345" height="126" rx="10" fill="#141920" stroke="#232B36"/>
+    <g transform="translate(18, 30)">
+      <rect x="0" y="-11" width="14" height="14" rx="3" fill="#16323E" stroke="#4E8AA6"/>
+      <text x="26" y="1" class="lbl">Deterministic code</text>
+      <text x="26" y="18" class="lblsm">Exact, instant, same answer every time</text>
+    </g>
+    <g transform="translate(18, 82)">
+      <rect x="-1" y="-12" width="16" height="16" rx="4" fill="#2E1E0C" stroke="#E8933A"/>
+      <text x="7.5" y="0.5" class="mono" font-size="10" font-weight="700" fill="#E8933A" text-anchor="middle">AI</text>
+      <text x="26" y="0" class="lbl" fill="#E8933A">LLM call — judgement</text>
+      <text x="26" y="17" class="lblsm">Reading, deciding, writing. Used sparingly.</text>
+    </g>
+  </g>
+
+  <!-- ============ ROW 1: TWO INLETS ============ -->
+
+  <!-- LEFT INLET: documents -->
+  <text x="60" y="268" class="eyebrow">What you put in</text>
+  <g>
+    <rect x="60" y="284" width="500" height="112" rx="12" fill="#141920" stroke="#232B36"/>
+    <text x="84" y="316" class="lbl">Drawings, contracts, invoices, tenders, emails</text>
+    <text x="84" y="338" class="lblsm">Scanned PDFs, spreadsheets, photos, correspondence —</text>
+    <text x="84" y="356" class="lblsm">messy, inconsistent, in no particular order.</text>
+    <g transform="translate(84, 372)">
+      <rect x="0" y="0" width="132" height="18" rx="9" fill="#1C222B" stroke="#2E3846"/>
+      <text x="66" y="12.5" class="mono" font-size="10" fill="#8B98A9" text-anchor="middle">UNSTRUCTURED DATA</text>
+    </g>
+  </g>
+
+  <!-- RIGHT INLET: prompts -->
+  <text x="640" y="268" class="eyebrow">What you ask</text>
+  <g>
+    <rect x="640" y="284" width="500" height="112" rx="12" fill="#141920" stroke="#232B36"/>
+    <g class="prompt">
+      <text x="664" y="312">“Send every basement drawing to my structural engineer.”</text>
+      <text x="664" y="336">“Where is this project up to?”</text>
+      <text x="664" y="360">“Which consultant is most urgent to engage?”</text>
+      <text x="664" y="384">“Draft an RFP for the façade engineer and email it.”</text>
+    </g>
+  </g>
+
+  <!-- ============ ROW 2: PROCESSING ============ -->
+
+  <!-- connectors down -->
+  <path d="M310,396 L310,436" stroke="#3F6E85" stroke-width="1.5" marker-end="url(#arrDet)"/>
+  <path d="M890,396 L890,436" stroke="#E8933A" stroke-width="1.5" marker-end="url(#arrAmb)"/>
+
+  <!-- LEFT: ingestion pipeline -->
+  <g>
+    <rect x="60" y="444" width="500" height="196" rx="12" fill="#11161D" stroke="#232B36"/>
+    <text x="84" y="474" class="eyebrow" fill="#7C8A9C">Ingestion pipeline</text>
+
+    <!-- step 1 parse: deterministic -->
+    <g transform="translate(84, 490)">
+      <rect x="0" y="0" width="200" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+      <text x="14" y="24" class="lbl">Parse &amp; split</text>
+      <text x="14" y="42" class="lblsm">text, tables, pages</text>
+    </g>
+    <path d="M290,518 L318,518" stroke="#3F6E85" stroke-width="1.5" marker-end="url(#arrDet)"/>
+
+    <!-- step 2 categorise: LLM -->
+    <g transform="translate(324, 490)">
+      <rect x="0" y="0" width="200" height="56" rx="8" fill="#2E1E0C" stroke="#E8933A"/>
+      <rect x="152" y="9" width="36" height="16" rx="8" fill="#E8933A"/>
+      <text x="170" y="20.5" class="mono tag" fill="#160F05" text-anchor="middle">AI</text>
+      <text x="14" y="24" class="lbl" fill="#F2C089">Categorising</text>
+      <text x="14" y="42" class="lblsm">what kind of document is this?</text>
+    </g>
+
+    <!-- step 3 extract: LLM -->
+    <g transform="translate(84, 562)">
+      <rect x="0" y="0" width="200" height="56" rx="8" fill="#2E1E0C" stroke="#E8933A"/>
+      <rect x="152" y="9" width="36" height="16" rx="8" fill="#E8933A"/>
+      <text x="170" y="20.5" class="mono tag" fill="#160F05" text-anchor="middle">AI</text>
+      <text x="14" y="24" class="lbl" fill="#F2C089">Extracting</text>
+      <text x="14" y="42" class="lblsm">dates, amounts, revisions</text>
+    </g>
+    <path d="M290,590 L318,590" stroke="#3F6E85" stroke-width="1.5" marker-end="url(#arrDet)"/>
+
+    <!-- step 4 validate: deterministic -->
+    <g transform="translate(324, 562)">
+      <rect x="0" y="0" width="200" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+      <text x="14" y="24" class="lbl">You confirm</text>
+      <text x="14" y="42" class="lblsm">nothing lands unchecked</text>
+    </g>
+  </g>
+
+  <!-- RIGHT: conversational agent -->
+  <g>
+    <rect x="640" y="444" width="500" height="196" rx="12" fill="#11161D" stroke="#232B36"/>
+    <text x="664" y="474" class="eyebrow" fill="#7C8A9C">Orchestration</text>
+
+    <g transform="translate(664, 490)">
+      <rect x="0" y="0" width="452" height="56" rx="8" fill="#2E1E0C" stroke="#E8933A"/>
+      <rect x="404" y="9" width="36" height="16" rx="8" fill="#E8933A"/>
+      <text x="422" y="20.5" class="mono tag" fill="#160F05" text-anchor="middle">AI</text>
+      <text x="14" y="24" class="lbl" fill="#F2C089">Conversational agent</text>
+      <text x="14" y="42" class="lblsm">reads what you meant, picks the right workflow</text>
+    </g>
+
+    <g transform="translate(664, 562)">
+      <rect x="0" y="0" width="452" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+      <text x="14" y="24" class="lbl">Calls tools · runs the workflow</text>
+      <text x="14" y="42" class="lblsm">from here on, no guessing — just code doing as it's told</text>
+    </g>
+  </g>
+
+  <!-- converge -->
+  <path d="M310,640 L310,676 L600,676 L600,706" fill="none" stroke="#3F6E85" stroke-width="1.5"/>
+  <path d="M890,640 L890,676 L600,676" fill="none" stroke="#3F6E85" stroke-width="1.5"/>
+  <path d="M600,690 L600,706" stroke="#3F6E85" stroke-width="1.5" marker-end="url(#arrDet)"/>
+
+  <!-- ============ ROW 3: STRUCTURED RECORD ============ -->
+  <g>
+    <rect x="60" y="714" width="1080" height="150" rx="12" fill="#132029" stroke="#3F6E85" stroke-width="1.5"/>
+    <g transform="translate(84, 742)">
+      <rect x="0" y="0" width="140" height="18" rx="9" fill="#16323E" stroke="#4E8AA6"/>
+      <text x="70" y="12.5" class="mono" font-size="10" fill="#7FC4DE" text-anchor="middle">STRUCTURED DATA</text>
+    </g>
+    <text x="240" y="756" class="lbl" fill="#7FC4DE">The project record — one source of truth</text>
+
+    <g class="lblsm" font-size="12">
+      <g transform="translate(84, 786)">
+        <rect x="0" y="0" width="240" height="54" rx="8" fill="#0F1720" stroke="#25313C"/>
+        <text x="14" y="22" class="lbl" font-size="12.5">Document register</text>
+        <text x="14" y="40">every file, revision, category</text>
+      </g>
+      <g transform="translate(340, 786)">
+        <rect x="0" y="0" width="240" height="54" rx="8" fill="#0F1720" stroke="#25313C"/>
+        <text x="14" y="22" class="lbl" font-size="12.5">Cost &amp; invoices</text>
+        <text x="14" y="40">budgets, claims, variations</text>
+      </g>
+      <g transform="translate(596, 786)">
+        <rect x="0" y="0" width="240" height="54" rx="8" fill="#0F1720" stroke="#25313C"/>
+        <text x="14" y="22" class="lbl" font-size="12.5">Contacts &amp; consultants</text>
+        <text x="14" y="40">who's engaged, who isn't</text>
+      </g>
+      <g transform="translate(852, 786)">
+        <rect x="0" y="0" width="240" height="54" rx="8" fill="#0F1720" stroke="#25313C"/>
+        <text x="14" y="22" class="lbl" font-size="12.5">Construction knowledge</text>
+        <text x="14" y="40">standards, obligations, method</text>
+      </g>
+    </g>
+  </g>
+
+  <path d="M600,864 L600,900" stroke="#3F6E85" stroke-width="1.5" marker-end="url(#arrDet)"/>
+
+  <!-- ============ ROW 4: DETERMINISTIC RUNTIME ============ -->
+  <g>
+    <rect x="60" y="908" width="1080" height="186" rx="12" fill="#11161D" stroke="#232B36"/>
+    <text x="84" y="938" class="eyebrow" fill="#7C8A9C">Runtime — no AI involved</text>
+    <text x="404" y="938" class="lblsm" font-size="12">This is the majority of every task, and it runs in milliseconds.</text>
+
+    <g transform="translate(84, 954)">
+      <!-- 5 deterministic steps -->
+      <g>
+        <rect x="0" y="0" width="196" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+        <text x="14" y="24" class="lbl">Retrieve</text>
+        <text x="14" y="42" class="lblsm">find the right records</text>
+      </g>
+      <g transform="translate(216, 0)">
+        <rect x="0" y="0" width="196" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+        <text x="14" y="24" class="lbl">Filter &amp; select</text>
+        <text x="14" y="42" class="lblsm">e.g. every basement drawing</text>
+      </g>
+      <g transform="translate(432, 0)">
+        <rect x="0" y="0" width="196" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+        <text x="14" y="24" class="lbl">Calculate</text>
+        <text x="14" y="42" class="lblsm">totals, to the cent</text>
+      </g>
+      <g transform="translate(648, 0)">
+        <rect x="0" y="0" width="196" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+        <text x="14" y="24" class="lbl">Check</text>
+        <text x="14" y="42" class="lblsm">nothing missing, nothing lost</text>
+      </g>
+      <g transform="translate(864, 0)">
+        <rect x="0" y="0" width="196" height="56" rx="8" fill="#16323E" stroke="#4E8AA6"/>
+        <text x="14" y="24" class="lbl">Assemble</text>
+        <text x="14" y="42" class="lblsm">build the document</text>
+      </g>
+    </g>
+
+    <!-- the single drafting LLM step -->
+    <g transform="translate(84, 1026)">
+      <rect x="0" y="0" width="1012" height="52" rx="8" fill="#2E1E0C" stroke="#E8933A"/>
+      <rect x="964" y="8" width="36" height="16" rx="8" fill="#E8933A"/>
+      <text x="982" y="19.5" class="mono tag" fill="#160F05" text-anchor="middle">AI</text>
+      <text x="14" y="22" class="lbl" fill="#F2C089">Drafting the words</text>
+      <text x="14" y="40" class="lblsm">The narrative, the covering letter, the scope description — written around numbers the code has already worked out.</text>
+    </g>
+  </g>
+
+  <path d="M600,1094 L600,1130" stroke="#C9BFA8" stroke-width="1.5" marker-end="url(#arrPaper)"/>
+
+  <!-- ============ ROW 5: GENERATION ============ -->
+  <g>
+    <rect x="60" y="1138" width="1080" height="252" rx="12" fill="#15130E" stroke="#3A342A"/>
+    <text x="84" y="1170" class="eyebrow" fill="#B0A488">What comes out</text>
+    <text x="84" y="1204" font-size="24" font-weight="700" fill="#EDE4D3">Finished documents, generated for you</text>
+    <text x="84" y="1230" class="lblsm" font-size="13" fill="#A69B84">Drafted in minutes, grounded in your project's own evidence — then yours to review, edit and issue.</text>
+
+    <!-- paper deliverables -->
+    <g transform="translate(84, 1254)">
+      <!-- doc 1 -->
+      <g>
+        <path d="M0,0 L128,0 L156,28 L156,116 L0,116 Z" fill="#EDE4D3"/>
+        <path d="M128,0 L128,28 L156,28 Z" fill="#CFC3AA"/>
+        <text x="16" y="52" font-size="12.5" font-weight="700" fill="#2A2620">Request for</text>
+        <text x="16" y="70" font-size="12.5" font-weight="700" fill="#2A2620">Proposal</text>
+        <rect x="16" y="84" width="90" height="4" rx="2" fill="#C6BAA3"/>
+        <rect x="16" y="94" width="112" height="4" rx="2" fill="#D6CCB8"/>
+      </g>
+      <!-- doc 2 -->
+      <g transform="translate(184, 0)">
+        <path d="M0,0 L128,0 L156,28 L156,116 L0,116 Z" fill="#EDE4D3"/>
+        <path d="M128,0 L128,28 L156,28 Z" fill="#CFC3AA"/>
+        <text x="16" y="52" font-size="12.5" font-weight="700" fill="#2A2620">Request for</text>
+        <text x="16" y="70" font-size="12.5" font-weight="700" fill="#2A2620">Tender</text>
+        <rect x="16" y="84" width="90" height="4" rx="2" fill="#C6BAA3"/>
+        <rect x="16" y="94" width="112" height="4" rx="2" fill="#D6CCB8"/>
+      </g>
+      <!-- doc 3 -->
+      <g transform="translate(368, 0)">
+        <path d="M0,0 L128,0 L156,28 L156,116 L0,116 Z" fill="#EDE4D3"/>
+        <path d="M128,0 L128,28 L156,28 Z" fill="#CFC3AA"/>
+        <text x="16" y="52" font-size="12.5" font-weight="700" fill="#2A2620">Project</text>
+        <text x="16" y="70" font-size="12.5" font-weight="700" fill="#2A2620">Management Plan</text>
+        <rect x="16" y="84" width="90" height="4" rx="2" fill="#C6BAA3"/>
+        <rect x="16" y="94" width="112" height="4" rx="2" fill="#D6CCB8"/>
+      </g>
+      <!-- doc 4 -->
+      <g transform="translate(552, 0)">
+        <path d="M0,0 L128,0 L156,28 L156,116 L0,116 Z" fill="#EDE4D3"/>
+        <path d="M128,0 L128,28 L156,28 Z" fill="#CFC3AA"/>
+        <text x="16" y="52" font-size="12.5" font-weight="700" fill="#2A2620">Cost Plan</text>
+        <text x="16" y="70" font-size="12.5" font-weight="700" fill="#2A2620">&amp; Report</text>
+        <rect x="16" y="84" width="90" height="4" rx="2" fill="#C6BAA3"/>
+        <rect x="16" y="94" width="112" height="4" rx="2" fill="#D6CCB8"/>
+      </g>
+      <!-- doc 5 -->
+      <g transform="translate(736, 0)">
+        <path d="M0,0 L128,0 L156,28 L156,116 L0,116 Z" fill="#EDE4D3"/>
+        <path d="M128,0 L128,28 L156,28 Z" fill="#CFC3AA"/>
+        <text x="16" y="52" font-size="12.5" font-weight="700" fill="#2A2620">Transmittal</text>
+        <rect x="16" y="84" width="90" height="4" rx="2" fill="#C6BAA3"/>
+        <rect x="16" y="94" width="112" height="4" rx="2" fill="#D6CCB8"/>
+      </g>
+      <!-- doc 6 -->
+      <g transform="translate(920, 0)">
+        <path d="M0,0 L92,0 L120,28 L120,116 L0,116 Z" fill="#EDE4D3"/>
+        <path d="M92,0 L92,28 L120,28 Z" fill="#CFC3AA"/>
+        <text x="16" y="52" font-size="12.5" font-weight="700" fill="#2A2620">Claim</text>
+        <text x="16" y="70" font-size="12.5" font-weight="700" fill="#2A2620">Assessment</text>
+        <rect x="16" y="84" width="76" height="4" rx="2" fill="#C6BAA3"/>
+        <rect x="16" y="94" width="88" height="4" rx="2" fill="#D6CCB8"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ============ FOOTER TALLY ============ -->
+  <g transform="translate(60, 1424)">
+    <rect x="0" y="0" width="1080" height="96" rx="12" fill="#141920" stroke="#232B36"/>
+
+    <g transform="translate(32, 32)">
+      <text x="0" y="0" font-size="30" font-weight="700" fill="#56A8C7" class="mono">4</text>
+      <text x="46" y="-6" class="lbl">points where AI is used</text>
+      <text x="46" y="14" class="lblsm">interpreting, categorising, extracting, drafting</text>
+    </g>
+
+    <line x1="470" y1="24" x2="470" y2="72" stroke="#232B36"/>
+
+    <g transform="translate(506, 32)">
+      <text x="0" y="0" font-size="30" font-weight="700" fill="#56A8C7" class="mono">0</text>
+      <text x="34" y="-6" class="lbl">AI involved in any number</text>
+      <text x="34" y="14" class="lblsm">every figure is calculated by code, and reproducible</text>
+    </g>
+  </g>
+
+</svg>

@@ -50,7 +50,7 @@ export function ChatComposer({
   }
 
   return (
-    <div className="shrink-0 rounded-lg border bg-background shadow-sm">
+    <div className="sw-surface shrink-0 hover:translate-y-0">
       <textarea
         ref={textareaRef}
         value={value}

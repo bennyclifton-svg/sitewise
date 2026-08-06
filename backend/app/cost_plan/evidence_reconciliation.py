@@ -26,6 +26,7 @@ ProposalKind = Literal[
     "cost_advisory",
     "main_works",
 ]
+ReceivedCostFormat = Literal["proposal", "source_schedule"]
 
 _PROPOSAL_REFERENCE_RE = re.compile(
     r"^\*\*Proposal reference:\*\*\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE
@@ -68,6 +69,7 @@ class ReceivedCostProposal:
     valid_until: str | None
     total_ex_gst: Decimal
     line_items: tuple[ProposalLine, ...]
+    preserve_source_breakdown: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,18 +154,11 @@ def _extract_received_proposal(
     document: CostEvidenceDocument,
 ) -> tuple[ReceivedCostProposal | None, str | None]:
     heading = _first_heading(document.content)
-    heading_lower = heading.lower()
-    filename_lower = document.filename.lower()
-    is_candidate = (
-        "fee proposal" in heading_lower
-        or "building proposal" in heading_lower
-        or "fee-proposal" in filename_lower
-        or "building-proposal" in filename_lower
-    )
-    if not is_candidate:
+    cost_format = _received_cost_format(document, heading=heading)
+    if cost_format is None:
         return None, None
 
-    kind = _proposal_kind(heading)
+    kind = "main_works" if cost_format == "source_schedule" else _proposal_kind(heading)
     if kind is None:
         return (
             None,
@@ -172,11 +167,17 @@ def _extract_received_proposal(
 
     supplier = _match_value(_SUPPLIER_RE, document.content) or document.filename
     reference = _match_value(_PROPOSAL_REFERENCE_RE, document.content)
+    if reference is None and cost_format == "source_schedule":
+        reference = heading or document.filename
     if reference is None:
         return None, f"Proposal reference is missing from {document.relative_path}."
 
     section_heading = "Works breakdown" if kind == "main_works" else "Professional fee"
-    section = _markdown_section(document.content, section_heading)
+    section = (
+        document.content
+        if cost_format == "source_schedule"
+        else _markdown_section(document.content, section_heading)
+    )
     if not section:
         return None, (
             f"{document.relative_path} has no {section_heading!r} section; "
@@ -184,7 +185,13 @@ def _extract_received_proposal(
         )
 
     total_labels = (
-        ("fixed contract sum excluding gst",)
+        (
+            "total excl gst",
+            "total excluding gst",
+            "total ex gst",
+            "fixed contract sum excluding gst",
+            "contract sum excluding gst",
+        )
         if kind == "main_works"
         else ("total professional fee",)
     )
@@ -216,9 +223,50 @@ def _extract_received_proposal(
             valid_until=_match_value(_VALID_UNTIL_RE, document.content),
             total_ex_gst=total,
             line_items=tuple(lines),
+            preserve_source_breakdown=cost_format == "source_schedule",
         ),
         None,
     )
+
+
+def is_main_works_cost_document(document: CostEvidenceDocument) -> bool:
+    """Whether a document asserts a priced main-works breakdown."""
+    cost_format = _received_cost_format(document)
+    if cost_format == "source_schedule":
+        return True
+    return cost_format == "proposal" and (
+        _proposal_kind(_first_heading(document.content)) == "main_works"
+    )
+
+
+def _received_cost_format(
+    document: CostEvidenceDocument,
+    *,
+    heading: str | None = None,
+) -> ReceivedCostFormat | None:
+    heading = heading if heading is not None else _first_heading(document.content)
+    heading_normalized = _normalize(heading)
+    filename_normalized = _normalize(document.filename)
+    content_normalized = _normalize(document.content[:4000])
+    if any(
+        marker in f"{heading_normalized} {filename_normalized} {content_normalized}"
+        for marker in (
+            "contract price schedule",
+            "pricing schedule",
+            "price schedule",
+            "schedule of values",
+            "contract sum analysis",
+        )
+    ):
+        return "source_schedule"
+    if (
+        "fee proposal" in heading_normalized
+        or "building proposal" in heading_normalized
+        or "fee proposal" in filename_normalized
+        or "building proposal" in filename_normalized
+    ):
+        return "proposal"
+    return None
 
 
 def _proposal_kind(heading: str) -> ProposalKind | None:
@@ -296,21 +344,14 @@ def _main_works_items(
         )
         return []
 
+    if proposal.preserve_source_breakdown:
+        return _source_schedule_items(base, proposal)
+
     grouped: dict[str, list[ProposalLine]] = defaultdict(list)
     for line in proposal.line_items:
         grouped[_main_works_target(line.label)].append(line)
 
     proposed: dict[str, CostItemInput] = {}
-    for current in construction:
-        proposed[current.item_key] = _revised_item(
-            current,
-            amount=Decimal("0"),
-            basis=(
-                f"Superseded by received main works proposal "
-                f"{proposal.proposal_reference}; no separate allocation"
-            ),
-            source_refs=[_source_ref(proposal)],
-        )
 
     used_codes = {item.cost_code for item in base.items}
     for target, lines in grouped.items():
@@ -364,6 +405,67 @@ def _main_works_items(
         )
         return []
     return list(proposed.values())
+
+
+def _source_schedule_items(
+    base: CostPlanState,
+    proposal: ReceivedCostProposal,
+) -> list[CostItemInput]:
+    """Adopt a reconciled contract schedule without collapsing its trade rows."""
+    used_codes = {
+        item.cost_code
+        for item in base.items
+        if "construct" not in item.category.lower()
+    }
+    proposed: list[CostItemInput] = []
+    for index, line in enumerate(proposal.line_items, start=1):
+        source_code, description = _source_line_identity(line.label)
+        preferred_code = source_code or f"MW.{index}"
+        cost_code = _available_code(preferred_code, used_codes)
+        used_codes.add(cost_code)
+        source_ref = _source_ref(proposal)
+        source_ref.update(
+            {
+                "source_cost_code": source_code,
+                "source_label": description,
+                "line_amount_ex_gst": str(line.amount_ex_gst),
+            }
+        )
+        normalized = _normalize(description)
+        allowance_type = (
+            "ps"
+            if "provisional sum" in normalized
+            else "pc"
+            if " pc " in f" {normalized} " or normalized.endswith(" pc items")
+            else "none"
+        )
+        proposed.append(
+            CostItemInput(
+                item_key=(
+                    f"received-schedule:{proposal.source_document_id}:"
+                    f"{source_code or index}"
+                ),
+                cost_code=cost_code,
+                category="Construction",
+                item=description,
+                budget=line.amount_ex_gst,
+                forecast=line.amount_ex_gst,
+                allowance_type=allowance_type,
+                basis=_proposal_basis(proposal, "contract price schedule"),
+                source_refs=[source_ref],
+                confidence=Decimal("1"),
+                status="proposed",
+            )
+        )
+    return proposed
+
+
+def _source_line_identity(label: str) -> tuple[str | None, str]:
+    cleaned = _strip_markdown(label)
+    match = re.match(r"^(\d+(?:\.\d+)*)\s+(.+)$", cleaned)
+    if match is None:
+        return None, cleaned
+    return match.group(1), match.group(2).strip()
 
 
 def _main_works_target(label: str) -> str:

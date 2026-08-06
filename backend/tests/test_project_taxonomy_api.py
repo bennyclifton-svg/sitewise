@@ -283,6 +283,37 @@ def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> No
     ]
 
 
+def test_patch_project_commits_profile_before_returning(
+    client: TestClient,
+    mock_session: AsyncMock,
+) -> None:
+    project = _project()
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.projects.apply_profile_patch",
+            new=AsyncMock(return_value=_profile_change()),
+        ),
+    ):
+        response = client.patch(
+            f"/projects/{PROJECT_ID}",
+            json={
+                "expected_revision": 1,
+                "building_class": "residential",
+                "work_type": None,
+                "subclasses": [],
+                "scale": {},
+                "complexity": {},
+                "work_scope": [],
+            },
+        )
+
+    assert response.status_code == 200
+    mock_session.commit.assert_awaited_once()
+
+
 def test_patch_project_returns_conflict_for_stale_profile_revision(
     client: TestClient,
 ) -> None:

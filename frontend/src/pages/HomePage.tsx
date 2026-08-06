@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
+import { SitewiseMark } from "@/components/SitewiseMark";
 import { Button } from "@/components/ui/button";
 import { CreateProjectPanel } from "@/components/project/CreateProjectPanel";
 import { api } from "@/lib/api";
@@ -107,25 +108,16 @@ export function HomePage() {
   const backendUnavailable = Boolean(projectsError);
 
   return (
-    <div className="cockpit-page min-h-screen bg-[var(--bg-app)]">
+    <div className="cockpit-page min-h-screen">
       <header className="cockpit-shell-header">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-5">
-            <span
-              className="cockpit-sitewise-mark relative inline-flex shrink-0 items-center justify-center"
-              aria-hidden
-            >
-              <span className="text-center text-[1.04rem] font-semibold lowercase leading-[1.05] tracking-tight text-black">
-                site
-                <br />
-                wise
-              </span>
-            </span>
-            <div className="flex min-w-0 flex-col gap-0.5 pl-2">
-              <h1 className="truncate text-[1.3rem] font-semibold leading-[1.05] tracking-tight text-[var(--cockpit-sitewise-surface)]">
+          <div className="flex min-w-0 items-center gap-3">
+            <SitewiseMark size={48} className="!p-2" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <h1 className="truncate text-[1.3rem] font-medium leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
                 SiteWise
               </h1>
-              <p className="truncate text-sm font-medium leading-snug tracking-tight text-[var(--cockpit-sitewise-surface)]/90">
+              <p className="truncate text-sm font-normal leading-snug tracking-tight text-[var(--sw-text-secondary)]">
                 Project workspaces, evidence, workflow drafts, and grounded chat.
               </p>
             </div>
@@ -252,7 +244,7 @@ export function HomePage() {
         </aside>
       </main>
 
-      <AppSystemFooter className="fixed bottom-0 left-0 z-50 rounded-tr-md border-l-0 border-b-0 shadow-sm" />
+      <AppSystemFooter className="fixed bottom-0 left-0 z-50 rounded-tr-md border-l-0 border-b-0" />
     </div>
   );
 }

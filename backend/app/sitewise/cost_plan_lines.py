@@ -653,6 +653,8 @@ def _overlay_received_proposal_rows(
     if not pack.reconciled_items:
         return rows
 
+    if any(proposal.kind == "main_works" for proposal in pack.received_cost_proposals):
+        rows = [row for row in rows if row.category.lower() != "construction"]
     by_code = {row.cost_code: row for row in rows}
     for item in pack.reconciled_items:
         if item.budget is None:

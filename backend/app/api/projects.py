@@ -72,6 +72,9 @@ from app.schemas.projects import (
     DeleteProjectActivityResponse,
     PatchDraftRequest,
     AcceptDraftRequest,
+    ApplyDraftInstructionsRequest,
+    ApplyDraftInstructionsResponse,
+    FailedInstructionResponse,
     BatchDeleteEvidenceFailure,
     BatchDeleteEvidenceRequest,
     BatchDeleteEvidenceResponse,
@@ -171,6 +174,12 @@ from app.projects.artefact_adapters import (
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
+)
+from app.projects.draft_instructions_service import (
+    AllInstructionsFailedError,
+    InstructionInput,
+    StaleAnchorError,
+    apply_draft_instructions,
 )
 from app.procurement.requests import (
     ProcurementRequestNotFound,
@@ -1091,12 +1100,16 @@ async def patch_project(
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
     try:
-        return await apply_profile_patch(
+        change = await apply_profile_patch(
             session,
             project=project,
             patch=body,
             actor_source="user",
         )
+        # The client refreshes project capabilities as soon as this response
+        # arrives. Commit first so that refresh cannot observe the old profile.
+        await session.commit()
+        return change
     except ProfileRevisionConflict as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -2402,6 +2415,71 @@ async def patch_project_draft(
     except ArtefactPolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return DraftArtifactResponse.model_validate(updated)
+
+
+@router.post("/{project_id}/drafts/{draft_id}/apply-instructions")
+async def post_apply_draft_instructions(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    body: ApplyDraftInstructionsRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ApplyDraftInstructionsResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    try:
+        result = await apply_draft_instructions(
+            session,
+            project=project,
+            draft=draft,
+            expected_base_version=body.expected_base_version,
+            author_user_id=user.id,
+            instructions=[
+                InstructionInput(
+                    anchor_start=item.anchor_start,
+                    anchor_end=item.anchor_end,
+                    quoted_text=item.quoted_text,
+                    instruction=item.instruction,
+                )
+                for item in body.instructions
+            ],
+        )
+        return ApplyDraftInstructionsResponse(
+            draft=DraftArtifactResponse.model_validate(result.revision),
+            applied_count=result.applied_count,
+            failed=[
+                FailedInstructionResponse(index=item.index, reason=item.reason)
+                for item in result.failed
+            ],
+        )
+    except ArtefactRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except StaleAnchorError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except AllInstructionsFailedError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ArtefactPolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        # This endpoint costs minutes of model time. A bare 500 with no log and
+        # no detail makes a failed batch undiagnosable and unrepeatable, so the
+        # traceback is recorded and the caller is told what class of thing broke.
+        log.exception(
+            "apply_draft_instructions_failed",
+            project_id=str(project.id),
+            draft_id=str(draft.id),
+            instruction_count=len(body.instructions),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not apply changes: {type(exc).__name__}: {exc}",
+        ) from exc
 
 
 @router.post("/{project_id}/drafts/{draft_id}/accept")

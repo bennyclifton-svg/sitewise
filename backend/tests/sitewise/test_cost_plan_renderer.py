@@ -393,6 +393,14 @@ def test_renderer_covers_each_new_cost_reference_family() -> None:
         ),
         (
             _taxonomy_project(
+                building_class="mixed",
+                work_type="new",
+                subclass="residential_retail",
+            ),
+            "Vertical transport",
+        ),
+        (
+            _taxonomy_project(
                 building_class="commercial",
                 work_type="new",
                 subclass="office",

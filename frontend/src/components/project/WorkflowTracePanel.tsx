@@ -23,7 +23,7 @@ export function WorkflowTracePanel({
       className={
         embedded
           ? "bg-transparent py-0"
-          : "cockpit-signature-card rounded-lg border bg-card p-4 shadow-sm"
+          : "cockpit-signature-card rounded-lg border bg-card p-4"
       }
       aria-label="Workflow activity"
       aria-live="polite"

@@ -7,6 +7,7 @@ import { DocumentRepositoryPanel } from "@/components/project/DocumentRepository
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
 import { ChatRail } from "@/components/chat/ChatRail";
+import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import {
   findDraftByWorkspacePath,
@@ -437,6 +438,19 @@ export function ProjectCockpitPage() {
       setChatError(null);
     } catch (loadError) {
       setChatError(formatApiError(loadError, "Could not refresh project chat."));
+    }
+  }
+
+  async function refreshChatThread() {
+    if (!thread) return;
+    try {
+      const updatedThread = await api.getThread(thread.id);
+      setThread(updatedThread);
+      queryClient.setQueryData<ChatThread[]>(chatThreadQueryKey, (current) =>
+        current?.map((item) => (item.id === updatedThread.id ? updatedThread : item)),
+      );
+    } catch {
+      // Best-effort refresh after streaming completes.
     }
   }
 
@@ -1086,9 +1100,10 @@ export function ProjectCockpitPage() {
     reviewDraft?.workflow_type ??
     (selectedWorkflowId === "cost-plan" ? "create_cost_plan" : "create_pmp");
   const usageHighlightArtefactId =
-    activeDraft?.workflow_type === "create_pmp" &&
-    ((activeView === "workbench" && selectedWorkflowId === "create-pmp") ||
-      activeView === "draft")
+    activeDraft &&
+    (activeView === "draft" ||
+      (activeView === "workbench" &&
+        ["create-pmp", "cost-plan"].includes(selectedWorkflowId)))
       ? activeDraft.id
       : null;
   const inboxCount = evidence.filter((item) => item.relative_path.includes("/_inbox/")).length;
@@ -1132,11 +1147,6 @@ export function ProjectCockpitPage() {
       projectAddress={projectSiteAddress(project)}
       chatCollapsed={chatCollapsed}
       chatFullScreen={chatFullScreen}
-      onShowWorkbench={() => {
-        leaveTenderRoute();
-        setChatPanelCollapsed(true);
-        setActiveView("workbench");
-      }}
       leftNav={
         <ProjectLeftNav
           project={project}
@@ -1169,7 +1179,7 @@ export function ProjectCockpitPage() {
           onRetry={() => setChatReloadToken((current) => current + 1)}
           selectedCitationId={selectedCitationId}
           onConversationUpdate={() => {
-            void refreshMessages();
+            void Promise.allSettled([refreshMessages(), refreshChatThread()]);
             projectEvents.pollNow();
           }}
           onResourceEvent={projectEvents.applyResource}
@@ -1340,8 +1350,6 @@ export function ProjectCockpitPage() {
           projectId={project.id}
           draft={activeDraft}
           workflowType={activeWorkflowType}
-          onRunUpdatePmp={() => void runUpdatePmp()}
-          isRunningUpdatePmp={isRunningWorkflow}
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);
           }}

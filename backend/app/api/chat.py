@@ -2,6 +2,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncIterator, Mapping
+from contextlib import suppress
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -47,6 +48,7 @@ from app.database.agent_turn import AgentTurn
 from app.database.project import Project
 from app.chat.messages import extract_last_user_message
 from app.chat.orchestrator import run_chat_turn
+from app.chat.thread_titles import generate_thread_title
 from app.chat.streaming import (
     clerk_status_event,
     iter_chat_turn_with_status,
@@ -61,6 +63,7 @@ from app.database.chats import (
     get_thread_by_id,
     list_messages,
     list_threads_page,
+    replace_thread_title_if_matches,
     title_from_message,
     update_thread,
 )
@@ -276,12 +279,14 @@ async def _persist_agent_user_message(
     thread: ChatThread,
     user_text: str,
     runtime: str,
-) -> None:
+) -> str | None:
+    fallback_title: str | None = None
     if not thread.title:
+        fallback_title = title_from_message(user_text)
         await update_thread(
             session,
             thread,
-            title=title_from_message(user_text),
+            title=fallback_title,
         )
     await create_message(
         session,
@@ -290,6 +295,7 @@ async def _persist_agent_user_message(
         content=user_text,
         message_data={"agent": {"runtime": runtime}},
     )
+    return fallback_title
 
 
 async def _persist_agent_assistant_message(
@@ -695,8 +701,9 @@ async def post_agent_stream(
             detail="Pi agent turn tokens are not configured.",
         ) from exc
 
+    fallback_title: str | None = None
     if reserved:
-        await _persist_agent_user_message(
+        fallback_title = await _persist_agent_user_message(
             session,
             thread=thread,
             user_text=user_text,
@@ -724,6 +731,11 @@ async def post_agent_stream(
         tool_status_events: list[Mapping[str, Any]] = []
         completed = False
         first_text_ms: int | None = None
+        title_task = (
+            asyncio.create_task(generate_thread_title(user_text, ""))
+            if fallback_title is not None
+            else None
+        )
 
         async def agent_chunks() -> AsyncIterator[str]:
             nonlocal completed, first_text_ms
@@ -822,12 +834,17 @@ async def post_agent_stream(
             return
         finally:
             if not completed:
+                if title_task is not None:
+                    title_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await title_task
                 async with factory() as revoke_session:
                     await revoke_agent_turn(revoke_session, turn_id)
                     await revoke_session.commit()
 
         if completed:
             content = "".join(answer_parts)
+            generated_title = await title_task if title_task is not None else None
             async with factory() as persist_session:
                 await _persist_agent_assistant_message(
                     persist_session,
@@ -838,6 +855,13 @@ async def post_agent_stream(
                     source_trace=_agent_source_trace(tool_status_events),
                     terminal_events=_sanitized_terminal_events(tool_status_events),
                 )
+                if generated_title is not None and generated_title != fallback_title:
+                    await replace_thread_title_if_matches(
+                        persist_session,
+                        body.thread_id,
+                        expected_title=fallback_title,
+                        title=generated_title,
+                    )
                 await complete_agent_turn(persist_session, turn_id, status_value="completed")
                 await persist_session.commit()
             elapsed_ms = int((time.perf_counter() - stream_start) * 1000)

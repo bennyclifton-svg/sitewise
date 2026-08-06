@@ -18,6 +18,7 @@ EVIDENCE_ROOT = (
     / "synthetic-mobilisation-evidence"
     / "kavanagh-residence-cost-files"
 )
+FIXTURE_ROOT = Path(__file__).with_name("fixtures")
 PROJECT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
@@ -138,4 +139,41 @@ def test_multiple_main_works_proposals_are_not_silently_selected() -> None:
     assert not any(item.category == "Construction" for item in result.proposed_items)
     assert any(
         "multiple main works proposals" in issue.lower() for issue in result.issues
+    )
+
+
+def test_contract_price_schedule_preserves_every_priced_source_row() -> None:
+    filename = "ANX V CONTACT PRICE SCHEDULE [B].pdf"
+    document_id = uuid.uuid5(PROJECT_ID, filename)
+    document = CostEvidenceDocument(
+        id=document_id,
+        filename=filename,
+        relative_path=f"04-projects/demo/_inbox/{filename}",
+        content=(FIXTURE_ROOT / "large_contract_price_schedule.md").read_text(
+            encoding="utf-8"
+        ),
+    )
+
+    result = build_cost_evidence_reconciliation(_cost_plan(), [document])
+
+    assert result.issues == ()
+    assert len(result.received_proposals) == 1
+    proposal = result.received_proposals[0]
+    assert proposal.kind == "main_works"
+    assert proposal.total_ex_gst == Decimal("5870686.00")
+    assert len(proposal.line_items) == 37
+
+    construction = [
+        item for item in result.proposed_items if item.category == "Construction"
+    ]
+    assert len(construction) == 37
+    assert sum((item.budget or Decimal("0")) for item in construction) == Decimal(
+        "5870686.00"
+    )
+    assert construction[0].cost_code == "1.01"
+    assert construction[0].item == "Preliminaries"
+    assert construction[-1].cost_code == "2.37"
+    assert all(
+        item.source_refs[0]["document_id"] == str(document_id)
+        for item in construction
     )

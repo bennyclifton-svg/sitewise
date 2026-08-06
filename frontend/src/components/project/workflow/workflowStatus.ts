@@ -60,7 +60,7 @@ export function workflowSpineNodeClass(
 export function workflowTileClass(selected: boolean, status: WorkflowStatus): string {
   return [
     "min-h-[5.5rem] rounded-lg border bg-background p-3 text-left transition-colors hover:bg-muted/60",
-    selected ? "border-foreground bg-muted shadow-sm" : "border-border",
+    selected ? "border-foreground bg-muted" : "border-border",
     status === "running" && selected ? "ring-2 ring-[var(--wf-info-bg)]" : "",
   ]
     .filter(Boolean)

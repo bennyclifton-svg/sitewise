@@ -320,7 +320,6 @@ export function CockpitPreviewPage() {
       projectTitle={previewProject.title}
       projectAddress={projectSiteAddress(previewProject)}
       chatCollapsed={chatCollapsed}
-      onShowWorkbench={() => setActiveView("workbench")}
       leftNav={
         <ProjectLeftNav
           project={previewProject}
@@ -352,7 +351,7 @@ export function CockpitPreviewPage() {
         />
       }
     >
-      <div className="border-b bg-amber-50 px-4 py-2 text-sm text-amber-900">
+      <div className="border-b border-[color-mix(in_oklch,var(--sw-caution)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] px-4 py-2 text-sm text-[var(--sw-caution)]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <span>
             Cockpit preview: this surface uses sample data so the shell is visible while

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 
@@ -188,12 +189,27 @@ async def import_legacy_draft(
     draft: DraftArtifact,
     apply: bool = False,
     require_accepted: bool = True,
+    source_items: Sequence[CostItemInput] | None = None,
 ) -> LegacyImportResult:
     if draft.workflow_type != "create_cost_plan" or (
         require_accepted and draft.status != "accepted"
     ):
         raise ValueError("only accepted Cost Plan drafts can be imported")
-    parsed = parse_legacy_draft(draft)
+    if source_items is None:
+        parsed = parse_legacy_draft(draft)
+    else:
+        canonical_items = tuple(source_items)
+        canonical_total = sum(
+            (resolved_budget(item) for item in canonical_items), Decimal("0")
+        )
+        parsed = LegacyImportResult(
+            source_draft_id=draft.id,
+            source_version=draft.version,
+            items=canonical_items,
+            warnings=(),
+            source_budget_total=canonical_total,
+            parsed_budget_total=canonical_total,
+        )
     if not apply:
         return parsed
     if (

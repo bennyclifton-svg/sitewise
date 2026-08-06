@@ -103,7 +103,100 @@ describe("WorkbookGrid invoice controls", () => {
       }),
     );
   });
+
+  it("keeps the schedule visible while the regenerated workbook refreshes", async () => {
+    const user = userEvent.setup();
+    const previewRefresh = deferred<WorkbookPreview>();
+    vi.mocked(api.getWorkbookPreview)
+      .mockResolvedValueOnce(workbookPreview())
+      .mockImplementationOnce(() => previewRefresh.promise);
+    vi.mocked(api.updateInvoice).mockResolvedValue(
+      invoiceLedger({
+        cost_plan_version: 13,
+        workbook_path: "projects/kavanagh/01-cost/Cost_Plan_v13.draft.xlsx",
+        rows: [
+          {
+            ...invoiceLedger().rows[0]!,
+            invoice_revision: 2,
+            paid: true,
+          },
+        ],
+      }),
+    );
+
+    render(<WorkbookGrid projectId={PROJECT_ID} workbookPath={WORKBOOK_PATH} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Mark invoice CST-2601 paid" }),
+    );
+    await waitFor(() => expect(api.getWorkbookPreview).toHaveBeenCalledTimes(2));
+
+    expect(screen.queryByText("Loading workbook...")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark invoice CST-2601 unpaid" }),
+    ).toBeInTheDocument();
+  });
+
+  it("queues a later invoice edit while the first save is still running", async () => {
+    const user = userEvent.setup();
+    const firstSave = deferred<InvoiceLedger>();
+    vi.mocked(api.updateInvoice)
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockResolvedValueOnce(
+        invoiceLedger({
+          cost_plan_version: 14,
+          workbook_path: "projects/kavanagh/01-cost/Cost_Plan_v14.draft.xlsx",
+          rows: [
+            {
+              ...invoiceLedger().rows[0]!,
+              invoice_revision: 3,
+              paid: true,
+              billing_month: "2026-04-01",
+            },
+          ],
+        }),
+      );
+
+    render(<WorkbookGrid projectId={PROJECT_ID} workbookPath={WORKBOOK_PATH} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Mark invoice CST-2601 paid" }),
+    );
+    const month = screen.getByLabelText("Billing month for invoice CST-2601");
+    expect(month).toBeEnabled();
+    fireEvent.change(month, { target: { value: "2026-04" } });
+    expect(api.updateInvoice).toHaveBeenCalledTimes(1);
+
+    firstSave.resolve(
+      invoiceLedger({
+        cost_plan_version: 13,
+        workbook_path: "projects/kavanagh/01-cost/Cost_Plan_v13.draft.xlsx",
+        rows: [
+          {
+            ...invoiceLedger().rows[0]!,
+            invoice_revision: 2,
+            paid: true,
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(api.updateInvoice).toHaveBeenCalledTimes(2));
+    expect(api.updateInvoice).toHaveBeenLastCalledWith(PROJECT_ID, "invoice-1", {
+      expected_revision: 2,
+      expected_cost_plan_version: 13,
+      billing_month: "2026-04-01",
+    });
+  });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
 
 function invoiceLedger(overrides: Partial<InvoiceLedger> = {}): InvoiceLedger {
   return {

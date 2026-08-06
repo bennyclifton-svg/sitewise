@@ -1,6 +1,9 @@
 import { Bot, FileText, FolderOpen, Play } from "lucide-react";
 
-import { MarkdownContent } from "@/components/project/MarkdownContent";
+import {
+  MarkdownContent,
+  normalizeDraftMarkdown,
+} from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isMarkdownFilename } from "@/lib/markdown";
@@ -62,7 +65,7 @@ export function WorkspaceFolderPanel({
                     </div>
                     {isMarkdownEvidence(item) && item.content ? (
                       <div className="mt-2 text-muted-foreground">
-                        <MarkdownContent markdown={item.content} />
+                        <MarkdownContent markdown={normalizeDraftMarkdown(item.content)} />
                       </div>
                     ) : (
                       <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{item.excerpt}</p>

@@ -297,7 +297,7 @@ export function TenderMatrix({
   if (!matrix) return null;
 
   return (
-    <section className="rounded-md border bg-card shadow-sm">
+    <section className="rounded-md border bg-card">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <p className="cockpit-zone-title">Comparison matrix</p>
@@ -711,7 +711,7 @@ function MatrixCellRow({
             key={quote.id}
             type="button"
             className={cn(
-              "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95 dark:hover:brightness-110",
+              "flex cursor-pointer items-center gap-1.5 border-l px-2 text-left transition-colors hover:brightness-95",
               tenderStatusCellTint(cell.status),
               isActive && "ring-2 ring-[var(--warn-text)] ring-inset",
             )}

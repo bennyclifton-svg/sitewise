@@ -2,7 +2,6 @@ import { LoaderCircle, Play } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
-import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,6 @@ import type {
   ProcurementRequestKind,
   ProjectDetail,
   WorkflowRun,
-  WorkflowTraceEvent,
 } from "@/lib/types/project";
 import { workflowProgressStage, workflowProgressTitle } from "@/lib/workflow-progress";
 
@@ -93,17 +91,6 @@ export function ProcurementRequestPanel({
       ? project.workflow_capabilities?.capabilities.consultant_procurement
       : project.workflow_capabilities?.capabilities.trade_procurement;
   const supported = !capability || capability.status === "supported";
-  const trace: WorkflowTraceEvent[] = activeRun
-    ? [
-        {
-          step: "procurement_request",
-          status: activeRun.state,
-          message: activeRun.error_message ?? "Preparing procurement request.",
-          metadata: { workflow_type: activeRun.workflow_type },
-        },
-      ]
-    : [];
-
   function submit() {
     const target = targetName.trim();
     if (!target || isRunning || !supported) return;
@@ -211,8 +198,6 @@ export function ProcurementRequestPanel({
           The current draft will appear here when it is ready.
         </p>
       ) : null}
-
-      <WorkflowTracePanel trace={trace} isRunning={isRunning} />
     </div>
   );
 }

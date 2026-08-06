@@ -21,6 +21,24 @@ class MarkdownSection:
     content: str
 
 
+def normalize_draft_markdown(markdown: str) -> str:
+    """Strip the leading '- |' generation artefact from table rows.
+
+    Must stay byte-identical to normalizeDraftMarkdown in
+    frontend/src/components/project/MarkdownContent.tsx — the two define one
+    offset space that selection anchors are resolved against. The shared test
+    vectors in tests/sitewise/fixtures/normalize_vectors.json enforce parity.
+    """
+    lines = []
+    for line in markdown.split("\n"):
+        stripped = line.lstrip()
+        if stripped.startswith("- |"):
+            lines.append(stripped[2:].lstrip())
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def slugify_heading(heading: str) -> str:
     slug = _SLUG_KEEP_RE.sub("-", heading.lower())
     return slug.strip("-")

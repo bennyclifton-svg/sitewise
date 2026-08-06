@@ -17,7 +17,7 @@ from app.cost_plan.dependencies import (
     stale_reasons,
     validate_acyclic,
 )
-from app.cost_plan.import_legacy import parse_legacy_draft
+from app.cost_plan.import_legacy import import_legacy_draft, parse_legacy_draft
 from app.cost_plan.renderer import render_cost_plan_markdown
 from app.cost_plan.schemas import CostItemInput, CostPlanState, DependencySnapshot
 from app.cost_plan.service import complete_cost_plan_state, refresh_cost_plan, upsert_cost_item
@@ -291,6 +291,50 @@ def test_legacy_import_never_invents_invalid_rows_and_reports_reconciliation() -
     assert result.source_budget_total == Decimal("200000")
     assert len(result.warnings) == 2
     assert all(item.item_key != "2" for item in result.items)
+
+
+def test_workflow_import_uses_canonical_items_without_losing_source_refs() -> None:
+    draft = DraftArtifact(
+        id=DRAFT_ID,
+        project_id=PROJECT_ID,
+        workflow_type="create_cost_plan",
+        version=1,
+        status="draft",
+        title="Cost Plan",
+        workspace_path="cost.md",
+        author_user_id=USER_ID,
+        content_markdown="# Cost Plan\n\nNo legacy table transport.",
+        runtime="hybrid",
+    )
+    source_item = _item(
+        item_key="received-schedule:doc-1:2.01",
+        cost_code="2.01",
+        category="Construction",
+        item="Demolition",
+        budget="40000",
+        forecast="40000",
+        source_refs=[
+            {
+                "document_id": "doc-1",
+                "ref": "04-projects/demo/_inbox/contract-price-schedule.pdf",
+                "source_cost_code": "2.01",
+            }
+        ],
+    )
+
+    result = run_async(
+        import_legacy_draft(
+            AsyncMock(),
+            draft=draft,
+            apply=False,
+            require_accepted=False,
+            source_items=[source_item],
+        )
+    )
+
+    assert result.items == (source_item,)
+    assert result.parsed_budget_total == Decimal("40000.00")
+    assert result.items[0].source_refs[0]["document_id"] == "doc-1"
 
 
 def test_existing_partial_typed_plan_is_completed_from_project_taxonomy() -> None:

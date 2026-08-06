@@ -268,7 +268,11 @@ def _format_required_sections(*, project: Project | None = None) -> str:
 
 
 def _format_mandatory_seeds(paths: list[str]) -> str:
-    return "\n".join(f"- {path}" for path in paths if path.startswith("seed/"))
+    return "\n".join(
+        f"- {path}"
+        for path in paths
+        if path.startswith("seed/") or path.startswith("skills/")
+    )
 
 
 def _seed_section_refs_by_section(

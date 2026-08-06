@@ -1,6 +1,9 @@
 import { Loader2 } from "lucide-react";
 
-import { MarkdownContent } from "@/components/project/MarkdownContent";
+import {
+  MarkdownContent,
+  normalizeDraftMarkdown,
+} from "@/components/project/MarkdownContent";
 import type { WorkflowRunPreview } from "@/lib/workflow-progress";
 
 const PREVIEW_STAGE_LABELS: Record<string, string> = {
@@ -38,7 +41,7 @@ export function WorkflowDraftPreview({
         </span>
       </header>
       <div className="px-3 py-2 opacity-70">
-        <MarkdownContent markdown={preview.markdown} readOnly />
+        <MarkdownContent markdown={normalizeDraftMarkdown(preview.markdown)} readOnly />
       </div>
     </section>
   );

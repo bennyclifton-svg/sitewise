@@ -8,7 +8,9 @@ from ingest.router import build_ingest_plan
 from ingest.types import ManifestEntry
 
 
-def _entry(relative_path: str, *, extension: str = ".pdf", filename: str | None = None) -> ManifestEntry:
+def _entry(
+    relative_path: str, *, extension: str = ".pdf", filename: str | None = None
+) -> ManifestEntry:
     name = filename or relative_path.rsplit("/", maxsplit=1)[-1]
     return ManifestEntry(
         absolute_path=Path(relative_path),
@@ -53,6 +55,18 @@ def test_classify_drawing_pdf():
     assert classification.ingest_mode == "register_only"
 
 
+def test_classify_split_mechanical_sheet_as_drawing():
+    entry = _entry(
+        "04-projects/petersham/_inbox/"
+        "M02 - Mechanical Design & Spec - 02 Flexible [C].pdf"
+    )
+
+    classification = classify_entry(entry)
+
+    assert classification.document_class == "drawing"
+    assert classification.ingest_mode == "register_only"
+
+
 def test_classify_seed_reference():
     entry = _entry("seed/defects-and-dlp-guide.md", extension=".md")
     classification = classify_entry(entry)
@@ -61,11 +75,15 @@ def test_classify_seed_reference():
 
 
 def test_parse_procurement_stage_demo_folder_names():
-    metadata = parse_procurement_stage("procurment-demo/05 TENDER SUBMISSIONS/SUBMIT 01 ACTIVE.pdf")
+    metadata = parse_procurement_stage(
+        "procurment-demo/05 TENDER SUBMISSIONS/SUBMIT 01 ACTIVE.pdf"
+    )
     assert metadata["procurement_stage"] == "submission"
     assert metadata["tenderer_id"] == "01"
 
-    trr = parse_procurement_stage("procurment-demo/07 TENDER RECOMMENDATION/TRR [B].pdf")
+    trr = parse_procurement_stage(
+        "procurment-demo/07 TENDER RECOMMENDATION/TRR [B].pdf"
+    )
     assert trr["procurement_stage"] == "trr"
 
 

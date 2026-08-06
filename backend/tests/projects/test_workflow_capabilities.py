@@ -218,6 +218,23 @@ def test_cost_plan_supports_selected_multi_residential_new_work() -> None:
         assert cost_plan.status == "supported"
 
 
+def test_cost_plan_supports_nsw_residential_retail_mixed_use() -> None:
+    for subclass in ("residential_retail", "residential_commercial", "btr_retail"):
+        cost_plan = workflow_capabilities(
+            _snapshot(
+                building_class="mixed",
+                work_type="new",
+                subclasses=[subclass],
+                state="NSW",
+            )
+        ).capabilities["create_cost_plan"]
+
+        assert cost_plan.status == "supported"
+        assert any(
+            "multi-residential" in item for item in cost_plan.reference_coverage
+        )
+
+
 def test_cost_plan_remediation_requires_supported_work_scope() -> None:
     needs_scope = workflow_capabilities(
         _snapshot(

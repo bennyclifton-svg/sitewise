@@ -160,7 +160,7 @@ export function ComparisonOverview({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="space-y-4">
-        <section className="rounded-md border bg-card p-4 shadow-sm">
+        <section className="rounded-md border bg-card p-4">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="cockpit-zone-title">Progress</p>
@@ -223,7 +223,7 @@ export function ComparisonOverview({
           ) : null}
         </section>
 
-        <section className="rounded-md border bg-card shadow-sm">
+        <section className="rounded-md border bg-card">
           <header className="border-b px-4 py-3">
             <p className="cockpit-zone-title">Quotes</p>
           </header>
@@ -265,7 +265,7 @@ export function ComparisonOverview({
           </div>
         </section>
 
-        <section className="rounded-md border bg-card shadow-sm">
+        <section className="rounded-md border bg-card">
           <button
             type="button"
             className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground"
@@ -342,7 +342,7 @@ export function ComparisonOverview({
       </div>
 
       <aside className="space-y-4">
-        <section className="rounded-md border bg-card p-4 shadow-sm">
+        <section className="rounded-md border bg-card p-4">
           <p className="cockpit-zone-title">Context</p>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <Metric label="State" value={comparison.context.state} />
@@ -354,7 +354,7 @@ export function ComparisonOverview({
           </dl>
         </section>
 
-        <section className="rounded-md border bg-card p-4 shadow-sm">
+        <section className="rounded-md border bg-card p-4">
           <p className="cockpit-zone-title">Review surfaces</p>
           <div className="mt-3 grid gap-2">
             <Button asChild variant="outline" className="justify-start">

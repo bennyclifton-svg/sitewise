@@ -1,7 +1,10 @@
 import { Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { MarkdownContent } from "@/components/project/MarkdownContent";
+import {
+  MarkdownContent,
+  normalizeDraftMarkdown,
+} from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
@@ -121,7 +124,7 @@ export function WorkspaceFilePanel({
                     className={cn(
                       "rounded-sm px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors",
                       documentView === view.id
-                        ? "bg-background text-foreground shadow-xs"
+                        ? "bg-background text-foreground"
                         : "hover:text-foreground",
                     )}
                     onClick={() => setDocumentView(view.id)}
@@ -165,7 +168,7 @@ function DocumentContentView({
   if (view === "markdown") {
     return (
       <div className="max-h-[65vh] overflow-auto">
-        <MarkdownContent markdown={content} />
+        <MarkdownContent markdown={normalizeDraftMarkdown(content)} />
       </div>
     );
   }
@@ -218,7 +221,7 @@ function YamlLine({ line }: { line: string }) {
   return (
     <>
       {match[1]}
-      <span className="text-sky-700 dark:text-sky-300">{match[2]}</span>
+      <span className="text-sky-700">{match[2]}</span>
       <span className="text-muted-foreground">{match[3]}</span>
       <YamlValue value={match[4]} />
     </>
@@ -234,11 +237,11 @@ function YamlValue({ value }: { value: string }) {
   if (trimmed === "null") {
     valueClass = "text-muted-foreground";
   } else if (trimmed === "|") {
-    valueClass = "text-amber-700 dark:text-amber-300";
+    valueClass = "text-amber-700";
   } else if (/^".*"$/.test(trimmed)) {
-    valueClass = "text-emerald-700 dark:text-emerald-300";
+    valueClass = "text-emerald-700";
   } else if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
-    valueClass = "text-violet-700 dark:text-violet-300";
+    valueClass = "text-violet-700";
   }
 
   return (

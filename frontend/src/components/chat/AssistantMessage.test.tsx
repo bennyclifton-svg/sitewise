@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
 
@@ -12,6 +12,36 @@ const message: UIMessage = {
 };
 
 describe("AssistantMessage", () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+  });
+
+  it("copies the response text from the hover copy control", async () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy response" }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        "Tender review complete.",
+      );
+    });
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+
   it("renders text, tool chips, artefacts, and citations", () => {
     render(
       <MemoryRouter>

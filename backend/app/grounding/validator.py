@@ -14,10 +14,14 @@ class GroundingError(Exception):
     """Raised when an assistant answer fails citation grounding checks."""
 
 
-def _normalize_text(text: str) -> str:
+def normalize_match_text(text: str) -> str:
+    """Fold text for tolerant quote comparison: entities, NBSP, whitespace, case."""
     text = html.unescape(text)
     text = text.replace("\xa0", " ")
     return re.sub(r"\s+", " ", text.strip().lower())
+
+
+_normalize_text = normalize_match_text
 
 
 def _passage_search_text(passage: SourcePassage) -> str:

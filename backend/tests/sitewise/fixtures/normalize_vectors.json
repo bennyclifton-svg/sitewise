@@ -1,0 +1,47 @@
+[
+  {
+    "name": "empty string",
+    "input": "",
+    "expected": ""
+  },
+  {
+    "name": "no-op prose is untouched",
+    "input": "# Project Management Plan\n\n## Procurement posture\n\nRetention is held at 10%.\n",
+    "expected": "# Project Management Plan\n\n## Procurement posture\n\nRetention is held at 10%.\n"
+  },
+  {
+    "name": "a leading '- |' prefix is stripped",
+    "input": "- | Section | Evidence status |",
+    "expected": "| Section | Evidence status |"
+  },
+  {
+    "name": "an indented '- |' prefix is stripped and de-indented",
+    "input": "    - | Appointment & fee | Grounded |",
+    "expected": "| Appointment & fee | Grounded |"
+  },
+  {
+    "name": "a bare '- |' with no trailing space still strips",
+    "input": "- |not a table row",
+    "expected": "|not a table row"
+  },
+  {
+    "name": "list items that are not '- |' are untouched",
+    "input": "- Owner to confirm budget.\n-|no space\n - | indented row |",
+    "expected": "- Owner to confirm budget.\n-|no space\n| indented row |"
+  },
+  {
+    "name": "'- |' inside a fenced code block is transformed too (known behaviour, not a bug to fix)",
+    "input": "```text\n- | fenced row |\n```\n",
+    "expected": "```text\n| fenced row |\n```\n"
+  },
+  {
+    "name": "a whole generated evidence table",
+    "input": "## Evidence basis\n\n- | Section | Status | Ref |\n- | --- | --- | --- |\n- | Appointment & fee | Grounded | engagement letter |\n\nGaps: geotech.\n",
+    "expected": "## Evidence basis\n\n| Section | Status | Ref |\n| --- | --- | --- |\n| Appointment & fee | Grounded | engagement letter |\n\nGaps: geotech.\n"
+  },
+  {
+    "name": "normalization is idempotent",
+    "input": "| Section | Status |",
+    "expected": "| Section | Status |"
+  }
+]

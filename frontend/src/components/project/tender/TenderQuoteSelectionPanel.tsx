@@ -146,7 +146,7 @@ export function TenderQuoteSelectionPanel({
   }
 
   return (
-    <section className="rounded-md border bg-card shadow-sm">
+    <section className="rounded-md border bg-card">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
         <div><p className="cockpit-zone-title">Tender intake</p><h2 className="mt-1 text-lg font-semibold tracking-tight">Quote selection</h2><p className="mt-1 text-xs text-muted-foreground">{groups.length} groups · revision {revision}</p></div>
         <div className="flex gap-2">

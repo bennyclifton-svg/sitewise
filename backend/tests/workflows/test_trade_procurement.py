@@ -1,3 +1,4 @@
+import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -17,10 +18,21 @@ from tests.workflows.test_consultant_procurement import (
 )
 
 
-def _install(monkeypatch, *, retriever: _StubRetriever, version: int = 1) -> None:
+def _install(
+    monkeypatch,
+    *,
+    retriever: _StubRetriever,
+    version: int = 1,
+    package_evidence: list[dict] | None = None,
+) -> None:
     monkeypatch.setattr(engine, "DocumentRetriever", lambda session: retriever)
     monkeypatch.setattr(engine, "next_draft_version", AsyncMock(return_value=version))
     monkeypatch.setattr(engine, "load_sections", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        workflow,
+        "load_trade_package_evidence",
+        AsyncMock(return_value=package_evidence or []),
+    )
 
     async def _create_draft(session, **kwargs):
         return SimpleNamespace(
@@ -38,7 +50,9 @@ def _install(monkeypatch, *, retriever: _StubRetriever, version: int = 1) -> Non
             provenance_metadata=kwargs["provenance_metadata"],
         )
 
-    monkeypatch.setattr(engine, "create_draft_artifact", AsyncMock(side_effect=_create_draft))
+    monkeypatch.setattr(
+        engine, "create_draft_artifact", AsyncMock(side_effect=_create_draft)
+    )
 
     async def _sync(session, *, project, draft, markdown=None):
         kind, target_slug = workflow._workflow_parts(draft.workflow_type)
@@ -118,6 +132,68 @@ def test_unknown_trade_uses_safe_generic_profile() -> None:
     assert "certification" in profile.baseline_scope[-1]
 
 
+def test_package_loader_selects_all_primary_trade_design_documents() -> None:
+    documents = [
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            filename="M01 - Mechanical Design & Spec - 01 Electrical [C].pdf",
+            relative_path="04-projects/demo/_inbox/M01.pdf",
+            document_class="specification",
+            document_metadata={
+                "document_number": "M01",
+                "title": "Electrical",
+                "revision": "C",
+                "discipline": "Electrical",
+            },
+        ),
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            filename="M02 - Mechanical Design & Spec - 02 Flexible [C].pdf",
+            relative_path="04-projects/demo/_inbox/M02.pdf",
+            document_class="specification",
+            document_metadata={
+                "document_number": "M02",
+                "title": "Flexible connections",
+                "revision": "C",
+                "discipline": "Mechanical",
+            },
+        ),
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            filename="CC-A-182 RCP - LEVEL 1.pdf",
+            relative_path="04-projects/demo/03-design/architect/CC-A-182.pdf",
+            document_class="drawing",
+            document_metadata={"discipline": "Architectural"},
+        ),
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            filename="Mechanical Design Certificate.pdf",
+            relative_path="04-projects/demo/_inbox/mechanical-certificate.pdf",
+            document_class="certificate",
+            document_metadata={"discipline": "Mechanical"},
+        ),
+    ]
+    result = SimpleNamespace(all=lambda: documents)
+    session = _Session()
+    session.execute = AsyncMock(return_value=result)
+
+    evidence = run_async(
+        workflow.load_trade_package_evidence(
+            session,
+            project_id=_project().id,
+            target=workflow.normalise_trade_target("mechanical contractor"),
+        )
+    )
+
+    assert [item["relative_path"] for item in evidence] == [
+        "04-projects/demo/_inbox/M01.pdf",
+        "04-projects/demo/_inbox/M02.pdf",
+    ]
+    assert all(
+        item["document_metadata"]["discipline"] == "Mechanical" for item in evidence
+    )
+
+
 def test_structural_steel_rft_generates_deterministic_controls(monkeypatch) -> None:
     result = _draft(monkeypatch, package="structural steel", kind="rft")
 
@@ -132,9 +208,109 @@ def test_structural_steel_rft_generates_deterministic_controls(monkeypatch) -> N
     assert "## Scope and interfaces" in markdown
     assert "## Price schedule" in markdown
     assert "## Tender conditions and RFI process" in markdown
-    assert "| **Tender / quotation total** | Subject to stated qualifications | **TBC** | **TBC** | **TBC** |" in markdown
+    assert (
+        "| **Tender / quotation total** | Subject to stated qualifications | **TBC** | **TBC** | **TBC** |"
+        in markdown
+    )
     assert result.draft.provenance_metadata["request_kind"] == "rft"
     assert result.draft.provenance_metadata["trade_package"] == "Structural Steel"
+
+
+def test_mechanical_rft_includes_every_primary_trade_sheet_and_marks_it_used(
+    monkeypatch,
+) -> None:
+    package_evidence = [
+        {
+            "role": "package_document",
+            "role_label": "Mechanical package document",
+            "document_id": f"document-{number}",
+            "chunk_id": f"document-{number}",
+            "filename": f"{number} - Mechanical Design.pdf",
+            "relative_path": f"04-projects/walsh-renovation/_inbox/{number}.pdf",
+            "page_or_section": None,
+            "snippet": f"Mechanical drawing register entry {number}.",
+            "score": None,
+            "document_metadata": {
+                "document_number": number,
+                "title": f"Mechanical sheet {number}",
+                "revision": "C",
+                "discipline": "Mechanical",
+            },
+        }
+        for number in ("M01", "M02", "M10")
+    ]
+    retriever = _StubRetriever()
+    _install(
+        monkeypatch,
+        retriever=retriever,
+        package_evidence=package_evidence,
+    )
+
+    result = run_async(
+        workflow.draft_trade_procurement_artifact(
+            _Session(),
+            project=_project(),
+            user_id=USER_ID,
+            package="mechanical contractor",
+            kind="rft",
+        )
+    )
+
+    markdown = result.draft.content_markdown
+    assert "| M01 | Mechanical sheet M01 | C | Mechanical | [1] |" in markdown
+    assert "| M02 | Mechanical sheet M02 | C | Mechanical | [2] |" in markdown
+    assert "| M10 | Mechanical sheet M10 | C | Mechanical | [3] |" in markdown
+    assert result.draft.provenance_metadata["evidence_refs"] == [
+        "04-projects/walsh-renovation/_inbox/M01.pdf",
+        "04-projects/walsh-renovation/_inbox/M02.pdf",
+        "04-projects/walsh-renovation/_inbox/M10.pdf",
+    ]
+
+
+def test_trade_scope_strips_model_supplied_list_numbers(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "project brief": [
+                _passage(
+                    filename="brief.pdf",
+                    path="04-projects/walsh-renovation/brief.pdf",
+                    content="Mechanical package basis.",
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever)
+    monkeypatch.setattr(
+        workflow,
+        "run_procurement_narrative_model",
+        AsyncMock(
+            return_value=ProcurementNarrativeOutput(
+                background="The brief defines the package. [1]",
+                requested_services=[
+                    "1. Supply and install the mechanical works. [1]",
+                    "2. Coordinate all trade interfaces. [1]",
+                ],
+            )
+        ),
+    )
+
+    result = run_async(
+        workflow.draft_trade_procurement_artifact(
+            _Session(),
+            project=_project(),
+            user_id=USER_ID,
+            package="mechanical contractor",
+            kind="rft",
+        )
+    )
+
+    scope = result.draft.content_markdown.split("## Scope and interfaces", maxsplit=1)[
+        1
+    ].split("## Information to review", maxsplit=1)[0]
+    assert "1. Supply and install the mechanical works. [1]" in scope
+    assert "2. Coordinate all trade interfaces. [1]" in scope
+    assert "1. 1." not in scope
+    assert "2. 2." not in scope
 
 
 def test_electrical_rfq_is_complete_without_a_hard_page_cap(monkeypatch) -> None:

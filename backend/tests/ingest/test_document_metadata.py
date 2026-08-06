@@ -40,6 +40,16 @@ def test_parses_electrical_sheets_with_bracket_revision():
     assert result.canonical_file_name == "E03 - LEVEL L1 - LIGHTING LAYOUT Rev C1.pdf"
 
 
+def test_mechanical_sheet_number_takes_precedence_over_embedded_electrical_caption():
+    filename = "M01 - Mechanical Design & Spec - 01 Electrical [C].pdf"
+    result = _parse(
+        file_name=filename,
+        filed_path=f"04-projects/petersham/_inbox/{filename}",
+    )
+
+    assert result.discipline == "Mechanical"
+
+
 def test_parses_hydraulic_layout_drawings_from_filename():
     result = _parse(
         file_name="H-101-B1-Layout1.pdf",
@@ -71,7 +81,10 @@ def test_parses_hydraulic_drawings_from_pdf_title_blocks():
     assert result.revision == "C2"
     assert result.discipline == "Hydraulic"
     assert result.confidence == "high"
-    assert result.canonical_file_name == "H-101 - BASEMENT 1 HYDRAULIC SERVICES PLAN Rev C2.pdf"
+    assert (
+        result.canonical_file_name
+        == "H-101 - BASEMENT 1 HYDRAULIC SERVICES PLAN Rev C2.pdf"
+    )
 
 
 def test_prefers_pdf_title_block_rows_over_hydraulic_filename_fallbacks():
@@ -218,7 +231,10 @@ def test_expands_ctmp_filenames_and_reads_reference_numbers_from_report_front_pa
     assert result.revision == "2"
     assert result.discipline == "Traffic"
     assert result.confidence == "high"
-    assert result.canonical_file_name == "TMP-22372-FINAL - Construction Traffic Management Plan Rev 2.pdf"
+    assert (
+        result.canonical_file_name
+        == "TMP-22372-FINAL - Construction Traffic Management Plan Rev 2.pdf"
+    )
 
 
 def test_parses_hydrant_style_for_construction_filenames():
@@ -424,7 +440,10 @@ def test_ignores_scale_labels_misparsed_as_revision_from_pdf_title_blocks():
     assert result.document_number == ""
     assert result.title == "Acoustic Details Hydraulic Flooring (Preliminary)"
     assert result.revision == "Current"
-    assert result.canonical_file_name == "Acoustic Details Hydraulic Flooring (Preliminary).pdf"
+    assert (
+        result.canonical_file_name
+        == "Acoustic Details Hydraulic Flooring (Preliminary).pdf"
+    )
     assert not re.search(r"[:/\\|?*]", result.canonical_file_name)
     assert not result.canonical_file_name.startswith("-")
 

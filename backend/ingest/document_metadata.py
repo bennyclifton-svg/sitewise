@@ -81,6 +81,7 @@ LIFECYCLE_CATEGORY_BY_FOLDER: list[tuple[re.Pattern[str], str]] = [
 ]
 
 FILENAME_DISCIPLINE_KEYWORDS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"^M\d{2,3}\b", re.I), "Mechanical"),
     (re.compile(r"\belectrical\b", re.I), "Electrical"),
     (re.compile(r"\bhydraulic\b|\bhw\s*&\s*gas\b|\bsanitary\b|\bdrainage\b", re.I), "Hydraulic"),
     (re.compile(r"\bmechanical\b", re.I), "Mechanical"),

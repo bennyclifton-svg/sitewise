@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AuthGuard } from "@/components/AuthGuard";
+import { SwAtmosphere } from "@/components/SwAtmosphere";
 
 const BillingPage = lazy(() => import("@/pages/BillingPage").then(named("BillingPage")));
 const ChatPage = lazy(() => import("@/pages/ChatPage").then(named("ChatPage")));
@@ -31,6 +32,7 @@ function pending(element: ReactNode) {
 export default function App() {
   return (
     <BrowserRouter>
+      <SwAtmosphere />
       <Routes>
         <Route path="/login" element={pending(<LoginPage />)} />
         <Route

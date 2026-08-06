@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { SitewiseWordmark } from "@/components/SitewiseMark";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,7 +9,6 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,10 +93,10 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>SiteWise</CardTitle>
+    <div className="relative z-[3] flex min-h-svh items-center justify-center px-4">
+      <Card className="sw-surface w-full max-w-md sw-enter">
+        <CardHeader className="gap-3">
+          <SitewiseWordmark markSize={56} />
           <CardDescription>
             {mode === "sign-in"
               ? "Sign in with your work email."

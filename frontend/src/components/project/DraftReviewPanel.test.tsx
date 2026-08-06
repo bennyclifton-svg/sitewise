@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/http";
 import type { DraftArtifact, WorkbookPreview } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
   api: {
     acceptDraft: vi.fn(),
+    applyDraftInstructions: vi.fn(),
     downloadWorkspaceFile: vi.fn(),
     getWorkbookPreview: vi.fn(),
     getProjectDraft: vi.fn(),
@@ -70,13 +72,61 @@ function draft(overrides: Partial<DraftArtifact> = {}): DraftArtifact {
 describe("DraftReviewPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // The tray persists per draft+version by design, so it must be reset
+    // between tests that reuse draft-1 v1.
+    window.sessionStorage.clear();
+    window.getSelection()?.removeAllRanges();
     vi.mocked(api.listDecisions).mockResolvedValue({
       decisions: [],
       set_revision: 1,
     });
   });
 
-  it("shows refresh provenance strips for update drafts", () => {
+  it.each([
+    ["create_pmp", "Project Management Plan"],
+    ["consultant_procurement_structural_engineer", "Structural Engineer RFP"],
+    ["trade_rft_electrical_services", "Electrical Services RFT"],
+    ["trade_rfq_joinery", "Joinery RFQ"],
+  ])("collapses supporting details for %s drafts by default", async (workflowType, title) => {
+    const user = userEvent.setup();
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: workflowType,
+          title,
+          provenance_metadata: {
+            seed_consulted: ["data/seed/setup-and-commission-guide.md"],
+            evidence_refs: ["04-projects/demo/brief.pdf"],
+            context_refs: ["project-profile"],
+          },
+        })}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    const details = screen.getByTestId("draft-supporting-details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("Workflow trace");
+
+    const summary = details.querySelector("summary");
+    expect(summary).not.toBeNull();
+    await user.click(summary!);
+
+    expect(details).toHaveAttribute("open");
+    expect(screen.getByText("Seed consulted")).toBeVisible();
+    expect(screen.getByText("Evidence refs")).toBeVisible();
+    expect(screen.getByText("Context refs")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /accept/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /refresh pmp from documents/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reopen/i })).not.toBeInTheDocument();
+  });
+
+  it("opens the collapsed trace from the refresh provenance strip", async () => {
+    const user = userEvent.setup();
     render(
       <DraftReviewPanel
         projectId={PROJECT_ID}
@@ -102,48 +152,38 @@ describe("DraftReviewPanel", () => {
           },
         })}
         onDraftUpdated={vi.fn()}
-        onRunUpdatePmp={vi.fn()}
       />,
     );
 
     expect(screen.getByText("What changed in v3")).toBeInTheDocument();
     expect(screen.getByText("Scope & client requirements")).toBeInTheDocument();
     expect(screen.getByText(/Evidence changes:/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /refresh pmp from documents/i })).toBeInTheDocument();
+    const details = screen.getByTestId("draft-supporting-details");
+    expect(details).not.toHaveAttribute("open");
+
+    await user.click(screen.getByRole("button", { name: "View sweep trace" }));
+
+    expect(details).toHaveAttribute("open");
+    expect(screen.getByText("Swept evidence batch 1 of 1.")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /refresh pmp from documents/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
   });
 
-  it("saves edits and swaps to the returned draft version", async () => {
-    const user = userEvent.setup();
-    const updated = draft({
-      id: "draft-2",
-      version: 2,
-      content_markdown: "# Edited",
-      created_at: "2026-07-04T12:05:00.000Z",
-      updated_at: "2026-07-04T12:05:00.000Z",
-    });
-    vi.mocked(api.patchDraft).mockResolvedValue(updated);
-    const onDraftUpdated = vi.fn();
-
+  it("keeps section editing available without exposing the legacy document commands", () => {
     render(
       <DraftReviewPanel
         projectId={PROJECT_ID}
-        draft={draft()}
-        onDraftUpdated={onDraftUpdated}
+        draft={draft({ content_markdown: "# Project plan\n\n## Scope\n\nCurrent scope." })}
+        onDraftUpdated={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /edit markdown/i }));
-    const editor = screen.getByRole("textbox");
-    await user.clear(editor);
-    await user.type(editor, "# Edited");
-    await user.click(screen.getByRole("button", { name: /save edits/i }));
-
-    await waitFor(() => {
-      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
-    });
-    expect(api.patchDraft).toHaveBeenCalledWith(PROJECT_ID, "draft-1", "# Edited", 1);
-    expect(screen.getAllByText("v2")[0]).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Edited" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit section" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
   });
 
   it("loads the selected summary draft by id", async () => {
@@ -216,6 +256,323 @@ describe("DraftReviewPanel", () => {
     expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).not.toContain("Alpha");
   });
 
+  describe("anchored instructions", () => {
+    const ANCHORED_MARKDOWN =
+      "# Title\n\n## First\n\nAlpha paragraph.\n\nSecond paragraph.\n\n## Second\n\nBeta\n";
+
+    /** Select the whole of a rendered block, the way a drag-select would. */
+    function selectBlock(element: Element) {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      fireEvent.mouseUp(document);
+    }
+
+    async function queueOneInstruction(user: ReturnType<typeof userEvent.setup>) {
+      selectBlock(screen.getByText("Alpha paragraph."));
+      const instruction = await screen.findByLabelText("Instruction");
+      await user.type(instruction, "tighten this");
+      await user.click(screen.getByRole("button", { name: "Add to tray" }));
+    }
+
+    it("opens the card on selection and queues the instruction in the tray", async () => {
+      const user = userEvent.setup();
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByLabelText("Instruction")).not.toBeInTheDocument();
+      await queueOneInstruction(user);
+
+      expect(screen.getByRole("button", { name: /Apply 1 change/ })).toBeInTheDocument();
+      expect(screen.getByText("tighten this")).toBeInTheDocument();
+      // The section badge comes from the anchor's offset, not the DOM.
+      expect(screen.getAllByText("First").length).toBeGreaterThan(0);
+    });
+
+    it("applies with the exact source anchors and the current version", async () => {
+      const user = userEvent.setup();
+      const updated = draft({ version: 2, content_markdown: ANCHORED_MARKDOWN });
+      vi.mocked(api.applyDraftInstructions).mockResolvedValue({
+        draft: updated,
+        applied_count: 1,
+        failed: [],
+      });
+      const onDraftUpdated = vi.fn();
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={onDraftUpdated}
+        />,
+      );
+      await queueOneInstruction(user);
+      await user.click(screen.getByRole("button", { name: /Apply 1 change/ }));
+
+      const start = ANCHORED_MARKDOWN.indexOf("Alpha paragraph.");
+      await waitFor(() => {
+        expect(api.applyDraftInstructions).toHaveBeenCalledWith(PROJECT_ID, "draft-1", 1, [
+          {
+            anchor_start: start,
+            anchor_end: start + "Alpha paragraph.".length,
+            quoted_text: "Alpha paragraph.",
+            instruction: "tighten this",
+          },
+        ]);
+      });
+      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+      // Everything applied, so nothing is left queued.
+      expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
+    });
+
+    it("tints only the blocks covered by changed_ranges", () => {
+      const changedStart = ANCHORED_MARKDOWN.indexOf("Second paragraph.");
+      const { container } = render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({
+            version: 2,
+            content_markdown: ANCHORED_MARKDOWN,
+            provenance_metadata: {
+              sections_changed: ["First"],
+              changed_ranges: [
+                { start: changedStart, end: changedStart + "Second paragraph.".length },
+              ],
+            },
+          })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      const changed = container.querySelectorAll("[data-md-changed]");
+      expect(changed).toHaveLength(1);
+      expect(changed[0]).toHaveTextContent("Second paragraph.");
+      expect(screen.getByText("Alpha paragraph.")).not.toHaveAttribute("data-md-changed");
+    });
+
+    it("the Hide changes toggle removes every tint and restores it", async () => {
+      const user = userEvent.setup();
+      const changedStart = ANCHORED_MARKDOWN.indexOf("Second paragraph.");
+      const { container } = render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({
+            version: 2,
+            content_markdown: ANCHORED_MARKDOWN,
+            provenance_metadata: {
+              sections_changed: ["First"],
+              changed_ranges: [
+                { start: changedStart, end: changedStart + "Second paragraph.".length },
+              ],
+            },
+          })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      expect(container.querySelectorAll("[data-md-changed]")).toHaveLength(1);
+
+      await user.click(screen.getByRole("button", { name: "Hide changes" }));
+      expect(container.querySelectorAll("[data-md-changed]")).toHaveLength(0);
+
+      await user.click(screen.getByRole("button", { name: "Show changes" }));
+      expect(container.querySelectorAll("[data-md-changed]")).toHaveLength(1);
+    });
+
+    it("offers no changes toggle when the version carries no changed_ranges", () => {
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({
+            version: 2,
+            content_markdown: ANCHORED_MARKDOWN,
+            provenance_metadata: { sections_changed: ["First"] },
+          })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByRole("button", { name: /changes/i })).not.toBeInTheDocument();
+    });
+
+    it("keeps the tray and shows the rebase message on a 409", async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.applyDraftInstructions).mockRejectedValue(
+        new ApiError("Expected create_pmp v1, current version is v4", {
+          kind: "http",
+          status: 409,
+        }),
+      );
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+      await queueOneInstruction(user);
+      await user.click(screen.getByRole("button", { name: /Apply 1 change/ }));
+
+      const message = await screen.findByText(
+        "Draft moved to v4 — review the current text and re-apply.",
+      );
+      expect(message).toBeInTheDocument();
+      // It must land in the tray, not in the collapsed Workflow trace section,
+      // or the user watches a long apply end in silence.
+      expect(message.closest("[data-instruction-ui]")).not.toBeNull();
+      expect(screen.getByTestId("draft-supporting-details")).not.toContainElement(message);
+      expect(screen.getByRole("button", { name: /Apply 1 change/ })).toBeInTheDocument();
+      expect(screen.getByText("tighten this")).toBeInTheDocument();
+    });
+
+    it("surfaces a 422 all-failed reason in the tray", async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.applyDraftInstructions).mockRejectedValue(
+        new ApiError("0: Draft instruction slice validation failed: heading line was modified", {
+          kind: "http",
+          status: 422,
+        }),
+      );
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+      await queueOneInstruction(user);
+      await user.click(screen.getByRole("button", { name: /Apply 1 change/ }));
+
+      const message = await screen.findByText(/heading line was modified/);
+      expect(message.closest("[data-instruction-ui]")).not.toBeNull();
+    });
+
+    it("re-seeds failed instructions into the tray with their reason", async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.applyDraftInstructions).mockResolvedValue({
+        draft: draft({ version: 2, content_markdown: ANCHORED_MARKDOWN }),
+        applied_count: 0,
+        failed: [{ index: 0, reason: "heading line was modified" }],
+      });
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+      await queueOneInstruction(user);
+      await user.click(screen.getByRole("button", { name: /Apply 1 change/ }));
+
+      expect(await screen.findByText("heading line was modified")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Apply 1 change/ })).toBeInTheDocument();
+    });
+
+    it("renders no selection affordance on an accepted draft", async () => {
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ status: "accepted", content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      selectBlock(screen.getByText("Alpha paragraph."));
+
+      await waitFor(() => {
+        expect(screen.queryByLabelText("Instruction")).not.toBeInTheDocument();
+      });
+    });
+
+    it("renders no selection affordance for a tender report", async () => {
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({
+            workflow_type: "tender_report",
+            content_markdown: ANCHORED_MARKDOWN,
+          })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      selectBlock(screen.getByText("Alpha paragraph."));
+
+      await waitFor(() => {
+        expect(screen.queryByLabelText("Instruction")).not.toBeInTheDocument();
+      });
+    });
+
+    it("refuses a selection that spans two sections", async () => {
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      // Endpoints must land *inside* the blocks: the resolver walks up from the
+      // selection's nodes to find their [data-md-start] ancestors.
+      const range = document.createRange();
+      range.setStart(screen.getByText("Alpha paragraph.").firstChild!, 0);
+      range.setEnd(screen.getByText("Beta").firstChild!, 4);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      fireEvent.mouseUp(document);
+
+      expect(
+        await screen.findByText("Select text within a single section."),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText("Instruction")).not.toBeInTheDocument();
+    });
+
+    it("anchors against the normalized markdown, not the stored '- |' artefact", async () => {
+      const user = userEvent.setup();
+      const raw = "# Title\n\n## First\n\n- | Section | Status |\n- | --- | --- |\n";
+      const normalized = "# Title\n\n## First\n\n| Section | Status |\n| --- | --- |\n";
+      vi.mocked(api.applyDraftInstructions).mockResolvedValue({
+        draft: draft({ version: 2, content_markdown: raw }),
+        applied_count: 1,
+        failed: [],
+      });
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={draft({ content_markdown: raw })}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      selectBlock(screen.getByText("Status"));
+      const instruction = await screen.findByLabelText("Instruction");
+      await user.type(instruction, "add a Ref column");
+      await user.click(screen.getByRole("button", { name: "Add to tray" }));
+      await user.click(screen.getByRole("button", { name: /Apply 1 change/ }));
+
+      await waitFor(() => {
+        expect(api.applyDraftInstructions).toHaveBeenCalled();
+      });
+      const [, , , sent] = vi.mocked(api.applyDraftInstructions).mock.calls[0]!;
+      const anchored = normalized.slice(sent[0]!.anchor_start, sent[0]!.anchor_end);
+      expect(anchored).toBe(sent[0]!.quoted_text);
+      expect(anchored).toContain("| Section | Status |");
+      expect(anchored).not.toContain("- |");
+    });
+  });
+
   it("shows only the three-tab cost workbook with all 25 Greenbank items", async () => {
     const user = userEvent.setup();
     vi.mocked(api.getWorkbookPreview).mockResolvedValue(greenbankWorkbookPreview());
@@ -248,8 +605,8 @@ describe("DraftReviewPanel", () => {
       />,
     );
 
-    expect(await screen.findByRole("heading", { name: "Cost workbook" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Summary" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Cost workbook" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Summary" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Invoices" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Variations" })).toBeInTheDocument();
     for (const [, item] of GREENBANK_COST_ITEMS) {

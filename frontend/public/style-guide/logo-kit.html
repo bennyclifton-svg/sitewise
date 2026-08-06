@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sitewise logo kit</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  body { padding: 56px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; align-items: start; }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  .plate { background: var(--sw-void-hex); border: 1px solid var(--sw-edge-hex); display: grid; place-items: center; padding: 32px; }
+  .plate.light { background: var(--sw-bone-hex); }
+  img { width: 140px; height: 140px; display: block; }
+  figcaption { font-family: var(--sw-font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--sw-text-quiet); }
+  .sizes { display: flex; align-items: flex-end; gap: 20px; }
+  .sizes img { width: auto; }
+  h1 { font-size: 30px; font-weight: 200; letter-spacing: -.03em; margin: 0 0 40px; }
+</style>
+</head>
+<body>
+  <h1>Logo kit</h1>
+  <div class="row">
+    <figure>
+      <div class="plate"><img src="logo/mark.svg" alt="Sitewise mark"></div>
+      <figcaption>mark.svg — full colour</figcaption>
+    </figure>
+    <figure>
+      <div class="plate" style="color:#E8E8E4">
+        <svg viewBox="0 0 240 240" width="140" height="140" role="img" aria-label="Sitewise"><path fill="currentColor" fill-rule="evenodd" d="M120 13.86 L211.92 66.93 L211.92 173.07 L120 226.14 L28.08 173.07 L120 120 L28.08 66.93 Z M120.8 121.39 L212.72 174.46 L211.12 171.68 L119.2 118.61 Z M120.8 118.61 L212.72 65.54 L211.12 68.32 L119.2 121.39 Z M121.6 120 L121.6 226.14 L118.4 226.14 L118.4 120 Z"/></svg>
+      </div>
+      <figcaption>mark-mono.svg — on void</figcaption>
+    </figure>
+    <figure>
+      <div class="plate light" style="color:#060608">
+        <svg viewBox="0 0 240 240" width="140" height="140" role="img" aria-label="Sitewise"><path fill="currentColor" fill-rule="evenodd" d="M120 13.86 L211.92 66.93 L211.92 173.07 L120 226.14 L28.08 173.07 L120 120 L28.08 66.93 Z M120.8 121.39 L212.72 174.46 L211.12 171.68 L119.2 118.61 Z M120.8 118.61 L212.72 65.54 L211.12 68.32 L119.2 121.39 Z M121.6 120 L121.6 226.14 L118.4 226.14 L118.4 120 Z"/></svg>
+      </div>
+      <figcaption>mark-mono.svg — on bone</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="logo/mark-solid.svg" alt="Sitewise mark, solid"></div>
+      <figcaption>mark-solid.svg — small sizes</figcaption>
+    </figure>
+  </div>
+
+  <div class="row" style="margin-top:56px">
+    <figure>
+      <div class="plate sizes">
+        <img src="logo/mark-solid.svg" style="width:96px;height:96px" alt="">
+        <img src="logo/mark-solid.svg" style="width:48px;height:48px" alt="">
+        <img src="logo/mark-solid.svg" style="width:24px;height:24px" alt="">
+        <img src="logo/favicon.svg" style="width:16px;height:16px" alt="">
+      </div>
+      <figcaption>Solid variant at 96 / 48 / 24 px, favicon at 16</figcaption>
+    </figure>
+    <figure>
+      <div class="plate sizes">
+        <img src="logo/mark.svg" style="width:96px;height:96px" alt="">
+        <img src="logo/mark.svg" style="width:48px;height:48px" alt="">
+        <img src="logo/mark.svg" style="width:24px;height:24px" alt="">
+      </div>
+      <figcaption>Full colour at 96 / 48 / 24 px — closes up below 96</figcaption>
+    </figure>
+  </div>
+</body>
+</html>

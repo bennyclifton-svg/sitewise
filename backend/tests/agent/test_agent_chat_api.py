@@ -192,6 +192,16 @@ def client(mock_session: AsyncMock, monkeypatch: pytest.MonkeyPatch) -> TestClie
         "get_project_snapshot",
         AsyncMock(return_value=_snapshot()),
     )
+    monkeypatch.setattr(
+        chat_api,
+        "generate_thread_title",
+        AsyncMock(return_value="Tender Quote Comparison"),
+    )
+    monkeypatch.setattr(
+        chat_api,
+        "replace_thread_title_if_matches",
+        AsyncMock(return_value=True),
+    )
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = lambda: current_user
     with TestClient(app) as test_client:
@@ -485,6 +495,16 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "tools": [],
         "model": {"used": True, "label": "LLM reasoning"},
     }
+    chat_api.generate_thread_title.assert_awaited_once_with(
+        "Compare the tender quotes",
+        "",
+    )
+    chat_api.replace_thread_title_if_matches.assert_awaited_once_with(
+        assistant_session,
+        THREAD_ID,
+        expected_title="Compare the tender quotes",
+        title="Tender Quote Comparison",
+    )
 
 
 def test_agent_source_trace_classifies_context_knowledge_documents_and_tools() -> None:

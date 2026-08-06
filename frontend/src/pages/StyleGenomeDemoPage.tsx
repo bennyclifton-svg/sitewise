@@ -45,7 +45,7 @@ export function StyleGenomeDemoPage() {
             </Link>
           </Button>
           <div className="pointer-events-auto flex max-w-[min(720px,calc(100vw-96px))] flex-wrap justify-end gap-2">
-            <div className="flex flex-wrap gap-1 rounded-md border border-border bg-background/82 p-1 shadow-sm backdrop-blur">
+            <div className="flex flex-wrap gap-1 rounded-md border border-border bg-background/82 p-1 backdrop-blur">
               {families.map((item) => (
                 <Button
                   key={item}
@@ -77,7 +77,7 @@ export function StyleGenomeDemoPage() {
               <span
                 key={entry.id}
                 className={cn(
-                  "rounded-md border border-border bg-background/76 px-2 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur",
+                  "rounded-md border border-border bg-background/76 px-2 py-1 text-xs font-medium text-muted-foreground backdrop-blur",
                   family === "invented" && "border-primary/25 text-foreground",
                 )}
               >

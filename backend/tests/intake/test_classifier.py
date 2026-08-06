@@ -42,7 +42,10 @@ def test_classify_da_package_to_planning_authorities() -> None:
     ("filename", "preview_snippet"),
     [
         ("Master Programme Rev 04.pdf", None),
-        ("upload.pdf", "CONSTRUCTION PROGRAMME\nSix-week lookahead and milestone schedule"),
+        (
+            "upload.pdf",
+            "CONSTRUCTION PROGRAMME\nSix-week lookahead and milestone schedule",
+        ),
     ],
 )
 def test_classify_project_programmes_to_programme_folder(
@@ -74,6 +77,17 @@ def test_classify_electrical_sheet_prefix() -> None:
         project_workspace_path=PROJECT,
     )
     assert destination == "03-design/electrical"
+
+
+def test_classify_mechanical_sheet_prefix_before_embedded_trade_caption() -> None:
+    filename = "M01 - Mechanical Design & Spec - 01 Electrical [C].pdf"
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/{filename}",
+        filename=filename,
+        project_workspace_path=PROJECT,
+    )
+
+    assert destination == "03-design/mechanical"
 
 
 def test_classify_electrical_package_folder_alias() -> None:
@@ -176,7 +190,10 @@ def test_classify_brief_signoff_preview_to_brief_pmp_folder() -> None:
 @pytest.mark.parametrize(
     ("filename", "preview_snippet"),
     [
-        ("05-survey-report-north-shore-surveying.md", "# FEATURE & LEVEL SURVEY REPORT"),
+        (
+            "05-survey-report-north-shore-surveying.md",
+            "# FEATURE & LEVEL SURVEY REPORT",
+        ),
         ("06-geotechnical-report-terratech.md", "# GEOTECHNICAL INVESTIGATION REPORT"),
         ("07-dilapidation-report-buildcheck.md", "# DILAPIDATION CONDITION REPORT"),
         (

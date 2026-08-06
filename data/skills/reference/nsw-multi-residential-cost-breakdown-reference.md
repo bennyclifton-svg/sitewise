@@ -1,8 +1,8 @@
 ---
 tier: topic
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
-applies_to_classes: [residential]
-applies_to_subclasses: [apartments, btr, student_housing, social_affordable_housing]
+applies_to_classes: [residential, mixed]
+applies_to_subclasses: [apartments, btr, student_housing, social_affordable_housing, residential_retail, residential_commercial, btr_retail]
 applies_to_work_types: [new, extend]
 topics: [residential, multi-residential, apartments, cost, taxonomy, consultant-procurement]
 summary: "Practice-level taxonomy for early NSW multi-residential cost plans and pricing returnables: workbook-ready groups, construction families, tenure interfaces and handover packages. Structure only—never market rates or active-project evidence."
@@ -16,10 +16,11 @@ scope: practice guidance only—structure and pricing returnables; no rate pack
 # NSW Multi-Residential Cost Breakdown Reference
 
 This reference supplies a practice-level cost structure for NSW apartment,
-Build-to-Rent, student-housing and applicable social/affordable-housing
-projects. It is intended for multi-storey or common-property residential
-developments whose cost structure is materially different from a detached
-house, townhouse or domestic alteration.
+Build-to-Rent, student-housing, applicable social/affordable-housing and
+residential-led mixed-use projects with retail or commercial components. It is
+intended for multi-storey or common-property residential developments whose
+cost structure is materially different from a detached house, townhouse or
+domestic alteration.
 
 The project team must confirm the NCC classification, tenure model, operator
 requirements, unit mix, accessibility obligations and approval pathway. A

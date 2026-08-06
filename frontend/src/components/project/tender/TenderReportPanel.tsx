@@ -2,7 +2,10 @@ import { AlertCircle, Check, ExternalLink, FileText, LoaderCircle, RefreshCw } f
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { MarkdownContent } from "@/components/project/MarkdownContent";
+import {
+  MarkdownContent,
+  normalizeDraftMarkdown,
+} from "@/components/project/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -67,7 +70,7 @@ export function TenderReportPanel({
   const pdfHref = report?.pdf_path ? browserArtifactSrc(report.pdf_path) : null;
 
   return (
-    <section className="rounded-md border bg-card shadow-sm">
+    <section className="rounded-md border bg-card">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <p className="cockpit-zone-title">Report preview</p>
@@ -123,7 +126,7 @@ export function TenderReportPanel({
       {draft?.content_markdown ? (
         <div className="min-w-0 p-4 lg:p-6">
           <MarkdownContent
-            markdown={draft.content_markdown}
+            markdown={normalizeDraftMarkdown(draft.content_markdown)}
             version={draft.version}
             projectId={projectId}
             projectTitle={draft.title}

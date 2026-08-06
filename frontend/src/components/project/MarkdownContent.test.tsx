@@ -68,6 +68,56 @@ describe("MarkdownContent", () => {
     expect(screen.getByText("Confirm")).toHaveClass("evidence-status-chip");
   });
 
+  it("stamps source offsets on block elements that slice back to the markdown", () => {
+    const { container } = render(
+      <MarkdownContent markdown={MARKDOWN} projectId="project-1" version={2} />,
+    );
+
+    const blocks = container.querySelectorAll("[data-md-start]");
+    expect(blocks.length).toBeGreaterThan(0);
+
+    for (const block of blocks) {
+      const start = Number(block.getAttribute("data-md-start"));
+      const end = Number(block.getAttribute("data-md-end"));
+      expect(end).toBeGreaterThan(start);
+      expect(MARKDOWN.slice(start, end).length).toBe(end - start);
+    }
+
+    const paragraph = container.querySelector("p[data-md-start]")!;
+    expect(
+      MARKDOWN.slice(
+        Number(paragraph.getAttribute("data-md-start")),
+        Number(paragraph.getAttribute("data-md-end")),
+      ),
+    ).toBe("Follow up.");
+
+    // A table row's source is the pipe-delimited line, not the rendered badge text.
+    const row = container.querySelector("tbody tr[data-md-start]")!;
+    expect(
+      MARKDOWN.slice(
+        Number(row.getAttribute("data-md-start")),
+        Number(row.getAttribute("data-md-end")),
+      ),
+    ).toBe("| Budget | Grounded |");
+
+    const heading = container.querySelector("h2[data-md-start]")!;
+    expect(
+      MARKDOWN.slice(
+        Number(heading.getAttribute("data-md-start")),
+        Number(heading.getAttribute("data-md-end")),
+      ),
+    ).toBe("## Snapshot");
+  });
+
+  it("does not stamp offsets on table cells, whose rendered text is synthesized", () => {
+    const { container } = render(
+      <MarkdownContent markdown={MARKDOWN} projectId="project-1" />,
+    );
+
+    expect(container.querySelectorAll("td[data-md-start]")).toHaveLength(0);
+    expect(container.querySelectorAll("th[data-md-start]")).toHaveLength(0);
+  });
+
   it("hydrates embedded decisions from canonical server state", () => {
     render(
       <MarkdownContent

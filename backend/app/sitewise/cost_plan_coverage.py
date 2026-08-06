@@ -133,6 +133,9 @@ _CLASS_1 = frozenset({"house", "townhouses"})
 _MULTI_RESIDENTIAL = frozenset(
     {"apartments", "btr", "student_housing", "social_affordable_housing"}
 )
+_MIXED_MULTI_RESIDENTIAL = frozenset(
+    {"residential_retail", "residential_commercial", "btr_retail"}
+)
 _COMMERCIAL_BASE = frozenset(
     {"office", "retail_shopping_centre", "retail_standalone"}
 )
@@ -173,6 +176,15 @@ def resolve_cost_plan_coverage(
             )
             return _COVERAGE[family]
         if work_type in {"new", "extend"} and subclass_values & _MULTI_RESIDENTIAL:
+            return _COVERAGE["multi_residential"]
+        return None
+
+    if building_class == "mixed":
+        if (
+            work_type in {"new", "extend"}
+            and subclass_values
+            and subclass_values.issubset(_MIXED_MULTI_RESIDENTIAL)
+        ):
             return _COVERAGE["multi_residential"]
         return None
 
@@ -228,9 +240,15 @@ def unsupported_coverage_reason(
             "manufacturing/process, cold-chain and data-centre projects. Dangerous "
             "goods, GMP, cleanroom, battery and waste-to-energy work remains specialist."
         )
+    if building_class == "mixed":
+        return (
+            "Cost Plan mixed-use coverage currently includes NSW residential-led "
+            "apartment/BTR projects with retail or commercial components. Hotel, "
+            "aged-care and other specialist combinations need a dedicated reference."
+        )
     return (
         "Cost Plan coverage is currently limited to supported NSW residential, "
-        "commercial and industrial reference families."
+        "commercial, industrial and selected mixed-use reference families."
     )
 
 

@@ -1,14 +1,14 @@
-import { ArrowLeft, History } from "lucide-react";
+import { History } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
 import { ChatHistoryNav } from "@/components/chat/ChatHistoryNav";
+import { SitewiseMark } from "@/components/SitewiseMark";
 import { CockpitPanelResizeHandle } from "@/components/project/CockpitPanelResizeHandle";
 import { useCockpitShellResize } from "@/components/project/cockpitShellLayout";
 import { ProjectSwitcher } from "@/components/project/ProjectSwitcher";
 import { ProjectWorkflowNav } from "@/components/project/ProjectWorkflowNav";
 import type { WorkflowTile } from "@/components/project/workflow/workflowTiles";
-import { Button } from "@/components/ui/button";
 import type { ChatThread } from "@/lib/types/chat";
 import type { ProjectDetail, ProjectSummary } from "@/lib/types/project";
 
@@ -47,19 +47,15 @@ export function ProjectLeftNav({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 px-3 py-3">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 h-7 px-2 text-xs">
-          <Link to="/">
-            <ArrowLeft className="size-3.5" aria-hidden />
-            Home
-          </Link>
-        </Button>
-
-        <ProjectSwitcher
-          projects={projects}
-          activeProject={project}
-          loading={projectsLoading}
-        />
+      <div className="flex h-[var(--cockpit-ribbon-height)] shrink-0 items-center px-3 pl-6">
+        <Link
+          to="/"
+          aria-label="SiteWise home"
+          title="SiteWise"
+          className="inline-flex sw-transition opacity-95 hover:opacity-100"
+        >
+          <SitewiseMark size={48} variant="full" className="!p-1.5" />
+        </Link>
       </div>
 
       {workflows ? (
@@ -67,8 +63,27 @@ export function ProjectLeftNav({
           tiles={workflows.tiles}
           selectedWorkflowId={workflows.selectedWorkflowId}
           onSelectWorkflow={workflows.onSelectWorkflow}
+          leading={
+            <ProjectSwitcher
+              projects={projects}
+              activeProject={project}
+              loading={projectsLoading}
+            />
+          }
         />
-      ) : null}
+      ) : (
+        <nav className="shrink-0 px-3 pt-10 pb-2" aria-label="Project">
+          <ul className="flex flex-col gap-0.5">
+            <li>
+              <ProjectSwitcher
+                projects={projects}
+                activeProject={project}
+                loading={projectsLoading}
+              />
+            </li>
+          </ul>
+        </nav>
+      )}
 
       <div className="relative min-h-0 flex-1">
         {onResizeLeftPanel ? (

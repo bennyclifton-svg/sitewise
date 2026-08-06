@@ -154,7 +154,7 @@ export function QaAdjudicationPane({
 
   if (!item) {
     return (
-      <section className="flex min-h-0 items-center justify-center rounded-md border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
+      <section className="flex min-h-0 items-center justify-center rounded-md border bg-card p-6 text-center text-sm text-muted-foreground">
         QA queue is clear.
       </section>
     );
@@ -233,7 +233,7 @@ export function QaAdjudicationPane({
   }
 
   return (
-    <section className="flex min-h-0 flex-col rounded-md border bg-card shadow-sm">
+    <section className="flex min-h-0 flex-col rounded-md border bg-card">
       <header className="border-b px-3 py-3">
         <p className="cockpit-zone-title">Adjudication</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">

@@ -83,6 +83,126 @@ Per `docs/architecture.md:63`. A slice revision must not introduce a numeric tok
 
 ---
 
+## Implementation progress
+
+| Task | Status |
+|---|---|
+| 1 — bounded slice agent | ✅ done — 15 tests green |
+| 2 — normalization parity helper | ✅ done — 9 shared vectors + idempotence |
+| 3 — orchestration service | ✅ done — 16 tests green |
+| 4 — endpoint | ✅ done — 11 tests green |
+| 5 — selection anchoring | ✅ done — 21 + 5 tests green |
+| 6 — instruction card and tray | ✅ done — 23 tests green |
+| 7 — wiring, apply, highlights | ✅ done — 20 panel tests green |
+
+**Verification:** backend `709 passed, 3 deselected` across `tests/workflows tests/projects
+tests/sitewise tests/grounding`, `ruff check app tests` clean. Frontend `274 passed (45 files)`,
+`tsc --noEmit` clean, `pnpm lint` down to the one pre-existing error in
+`tender/TenderCellDrilldown.tsx`. End-to-end walkthrough not yet run.
+
+### Decisions taken during implementation
+
+**I1 — Sections are level-2 only.** `split_sections` returns overlapping level-1 and
+level-2 sections (an H1 section spans to the next H1, i.e. the whole PMP). Task 3 Step 3
+filters to `level == 2`. An anchor before the first `##` therefore correctly yields
+`"selection is outside any section"` rather than shipping the entire document to the slice
+agent. This matches the slice validator's `##` contract and the frontend multi-section guard.
+
+**I2 — `changed_ranges` is not inherited.** `artefact_revisions.revise()` copies base
+`provenance_metadata` forward wholesale, so a later unrelated edit (e.g. **Edit section**)
+would inherit stale `changed_ranges` and tint the wrong blocks. `revise()` now drops
+`changed_ranges` and `applied_instructions` when inheriting, so only the revision that
+computed them carries them. This makes D5 true on reload and on back-navigation.
+Adds `backend/app/projects/artefact_revisions.py` to Task 3's file list.
+
+**I3 — Frontend commands use `pnpm`,** per `frontend/AGENTS.md` ("Use `pnpm` only"), not the
+`npm run test` written in the acceptance lines below.
+
+**I4 — Normalization moves to every `MarkdownContent` caller,** not just `DraftReviewPanel`.
+Task 7.2 deletes the internal `normalizeDraftMarkdown` call; the other four call sites
+(`WorkspaceFilePanel`, `WorkspaceFolderPanel`, `WorkflowDraftPreview`, `TenderReportPanel`)
+normalize at the call site so their rendering is unchanged.
+
+**I6 — A foreign project answers 403, not 404.** Task 4.3 specifies "wrong owner → 404", but
+the shared `_require_project_owner` helper (`app/api/projects.py:325`) raises 404 only for a
+*missing* project and 403 for one owned by someone else. The endpoint reuses the helper
+unchanged; the test asserts the real contract (403 foreign, 404 missing).
+
+**I7 — The endpoint path has no `/api` prefix on `fastapi_app`.** Tests hit
+`/projects/{id}/drafts/{id}/apply-instructions`; the `/api` prefix comes from the outer mount.
+
+**I5 — Anchor comparison reuses `app.grounding.validator`.** Its normalizer `_normalize_text`
+is private; a public `normalize_match_text` alias is added there and imported by the service,
+rather than importing a private name across modules or writing a second normalizer.
+
+**I8 — The changes toggle lives in the "What changed in v{n}" strip, not a header button row.**
+Task 7.2 item 8 says to put it "next to **Edit markdown**", but commit `205d9ded` deleted the
+panel's whole header button row — no Accept, Edit markdown, Refresh PMP, or Reopen buttons
+remain, and `isEditing` / `editorValue` / `onRunUpdatePmp` are gone with them (see the lean
+workflow panel doctrine). Recreating that row to host one toggle would undo a deliberate
+decision. The toggle sits in the change strip instead, which is already about what changed,
+and renders only when `changed_ranges` is non-empty. The Task 7.2 guard is correspondingly
+`isAccepted` alone — there is no `isEditing` left to check.
+
+**I9 — `Range.prototype.getBoundingClientRect` is polyfilled in `src/test/setup.ts`.** jsdom
+implements `Range` without its layout methods. The card positions itself from the selection's
+rect, so the resolver calls it; the polyfill returns a zero rect rather than degrading the
+product code for a test environment.
+
+**I10 — `truncateQuote` lives in `lib/instruction-tray.ts`.** Exporting it from
+`SelectionInstructionCard.tsx` trips `react-refresh/only-export-components`; both components
+import it from lib.
+
+**I14 — The read transaction is released before the slice calls.** `get_db` yields one session
+per request and commits it *after* the handler returns. Loading the project and draft opens a
+transaction, and the slice calls take 1–3 minutes, so the connection sat idle-in-transaction
+for the whole batch and Postgres (behind the Supabase pooler at
+`aws-1-ap-northeast-1.pooler.supabase.com`) terminated it. The failure then surfaced on
+`session.commit()` during dependency teardown — outside the endpoint's `except` chain and
+outside `main.py`'s `SQLAlchemyError` handler — as a bare 500 with no `detail`, which the
+client renders as "Request failed with status 500". Every other LLM-heavy workflow in this repo
+runs on the workflow worker, so this endpoint was the first to hold a request-scoped
+transaction across model latency. `apply_draft_instructions` now commits the (read-only,
+data-free) transaction before `asyncio.gather`; `expire_on_commit=False` keeps `project` and
+`draft` usable and `revise_workflow_artefact` opens a fresh transaction for the writes.
+
+**I15 — A slice failure never sinks the batch.** An unexpected exception from one section (model
+timeout, malformed structured response) used to be re-raised out of `asyncio.gather` and became
+an unhandled 500. It is now reported as a `FailedInstruction` for that section's items, logged
+with a traceback, and the sections that succeeded still publish. `CancelledError`,
+`KeyboardInterrupt` and `SystemExit` are still re-raised.
+
+**I16 — Changed-range offsets come from splice arithmetic, not a re-parse.** The previous code
+re-ran `split_sections` on the assembled markdown and matched sections *by index*, which assumes
+the revision yields an identical section count and order. One stray ` ``` ` in a revision flips
+`split_sections`' fence state, swallows every later heading, and produces either mis-targeted
+highlights or an `IndexError`. Offsets are now derived from the cumulative length deltas of the
+applied splices.
+
+**I13 — Apply failures render in the tray, not in `actionError`.** The panel's `actionError`
+renders inside the collapsed "Workflow trace" `<details>`. A failed apply therefore ran for
+30–45s (three slice attempts) and then reported nothing at all. `InstructionTray` now takes an
+`error` prop and the panel keeps a separate `applyError`; the tray also runs the existing
+`StreamingIndicator` while a batch is in flight so the wait is legible. The `Sparkles` icon is
+gone from **Apply**. Pre-existing `actionError` placement is untouched — that is a wider
+question about the collapsed trace section.
+
+**I12 — Floating UI uses `bg-popover`, never `bg-background`.** `.dark .project-main-panel`
+(and the left/side panels) deliberately set `--background: transparent` so nested in-flow
+sections show the panel's own charcoal gradient. A *floating* element styled `bg-background`
+therefore paints nothing and the document text reads straight through it — which is exactly
+what the instruction card did on first run. `--popover` is not overridden in that block and
+resolves to an opaque `oklch(0.196 0.006 86)`, which is why `ChatHistoryPopover` and
+`ChatThreadActionsMenu` already use it. Both the card and the sticky tray use
+`bg-popover text-popover-foreground`, pinned by a test in `InstructionTray.test.tsx` because
+jsdom cannot compute the Tailwind class.
+
+**I11 — Panel tests must clear `sessionStorage`.** The tray persists per draft+version by
+design, and the shared `draft-1` v1 factory made trays leak between cases. `beforeEach` now
+clears storage and the selection.
+
+---
+
 ## Task 1: Backend — bounded slice agent
 
 **Files:**

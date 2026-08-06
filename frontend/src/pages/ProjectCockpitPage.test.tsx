@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     getProject: vi.fn(),
     getProjectChatBootstrap: vi.fn(),
     getProjectCockpitBootstrap: vi.fn(),
+    getProjectDraft: vi.fn(),
     getThreadMessages: vi.fn(),
     listThreads: vi.fn(),
     startWorkflowRun: vi.fn(),
@@ -60,7 +61,15 @@ vi.mock("@/lib/queries/project-data", async () => {
 });
 
 vi.mock("@/components/project/DocumentRepositoryPanel", () => ({
-  DocumentRepositoryPanel: () => <div data-testid="repository" />,
+  DocumentRepositoryPanel: ({
+    usageHighlightArtefactId,
+  }: {
+    usageHighlightArtefactId?: string | null;
+  }) => (
+    <div data-testid="repository">
+      {usageHighlightArtefactId ?? "no-usage-highlight"}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/project/DraftReviewPanel", () => ({
@@ -135,6 +144,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     invoiceProcessResult,
     isRunningProcurement,
     onRunProcurement,
+    onSelectWorkflow,
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
@@ -146,6 +156,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     invoiceProcessResult?: ProcessInvoicesResult | null;
     isRunningProcurement: boolean;
     onRunProcurement?: (kind: string, targetName: string) => void;
+    onSelectWorkflow?: (workflowId: string) => void;
   }) => (
     <div>
       <div data-testid="control-cost-plan-state">
@@ -154,6 +165,11 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
       <button type="button" onClick={onRunCreateCostPlan}>
         Create cost plan
       </button>
+      {onSelectWorkflow ? (
+        <button type="button" onClick={() => onSelectWorkflow("cost-plan")}>
+          Open Cost Plan panel
+        </button>
+      ) : null}
       {onRunRefreshCostPlan ? (
         <button type="button" onClick={onRunRefreshCostPlan}>
           Refresh cost plan
@@ -214,6 +230,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     mocks.api.listThreads.mockResolvedValue([thread]);
     mocks.api.getThreadMessages.mockResolvedValue([]);
     mocks.api.getLatestDraft.mockResolvedValue(costPlanSummary);
+    mocks.api.getProjectDraft.mockResolvedValue(costPlanDraft);
     mocks.api.getProject.mockResolvedValue(project);
     mocks.api.startWorkflowRun.mockResolvedValue({
       id: "run-1",
@@ -281,6 +298,52 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     );
 
     resolveWorkspaceRefresh?.();
+  });
+
+  it("highlights documents used by the open Cost Plan", async () => {
+    const user = userEvent.setup();
+    mocks.api.getProjectCockpitBootstrap.mockResolvedValueOnce({
+      project,
+      projects: [project],
+      evidence: [],
+      workspace_tree: {
+        project_id: project.id,
+        root_path: project.workspace_path,
+        tree: [],
+      },
+      platform_knowledge: { available: true, buckets: [] },
+      latest_drafts: {
+        create_pmp: null,
+        create_cost_plan: costPlanSummary,
+        sort_files: null,
+      },
+      timings_ms: {},
+    });
+
+    renderProjectCockpit();
+    await user.click(await screen.findByRole("button", { name: "Open Cost Plan panel" }));
+
+    expect(screen.getByTestId("repository")).toHaveTextContent(costPlanSummary.id);
+  });
+
+  it("highlights documents used by an open trade RFT", async () => {
+    const rftDraft: DraftArtifact = {
+      ...costPlanDraft,
+      id: "rft-draft-1",
+      workflow_type: "trade_rft_mechanical_services_contractor",
+      title: "Request for Tender - Mechanical Services Contractor",
+      workspace_path:
+        "04-projects/walsh-reno/05-procurement/mechanical/02-tender-pack/rft-v01.md",
+      content_markdown: "# Request for Tender",
+    };
+    mocks.api.getProjectDraft.mockResolvedValueOnce(rftDraft);
+
+    renderProjectCockpit({
+      initialEntry: `/projects/project-1?artefact=${rftDraft.id}&revision=2`,
+    });
+
+    expect(await screen.findByTestId("draft-review")).toHaveTextContent("draft-v2");
+    expect(screen.getByTestId("repository")).toHaveTextContent(rftDraft.id);
   });
 
   it("shows the workbook draft returned by a Cost Plan refresh", async () => {
@@ -531,7 +594,10 @@ describe("ProjectCockpitPage cost plan workflow", () => {
   });
 });
 
-function renderProjectCockpit(options?: { staleTime?: number }) {
+function renderProjectCockpit(options?: {
+  staleTime?: number;
+  initialEntry?: string;
+}) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: options?.staleTime },
@@ -541,7 +607,7 @@ function renderProjectCockpit(options?: { staleTime?: number }) {
 
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={["/projects/project-1"]}>
+      <MemoryRouter initialEntries={[options?.initialEntry ?? "/projects/project-1"]}>
         <Routes>
           <Route path="/projects/:projectId" element={<ProjectCockpitPage />} />
         </Routes>

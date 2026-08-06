@@ -1,0 +1,156 @@
+/* Sitewise design tokens — v1.0
+   Single source of truth. tokens.json mirrors this file exactly.
+   Import once at the app root, before any component styles. */
+
+:root {
+  /* ---------------------------------------------------------------
+     PALETTE
+     Authored in OKLCH so lightness steps stay perceptually even under
+     any tint. Hex fallbacks are the sRGB equivalents. Blue is the only
+     accent; everything else is a lighting state, not a colour choice.
+     --------------------------------------------------------------- */
+  --sw-void:        oklch(12% 0.006 265);   /* #060608  ground plane */
+  --sw-panel:       oklch(18% 0.008 265);   /* #131418  lit surface  */
+  --sw-edge:        oklch(26% 0.010 265);   /* #24262B  rules        */
+  --sw-facet-blue:  oklch(52% 0.130 258);   /* #2F72C4  primary action */
+  --sw-beam:        oklch(72% 0.090 254);   /* #7FB0E4  links, highlights */
+  --sw-bone:        oklch(92% 0.004  90);   /* #E8E8E4  type, inverse panels */
+
+  --sw-void-hex:       #060608;
+  --sw-panel-hex:      #131418;
+  --sw-edge-hex:       #24262B;
+  --sw-facet-blue-hex: #2F72C4;
+  --sw-beam-hex:       #7FB0E4;
+  --sw-bone-hex:       #E8E8E4;
+
+  /* Physical materials — used by the 3D mark and by any surface that
+     claims to be the same material as the mark. */
+  --sw-mat-graphite: #2C3037;   /* roof   */
+  --sw-mat-carbon:   #191C21;   /* wall   */
+  --sw-mat-bone:     #D6D6D0;   /* floor  */
+  --sw-mat-glazing:  #2F72C4;   /* glass  */
+
+  /* Text */
+  --sw-text-primary:   #E8E8E4;
+  --sw-text-secondary: #B6B9BF;
+  --sw-text-tertiary:  #8F939B;
+  --sw-text-quiet:     #5C5F66;
+
+  /* Status. Derived from the accent's lightness so they sit in the
+     same tonal family; do not introduce further hues. */
+  --sw-positive: oklch(62% 0.130 155);
+  --sw-caution:  oklch(72% 0.140  75);
+  --sw-critical: oklch(58% 0.170  27);
+
+  /* ---------------------------------------------------------------
+     TYPOGRAPHY
+     Primary is a neo-grotesque. Söhne is the specified face; Hanken
+     Grotesk is the open-licence substitute currently in use. Labels and
+     all numeric/data display use the mono.
+     --------------------------------------------------------------- */
+  --sw-font-sans: 'Söhne', 'Hanken Grotesk', Helvetica, Arial, sans-serif;
+  --sw-font-mono: 'Söhne Mono', 'IBM Plex Mono', ui-monospace, monospace;
+
+  --sw-weight-display: 200;
+  --sw-weight-body:    300;
+  --sw-weight-medium:  400;
+  --sw-weight-strong:  500;
+
+  /* Type ramp — size / line-height / tracking travel together.
+     Never mix a size from one step with the tracking of another. */
+  --sw-type-display-size:    clamp(52px, 8.2vw, 116px);
+  --sw-type-display-leading: 0.94;
+  --sw-type-display-track:   -0.045em;
+
+  --sw-type-title-size:      42px;
+  --sw-type-title-leading:   1.05;
+  --sw-type-title-track:     -0.04em;
+
+  --sw-type-heading-size:    25px;
+  --sw-type-heading-leading: 1.2;
+  --sw-type-heading-track:   -0.015em;
+
+  --sw-type-body-lg-size:    19px;
+  --sw-type-body-lg-leading: 1.6;
+
+  --sw-type-body-size:       17px;
+  --sw-type-body-leading:    1.6;
+
+  --sw-type-small-size:      15px;
+  --sw-type-small-leading:   1.55;
+
+  --sw-type-label-size:      11px;
+  --sw-type-label-track:     0.16em;
+
+  --sw-measure: 52ch;         /* hard cap on body line length */
+
+  /* ---------------------------------------------------------------
+     SPACING — 8px base. Section rhythm holds at --sw-space-6.
+     --------------------------------------------------------------- */
+  --sw-space-1:  8px;
+  --sw-space-2:  16px;
+  --sw-space-3:  26px;
+  --sw-space-4:  40px;
+  --sw-space-5:  56px;
+  --sw-space-6:  110px;
+
+  --sw-radius: 0;             /* square by default — matches the facets  */
+  --sw-radius-round: 999px;   /* avatars and status dots only            */
+
+  /* ---------------------------------------------------------------
+     MOTION
+     Decelerative. Things arrive; they never bounce. Three curves cover
+     the system. Animate opacity and transform only.
+     --------------------------------------------------------------- */
+  --sw-ease-enter:   cubic-bezier(0.22, 1, 0.36, 1);
+  --sw-ease-state:   cubic-bezier(0.4, 0, 0.2, 1);
+  --sw-ease-ambient: cubic-bezier(0.45, 0, 0.55, 1);
+
+  --sw-dur-enter:   420ms;   /* reveals, panels, page transitions */
+  --sw-dur-state:   180ms;   /* hover, focus, colour and border shifts */
+  --sw-dur-ambient: 9000ms;  /* light drift, sheen, breathing indicators */
+  --sw-stagger:     60ms;
+
+  /* ---------------------------------------------------------------
+     LIGHT SYSTEM
+     One key light, above and ~20° left of the surface normal. Elevation
+     is luminance, never a drop shadow. See light.css for the layers
+     these values drive.
+     --------------------------------------------------------------- */
+  --sw-key-x: 42vw;           /* live key position; JS overwrites in px */
+  --sw-key-y: 30vh;
+  --sw-key-radius: 680px;
+  --sw-key-tint: rgba(126, 168, 220, 0.13);
+  --sw-key-blur-min: 30px;    /* below this, falloff bands — never go under */
+
+  /* Specular edges. Only the edge facing the key catches highlight. */
+  --sw-edge-lit:     rgba(255, 255, 255, 0.13);
+  --sw-edge-lit-raised: rgba(255, 255, 255, 0.26);
+  --sw-edge-side:    rgba(255, 255, 255, 0.06);
+  --sw-edge-shade:   rgba(0, 0, 0, 0.60);
+
+  /* Contact occlusion — tight and opaque, not a soft offset glow. */
+  --sw-contact: 0 40px 60px -50px rgba(0, 0, 0, 1);
+  --sw-contact-deep: 0 60px 90px -60px rgba(0, 0, 0, 0.95);
+
+  --sw-bounce-max: 0.08;      /* saturated surfaces bleed at most 8% */
+
+  --sw-surface-raised: linear-gradient(168deg, #131418, #0B0C0F);
+  --sw-grain-opacity: 0.05;   /* film grain, kills gradient banding */
+}
+
+/* Base application. Adopt or ignore — the tokens above are the contract. */
+body {
+  margin: 0;
+  background: var(--sw-void);
+  color: var(--sw-text-primary);
+  font-family: var(--sw-font-sans);
+  font-weight: var(--sw-weight-body);
+  font-size: var(--sw-type-body-size);
+  line-height: var(--sw-type-body-leading);
+  text-wrap: pretty;
+}
+
+a { color: var(--sw-beam); text-decoration: none; }
+a:hover { color: color-mix(in oklch, var(--sw-beam), white 25%); }
+::selection { background: var(--sw-facet-blue); color: #fff; }

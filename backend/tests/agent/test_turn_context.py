@@ -39,6 +39,9 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     assert prompt.rstrip().endswith("Compare the tenders")
     assert "construction management intelligence agent" in prompt
     assert "this software repository" in prompt
+    assert "Prefer headings and bullet lists for structure" in prompt
+    assert "**bold**" in prompt
+    assert "asterisks clutter" in prompt
     assert "project_title: Harbour House" in prompt
     assert "archetype: renovation" in prompt
     assert "building_class: 1a" in prompt

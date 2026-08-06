@@ -49,8 +49,10 @@ import type {
   CreatePmpResponse,
   DeleteProjectActivityResponse,
   SortFilesResponse,
+  ApplyDraftInstructionsResponse,
   CreateProjectInput,
   DraftArtifact,
+  DraftInstructionInput,
   DocumentRepairApplyResult,
   DocumentRepairPreview,
   EvidencePreview,
@@ -772,6 +774,21 @@ export const api = {
       content_markdown: contentMarkdown,
       expected_base_version: expectedBaseVersion,
     }),
+
+  applyDraftInstructions: async (
+    projectId: string,
+    draftId: string,
+    expectedBaseVersion: number,
+    instructions: DraftInstructionInput[],
+  ): Promise<ApplyDraftInstructionsResponse> =>
+    api.post<ApplyDraftInstructionsResponse>(
+      `/projects/${projectId}/drafts/${draftId}/apply-instructions`,
+      {
+        expected_base_version: expectedBaseVersion,
+        instructions,
+      },
+      { timeoutMs: WORKFLOW_TIMEOUT_MS },
+    ),
 
   listDecisions: async (projectId: string): Promise<ProjectDecisionListResponse> => {
     return api.get<ProjectDecisionListResponse>(

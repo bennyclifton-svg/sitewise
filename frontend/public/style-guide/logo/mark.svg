@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Sitewise">
+  <title>Sitewise mark</title>
+  <desc>Isometric projection of the Sitewise enclosure: graphite roof, bone floor, glazed face, open corner.</desc>
+  <defs>
+    <linearGradient id="sw-roof" x1="0.18" y1="0.05" x2="0.92" y2="0.95">
+      <stop offset="0" stop-color="#454B55"></stop>
+      <stop offset="0.55" stop-color="#2C3037"></stop>
+      <stop offset="1" stop-color="#1B1E23"></stop>
+    </linearGradient>
+    <linearGradient id="sw-floor" x1="0.05" y1="0.1" x2="0.95" y2="0.9">
+      <stop offset="0" stop-color="#EFEFEC"></stop>
+      <stop offset="1" stop-color="#B9B9B3"></stop>
+    </linearGradient>
+    <linearGradient id="sw-glass-upper" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#123564"></stop>
+      <stop offset="1" stop-color="#0A1F3E"></stop>
+    </linearGradient>
+    <linearGradient id="sw-glass-lower" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#3A80D2"></stop>
+      <stop offset="1" stop-color="#1F5DAB"></stop>
+    </linearGradient>
+  </defs>
+
+
+  <path d="M120 13.86 L211.92 66.93 L120 120 L28.08 66.93 Z" fill="url(#sw-roof)"></path>
+
+  <path d="M120 120 L28.08 173.07 L120 226.14 Z" fill="url(#sw-floor)"></path>
+
+  <path d="M120 120 L211.92 66.93 L211.92 173.07 Z" fill="url(#sw-glass-upper)"></path>
+
+  <path d="M120 120 L211.92 173.07 L120 226.14 Z" fill="url(#sw-glass-lower)"></path>
+
+</svg>

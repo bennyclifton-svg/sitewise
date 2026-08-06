@@ -78,8 +78,8 @@ export function BillingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="border-b bg-background">
+    <div className="relative z-[3] min-h-screen">
+      <header className="border-b border-border bg-[var(--sw-panel)]">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
           <div className="min-w-0">
             <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
@@ -90,7 +90,9 @@ export function BillingPage() {
             </Button>
             <div className="flex items-center gap-2">
               <CreditCard className="size-5 text-muted-foreground" aria-hidden />
-              <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+              <h1 className="text-2xl font-medium tracking-tight text-[var(--sw-text-primary)]">
+                Billing
+              </h1>
             </div>
           </div>
           {status ? (
@@ -220,7 +222,7 @@ function QuotaPanel({
         {quota.used_turns} of {quota.quota} turns this month
       </p>
       {quota.warning ? (
-        <p className="mt-3 rounded-md border border-amber-400/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-100">
+        <p className="mt-3 border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] px-3 py-2 text-sm text-[var(--sw-caution)]">
           You are near this month's agent quota.
         </p>
       ) : null}

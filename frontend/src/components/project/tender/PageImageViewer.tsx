@@ -19,7 +19,7 @@ export function PageImageViewer({ evidence }: { evidence: TenderPageEvidence }) 
   );
 
   return (
-    <section className="flex min-h-0 flex-col rounded-md border bg-card shadow-sm">
+    <section className="flex min-h-0 flex-col rounded-md border bg-card">
       <header className="flex items-center justify-between gap-3 border-b px-3 py-3">
         <div className="min-w-0">
           <p className="cockpit-zone-title">Source page</p>
@@ -59,7 +59,7 @@ export function PageImageViewer({ evidence }: { evidence: TenderPageEvidence }) 
             <img
               src={evidence.imagePath}
               alt={pageLabel(evidence)}
-              className="max-h-none max-w-none rounded-sm border bg-background shadow-sm"
+              className="max-h-none max-w-none rounded-sm border bg-background"
               draggable={false}
               onLoad={(event) => {
                 setNaturalSize({

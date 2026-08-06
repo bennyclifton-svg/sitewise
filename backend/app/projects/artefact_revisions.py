@@ -29,6 +29,12 @@ class ArtefactRevisionNotFound(LookupError):
 
 EditPolicy = Callable[[str], str]
 
+# Provenance keys that describe one specific revision's edit and are meaningless
+# — or actively wrong — once carried onto the next one. `changed_ranges` holds
+# offsets into the markdown of the revision that computed them; inheriting them
+# would tint arbitrary blocks of an unrelated later edit.
+_NON_INHERITED_PROVENANCE_KEYS = frozenset({"applied_instructions", "changed_ranges"})
+
 
 @dataclass(frozen=True, slots=True)
 class ExportSpec:
@@ -235,7 +241,11 @@ async def revise(
     exports: Sequence[ExportSpec] = (),
     policy: EditPolicy | None = None,
 ) -> ArtefactRevisionResult:
-    provenance = dict(base_revision.provenance_metadata or {})
+    provenance = {
+        key: value
+        for key, value in (base_revision.provenance_metadata or {}).items()
+        if key not in _NON_INHERITED_PROVENANCE_KEYS
+    }
     provenance["edited_from"] = {
         "draft_id": str(base_revision.id),
         "version": base_revision.version,

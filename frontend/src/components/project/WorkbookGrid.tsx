@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2, Table2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,26 +27,56 @@ export function WorkbookGrid({
     projectId: string;
     path: string;
   } | null>(null);
+  const [previewOverride, setPreviewOverride] = useState<{
+    projectId: string;
+    path: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSavingInvoice, setIsSavingInvoice] = useState(false);
+  const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
+  const [pendingInvoiceEditCount, setPendingInvoiceEditCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [invoiceSaveMessage, setInvoiceSaveMessage] = useState<string | null>(null);
+  const previewRef = useRef<WorkbookPreview | null>(null);
+  const previewProjectIdRef = useRef<string | null>(null);
+  const confirmedLedgerRef = useRef<InvoiceLedger | null>(null);
+  const invoiceEditQueueRef = useRef<InvoiceEdit[]>([]);
+  const isDrainingInvoiceEditsRef = useRef(false);
+  const projectIdRef = useRef(projectId);
 
   const activeWorkbookPath = latestWorkbookPath(
     workbookPath,
     workbookOverride?.projectId === projectId ? workbookOverride.path : null,
   );
+  const previewWorkbookPath = latestWorkbookPath(
+    workbookPath,
+    previewOverride?.projectId === projectId ? previewOverride.path : null,
+  );
+
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadWorkbookPreview() {
-      setIsLoading(true);
-      setError(null);
+      const isInitialLoad =
+        previewRef.current === null || previewProjectIdRef.current !== projectId;
+      if (isInitialLoad) {
+        setIsLoading(true);
+        setError(null);
+        setPreview(null);
+      } else {
+        setIsRefreshingPreview(true);
+        setPreviewError(null);
+      }
       try {
-        const data = await api.getWorkbookPreview(projectId, activeWorkbookPath);
+        const data = await api.getWorkbookPreview(projectId, previewWorkbookPath);
         if (cancelled) return;
+        previewRef.current = data;
+        previewProjectIdRef.current = projectId;
         setPreview(data);
         setActiveSheet((current) =>
           current && data.sheets.some((sheet) => sheet.name === current)
@@ -55,14 +85,22 @@ export function WorkbookGrid({
         );
       } catch (loadError) {
         if (!cancelled) {
-          setError(
+          const message =
             loadError instanceof ApiError
               ? loadError.message
-              : "Could not load workbook preview.",
-          );
+              : "Could not load workbook preview.";
+          if (isInitialLoad) setError(message);
+          else {
+            setPreviewError(
+              "Changes saved, but the workbook preview could not refresh. Reopen the Cost Plan to try again.",
+            );
+          }
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          if (isInitialLoad) setIsLoading(false);
+          else setIsRefreshingPreview(false);
+        }
       }
     }
 
@@ -70,16 +108,21 @@ export function WorkbookGrid({
     return () => {
       cancelled = true;
     };
-  }, [activeWorkbookPath, projectId]);
+  }, [previewWorkbookPath, projectId]);
 
   useEffect(() => {
     let cancelled = false;
+    invoiceEditQueueRef.current = [];
+    isDrainingInvoiceEditsRef.current = false;
+    confirmedLedgerRef.current = null;
 
     async function loadInvoiceLedger() {
       try {
         const data = await api.getInvoiceLedger(projectId);
         if (!cancelled) {
+          confirmedLedgerRef.current = data;
           setLedger(data);
+          setPendingInvoiceEditCount(0);
           setInvoiceError(null);
         }
       } catch (loadError) {
@@ -99,93 +142,141 @@ export function WorkbookGrid({
     };
   }, [projectId]);
 
-  async function applyInvoiceEdit(
-    request: () => Promise<InvoiceLedger>,
-    previousLedger: InvoiceLedger,
-  ) {
-    if (isSavingInvoice) return;
-    setIsSavingInvoice(true);
+  function enqueueInvoiceEdit(edit: InvoiceEdit) {
+    if (!ledger) return;
+    mergeQueuedInvoiceEdit(invoiceEditQueueRef.current, edit);
+    setLedger((current) =>
+      current ? applyOptimisticInvoiceEdit(current, edit) : current,
+    );
+    setPendingInvoiceEditCount(
+      invoiceEditQueueRef.current.length +
+        (isDrainingInvoiceEditsRef.current ? 1 : 0),
+    );
     setInvoiceError(null);
     setInvoiceSaveMessage(null);
-    try {
-      const updated = await request();
-      setLedger(updated);
-      setWorkbookOverride({ projectId, path: updated.workbook_path });
-      setInvoiceSaveMessage(`Saved as Cost Plan v${updated.cost_plan_version}.`);
-    } catch (saveError) {
-      if (saveError instanceof ApiError && saveError.status === 409) {
-        try {
-          const latest = await api.getInvoiceLedger(projectId);
-          setLedger(latest);
-          setWorkbookOverride({ projectId, path: latest.workbook_path });
-          setInvoiceError("The invoice changed elsewhere. Latest values are loaded; try again.");
-        } catch {
-          setInvoiceError("The invoice changed elsewhere. Reload the page, then try again.");
+    void drainInvoiceEdits(projectId);
+  }
+
+  async function drainInvoiceEdits(editingProjectId: string) {
+    if (isDrainingInvoiceEditsRef.current) return;
+    isDrainingInvoiceEditsRef.current = true;
+    let latestSavedLedger: InvoiceLedger | null = null;
+    let hadError = false;
+
+    while (invoiceEditQueueRef.current.length > 0) {
+      const edit = invoiceEditQueueRef.current.shift();
+      const confirmed = confirmedLedgerRef.current;
+      if (!edit || !confirmed) break;
+      setPendingInvoiceEditCount(invoiceEditQueueRef.current.length + 1);
+      try {
+        const updated = await performInvoiceEdit(
+          editingProjectId,
+          confirmed,
+          edit,
+        );
+        if (projectIdRef.current !== editingProjectId) return;
+        confirmedLedgerRef.current = updated;
+        latestSavedLedger = updated;
+        setWorkbookOverride({
+          projectId: editingProjectId,
+          path: updated.workbook_path,
+        });
+        setLedger(replayInvoiceEdits(updated, invoiceEditQueueRef.current));
+      } catch (saveError) {
+        if (projectIdRef.current !== editingProjectId) return;
+        hadError = true;
+        if (saveError instanceof ApiError && saveError.status === 409) {
+          try {
+            const latest = await api.getInvoiceLedger(editingProjectId);
+            if (projectIdRef.current !== editingProjectId) return;
+            confirmedLedgerRef.current = latest;
+            latestSavedLedger = latest;
+            setWorkbookOverride({
+              projectId: editingProjectId,
+              path: latest.workbook_path,
+            });
+            setLedger(replayInvoiceEdits(latest, invoiceEditQueueRef.current));
+            setInvoiceError(
+              "An invoice changed elsewhere. Remaining edits will use the latest values.",
+            );
+          } catch {
+            invoiceEditQueueRef.current = [];
+            setLedger(confirmedLedgerRef.current);
+            setInvoiceError(
+              "Latest invoice values could not be loaded. Reopen the Cost Plan before editing.",
+            );
+          }
+        } else {
+          setLedger(replayInvoiceEdits(confirmed, invoiceEditQueueRef.current));
+          setInvoiceError(
+            saveError instanceof ApiError
+              ? saveError.message
+              : "One change could not be saved. Later changes will continue.",
+          );
         }
-      } else {
-        setLedger(previousLedger);
-        setInvoiceError(
-          saveError instanceof ApiError
-            ? saveError.message
-            : "Could not save the invoice change. Try again.",
+      }
+    }
+
+    if (projectIdRef.current !== editingProjectId) return;
+    isDrainingInvoiceEditsRef.current = false;
+    setPendingInvoiceEditCount(0);
+    if (latestSavedLedger) {
+      setPreviewOverride({
+        projectId: editingProjectId,
+        path: latestSavedLedger.workbook_path,
+      });
+      if (!hadError) {
+        setInvoiceSaveMessage(
+          `Saved as Cost Plan v${latestSavedLedger.cost_plan_version}.`,
         );
       }
-    } finally {
-      setIsSavingInvoice(false);
     }
   }
 
-  function updateAllocation(row: InvoiceLedgerRow, costItemKey: string) {
-    if (!ledger) return;
-    const previous = ledger;
-    const target = ledger.cost_items.find((item) => item.item_key === costItemKey);
-    if (!target) return;
-    setLedger({
-      ...ledger,
-      rows: ledger.rows.map((item) =>
-        item.allocation_id === row.allocation_id
-          ? {
-              ...item,
-              cost_item_key: target.item_key,
-              cost_item_label: target.item,
-              mapping_method: "manual",
-              review_status: "mapped",
-            }
-          : item,
-      ),
-    });
-    void applyInvoiceEdit(
-      () =>
-        api.updateInvoiceAllocation(projectId, row.allocation_id, {
-          expected_revision: row.invoice_revision,
-          expected_cost_plan_version: previous.cost_plan_version,
-          cost_item_key: costItemKey,
-        }),
-      previous,
+  async function performInvoiceEdit(
+    editingProjectId: string,
+    confirmed: InvoiceLedger,
+    edit: InvoiceEdit,
+  ) {
+    if (edit.kind === "allocation") {
+      const row = confirmed.rows.find(
+        (candidate) => candidate.allocation_id === edit.allocationId,
+      );
+      if (!row) throw new Error("The invoice allocation is no longer available.");
+      return api.updateInvoiceAllocation(editingProjectId, edit.allocationId, {
+        expected_revision: row.invoice_revision,
+        expected_cost_plan_version: confirmed.cost_plan_version,
+        cost_item_key: edit.costItemKey,
+      });
+    }
+    const row = confirmed.rows.find(
+      (candidate) => candidate.invoice_id === edit.invoiceId,
     );
+    if (!row) throw new Error("The invoice is no longer available.");
+    return api.updateInvoice(editingProjectId, edit.invoiceId, {
+      expected_revision: row.invoice_revision,
+      expected_cost_plan_version: confirmed.cost_plan_version,
+      ...edit.changes,
+    });
+  }
+
+  function updateAllocation(row: InvoiceLedgerRow, costItemKey: string) {
+    enqueueInvoiceEdit({
+      kind: "allocation",
+      allocationId: row.allocation_id,
+      costItemKey,
+    });
   }
 
   function updateInvoice(
     row: InvoiceLedgerRow,
     changes: { paid?: boolean; billing_month?: string },
   ) {
-    if (!ledger) return;
-    const previous = ledger;
-    setLedger({
-      ...ledger,
-      rows: ledger.rows.map((item) =>
-        item.invoice_id === row.invoice_id ? { ...item, ...changes } : item,
-      ),
+    enqueueInvoiceEdit({
+      kind: "invoice",
+      invoiceId: row.invoice_id,
+      changes,
     });
-    void applyInvoiceEdit(
-      () =>
-        api.updateInvoice(projectId, row.invoice_id, {
-          expected_revision: row.invoice_revision,
-          expected_cost_plan_version: previous.cost_plan_version,
-          ...changes,
-        }),
-      previous,
-    );
   }
 
   const sheet = useMemo(
@@ -196,6 +287,17 @@ export function WorkbookGrid({
     ledger && workbookVersion(activeWorkbookPath) !== ledger.cost_plan_version
       ? `This is an archived workbook. Open Cost Plan v${ledger.cost_plan_version} to edit invoices.`
       : null;
+  const invoiceNotice = invoiceError ?? previewError ?? invoiceReadOnlyMessage;
+  const backgroundSaveMessage =
+    pendingInvoiceEditCount > 1
+      ? `${pendingInvoiceEditCount} changes queued`
+      : pendingInvoiceEditCount === 1
+        ? "Saving in background"
+        : isRefreshingPreview
+          ? "Updating workbook preview"
+          : invoiceSaveMessage;
+  const isBackgroundBusy =
+    pendingInvoiceEditCount > 0 || isRefreshingPreview;
 
   if (isLoading) {
     return (
@@ -238,41 +340,53 @@ export function WorkbookGrid({
             </Button>
           ))}
         </div>
-        {preview.warnings.length ? (
-          <span
-            className="inline-flex items-center gap-1 text-xs"
-            style={{ color: "var(--warn-text)" }}
-          >
-            <AlertTriangle className="size-3.5" aria-hidden />
-            {preview.warnings.length} warning{preview.warnings.length === 1 ? "" : "s"}
-          </span>
-        ) : null}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {preview.warnings.length ? (
+            <span
+              className="inline-flex items-center gap-1 text-xs"
+              style={{ color: "var(--warn-text)" }}
+            >
+              <AlertTriangle className="size-3.5" aria-hidden />
+              {preview.warnings.length} warning
+              {preview.warnings.length === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {sheet.name === "Invoices" && backgroundSaveMessage ? (
+            <span
+              className={cn(
+                "inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
+                isBackgroundBusy
+                  ? "bg-[var(--info-bg)] text-[var(--info-text)]"
+                  : "bg-[var(--ok-bg)] text-[var(--ok-text)]",
+              )}
+              role="status"
+              aria-live="polite"
+            >
+              {isBackgroundBusy ? (
+                <Loader2
+                  className="size-3.5 animate-spin motion-reduce:animate-none"
+                  aria-hidden
+                />
+              ) : (
+                <Check className="size-3.5" aria-hidden />
+              )}
+              {backgroundSaveMessage}
+            </span>
+          ) : null}
+        </div>
       </div>
-      {sheet.name === "Invoices" &&
-      (isSavingInvoice || invoiceError || invoiceSaveMessage || invoiceReadOnlyMessage) ? (
+      {sheet.name === "Invoices" && invoiceNotice ? (
         <div
           className={cn(
             "flex items-center gap-2 border-b px-3 py-2 text-xs",
-            invoiceError
+            invoiceError || previewError
               ? "bg-[var(--alert-bg)] text-[var(--alert-text)]"
-              : invoiceReadOnlyMessage
-                ? "bg-[var(--info-bg)] text-[var(--info-text)]"
-              : "bg-[var(--ok-bg)] text-[var(--ok-text)]",
+              : "bg-[var(--info-bg)] text-[var(--info-text)]",
           )}
-          role={invoiceError ? "alert" : "status"}
+          role={invoiceError || previewError ? "alert" : "status"}
         >
-          {isSavingInvoice ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
-          ) : invoiceError || invoiceReadOnlyMessage ? (
-            <AlertTriangle className="size-3.5" aria-hidden />
-          ) : (
-            <Check className="size-3.5" aria-hidden />
-          )}
-          <span>
-            {isSavingInvoice
-              ? "Saving invoice change and publishing a new Cost Plan version…"
-              : invoiceError ?? invoiceSaveMessage ?? invoiceReadOnlyMessage}
-          </span>
+          <AlertTriangle className="size-3.5" aria-hidden />
+          <span>{invoiceNotice}</span>
         </div>
       ) : null}
       {sheet.name === "Summary" ? (
@@ -281,13 +395,84 @@ export function WorkbookGrid({
         <RegisterSheetTable
           sheet={sheet}
           invoiceLedger={invoiceReadOnlyMessage ? null : ledger}
-          isSavingInvoice={isSavingInvoice}
           onAllocationChange={updateAllocation}
           onInvoiceChange={updateInvoice}
         />
       )}
     </div>
   );
+}
+
+type InvoiceEdit =
+  | {
+      kind: "allocation";
+      allocationId: string;
+      costItemKey: string;
+    }
+  | {
+      kind: "invoice";
+      invoiceId: string;
+      changes: { paid?: boolean; billing_month?: string };
+    };
+
+function mergeQueuedInvoiceEdit(queue: InvoiceEdit[], next: InvoiceEdit) {
+  const last = queue.at(-1);
+  if (
+    last?.kind === "invoice" &&
+    next.kind === "invoice" &&
+    last.invoiceId === next.invoiceId
+  ) {
+    last.changes = { ...last.changes, ...next.changes };
+    return;
+  }
+  if (
+    last?.kind === "allocation" &&
+    next.kind === "allocation" &&
+    last.allocationId === next.allocationId
+  ) {
+    last.costItemKey = next.costItemKey;
+    return;
+  }
+  queue.push(next);
+}
+
+function replayInvoiceEdits(
+  ledger: InvoiceLedger,
+  edits: InvoiceEdit[],
+): InvoiceLedger {
+  return edits.reduce(applyOptimisticInvoiceEdit, ledger);
+}
+
+function applyOptimisticInvoiceEdit(
+  ledger: InvoiceLedger,
+  edit: InvoiceEdit,
+): InvoiceLedger {
+  if (edit.kind === "invoice") {
+    return {
+      ...ledger,
+      rows: ledger.rows.map((row) =>
+        row.invoice_id === edit.invoiceId ? { ...row, ...edit.changes } : row,
+      ),
+    };
+  }
+  const target = ledger.cost_items.find(
+    (item) => item.item_key === edit.costItemKey,
+  );
+  if (!target) return ledger;
+  return {
+    ...ledger,
+    rows: ledger.rows.map((row) =>
+      row.allocation_id === edit.allocationId
+        ? {
+            ...row,
+            cost_item_key: target.item_key,
+            cost_item_label: target.item,
+            mapping_method: "manual",
+            review_status: "mapped",
+          }
+        : row,
+    ),
+  };
 }
 
 const SUMMARY_COLUMN_COUNT = 12;
@@ -581,13 +766,11 @@ function SummaryCell({
 function RegisterSheetTable({
   sheet,
   invoiceLedger,
-  isSavingInvoice,
   onAllocationChange,
   onInvoiceChange,
 }: {
   sheet: WorkbookSheetPreview;
   invoiceLedger: InvoiceLedger | null;
-  isSavingInvoice: boolean;
   onAllocationChange: (row: InvoiceLedgerRow, costItemKey: string) => void;
   onInvoiceChange: (
     row: InvoiceLedgerRow,
@@ -681,7 +864,6 @@ function RegisterSheetTable({
                           columnIndex={columnIndex}
                           row={invoiceRow}
                           ledger={invoiceLedger}
-                          disabled={isSavingInvoice}
                           onAllocationChange={onAllocationChange}
                           onInvoiceChange={onInvoiceChange}
                         />
@@ -704,14 +886,12 @@ function InvoiceRegisterControl({
   columnIndex,
   row,
   ledger,
-  disabled,
   onAllocationChange,
   onInvoiceChange,
 }: {
   columnIndex: number;
   row: InvoiceLedgerRow;
   ledger: InvoiceLedger;
-  disabled: boolean;
   onAllocationChange: (row: InvoiceLedgerRow, costItemKey: string) => void;
   onInvoiceChange: (
     row: InvoiceLedgerRow,
@@ -726,7 +906,6 @@ function InvoiceRegisterControl({
           row.review_status === "needs_review" && "workbook-inline-control--review",
         )}
         value={row.cost_item_key ?? ""}
-        disabled={disabled}
         aria-label={`Cost item for invoice ${row.invoice_number}: ${row.description}`}
         title={
           row.review_status === "needs_review"
@@ -759,7 +938,6 @@ function InvoiceRegisterControl({
         type="month"
         className="workbook-inline-control workbook-inline-control--month"
         value={row.billing_month.slice(0, 7)}
-        disabled={disabled}
         aria-label={`Billing month for invoice ${row.invoice_number}`}
         onChange={(event) => {
           if (event.target.value) {
@@ -777,7 +955,6 @@ function InvoiceRegisterControl({
         "workbook-paid-toggle",
         row.paid && "workbook-paid-toggle--paid",
       )}
-      disabled={disabled}
       aria-pressed={row.paid}
       aria-label={`Mark invoice ${row.invoice_number} ${
         row.paid ? "unpaid" : "paid"

@@ -1,15 +1,24 @@
+import json
 from pathlib import Path
+
+import pytest
 
 from app.sitewise.markdown_sections import (
     assemble_sections,
     doctrine_core_content,
     list_section_ids,
+    normalize_draft_markdown,
     section_by_id,
     split_sections,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DOCTRINE_PATH = REPO_ROOT / "docs" / "clerk-brief.md"
+NORMALIZE_VECTORS_PATH = Path(__file__).parent / "fixtures" / "normalize_vectors.json"
+
+
+def _normalize_vectors() -> list[dict[str, str]]:
+    return json.loads(NORMALIZE_VECTORS_PATH.read_text(encoding="utf-8"))
 
 STAGE_SECTION_IDS = (
     "00-brief-pmp",
@@ -132,3 +141,19 @@ def test_assemble_sections_orders_and_dedupes_nested_spans() -> None:
 
 def test_doctrine_core_returns_none_for_unrecognised_structure() -> None:
     assert doctrine_core_content("no headings at all") is None
+
+
+@pytest.mark.parametrize("vector", _normalize_vectors(), ids=lambda v: v["name"])
+def test_normalize_draft_markdown_matches_shared_vectors(vector: dict[str, str]) -> None:
+    """These vectors are shared with frontend/src/lib/markdown-selection.test.ts.
+
+    normalize_draft_markdown and normalizeDraftMarkdown define the same offset
+    space (design decision D3); if they drift, anchors resolve to the wrong text.
+    """
+    assert normalize_draft_markdown(vector["input"]) == vector["expected"]
+
+
+def test_normalize_draft_markdown_is_idempotent() -> None:
+    for vector in _normalize_vectors():
+        once = normalize_draft_markdown(vector["input"])
+        assert normalize_draft_markdown(once) == once

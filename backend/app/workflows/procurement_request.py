@@ -83,9 +83,7 @@ class ProcurementDocument(ABC):
     @abstractmethod
     def platform_query(self, target: ProcurementTarget) -> str: ...
 
-    def platform_guidance_paths(
-        self, target: ProcurementTarget
-    ) -> tuple[str, ...]:
+    def platform_guidance_paths(self, target: ProcurementTarget) -> tuple[str, ...]:
         """Return target-specific platform guidance that must be consulted."""
         return ()
 
@@ -96,6 +94,17 @@ class ProcurementDocument(ABC):
     ) -> list[dict[str, Any]]:
         """Apply document-specific relevance rules after taxonomy filtering."""
         return knowledge
+
+    async def supplemental_project_evidence(
+        self,
+        session: AsyncSession,
+        *,
+        project: Project,
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        """Return complete structured inputs that semantic passage search can miss."""
+        del session, project, target
+        return []
 
     @abstractmethod
     async def forecast(
@@ -146,9 +155,7 @@ CreateDraft = Callable[..., Awaitable[DraftArtifact]]
 SyncWorkspace = Callable[..., Awaitable[str]]
 
 
-def workflow_type_for(
-    document: ProcurementDocument, target: ProcurementTarget
-) -> str:
+def workflow_type_for(document: ProcurementDocument, target: ProcurementTarget) -> str:
     return f"{document.document_key}_{target.slug}"
 
 
@@ -191,6 +198,14 @@ async def draft_procurement_request(
         retriever,
         project=project,
         queries=document.evidence_queries(target),
+    )
+    project_evidence = _merge_project_evidence(
+        project_evidence,
+        await document.supplemental_project_evidence(
+            session,
+            project=project,
+            target=target,
+        ),
     )
     platform_knowledge = await _retrieve_platform_knowledge(
         retriever,
@@ -321,6 +336,44 @@ async def _retrieve_project_evidence(
     return evidence
 
 
+def _merge_project_evidence(
+    retrieved: list[dict[str, Any]],
+    supplemental: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge complete document registers without duplicating retrieved passages."""
+    merged = list(retrieved)
+    index_by_path = {
+        str(item.get("relative_path") or "").strip(): index
+        for index, item in enumerate(merged)
+        if str(item.get("relative_path") or "").strip()
+    }
+    for item in supplemental:
+        path = str(item.get("relative_path") or "").strip()
+        existing_index = index_by_path.get(path) if path else None
+        if existing_index is None:
+            if path:
+                index_by_path[path] = len(merged)
+            merged.append(item)
+            continue
+
+        existing = merged[existing_index]
+        existing_metadata = existing.get("document_metadata")
+        supplemental_metadata = item.get("document_metadata")
+        merged[existing_index] = {
+            **item,
+            **existing,
+            "document_metadata": {
+                **(existing_metadata if isinstance(existing_metadata, dict) else {}),
+                **(
+                    supplemental_metadata
+                    if isinstance(supplemental_metadata, dict)
+                    else {}
+                ),
+            },
+        }
+    return merged
+
+
 async def _retrieve_platform_knowledge(
     retriever: DocumentRetriever,
     *,
@@ -353,7 +406,11 @@ async def _retrieve_platform_knowledge(
         path = str(_attr(passage, "relative_path", ""))
         if path and path in seen_paths:
             continue
-        if path and catalog_entry_for_path(path) is not None and path not in applicable_paths:
+        if (
+            path
+            and catalog_entry_for_path(path) is not None
+            and path not in applicable_paths
+        ):
             continue
         if path:
             seen_paths.add(path)
@@ -426,7 +483,9 @@ async def _merge_required_guidance(
         if loaded is not None and loaded.passage is not None:
             item = {
                 "path": path,
-                "title": entry.title if entry is not None else path.rsplit("/", maxsplit=1)[-1],
+                "title": entry.title
+                if entry is not None
+                else path.rsplit("/", maxsplit=1)[-1],
                 "section": None,
                 "snippet": loaded.passage.content,
                 "score": None,
@@ -439,7 +498,9 @@ async def _merge_required_guidance(
         else:
             item = {
                 "path": path,
-                "title": entry.title if entry is not None else path.rsplit("/", maxsplit=1)[-1],
+                "title": entry.title
+                if entry is not None
+                else path.rsplit("/", maxsplit=1)[-1],
                 "section": None,
                 "snippet": entry.summary if entry is not None else "",
                 "score": None,
@@ -457,9 +518,7 @@ async def _merge_required_guidance(
     return knowledge
 
 
-def _project_evidence_item(
-    query: EvidenceQuery, passage: Any
-) -> dict[str, Any]:
+def _project_evidence_item(query: EvidenceQuery, passage: Any) -> dict[str, Any]:
     metadata = _attr(passage, "document_metadata", None)
     return {
         "role": query.key,

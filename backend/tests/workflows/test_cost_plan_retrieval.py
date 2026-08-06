@@ -33,3 +33,15 @@ def test_select_cost_evidence_paths_includes_due_diligence_and_authority_markers
     selected = select_cost_evidence_paths(paths, limit=12)
 
     assert len(selected) == 2
+
+
+def test_select_cost_evidence_paths_includes_contractor_pricing_schedules() -> None:
+    paths = [
+        "04-projects/petersham/00-inbox/Contractor Pricing Schedule.pdf.md",
+        "04-projects/petersham/00-inbox/Contractor Cost Plan.xlsx.md",
+        "04-projects/petersham/_inbox/ANX V CONTACT PRICE SCHEDULE [B].pdf",
+    ]
+
+    selected = select_cost_evidence_paths(paths, limit=12)
+
+    assert set(selected) == set(paths)

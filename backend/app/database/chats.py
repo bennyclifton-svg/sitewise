@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.chat_message import ChatMessage
@@ -119,6 +119,25 @@ async def update_thread(
     await session.flush()
     await session.refresh(thread)
     return thread
+
+
+async def replace_thread_title_if_matches(
+    session: AsyncSession,
+    thread_id: uuid.UUID,
+    *,
+    expected_title: str,
+    title: str,
+) -> bool:
+    """Replace an automatic fallback without overwriting a user's rename."""
+    result = await session.execute(
+        update(ChatThread)
+        .where(
+            ChatThread.id == thread_id,
+            ChatThread.title == expected_title,
+        )
+        .values(title=title)
+    )
+    return bool(result.rowcount)
 
 
 async def delete_thread(session: AsyncSession, thread: ChatThread) -> None:

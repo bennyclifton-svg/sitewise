@@ -61,7 +61,7 @@ export function TenderRouteFrame({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 lg:p-6">
-        <header className="rounded-md border bg-card p-4 shadow-sm">
+        <header className="rounded-md border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">

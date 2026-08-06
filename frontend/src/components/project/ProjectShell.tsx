@@ -30,54 +30,31 @@ function getLargeLayoutServerSnapshot() {
   return false;
 }
 
-function SiteWiseMarkButton({ onShowWorkbench }: { onShowWorkbench: () => void }) {
-  return (
-    <button
-      type="button"
-      className="cockpit-sitewise-mark group relative hidden shrink-0 items-center justify-center lg:inline-flex"
-      aria-label="SiteWise"
-      title="SiteWise"
-      onClick={onShowWorkbench}
-    >
-
-      <span className="text-center text-[1.04rem] font-semibold lowercase leading-[1.05] tracking-tight text-black transition-colors group-hover:text-black">
-        site
-        <br />
-        wise
-      </span>
-
-    </button>
-  );
-}
-
 function CockpitRibbonContent({
   projectTitle,
   projectAddress,
-  onShowWorkbench,
 }: {
   projectTitle?: string;
   projectAddress?: string;
-  onShowWorkbench: () => void;
 }) {
+  if (!projectTitle) return null;
+
   return (
-    <div className="flex min-w-0 items-center gap-5">
-      <SiteWiseMarkButton onShowWorkbench={onShowWorkbench} />
-      {projectTitle ? (
-        <div className="flex min-w-0 flex-col gap-0.5 pl-2">
-          <h1 className="truncate text-[1.3rem] font-semibold leading-[1.05] tracking-tight text-[var(--cockpit-sitewise-surface)]">
-            {projectTitle}
-          </h1>
-          <p
-            className={
-              projectAddress
-                ? "truncate text-[0.65rem] font-medium leading-[1.1] tracking-tight text-[var(--cockpit-sitewise-surface)]"
-                : "truncate text-[0.65rem] font-medium leading-[1.1] tracking-tight text-[var(--cockpit-sitewise-surface)]/55"
-            }
-          >
-            {projectAddress ?? "Site address TBC"}
-          </p>
-        </div>
-      ) : null}
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <h1 className="truncate text-[1.3rem] font-medium leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
+          {projectTitle}
+        </h1>
+        <p
+          className={
+            projectAddress
+              ? "truncate text-[0.65rem] font-normal leading-[1.1] tracking-tight text-[var(--sw-text-secondary)]"
+              : "truncate text-[0.65rem] font-normal leading-[1.1] tracking-tight text-[var(--sw-text-quiet)]"
+          }
+        >
+          {projectAddress ?? "Site address TBC"}
+        </p>
+      </div>
     </div>
   );
 }
@@ -91,7 +68,6 @@ export function ProjectShell({
   chatFullScreen = false,
   projectTitle,
   projectAddress,
-  onShowWorkbench,
 }: {
   leftNav: ReactNode;
   children: ReactNode;
@@ -101,7 +77,6 @@ export function ProjectShell({
   chatFullScreen?: boolean;
   projectTitle?: string;
   projectAddress?: string;
-  onShowWorkbench: () => void;
 }) {
   const [leftWidth, setLeftWidth] = useState(() =>
     readStoredPanelWidth(COCKPIT_LEFT_PANEL_WIDTH_KEY, COCKPIT_LEFT_PANEL_DEFAULT_WIDTH),
@@ -177,7 +152,6 @@ export function ProjectShell({
           <CockpitRibbonContent
             projectTitle={projectTitle}
             projectAddress={projectAddress}
-            onShowWorkbench={onShowWorkbench}
           />
         </div>
 
@@ -186,7 +160,6 @@ export function ProjectShell({
             <CockpitRibbonContent
               projectTitle={projectTitle}
               projectAddress={projectAddress}
-              onShowWorkbench={onShowWorkbench}
             />
           </div>
           <div className="flex min-h-0 flex-1 flex-col">

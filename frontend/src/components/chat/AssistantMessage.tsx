@@ -6,6 +6,7 @@ import { CitationChip } from "@/components/chat/CitationChip";
 import { InsufficientEvidenceBanner } from "@/components/chat/InsufficientEvidenceBanner";
 import { ToolActivityFeed } from "@/components/chat/ToolActivityFeed";
 import { WorkflowRunCard } from "@/components/chat/WorkflowRunCard";
+import { CopyContentButton } from "@/components/project/CopyContentButton";
 import {
   assistantMetaFromMessageData,
   citationFromSourcePart,
@@ -67,15 +68,25 @@ export function AssistantMessage({
   return (
     <article
       aria-label="Assistant message"
-      className="mr-8 max-w-[92%] self-start rounded-lg border border-white/6 bg-black/20 px-3 py-2 text-sm"
+      className="group relative mr-8 max-w-[92%] self-start rounded-lg border border-white/6 bg-black/20 px-3 py-2 text-sm"
     >
+      {text.trim() ? (
+        <div className="absolute top-1.5 right-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <CopyContentButton
+            content={text}
+            label="Copy response"
+            className="bg-black/40 hover:bg-black/55"
+          />
+        </div>
+      ) : null}
+
       {meta && !meta.evidenceSufficient ? (
         <div className="mb-2">
           <InsufficientEvidenceBanner />
         </div>
       ) : null}
 
-      <div className="space-y-2 whitespace-pre-wrap leading-relaxed">{text}</div>
+      <div className="space-y-2 whitespace-pre-wrap leading-relaxed pr-8">{text}</div>
 
       <AnswerTrace
         agentMode={agentMode}

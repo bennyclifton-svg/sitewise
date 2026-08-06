@@ -9,10 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.draft_artifact import DraftArtifact
+from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.projects.artefact_revisions import set_export_result_for_path
@@ -37,12 +39,15 @@ from app.workflows.rfp_narrative import (
     ProcurementNarrativeOutput,
     run_procurement_narrative_model,
 )
+from ingest.document_metadata import infer_discipline_from_file_name
 from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE_PREFIX = "trade"
 RUNTIME_NAME = "clerk-trade-procurement"
 KNOWLEDGE_WORKFLOW = "trade-procurement"
 NARRATIVE_MAX_ATTEMPTS = 3
+_PACKAGE_DOCUMENT_CLASSES = frozenset({"drawing", "schedule", "specification"})
+_LEADING_LIST_MARKER = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +315,79 @@ async def run_validated_trade_narrative(
     raise RuntimeError("trade narrative retry loop exited unexpectedly")
 
 
+async def load_trade_package_evidence(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    target: ProcurementTarget,
+) -> list[dict[str, Any]]:
+    """Load every primary-discipline design document for a trade package."""
+    discipline = infer_discipline_from_file_name(target.name)
+    if discipline is None:
+        return []
+
+    result = await session.execute(
+        select(
+            SourceDocument.id,
+            SourceDocument.filename,
+            SourceDocument.relative_path,
+            SourceDocument.document_class,
+            SourceDocument.document_metadata,
+        )
+        .where(SourceDocument.project_id == project_id)
+        .order_by(SourceDocument.relative_path.asc())
+    )
+    evidence: list[dict[str, Any]] = []
+    for document in result.all():
+        metadata = (
+            dict(document.document_metadata)
+            if isinstance(document.document_metadata, dict)
+            else {}
+        )
+        metadata_discipline = str(metadata.get("discipline") or "").casefold()
+        filename_discipline = infer_discipline_from_file_name(document.filename)
+        is_primary_discipline = (
+            metadata_discipline == discipline.casefold()
+            or filename_discipline == discipline
+        )
+        if (
+            not is_primary_discipline
+            or document.document_class not in _PACKAGE_DOCUMENT_CLASSES
+        ):
+            continue
+
+        # A discipline-coded drawing number is stronger than a conflicting
+        # caption elsewhere in a split-sheet filename (for example M01 ... Electrical).
+        metadata["discipline"] = discipline
+        document_number = metadata.get("document_number") or metadata.get(
+            "drawing_number"
+        )
+        label = str(document_number or document.filename)
+        evidence.append(
+            {
+                "role": "scope_of_works",
+                "role_label": f"Issued {discipline} package document",
+                "document_id": str(document.id),
+                "chunk_id": str(document.id),
+                "filename": document.filename,
+                "relative_path": document.relative_path,
+                "page_or_section": metadata.get("revision"),
+                "snippet": (
+                    f"{discipline} package register entry: {label}. "
+                    f"Title: {metadata.get('title') or document.filename}. "
+                    f"Revision: {metadata.get('revision') or 'unknown'}."
+                ),
+                "score": None,
+                "document_metadata": metadata,
+            }
+        )
+    return evidence
+
+
+def _scope_item(value: str) -> str:
+    return _LEADING_LIST_MARKER.sub("", value, count=1).strip()
+
+
 class TradeProcurementDocument(ProcurementDocument):
     workspace_subfolder = "05-procurement"
     filename_stem = "trade"
@@ -342,9 +420,30 @@ class TradeProcurementDocument(ProcurementDocument):
         return (
             EvidenceQuery("project_brief", "Project brief", "project brief owner objectives scope site constraints"),
             EvidenceQuery("scope_of_works", "Scope and design information", f"{name} scope drawings specifications schedule interfaces"),
+            EvidenceQuery(
+                "interface_drawings",
+                "Relevant interface drawings",
+                (
+                    f"{name} architectural interface drawings floor plans reflected "
+                    "ceiling plans sections shafts penetrations louvres plant access coordination"
+                ),
+            ),
             EvidenceQuery("programme", "Programme", f"{name} programme milestones access lead time construction completion"),
             EvidenceQuery("cost_plan_pmp", "Cost plan / Project Plan", f"cost plan project plan {name} procurement programme"),
             EvidenceQuery("approvals", "Approvals and compliance", f"{name} approvals authority compliance certificates testing"),
+        )
+
+    async def supplemental_project_evidence(
+        self,
+        session: AsyncSession,
+        *,
+        project: Any,
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        return await load_trade_package_evidence(
+            session,
+            project_id=project.id,
+            target=target,
         )
 
     def platform_query(self, target: ProcurementTarget) -> str:
@@ -431,7 +530,8 @@ class TradeProcurementDocument(ProcurementDocument):
         )
         scope_items = narrative.requested_services or list(profile.baseline_scope)
         scope_markdown = "\n".join(
-            f"{index}. {item}" for index, item in enumerate(scope_items, start=1)
+            f"{index}. {_scope_item(item)}"
+            for index, item in enumerate(scope_items, start=1)
         )
         programme_markdown = "\n".join(f"- {item}" for item in narrative.programme)
         if not programme_markdown:

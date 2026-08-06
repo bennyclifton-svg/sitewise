@@ -118,7 +118,7 @@ export function DecisionControl({
       </div>
 
       {evidenceConflict ? (
-        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-xs text-[var(--sw-caution)]">
           Current corpus evidence suggests a different option
           {decision.agent_suggestion
             ? ` (${labelForValue(decision.options, decision.agent_suggestion)}).`

@@ -45,6 +45,7 @@ INBOX_PACKAGE_DESTINATIONS: dict[str, str] = {
 
 _FILENAME_DESTINATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^CC-A-", re.I), "03-design/architect"),
+    (re.compile(r"^M\d{2,3}\b", re.I), "03-design/mechanical"),
     (re.compile(r"^E\d{2}\b", re.I), "03-design/electrical"),
     (re.compile(r"^H-", re.I), "03-design/hydraulic"),
     (re.compile(r"^F-", re.I), "03-design/fire"),
@@ -161,7 +162,9 @@ def is_intake_manifest(filename: str) -> bool:
     return bool(_MANIFEST_PATTERN.match(filename))
 
 
-def inbox_package_folder(workspace_path: str, project_workspace_path: str) -> str | None:
+def inbox_package_folder(
+    workspace_path: str, project_workspace_path: str
+) -> str | None:
     """Return the top-level inbox package folder name, if any."""
     prefix = f"{project_workspace_path.rstrip('/')}/_inbox/"
     normalised = workspace_path.replace("\\", "/")
@@ -174,7 +177,9 @@ def inbox_package_folder(workspace_path: str, project_workspace_path: str) -> st
 
 
 def _slug_for_discipline_label(label: str) -> str | None:
-    matches = [slug for slug, mapped in DISCIPLINE_FOLDER_LABELS.items() if mapped == label]
+    matches = [
+        slug for slug, mapped in DISCIPLINE_FOLDER_LABELS.items() if mapped == label
+    ]
     if not matches:
         return None
     canonical = [slug for slug in matches if "-engineer" not in slug]
@@ -222,9 +227,9 @@ def classify_inbox_destination(
     package = inbox_package_folder(workspace_path, project_workspace_path)
     if package:
         decoded = unquote(package).upper()
-        destination = INBOX_PACKAGE_DESTINATIONS.get(decoded) or INBOX_PACKAGE_DESTINATIONS.get(
-            package.upper()
-        )
+        destination = INBOX_PACKAGE_DESTINATIONS.get(
+            decoded
+        ) or INBOX_PACKAGE_DESTINATIONS.get(package.upper())
         if destination:
             return destination
 

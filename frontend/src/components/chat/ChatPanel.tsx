@@ -380,7 +380,7 @@ export function ChatPanel({
                 type="button"
                 size="icon"
                 variant="secondary"
-                className="absolute right-3 bottom-3 shadow-md"
+                className="absolute right-3 bottom-3"
                 aria-label="Scroll to latest message"
                 title="Scroll to latest message"
                 onClick={() => scrollToBottom("smooth")}

@@ -1,0 +1,53 @@
+{
+  "name": "Sitewise 3D lighting rig",
+  "version": "1.0.0",
+  "verifiedAgainst": "three.js r184",
+  "note": "Mirrors applyLighting() in mark.js. Values are physical; if you change one, re-check that no face clips at 255 and that each face still carries a tonal spread.",
+
+  "principle": "Directional and hemisphere light both deliver constant irradiance across a flat face, so no amount of either can stop a plane reading as one flat tone. The key must be a point or spot source with distance falloff. Directionals are fill only.",
+
+  "renderer": {
+    "toneMapping": "ACESFilmic",
+    "toneMappingExposure": 1.25,
+    "shadowMap": { "enabled": true, "type": "PCFSoft" },
+    "note": "A physically-lit scene of this brightness clips without tone mapping — the bone floor goes flat white at 255."
+  },
+
+  "environment": {
+    "type": "procedural equirectangular, PMREM pre-filtered",
+    "size": [1024, 512],
+    "base": "vertical gradient #1a1e26 → #0b0d11 (horizon) → #15171c → #2a2d33",
+    "sources": [
+      { "role": "key softbox", "at": [300, 110], "radii": [300, 190], "color": "#ffffff", "alpha": 1.0 },
+      { "role": "cool rim",    "at": [760, 170], "radii": [190, 150], "color": "#9fc4ee", "alpha": 0.55 },
+      { "role": "floor bounce","at": [520, 470], "radii": [460, 130], "color": "#c9d4e2", "alpha": 0.28 }
+    ]
+  },
+
+  "lights": [
+    { "id": "ambient",  "type": "HemisphereLight", "sky": "#dfe6f2", "ground": "#0a0b0d", "intensity": 0.10, "role": "fill floor" },
+    { "id": "key",      "type": "DirectionalLight", "color": "#ffffff", "intensity": 0.34, "position": [-2.6, 3.4, 2.2], "castShadow": true, "shadow": { "mapSize": 2048, "bias": -0.0002, "normalBias": 0.025 } },
+    { "id": "rim",      "type": "DirectionalLight", "color": "#9fc4ee", "intensity": 0.22, "position": [-3, 1.4, -3.2] },
+    { "id": "raking",   "type": "DirectionalLight", "color": "#dfe8f5", "intensity": 0.28, "position": [4.5, 3.2, 1.2], "castShadow": true, "shadow": { "mapSize": 2048, "bias": -0.0004, "normalBias": 0.02, "frustum": 2 }, "role": "second caster so junctions read twice" },
+    { "id": "aperture", "type": "PointLight", "color": "#f2f6fb", "intensity": 17, "distance": 7, "decay": 2, "position": [-0.8, 1.15, 0.9], "role": "THE KEY. Just outside the open corner; falloff varies across every plane." },
+    { "id": "interior", "type": "PointLight", "color": "#dce6f2", "intensity": 1.6, "distance": 2.6, "decay": 2, "position": [0.05, 0, -0.05], "role": "picks out wall and floor interiors" }
+  ],
+
+  "occlusion": {
+    "method": "per-vertex colour attribute",
+    "axis": "deepest at the glazing/wall edge (x=+0.5, z=−0.5), most open at the missing corner (x=−0.5, z=+0.5)",
+    "ranges": { "roof": [0.68, 1.15], "wall": [0.32, 1.10], "floor": [0.34, 1.05], "glazing": [0.62, 1.10] },
+    "note": "Modulates diffuse albedo only. Keep metalness and envMapIntensity low or the specular term swamps the ramp."
+  },
+
+  "measuredResult": {
+    "view": "logo lock (fov 9, camera on the 1,1,1 axis)",
+    "luminanceSpread": { "bone": [111, 235], "darkFaces": [3, 110], "glazing": [4, 146] },
+    "note": "Before the point key, the roof moved four levels across its whole diagonal. Use these figures as the regression test."
+  },
+
+  "ground": {
+    "visible": false,
+    "note": "The model's lowest point IS the bone floor, so a stage ground plane resting on the bounding box z-fights with it. Hide it, or drop it clear by at least 0.006."
+  }
+}

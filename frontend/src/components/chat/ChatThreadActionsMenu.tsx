@@ -38,7 +38,7 @@ export function ChatThreadActionsMenu({
           align="end"
           sideOffset={4}
           collisionPadding={8}
-          className="z-50 min-w-[6.5rem] rounded-md border bg-popover p-1 shadow-md outline-none"
+          className="sw-surface sw-contact z-50 min-w-[6.5rem] p-1 outline-none hover:translate-y-0"
         >
           <DropdownMenu.Item
             className="cursor-default rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
