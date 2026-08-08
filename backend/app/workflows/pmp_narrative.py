@@ -61,6 +61,7 @@ _ARCHITECT_PM_ACTORS: tuple[str, ...] = (
     "architect-pm",
     "architect pm",
     "architect/ pm",
+    "architect to ",
     "hcs ",
     "harrison clarke",
 )
@@ -71,6 +72,13 @@ _OWNER_ACTORS: tuple[str, ...] = ("owner", "owners")
 def _contains_any(text: str, phrases: tuple[str, ...]) -> bool:
     lowered = text.lower()
     return any(phrase in lowered for phrase in phrases)
+
+
+def _is_architect_actor(text: str) -> bool:
+    lowered = text.lower().strip()
+    if lowered == "architect" or re.match(r"^architect(?:-pm)?\b", lowered):
+        return True
+    return _contains_any(lowered, _ARCHITECT_PM_ACTORS)
 
 
 def _pack_has_gap(pack: MobilisationEvidencePack, needle: str) -> bool:
@@ -122,11 +130,10 @@ def _recommendation_assigns_certifier_to_architect_pm(recommendation: str) -> bo
     lowered = recommendation.lower()
     if "certifier" not in lowered:
         return False
-    if not _contains_any(lowered, _ARCHITECT_PM_ACTORS):
+    if not _is_architect_actor(lowered):
         return False
     return any(
-        verb in lowered
-        for verb in ("appoint", "engage", "secure", "select", "procure")
+        verb in lowered for verb in ("appoint", "engage", "secure", "select", "procure")
     )
 
 
@@ -134,14 +141,16 @@ def _register_row_assigns_certifier_to_architect_pm(row: RegisterRow) -> bool:
     lowered = f"{row.description} {row.next_action} {row.owner}".lower()
     if "certifier" not in lowered:
         return False
-    return _contains_any(row.owner.lower(), _ARCHITECT_PM_ACTORS) and any(
+    return _is_architect_actor(row.owner) and any(
         verb in lowered for verb in ("appoint", "engage", "secure", "select")
     )
 
 
 def _certifier_text_misstates_da_scope(text: str) -> bool:
     lowered = text.lower()
-    return "certifier" in lowered and _contains_any(lowered, _CERTIFIER_DA_SCOPE_PHRASES)
+    return "certifier" in lowered and _contains_any(
+        lowered, _CERTIFIER_DA_SCOPE_PHRASES
+    )
 
 
 def _repair_certifier_da_scope_text(text: str) -> str:
@@ -170,7 +179,8 @@ def _register_source_is_allowed(source: str) -> bool:
 
 def _combined_register_text(output: PmpNarrativeOutput) -> str:
     return "\n".join(
-        f"{row.description} {row.source} {row.next_action}" for row in output.register_rows
+        f"{row.description} {row.source} {row.next_action}"
+        for row in output.register_rows
     ).lower()
 
 
@@ -191,10 +201,10 @@ def _next_register_id(rows: list[RegisterRow]) -> str:
 def _programme_action_text(pack: MobilisationEvidencePack, due_date: str) -> str:
     if pack.target_da_lodgement:
         return (
-            "Architect-PM to issue master programme aligned to "
+            "Architect to issue master programme aligned to "
             f"{pack.target_da_lodgement} DA target by {due_date}."
         )
-    return f"Architect-PM to issue master programme closing the open programme gap by {due_date}."
+    return f"Architect to issue master programme closing the open programme gap by {due_date}."
 
 
 def complete_pack_driven_narrative_requirements(
@@ -220,7 +230,11 @@ def complete_pack_driven_narrative_requirements(
         if "program" not in recommendations_text():
             recommendations.append(_programme_action_text(pack, due_date))
         if "program" not in register_text():
-            source = "engagement letter" if pack.target_da_lodgement else f"gap: {GAP_MASTER_PROGRAMME}"
+            source = (
+                "engagement letter"
+                if pack.target_da_lodgement
+                else f"gap: {GAP_MASTER_PROGRAMME}"
+            )
             next_action = (
                 f"Issue programme aligned to {pack.target_da_lodgement} DA target"
                 if pack.target_da_lodgement
@@ -231,7 +245,7 @@ def complete_pack_driven_narrative_requirements(
                 RegisterRow(
                     id=_next_register_id(register_rows),
                     description="Master programme",
-                    owner="Architect-PM",
+                    owner="Architect",
                     status="Open",
                     due_date=due_date,
                     source=source,
@@ -243,7 +257,7 @@ def complete_pack_driven_narrative_requirements(
         conflict_tokens = ("conflict", "linden", "declaration")
         if not _contains_any(recommendations_text(), conflict_tokens):
             recommendations.append(
-                "Architect-PM to declare disclosed tender conflict before tender list lock "
+                "Architect to declare disclosed tender conflict before tender list lock "
                 f"by {due_date}."
             )
         if not _contains_any(register_text(), conflict_tokens):
@@ -251,7 +265,7 @@ def complete_pack_driven_narrative_requirements(
                 RegisterRow(
                     id=_next_register_id(register_rows),
                     description="Tender conflict declaration",
-                    owner="Architect-PM",
+                    owner="Architect",
                     status="Open",
                     due_date=due_date,
                     source="fee proposal",
@@ -380,7 +394,7 @@ def _validate_pack_driven_narrative_requirements(
     for index, recommendation in enumerate(output.recommendations, start=1):
         if _recommendation_assigns_certifier_to_architect_pm(recommendation):
             issues.append(
-                f"recommendation {index} assigns certifier appointment to Architect-PM; "
+                f"recommendation {index} assigns certifier appointment to Architect; "
                 "Owner appoints the principal certifier"
             )
         if _certifier_text_misstates_da_scope(recommendation):
@@ -392,7 +406,7 @@ def _validate_pack_driven_narrative_requirements(
     for row in output.register_rows:
         if _register_row_assigns_certifier_to_architect_pm(row):
             issues.append(
-                f"register row {row.id} assigns certifier appointment to Architect-PM; "
+                f"register row {row.id} assigns certifier appointment to Architect; "
                 "Owner appoints the principal certifier"
             )
         source = row.source.strip().lower()
@@ -406,9 +420,7 @@ def _validate_pack_driven_narrative_requirements(
                 f"register row {row.id} source {row.source!r} must cite engagement letter, "
                 "fee proposal, or gap: <name>"
             )
-        if _certifier_text_misstates_da_scope(
-            f"{row.description} {row.next_action}"
-        ):
+        if _certifier_text_misstates_da_scope(f"{row.description} {row.next_action}"):
             issues.append(
                 f"register row {row.id} ties certifier appointment to DA lodgement/submission; "
                 "principal certifier belongs to the CC/construction certification pathway"
@@ -479,8 +491,12 @@ def pack_summary_for_narrative(pack: MobilisationEvidencePack) -> str:
     ]
     if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF):
         signed = pack.owner_brief_signed_date or "on file"
-        lines.append(f"Owner project brief: signed {signed} — do NOT recommend brief sign-off.")
-    if pack.construction_budget_ceiling and not pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET):
+        lines.append(
+            f"Owner project brief: signed {signed} — do NOT recommend brief sign-off."
+        )
+    if pack.construction_budget_ceiling and not pack_has_gap(
+        pack, GAP_CONSTRUCTION_BUDGET
+    ):
         lines.append(
             f"Construction budget confirmed: {pack.construction_budget_ceiling} working ceiling — "
             "do NOT recommend budget confirmation."
@@ -492,7 +508,9 @@ def pack_summary_for_narrative(pack: MobilisationEvidencePack) -> str:
         )
         lines.extend(f"- {quote}" for quote in pack.builder_quotes)
     if pack.other_evidence:
-        lines.append("Other evidence on file (unclassified — acknowledge, do not invent detail):")
+        lines.append(
+            "Other indexed evidence (unclassified — acknowledge, do not invent detail):"
+        )
         lines.extend(f"- {item}" for item in pack.other_evidence)
     lines.append("Open gaps (address these only):")
     if pack.gaps:
@@ -513,11 +531,7 @@ def build_pmp_narrative_prompt(
     mobilisation_date = (run_date or date.today()).isoformat()
     parts = [
         f"Project: {project.title}",
-        (
-            "Overlays: "
-            f"archetype={project.archetype}, "
-            f"state={project.state}"
-        ),
+        (f"Overlays: archetype={project.archetype}, state={project.state}"),
         (
             f"Mobilisation run date: {mobilisation_date} — set register due dates and "
             "recommendation due dates 2–4 weeks forward from this date."
@@ -536,7 +550,9 @@ def build_pmp_narrative_prompt(
 
 
 def _iso_dates_in_text(text: str) -> list[date]:
-    return [date.fromisoformat(match.group(1)) for match in _ISO_DATE_PATTERN.finditer(text)]
+    return [
+        date.fromisoformat(match.group(1)) for match in _ISO_DATE_PATTERN.finditer(text)
+    ]
 
 
 def validate_pmp_narrative_output(
@@ -560,11 +576,15 @@ def validate_pmp_narrative_output(
     for index, recommendation in enumerate(output.recommendations, start=1):
         dates = _iso_dates_in_text(recommendation)
         if not dates:
-            issues.append(f"recommendation {index} must include an ISO due date (YYYY-MM-DD)")
+            issues.append(
+                f"recommendation {index} must include an ISO due date (YYYY-MM-DD)"
+            )
             continue
         for due in dates:
             if due < anchor_date:
-                issues.append(f"recommendation {index} due date {due} is before mobilisation run date")
+                issues.append(
+                    f"recommendation {index} due date {due} is before mobilisation run date"
+                )
 
     if len(output.register_rows) < 1:
         issues.append("register_rows must include at least 1 row")
@@ -572,7 +592,9 @@ def validate_pmp_narrative_output(
     for row in output.register_rows:
         due = date.fromisoformat(row.due_date)
         if due < earliest_due:
-            issues.append(f"register row {row.id} due date {row.due_date} is before mobilisation run date")
+            issues.append(
+                f"register row {row.id} due date {row.due_date} is before mobilisation run date"
+            )
         if due > latest_due + timedelta(days=14):
             issues.append(
                 f"register row {row.id} due date {row.due_date} is more than ~6 weeks after run date"
@@ -591,14 +613,19 @@ def validate_pmp_narrative_output(
     if evidence_refs_include_engagement_letter(pack.evidence_refs):
         for phrase in _NARRATIVE_CONTRADICTIONS:
             if phrase in combined:
-                issues.append(f"narrative contradiction: {phrase!r} conflicts with evidence on file")
+                issues.append(
+                    f"narrative contradiction: {phrase!r} conflicts with evidence on file"
+                )
 
     for warning in output.workflow_warnings:
         lowered = warning.lower()
         if "engagement letter" in lowered and any(
-            token in lowered for token in ("missing", "not on file", "not yet", "no engagement")
+            token in lowered
+            for token in ("missing", "not on file", "not yet", "no engagement")
         ):
-            issues.append("workflow_warnings must not claim engagement letter is missing")
+            issues.append(
+                "workflow_warnings must not claim engagement letter is missing"
+            )
 
     _validate_pack_driven_narrative_requirements(output, pack, issues)
 
@@ -633,14 +660,10 @@ def format_risk_rows_table(rows: list[RiskRow]) -> str:
 
 
 def format_internal_audit_narrative(output: PmpNarrativeOutput) -> str:
-    """Render narrative-only Internal audit layer fragments (Judgements through warnings)."""
+    """Render review-only narrative fragments without duplicating issued registers."""
     lines = [
         "- **Judgements**",
         *[f"  - {item}" for item in output.judgements],
-        "- **Recommendations**",
-        *[f"  - {item}" for item in output.recommendations],
-        "- **Register rows**",
-        format_register_rows_table(output.register_rows),
         "- **Workflow warnings**",
     ]
     if output.workflow_warnings:
@@ -665,8 +688,12 @@ async def run_pmp_narrative_model(
         run_date=run_date,
         validation_feedback=validation_feedback,
     )
-    resolved_model = chat_model.strip() if chat_model else resolve_pmp_model().execution_id
-    result = await run_agent_with_retry(pmp_narrative_agent, prompt, model=resolved_model)
+    resolved_model = (
+        chat_model.strip() if chat_model else resolve_pmp_model().execution_id
+    )
+    result = await run_agent_with_retry(
+        pmp_narrative_agent, prompt, model=resolved_model
+    )
     output = complete_pack_driven_narrative_requirements(
         result.output,
         pack,

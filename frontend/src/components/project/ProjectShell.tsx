@@ -42,7 +42,7 @@ function CockpitRibbonContent({
   return (
     <div className="flex min-w-0 items-center gap-3">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h1 className="truncate font-display text-[1.3rem] font-medium leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
+        <h1 className="truncate font-display text-[1.3rem] font-light leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
           {projectTitle}
         </h1>
         <p

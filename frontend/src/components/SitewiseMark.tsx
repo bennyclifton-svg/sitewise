@@ -62,7 +62,7 @@ export function SitewiseWordmark({
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <SitewiseMark size={markSize} className={markClassName} />
-      <span className="text-[1.05rem] font-medium tracking-[-0.02em] text-[var(--sw-text-primary)]">
+      <span className="font-display text-[1.05rem] font-light tracking-[-0.02em] text-[var(--sw-text-primary)]">
         SiteWise
       </span>
     </span>

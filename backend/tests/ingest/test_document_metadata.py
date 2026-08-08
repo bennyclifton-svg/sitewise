@@ -448,6 +448,69 @@ def test_ignores_scale_labels_misparsed_as_revision_from_pdf_title_blocks():
     assert not result.canonical_file_name.startswith("-")
 
 
+def test_parses_project_prefixed_cc_sheets_with_trailing_revision_letter():
+    # Flat CAD exports with no selectable title-block text, e.g. Mosaic Apartments.
+    result = _parse(
+        file_name="1115 CC-01 SETOUT PLAN D.pdf",
+        filed_path="04-projects/mosaic-apartments/_inbox/1115 CC-01 SETOUT PLAN D.pdf",
+    )
+    assert result.document_number == "CC-01"
+    assert result.title == "SETOUT PLAN"
+    assert result.revision == "D"
+    assert result.discipline == "Architectural"
+    assert result.confidence == "high"
+    assert result.canonical_file_name == "CC-01 - SETOUT PLAN Rev D.pdf"
+
+
+def test_parses_project_prefixed_cc_sheets_when_title_contains_numbers():
+    result = _parse(
+        file_name="1115 CC-02 BASEMENT 2 F.pdf",
+        filed_path="04-projects/mosaic-apartments/_inbox/1115 CC-02 BASEMENT 2 F.pdf",
+    )
+    assert result.document_number == "CC-02"
+    assert result.title == "BASEMENT 2"
+    assert result.revision == "F"
+    assert result.discipline == "Architectural"
+
+
+def test_parses_job_prefixed_structural_sheets_with_paren_revision():
+    # Job/project number is shared across the set; drawing number is the S-sheet only.
+    result = _parse(
+        file_name="15123_S0001_Notes-(03).pdf",
+        filed_path="04-projects/mosaic-apartments/_inbox/15123_S0001_Notes-(03).pdf",
+    )
+    assert result.document_number == "S0001"
+    assert result.title == "Notes"
+    assert result.revision == "03"
+    assert result.discipline == "Structural"
+    assert result.confidence == "high"
+    assert result.canonical_file_name == "S0001 - Notes Rev 03.pdf"
+
+
+def test_parses_job_prefixed_structural_sheets_with_spaces_in_title():
+    result = _parse(
+        file_name="15123_S0012_Shoring_Details Sht 1-(04).pdf",
+        filed_path="04-projects/mosaic-apartments/_inbox/15123_S0012_Shoring_Details Sht 1-(04).pdf",
+    )
+    assert result.document_number == "S0012"
+    assert result.title == "Shoring Details Sht 1"
+    assert result.revision == "04"
+    assert result.discipline == "Structural"
+    assert result.canonical_file_name == "S0012 - Shoring Details Sht 1 Rev 04.pdf"
+
+
+def test_parses_job_prefixed_structural_sheets_with_hyphenated_title_tokens():
+    result = _parse(
+        file_name="15123_S0203_basement 1_TReo Plan-(03).pdf",
+        filed_path="04-projects/mosaic-apartments/_inbox/15123_S0203_basement 1_TReo Plan-(03).pdf",
+    )
+    assert result.document_number == "S0203"
+    assert result.title == "basement 1 TReo Plan"
+    assert result.revision == "03"
+    assert result.discipline == "Structural"
+    assert result.canonical_file_name == "S0203 - basement 1 TReo Plan Rev 03.pdf"
+
+
 def test_rejects_regulated_design_record_labels_as_title_and_revision():
     # NSW Regulated Design Record stamps print their labels in one decoupled
     # column, so "Rev" is followed by "Project Address:" rather than a value.

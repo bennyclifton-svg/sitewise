@@ -551,7 +551,7 @@ def _render_source_evidence(pack: CostPlanEvidencePack) -> str:
         [
             "## Source evidence used",
             "",
-            f"**Evidence on file:** {evidence_line}.",
+            f"**Indexed evidence:** {evidence_line}.",
             "",
             *rows,
             "",

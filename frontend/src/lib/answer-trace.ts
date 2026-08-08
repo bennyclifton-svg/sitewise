@@ -1,4 +1,5 @@
 import type { ToolStatusEvent } from "@/lib/chat-events";
+import { isWebSourceType } from "@/lib/citations";
 import type { Citation } from "@/lib/types/citation";
 
 const PROJECT_DOCUMENT_TOOLS = new Set([
@@ -16,6 +17,7 @@ export type AnswerTraceTone =
   | "context"
   | "documents"
   | "knowledge"
+  | "web"
   | "tools"
   | "model";
 
@@ -80,6 +82,7 @@ export function answerTraceItems({
   const context = traceSection(trace, "context");
   const documents = traceSection(trace, "documents");
   const knowledge = traceSection(trace, "knowledge");
+  const web = traceSection(trace, "web");
   const model = traceSection(trace, "model");
 
   const liveToolNames = unique(
@@ -102,6 +105,20 @@ export function answerTraceItems({
   const liveKnowledgeRefs = toolEvents
     .map((event) => event.knowledgePath)
     .filter((path): path is string => typeof path === "string" && path.length > 0);
+  const persistedWebSources = Array.isArray(web?.sources)
+    ? web.sources.map(asRecord).filter((source) => source !== null)
+    : [];
+  const webSourceTitles = unique([
+    ...persistedWebSources
+      .map((source) => source.title)
+      .filter((title): title is string => typeof title === "string" && title.length > 0),
+    ...toolEvents
+      .map((event) => event.webSource?.title)
+      .filter((title): title is string => typeof title === "string" && title.length > 0),
+    ...citations
+      .filter((citation) => isWebSourceType(citation.sourceType))
+      .map((citation) => citation.title),
+  ]);
 
   const hasProjectEvidence = citations.some(
     (citation) => citation.sourceType === "project_evidence",
@@ -110,6 +127,7 @@ export function answerTraceItems({
     (citation) =>
       citation.sourceType === "doctrine" || citation.sourceType === "reference",
   );
+  const showWeb = webSourceTitles.length > 0;
 
   const showContext =
     context?.used === true || agentMode || hasAgentMetadata(messageData);
@@ -125,7 +143,8 @@ export function answerTraceItems({
     agentMode ||
     hasAgentMetadata(messageData) ||
     showDocuments ||
-    showKnowledge;
+    showKnowledge ||
+    showWeb;
 
   const items: AnswerTraceItem[] = [];
   if (showContext) {
@@ -154,6 +173,17 @@ export function answerTraceItems({
       label: "SiteWise knowledge",
       tone: "knowledge",
       title: `SiteWise platform knowledge influenced this answer.${sourceText}`,
+    });
+  }
+  if (showWeb) {
+    items.push({
+      key: "web",
+      label:
+        webSourceTitles.length === 1
+          ? "Web source"
+          : `Web sources · ${webSourceTitles.length}`,
+      tone: "web",
+      title: `Official web material influenced this answer. Sources: ${webSourceTitles.join(", ")}.`,
     });
   }
   if (allToolNames.length > 0) {

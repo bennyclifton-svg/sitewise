@@ -1,0 +1,1 @@
+Create PMP citation support issues: Cited claim is not supported by the mapped source text: **Working regime:** Stage 1—concept/schematic design to DA submission; Stage 2—design development; Stage 3—construction documentation and delivery (**Assumption**, PMP baseline). Q

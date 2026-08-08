@@ -35,12 +35,11 @@ def backfill_corpus_coverage(
     source_texts: Sequence[str],
     source_labels: Sequence[str] | None = None,
 ) -> CoverageBackfillResult:
-    """Guarantee corpus coverage by construction instead of validation.
+    """Merge missing evidence refs and report uncovered facts without annexing them.
 
-    Merges any missing required evidence refs into the output refs and appends
-    facts the draft did not carry inline as rows in a deterministic
-    "Evidence coverage register" section. Re-running on already-backfilled
-    markdown regenerates an identical register (idempotent).
+    The issued PMP stays free of an Evidence coverage register; missing facts are
+    reported via ``backfilled_facts`` for advisory Trace & QA only. Any legacy
+    register section is stripped so re-runs stay idempotent.
     """
     evidence_refs = [str(ref) for ref in output_evidence_refs]
     seen_paths = {_normalise_ref_path(ref) for ref in evidence_refs}
@@ -52,38 +51,20 @@ def backfill_corpus_coverage(
             added_refs.append(str(ref))
             seen_paths.add(path)
 
-    has_register = _has_coverage_register(markdown)
-    base = _strip_coverage_register(markdown) if has_register else markdown
+    base = _strip_coverage_register(markdown)
     body = _normalise_text(base)
     missing = [
         requirement
         for requirement in build_corpus_coverage_requirements(source_texts, source_labels)
         if not _requirement_present(body, requirement)
     ]
-    if missing:
-        new_markdown = _insert_before_citation_key(
-            base,
-            _render_coverage_register(missing),
-        )
-    elif has_register:
-        new_markdown = base.rstrip() + "\n"
-    else:
-        new_markdown = markdown
+    new_markdown = base.rstrip() + "\n" if base != markdown else markdown
     return CoverageBackfillResult(
         markdown=new_markdown,
         evidence_refs=tuple(evidence_refs),
         backfilled_facts=tuple(missing),
         added_evidence_refs=tuple(added_refs),
     )
-
-
-def _has_coverage_register(markdown: str) -> bool:
-    target = COVERAGE_REGISTER_HEADING.lower()
-    for line in markdown.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("## ") and stripped[3:].strip().lower() == target:
-            return True
-    return False
 
 
 def _strip_coverage_register(markdown: str) -> str:
@@ -93,39 +74,11 @@ def _strip_coverage_register(markdown: str) -> str:
     for line in markdown.splitlines():
         stripped = line.strip()
         if stripped.startswith("## "):
-            skipping = stripped[3:].strip().lower() == target
+            heading = stripped[3:].strip().lower()
+            skipping = heading == target or "evidence coverage register" in heading
         if not skipping:
             kept.append(line)
     return "\n".join(kept)
-
-
-def _render_coverage_register(requirements: Sequence[CoverageRequirement]) -> str:
-    lines = [
-        f"## {COVERAGE_REGISTER_HEADING}",
-        "",
-        "Critical evidence facts carried from active project documents that are "
-        "not woven into the narrative above.",
-        "",
-        "| Source | Category | Fact |",
-        "| --- | --- | --- |",
-    ]
-    for requirement in requirements:
-        source = requirement.source.replace("|", "/")
-        category = requirement.category.replace("|", "/")
-        fact = requirement.fact.replace("|", "/")
-        lines.append(f"| {source} | {category} | {fact} |")
-    return "\n".join(lines)
-
-
-def _insert_before_citation_key(markdown: str, register: str) -> str:
-    lines = markdown.rstrip().splitlines()
-    for index, line in enumerate(lines):
-        if line.strip().casefold() != "## citation key":
-            continue
-        before = "\n".join(lines[:index]).rstrip()
-        after = "\n".join(lines[index:]).lstrip()
-        return f"{before}\n\n{register}\n\n{after}\n"
-    return f"{markdown.rstrip()}\n\n{register}\n"
 
 
 def format_corpus_coverage_requirements(

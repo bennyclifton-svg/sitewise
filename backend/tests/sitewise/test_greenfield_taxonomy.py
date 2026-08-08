@@ -95,7 +95,7 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
     consultants_line = next(
         line for line in brief.splitlines() if line.startswith("- Consultants (~")
     )
-    assert "appointment" in consultants_line.lower() or "Architect-PM" in consultants_line
+    assert "appointment" in consultants_line.lower() or "Architect" in consultants_line
     assert "Fire Engineer" in consultants_line
 
     roster_header = "### Consultants roster (appointment register — not Brief)"
@@ -160,13 +160,19 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
 
     assert headings == list(required_section_headings(project=project))
     assert headings[-1] == "Citation key"
-    assert "| Field | Current PMP position | Citation |" in markdown
+    assert "| Field | Project detail | Citation |" not in markdown
+    summary = _section_body(markdown, "Project Summary")
+    assert "| Project | Benny Fire Upgrade |  |" in summary
+    assert "| Owner |" in summary
+    assert "| Address |" in summary
+    assert "| Description |" in summary
+    assert "Critical current position" not in summary
     assert "| Expected consultants |" not in markdown
     assert "## Consultants" in markdown
     assert "Fire Engineer" in _section_body(markdown, "Consultants")
     assert "| Expected consultants |" not in _section_body(markdown, "Brief")
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
-    assert "User provided" in markdown
+    assert "User provided" not in markdown
     assert "Assumption" in markdown
     assert "Not evidenced" in markdown
     assert "Grounded" not in markdown
@@ -185,7 +191,7 @@ def test_taxonomy_consultants_cites_natural_engagement_filename() -> None:
     pack = MobilisationEvidencePack(
         engagement_executed_date="2026-03-01",
         appointee="Studio Example",
-        roles="Architect-PM",
+        roles="Architect",
         scope_bullets=["PMP", "governance", "procurement advice"],
         fee_total_ex_gst="$12,000",
         evidence_refs=[engagement_ref, "02-evidence/site-survey.pdf"],
@@ -201,12 +207,13 @@ def test_taxonomy_consultants_cites_natural_engagement_filename() -> None:
     citation_key = _section_body(markdown, "Citation key")
 
     architect_row = next(
-        line for line in consultants.splitlines() if line.startswith("| Architect / PM |")
+        line for line in consultants.splitlines() if line.startswith("| Architect |")
     )
     assert architect_row.rstrip().endswith("| [1] |")
-    assert "[1] Letter of Engagement.pdf — on file" in citation_key
+    assert "- [1] Letter of Engagement.pdf — on file" in citation_key
     assert "draft v03" in citation_key
-    assert "| Consultants | Partial | [1] |" in citation_key
+    assert "| Section | Evidence status | Citation |" not in citation_key
+    assert "| Consultants | Partial | [1] |" not in citation_key
 
 
 def test_commercial_fire_scaffold_is_compliance_heavy_and_not_residential() -> None:
@@ -332,7 +339,7 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
 
     assert headings == list(required_section_headings(project=project))
     assert headings[-1] == "Citation key"
-    assert "| Field | Current PMP position | Citation |" in markdown
+    assert "| Field | Project detail | Citation |" not in markdown
     assert "| Expected consultants |" not in markdown
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
     assert "Grounded" not in markdown

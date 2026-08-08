@@ -7,15 +7,13 @@ import {
 } from "lucide-react";
 
 import { InstructionTray } from "@/components/project/InstructionTray";
-import {
-  MarkdownContent,
-  normalizeDraftMarkdown,
-} from "@/components/project/MarkdownContent";
+import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { SelectionInstructionCard } from "@/components/project/SelectionInstructionCard";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { WorkbookGrid } from "@/components/project/WorkbookGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { normalizeDraftMarkdown, splitTraceQa } from "@/lib/artifact-markdown";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import {
@@ -27,12 +25,10 @@ import {
 } from "@/lib/instruction-tray";
 import {
   splitMarkdownSections,
-  spliceMarkdownSection,
   type MarkdownSectionSlice,
 } from "@/lib/markdown-sections";
+import { replaceMarkdownRange } from "@/lib/inline-markdown";
 import {
-  isAnchorError,
-  resolveSelectionAnchor,
   type MarkdownAnchor,
   type MarkdownRange,
 } from "@/lib/markdown-selection";
@@ -89,11 +85,13 @@ export function DraftReviewPanel({
   onDraftUpdated,
   workflowType,
   embedded = false,
+  projectTitle,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
   onDraftUpdated: (draft: DraftArtifact) => void;
   workflowType?: string;
+  projectTitle?: string;
   /** Compact layout when nested inside a workflow panel. */
   embedded?: boolean;
 }) {
@@ -101,10 +99,12 @@ export function DraftReviewPanel({
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [sectionEditHeading, setSectionEditHeading] = useState<string | null>(null);
-  const [sectionEditorValue, setSectionEditorValue] = useState("");
+  const [selectionEdit, setSelectionEdit] = useState<{
+    draftId: string;
+    version: number;
+    range: MarkdownRange;
+  } | null>(null);
   const [anchor, setAnchor] = useState<MarkdownAnchor | null>(null);
-  const [selectionHint, setSelectionHint] = useState<string | null>(null);
   const [trayOverride, setTrayOverride] = useState<{
     key: string;
     items: InstructionItem[];
@@ -114,7 +114,6 @@ export function DraftReviewPanel({
   const [applyError, setApplyError] = useState<string | null>(null);
   const [showChanges, setShowChanges] = useState(true);
   const draftDetailsRef = useRef<HTMLDetailsElement>(null);
-  const markdownRef = useRef<HTMLDivElement>(null);
   const [decisionState, setDecisionState] = useState<{
     key: string;
     decisions: ProjectDecision[] | null;
@@ -138,7 +137,6 @@ export function DraftReviewPanel({
       setActionError(null);
       if (!draft) {
         setLoadedDraft(null);
-        setSectionEditHeading(null);
         setIsLoadingDraft(false);
         return;
       }
@@ -214,7 +212,14 @@ export function DraftReviewPanel({
     () => (loadedDraft ? normalizeDraftMarkdown(loadedDraft.content_markdown) : ""),
     [loadedDraft],
   );
+  const issueContent = useMemo(() => splitTraceQa(source), [source]);
   const sections = useMemo(() => splitMarkdownSections(source), [source]);
+  const selectionEditRange =
+    loadedDraft &&
+    selectionEdit?.draftId === loadedDraft.id &&
+    selectionEdit.version === loadedDraft.version
+      ? selectionEdit.range
+      : null;
   const changedRanges = useMemo(
     () => changedRangesFrom(loadedDraft?.provenance_metadata?.changed_ranges),
     [loadedDraft],
@@ -231,37 +236,8 @@ export function DraftReviewPanel({
   const canInstruct =
     !!loadedDraft &&
     loadedDraft.status !== "accepted" &&
-    !sectionEditHeading &&
+    !selectionEditRange &&
     supportsAnchoredInstructions(loadedDraft.workflow_type);
-
-  useEffect(() => {
-    if (!canInstruct) return;
-    const container = markdownRef.current;
-    if (!container) return;
-
-    function handleSelection() {
-      const result = resolveSelectionAnchor(
-        window.getSelection(),
-        container as HTMLElement,
-        source,
-      );
-      if (result === null) return;
-      if (isAnchorError(result)) {
-        setAnchor(null);
-        setSelectionHint(result.error);
-        return;
-      }
-      setSelectionHint(null);
-      setAnchor(result);
-    }
-
-    document.addEventListener("mouseup", handleSelection);
-    document.addEventListener("selectionchange", handleSelection);
-    return () => {
-      document.removeEventListener("mouseup", handleSelection);
-      document.removeEventListener("selectionchange", handleSelection);
-    };
-  }, [canInstruct, source]);
 
   const isCostPlanWorkflow =
     workflowType === "create_cost_plan" || draft?.workflow_type === "create_cost_plan";
@@ -371,15 +347,31 @@ export function DraftReviewPanel({
   const evidenceChanged = evidenceChangedSummary(loadedDraft?.provenance_metadata?.evidence_changed);
   const workbook = workbookMetadata(loadedDraft?.provenance_metadata?.workbook);
   const isAccepted = displayDraft.status === "accepted";
+  const canEditDraft =
+    !isAccepted && supportsAnchoredInstructions(displayDraft.workflow_type);
 
-  function startSectionEdit(heading: string) {
+  function startSelectionEdit(range: MarkdownRange) {
     if (!loadedDraft) return;
-    const section = sections.find((item) => item.heading === heading);
-    if (!section) return;
-    setSectionEditHeading(heading);
-    setSectionEditorValue(source.slice(section.start, section.end));
+    setSelectionEdit({
+      draftId: loadedDraft.id,
+      version: loadedDraft.version,
+      range,
+    });
     setAnchor(null);
     setActionError(null);
+    window.getSelection()?.removeAllRanges();
+  }
+
+  function startAiEdit(range: MarkdownRange, rect: DOMRect) {
+    if (!loadedDraft || range.start < 0 || range.end > source.length) return;
+    setSelectionEdit(null);
+    setActionError(null);
+    setAnchor({
+      ...range,
+      quotedText: source.slice(range.start, range.end),
+      rect,
+    });
+    window.getSelection()?.removeAllRanges();
   }
 
   function openWorkflowTrace() {
@@ -392,11 +384,21 @@ export function DraftReviewPanel({
     });
   }
 
-  async function saveSectionEdit() {
-    if (!loadedDraft || !sectionEditHeading) return;
-    const section = sections.find((item) => item.heading === sectionEditHeading);
-    if (!section) return;
-    const nextMarkdown = spliceMarkdownSection(source, section, sectionEditorValue);
+  async function saveSelectionEdit(range: MarkdownRange, replacement: string) {
+    if (!loadedDraft || !selectionEditRange) return;
+    if (
+      range.start !== selectionEditRange.start ||
+      range.end !== selectionEditRange.end
+    ) {
+      return;
+    }
+
+    const nextMarkdown = replaceMarkdownRange(source, range, replacement);
+    if (nextMarkdown === source) {
+      setSelectionEdit(null);
+      return;
+    }
+
     setIsSaving(true);
     setActionError(null);
     try {
@@ -408,10 +410,11 @@ export function DraftReviewPanel({
       );
       setLoadedDraft(updated);
       onDraftUpdated(updated);
-      setSectionEditHeading(null);
-      setSectionEditorValue("");
+      setSelectionEdit(null);
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : "Could not save section.");
+      setActionError(
+        error instanceof ApiError ? error.message : "Could not save selection.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -419,7 +422,12 @@ export function DraftReviewPanel({
 
   if (displayDraft.workflow_type === "create_cost_plan") {
     return (
-      <article className={cn("w-full min-w-0", embedded ? "" : "p-4 lg:p-6")}>
+      <article
+        className={cn(
+          "flex w-full min-w-0 flex-col gap-4",
+          embedded ? "" : "p-4 lg:p-6",
+        )}
+      >
         <CostWorkbookSection
           workbook={workbook}
           isLoading={isLoadingDraft}
@@ -427,6 +435,50 @@ export function DraftReviewPanel({
           emptyMessage="Cost workbook is not available. Refresh cost plan to regenerate it."
           projectId={projectId}
         />
+        {!isLoadingDraft && loadedDraft ? (
+          <details
+            ref={draftDetailsRef}
+            className="group border bg-background"
+            data-testid="draft-supporting-details"
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                aria-hidden
+              />
+              <span className="text-sm font-semibold">Trace &amp; QA</span>
+            </summary>
+
+            <div className="border-t p-4">
+              <p className="break-all text-sm text-muted-foreground">
+                {displayDraft.workspace_path}
+              </p>
+              <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <MetaItem
+                  label="Saved"
+                  value={dateFormatter.format(new Date(displayDraft.created_at))}
+                />
+                <MetaItem label="Model" value={draftModelLabel(displayDraft)} />
+                <MetaItem label="Runtime" value={displayDraft.runtime} />
+                <MetaItem label="Workflow" value={displayDraft.workflow_type} />
+                <MetaItem
+                  label="Draft mode"
+                  value={draftModeLabel(loadedDraft.provenance_metadata?.draft_mode)}
+                />
+              </dl>
+
+              <div id="draft-workflow-trace" className="mt-4">
+                <WorkflowTracePanel trace={trace} />
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <ReferenceList title="Seed consulted" items={seed} />
+                <ReferenceList title="Evidence refs" items={evidence} />
+                <ReferenceList title="Context refs" items={context} />
+              </div>
+            </div>
+          </details>
+        ) : null}
       </article>
     );
   }
@@ -438,48 +490,7 @@ export function DraftReviewPanel({
         embedded ? "" : "p-4 lg:p-6",
       )}
     >
-      <section className="rounded-md border bg-background">
-        {sectionsChanged.length || evidenceChanged ? (
-          <div className="space-y-3 border-b px-4 py-3">
-            {sectionsChanged.length ? (
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">
-                    What changed in v{displayDraft.version}
-                  </h3>
-                  {changedRanges.length ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="print:hidden"
-                      onClick={() => setShowChanges((current) => !current)}
-                    >
-                      {showChanges ? (
-                        <EyeOff className="size-4" aria-hidden />
-                      ) : (
-                        <Eye className="size-4" aria-hidden />
-                      )}
-                      {showChanges ? "Hide changes" : "Show changes"}
-                    </Button>
-                  ) : null}
-                </div>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {sectionsChanged.map((section) => (
-                    <Badge key={section} variant="secondary">
-                      {section}
-                    </Badge>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {evidenceChanged ? (
-              <EvidenceChangeStrip
-                summary={evidenceChanged}
-                onOpenTrace={openWorkflowTrace}
-              />
-            ) : null}
-          </div>
-        ) : null}
+      <section className="artifact-sheet border bg-background">
         {isLoadingDraft ? (
           <p className="p-4 text-sm text-muted-foreground" role="status">
             Loading draft content...
@@ -488,45 +499,20 @@ export function DraftReviewPanel({
           <p className="p-4 text-sm text-muted-foreground">
             Draft content could not be loaded.
           </p>
-        ) : sectionEditHeading ? (
-          <div className="p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold">Editing: {sectionEditHeading}</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSectionEditHeading(null);
-                    setSectionEditorValue("");
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={() => void saveSectionEdit()} disabled={isSaving}>
-                  {isSaving ? "Saving..." : "Save section"}
-                </Button>
-              </div>
-            </div>
-            <textarea
-              className="min-h-[18rem] w-full resize-y rounded-md border bg-transparent p-3 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={sectionEditorValue}
-              onChange={(event) => setSectionEditorValue(event.target.value)}
-              spellCheck={false}
-            />
-          </div>
         ) : (
           <div className="p-4">
             <MarkdownContent
               markdown={source}
-              containerRef={markdownRef}
               version={displayDraft.version}
               projectId={projectId}
               decisions={projectDecisions ?? undefined}
-              projectTitle={displayDraft.title}
+              projectTitle={
+                displayDraft.workflow_type === "create_pmp" ? projectTitle : undefined
+              }
               readOnly={isAccepted || projectDecisions === null}
               changedRanges={changedRanges}
               showChanges={showChanges}
+              showTraceQa={false}
               onDraftUpdated={(updated) => {
                 setLoadedDraft(updated);
                 onDraftUpdated(updated);
@@ -546,15 +532,17 @@ export function DraftReviewPanel({
                     }),
                 );
               }}
-              onEditSection={
-                isAccepted ? undefined : (heading) => startSectionEdit(heading)
-              }
+              editingRange={selectionEditRange}
+              isSavingEdit={isSaving}
+              editError={selectionEditRange ? actionError : null}
+              onEditSelection={canEditDraft ? startSelectionEdit : undefined}
+              onEditWithAi={canInstruct ? startAiEdit : undefined}
+              onCancelSelectionEdit={() => {
+                setSelectionEdit(null);
+                setActionError(null);
+              }}
+              onSaveSelectionEdit={saveSelectionEdit}
             />
-            {selectionHint ? (
-              <p className="mt-2 text-xs text-muted-foreground print:hidden" role="status">
-                {selectionHint}
-              </p>
-            ) : null}
           </div>
         )}
       </section>
@@ -593,7 +581,7 @@ export function DraftReviewPanel({
       ) : null}
 
       {workbook ? (
-        <section className="rounded-md border bg-background">
+        <section className="artifact-workbook border bg-background">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
             <div className="flex min-w-0 items-center gap-2">
               <Table2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -609,7 +597,7 @@ export function DraftReviewPanel({
 
       <details
         ref={draftDetailsRef}
-        className="group rounded-md border bg-background"
+        className="group border bg-background"
         data-testid="draft-supporting-details"
       >
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
@@ -617,10 +605,59 @@ export function DraftReviewPanel({
             className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
             aria-hidden
           />
-          <span className="text-sm font-semibold">Workflow trace</span>
+          <span className="text-sm font-semibold">Trace &amp; QA</span>
         </summary>
 
         <div className="border-t p-4">
+          {sectionsChanged.length || evidenceChanged ? (
+            <section className="mb-6 space-y-3 border-b pb-6">
+              {sectionsChanged.length ? (
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold">
+                      What changed in v{displayDraft.version}
+                    </h3>
+                    {changedRanges.length ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="print:hidden"
+                        onClick={() => setShowChanges((current) => !current)}
+                      >
+                        {showChanges ? (
+                          <EyeOff className="size-4" aria-hidden />
+                        ) : (
+                          <Eye className="size-4" aria-hidden />
+                        )}
+                        {showChanges ? "Hide changes" : "Show changes"}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {sectionsChanged.map((section) => (
+                      <Badge key={section} variant="secondary">
+                        {section}
+                      </Badge>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {evidenceChanged ? (
+                <EvidenceChangeStrip
+                  summary={evidenceChanged}
+                  onOpenTrace={openWorkflowTrace}
+                />
+              ) : null}
+            </section>
+          ) : null}
+          {issueContent.qa ? (
+            <section className="mb-6 border-b pb-6">
+              <p className="mb-3 font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                Document review
+              </p>
+              <MarkdownContent markdown={issueContent.qa} readOnly showTraceQa={false} />
+            </section>
+          ) : null}
           <p className="break-all text-sm text-muted-foreground">
             {displayDraft.workspace_path}
           </p>
@@ -673,7 +710,7 @@ function CostWorkbookSection({
   emptyMessage: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-md border bg-background">
+    <section className="artifact-workbook overflow-hidden border bg-background">
       {error ? (
         <p className="p-4 text-sm text-destructive">{error}</p>
       ) : isLoading ? (

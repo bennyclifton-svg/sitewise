@@ -1,6 +1,7 @@
 import {
   CheckCircle2,
   ClipboardList,
+  Download,
   Inbox,
   ListChecks,
   LoaderCircle,
@@ -16,8 +17,14 @@ import {
   Table2,
   type LucideIcon,
 } from "lucide-react";
+import { DropdownMenu } from "radix-ui";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
+import {
+  ExcelFileIcon,
+  PdfFileIcon,
+  WordFileIcon,
+} from "@/components/icons/OfficeFileIcons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -427,23 +434,24 @@ function ProjectProfilePanel({
           </ul>
         </div>
       ) : null}
-      {saved ? (
-        <div className="flex justify-end">
-          <Badge variant="secondary">Saved</Badge>
+      {onProjectUpdated ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            onClick={() => void saveProfile()}
+            disabled={saving || !taxonomyQuery.data || conflictRevision !== null}
+          >
+            {saving ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="size-4" aria-hidden />
+            )}
+            {saving ? "Saving" : "Save profile"}
+          </Button>
+          {saved ? <Badge variant="secondary">Saved</Badge> : null}
         </div>
       ) : null}
-      <div className="grid gap-3">
-        <OverlaySelectField
-          id={`project-state-${project.id}`}
-          label="State"
-          value={form.state}
-          onChange={(state) => updateDraft({ ...form, state })}
-          options={projectStateOptions.map((item) => ({ value: item, label: item }))}
-          placeholder="Select state"
-          disabled={saving || !onProjectUpdated}
-        />
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(7.5rem,9rem)]">
         <div className="grid gap-2">
           <Label htmlFor={`project-site-address-${project.id}`}>Site address</Label>
           <Input
@@ -468,6 +476,15 @@ function ProjectProfilePanel({
             disabled={saving || !onProjectUpdated}
           />
         </div>
+        <OverlaySelectField
+          id={`project-state-${project.id}`}
+          label="State"
+          value={form.state}
+          onChange={(state) => updateDraft({ ...form, state })}
+          options={projectStateOptions.map((item) => ({ value: item, label: item }))}
+          placeholder="Select state"
+          disabled={saving || !onProjectUpdated}
+        />
       </div>
       <TaxonomyPicker
         catalog={taxonomyQuery.data}
@@ -485,22 +502,6 @@ function ProjectProfilePanel({
         <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
-      ) : null}
-      {onProjectUpdated ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() => void saveProfile()}
-            disabled={saving || !taxonomyQuery.data || conflictRevision !== null}
-          >
-            {saving ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Save className="size-4" aria-hidden />
-            )}
-            {saving ? "Saving" : "Save profile"}
-          </Button>
-        </div>
       ) : null}
     </div>
   );
@@ -768,6 +769,56 @@ function WorkflowDetail({
       : isRunningWorkflow;
   const activeError = isCostPlan ? costPlanWorkflowError : workflowError;
   const activeDraft = isCostPlan ? latestCostPlanDraft : latestDraft;
+  const [draftExportAction, setDraftExportAction] = useState<
+    "docx" | "pdf" | "xlsx" | null
+  >(null);
+  const [draftExportError, setDraftExportError] = useState<string | null>(null);
+
+  async function downloadDraftExport(format: "docx" | "pdf") {
+    if (!latestDraft) return;
+    setDraftExportAction(format);
+    setDraftExportError(null);
+    try {
+      const blob = await api.downloadDraftExport(project.id, latestDraft.id, format);
+      downloadBlob(
+        blob,
+        `${safeFilename(latestDraft.title)}_v${String(latestDraft.version).padStart(2, "0")}.${format}`,
+      );
+    } catch (error) {
+      setDraftExportError(
+        error instanceof ApiError
+          ? error.message
+          : `Could not export ${format.toUpperCase()}.`,
+      );
+    } finally {
+      setDraftExportAction(null);
+    }
+  }
+
+  async function downloadCostPlanExcel() {
+    if (!latestCostPlanDraft) return;
+    setDraftExportAction("xlsx");
+    setDraftExportError(null);
+    try {
+      const fullDraft = await api.getProjectDraft(project.id, latestCostPlanDraft.id);
+      const workbook = costPlanWorkbookMetadata(fullDraft.provenance_metadata?.workbook);
+      if (!workbook) {
+        throw new Error("Cost workbook is not available for download.");
+      }
+      const blob = await api.downloadWorkspaceFile(project.id, workbook.workspace_path);
+      downloadBlob(blob, workbook.file_name);
+    } catch (error) {
+      setDraftExportError(
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Could not download the Excel workbook.",
+      );
+    } finally {
+      setDraftExportAction(null);
+    }
+  }
 
   // Tender Comparison opens its own route; skip the intermediate gate panel.
   useEffect(() => {
@@ -820,36 +871,99 @@ function WorkflowDetail({
               />
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={onRunCreatePmp}
-                disabled={isRunningWorkflow || !project.overlay_status.ready}
-              >
-                <Play className="size-4" aria-hidden />
-                Create PMP
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onRunUpdatePmp}
-                disabled={
-                  isRunningWorkflow || !project.overlay_status.ready || !latestDraft
-                }
-              >
-                <RefreshCw className="size-4" aria-hidden />
-                Update PMP
-              </Button>
-              <Suspense fallback={null}>
-                <CopyContentButton
-                  loadContent={async () => {
-                    if (!latestDraft) return "";
-                    const fullDraft = await api.getProjectDraft(project.id, latestDraft.id);
-                    return fullDraft.content_markdown;
-                  }}
-                  label="Copy project management plan"
-                  disabled={!latestDraft}
-                  size="icon"
-                />
-              </Suspense>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={onRunCreatePmp}
+                  disabled={isRunningWorkflow || !project.overlay_status.ready}
+                >
+                  <Play className="size-4" aria-hidden />
+                  Create PMP
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onRunUpdatePmp}
+                  disabled={
+                    isRunningWorkflow || !project.overlay_status.ready || !latestDraft
+                  }
+                >
+                  <RefreshCw className="size-4" aria-hidden />
+                  Update PMP
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {draftExportError ? (
+                  <span className="self-center text-xs text-destructive" role="alert">
+                    {draftExportError}
+                  </span>
+                ) : null}
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-10 text-muted-foreground hover:text-foreground"
+                      disabled={!latestDraft || draftExportAction !== null}
+                      aria-label="Download project management plan"
+                      title="Download"
+                    >
+                      <Download
+                        className={cn(
+                          "size-5",
+                          draftExportAction !== null && "animate-pulse",
+                        )}
+                        aria-hidden
+                      />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                      align="end"
+                      sideOffset={6}
+                      collisionPadding={8}
+                      className="sw-surface sw-contact z-50 min-w-[11rem] p-1 outline-none hover:translate-y-0"
+                    >
+                      <DropdownMenu.Item
+                        className="flex cursor-default items-center gap-2.5 rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted focus:bg-muted"
+                        disabled={draftExportAction !== null}
+                        onSelect={() => {
+                          void downloadDraftExport("docx");
+                        }}
+                      >
+                        <WordFileIcon className="size-6" />
+                        <span>Word</span>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex cursor-default items-center gap-2.5 rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted focus:bg-muted"
+                        disabled={draftExportAction !== null}
+                        onSelect={() => {
+                          void downloadDraftExport("pdf");
+                        }}
+                      >
+                        <PdfFileIcon className="size-6" />
+                        <span>PDF</span>
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+                <Suspense fallback={null}>
+                  <CopyContentButton
+                    loadContent={async () => {
+                      if (!latestDraft) return "";
+                      const fullDraft = await api.getProjectDraft(
+                        project.id,
+                        latestDraft.id,
+                      );
+                      return fullDraft.content_markdown;
+                    }}
+                    label="Copy project management plan"
+                    disabled={!latestDraft}
+                    size="icon"
+                    className="size-10"
+                  />
+                </Suspense>
+              </div>
             </div>
 
             {pmpPreview ? (
@@ -866,6 +980,7 @@ function WorkflowDetail({
                 <DraftReviewPanel
                   projectId={project.id}
                   draft={latestDraft}
+                  projectTitle={project.title}
                   workflowType="create_pmp"
                   embedded
                   onDraftUpdated={(draft) => {
@@ -921,44 +1036,111 @@ function WorkflowDetail({
             ) : null}
 
             <div className="sw-bounce-blue -m-2 p-2">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={onRunCreateCostPlan}
-                  disabled={
-                    isRunningCostPlan || !project.overlay_status.ready || !costPlanSupported
-                  }
-                >
-                  <Play className="size-4" aria-hidden />
-                  Create cost plan
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onRunRefreshCostPlan}
-                  disabled={
-                    !onRunRefreshCostPlan ||
-                    isRunningCostPlan ||
-                    !project.overlay_status.ready ||
-                    !costPlanSupported ||
-                    !activeDraft
-                  }
-                >
-                  <RefreshCw className="size-4" aria-hidden />
-                  Refresh cost plan
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onRunProcessInvoices}
-                  disabled={
-                    !onRunProcessInvoices ||
-                    isRunningCostPlan ||
-                    !project.overlay_status.ready ||
-                    !costPlanSupported ||
-                    !activeDraft
-                  }
-                >
-                  <ReceiptText className="size-4" aria-hidden />
-                  Process invoices
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={onRunCreateCostPlan}
+                    disabled={
+                      isRunningCostPlan ||
+                      !project.overlay_status.ready ||
+                      !costPlanSupported
+                    }
+                  >
+                    <Play className="size-4" aria-hidden />
+                    Create cost plan
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={onRunRefreshCostPlan}
+                    disabled={
+                      !onRunRefreshCostPlan ||
+                      isRunningCostPlan ||
+                      !project.overlay_status.ready ||
+                      !costPlanSupported ||
+                      !activeDraft
+                    }
+                  >
+                    <RefreshCw className="size-4" aria-hidden />
+                    Refresh cost plan
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={onRunProcessInvoices}
+                    disabled={
+                      !onRunProcessInvoices ||
+                      isRunningCostPlan ||
+                      !project.overlay_status.ready ||
+                      !costPlanSupported ||
+                      !activeDraft
+                    }
+                  >
+                    <ReceiptText className="size-4" aria-hidden />
+                    Process invoices
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {draftExportError ? (
+                    <span className="self-center text-xs text-destructive" role="alert">
+                      {draftExportError}
+                    </span>
+                  ) : null}
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-10 text-muted-foreground hover:text-foreground"
+                        disabled={!activeDraft || draftExportAction !== null}
+                        aria-label="Download cost plan"
+                        title="Download"
+                      >
+                        <Download
+                          className={cn(
+                            "size-5",
+                            draftExportAction === "xlsx" && "animate-pulse",
+                          )}
+                          aria-hidden
+                        />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        align="end"
+                        sideOffset={6}
+                        collisionPadding={8}
+                        className="sw-surface sw-contact z-50 min-w-[11rem] p-1 outline-none hover:translate-y-0"
+                      >
+                        <DropdownMenu.Item
+                          className="flex cursor-default items-center gap-2.5 rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted focus:bg-muted"
+                          disabled={draftExportAction !== null}
+                          onSelect={() => {
+                            void downloadCostPlanExcel();
+                          }}
+                        >
+                          <ExcelFileIcon className="size-6" />
+                          <span>Excel</span>
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                  <Suspense fallback={null}>
+                    <CopyContentButton
+                      loadContent={async () => {
+                        if (!latestCostPlanDraft) return "";
+                        const fullDraft = await api.getProjectDraft(
+                          project.id,
+                          latestCostPlanDraft.id,
+                        );
+                        return fullDraft.content_markdown;
+                      }}
+                      label="Copy cost plan"
+                      disabled={!activeDraft}
+                      size="icon"
+                      className="size-10"
+                    />
+                  </Suspense>
+                </div>
               </div>
             </div>
 
@@ -1009,7 +1191,7 @@ function WorkflowDetail({
               if (capability && capability.status !== "supported") {
                 return (
                   <CapabilityGateNotice
-                    workflow={kind === "consultant_rfp" ? "RFP" : "Trade procurement"}
+                    workflow="Request for Tender"
                     capability={capability}
                   />
                 );
@@ -1304,4 +1486,36 @@ function getDocumentIntakeStatus({
   if (inboxCount > 0) return { status: "ready", label: `${inboxCount} in inbox` };
   if (sortFilesDraft) return { status: "draft", label: `Manifest v${sortFilesDraft.version}` };
   return { status: "ready", label: "Empty" };
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function safeFilename(value: string): string {
+  return value.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "Artefact";
+}
+
+function costPlanWorkbookMetadata(
+  value: unknown,
+): { file_name: string; workspace_path: string } | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = value as { file_name?: unknown; workspace_path?: unknown };
+  if (
+    typeof candidate.file_name === "string" &&
+    typeof candidate.workspace_path === "string"
+  ) {
+    return {
+      file_name: candidate.file_name,
+      workspace_path: candidate.workspace_path,
+    };
+  }
+  return null;
 }

@@ -20,7 +20,11 @@ SITEWISE_PROJECT_TEMPLATE: tuple[WorkspaceTemplateNode, ...] = (
     WorkspaceTemplateNode(
         name="01-cost",
         description="Cost plans, estimates, claims, invoices, variations, and cost reporting.",
-        related_workflows=("create_cost_plan", "process_invoices", "process_variations"),
+        related_workflows=(
+            "create_cost_plan",
+            "process_invoices",
+            "process_variations",
+        ),
         children=(
             WorkspaceTemplateNode(
                 name="invoices",
@@ -36,7 +40,7 @@ SITEWISE_PROJECT_TEMPLATE: tuple[WorkspaceTemplateNode, ...] = (
     ),
     WorkspaceTemplateNode(
         name="02-consultant",
-        description="Consultant scopes, procurement records, coordination notes, and RFP drafts.",
+        description="Consultant scopes, procurement records, coordination notes, and tender drafts.",
         related_workflows=("consultant_procurement",),
     ),
     WorkspaceTemplateNode(
@@ -62,7 +66,12 @@ SITEWISE_PROJECT_TEMPLATE: tuple[WorkspaceTemplateNode, ...] = (
     WorkspaceTemplateNode(
         name="07-construction",
         description="Site delivery, registers, RFIs, variations, EOTs, progress claims, and meeting records.",
-        related_workflows=("risk_register", "rfi", "process_invoices", "process_variations"),
+        related_workflows=(
+            "risk_register",
+            "rfi",
+            "process_invoices",
+            "process_variations",
+        ),
         children=(
             WorkspaceTemplateNode(
                 name="01-site-records",
@@ -105,4 +114,3 @@ SITEWISE_PROJECT_TEMPLATE: tuple[WorkspaceTemplateNode, ...] = (
         related_workflows=("handover_closeout",),
     ),
 )
-

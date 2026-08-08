@@ -1,9 +1,7 @@
 import { Loader2 } from "lucide-react";
 
-import {
-  MarkdownContent,
-  normalizeDraftMarkdown,
-} from "@/components/project/MarkdownContent";
+import { MarkdownContent } from "@/components/project/MarkdownContent";
+import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import type { WorkflowRunPreview } from "@/lib/workflow-progress";
 
 const PREVIEW_STAGE_LABELS: Record<string, string> = {

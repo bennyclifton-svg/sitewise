@@ -66,14 +66,14 @@ def _narrative() -> PmpNarrativeOutput:
         ],
         recommendations=[
             "Owner to confirm working budget ceiling by 2026-06-28.",
-            "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-            "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+            "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+            "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
         ],
         register_rows=[
             RegisterRow(
                 id="R-001",
                 description="Master programme",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="engagement letter",
@@ -82,7 +82,7 @@ def _narrative() -> PmpNarrativeOutput:
             RegisterRow(
                 id="R-002",
                 description="Linden conflict declaration",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="fee proposal",
@@ -125,24 +125,29 @@ def test_assemble_pmp_markdown_merges_narrative_into_scaffold() -> None:
     assert "Pending narrative generation" not in markdown
     assert "- **Judgements**" in markdown
     assert "| R-001 | Master programme |" in markdown
-    assert "Owner to confirm working budget ceiling by 2026-06-28." in markdown
+    assert "### Actions and decisions" in markdown
     assert "Geotechnical report not on file." in markdown
     assert "| Planning pathway / DA programme slip | Owner |" in markdown
 
 
-def test_assemble_pmp_markdown_emits_single_registers_footer() -> None:
+def test_assemble_pmp_markdown_replaces_registers_footer_with_scannable_tables() -> (
+    None
+):
     scaffold = render_pmp_scaffold(_project(), _pack(), "evidence_grounded")
-    markdown = assemble_pmp_markdown(scaffold, _narrative(), provenance={"compiler": "hybrid"})
-    footer = (
-        "Registers to open: action, decision, risk, authority approvals, consultant appointment."
+    markdown = assemble_pmp_markdown(
+        scaffold, _narrative(), provenance={"compiler": "hybrid"}
     )
+    footer = "Registers to open: action, decision, risk, authority approvals, consultant appointment."
 
-    assert markdown.count(footer) == 1
+    assert footer not in markdown
+    assert markdown.count("### Actions and decisions") == 1
 
 
 def test_assemble_pmp_markdown_passes_evidence_and_structure_validation() -> None:
     scaffold = render_pmp_scaffold(_project(), _pack(), "evidence_grounded")
-    markdown = assemble_pmp_markdown(scaffold, _narrative(), provenance={"compiler": "hybrid"})
+    markdown = assemble_pmp_markdown(
+        scaffold, _narrative(), provenance={"compiler": "hybrid"}
+    )
     source_texts = [
         ENGAGEMENT_FIXTURE.read_text(encoding="utf-8"),
         FEE_FIXTURE.read_text(encoding="utf-8"),

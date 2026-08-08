@@ -46,7 +46,7 @@ PMP_CROSS_CUTTING_SEED_PATHS: tuple[str, ...] = (
 ARCHITECT_PM_PMP_SECTIONS: tuple[str, ...] = (
     "Evidence basis and document control",
     "Project overview",
-    "Architect-PM role and appointment",
+    "Architect role and appointment",
     "Two-brief discipline",
     "Governance and decisions",
     "Communications protocol",

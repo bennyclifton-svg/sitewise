@@ -103,13 +103,13 @@ export function buildLifecycleTiles({
     },
     {
       id: "procurement-requests",
-      label: "RFP / RFT",
+      label: "Request for Tender",
       folder: "05-procurement",
       icon: ClipboardList,
       status: procurementTileStatus.status,
       statusLabel: procurementTileStatus.label,
       description:
-        "Prepare a fee proposal, tender, or quotation request and review the latest draft.",
+        "Prepare a consultant, trade, or head-contractor tender and review the latest draft.",
       implemented: true,
     },
     {

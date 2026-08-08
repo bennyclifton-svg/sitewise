@@ -170,6 +170,33 @@ def test_pi_mcp_config_allows_the_tender_comparison_workflow(tmp_path: Path) -> 
     } <= set(direct_tools)
 
 
+def test_pi_mcp_config_only_allows_web_tools_when_enabled(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.agent_web_research_enabled",
+        False,
+    )
+    _write_pi_mcp_config(tmp_path, mcp_url="http://test/mcp")
+    disabled_config = json.loads(
+        (tmp_path / ".pi" / "mcp.json").read_text(encoding="utf-8")
+    )
+
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.agent_web_research_enabled",
+        True,
+    )
+    _write_pi_mcp_config(tmp_path, mcp_url="http://test/mcp")
+    enabled_config = json.loads(
+        (tmp_path / ".pi" / "mcp.json").read_text(encoding="utf-8")
+    )
+
+    disabled = set(disabled_config["mcpServers"]["clerk"]["directTools"])
+    enabled = set(enabled_config["mcpServers"]["clerk"]["directTools"])
+    assert {"search_web", "read_web_source"}.isdisjoint(disabled)
+    assert {"search_web", "read_web_source"} <= enabled
+
+
 def test_pi_builtin_tools_flag_uses_the_legacy_flag_when_needed(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.agent.pi_process.subprocess.run",

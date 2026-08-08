@@ -1,6 +1,6 @@
-import { FileText } from "lucide-react";
+import { FileText, Globe2 } from "lucide-react";
 
-import { sourceTypeStyle } from "@/lib/citations";
+import { isWebSourceType, sourceTypeStyle } from "@/lib/citations";
 import type { Citation } from "@/lib/types/citation";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ export function CitationChip({
   onSelect,
 }: CitationChipProps) {
   const style = sourceTypeStyle(citation.sourceType);
+  const SourceIcon = isWebSourceType(citation.sourceType) ? Globe2 : FileText;
 
   return (
     <button
@@ -31,7 +32,7 @@ export function CitationChip({
       aria-pressed={selected}
       aria-label={`Citation ${index + 1}: ${citation.title}`}
     >
-      <FileText className="size-3 shrink-0 opacity-70" aria-hidden />
+      <SourceIcon className="size-3 shrink-0 opacity-70" aria-hidden />
       <span className="truncate">
         [{index + 1}] {citation.title}
       </span>

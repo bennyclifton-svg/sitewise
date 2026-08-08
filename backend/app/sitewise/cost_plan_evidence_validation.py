@@ -235,7 +235,7 @@ def _default_facts_block(evidence_refs: list[str]) -> str:
     ]
     for ref in evidence_refs[:3]:
         path = ref.split(":", 1)[-1].split("#")[0]
-        bullets.append(f"- Citation evidence on file: `{path}`.")
+        bullets.append(f"- Cited evidence: `{path}`.")
     return "\n".join(["- **Facts**", *bullets])
 
 

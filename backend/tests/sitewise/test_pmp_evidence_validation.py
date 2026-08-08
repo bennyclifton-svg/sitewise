@@ -103,7 +103,9 @@ def test_evidence_grounded_violations_rejects_missing_engagement_status() -> Non
 
 
 def test_evidence_grounded_violations_rejects_false_workflow_warning() -> None:
-    markdown = _valid_evidence_grounded_pmp_markdown() + "\n- No engagement letter found.\n"
+    markdown = (
+        _valid_evidence_grounded_pmp_markdown() + "\n- No engagement letter found.\n"
+    )
     violations = evidence_grounded_violations(markdown, [ENGAGEMENT_REF])
     assert any("no engagement letter" in issue for issue in violations)
 
@@ -119,12 +121,16 @@ def test_evidence_grounded_violations_rejects_pre_engagement_mobilisation() -> N
 
 def test_evidence_grounded_violations_requires_evidence_map_table() -> None:
     markdown = _valid_evidence_grounded_pmp_markdown()
-    markdown = markdown.replace("| Section | Evidence status | Ref |", "| Item | Status |")
+    markdown = markdown.replace(
+        "| Section | Evidence status | Ref |", "| Item | Status |"
+    )
     violations = evidence_grounded_violations(markdown, [ENGAGEMENT_REF])
     assert any("evidence map table" in issue for issue in violations)
 
 
-def test_evidence_grounded_violations_requires_two_facts() -> None:
+def test_evidence_grounded_violations_does_not_require_a_duplicate_audit_fact_list() -> (
+    None
+):
     markdown = _valid_evidence_grounded_pmp_markdown()
     markdown = markdown.replace(
         "- HCS engaged as architect-PM; engagement executed 16/05/2026.\n"
@@ -133,7 +139,7 @@ def test_evidence_grounded_violations_requires_two_facts() -> None:
         "- Assumption: project facts pending.\n",
     )
     violations = evidence_grounded_violations(markdown, [ENGAGEMENT_REF])
-    assert any("at least 2 evidenced project facts" in issue for issue in violations)
+    assert not any("evidenced project facts" in issue for issue in violations)
 
 
 def test_audit_label_items_supports_colon_headings_and_nested_bullets() -> None:
@@ -165,8 +171,7 @@ def test_sanitize_evidence_grounded_markdown_strips_false_workflow_warnings() ->
 def test_sanitize_evidence_grounded_markdown_repairs_project_overview() -> None:
     markdown = _valid_evidence_grounded_pmp_markdown()
     markdown = markdown.replace(
-        "Owners: Michael and Sarah Chen.\n"
-        "Site: 14 Wattle Grove, Lindfield NSW 2070.\n",
+        "Owners: Michael and Sarah Chen.\nSite: 14 Wattle Grove, Lindfield NSW 2070.\n",
         "- **Assumption**: site address, dwelling type, budget, and owner identity not yet evidenced.\n",
     )
     refs = [ENGAGEMENT_REF, FEE_REF]
@@ -223,26 +228,34 @@ def test_sanitize_taxonomy_project_summary_injects_engagement_status() -> None:
     )
 
 
-def test_evidence_grounded_violations_rejects_body_section_filing_contradictions() -> None:
+def test_evidence_grounded_violations_rejects_body_section_filing_contradictions() -> (
+    None
+):
     markdown = _valid_evidence_grounded_pmp_markdown()
-    appointment = """## Architect-PM role and appointment
+    appointment = """## Architect role and appointment
 
 Engagement instruments: fee proposal, executed engagement letter, scope of services — all Assumption: not yet filed.
 """
-    markdown = _replace_pmp_section(markdown, "Architect-PM role and appointment", appointment)
+    markdown = _replace_pmp_section(
+        markdown, "Architect role and appointment", appointment
+    )
     refs = [ENGAGEMENT_REF, FEE_REF]
     violations = evidence_grounded_violations(markdown, refs)
     assert any("not yet filed" in issue for issue in violations)
 
 
-def test_sanitize_evidence_grounded_markdown_strips_appointment_contradictions() -> None:
+def test_sanitize_evidence_grounded_markdown_strips_appointment_contradictions() -> (
+    None
+):
     markdown = _valid_evidence_grounded_pmp_markdown()
-    appointment = """## Architect-PM role and appointment
+    appointment = """## Architect role and appointment
 
 Engagement instruments: fee proposal, executed engagement letter — all Assumption: not yet filed.
 PI insurance grounded from engagement letter.
 """
-    markdown = _replace_pmp_section(markdown, "Architect-PM role and appointment", appointment)
+    markdown = _replace_pmp_section(
+        markdown, "Architect role and appointment", appointment
+    )
     refs = [ENGAGEMENT_REF, FEE_REF]
     cleaned = sanitize_evidence_grounded_markdown(
         markdown,
@@ -286,7 +299,7 @@ Planning pathway (fee proposal): Single DA pathway (CDC not assumed at this stag
 ## Risks, decisions and next actions
 | Risk | Owner | Status | Next action | Due |
 | --- | --- | --- | --- | --- |
-| Reactive soil / footing type unknown | Architect-PM | Assumption | Certify footing design | TBC |
+| Reactive soil / footing type unknown | Architect | Assumption | Certify footing design | TBC |
 
 ## Internal audit layer
 
@@ -338,7 +351,9 @@ def test_evidence_grounded_violations_rejects_false_geotech_workflow_warning() -
     assert any("geotechnical report is required" in issue for issue in violations)
 
 
-def test_evidence_grounded_violations_allows_geotech_action_when_not_evidenced() -> None:
+def test_evidence_grounded_violations_allows_geotech_action_when_not_evidenced() -> (
+    None
+):
     markdown = """## Evidence basis and document control
 
 **Evidence on file:**
@@ -371,11 +386,16 @@ def test_sanitize_repairs_v15_like_draft_without_evidence_refs() -> None:
     assert "geotechnical report is required" not in cleaned.lower()
     assert "CDC / DA / exempt" not in cleaned
     assert "footing type unknown" not in cleaned.lower()
-    assert evidence_grounded_violations(
-        cleaned,
-        [],
-        source_texts=["AS 2870-2011 Site Classification: H1 (highly reactive clay)"],
-    ) == []
+    assert (
+        evidence_grounded_violations(
+            cleaned,
+            [],
+            source_texts=[
+                "AS 2870-2011 Site Classification: H1 (highly reactive clay)"
+            ],
+        )
+        == []
+    )
 
 
 def _taxonomy_citation_key_markdown() -> str:
@@ -383,10 +403,10 @@ def _taxonomy_citation_key_markdown() -> str:
 
 ## Project Summary
 
-| Field | Current PMP position | Citation |
+| Project | Benny Fire Upgrade |  |
 | --- | --- | --- |
-| Client | Michael and Sarah Chen — User provided | — |
-| Site | 14 Wattle Grove, Lindfield NSW 2070 — User provided | — |
+| Client | Michael and Sarah Chen — User provided |  |
+| Site | 14 Wattle Grove, Lindfield NSW 2070 — User provided |  |
 
 ## Brief
 
@@ -396,7 +416,7 @@ Physical scope is User provided from setup. Finishes remain Assumption.
 
 | Discipline | Firm | Scope / services | Fee | Status | Citation |
 | --- | --- | --- | --- | --- | --- |
-| Architect-PM | Harrison Clarke Studio | Appointment | TBC | Assumption | — |
+| Architect | Harrison Clarke Studio | Appointment | TBC | Assumption | — |
 
 ## Citation key
 
@@ -528,7 +548,7 @@ def test_sanitize_keeps_project_summary_table_intact() -> None:
 
 ## Project Summary
 
-| Field | Current PMP position | Citation |
+| Project | Confirmation pending |  |
 | --- | --- | --- |
 | Client | Confirmation pending — Assumption | — |
 | Site | Address pending — Assumption | — |
@@ -546,7 +566,7 @@ Evidence on file.
         [ENGAGEMENT_REF],
         source_texts=_project_source_texts(),
     )
-    assert "| Field | Current PMP position | Citation |" in cleaned
+    assert "| Field | Current PMP position | Citation |" not in cleaned
     assert "| Client | Confirmation pending — Assumption | — |" in cleaned
     assert "Owners (evidence):" not in cleaned
     assert "Site (evidence):" not in cleaned

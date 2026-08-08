@@ -119,6 +119,12 @@ class Settings(BaseSettings):
     agent_max_concurrent_turns: int = 4
     agent_turn_timeout_seconds: int = 180
     agent_workspace_root: Path = Path.home() / ".clerk" / "agent-workspaces"
+    agent_web_research_enabled: bool = False
+    web_search_provider: str = "nsw_legislation"
+    brave_search_api_key: str | None = None
+    web_search_max_results: int = 6
+    web_fetch_timeout_seconds: float = 12.0
+    web_fetch_max_bytes: int = 4 * 1024 * 1024
 
     @field_validator("database_url")
     @classmethod
@@ -142,6 +148,15 @@ class Settings(BaseSettings):
     def validate_billing_provider(cls, value: str) -> str:
         if value not in {"none", "stripe"}:
             raise ValueError("BILLING_PROVIDER must be none or stripe")
+        return value
+
+    @field_validator("web_search_provider")
+    @classmethod
+    def validate_web_search_provider(cls, value: str) -> str:
+        if value not in {"nsw_legislation", "brave"}:
+            raise ValueError(
+                "WEB_SEARCH_PROVIDER must be nsw_legislation or brave"
+            )
         return value
 
     @model_validator(mode="after")
@@ -176,6 +191,18 @@ class Settings(BaseSettings):
             raise ValueError(
                 "AGENT_RUNTIME_ENABLED is true, but AGENT_TURN_TOKEN_SECRET is missing "
                 "or weaker than 32 characters"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def require_web_search_configuration_when_enabled(self) -> "Settings":
+        if (
+            self.agent_web_research_enabled
+            and self.web_search_provider == "brave"
+            and not self.brave_search_api_key
+        ):
+            raise ValueError(
+                "WEB_SEARCH_PROVIDER is brave, but BRAVE_SEARCH_API_KEY is missing"
             )
         return self
 

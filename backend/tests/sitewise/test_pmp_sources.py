@@ -17,7 +17,7 @@ def test_required_platform_paths_for_renovation() -> None:
 def test_required_section_headings_are_single_shape() -> None:
     sections = required_section_headings()
     assert "Two-brief discipline" in sections
-    assert "Architect-PM role and appointment" in sections
+    assert "Architect role and appointment" in sections
 
 
 def test_seed_consulted_includes_required_detects_missing() -> None:

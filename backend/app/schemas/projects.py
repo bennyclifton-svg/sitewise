@@ -450,9 +450,15 @@ class WorkbookPreviewResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class PlatformKnowledgeDocument(BaseModel):
+    filename: str
+    relative_path: str
+
+
 class PlatformKnowledgeBucket(BaseModel):
     kind: str
     document_count: int
+    documents: list[PlatformKnowledgeDocument] = Field(default_factory=list)
 
 
 class PlatformKnowledgeStatus(BaseModel):

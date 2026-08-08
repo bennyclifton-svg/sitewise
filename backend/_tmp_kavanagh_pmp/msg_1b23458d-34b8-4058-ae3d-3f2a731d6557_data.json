@@ -1,0 +1,26 @@
+{
+  "agent": {
+    "turnId": "73fd5889-873e-4302-a110-4d7e554f9434",
+    "runtime": "pi",
+    "sourceTrace": {
+      "model": {
+        "used": true,
+        "label": "LLM reasoning"
+      },
+      "tools": [],
+      "context": {
+        "used": true,
+        "label": "Project context"
+      },
+      "documents": {
+        "used": false,
+        "tools": []
+      },
+      "knowledge": {
+        "used": false,
+        "tools": [],
+        "references": []
+      }
+    }
+  }
+}

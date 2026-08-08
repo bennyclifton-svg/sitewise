@@ -347,7 +347,7 @@ def _build_summary_sheet(
     worksheet["K2"] = _month_start(generated_at.date())
     worksheet["K2"].number_format = "mmm-yy"
 
-    _style_summary_banner_row(worksheet, 1)
+    _style_title_rows(worksheet, "L")
     worksheet["J2"].font = Font(bold=True)
     worksheet["K2"].fill = fills["control"]
     worksheet["K2"].font = Font(bold=True)
@@ -634,14 +634,6 @@ def _style_summary_sheet(worksheet: Worksheet, last_row: int) -> None:
             cell.fill = fills["lookup"]
 
 
-def _style_summary_banner_row(worksheet: Worksheet, row: int) -> None:
-    fills = _fills()
-    for cell in worksheet[row]:
-        cell.fill = fills["subtitle"]
-        cell.font = Font(italic=True, color="44546A")
-        cell.alignment = Alignment(horizontal="center")
-
-
 def _style_title_rows(worksheet: Worksheet, final_column: str) -> None:
     fills = _fills()
     for cell in worksheet[f"A1:{final_column}1"][0]:
@@ -649,7 +641,7 @@ def _style_title_rows(worksheet: Worksheet, final_column: str) -> None:
         cell.font = Font(color="FFFFFF", bold=True, size=14)
         cell.alignment = Alignment(horizontal="center")
     worksheet["A2"].fill = fills["subtitle"]
-    worksheet["A2"].font = Font(italic=True, color="44546A")
+    worksheet["A2"].font = Font(italic=True, color="5C5F66")
     worksheet["A2"].alignment = Alignment(horizontal="center")
 
 
@@ -677,18 +669,18 @@ def _style_register_headers(worksheet: Worksheet, column_count: int) -> None:
 
 def _fills() -> dict[str, PatternFill]:
     return {
-        "title": PatternFill("solid", fgColor="1F4E78"),
-        "subtitle": PatternFill("solid", fgColor="D9EAF7"),
-        "header": PatternFill("solid", fgColor="44546A"),
-        "control": PatternFill("solid", fgColor="FFF2CC"),
-        "subtotal": PatternFill("solid", fgColor="E2F0D9"),
-        "grand": PatternFill("solid", fgColor="BDD7EE"),
-        "lookup": PatternFill("solid", fgColor="F2F2F2"),
+        "title": PatternFill("solid", fgColor="2F72C4"),
+        "subtitle": PatternFill("solid", fgColor="E8E8E4"),
+        "header": PatternFill("solid", fgColor="2C3037"),
+        "control": PatternFill("solid", fgColor="E8EEF6"),
+        "subtotal": PatternFill("solid", fgColor="F4F4F1"),
+        "grand": PatternFill("solid", fgColor="2F72C4"),
+        "lookup": PatternFill("solid", fgColor="EDEDEA"),
     }
 
 
 def _thin_border() -> Border:
-    side = Side(style="thin", color="D9E2F3")
+    side = Side(style="thin", color="D6D6D0")
     return Border(left=side, right=side, top=side, bottom=side)
 
 

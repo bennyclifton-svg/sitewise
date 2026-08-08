@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { resolveWorkflowTileId } from "@/components/project/workflow/workflowRouting";
 
 describe("resolveWorkflowTileId", () => {
-  it("routes procurement drafting to the RFP / RFT tile", () => {
+  it("routes procurement drafting to the Request for Tender tile", () => {
     expect(resolveWorkflowTileId(["consultant_procurement"])).toBe(
       "procurement-requests",
     );

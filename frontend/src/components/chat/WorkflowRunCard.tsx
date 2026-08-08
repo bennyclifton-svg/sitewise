@@ -20,7 +20,7 @@ function titleForWorkflowType(workflowType: string | undefined): string {
     workflowType === "consultant_procurement" ||
     workflowType.startsWith("consultant_procurement_")
   ) {
-    return "Request for Fee Proposal";
+    return "Request for Tender";
   }
   if (workflowType === "create_project_plan" || workflowType === "create_pmp") {
     return "Project Plan";

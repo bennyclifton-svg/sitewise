@@ -1,0 +1,48 @@
+{
+  "agent": {
+    "turnId": "f5675b76-ed5f-447e-8920-ba74c25f4425",
+    "runtime": "pi",
+    "sourceTrace": {
+      "model": {
+        "used": true,
+        "label": "LLM reasoning"
+      },
+      "tools": [
+        {
+          "name": "search_documents",
+          "message": "Searched \u00b7 05-building-proposal-ironbark-main-works.md, 01-fee-proposal-quoin-arch\u2026"
+        },
+        {
+          "name": "find_document_text",
+          "message": "Searched \u00b7 44-tax-invoice-vertex-cost-advisory-04.md, 43-tax-invoice-vertex-cost-a\u2026"
+        }
+      ],
+      "context": {
+        "used": true,
+        "label": "Project context"
+      },
+      "documents": {
+        "used": true,
+        "tools": [
+          "search_documents",
+          "find_document_text"
+        ]
+      },
+      "knowledge": {
+        "used": false,
+        "tools": [],
+        "references": []
+      }
+    },
+    "terminalEvents": [
+      {
+        "kind": "resource",
+        "action": "updated",
+        "revision": 4,
+        "projectId": "7876bd93-87ce-4e95-89b2-67724fee458d",
+        "resourceId": "7876bd93-87ce-4e95-89b2-67724fee458d",
+        "resourceType": "project_profile"
+      }
+    ]
+  }
+}

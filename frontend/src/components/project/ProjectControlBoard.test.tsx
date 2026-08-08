@@ -239,7 +239,7 @@ describe("ProjectControlBoard project profile", () => {
     );
   });
 
-  it("creates a trade RFQ from the RFP / RFT panel", async () => {
+  it("creates a trade RFT from the consolidated tender panel", async () => {
     const user = userEvent.setup();
     const onRunProcurement = vi.fn();
     vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
@@ -271,12 +271,12 @@ describe("ProjectControlBoard project profile", () => {
     );
 
     await screen.findByText("No procurement requests yet.");
-    await user.selectOptions(screen.getByLabelText("Request"), "trade_rfq");
+    await user.selectOptions(screen.getByLabelText("Engagement"), "trade_rft");
     await user.type(screen.getByLabelText("Target"), "Electrical services");
-    await user.click(screen.getByRole("button", { name: "Create" }));
+    await user.click(screen.getByRole("button", { name: "Create tender" }));
 
     expect(onRunProcurement).toHaveBeenCalledWith(
-      "trade_rfq",
+      "trade_rft",
       "Electrical services",
     );
   });
@@ -495,7 +495,7 @@ describe("ProjectControlBoard project profile", () => {
       "Running",
     );
     expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
-    expect(await screen.findByText("Workflow trace")).toBeInTheDocument();
+    expect(await screen.findByText("Trace & QA")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
@@ -570,7 +570,7 @@ describe("ProjectControlBoard project profile", () => {
     render(runningPmpBoard(runningWorkflowRun));
 
     expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
-    expect(await screen.findByText("Workflow trace")).toBeInTheDocument();
+    expect(await screen.findByText("Trace & QA")).toBeInTheDocument();
   });
 
   it("copies the complete PMP from the top control without workflow metadata", async () => {
@@ -613,6 +613,65 @@ describe("ProjectControlBoard project profile", () => {
       );
     } finally {
       Reflect.deleteProperty(api, "getProjectDraft");
+    }
+  });
+
+  it("downloads Word and PDF from a single download callout beside copy", async () => {
+    const user = userEvent.setup();
+    const downloadDraftExport = vi.fn().mockResolvedValue(new Blob(["export"]));
+    Object.assign(api, { downloadDraftExport });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:test"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    try {
+      render(runningPmpBoard(runningWorkflowRun));
+
+      expect(screen.queryByRole("button", { name: "Copy for Word" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: "Download project management plan as Word",
+        }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: "Download project management plan as PDF",
+        }),
+      ).not.toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: "Download project management plan" }),
+      );
+      await user.click(await screen.findByRole("menuitem", { name: "Word" }));
+      await waitFor(() => {
+        expect(downloadDraftExport).toHaveBeenCalledWith(
+          "project-1",
+          draftSummary.id,
+          "docx",
+        );
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Download project management plan" }),
+      );
+      await user.click(await screen.findByRole("menuitem", { name: "PDF" }));
+      await waitFor(() => {
+        expect(downloadDraftExport).toHaveBeenCalledWith(
+          "project-1",
+          draftSummary.id,
+          "pdf",
+        );
+      });
+      expect(
+        screen.getByRole("button", { name: "Copy project management plan" }),
+      ).toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(api, "downloadDraftExport");
     }
   });
 
@@ -712,6 +771,63 @@ describe("ProjectControlBoard project profile", () => {
     expect(
       await screen.findByText("Create cost plan to generate the workbook."),
     ).toBeInTheDocument();
+  });
+
+  it("downloads Excel from a single download callout beside copy", async () => {
+    const user = userEvent.setup();
+    const getProjectDraft = vi.fn().mockResolvedValue({
+      ...draftSummary,
+      workflow_type: "create_cost_plan",
+      title: "Cost Plan",
+      content_markdown: "# Cost Plan",
+      provenance_metadata: {
+        workbook: {
+          file_name: "Cost_Plan_v02.draft.xlsx",
+          workspace_path: "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
+        },
+      },
+    });
+    const downloadWorkspaceFile = vi.fn().mockResolvedValue(new Blob(["xlsx"]));
+    Object.assign(api, { getProjectDraft, downloadWorkspaceFile });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:test"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    try {
+      render(
+        costPlanBoard(costPlanSupportedProject, {
+          latestCostPlanDraft: {
+            ...draftSummary,
+            workflow_type: "create_cost_plan",
+            title: "Cost Plan",
+          },
+        }),
+      );
+
+      expect(screen.queryByRole("button", { name: "Download Excel" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Download cost plan as Excel" }),
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Download cost plan" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Excel" }));
+      await waitFor(() => {
+        expect(getProjectDraft).toHaveBeenCalledWith("project-1", "draft-1");
+        expect(downloadWorkspaceFile).toHaveBeenCalledWith(
+          "project-1",
+          "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
+        );
+      });
+      expect(screen.getByRole("button", { name: "Copy cost plan" })).toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(api, "getProjectDraft");
+      Reflect.deleteProperty(api, "downloadWorkspaceFile");
+    }
   });
 
   it("surfaces invoice conflicts, review items, and extraction errors", async () => {

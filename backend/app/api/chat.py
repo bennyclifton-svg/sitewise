@@ -68,6 +68,7 @@ from app.database.chats import (
     update_thread,
 )
 from app.database.citations import citations_for_message_data, persist_message_citations
+from app.database.web_citations import persist_message_web_citations
 from app.database.projects import get_project, user_owns_project
 from app.database.session import get_db, get_session_factory
 from app.assistant.chat_models import resolve_chat_model
@@ -104,6 +105,21 @@ _PLATFORM_KNOWLEDGE_TRACE_TOOLS = {
     "search_platform_knowledge",
     "read_platform_knowledge",
 }
+_WEB_TRACE_TOOLS = {"search_web", "read_web_source"}
+_WEB_SOURCE_TRACE_FIELDS = (
+    "url",
+    "title",
+    "publisher",
+    "jurisdiction",
+    "authority_class",
+    "source_type",
+    "version_status",
+    "effective_date",
+    "section",
+    "excerpt",
+    "content_hash",
+    "retrieved_at",
+)
 
 
 def require_thread_owner(
@@ -302,6 +318,7 @@ async def _persist_agent_assistant_message(
     session: AsyncSession,
     *,
     thread_id: uuid.UUID,
+    project_id: uuid.UUID,
     turn_id: uuid.UUID,
     content: str,
     runtime: str,
@@ -317,13 +334,23 @@ async def _persist_agent_assistant_message(
     if terminal_events:
         agent_data["terminalEvents"] = terminal_events
 
-    await create_message(
+    message = await create_message(
         session,
         thread_id=thread_id,
         role="assistant",
         content=content,
         message_data={"agent": agent_data},
     )
+    web = source_trace.get("web") if source_trace is not None else None
+    sources = web.get("sources") if isinstance(web, Mapping) else None
+    if isinstance(sources, list) and sources:
+        await persist_message_web_citations(
+            session,
+            project_id=project_id,
+            turn_id=turn_id,
+            message_id=message.id,
+            sources=[source for source in sources if isinstance(source, Mapping)],
+        )
 
 
 def _append_unique(items: list[str], value: str) -> None:
@@ -338,6 +365,9 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
     document_references: list[str] = []
     knowledge_tools: list[str] = []
     knowledge_references: list[str] = []
+    web_tools: list[str] = []
+    web_sources: list[dict[str, Any]] = []
+    seen_web_sources: set[str] = set()
 
     for event in status_events:
         if event.get("kind") != "tool" or event.get("state") != "done":
@@ -376,6 +406,21 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
                     _append_unique(knowledge_references, path)
                     has_platform_references = True
 
+        web_source = event.get("web_source")
+        if isinstance(web_source, Mapping):
+            source = {
+                field: web_source[field]
+                for field in _WEB_SOURCE_TRACE_FIELDS
+                if field in web_source
+            }
+            url = source.get("url")
+            content_hash = source.get("content_hash")
+            if isinstance(url, str) and url:
+                source_key = f"{url}\0{content_hash or ''}"
+                if source_key not in seen_web_sources:
+                    web_sources.append(source)
+                    seen_web_sources.add(source_key)
+
         key = f"{tool}\0{knowledge_path if isinstance(knowledge_path, str) else ''}"
         if key not in seen_tool_keys:
             item: dict[str, Any] = {"name": tool}
@@ -407,12 +452,14 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
             _append_unique(document_tools, tool)
         if tool in _PLATFORM_KNOWLEDGE_TRACE_TOOLS or has_platform_references:
             _append_unique(knowledge_tools, tool)
+        if tool in _WEB_TRACE_TOOLS:
+            _append_unique(web_tools, tool)
 
     documents: dict[str, Any] = {"used": bool(document_tools), "tools": document_tools}
     if document_references:
         documents["references"] = document_references
 
-    return {
+    trace = {
         "context": {"used": True, "label": "Project context"},
         "documents": documents,
         "knowledge": {
@@ -423,6 +470,13 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
         "tools": tools,
         "model": {"used": True, "label": "LLM reasoning"},
     }
+    if web_tools:
+        trace["web"] = {
+            "used": bool(web_sources),
+            "tools": web_tools,
+            "sources": web_sources,
+        }
+    return trace
 
 
 _TERMINAL_EVENT_FIELDS = frozenset(
@@ -849,6 +903,7 @@ async def post_agent_stream(
                 await _persist_agent_assistant_message(
                     persist_session,
                     thread_id=body.thread_id,
+                    project_id=thread.project_id,
                     turn_id=turn_id,
                     content=content,
                     runtime=agent_runtime,

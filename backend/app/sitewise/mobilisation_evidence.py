@@ -835,7 +835,7 @@ def _fact_ledger_entries_for_document(text: str, label: str) -> list[FactLedgerE
                         f"Engagement letter appoints {appointee or 'architect-PM'}; "
                         f"executed {executed or 'date TBC'}."
                     ),
-                    section="Architect-PM role and appointment",
+                    section="Architect role and appointment",
                 )
             )
         reporting = _extract_reporting_cadence(text)

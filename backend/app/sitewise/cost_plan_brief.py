@@ -71,7 +71,8 @@ SECTION_BRIEFS: dict[str, str] = {
 """,
     "Source evidence used": """
 - List doctrine, seeds, and project evidence consulted (or state none yet for platform_seeded).
-- For evidence_grounded: include **Evidence on file:** line and evidence map table:
+- For evidence_grounded: list indexed evidence (document names/dates only — never write
+  "Evidence on file") and include the evidence map table:
   | Section | Evidence status | Ref |
 - Separate **Gaps** for missing cost evidence (budget, contract, claims, fee proposals).
 """,

@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import uuid
+from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from collections import Counter
@@ -162,6 +163,9 @@ from app.workflows.runs import (
     get_workflow_run as read_workflow_run,
     start_workflow_run as persist_workflow_run,
 )
+from app.web_research.factory import WebResearchDisabled, get_web_research_service
+from app.web_research.fetcher import WebFetchError
+from app.web_research.service import WebSearchProviderError
 from tender.router import (
     get_comparison_detail,
     list_comparisons,
@@ -360,8 +364,10 @@ def _is_xlsx_workspace_file(record) -> bool:
 def _is_cost_plan_markdown_workspace_file(record) -> bool:
     path = (getattr(record, "workspace_path", "") or "").replace("\\", "/").lower()
     folder, _, filename = path.rpartition("/")
-    return folder.endswith("/01-cost") and filename.startswith("cost_plan_v") and filename.endswith(
-        ".md"
+    return (
+        folder.endswith("/01-cost")
+        and filename.startswith("cost_plan_v")
+        and filename.endswith(".md")
     )
 
 
@@ -1019,9 +1025,7 @@ def _activity_message(verb: str, *, subject: str | None = None) -> str:
 
 
 def _document_list_subject(filenames: list[str], *, limit: int = 2) -> str | None:
-    names = [
-        _clip_status_text(name, max_len=48) for name in filenames if name.strip()
-    ]
+    names = [_clip_status_text(name, max_len=48) for name in filenames if name.strip()]
     if not names:
         return None
     shown = ", ".join(names[:limit])
@@ -1734,7 +1738,7 @@ async def start_consultant_procurement(
     max_pages: int = 3,
     instructions: str | None = None,
 ) -> dict:
-    """Queue a durable consultant request-for-fee-proposal artefact."""
+    """Queue consultant-service content for an external Request for Tender."""
     try:
         _normalise_consultant_discipline(discipline)
     except NonConsultantDiscipline as exc:
@@ -1797,7 +1801,7 @@ async def start_trade_procurement(
     max_pages: int = 3,
     instructions: str | None = None,
 ) -> dict:
-    """Queue a durable client-issued trade RFT or RFQ draft artefact."""
+    """Queue a durable client-issued Request for Tender draft artefact."""
     if kind not in {"rft", "rfq"}:
         raise ToolError("kind must be rft or rfq")
     try:
@@ -1813,7 +1817,7 @@ async def start_trade_procurement(
         expected_decision_set_revision=expected_decision_set_revision,
         parameters={
             "package": package,
-            "kind": kind,
+            "kind": "rft",
             "max_pages": max(1, max_pages),
             "instructions": instructions,
         },
@@ -3058,13 +3062,12 @@ async def draft_consultant_procurement_artifact(
     max_pages: int = 3,
     instructions: str | None = None,
 ) -> dict:
-    """Create a saved request-for-fee-proposal draft for a consultant discipline.
+    """Create consultant content for a saved, externally titled Request for Tender.
 
     Use this for natural-language requests such as "draft a request for fee
     proposal", "draft consultant procurement", "prepare an RFP for the
     structural engineer", or "prepare scope for BASIX assessor". The output is
-    always a client-issued request for fee proposal, not a consultant-issued fee
-    proposal.
+    always a client-issued Request for Tender, not a consultant-issued fee proposal.
     """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
@@ -3089,7 +3092,7 @@ async def draft_consultant_procurement_artifact(
         async with _tool_status(
             turn_id,
             tool="draft_consultant_procurement_artifact",
-            running=f"Drafting request for fee proposal: {discipline}",
+            running=f"Drafting Request for Tender: {discipline}",
             done="Created consultant procurement draft",
             error="Consultant procurement draft failed",
         ) as extra:
@@ -3106,8 +3109,8 @@ async def draft_consultant_procurement_artifact(
                 raise ToolError(
                     _upstream_failure_message(
                         exc,
-                        operation="draft the RFP",
-                        workflow_name="RFP drafting",
+                        operation="draft the consultant tender",
+                        workflow_name="Request for Tender drafting",
                     )
                 ) from exc
             extra.update(_consultant_procurement_status_metadata(result.source_trace))
@@ -3222,6 +3225,111 @@ async def read_workspace_file(project_id: str, path: str) -> dict:
 
 
 @mcp.tool
+async def search_web(
+    project_id: str,
+    query: str,
+    jurisdiction: str | None = None,
+    max_results: int = 6,
+) -> list[dict]:
+    """Search configured official government sources for current external information.
+
+    Search results are discovery candidates only. Call read_web_source on the
+    selected official pages before relying on them in an answer.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+
+        normalized_jurisdiction = jurisdiction.upper() if jurisdiction else None
+        if normalized_jurisdiction and normalized_jurisdiction not in {
+            "CTH",
+            "ACT",
+            "NSW",
+            "NT",
+            "QLD",
+            "SA",
+            "TAS",
+            "VIC",
+            "WA",
+        }:
+            raise ToolError("jurisdiction must be an Australian state, territory, or CTH")
+        result_limit = max(1, min(max_results, settings.web_search_max_results))
+        running_subject = f"\u201c{_clip_status_text(query, max_len=48)}\u201d"
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="search_web",
+            running=_activity_message("Searching official sources", subject=running_subject),
+            done="Searched official sources",
+            error="Official source search failed",
+        ) as extra:
+            try:
+                results = await get_web_research_service().search(
+                    query,
+                    jurisdiction=normalized_jurisdiction,
+                    max_results=result_limit,
+                )
+            except (ValueError, WebResearchDisabled, WebSearchProviderError) as exc:
+                raise ToolError(str(exc)) from exc
+            extra["query"] = _clip_status_text(query, max_len=120)
+            extra["jurisdiction"] = normalized_jurisdiction
+            extra["result_count"] = len(results)
+            return [asdict(result) for result in results]
+
+
+@mcp.tool
+async def read_web_source(
+    project_id: str,
+    url: str,
+    section_hint: str | None = None,
+) -> dict:
+    """Read an official Australian government page selected by search_web.
+
+    Returns a bounded excerpt plus provenance and currentness metadata. Treat
+    the result as an external reference, never as evidence from the project.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="read_web_source",
+            running=_activity_message("Reading an official web source"),
+            done="Read official web source",
+            error="Official web source read failed",
+        ) as extra:
+            try:
+                source = await get_web_research_service().read(
+                    url,
+                    section_hint=section_hint,
+                )
+            except (ValueError, WebResearchDisabled, WebFetchError) as exc:
+                raise ToolError(str(exc)) from exc
+            source_data = asdict(source)
+            extra["message"] = _activity_message(
+                "Read official web source",
+                subject=source.title,
+            )
+            extra["web_source"] = {
+                key: value
+                for key, value in source_data.items()
+                if key != "excerpt"
+            }
+            extra["web_source"]["excerpt"] = source.excerpt[:2000]
+            return source_data
+
+
+@mcp.tool
 async def get_document(
     project_id: str,
     document_id: str | None = None,
@@ -3250,9 +3358,7 @@ async def get_document(
             raise ToolError(str(exc)) from exc
         project = authorization.project
         running_subject = (
-            Path(_tool_workspace_path(workspace_path)).name
-            if workspace_path
-            else None
+            Path(_tool_workspace_path(workspace_path)).name if workspace_path else None
         )
         async with _tool_status(
             _turn_id(authorization),
@@ -3335,7 +3441,9 @@ async def find_document_text(
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
         project = authorization.project
-        hint = filename_hint.strip() if filename_hint and filename_hint.strip() else None
+        hint = (
+            filename_hint.strip() if filename_hint and filename_hint.strip() else None
+        )
         running_subject = hint or f"“{_clip_status_text(query, max_len=48)}”"
         async with _tool_status(
             _turn_id(authorization),

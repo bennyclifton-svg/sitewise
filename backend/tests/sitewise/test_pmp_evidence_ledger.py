@@ -33,7 +33,7 @@ def test_ledger_surfaces_unit_and_gfa_conflicts_at_the_front() -> None:
     assert "4450 m2" in rendered
 
 
-def test_conflicts_must_appear_in_project_summary() -> None:
+def test_conflicts_must_appear_in_draft_body() -> None:
     ledger = build_evidence_ledger(
         [
             "Design brief for Unit 10. The proposed GFA is 4,200 m2.",
@@ -47,7 +47,8 @@ def test_conflicts_must_appear_in_project_summary() -> None:
         ledger,
     )
     assert conflict_summary_violations(
-        "## Project Summary\n\n"
-        "Conflict: Unit 10 / Unit 7A and 4,200 m2 / 4,450 m2 require verification.",
+        "## Programme\n\n"
+        "| Occupation / staging | Brief cites Unit 10; DA cites Unit 7A. "
+        "Areas 4,200 m2 vs 4,450 m2. | [1] |\n",
         ledger,
     ) == []

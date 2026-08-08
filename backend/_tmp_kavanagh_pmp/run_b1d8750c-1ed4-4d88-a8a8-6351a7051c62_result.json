@@ -1,0 +1,572 @@
+{
+  "gate": {
+    "ready": true,
+    "invalid": [],
+    "missing": []
+  },
+  "draft": {
+    "id": "56775dfe-e1c9-4727-9872-cde76c2dc715",
+    "model": "openai-responses:gpt-5.6-terra",
+    "title": "Project Management Plan",
+    "status": "draft",
+    "runtime": "clerk-sitewise-create-pmp",
+    "version": 1,
+    "created_at": "2026-08-05T11:07:31.670524Z",
+    "project_id": "7876bd93-87ce-4e95-89b2-67724fee458d",
+    "updated_at": "2026-08-05T11:07:31.670524Z",
+    "workflow_type": "create_pmp",
+    "author_user_id": "f650d8d8-6dc6-4bb3-a6e8-64205bd8b47f",
+    "workspace_path": "04-projects/kavanagh/00-brief-pmp/PMP.md",
+    "content_markdown": "## Project Summary\n\n| Field | Current PMP position | Citation |\n|---|---|---|\n| **Critical current position \u2014 approval** | **Hold point:** one DA pathway is an architectural proposal assumption; no DA determination or construction certificate is in the supplied record. | [1] |\n| **Critical current position \u2014 contract** | **Hold point:** a fixed-price builder proposal exists, but executed head contract, acceptance, contract form, certifier and statutory instruments are **Not evidenced**. | [4] |\n| **Critical current position \u2014 cost** | **Control:** proposed fixed contract sum is $1,234,000 ex GST, with $30,000 rock-removal and $22,000 pool-interface-drainage provisional allowances; written direction is required for adjustments. | [4] |\n| Project / owner / site | Kavanagh Residence; Kavanagh Property Holdings Pty Ltd as trustee for the Kavanagh Family Trust; 8 Paperbark Lane, Northbridge NSW 2063. | [1] |\n| Physical brief | New two-storey detached dwelling, garage, landscape coordination and pool interface; external works. | [1] |\n| Scale / delivery | **User provided:** 300 m\u00b2, 4 bedrooms, 2 garage spaces; vacant, unrestricted-access site; traditional lump-sum working route. | \u2014 |\n| Programme | Architectural proposal assumes 14-month construction; builder proposal indicates 48 weeks from site possession, approvals and executed contract. These are different programme positions requiring reconciliation. | [1] |\n\nThis is an owner-side, review-only Architect-PM governance plan. The architect-PM role holder and scope are **Assumption / Not evidenced** pending an executed appointment; it does not create Superintendent, Certifier or builder authority.\n## Brief\n\n**Physical brief:** new residential house comprising demolition, bulk earthworks, drainage/stormwater, retaining walls, foundations, superstructure including structural steel, roof, glazing, waterproofing, hydraulic/plumbing and electrical works, internal partitions, flooring, joinery, landscaping, car parking and fencing/gates. The builder proposal also identifies a two-storey dwelling, garage, pool interface, services, finishes and defined external works. [4]\n\nOwner acceptance criteria are **Assumption:** approved planning and construction documentation; coordinated structural, hydraulic and services design; compliant, weathertight envelope; commissioned services; practical completion, defect rectification and occupation approval where required. Footing design must follow the geotechnical site classification and engineer\u2019s documentation; neither is on file.\n\n| Item | Position | Basis / source | Owner | Verification action |\n|---|---|---|---|---|\n| Landscaping planting | Confirmed builder exclusion | Builder proposal | Client | Procure/retain landscape scope before tender award. [4] |\n| Loose furniture / window coverings / pool plant | Confirmed builder exclusions | Builder proposal | Client | Confirm supply, installation and interfaces. [4] |\n| Pool engineering and interior decoration | Architectural-service exclusions unless separately agreed | Architectural proposal | Client / Architect | Confirm separate appointments and coordinated documentation. [1] |\n| Civil earthworks design / undocumented services work | Hydraulic-service exclusions | Hydraulic proposal | Client / Architect | Obtain survey, civil design and service information. [3] |\n\n```pmp-decision\n{\"id\":\"dwelling-storeys\",\"section\":\"Brief\",\"label\":\"Dwelling storeys\",\"options\":[{\"value\":\"single_storey\",\"label\":\"Single storey\"},{\"value\":\"two_storey\",\"label\":\"Two storey\"},{\"value\":\"split_level\",\"label\":\"Split level\"}],\"selected\":\"two_storey\",\"source\":\"agent\",\"evidenced\":true,\"rationale\":\"The architectural proposal describes a new two-storey dwelling [1].\"}\n```\n```pmp-decision\n{\"id\":\"garage-type\",\"section\":\"Brief\",\"label\":\"Garage / car parking\",\"options\":[{\"value\":\"none\",\"label\":\"No garage (on-street / carport later)\"},{\"value\":\"single_garage\",\"label\":\"Single garage\"},{\"value\":\"double_garage\",\"label\":\"Double garage\"},{\"value\":\"carport\",\"label\":\"Carport\"}],\"selected\":\"double_garage\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced as a garage type; working selection follows the user-provided two garage spaces.\"}\n```\n```pmp-decision\n{\"id\":\"external-cladding\",\"section\":\"Brief\",\"label\":\"Primary external cladding\",\"options\":[{\"value\":\"brick_veneer\",\"label\":\"Brick veneer\"},{\"value\":\"rendered_masonry\",\"label\":\"Rendered masonry / texture coat\"},{\"value\":\"fibre_cement\",\"label\":\"Fibre cement sheet / weatherboard\"},{\"value\":\"timber_cladding\",\"label\":\"Timber cladding\"},{\"value\":\"mixed\",\"label\":\"Mixed cladding\"}],\"selected\":\"brick_veneer\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending issued finishes documentation.\"}\n```\n```pmp-decision\n{\"id\":\"roofing-system\",\"section\":\"Brief\",\"label\":\"Roofing system\",\"options\":[{\"value\":\"concrete_tile\",\"label\":\"Concrete tile\"},{\"value\":\"terracotta_tile\",\"label\":\"Terracotta tile\"},{\"value\":\"metal_sheet\",\"label\":\"Metal sheet (Colorbond / Zincalume)\"},{\"value\":\"membrane_flat\",\"label\":\"Flat / low-pitch membrane\"}],\"selected\":\"metal_sheet\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending tender drawings.\"}\n```\n```pmp-decision\n{\"id\":\"flooring-finish\",\"section\":\"Brief\",\"label\":\"Primary flooring finish\",\"options\":[{\"value\":\"engineered\",\"label\":\"Engineered timber\"},{\"value\":\"solid_timber\",\"label\":\"Solid hardwood\"},{\"value\":\"tile\",\"label\":\"Ceramic / porcelain tile\"},{\"value\":\"lvp\",\"label\":\"Luxury vinyl plank (LVP)\"},{\"value\":\"carpet\",\"label\":\"Carpet\"},{\"value\":\"polished_concrete\",\"label\":\"Polished concrete\"}],\"selected\":\"engineered\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending finishes schedule.\"}\n```\n```pmp-decision\n{\"id\":\"kitchen-benchtop\",\"section\":\"Brief\",\"label\":\"Kitchen benchtop\",\"options\":[{\"value\":\"laminate\",\"label\":\"Laminate\"},{\"value\":\"engineered_stone\",\"label\":\"Engineered stone / quartz\"},{\"value\":\"natural_stone\",\"label\":\"Natural stone\"},{\"value\":\"solid_surface\",\"label\":\"Solid surface\"},{\"value\":\"timber\",\"label\":\"Timber\"}],\"selected\":\"engineered_stone\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending owner finish selection.\"}\n```\n```pmp-decision\n{\"id\":\"kitchen-joinery-grade\",\"section\":\"Brief\",\"label\":\"Kitchen joinery grade\",\"options\":[{\"value\":\"flat_pack\",\"label\":\"Flat-pack / modular\"},{\"value\":\"semi_custom\",\"label\":\"Semi-custom melamine\"},{\"value\":\"custom_pu\",\"label\":\"Custom polyurethane / veneer\"}],\"selected\":\"semi_custom\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending joinery documentation.\"}\n```\n```pmp-decision\n{\"id\":\"wet-area-finish\",\"section\":\"Brief\",\"label\":\"Wet-area floor and wall finish\",\"options\":[{\"value\":\"ceramic_tile\",\"label\":\"Ceramic / porcelain tile\"},{\"value\":\"mosaic_tile\",\"label\":\"Mosaic tile (floors / niches)\"},{\"value\":\"vinyl_sheet\",\"label\":\"Sheet vinyl\"}],\"selected\":\"ceramic_tile\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending finishes schedule.\"}\n```\n```pmp-decision\n{\"id\":\"window-frame\",\"section\":\"Brief\",\"label\":\"Window and external door frames\",\"options\":[{\"value\":\"aluminium_standard\",\"label\":\"Standard aluminium\"},{\"value\":\"aluminium_thermal\",\"label\":\"Thermally broken aluminium\"},{\"value\":\"timber\",\"label\":\"Timber\"},{\"value\":\"uPVC\",\"label\":\"uPVC\"}],\"selected\":\"aluminium_standard\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending window schedule.\"}\n```\n```pmp-decision\n{\"id\":\"glazing-type\",\"section\":\"Brief\",\"label\":\"Glazing performance\",\"options\":[{\"value\":\"single_clear\",\"label\":\"Single glazing (clear)\"},{\"value\":\"igu_standard\",\"label\":\"Double glazing (IGU)\"},{\"value\":\"igu_lowe\",\"label\":\"Double glazing with Low-E\"}],\"selected\":\"igu_standard\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending energy assessment and window schedule.\"}\n```\n```pmp-decision\n{\"id\":\"hot-water-system\",\"section\":\"Brief\",\"label\":\"Hot water system\",\"options\":[{\"value\":\"instantaneous_gas\",\"label\":\"Instantaneous gas\"},{\"value\":\"storage_electric\",\"label\":\"Electric storage\"},{\"value\":\"heat_pump\",\"label\":\"Heat pump\"},{\"value\":\"solar_boosted\",\"label\":\"Solar-boosted\"}],\"selected\":\"heat_pump\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending hydraulic and energy documentation.\"}\n```\n```pmp-decision\n{\"id\":\"heating-cooling\",\"section\":\"Brief\",\"label\":\"Heating and cooling\",\"options\":[{\"value\":\"split_system\",\"label\":\"Split-system air conditioning\"},{\"value\":\"ducted_reverse_cycle\",\"label\":\"Ducted reverse-cycle\"},{\"value\":\"multi_split\",\"label\":\"Multi-split\"},{\"value\":\"none_specified\",\"label\":\"Not yet specified\"}],\"selected\":\"split_system\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; selected default pending services design.\"}\n```\n## Consultants\n\n| Discipline | Firm | Scope / services | Fee | Status | Citation |\n|---|---|---|---|---|---|\n| Architect-PM | **Assumption** \u2014 role holder TBC | Owner-side governance, coordination and review | **Not evidenced** | Not evidenced | \u2014 |\n| Architect | Quoin Architecture Pty Ltd | Design/delivery, consultant coordination, planning and construction documentation; periodic construction services | $96,000 ex GST | Fee proposal and invoices on file; signed appointment unverified | [1] |\n| QS / cost adviser | Vertex Cost Advisory Pty Ltd | Elemental cost plans, VM, tender comparison, cash-flow forecasting and variation review | $45,000 ex GST | Fee proposal and invoice on file; signed appointment unverified | [2] |\n| Hydraulic engineer | Flowline Hydraulics Pty Ltd | Potable water, sanitary/stormwater, rainwater reuse and pool-backwash interfaces | $32,500 ex GST | Fee proposal and invoices on file; signed appointment unverified | [3] |\n| Structural / civil | Catenary Structures Pty Ltd | Preliminary structural scheme and civil constraints review | **Assumption** \u2014 total fee not evidenced in supplied proposal | Invoice on file; appointment unverified | [7] |\n| Demolition, hazmat, geotechnical, facade, waterproofing, electrical, interior, landscape, traffic, security | **Assumption** \u2014 firms TBC | Required/proposed interfaces as applicable | Not evidenced | Not evidenced | \u2014 |\n## Planning and Compliance\n\nNSW pathway is **Assumption pending authority record**. The architectural proposal assumes one DA pathway, but that is not an approval. [1] Design documentation is to establish NCC compliance by DTS and identify any Performance Solutions for certifier assessment. [8]\n\n| Due-diligence / gate | Current position | Owner / verification |\n|---|---|---|\n| DA, conditions and CC | Not evidenced | Architect-PM to obtain authority/certifier records before works. |\n| Survey, easements and levels | Not evidenced | Client to commission/issue current survey. |\n| Geotechnical classification / footing design | Not evidenced | Architect to obtain geotechnical and structural certification; reference AS 1726:2017 and AS 2870-2011. |\n| DBYD / existing services | Not evidenced | Builder to verify before excavation; hydraulic scope excludes undocumented services work. [3] |\n| Builder evidence | Proposal identifies a NSW licence number; currency of licence, insurances, levy/LSL and residential HOW/HBCF eligibility remain unverified. | Architect-PM to verify before contract execution. [4] |\n\n```pmp-decision\n{\"id\":\"approval-pathway\",\"section\":\"Planning and Compliance\",\"label\":\"Approvals pathway\",\"options\":[{\"value\":\"ssd\",\"label\":\"State Significant Development (SSD)\"},{\"value\":\"da\",\"label\":\"Development Application (DA)\"},{\"value\":\"cdc\",\"label\":\"Complying Development Certificate (CDC)\"},{\"value\":\"exempt\",\"label\":\"Exempt / No approval required\"}],\"selected\":\"da\",\"source\":\"agent\",\"evidenced\":true,\"rationale\":\"The architectural fee proposal expressly assumes one development application pathway [1]; approval status remains unverified.\"}\n```\n\n## Programme\n\nBaseline regime: **Stage 1** concept/schematic design to DA submission; **Stage 2** design development; **Stage 3** construction documentation and delivery. Builder\u2019s 48-week construction indication starts only after site possession, approvals and executed contract. [4] Reconcile it with the architectural 14-month construction assumption before baselining. [1]\n\n| Sub-milestone | PMP position |\n|---|---|\n| DA submission / determination / CC | Hold points \u2014 dates not evidenced |\n| Tender, award, site possession | Hold points \u2014 executed contract and acceptance not evidenced |\n| Slab / frame / lock-up / fixing | Monitor against accepted logic-linked builder programme |\n| Practical completion / OC / DLP | Hold points \u2014 define contractual dates and DLP in executed contract |\n\n```pmp-decision\n{\"id\":\"staging-strategy\",\"section\":\"Programme\",\"label\":\"Staging strategy\",\"options\":[{\"value\":\"single_stage\",\"label\":\"Single stage delivery\"},{\"value\":\"staged_oc\",\"label\":\"Staged OC / partial handover\"},{\"value\":\"phased_occupation\",\"label\":\"Phased occupation\"}],\"selected\":\"single_stage\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; working selection follows the user-provided vacant, single-house project taxonomy.\"}\n```\n\n## Cost Planning\n\nThe builder proposal states $1,234,000 ex GST ($1,357,400 including GST) as its fixed contract sum, inclusive of identified provisional allowances: $30,000 ex GST for rock removal and $22,000 ex GST for pool-interface drainage. [4] It excludes client consultant fees, statutory approval fees, loose furniture, window coverings, pool plant supply, landscaping planting, utility-headworks charges and latent conditions outside those allowances. [4]\n\nVertex\u2019s fee proposal provides Cost Plan 1, Cost Plan 2/pre-tender estimate and value-management workshop, but the cost-plan output and owner-approved total budget are **Not evidenced**. [2] Maintain a change, allowance and forecast register; do not treat the seed cost taxonomy as a project estimate.\n\n## Procurement and Delivery\n\n```pmp-decision\n{\"id\":\"procurement-route\",\"section\":\"Procurement and Delivery\",\"label\":\"Procurement route\",\"options\":[{\"value\":\"traditional\",\"label\":\"Traditional (Lump Sum)\"},{\"value\":\"design_construct\",\"label\":\"Design & Construct\"},{\"value\":\"eci\",\"label\":\"Early Contractor Involvement\"},{\"value\":\"managing_contractor\",\"label\":\"Managing Contractor\"},{\"value\":\"alliance\",\"label\":\"Alliance (+5-10%)\"},{\"value\":\"ppp\",\"label\":\"PPP\"}],\"selected\":\"traditional\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced as a selected route; working selection follows the user-provided taxonomy. The architectural proposal assumes conventional procurement [1].\"}\n```\n```pmp-decision\n{\"id\":\"contract-form\",\"section\":\"Procurement and Delivery\",\"label\":\"Contract form\",\"options\":[{\"value\":\"as4000\",\"label\":\"AS 4000 (construct only)\"},{\"value\":\"as4902\",\"label\":\"AS 4902 (design and construct)\"},{\"value\":\"hia\",\"label\":\"HIA residential building contract\"},{\"value\":\"bespoke\",\"label\":\"Bespoke / amended commercial form\"},{\"value\":\"other\",\"label\":\"Other - legal review required\"}],\"selected\":\"hia\",\"source\":\"agent\",\"evidenced\":false,\"rationale\":\"Not evidenced; working residential-contract placeholder pending legal review and executed agreement.\"}\n```\n\nThe Ironbark proposal is fixed-price and tender-valid for 30 days, but its acceptance is not evidenced. [4] Before award: reconcile tender set/revision, QS comparison, exclusions/allowances, authority responsibilities, programme, insurances and statutory residential contract requirements. Architect-PM verifies builder licence, insurances, levy/LSL evidence and applicable statutory instruments; do not certify claims or administer contractual notices absent appointment authority.\n\n## Risks and mitigations\n\n| Risk | Mitigation / trigger | Owner |\n|---|---|---|\n| Approval status unknown | Obtain DA/CC and conditions before site commitment. | Architect-PM |\n| Rock / pool drainage allowances | No adjustment without written direction and cost/time assessment. [4] | Client |\n| Missing survey/geotech/services evidence | Complete investigations before final footing, earthworks and drainage release. | Architect |\n| Scope exclusions/interfaces | Close planting, pool plant, furnishings, window coverings and headworks responsibilities. [4] | Client |\n| Programme conflict | Reconcile 14-month and 48-week positions into one accepted baseline. [1] [4] |\n| Builder engagement evidence | Verify acceptance, contract, insurance/licence, levy/LSL and residential eligibility before award. | Architect-PM |\n| Owner changes after detailed design | Freeze owner selections before tender; builder programme assumes no changes after detailed-design issue. [4] | Client |\n\n## Actions and decisions\n\n| ID | Description | Owner | Status | Due date | Source | Next action |\n|---|---|---|---|---|---|---|\n| A01 | Confirm DA/CC pathway and current authority records | Architect-PM | Open | 2026-08-19 | [1] | Obtain records and conditions. |\n| A02 | Confirm executed builder contract/form and acceptance | Client | Open | 2026-08-19 | [4] | Provide executed instrument for review. |\n| A03 | Reconcile programme duration and milestones | Architect / Builder | Open | 2026-08-26 | [1] [4] | Issue logic-linked baseline. |\n| A04 | Close exclusions and provisional-sum interfaces | Client / Architect | Open | 2026-08-19 | [4] | Approve responsibility matrix. |\n\n## Internal audit layer\n\n- **Facts:** Quoin\u2019s proposal identifies the owner, site and new two-storey dwelling/garage project. [1]\n- **Facts:** Ironbark\u2019s proposal states the fixed sum and the rock and pool-interface-drainage provisional allowances. [4]\n- **Facts:** Vertex\u2019s proposal includes Cost Plan 1, Cost Plan 2, pre-tender estimate and value-management services. [2]\n- **Assumptions:** The architect-PM role holder, approvals, certifier, executed head contract, owner-approved budget, survey, geotechnical report and most consultant appointments are not evidenced.\n- **Judgements:** Treat the DA and construction programme as gates, not achieved milestones; retain builder proposal exclusions and allowances as commercial risks until a signed contract allocates them.\n- **Recommendations:** Client to provide authority instruments to Architect-PM by 2026-08-19; without them, procurement timing cannot be confirmed.\n- **Recommendations:** Client to nominate/execute the Architect-PM authority and contract form by 2026-08-19; without it, governance and claims roles remain advisory only.\n- **Recommendations:** Architect and QS to issue a reconciled scope, cost and baseline programme by 2026-08-26; without it, tender award exposes the client to scope and programme drift.\n- **Missing evidence and consequences:** no statutory record prevents compliance-status confirmation; no executed contract prevents confirmation of payment, EOT, DLP and insurance obligations.\n- **Early escalation flags:** cost\u2014allowance drawdown or excluded items; programme\u2014approval delay or disagreement between 14 months and 48 weeks; procurement\u2014contract acceptance absent; compliance\u2014CC/certifier unknown.\n- **Immediate next actions and register rows to open:** approval tracker, consultant appointment register, tender clarification/exclusion register, contingency/variation register and programme assumptions log.\n- **Mandatory seeds consulted:** `seed/residential-construction-guide.md`; `seed/role-architect-pm.md`; `skills/reference/nsw-residential-cost-breakdown-reference.md`; `seed/setup-and-commission-guide.md`; `seed/contract-administration-guide.md`; `seed/cost-management-principles.md`; `seed/program-scheduling-guide.md`; `seed/procurement-quoting-guide.md`.\n- **Workflow warnings:** unsorted inbox contains later hydraulic and QS invoices; file and reconcile them before relying on the fee-completion position. Current authority records, executed contract and appointment instruments require collection.\n## Citation key\n\n**Evidence on file:** [1] `01-fee-proposal-quoin-architecture.md` \u2014 20 Jan 2026, unsigned proposal; [2] `04-fee-proposal-vertex-cost-advisory.md` \u2014 24 Jan 2026, unsigned proposal; [3] `03-fee-proposal-flowline-hydraulics.md` \u2014 23 Jan 2026, unsigned proposal; [4] `05-building-proposal-ironbark-main-works.md` \u2014 10 Mar 2026, acceptance unverified; [7] `21-tax-invoice-catenary-structures-01.md` \u2014 24 Mar 2026 invoice; [8] `ncc-reference-guide.md` \u2014 platform guidance.\n\n| Section | Evidence status | Citation |\n|---|---|---|\n| Project Summary / Brief | Partial | [1] [4] |\n| Consultants | Partial | [1] [2] [3] [7] |\n| Planning / Programme | Partial | [1] [4] [8] |\n| Cost / Procurement | Partial | [2] [4] |\n\nDocument control: project documents are evidence only for the claims cited; unsigned proposals and invoices do not prove an executed appointment or contract. [8] is framing guidance, not project evidence.",
+    "provenance_metadata": {
+      "model": "openai-responses:gpt-5.6-terra",
+      "trace": [
+        {
+          "step": "project_snapshot",
+          "status": "complete",
+          "message": "Loaded deterministic Project Snapshot v1.",
+          "metadata": {
+            "schema_version": 1,
+            "content_fingerprint": "58bf9187e93fe33204efe966d6ed416e8be458e61a0f59af250e39e8dedb1dfc"
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "model_config",
+          "status": "complete",
+          "message": "PMP workflow model resolved to GPT-5.6 Terra (balanced); typed runner will execute via openai-responses:gpt-5.6-terra.",
+          "metadata": {
+            "model": "gpt-5.6-terra",
+            "model_label": "GPT-5.6 Terra (balanced)",
+            "model_source": "PMP_MODEL",
+            "model_provider": "openai-api",
+            "model_config_id": "openai-api:gpt-5.6-terra",
+            "model_execution_id": "openai-responses:gpt-5.6-terra",
+            "model_execution_provider": "openai-responses"
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "gate",
+          "status": "passed",
+          "message": "SiteWise three-overlay gate passed.",
+          "metadata": {},
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "evidence_sweep",
+          "status": "complete",
+          "message": "Swept evidence batch 1 of 3.",
+          "metadata": {
+            "batch_count": 8,
+            "batch_index": 0,
+            "skipped_superseded": 0,
+            "active_document_names": [
+              "11-tax-invoice-quoin-architecture-01.md",
+              "12-tax-invoice-quoin-architecture-02.md",
+              "13-tax-invoice-quoin-architecture-03.md",
+              "21-tax-invoice-catenary-structures-01.md",
+              "22-tax-invoice-catenary-structures-02.md",
+              "31-tax-invoice-flowline-hydraulics-01.md",
+              "41-tax-invoice-vertex-cost-advisory-01.md",
+              "01-fee-proposal-quoin-architecture.md"
+            ],
+            "skipped_revision_duplicates": 0
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "evidence_sweep",
+          "status": "complete",
+          "message": "Swept evidence batch 2 of 3.",
+          "metadata": {
+            "batch_count": 8,
+            "batch_index": 1,
+            "skipped_superseded": 0,
+            "active_document_names": [
+              "04-fee-proposal-vertex-cost-advisory.md",
+              "03-fee-proposal-flowline-hydraulics.md",
+              "05-building-proposal-ironbark-main-works.md",
+              "32-tax-invoice-flowline-hydraulics-02.md",
+              "33-tax-invoice-flowline-hydraulics-03.md",
+              "34-tax-invoice-flowline-hydraulics-04.md",
+              "35-tax-invoice-flowline-hydraulics-05.md",
+              "43-tax-invoice-vertex-cost-advisory-03.md"
+            ],
+            "skipped_revision_duplicates": 0
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "evidence_sweep",
+          "status": "complete",
+          "message": "Swept evidence batch 3 of 3.",
+          "metadata": {
+            "batch_count": 1,
+            "batch_index": 2,
+            "skipped_superseded": 0,
+            "active_document_names": [
+              "44-tax-invoice-vertex-cost-advisory-04.md"
+            ],
+            "skipped_revision_duplicates": 0
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "retrieval",
+          "status": "complete",
+          "message": "Swept all active project evidence and loaded mandatory SiteWise platform sources.",
+          "metadata": {
+            "draft_mode": "evidence_grounded",
+            "total_passages": 36,
+            "project_passages": 17,
+            "platform_passages": 19,
+            "platform_retrieval": "overlay_mandatory_paths",
+            "mandatory_seed_count": 9,
+            "active_corpus_documents": 17
+          },
+          "started_at": null,
+          "duration_ms": 7303
+        },
+        {
+          "step": "evidence_ledger",
+          "status": "complete",
+          "message": "Prioritised high-consequence evidence and surfaced 0 unresolved conflict(s).",
+          "metadata": {
+            "conflicts": [],
+            "conflict_count": 0,
+            "critical_fact_count": 12
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "model",
+          "status": "complete",
+          "message": "Create PMP model run returned a typed draft output.",
+          "metadata": {
+            "model": "gpt-5.6-terra",
+            "attempt": 1,
+            "draft_mode": "evidence_grounded",
+            "model_label": "GPT-5.6 Terra (balanced)",
+            "model_source": "PMP_MODEL",
+            "model_provider": "openai-api",
+            "model_config_id": "openai-api:gpt-5.6-terra",
+            "model_execution_id": "openai-responses:gpt-5.6-terra",
+            "model_execution_provider": "openai-responses"
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "validation",
+          "status": "retry",
+          "message": "Greenfield draft validation failed \u2014 retrying model: Create PMP citation support issues: Cited claim is not supported by the mapped source text: QS / cost adviser | Vertex Cost Advisory | Cost plans, tender comparison, cash flow and variation review | $45,000 ex GST | Proposal/invoicing on file; signed appointment unverifie; Cited claim is not supported by the mapped source text: Hydraulic engineer | Flowline Hydraulics | Water, sanitary/stormwater, reuse and pool-backwash interface | $32,500 ex GST | Proposal/invoicing on file; signed appointment unverifie; Cited claim is not supported by the mapped source text: The unaccepted builder proposal is $1,234,000 ex GST ($1,357,400 incl GST), including provisional allowances of $30,000 for rock removal and $22,000 for pool-interface drainage; wr",
+          "metadata": {},
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "model",
+          "status": "complete",
+          "message": "Create PMP model run returned a typed draft output.",
+          "metadata": {
+            "model": "gpt-5.6-terra",
+            "attempt": 2,
+            "draft_mode": "evidence_grounded",
+            "model_label": "GPT-5.6 Terra (balanced)",
+            "model_source": "PMP_MODEL",
+            "model_provider": "openai-api",
+            "model_config_id": "openai-api:gpt-5.6-terra",
+            "model_execution_id": "openai-responses:gpt-5.6-terra",
+            "model_execution_provider": "openai-responses"
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "generation",
+          "status": "complete",
+          "message": "Generated and normalized the Project Plan draft.",
+          "metadata": {
+            "compiler": "legacy"
+          },
+          "started_at": null,
+          "duration_ms": 108304
+        },
+        {
+          "step": "validation",
+          "status": "passed",
+          "message": "Create PMP output passed validation.",
+          "metadata": {
+            "draft_mode": "evidence_grounded"
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "coverage",
+          "status": "advisory",
+          "message": "Coverage advisory (not enforced): backfilled 0 evidence fact(s) into the Evidence coverage register and merged 12 missing evidence ref(s).",
+          "metadata": {
+            "backfilled_facts": [],
+            "added_evidence_refs": [
+              "project_evidence:04-projects/kavanagh/01-cost/11-tax-invoice-quoin-architecture-01.md#chunk=43c314b4-6ebb-5a31-b954-e7802f339216",
+              "project_evidence:04-projects/kavanagh/01-cost/12-tax-invoice-quoin-architecture-02.md#chunk=d23f0b5f-4ce1-5d7c-b3a9-e0a4f5a134f6",
+              "project_evidence:04-projects/kavanagh/01-cost/13-tax-invoice-quoin-architecture-03.md#chunk=6e018185-cb65-520f-b34a-0d2933ae105d",
+              "project_evidence:04-projects/kavanagh/01-cost/22-tax-invoice-catenary-structures-02.md#chunk=0ca4b40d-0797-5f4e-83f8-bd1654b965c8",
+              "project_evidence:04-projects/kavanagh/01-cost/31-tax-invoice-flowline-hydraulics-01.md#chunk=c550e3b1-0ad4-5d64-90bb-076551fbaf54",
+              "project_evidence:04-projects/kavanagh/01-cost/41-tax-invoice-vertex-cost-advisory-01.md#chunk=58da45f4-83bf-550e-9cf3-55242625a483",
+              "project_evidence:04-projects/kavanagh/_inbox/32-tax-invoice-flowline-hydraulics-02.md#chunk=29ec2d8d-db38-59cd-b0c8-bb3c89e38e90",
+              "project_evidence:04-projects/kavanagh/_inbox/33-tax-invoice-flowline-hydraulics-03.md#chunk=a9092ca6-4cc5-52c3-bb8d-c418a29674e1",
+              "project_evidence:04-projects/kavanagh/_inbox/34-tax-invoice-flowline-hydraulics-04.md#chunk=186cf4a7-0faf-5fbc-bee5-2140a16f23d2",
+              "project_evidence:04-projects/kavanagh/_inbox/35-tax-invoice-flowline-hydraulics-05.md#chunk=604a4854-39c6-5a99-be0d-c81dbccc8789",
+              "project_evidence:04-projects/kavanagh/_inbox/43-tax-invoice-vertex-cost-advisory-03.md#chunk=4f3f7ef9-22b8-5176-82ca-87d7cfdaa0b0",
+              "project_evidence:04-projects/kavanagh/_inbox/44-tax-invoice-vertex-cost-advisory-04.md#chunk=5aa5ccfb-0071-5fa8-92bd-3c205fa678fd"
+            ]
+          },
+          "started_at": null,
+          "duration_ms": null
+        },
+        {
+          "step": "length",
+          "status": "advisory",
+          "message": "Length advisory (not enforced): Actions and decisions is 86 words, budget ~36 - condense.; Citation key is 131 words, budget ~72 - condense.",
+          "metadata": {
+            "max_words": 1800,
+            "word_count": 1712
+          },
+          "started_at": null,
+          "duration_ms": null
+        }
+      ],
+      "compiler": "legacy",
+      "revision": 1,
+      "retrieval": {
+        "project_passages": 17,
+        "platform_passages": 19,
+        "platform_retrieval": "overlay_mandatory_paths"
+      },
+      "draft_mode": "evidence_grounded",
+      "word_count": 1712,
+      "model_label": "GPT-5.6 Terra (balanced)",
+      "actor_source": "project_plan_workflow",
+      "context_refs": [
+        "doctrine:docs/clerk-brief.md#chunk=37d577d1-3fe6-5245-a2d9-2178ff574162",
+        "reference:seed/residential-construction-guide.md#chunk=5a8bcf78-5bb0-56f9-bdff-5d891cc868e5",
+        "reference:seed/role-architect-pm.md#chunk=77dc3965-79b5-5097-a884-6ee7b7f2a4a6",
+        "reference:skills/reference/nsw-residential-cost-breakdown-reference.md#chunk=82ac0b3e-4aa6-54f0-83f3-baf063c5c5f2",
+        "reference:seed/setup-and-commission-guide.md#chunk=7cf28117-bdb2-541f-9c9b-50f6b65e8ec4",
+        "reference:seed/contract-administration-guide.md#chunk=fdddefd9-41b9-5ff0-9183-9721370866a4",
+        "reference:seed/cost-management-principles.md#chunk=b41fce6d-2c7b-5de2-a89a-5b2f1f46a3bf",
+        "reference:seed/program-scheduling-guide.md#chunk=879de2d7-809b-5cc1-bce2-1ad27e5966d8",
+        "reference:seed/procurement-quoting-guide.md#chunk=e5585bed-d008-5806-9cce-358ba26c01d1"
+      ],
+      "model_source": "PMP_MODEL",
+      "evidence_refs": [
+        "project_evidence:04-projects/kavanagh/02-consultant/architect/01-fee-proposal-quoin-architecture.md#chunk=febf274c-5bd8-52b3-8367-67a8d219b267",
+        "project_evidence:04-projects/kavanagh/02-consultant/architect/04-fee-proposal-vertex-cost-advisory.md#chunk=648bb3e7-ea63-5943-b665-c41049d80478",
+        "project_evidence:04-projects/kavanagh/02-consultant/hydraulic/03-fee-proposal-flowline-hydraulics.md#chunk=6ac1f59a-8beb-59ea-8352-def97e8c6867",
+        "project_evidence:04-projects/kavanagh/06-programme/05-building-proposal-ironbark-main-works.md#chunk=cadc7bac-8da2-5864-9dd2-189217dc60ab",
+        "project_evidence:04-projects/kavanagh/01-cost/21-tax-invoice-catenary-structures-01.md#chunk=d7a2e501-aad7-5147-94e6-1848edfe18eb",
+        "project_evidence:04-projects/kavanagh/01-cost/11-tax-invoice-quoin-architecture-01.md#chunk=43c314b4-6ebb-5a31-b954-e7802f339216",
+        "project_evidence:04-projects/kavanagh/01-cost/12-tax-invoice-quoin-architecture-02.md#chunk=d23f0b5f-4ce1-5d7c-b3a9-e0a4f5a134f6",
+        "project_evidence:04-projects/kavanagh/01-cost/13-tax-invoice-quoin-architecture-03.md#chunk=6e018185-cb65-520f-b34a-0d2933ae105d",
+        "project_evidence:04-projects/kavanagh/01-cost/22-tax-invoice-catenary-structures-02.md#chunk=0ca4b40d-0797-5f4e-83f8-bd1654b965c8",
+        "project_evidence:04-projects/kavanagh/01-cost/31-tax-invoice-flowline-hydraulics-01.md#chunk=c550e3b1-0ad4-5d64-90bb-076551fbaf54",
+        "project_evidence:04-projects/kavanagh/01-cost/41-tax-invoice-vertex-cost-advisory-01.md#chunk=58da45f4-83bf-550e-9cf3-55242625a483",
+        "project_evidence:04-projects/kavanagh/_inbox/32-tax-invoice-flowline-hydraulics-02.md#chunk=29ec2d8d-db38-59cd-b0c8-bb3c89e38e90",
+        "project_evidence:04-projects/kavanagh/_inbox/33-tax-invoice-flowline-hydraulics-03.md#chunk=a9092ca6-4cc5-52c3-bb8d-c418a29674e1",
+        "project_evidence:04-projects/kavanagh/_inbox/34-tax-invoice-flowline-hydraulics-04.md#chunk=186cf4a7-0faf-5fbc-bee5-2140a16f23d2",
+        "project_evidence:04-projects/kavanagh/_inbox/35-tax-invoice-flowline-hydraulics-05.md#chunk=604a4854-39c6-5a99-be0d-c81dbccc8789",
+        "project_evidence:04-projects/kavanagh/_inbox/43-tax-invoice-vertex-cost-advisory-03.md#chunk=4f3f7ef9-22b8-5176-82ca-87d7cfdaa0b0",
+        "project_evidence:04-projects/kavanagh/_inbox/44-tax-invoice-vertex-cost-advisory-04.md#chunk=5aa5ccfb-0071-5fa8-92bd-3c205fa678fd"
+      ],
+      "pmp_max_words": 1800,
+      "pmp_min_words": 800,
+      "model_provider": "openai-api",
+      "seed_consulted": [
+        "seed/residential-construction-guide.md",
+        "seed/role-architect-pm.md",
+        "skills/reference/nsw-residential-cost-breakdown-reference.md",
+        "seed/setup-and-commission-guide.md",
+        "seed/contract-administration-guide.md",
+        "seed/cost-management-principles.md",
+        "seed/program-scheduling-guide.md",
+        "seed/procurement-quoting-guide.md"
+      ],
+      "model_config_id": "openai-api:gpt-5.6-terra",
+      "section_weights": {
+        "risks": 0.1,
+        "snapshot": 0.1,
+        "programme": 0.12,
+        "consultants": 0.15,
+        "cost-budget": 0.12,
+        "citation-key": 0.04,
+        "actions-decisions": 0.02,
+        "compliance-approvals": 0.1,
+        "procurement-delivery": 0.1,
+        "scope-client-requirements": 0.15
+      },
+      "project_snapshot": {
+        "schema_version": 1,
+        "content_fingerprint": "58bf9187e93fe33204efe966d6ed416e8be458e61a0f59af250e39e8dedb1dfc"
+      },
+      "model_execution_id": "openai-responses:gpt-5.6-terra",
+      "expected_base_version": 0,
+      "model_execution_provider": "openai-responses"
+    }
+  },
+  "trace": [
+    {
+      "step": "project_snapshot",
+      "status": "complete",
+      "message": "Loaded deterministic Project Snapshot v1.",
+      "metadata": {
+        "schema_version": 1,
+        "content_fingerprint": "58bf9187e93fe33204efe966d6ed416e8be458e61a0f59af250e39e8dedb1dfc"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model_config",
+      "status": "complete",
+      "message": "PMP workflow model resolved to GPT-5.6 Terra (balanced); typed runner will execute via openai-responses:gpt-5.6-terra.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "gate",
+      "status": "passed",
+      "message": "SiteWise three-overlay gate passed.",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 1 of 3.",
+      "metadata": {
+        "batch_count": 8,
+        "batch_index": 0,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "11-tax-invoice-quoin-architecture-01.md",
+          "12-tax-invoice-quoin-architecture-02.md",
+          "13-tax-invoice-quoin-architecture-03.md",
+          "21-tax-invoice-catenary-structures-01.md",
+          "22-tax-invoice-catenary-structures-02.md",
+          "31-tax-invoice-flowline-hydraulics-01.md",
+          "41-tax-invoice-vertex-cost-advisory-01.md",
+          "01-fee-proposal-quoin-architecture.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 2 of 3.",
+      "metadata": {
+        "batch_count": 8,
+        "batch_index": 1,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "04-fee-proposal-vertex-cost-advisory.md",
+          "03-fee-proposal-flowline-hydraulics.md",
+          "05-building-proposal-ironbark-main-works.md",
+          "32-tax-invoice-flowline-hydraulics-02.md",
+          "33-tax-invoice-flowline-hydraulics-03.md",
+          "34-tax-invoice-flowline-hydraulics-04.md",
+          "35-tax-invoice-flowline-hydraulics-05.md",
+          "43-tax-invoice-vertex-cost-advisory-03.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 3 of 3.",
+      "metadata": {
+        "batch_count": 1,
+        "batch_index": 2,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "44-tax-invoice-vertex-cost-advisory-04.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "retrieval",
+      "status": "complete",
+      "message": "Swept all active project evidence and loaded mandatory SiteWise platform sources.",
+      "metadata": {
+        "draft_mode": "evidence_grounded",
+        "total_passages": 36,
+        "project_passages": 17,
+        "platform_passages": 19,
+        "platform_retrieval": "overlay_mandatory_paths",
+        "mandatory_seed_count": 9,
+        "active_corpus_documents": 17
+      },
+      "started_at": null,
+      "duration_ms": 7303
+    },
+    {
+      "step": "evidence_ledger",
+      "status": "complete",
+      "message": "Prioritised high-consequence evidence and surfaced 0 unresolved conflict(s).",
+      "metadata": {
+        "conflicts": [],
+        "conflict_count": 0,
+        "critical_fact_count": 12
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 1,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "validation",
+      "status": "retry",
+      "message": "Greenfield draft validation failed \u2014 retrying model: Create PMP citation support issues: Cited claim is not supported by the mapped source text: QS / cost adviser | Vertex Cost Advisory | Cost plans, tender comparison, cash flow and variation review | $45,000 ex GST | Proposal/invoicing on file; signed appointment unverifie; Cited claim is not supported by the mapped source text: Hydraulic engineer | Flowline Hydraulics | Water, sanitary/stormwater, reuse and pool-backwash interface | $32,500 ex GST | Proposal/invoicing on file; signed appointment unverifie; Cited claim is not supported by the mapped source text: The unaccepted builder proposal is $1,234,000 ex GST ($1,357,400 incl GST), including provisional allowances of $30,000 for rock removal and $22,000 for pool-interface drainage; wr",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 2,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "generation",
+      "status": "complete",
+      "message": "Generated and normalized the Project Plan draft.",
+      "metadata": {
+        "compiler": "legacy"
+      },
+      "started_at": null,
+      "duration_ms": 108304
+    },
+    {
+      "step": "validation",
+      "status": "passed",
+      "message": "Create PMP output passed validation.",
+      "metadata": {
+        "draft_mode": "evidence_grounded"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "coverage",
+      "status": "advisory",
+      "message": "Coverage advisory (not enforced): backfilled 0 evidence fact(s) into the Evidence coverage register and merged 12 missing evidence ref(s).",
+      "metadata": {
+        "backfilled_facts": [],
+        "added_evidence_refs": [
+          "project_evidence:04-projects/kavanagh/01-cost/11-tax-invoice-quoin-architecture-01.md#chunk=43c314b4-6ebb-5a31-b954-e7802f339216",
+          "project_evidence:04-projects/kavanagh/01-cost/12-tax-invoice-quoin-architecture-02.md#chunk=d23f0b5f-4ce1-5d7c-b3a9-e0a4f5a134f6",
+          "project_evidence:04-projects/kavanagh/01-cost/13-tax-invoice-quoin-architecture-03.md#chunk=6e018185-cb65-520f-b34a-0d2933ae105d",
+          "project_evidence:04-projects/kavanagh/01-cost/22-tax-invoice-catenary-structures-02.md#chunk=0ca4b40d-0797-5f4e-83f8-bd1654b965c8",
+          "project_evidence:04-projects/kavanagh/01-cost/31-tax-invoice-flowline-hydraulics-01.md#chunk=c550e3b1-0ad4-5d64-90bb-076551fbaf54",
+          "project_evidence:04-projects/kavanagh/01-cost/41-tax-invoice-vertex-cost-advisory-01.md#chunk=58da45f4-83bf-550e-9cf3-55242625a483",
+          "project_evidence:04-projects/kavanagh/_inbox/32-tax-invoice-flowline-hydraulics-02.md#chunk=29ec2d8d-db38-59cd-b0c8-bb3c89e38e90",
+          "project_evidence:04-projects/kavanagh/_inbox/33-tax-invoice-flowline-hydraulics-03.md#chunk=a9092ca6-4cc5-52c3-bb8d-c418a29674e1",
+          "project_evidence:04-projects/kavanagh/_inbox/34-tax-invoice-flowline-hydraulics-04.md#chunk=186cf4a7-0faf-5fbc-bee5-2140a16f23d2",
+          "project_evidence:04-projects/kavanagh/_inbox/35-tax-invoice-flowline-hydraulics-05.md#chunk=604a4854-39c6-5a99-be0d-c81dbccc8789",
+          "project_evidence:04-projects/kavanagh/_inbox/43-tax-invoice-vertex-cost-advisory-03.md#chunk=4f3f7ef9-22b8-5176-82ca-87d7cfdaa0b0",
+          "project_evidence:04-projects/kavanagh/_inbox/44-tax-invoice-vertex-cost-advisory-04.md#chunk=5aa5ccfb-0071-5fa8-92bd-3c205fa678fd"
+        ]
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "length",
+      "status": "advisory",
+      "message": "Length advisory (not enforced): Actions and decisions is 86 words, budget ~36 - condense.; Citation key is 131 words, budget ~72 - condense.",
+      "metadata": {
+        "max_words": 1800,
+        "word_count": 1712
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "draft_save",
+      "status": "complete",
+      "message": "Saved Create PMP as a versioned draft artefact.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "version": 1,
+        "draft_id": "56775dfe-e1c9-4727-9872-cde76c2dc715",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": 24110
+    }
+  ],
+  "status": "complete",
+  "message": "Create PMP completed. Draft v1 is ready for review: Project Management Plan"
+}

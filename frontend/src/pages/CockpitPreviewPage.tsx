@@ -70,7 +70,7 @@ const previewEvidence: EvidencePreview[] = [
       "",
       "| Priority | Status | Owner |",
       "| --- | --- | --- |",
-      "| Consultant appointments | Open | Architect PM |",
+      "| Consultant appointments | Open | Architect |",
       "| Cost plan validation | Open | Quantity surveyor |",
       "| Programme baseline | Draft | Project lead |",
     ].join("\n"),
@@ -127,7 +127,7 @@ const previewWorkspaceTree: WorkspaceTreeNode[] = [
   templateNode("01-cost", "04-projects/sitewise-preview/01-cost", "Cost plans, claims, invoices, and variations.", ["create_cost_plan"], [
     fileNode("cost-planning-note.md", "04-projects/sitewise-preview/01-cost/cost-planning-note.md"),
   ]),
-  templateNode("02-consultant", "04-projects/sitewise-preview/02-consultant", "Consultant scopes and RFP records.", ["consultant_procurement"]),
+  templateNode("02-consultant", "04-projects/sitewise-preview/02-consultant", "Consultant scopes and tender records.", ["consultant_procurement"]),
   templateNode("03-design", "04-projects/sitewise-preview/03-design", "Design documents and RFIs.", ["rfi"]),
   templateNode("04-planning-and-authorities", "04-projects/sitewise-preview/04-planning-and-authorities", "Approvals, certificates, and authority correspondence.", ["approval_pathway"]),
   templateNode("05-procurement", "04-projects/sitewise-preview/05-procurement", "Tender packages, submissions, evaluation, and TRR drafts.", ["tender_evaluation"], [
@@ -145,9 +145,63 @@ const previewWorkspaceTree: WorkspaceTreeNode[] = [
 const platformStatus: PlatformKnowledgeStatus = {
   available: true,
   buckets: [
-    { kind: "doctrine", document_count: 1 },
-    { kind: "seed", document_count: 6 },
-    { kind: "skills", document_count: 4 },
+    {
+      kind: "doctrine",
+      document_count: 1,
+      documents: [{ filename: "clerk-brief.md", relative_path: "docs/clerk-brief.md" }],
+    },
+    {
+      kind: "seed",
+      document_count: 6,
+      documents: [
+        {
+          filename: "commercial-construction-guide.md",
+          relative_path: "seed/commercial-construction-guide.md",
+        },
+        {
+          filename: "contract-administration-guide.md",
+          relative_path: "seed/contract-administration-guide.md",
+        },
+        {
+          filename: "cost-management-principles.md",
+          relative_path: "seed/cost-management-principles.md",
+        },
+        {
+          filename: "new-dwelling-guide.md",
+          relative_path: "seed/new-dwelling-guide.md",
+        },
+        {
+          filename: "program-scheduling-guide.md",
+          relative_path: "seed/program-scheduling-guide.md",
+        },
+        {
+          filename: "setup-and-commission-guide.md",
+          relative_path: "seed/setup-and-commission-guide.md",
+        },
+      ],
+    },
+    {
+      kind: "skills",
+      document_count: 4,
+      documents: [
+        {
+          filename: "cost-plan-system.md",
+          relative_path: "skills/systems/cost-plan-system.md",
+        },
+        {
+          filename: "evidence-sweep.md",
+          relative_path: "skills/atomic/evidence-sweep.md",
+        },
+        {
+          filename: "programme-system.md",
+          relative_path: "skills/systems/programme-system.md",
+        },
+        {
+          filename: "variation-management-system.md",
+          relative_path: "skills/systems/variation-management-system.md",
+        },
+      ],
+    },
   ],
 };
 
@@ -399,6 +453,7 @@ export function CockpitPreviewPage() {
         <DraftReviewPanel
           projectId={previewProject.id}
           draft={previewDraft}
+          projectTitle={previewProject.title}
           onDraftUpdated={() => undefined}
         />
       ) : null}

@@ -821,6 +821,15 @@ export const api = {
       expected_version: expectedVersion,
     }),
 
+  downloadDraftExport: async (
+    projectId: string,
+    draftId: string,
+    format: "pdf" | "docx",
+  ): Promise<Blob> =>
+    apiBlobRequest(
+      `/projects/${projectId}/drafts/${draftId}/export?format=${format}`,
+    ),
+
   listProcurementRequests: async (
     projectId: string,
   ): Promise<ProcurementRequest[]> => {

@@ -120,14 +120,14 @@ def harrison_clarke_narrative() -> PmpNarrativeOutput:
         ],
         recommendations=[
             "Owner to confirm working budget ceiling by 2026-06-28.",
-            "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-            "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+            "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+            "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
         ],
         register_rows=[
             RegisterRow(
                 id="R-001",
                 description="Master programme",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="engagement letter",
@@ -136,7 +136,7 @@ def harrison_clarke_narrative() -> PmpNarrativeOutput:
             RegisterRow(
                 id="R-002",
                 description="Linden conflict declaration",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="fee proposal",

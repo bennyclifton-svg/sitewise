@@ -12,11 +12,18 @@ from app.config import settings
 from app.database.activity_events import record_activity_events
 from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
-from app.database.draft_artifacts import create_draft_artifact, get_latest_draft_artifact
+from app.database.draft_artifacts import (
+    create_draft_artifact,
+    get_latest_draft_artifact,
+)
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.projects.workflow_capabilities import UPDATE_PMP, capability_block_message
-from app.schemas.projects import CreatePmpResponse, DraftArtifactResponse, WorkflowTraceEvent
+from app.schemas.projects import (
+    CreatePmpResponse,
+    DraftArtifactResponse,
+    WorkflowTraceEvent,
+)
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.pmp_evidence_validation import (
@@ -31,6 +38,7 @@ from app.sitewise.pmp_coverage import (
     format_corpus_coverage_requirements,
 )
 from app.sitewise.pmp_length import length_violations, pmp_word_count
+from app.sitewise.artifact_presentation import prepare_issue_markdown
 from app.sitewise.pmp_evidence_ledger import (
     build_evidence_ledger,
     conflict_summary_violations,
@@ -94,15 +102,21 @@ def validate_update_pmp_output(
 ) -> None:
     taxonomy_context = pmp_taxonomy_context(project) if project is not None else None
     if not output.seed_consulted:
-        raise WorkflowValidationError("Update PMP output did not identify seed consulted.")
+        raise WorkflowValidationError(
+            "Update PMP output did not identify seed consulted."
+        )
     if not output.context_refs:
         raise WorkflowValidationError(
             "Update PMP output did not identify doctrine or seed context references."
         )
     if has_evidence_delta and not output.evidence_refs:
-        raise WorkflowValidationError("Update PMP output did not identify evidence references.")
+        raise WorkflowValidationError(
+            "Update PMP output did not identify evidence references."
+        )
     if "# " not in output.markdown and "## " not in output.markdown:
-        raise WorkflowValidationError("Update PMP output is not structured as Markdown.")
+        raise WorkflowValidationError(
+            "Update PMP output is not structured as Markdown."
+        )
 
     missing_seeds = seed_consulted_includes_required(
         output.seed_consulted,
@@ -126,11 +140,15 @@ def validate_update_pmp_output(
     if taxonomy_context is not None:
         provenance_issues = taxonomy_provenance_violations(
             output.markdown,
-            draft_mode="evidence_grounded" if has_evidence_delta else "baseline_refresh",
+            draft_mode="evidence_grounded"
+            if has_evidence_delta
+            else "baseline_refresh",
         )
         if provenance_issues:
             joined = "; ".join(provenance_issues)
-            raise WorkflowValidationError(f"Update PMP taxonomy provenance issues: {joined}")
+            raise WorkflowValidationError(
+                f"Update PMP taxonomy provenance issues: {joined}"
+            )
         if has_evidence_delta:
             lowered_markdown = output.markdown.casefold()
             if (
@@ -151,12 +169,13 @@ def validate_update_pmp_output(
             if conflict_issues:
                 raise WorkflowValidationError(
                     "Update PMP has unresolved evidence conflicts missing from the "
-                    "Project Summary: "
-                    + "; ".join(conflict_issues)
+                    "Project Summary: " + "; ".join(conflict_issues)
                 )
 
     baseline_headings = markdown_section_headings(baseline_markdown)
-    output_headings = {heading.lower() for heading in markdown_section_headings(output.markdown)}
+    output_headings = {
+        heading.lower() for heading in markdown_section_headings(output.markdown)
+    }
     missing = [
         heading
         for heading in baseline_headings
@@ -165,8 +184,7 @@ def validate_update_pmp_output(
     if missing:
         joined = ", ".join(missing)
         raise WorkflowValidationError(
-            "Update PMP removed baseline sections that must be preserved: "
-            f"{joined}"
+            f"Update PMP removed baseline sections that must be preserved: {joined}"
         )
 
     if locked_ids:
@@ -246,11 +264,7 @@ def build_update_pmp_prompt(
         + _format_sources(platform_passages),
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
-        (
-            "Overlays: "
-            f"archetype={project.archetype}, "
-            f"state={project.state}"
-        ),
+        (f"Overlays: archetype={project.archetype}, state={project.state}"),
         "Workflow: update_pmp",
         f"Required document title: {document_title(project=project)}",
         (
@@ -259,7 +273,8 @@ def build_update_pmp_prompt(
             "sections). Do not restore sections the user removed. Do not collapse the "
             "document into a summary. Upgrade Assumption rows to Fact where new evidence "
             "supports it; leave other scaffold rows as Assumption. "
-            "Update Evidence on file and the evidence map table; reconcile Internal audit "
+            "Update the indexed evidence list and the evidence map table (never write "
+            "'Evidence on file' — citations carry that signal); reconcile Internal audit "
             "Facts and workflow warnings with evidence_refs — never claim documents are "
             "missing when they appear in Sources."
         ),
@@ -276,7 +291,16 @@ def build_update_pmp_prompt(
                 (
                     "Taxonomy update rule: keep the primary PMP inside the 2-4 page "
                     "band, preserve baseline headings, keep condensed risks/actions, "
-                    "and cut generic prose before project-specific facts."
+                    "and cut generic prose before project-specific facts. Rewrite "
+                    "Project Summary as one compact identity table with no column-label "
+                    "header whose first rows are Project, Address, Owner, and Description. "
+                    "Project must be the literal project name (never Confirmed); Address then "
+                    "Owner are separate rows; table only — no bridge paragraph; work-scope "
+                    "wording belongs in Description; Citation is [n] when evidenced else blank; "
+                    "never write Conflict or requiring resolution in cells. Remove any Critical "
+                    "current position block or row; route its unresolved controls to the "
+                    "relevant section or Trace & QA. Remove any owner-side review/governance "
+                    "disclaimer from the issued body."
                 ),
             ]
         )
@@ -322,7 +346,8 @@ def build_update_pmp_prompt(
         prompt_parts.append(
             "The active project evidence corpus is empty. Preserve the baseline scaffold, "
             "downgrade formerly grounded rows to Not evidenced or Assumption, and keep "
-            "user-provided setup facts labelled User provided."
+            "current project-profile facts as ordinary information without a provenance label "
+            "or citation."
         )
     if validation_feedback:
         prompt_parts.append(
@@ -354,7 +379,9 @@ async def run_update_pmp_model(
         locked_decisions=locked_decisions,
         coverage_requirements=coverage_requirements,
     )
-    resolved_model = chat_model.strip() if chat_model else resolve_pmp_model().execution_id
+    resolved_model = (
+        chat_model.strip() if chat_model else resolve_pmp_model().execution_id
+    )
     result = await run_agent_with_retry(create_pmp_agent, prompt, model=resolved_model)
     return result.output
 
@@ -413,7 +440,9 @@ async def run_update_pmp_workflow(
             trace=trace,
             status="blocked",
         )
-        return CreatePmpResponse(status="blocked", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="blocked", gate=gate, trace=trace, message=message
+        )
 
     capability_message = (
         capability_block_message(snapshot, UPDATE_PMP) if snapshot is not None else None
@@ -454,7 +483,9 @@ async def run_update_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     trace.append(
         _trace(
@@ -487,14 +518,17 @@ async def run_update_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     if missing_paths:
-        message = (
-            "Update PMP could not load mandatory platform sources: "
-            + ", ".join(missing_paths)
+        message = "Update PMP could not load mandatory platform sources: " + ", ".join(
+            missing_paths
         )
-        trace.append(_trace("retrieval", "failed", message, missing_paths=missing_paths))
+        trace.append(
+            _trace("retrieval", "failed", message, missing_paths=missing_paths)
+        )
         await _persist_trace_message(
             session,
             project_id=project.id,
@@ -504,11 +538,15 @@ async def run_update_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
-    baseline_provenance = baseline.provenance_metadata if isinstance(
-        baseline.provenance_metadata, dict
-    ) else {}
+    baseline_provenance = (
+        baseline.provenance_metadata
+        if isinstance(baseline.provenance_metadata, dict)
+        else {}
+    )
     previous_evidence_refs = [
         ref
         for ref in baseline_provenance.get("evidence_refs", [])
@@ -564,7 +602,9 @@ async def run_update_pmp_workflow(
             )
         )
 
-    platform_passages = [passage for passage in _passages if _is_platform_passage(passage)]
+    platform_passages = [
+        passage for passage in _passages if _is_platform_passage(passage)
+    ]
 
     delta_source_texts = (
         [passage.content for passage in delta_passages if passage.content.strip()]
@@ -718,7 +758,9 @@ async def run_update_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     trace.append(_trace("validation", "passed", "Update PMP output passed validation."))
 
@@ -738,9 +780,9 @@ async def run_update_pmp_workflow(
                     "coverage",
                     "advisory",
                     (
-                        "Coverage advisory (not enforced): backfilled "
+                        "Coverage advisory (not enforced): "
                         f"{len(coverage_backfill.backfilled_facts)} evidence fact(s) "
-                        "into the Evidence coverage register and merged "
+                        "remain outside the narrative body; merged "
                         f"{len(coverage_backfill.added_evidence_refs)} missing evidence ref(s)."
                     ),
                     backfilled_facts=[
@@ -795,6 +837,7 @@ async def run_update_pmp_workflow(
     )
 
     next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
+    output.markdown = prepare_issue_markdown(output.markdown, project_title=project.title)
     output.markdown = sync_document_control_version(output.markdown, next_version)
     draft = await create_draft_artifact(
         session,
@@ -830,7 +873,9 @@ async def run_update_pmp_workflow(
             "based_on_version": baseline.version,
             "evidence_delta_count": len(delta_passages),
             "active_corpus_documents": (
-                len(sweep_result.listing.documents) if sweep_result is not None else None
+                len(sweep_result.listing.documents)
+                if sweep_result is not None
+                else None
             ),
             "sections_changed": sections_changed,
             "evidence_changed": evidence_changed,
@@ -865,9 +910,7 @@ async def run_update_pmp_workflow(
         )
     )
 
-    content = (
-        f"Update PMP completed. Draft v{draft.version} is ready for review: {draft.title}"
-    )
+    content = f"Update PMP completed. Draft v{draft.version} is ready for review: {draft.title}"
     await _persist_trace_message(
         session,
         project_id=project.id,

@@ -10,6 +10,7 @@ import { CopyContentButton } from "@/components/project/CopyContentButton";
 import {
   assistantMetaFromMessageData,
   citationFromSourcePart,
+  citationFromWebSourceTrace,
   citationsFromMessageData,
   dedupeCitations,
 } from "@/lib/citations";
@@ -35,6 +36,7 @@ type AssistantMessageProps = {
 function extractCitations(
   message: UIMessage,
   messageData?: Record<string, unknown> | null,
+  toolEvents: ToolStatusEvent[] = [],
 ): Citation[] {
   const fromParts = message.parts
     .filter((part) => part.type === "source-document")
@@ -44,6 +46,11 @@ function extractCitations(
   return dedupeCitations([
     ...fromParts,
     ...citationsFromMessageData(messageData),
+    ...toolEvents
+      .map((event) =>
+        event.webSource ? citationFromWebSourceTrace(event.webSource) : null,
+      )
+      .filter((citation): citation is Citation => citation !== null),
   ]);
 }
 
@@ -58,7 +65,7 @@ export function AssistantMessage({
   selectedCitationId,
   onSelectCitation,
 }: AssistantMessageProps) {
-  const citations = extractCitations(message, messageData);
+  const citations = extractCitations(message, messageData, toolEvents);
   const meta = assistantMetaFromMessageData(messageData);
   const text = message.parts
     .filter((part) => part.type === "text")

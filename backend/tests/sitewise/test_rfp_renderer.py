@@ -65,8 +65,11 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
 
     assert scaffold.count(BACKGROUND_PLACEHOLDER) == 1
     assert scaffold.count(REQUESTED_SERVICES_PLACEHOLDER) == 1
-    assert "## Project Summary" in scaffold
-    assert "| Field | Project detail | Source |" in scaffold
+    assert scaffold.startswith("# Request for Tender - Town planner")
+    assert "## Tender particulars" in scaffold
+    assert "| Field | Project detail | Source |" not in scaffold
+    assert "| Project |" in scaffold
+    assert "| --- | --- | --- |" in scaffold
     assert citation_index.documents == (
         ("04-projects/walsh/00-brief/project-brief.pdf", "on file"),
         ("04-projects/walsh/03-design/drawings.pdf", "on file"),
@@ -76,11 +79,16 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
     assert "| 420 | Structural details | P3 | Structural | [2] |" in scaffold
     assert "## Citation key" not in scaffold
     assert len(re.findall(r"^## ", scaffold, flags=re.MULTILINE)) == 7
-    assert "provide a short return brief" in scaffold
-    assert "| Indicative fee stage | Scope / allowance to identify | Fee ex GST |" in scaffold
+    assert "Provide a concise return brief" in scaffold
+    assert (
+        "| Indicative fee stage | Scope / allowance to identify | Fee ex GST |"
+        in scaffold
+    )
     assert "## Scope assumptions / exclusions to state" not in scaffold
     assert "## Site visit / clarifications" not in scaffold
     assert "## Submission instructions" not in scaffold
+    assert scaffold.rstrip().endswith("- No unresolved generation inputs recorded.")
+    assert "TBC" not in scaffold.split("## Trace & QA", maxsplit=1)[0]
 
 
 def test_rfp_summary_cites_evidence_that_corroborates_profile_identity() -> None:
@@ -120,9 +128,7 @@ def test_rfp_summary_cites_evidence_that_corroborates_profile_identity() -> None
     assert (
         "| Site / address | 145-151 Arthur Street, Homebush West NSW 2140 | [1] |"
     ) in scaffold
-    assert (
-        "| Client | Hale c/o Engine Room VM | [2] |"
-    ) in scaffold
+    assert ("| Client | Hale c/o Engine Room VM | [2] |") in scaffold
 
 
 def test_rfp_summary_keeps_provenance_in_source_column_without_status_prose() -> None:
@@ -135,11 +141,11 @@ def test_rfp_summary_keeps_provenance_in_source_column_without_status_prose() ->
         instructions="Use the supplied project context and do not invent details.",
     )
 
-    summary = scaffold.split("## Project Summary", maxsplit=1)[1].split(
-        "## Background", maxsplit=1
+    summary = scaffold.split("## Tender particulars", maxsplit=1)[1].split(
+        "## Information issued and citations", maxsplit=1
     )[0]
     assert "| Project | Walsh Renovation | Profile |" in summary
-    assert "| Budget | TBC | Confirm |" in summary
+    assert "| Budget |" not in summary
     assert "User provided" not in summary
     assert "Evidence on file" not in summary
     assert "Assumption" not in summary
@@ -163,12 +169,13 @@ def test_rfp_summary_uses_current_cost_plan_construction_budget() -> None:
     )
 
     assert (
-        "| Budget | $400,000 ex GST | Current Cost Plan v3 (user-adopted) |"
-        in scaffold
+        "| Budget | $400,000 ex GST | Current Cost Plan v3 (user-adopted) |" in scaffold
     )
 
 
-def test_rfp_summary_prefers_evidenced_project_name_over_generic_profile_title() -> None:
+def test_rfp_summary_prefers_evidenced_project_name_over_generic_profile_title() -> (
+    None
+):
     project = _project()
     project.title = "Fitout"
     evidence = [
@@ -255,3 +262,31 @@ def test_consultant_rfp_does_not_truncate_deliverables_to_one_page() -> None:
         "disbursements, hourly rates, programme, exclusions, optional services, "
         "and required client inputs."
     ) in scaffold
+
+
+def test_consultant_rft_keeps_citations_prominent_and_qa_out_of_issue_body() -> None:
+    evidence = [
+        {
+            "relative_path": "04-projects/walsh/00-brief/project-brief.pdf",
+            "filename": "project-brief.pdf",
+            "document_metadata": {"title": "Project brief", "revision": "A"},
+        }
+    ]
+    scaffold = render_rfp_scaffold(
+        project=_project(),
+        target=normalise_discipline("mechanical engineer"),
+        citation_index=build_rfp_citation_index(evidence),
+        forecast={"used": False},
+        max_pages=3,
+        project_evidence=evidence,
+        missing_inputs=["Tender close date"],
+    )
+
+    primary, qa = scaffold.split("## Trace & QA", maxsplit=1)
+    assert primary.index("## Information issued and citations") < primary.index(
+        "## Background"
+    )
+    assert "[1]" in primary
+    assert "Tender close date" not in primary
+    assert "Tender close date" in qa
+    assert "TBC" not in primary

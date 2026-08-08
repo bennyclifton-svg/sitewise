@@ -1,10 +1,8 @@
 import { Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import {
-  MarkdownContent,
-  normalizeDraftMarkdown,
-} from "@/components/project/MarkdownContent";
+import { MarkdownContent } from "@/components/project/MarkdownContent";
+import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";

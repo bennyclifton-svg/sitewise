@@ -22,6 +22,7 @@ from app.inbox.paths import build_storage_key
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 from app.retrieval.retriever import DocumentRetriever
+from app.sitewise.artifact_presentation import clean_issue_language
 from app.sitewise.cost_plan_consultant_forecast import (
     FORECAST_BASIS,
     FORECAST_STATUS,
@@ -37,7 +38,9 @@ from app.sitewise.rfp_renderer import (
     render_rfp_scaffold,
 )
 from app.projects.identity import resolve_project_identity
-from app.workflows.create_cost_plan import WORKFLOW_TYPE as CREATE_COST_PLAN_WORKFLOW_TYPE
+from app.workflows.create_cost_plan import (
+    WORKFLOW_TYPE as CREATE_COST_PLAN_WORKFLOW_TYPE,
+)
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.procurement_request import (
     EvidenceQuery,
@@ -110,7 +113,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
         "Architect",
         requested_services=(
             "Review the project brief, planning pathway, design status, and client objectives.",
-            "Confirm architectural design scope, consultant coordination role, and approval support.",
+            "Define architectural design scope, consultant coordination role, and approval support.",
             "Identify design documentation, tender support, and construction-stage services required.",
         ),
         deliverables=(
@@ -158,7 +161,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
         ),
         requested_services=(
             "Review the brief, layouts, existing-services records, landlord information, approval pathway, and affected hydraulic systems; identify missing investigations before accepting the design basis.",
-            "Confirm potable water, sanitary drainage, hot-water, fixture, metering, isolation, connection, capacity, access, shutdown, and tenant/landlord requirements applicable to the evidenced scope.",
+            "Define potable water, sanitary drainage, hot-water, fixture, metering, isolation, connection, capacity, access, shutdown, and tenant/landlord requirements applicable to the evidenced scope.",
             "Treat stormwater, trade waste, gas, fire-water, and whole-building infrastructure as conditional scope, and state their inclusion, exclusion, or coordination boundary explicitly.",
             "Coordinate hydraulic layouts, equipment, risers, ceiling zones, penetrations, fire stopping, waterproofing, structure, fire, mechanical, electrical, civil, and architectural interfaces.",
             "Define approval, landlord-review, authority, certification, inspection, tender, construction-support, testing, commissioning, and handover responsibilities by project stage.",
@@ -310,7 +313,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
         requested_services=(
             "Review the project brief, site constraints, zoning (LEP/DCP), and proposed works.",
             "Advise on permitted use, FSR, height, setbacks, and any merit-based variations required.",
-            "Confirm the planning pathway (CDC/DA) and any State-level (SEPP) referral requirements.",
+            "State the planning pathway (CDC/DA) and any State-level (SEPP) referral requirements.",
         ),
         deliverables=(
             "Planning report / statement of environmental effects fee proposal.",
@@ -526,25 +529,23 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("mechanical consultant"): _normalise_key(
         "mechanical services engineer"
     ),
-    _normalise_key("hvac engineer"): _normalise_key(
-        "mechanical services engineer"
-    ),
+    _normalise_key("hvac engineer"): _normalise_key("mechanical services engineer"),
     _normalise_key("services engineer mechanical"): _normalise_key(
         "mechanical services engineer"
     ),
     _normalise_key("civil engineer"): _normalise_key("civil / stormwater engineer"),
-    _normalise_key("stormwater engineer"): _normalise_key("civil / stormwater engineer"),
-    _normalise_key("stormwater consultant"): _normalise_key("civil / stormwater engineer"),
+    _normalise_key("stormwater engineer"): _normalise_key(
+        "civil / stormwater engineer"
+    ),
+    _normalise_key("stormwater consultant"): _normalise_key(
+        "civil / stormwater engineer"
+    ),
     _normalise_key("esd consultant"): _normalise_key("sustainability consultant"),
     _normalise_key("ecologically sustainable design consultant"): _normalise_key(
         "sustainability consultant"
     ),
-    _normalise_key("ict consultant"): _normalise_key(
-        "ICT / AV / security consultant"
-    ),
-    _normalise_key("av consultant"): _normalise_key(
-        "ICT / AV / security consultant"
-    ),
+    _normalise_key("ict consultant"): _normalise_key("ICT / AV / security consultant"),
+    _normalise_key("av consultant"): _normalise_key("ICT / AV / security consultant"),
     _normalise_key("security consultant"): _normalise_key(
         "ICT / AV / security consultant"
     ),
@@ -576,7 +577,7 @@ class NonConsultantDiscipline(ValueError):
         super().__init__(
             f"{discipline!r} is a construction contractor, not a consultant "
             "discipline. Use the head-contractor procurement path (EOI/RFT), not "
-            "consultant procurement, which only produces a request for fee proposal."
+            "consultant procurement, which produces a consultant Request for Tender."
         )
 
 
@@ -689,7 +690,7 @@ def normalise_discipline(discipline: str) -> DisciplineProfile:
         cleaned,
         requested_services=(
             f"Review the project brief, available design information, and approval pathway for {cleaned} services.",
-            "Confirm the scope, assumptions, deliverables, programme, exclusions, and required client inputs.",
+            "Set out the scope, assumptions, deliverables, programme, exclusions, and required client inputs.",
             "Identify coordination, authority, tender, and construction-stage services needed for the project.",
         ),
         deliverables=(
@@ -738,8 +739,12 @@ class ConsultantDocument(ProcurementDocument):
     runtime_name = RUNTIME_NAME
     provenance_target_key = "discipline"
     trace_tool_name = "draft_consultant_procurement_artifact"
-    trace_generation_purpose = "Generated and saved the consultant procurement artefact."
-    trace_evidence_purpose = "Gathered active-project evidence for the RFP basis."
+    trace_generation_purpose = (
+        "Generated and saved the consultant procurement artefact."
+    )
+    trace_evidence_purpose = (
+        "Gathered active-project evidence for the consultant tender basis."
+    )
     trace_guidance_purpose = "Gathered SiteWise consultant procurement guidance."
     load_required_seed_content = True
 
@@ -747,11 +752,9 @@ class ConsultantDocument(ProcurementDocument):
         return normalise_discipline(raw)
 
     def title(self, target: ProcurementTarget) -> str:
-        return f"Request for Fee Proposal - {target.name}"
+        return f"Request for Tender - {target.name}"
 
-    def evidence_queries(
-        self, target: ProcurementTarget
-    ) -> tuple[EvidenceQuery, ...]:
+    def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         return _evidence_queries(target)
 
     def platform_query(self, target: ProcurementTarget) -> str:
@@ -762,9 +765,7 @@ class ConsultantDocument(ProcurementDocument):
         )
         return f"{query} {terms}".strip()
 
-    def platform_guidance_paths(
-        self, target: ProcurementTarget
-    ) -> tuple[str, ...]:
+    def platform_guidance_paths(self, target: ProcurementTarget) -> tuple[str, ...]:
         return tuple(getattr(target, "knowledge_paths", ()))
 
     def filter_platform_knowledge(
@@ -845,6 +846,7 @@ class ConsultantDocument(ProcurementDocument):
             max_pages=max_pages,
             instructions=instructions,
             assumptions=assumptions,
+            missing_inputs=missing_inputs,
             project_evidence=rfp_evidence,
         )
         narrative = await run_validated_rfp_narrative(
@@ -858,24 +860,17 @@ class ConsultantDocument(ProcurementDocument):
             target.requested_services
         )
         requested_services_markdown = "\n".join(
-            f"{index}. {line}"
+            f"{index}. {clean_issue_language(line)}"
             for index, line in enumerate(requested_services, start=1)
         )
-        programme_markdown = "\n".join(f"- {line}" for line in narrative.programme)
-        if narrative.programme:
-            programme_sources = " ".join(
-                dict.fromkeys(
-                    token
-                    for line in narrative.programme
-                    for token in re.findall(r"\[\d+\]", line)
-                )
-            )
-            scaffold = scaffold.replace(
-                "| Timeframe | TBC | Confirm |",
-                f"| Timeframe | See programme below | {programme_sources or 'Confirm'} |",
-            )
+        programme_markdown = "\n".join(
+            f"- {clean_issue_language(line)}" for line in narrative.programme
+        )
         return (
-            scaffold.replace(BACKGROUND_PLACEHOLDER, narrative.background)
+            scaffold.replace(
+                BACKGROUND_PLACEHOLDER,
+                clean_issue_language(narrative.background),
+            )
             .replace(
                 REQUESTED_SERVICES_PLACEHOLDER,
                 requested_services_markdown,
@@ -1087,7 +1082,7 @@ def _assumptions_and_missing_inputs(
     if not identity.get("site_address"):
         missing.append("Confirmed site address.")
     if not identity.get("client"):
-        missing.append("Client / owner name for the RFP.")
+        missing.append("Client / owner name for the tender.")
     missing.extend(
         [
             "Preferred fee response date.",
@@ -1104,7 +1099,7 @@ def _assumptions_and_missing_inputs(
         )
 
     assumptions = [
-        "This is a client-issued request for fee proposal, not a consultant-issued fee proposal.",
+        "This is a client-issued Request for Tender seeking a consultant fee response.",
         "The consultant must confirm scope, exclusions, programme, and fee basis before appointment.",
     ]
     if not evidence:
@@ -1123,7 +1118,7 @@ def _is_consultant_fee_proposal(item: dict[str, Any]) -> bool:
     """Identify a received/competing consultant fee proposal.
 
     Such documents must never be circulated as inputs inside a client-issued
-    RFP (leakage), but they are still useful for internal fee reconciliation.
+    tender request (leakage), but they are still useful for internal fee reconciliation.
     """
     text = f"{item.get('filename') or ''} {item.get('relative_path') or ''}".lower()
     if any(marker in text for marker in _FEE_PROPOSAL_MARKERS):

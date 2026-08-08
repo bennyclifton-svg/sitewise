@@ -246,7 +246,7 @@ def test_render_pmp_scaffold_includes_programme_submilestone_table() -> None:
 def test_render_pmp_scaffold_includes_nsw_basix_authority_row() -> None:
     markdown = _render_harrison_clarke_scaffold()
 
-    assert "| BASIX (commitment) | Assumption | Owner / Architect-PM |" in markdown
+    assert "| BASIX (commitment) | Assumption | Owner / Architect |" in markdown
 
 
 def test_render_pmp_scaffold_includes_risk_table_skeleton() -> None:

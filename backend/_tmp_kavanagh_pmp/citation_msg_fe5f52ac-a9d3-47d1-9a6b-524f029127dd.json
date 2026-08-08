@@ -1,0 +1,210 @@
+{
+  "draftId": null,
+  "workflowType": "create_pmp",
+  "workflowTrace": [
+    {
+      "step": "project_snapshot",
+      "status": "complete",
+      "message": "Loaded deterministic Project Snapshot v1.",
+      "metadata": {
+        "schema_version": 1,
+        "content_fingerprint": "52c5cb62bd51b4e73e57b94d3bd3bccb4b8591a73e65e07c0a95465bfa7d07fd"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model_config",
+      "status": "complete",
+      "message": "PMP workflow model resolved to GPT-5.6 Terra (balanced); typed runner will execute via openai-responses:gpt-5.6-terra.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "gate",
+      "status": "passed",
+      "message": "SiteWise three-overlay gate passed.",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 1 of 3.",
+      "metadata": {
+        "batch_count": 8,
+        "batch_index": 0,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "11-tax-invoice-quoin-architecture-01.md",
+          "12-tax-invoice-quoin-architecture-02.md",
+          "13-tax-invoice-quoin-architecture-03.md",
+          "21-tax-invoice-catenary-structures-01.md",
+          "22-tax-invoice-catenary-structures-02.md",
+          "31-tax-invoice-flowline-hydraulics-01.md",
+          "41-tax-invoice-vertex-cost-advisory-01.md",
+          "01-fee-proposal-quoin-architecture.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 2 of 3.",
+      "metadata": {
+        "batch_count": 8,
+        "batch_index": 1,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "04-fee-proposal-vertex-cost-advisory.md",
+          "03-fee-proposal-flowline-hydraulics.md",
+          "05-building-proposal-ironbark-main-works.md",
+          "32-tax-invoice-flowline-hydraulics-02.md",
+          "33-tax-invoice-flowline-hydraulics-03.md",
+          "34-tax-invoice-flowline-hydraulics-04.md",
+          "35-tax-invoice-flowline-hydraulics-05.md",
+          "43-tax-invoice-vertex-cost-advisory-03.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 3 of 3.",
+      "metadata": {
+        "batch_count": 1,
+        "batch_index": 2,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "44-tax-invoice-vertex-cost-advisory-04.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "retrieval",
+      "status": "complete",
+      "message": "Swept all active project evidence and loaded mandatory SiteWise platform sources.",
+      "metadata": {
+        "draft_mode": "evidence_grounded",
+        "total_passages": 36,
+        "project_passages": 17,
+        "platform_passages": 19,
+        "platform_retrieval": "overlay_mandatory_paths",
+        "mandatory_seed_count": 9,
+        "active_corpus_documents": 17
+      },
+      "started_at": null,
+      "duration_ms": 3258
+    },
+    {
+      "step": "evidence_ledger",
+      "status": "complete",
+      "message": "Prioritised high-consequence evidence and surfaced 0 unresolved conflict(s).",
+      "metadata": {
+        "conflicts": [],
+        "conflict_count": 0,
+        "critical_fact_count": 12
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 1,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "validation",
+      "status": "retry",
+      "message": "Greenfield draft validation failed \u2014 retrying model: Create PMP citation support issues: Cited claim is not supported by the mapped source text: R1 | Approval status unknown; verify DA/CC/certifier records before commitment. | Architect-PM | Open | 2026-08-22 | | Obtain authority records.; Cited claim is not supported by the mapped source text: R6 | Unsorted inbox contains later-dated invoices; document-control risk. | Architect-PM | Open | 2026-08-15 | | File and reconcile currency.",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 2,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "validation",
+      "status": "retry",
+      "message": "Greenfield draft validation failed \u2014 retrying model: Create PMP citation support issues: Cited claim is not supported by the mapped source text: Baseline regime: Stage 1 concept/schematic design to DA submission; Stage 2 design development; Stage 3 construction documentation and delivery. Quoin and hydraulic Stage 2 documen; Cited claim is not supported by the mapped source text: **Current commercial reference:** Ironbark\u2019s fixed-price proposal totals $1,234,000 ex GST, excluding listed client/authority and other items; it is not evidenced as accepted. Reta",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 3,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "validation",
+      "status": "failed",
+      "message": "Create PMP citation support issues: Cited claim is not supported by the mapped source text: **Working regime:** Stage 1\u2014concept/schematic design to DA submission; Stage 2\u2014design development; Stage 3\u2014construction documentation and delivery (**Assumption**, PMP baseline). Q",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    }
+  ],
+  "workflowStatus": "failed"
+}

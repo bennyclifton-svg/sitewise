@@ -82,6 +82,8 @@ async def create_procurement_request(
 ) -> ProcurementRequest:
     if kind not in REQUEST_KINDS:
         raise ValueError("invalid procurement request kind")
+    if kind == "trade_rfq":
+        kind = "trade_rft"
     name, slug = normalise_target_name(target_name)
     request = ProcurementRequest(
         project_id=project_id,

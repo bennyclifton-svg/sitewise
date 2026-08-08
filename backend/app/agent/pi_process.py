@@ -1,4 +1,4 @@
-"""Pi agent subprocess for corpus Q&A turns (retrieval MCP tools only)."""
+"""Pi agent subprocess for project turns using explicitly allowed MCP tools."""
 
 from __future__ import annotations
 
@@ -62,6 +62,11 @@ PI_MCP_DIRECT_TOOLS = (
     "find_candidate_tender_documents",
     "get_tender_quote_selection",
     "replace_tender_quote_selection",
+)
+
+PI_WEB_DIRECT_TOOLS = (
+    "search_web",
+    "read_web_source",
 )
 
 # Pi serializes complete tool results and terminal events as single JSONL records.
@@ -245,7 +250,14 @@ def _write_pi_mcp_config(cwd: Path, *, mcp_url: str) -> None:
                 "url": mcp_url,
                 "headers": {"Authorization": "Bearer ${CLERK_MCP_TOKEN}"},
                 "bearerTokenEnv": "CLERK_MCP_TOKEN",
-                "directTools": list(PI_MCP_DIRECT_TOOLS),
+                "directTools": [
+                    *PI_MCP_DIRECT_TOOLS,
+                    *(
+                        PI_WEB_DIRECT_TOOLS
+                        if settings.agent_web_research_enabled
+                        else ()
+                    ),
+                ],
             }
         }
     }

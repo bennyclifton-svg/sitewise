@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   DecisionControl,
+  DecisionSchedule,
+  groupConsecutiveDecisionFences,
   selectionIsEvidenced,
 } from "@/components/project/DecisionControl";
 import { api } from "@/lib/api";
@@ -15,7 +17,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 describe("DecisionControl", () => {
-  it("renders button options even when there are more than four", () => {
+  it("renders compact row options without placeholder rationale", () => {
     render(
       <DecisionControl
         projectId="project-1"
@@ -32,20 +34,23 @@ describe("DecisionControl", () => {
           selected: "engineered_stone",
           source: "agent",
           evidenced: false,
-          rationale: "Selected default is a placeholder.",
+          rationale: "Selected default placeholder project sources do not nominate flooring.",
         }}
       />,
     );
 
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(5);
-    const badge = screen.getByText("AI selection");
+    expect(
+      screen.queryByText(/selected default placeholder/i),
+    ).not.toBeInTheDocument();
+    const badge = screen.getByText("[AI]");
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveClass("evidence-status-chip");
-    expect(badge.querySelector("[data-status-dot='caution']")).toBeTruthy();
+    expect(badge.querySelector("[data-status-dot]")).toBeNull();
   });
 
-  it("marks evidenced agent selections and saves a new selection", async () => {
+  it("marks agent selections as AI and user overrides as User", async () => {
     const user = userEvent.setup();
     vi.mocked(api.putDecision).mockResolvedValue({
       decision: {
@@ -106,7 +111,8 @@ describe("DecisionControl", () => {
       />,
     );
 
-    expect(screen.getByText("From evidence")).toBeInTheDocument();
+    expect(screen.getByText("[AI]")).toBeInTheDocument();
+    expect(screen.queryByText("From evidence")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Design & Construct" }));
     expect(api.putDecision).toHaveBeenCalledWith(
       "project-1",
@@ -115,7 +121,68 @@ describe("DecisionControl", () => {
       1,
       1,
     );
-    expect(screen.getByText("Your selection")).toBeInTheDocument();
+    expect(screen.getByText("[User]")).toBeInTheDocument();
+    expect(screen.queryByText("Your selection")).not.toBeInTheDocument();
+  });
+});
+
+describe("DecisionSchedule", () => {
+  it("renders consecutive finishes in one shell tile", () => {
+    const { container } = render(
+      <DecisionSchedule
+        projectId="project-1"
+        decisions={[
+          {
+            id: "primary-flooring",
+            label: "Primary flooring system",
+            options: [
+              { value: "carpet", label: "Carpet" },
+              { value: "timber", label: "Engineered timber" },
+            ],
+            selected: "carpet",
+            source: "agent",
+          },
+          {
+            id: "wall-finish",
+            label: "Primary wall finish",
+            options: [
+              { value: "paint", label: "Paint" },
+              { value: "tile", label: "Tile" },
+            ],
+            selected: "paint",
+            source: "agent",
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelectorAll(".sw-specular")).toHaveLength(1);
+    expect(screen.getByText("Primary flooring system")).toBeInTheDocument();
+    expect(screen.getByText("Primary wall finish")).toBeInTheDocument();
+    expect(screen.getAllByText("[AI]")).toHaveLength(2);
+  });
+});
+
+describe("groupConsecutiveDecisionFences", () => {
+  it("collapses consecutive decision fences into one group fence", () => {
+    const markdown = `## Finishes
+
+\`\`\`pmp-decision
+{"id":"a","label":"A","options":[{"value":"1","label":"One"}],"selected":"1"}
+\`\`\`
+
+\`\`\`pmp-decision
+{"id":"b","label":"B","options":[{"value":"2","label":"Two"}],"selected":"2"}
+\`\`\`
+
+## Next
+`;
+    const grouped = groupConsecutiveDecisionFences(markdown);
+    expect(grouped).toContain("```pmp-decision-group");
+    expect(grouped).not.toMatch(/```pmp-decision\n/);
+    expect(grouped).toContain('\\"id\\":\\"a\\"');
+    expect(grouped).toContain('\\"id\\":\\"b\\"');
+    expect(grouped).toContain("## Next");
   });
 });
 

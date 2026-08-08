@@ -66,6 +66,11 @@ def test_build_cost_plan_workbook_preserves_sitewise_excel_contract() -> None:
     assert _has_validation(summary, "K2", "InvoiceBillingMonths")
     assert _has_validation(loaded["Invoices"], "F5:F500", "CostItemLookup")
     assert _has_validation(loaded["Variations"], "B5:B500", "CostItemLookup")
+    assert summary["A1"].fill.fgColor.rgb[-6:] == "2F72C4"
+    assert summary["A2"].fill.fgColor.rgb[-6:] == "E8E8E4"
+    assert summary["A4"].fill.fgColor.rgb[-6:] == "2C3037"
+    assert summary["K2"].fill.fgColor.rgb[-6:] == "E8EEF6"
+    assert summary["A4"].border.left.color.rgb[-6:] == "D6D6D0"
 
 
 def test_workbook_preview_rolls_up_invoice_and_variation_values() -> None:
@@ -140,7 +145,9 @@ def test_canonical_invoice_rows_populate_existing_register_and_summary() -> None
 
     preview = workbook_preview_from_bytes(workbook.content)
     summary_preview = next(sheet for sheet in preview.sheets if sheet.name == "Summary")
-    architect_row = next(row for row in summary_preview.rows if row[2] == "Architect PM")
+    architect_row = next(
+        row for row in summary_preview.rows if row[2] == "Architect PM"
+    )
     assert architect_row[3] == "$148,500"
     assert architect_row[4] == ""
     assert architect_row[9] == "$24,000"

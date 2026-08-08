@@ -930,7 +930,7 @@ export function ProjectCockpitPage() {
             }
           : {
               package: targetName,
-              kind: kind === "trade_rft" ? "rft" : "rfq",
+              kind: "rft",
               max_pages: 3,
             };
       const queued = await api.startWorkflowRun(
@@ -1355,6 +1355,7 @@ export function ProjectCockpitPage() {
           <DraftReviewPanel
           projectId={project.id}
           draft={activeDraft}
+          projectTitle={project.title}
           workflowType={activeWorkflowType}
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);

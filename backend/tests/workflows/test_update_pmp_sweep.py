@@ -634,9 +634,8 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
     advisory = next(event for event in response.trace if event.step == "coverage")
     assert advisory.status == "advisory"
     saved_markdown = create_draft_mock.await_args.kwargs["content_markdown"]
-    assert "Evidence coverage register" in saved_markdown
-    assert "1 November 2026" in saved_markdown
-    assert "42 workstations" in saved_markdown
+    assert "Evidence coverage register" not in saved_markdown
+    assert "| Section | Evidence status | Citation |" not in saved_markdown
 
 
 @pytest.mark.anyio

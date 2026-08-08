@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import ANY, AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -35,7 +35,9 @@ def _project(*, owner_user_id: uuid.UUID = USER_ID) -> Project:
     )
 
 
-def _draft(*, draft_id: uuid.UUID = DRAFT_ID, version: int, content: str) -> DraftArtifact:
+def _draft(
+    *, draft_id: uuid.UUID = DRAFT_ID, version: int, content: str
+) -> DraftArtifact:
     return DraftArtifact(
         id=draft_id,
         project_id=PROJECT_ID,
@@ -111,7 +113,9 @@ def test_patch_project_draft_creates_new_version(
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)),
+        patch(
+            "app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)
+        ),
         patch(
             "app.api.projects.revise_workflow_artefact",
             new=AsyncMock(return_value=updated),
@@ -153,7 +157,9 @@ def test_patch_cost_plan_draft_regenerates_workbook(
     with (
         patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
         patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
-        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)),
+        patch(
+            "app.api.projects.get_draft_artifact", new=AsyncMock(return_value=original)
+        ),
         patch(
             "app.api.projects.revise_workflow_artefact",
             new=AsyncMock(return_value=updated),
@@ -224,3 +230,82 @@ def test_get_project_draft_by_workspace_path_returns_historical_revision(
         project_id=PROJECT_ID,
         workspace_path=historical.workspace_path,
     )
+
+
+def test_export_project_draft_renders_and_caches_pdf(
+    client: TestClient,
+) -> None:
+    draft = _draft(
+        version=3,
+        content="# Project Management Plan\n\n## Citation key\n\n[1] `brief.pdf`",
+    )
+    render_export = MagicMock(return_value=b"%PDF-1.7 issue")
+    upload = MagicMock(return_value="storage-key")
+    upsert = AsyncMock()
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=draft)),
+        patch(
+            "app.api.projects.get_artefact_export",
+            new=AsyncMock(return_value=None),
+        ),
+        patch("app.api.projects.render_artifact_export", new=render_export),
+        patch("app.api.projects.upload_project_file", new=upload),
+        patch("app.api.projects.cache_ready_artefact_export", new=upsert),
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}/export",
+            params={"format": "pdf"},
+        )
+
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["cache-control"] == "private, no-cache"
+    assert (
+        'filename="Project_Management_Plan_v03.pdf"'
+        in response.headers["content-disposition"]
+    )
+    render_export.assert_called_once_with(
+        draft.content_markdown,
+        export_format="pdf",
+        project_title="Demo Project",
+        artifact_title="Project Management Plan",
+        version=3,
+    )
+    upload.assert_called_once()
+    upsert.assert_awaited_once()
+
+
+def test_export_project_draft_reuses_cached_bytes(client: TestClient) -> None:
+    draft = _draft(version=3, content="# Project Management Plan")
+    cached = MagicMock(
+        storage_key="cached/export.pdf",
+        status="ready",
+        workspace_path=ANY,
+    )
+    render_export = MagicMock()
+    download = MagicMock(return_value=b"%PDF-1.7 cached")
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=draft)),
+        patch(
+            "app.api.projects.get_artefact_export",
+            new=AsyncMock(return_value=cached),
+        ),
+        patch("app.api.projects.render_artifact_export", new=render_export),
+        patch("app.api.projects.download_project_file", new=download),
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}/export",
+            params={"format": "pdf"},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"%PDF-1.7 cached"
+    download.assert_called_once_with(storage_key="cached/export.pdf")
+    render_export.assert_not_called()

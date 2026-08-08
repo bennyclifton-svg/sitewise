@@ -50,7 +50,7 @@ def test_unknown_work_type_uses_base_labels() -> None:
 
 def test_legacy_no_taxonomy_section_tuple_still_available() -> None:
     headings = required_section_headings()
-    assert "Architect-PM role and appointment" in headings
+    assert "Architect role and appointment" in headings
     assert "Project snapshot" not in headings
 
 

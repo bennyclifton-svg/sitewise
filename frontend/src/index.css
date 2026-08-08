@@ -185,26 +185,6 @@ html.sw-atmosphere-dense {
   }
 }
 
-@keyframes streaming-trace-signal {
-  0%,
-  6%,
-  100% {
-    background-color: var(--streaming-trace-rest);
-    opacity: 0.42;
-    transform: scale(0.78);
-  }
-  18% {
-    background-color: var(--cockpit-workflow-icon);
-    opacity: 1;
-    transform: scale(1.55);
-  }
-  34% {
-    background-color: var(--cockpit-workflow-icon);
-    opacity: 0.68;
-    transform: scale(1);
-  }
-}
-
 @layer components {
   .cockpit-skeleton {
     position: relative;
@@ -230,58 +210,6 @@ html.sw-atmosphere-dense {
   @media (prefers-reduced-motion: reduce) {
     .cockpit-skeleton::after {
       animation: none;
-    }
-  }
-
-  .streaming-trace {
-    --streaming-trace-rest: color-mix(
-      in oklab,
-      var(--muted-foreground) 64%,
-      transparent
-    );
-    position: relative;
-    isolation: isolate;
-    display: grid;
-    flex: none;
-    width: 2.5rem;
-    height: 0.75rem;
-    grid-template-columns: repeat(6, 1fr);
-    place-items: center;
-  }
-
-  .streaming-trace::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    right: 0.125rem;
-    left: 0.125rem;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      var(--border-strong) 16%,
-      var(--border-strong) 84%,
-      transparent
-    );
-    opacity: 0.56;
-  }
-
-  .streaming-trace__point {
-    width: 0.2rem;
-    height: 0.2rem;
-    border-radius: 9999px;
-    background-color: var(--streaming-trace-rest);
-    opacity: 0.42;
-    animation: streaming-trace-signal 1.35s ease-in-out infinite;
-    will-change: background-color, opacity, transform;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .streaming-trace__point {
-      animation: none;
-      opacity: 0.58;
-      transform: none;
-      will-change: auto;
     }
   }
 
@@ -553,19 +481,19 @@ html.sw-atmosphere-dense {
   }
 
   .workbook-table--summary col.workbook-col-code {
-    width: 1.1rem;
+    width: 2.6rem;
   }
 
   .workbook-table--summary col.workbook-col-category {
-    width: 8.5%;
+    width: 13%;
   }
 
   .workbook-table--summary col.workbook-col-item {
-    width: 12%;
+    width: 18%;
   }
 
   .workbook-table--summary col.workbook-col-money {
-    width: 7.4%;
+    width: 7.3%;
   }
 
   .workbook-table--register {
@@ -624,6 +552,15 @@ html.sw-atmosphere-dense {
     padding-right: 0;
     text-align: center;
     white-space: nowrap;
+  }
+
+  .workbook-cell--code-header {
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   .workbook-cell--wrap {
@@ -705,10 +642,61 @@ html.sw-atmosphere-dense {
   color: var(--decision-assumed-text);
 }
 
+/* Web artefacts stay on the black SiteWise workbench; exports invert for paper. */
+.artifact-sheet,
+.artifact-workbook {
+  color: var(--sw-text-secondary);
+  color-scheme: dark;
+  background: var(--sw-void);
+  border-color: var(--sw-edge);
+}
+
+.artifact-sheet > header,
+.artifact-sheet > div,
+.artifact-workbook > header {
+  border-color: var(--sw-edge);
+}
+
+.artifact-sheet .draft-markdown {
+  color: var(--sw-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.artifact-sheet .draft-markdown h1 {
+  color: var(--sw-bone);
+  font-family: var(--sw-font-display);
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: var(--sw-weight-display);
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  margin-bottom: 2rem;
+}
+
+.artifact-sheet .draft-markdown h2 {
+  border-color: var(--sw-edge);
+  color: var(--sw-beam);
+  font-size: 1.25rem;
+  font-weight: var(--sw-weight-medium);
+  letter-spacing: -0.015em;
+}
+
+.artifact-sheet .draft-markdown h3,
+.artifact-sheet .draft-markdown h4,
+.artifact-sheet .draft-markdown strong {
+  color: var(--sw-text-primary);
+  font-weight: var(--sw-weight-strong);
+}
+
+.artifact-sheet .draft-markdown nav {
+  border-right: 1px solid var(--sw-edge);
+  padding-right: 1rem;
+}
+
 @media print {
   @page {
     size: A4;
-    margin: 12mm 10mm 14mm;
+    margin: 16mm 16mm 18mm;
   }
 
   .draft-markdown [data-md-changed] {
@@ -721,6 +709,92 @@ html.sw-atmosphere-dense {
   body {
     background: white !important;
     color: black !important;
+  }
+
+  .artifact-sheet,
+  .artifact-workbook {
+    --background: #ffffff;
+    --foreground: #191c21;
+    --muted: #f4f4f1;
+    --muted-foreground: #5c5f66;
+    --secondary: #f4f4f1;
+    --secondary-foreground: #191c21;
+    --border: #d6d6d0;
+    --text-primary: #191c21;
+    --text-body: #2c3037;
+    --text-muted: #5c5f66;
+    color: #2c3037 !important;
+    color-scheme: light;
+    background: #ffffff !important;
+    border-color: #d6d6d0 !important;
+  }
+
+  .artifact-sheet {
+    border: 0 !important;
+  }
+
+  .artifact-sheet > header,
+  .artifact-sheet > div,
+  .artifact-workbook > header,
+  .artifact-sheet .draft-markdown h2,
+  .artifact-sheet .draft-markdown .pmp-table-wrap,
+  .artifact-sheet .draft-markdown th,
+  .artifact-sheet .draft-markdown td {
+    border-color: #d6d6d0 !important;
+  }
+
+  .artifact-sheet .draft-markdown,
+  .artifact-sheet .draft-markdown td {
+    color: #2c3037 !important;
+  }
+
+  .artifact-sheet .draft-markdown h1,
+  .artifact-sheet .draft-markdown h3,
+  .artifact-sheet .draft-markdown h4,
+  .artifact-sheet .draft-markdown strong {
+    color: #191c21 !important;
+  }
+
+  .artifact-sheet .draft-markdown h2,
+  .artifact-sheet .draft-markdown a {
+    color: #245b9c !important;
+  }
+
+  .artifact-sheet .draft-markdown thead {
+    color: #ffffff !important;
+    background: #2c3037 !important;
+  }
+
+  .artifact-sheet .draft-markdown th {
+    color: #ffffff !important;
+  }
+
+  .artifact-sheet .draft-markdown tbody tr:nth-child(even) {
+    background: #f4f4f1 !important;
+  }
+
+  .artifact-workbook .workbook-cell {
+    color: #2c3037 !important;
+    background: #ffffff !important;
+  }
+
+  .artifact-workbook .workbook-cell--title,
+  .artifact-workbook .workbook-cell--grand {
+    color: #ffffff !important;
+    background: #2f72c4 !important;
+  }
+
+  .artifact-workbook .workbook-cell--header {
+    color: #ffffff !important;
+    background: #2c3037 !important;
+  }
+
+  .artifact-workbook .workbook-cell--subtitle,
+  .artifact-workbook .workbook-cell--control,
+  .artifact-workbook .workbook-cell--subtotal,
+  .artifact-workbook .workbook-cell--muted {
+    color: #191c21 !important;
+    background: #f4f4f1 !important;
   }
 
   .draft-markdown {

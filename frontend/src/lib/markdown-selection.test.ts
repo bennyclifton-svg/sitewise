@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { normalizeDraftMarkdown } from "@/components/project/MarkdownContent";
+import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { isAnchorError, resolveSelectionAnchor } from "@/lib/markdown-selection";
 
 const SOURCE = `# Plan

@@ -198,8 +198,8 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
         {isRunningProcurement ? "running" : "idle"}
       </div>
       {onRunProcurement ? (
-        <button type="button" onClick={() => onRunProcurement("trade_rfq", "Electrical")}> 
-          Create electrical RFQ
+        <button type="button" onClick={() => onRunProcurement("trade_rft", "Electrical")}>
+          Create electrical RFT
         </button>
       ) : null}
     </div>
@@ -461,12 +461,12 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     );
   });
 
-  it("queues a trade RFQ for worker-side request attachment", async () => {
+  it("queues a trade RFT for worker-side request attachment", async () => {
     const user = userEvent.setup();
     renderProjectCockpit();
 
     await user.click(
-      await screen.findByRole("button", { name: "Create electrical RFQ" }),
+      await screen.findByRole("button", { name: "Create electrical RFT" }),
     );
 
     await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
@@ -481,7 +481,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
         idempotency_key: expect.any(String),
         parameters: {
           package: "Electrical",
-          kind: "rfq",
+          kind: "rft",
           max_pages: 3,
         },
       }),

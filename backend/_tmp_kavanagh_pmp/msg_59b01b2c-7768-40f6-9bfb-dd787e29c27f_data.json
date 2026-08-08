@@ -1,0 +1,249 @@
+{
+  "draftId": "56775dfe-e1c9-4727-9872-cde76c2dc715",
+  "workflowType": "create_pmp",
+  "workflowTrace": [
+    {
+      "step": "project_snapshot",
+      "status": "complete",
+      "message": "Loaded deterministic Project Snapshot v1.",
+      "metadata": {
+        "schema_version": 1,
+        "content_fingerprint": "58bf9187e93fe33204efe966d6ed416e8be458e61a0f59af250e39e8dedb1dfc"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model_config",
+      "status": "complete",
+      "message": "PMP workflow model resolved to GPT-5.6 Terra (balanced); typed runner will execute via openai-responses:gpt-5.6-terra.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "gate",
+      "status": "passed",
+      "message": "SiteWise three-overlay gate passed.",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 1 of 3.",
+      "metadata": {
+        "batch_count": 8,
+        "batch_index": 0,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "11-tax-invoice-quoin-architecture-01.md",
+          "12-tax-invoice-quoin-architecture-02.md",
+          "13-tax-invoice-quoin-architecture-03.md",
+          "21-tax-invoice-catenary-structures-01.md",
+          "22-tax-invoice-catenary-structures-02.md",
+          "31-tax-invoice-flowline-hydraulics-01.md",
+          "41-tax-invoice-vertex-cost-advisory-01.md",
+          "01-fee-proposal-quoin-architecture.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 2 of 3.",
+      "metadata": {
+        "batch_count": 8,
+        "batch_index": 1,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "04-fee-proposal-vertex-cost-advisory.md",
+          "03-fee-proposal-flowline-hydraulics.md",
+          "05-building-proposal-ironbark-main-works.md",
+          "32-tax-invoice-flowline-hydraulics-02.md",
+          "33-tax-invoice-flowline-hydraulics-03.md",
+          "34-tax-invoice-flowline-hydraulics-04.md",
+          "35-tax-invoice-flowline-hydraulics-05.md",
+          "43-tax-invoice-vertex-cost-advisory-03.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "evidence_sweep",
+      "status": "complete",
+      "message": "Swept evidence batch 3 of 3.",
+      "metadata": {
+        "batch_count": 1,
+        "batch_index": 2,
+        "skipped_superseded": 0,
+        "active_document_names": [
+          "44-tax-invoice-vertex-cost-advisory-04.md"
+        ],
+        "skipped_revision_duplicates": 0
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "retrieval",
+      "status": "complete",
+      "message": "Swept all active project evidence and loaded mandatory SiteWise platform sources.",
+      "metadata": {
+        "draft_mode": "evidence_grounded",
+        "total_passages": 36,
+        "project_passages": 17,
+        "platform_passages": 19,
+        "platform_retrieval": "overlay_mandatory_paths",
+        "mandatory_seed_count": 9,
+        "active_corpus_documents": 17
+      },
+      "started_at": null,
+      "duration_ms": 7303
+    },
+    {
+      "step": "evidence_ledger",
+      "status": "complete",
+      "message": "Prioritised high-consequence evidence and surfaced 0 unresolved conflict(s).",
+      "metadata": {
+        "conflicts": [],
+        "conflict_count": 0,
+        "critical_fact_count": 12
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 1,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "validation",
+      "status": "retry",
+      "message": "Greenfield draft validation failed \u2014 retrying model: Create PMP citation support issues: Cited claim is not supported by the mapped source text: QS / cost adviser | Vertex Cost Advisory | Cost plans, tender comparison, cash flow and variation review | $45,000 ex GST | Proposal/invoicing on file; signed appointment unverifie; Cited claim is not supported by the mapped source text: Hydraulic engineer | Flowline Hydraulics | Water, sanitary/stormwater, reuse and pool-backwash interface | $32,500 ex GST | Proposal/invoicing on file; signed appointment unverifie; Cited claim is not supported by the mapped source text: The unaccepted builder proposal is $1,234,000 ex GST ($1,357,400 incl GST), including provisional allowances of $30,000 for rock removal and $22,000 for pool-interface drainage; wr",
+      "metadata": {},
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "model",
+      "status": "complete",
+      "message": "Create PMP model run returned a typed draft output.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "attempt": 2,
+        "draft_mode": "evidence_grounded",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "generation",
+      "status": "complete",
+      "message": "Generated and normalized the Project Plan draft.",
+      "metadata": {
+        "compiler": "legacy"
+      },
+      "started_at": null,
+      "duration_ms": 108304
+    },
+    {
+      "step": "validation",
+      "status": "passed",
+      "message": "Create PMP output passed validation.",
+      "metadata": {
+        "draft_mode": "evidence_grounded"
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "coverage",
+      "status": "advisory",
+      "message": "Coverage advisory (not enforced): backfilled 0 evidence fact(s) into the Evidence coverage register and merged 12 missing evidence ref(s).",
+      "metadata": {
+        "backfilled_facts": [],
+        "added_evidence_refs": [
+          "project_evidence:04-projects/kavanagh/01-cost/11-tax-invoice-quoin-architecture-01.md#chunk=43c314b4-6ebb-5a31-b954-e7802f339216",
+          "project_evidence:04-projects/kavanagh/01-cost/12-tax-invoice-quoin-architecture-02.md#chunk=d23f0b5f-4ce1-5d7c-b3a9-e0a4f5a134f6",
+          "project_evidence:04-projects/kavanagh/01-cost/13-tax-invoice-quoin-architecture-03.md#chunk=6e018185-cb65-520f-b34a-0d2933ae105d",
+          "project_evidence:04-projects/kavanagh/01-cost/22-tax-invoice-catenary-structures-02.md#chunk=0ca4b40d-0797-5f4e-83f8-bd1654b965c8",
+          "project_evidence:04-projects/kavanagh/01-cost/31-tax-invoice-flowline-hydraulics-01.md#chunk=c550e3b1-0ad4-5d64-90bb-076551fbaf54",
+          "project_evidence:04-projects/kavanagh/01-cost/41-tax-invoice-vertex-cost-advisory-01.md#chunk=58da45f4-83bf-550e-9cf3-55242625a483",
+          "project_evidence:04-projects/kavanagh/_inbox/32-tax-invoice-flowline-hydraulics-02.md#chunk=29ec2d8d-db38-59cd-b0c8-bb3c89e38e90",
+          "project_evidence:04-projects/kavanagh/_inbox/33-tax-invoice-flowline-hydraulics-03.md#chunk=a9092ca6-4cc5-52c3-bb8d-c418a29674e1",
+          "project_evidence:04-projects/kavanagh/_inbox/34-tax-invoice-flowline-hydraulics-04.md#chunk=186cf4a7-0faf-5fbc-bee5-2140a16f23d2",
+          "project_evidence:04-projects/kavanagh/_inbox/35-tax-invoice-flowline-hydraulics-05.md#chunk=604a4854-39c6-5a99-be0d-c81dbccc8789",
+          "project_evidence:04-projects/kavanagh/_inbox/43-tax-invoice-vertex-cost-advisory-03.md#chunk=4f3f7ef9-22b8-5176-82ca-87d7cfdaa0b0",
+          "project_evidence:04-projects/kavanagh/_inbox/44-tax-invoice-vertex-cost-advisory-04.md#chunk=5aa5ccfb-0071-5fa8-92bd-3c205fa678fd"
+        ]
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "length",
+      "status": "advisory",
+      "message": "Length advisory (not enforced): Actions and decisions is 86 words, budget ~36 - condense.; Citation key is 131 words, budget ~72 - condense.",
+      "metadata": {
+        "max_words": 1800,
+        "word_count": 1712
+      },
+      "started_at": null,
+      "duration_ms": null
+    },
+    {
+      "step": "draft_save",
+      "status": "complete",
+      "message": "Saved Create PMP as a versioned draft artefact.",
+      "metadata": {
+        "model": "gpt-5.6-terra",
+        "version": 1,
+        "draft_id": "56775dfe-e1c9-4727-9872-cde76c2dc715",
+        "model_label": "GPT-5.6 Terra (balanced)",
+        "model_source": "PMP_MODEL",
+        "model_provider": "openai-api",
+        "model_config_id": "openai-api:gpt-5.6-terra",
+        "model_execution_id": "openai-responses:gpt-5.6-terra",
+        "model_execution_provider": "openai-responses"
+      },
+      "started_at": null,
+      "duration_ms": 24110
+    }
+  ],
+  "workflowStatus": "complete"
+}

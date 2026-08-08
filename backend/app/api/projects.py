@@ -1,9 +1,11 @@
 import asyncio
 import mimetypes
+import re
 import time
 import uuid
 from datetime import datetime
-from typing import Any
+from pathlib import PurePosixPath
+from typing import Any, Literal
 from urllib.parse import quote
 
 from fastapi import (
@@ -29,6 +31,10 @@ from app.database.activity_events import (
     delete_project_activity_runs,
     list_project_activity_runs,
     record_activity_events,
+)
+from app.database.artefact_exports import (
+    cache_ready_artefact_export,
+    get_artefact_export,
 )
 from app.database.chats import (
     create_thread,
@@ -102,6 +108,7 @@ from app.schemas.projects import (
     PdfAnalyzeResponse,
     PdfSheetProposal,
     PlatformKnowledgeBucket,
+    PlatformKnowledgeDocument,
     PlatformKnowledgeStatus,
     ProcurementRequestCreateRequest,
     ProcurementRequestListResponse,
@@ -200,7 +207,11 @@ from app.schemas.workflow_runs import (
     WorkflowRunView,
 )
 from app.evidence.service import delete_project_evidence, require_project_evidence_ids
-from app.storage.project_files import delete_project_files, download_project_file
+from app.storage.project_files import (
+    delete_project_files,
+    download_project_file,
+    upload_project_file,
+)
 from app.inbox.service import InboxUploadItem, upload_inbox_files
 from app.intake.repair_service import (
     apply_existing_file_repairs,
@@ -217,7 +228,11 @@ from app.database.workspace_files import (
     get_workspace_file_by_path,
     list_workspace_files_for_project,
 )
-from app.inbox.paths import is_inbox_workspace_path
+from app.inbox.paths import build_storage_key, is_inbox_workspace_path
+from app.sitewise.artifact_exports import (
+    EXPORT_RENDERER_VERSION,
+    render_artifact_export,
+)
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.taxonomy import (
     derive_risk_flags,
@@ -229,6 +244,7 @@ from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.consultant_procurement import (
     sync_consultant_procurement_draft_workspace,
 )
+from ingest.hashing import bytes_content_hash
 from app.workflows.contractor_procurement import sync_contractor_eoi_draft_workspace
 from app.workflows.create_cost_plan import (
     run_create_cost_plan_workflow,
@@ -265,6 +281,9 @@ PROCUREMENT_DRAFT_PREFIXES = (
     "trade_rft_",
     "trade_rfq_",
 )
+
+ISSUE_EXPORT_WORKFLOWS = frozenset({"create_pmp", "update_pmp"})
+ISSUE_EXPORT_PREFIXES = ("consultant_procurement_", "trade_rft_", "trade_rfq_")
 
 
 @router.get(
@@ -611,7 +630,9 @@ async def _ensure_procurement_workspace_files(
                 session, project=project, draft=draft
             )
         elif summary.workflow_type.startswith("contractor_eoi_"):
-            await sync_contractor_eoi_draft_workspace(session, project=project, draft=draft)
+            await sync_contractor_eoi_draft_workspace(
+                session, project=project, draft=draft
+            )
         elif summary.workflow_type.startswith(("trade_rft_", "trade_rfq_")):
             await sync_trade_procurement_draft_workspace(
                 session, project=project, draft=draft
@@ -701,8 +722,10 @@ def _workspace_paths_for_tree(
 def _is_cost_plan_markdown_workspace_path(path: str) -> bool:
     normalised = path.replace("\\", "/").lower()
     folder, _, filename = normalised.rpartition("/")
-    return folder.endswith("/01-cost") and filename.startswith("cost_plan_v") and filename.endswith(
-        ".md"
+    return (
+        folder.endswith("/01-cost")
+        and filename.startswith("cost_plan_v")
+        and filename.endswith(".md")
     )
 
 
@@ -804,14 +827,18 @@ async def _apply_invoice_statuses(
         if row.workspace_file_id is not None
     }
     active_briefs = (
-        await session.execute(
-            select(WorkflowRun.run_brief).where(
-                WorkflowRun.project_id == project_id,
-                WorkflowRun.workflow_type == "process_invoices",
-                WorkflowRun.state.in_(("queued", "running")),
+        (
+            await session.execute(
+                select(WorkflowRun.run_brief).where(
+                    WorkflowRun.project_id == project_id,
+                    WorkflowRun.workflow_type == "process_invoices",
+                    WorkflowRun.state.in_(("queued", "running")),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     process_all = False
     selected_documents: set[uuid.UUID] = set()
     for brief in active_briefs:
@@ -881,18 +908,34 @@ async def _first_evidence_preview(
 async def _platform_knowledge_status(session: AsyncSession) -> PlatformKnowledgeStatus:
     kind_expr = SourceDocument.document_metadata["sitewise_knowledge_kind"].astext
     stmt = (
-        select(kind_expr.label("kind"), func.count(SourceDocument.id).label("count"))
+        select(
+            kind_expr.label("kind"),
+            SourceDocument.filename,
+            SourceDocument.relative_path,
+        )
         .where(
             SourceDocument.project_id.is_(None),
             SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
         )
-        .group_by(kind_expr)
-        .order_by(kind_expr.asc())
+        .order_by(kind_expr.asc(), SourceDocument.relative_path.asc())
     )
     result = await session.execute(stmt)
+    documents_by_kind: dict[str, list[PlatformKnowledgeDocument]] = {}
+    for row in result.all():
+        kind = row.kind or "unknown"
+        documents_by_kind.setdefault(kind, []).append(
+            PlatformKnowledgeDocument(
+                filename=row.filename,
+                relative_path=row.relative_path,
+            )
+        )
     buckets = [
-        PlatformKnowledgeBucket(kind=row.kind or "unknown", document_count=row.count)
-        for row in result.all()
+        PlatformKnowledgeBucket(
+            kind=kind,
+            document_count=len(documents),
+            documents=documents,
+        )
+        for kind, documents in documents_by_kind.items()
     ]
     return PlatformKnowledgeStatus(available=bool(buckets), buckets=buckets)
 
@@ -2078,6 +2121,111 @@ async def get_project_draft(
             detail="Draft not found",
         )
     return DraftArtifactResponse.model_validate(draft)
+
+
+@router.get("/{project_id}/drafts/{draft_id}/export")
+async def export_project_draft(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    format: Literal["pdf", "docx"] = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    """Render and cache an immutable issue-document export on first request."""
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    if not (
+        draft.workflow_type in ISSUE_EXPORT_WORKFLOWS
+        or draft.workflow_type.startswith(ISSUE_EXPORT_PREFIXES)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="This artefact does not support Word or PDF export.",
+        )
+
+    source_fingerprint = bytes_content_hash(
+        (
+            f"{EXPORT_RENDERER_VERSION}\0{draft.title}\0{draft.version}\0"
+            f"{draft.content_markdown}"
+        ).encode("utf-8")
+    )
+    filename_stem = re.sub(r"[^A-Za-z0-9]+", "_", draft.title).strip("_") or "Artefact"
+    filename = f"{filename_stem}_v{draft.version:02d}.{format}"
+    parent = PurePosixPath(draft.workspace_path).parent
+    workspace_path = str(
+        parent
+        / "exports"
+        / f"{filename_stem}_v{draft.version:02d}_{source_fingerprint[:12]}.{format}"
+    )
+    cached = await get_artefact_export(
+        session,
+        draft_id=draft.id,
+        export_type=format,
+    )
+    if (
+        cached is not None
+        and cached.status == "ready"
+        and cached.workspace_path == workspace_path
+    ):
+        content = await asyncio.to_thread(
+            download_project_file,
+            storage_key=cached.storage_key,
+        )
+    else:
+        try:
+            content = await asyncio.to_thread(
+                render_artifact_export,
+                draft.content_markdown,
+                export_format=format,
+                project_title=project.title,
+                artifact_title=draft.title,
+                version=draft.version,
+                workflow_type=draft.workflow_type,
+            )
+        except (ImportError, OSError, RuntimeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"{format.upper()} export is unavailable: {exc}",
+            ) from exc
+        storage_key = build_storage_key(str(project.id), workspace_path)
+        await asyncio.to_thread(
+            upload_project_file,
+            storage_key=storage_key,
+            content=content,
+            filename=filename,
+        )
+        await cache_ready_artefact_export(
+            session,
+            current=cached,
+            project_id=project.id,
+            draft_id=draft.id,
+            revision=draft.version,
+            export_type=format,
+            workspace_path=workspace_path,
+            storage_key=storage_key,
+            content_hash=bytes_content_hash(content),
+        )
+
+    media_type = (
+        "application/pdf"
+        if format == "pdf"
+        else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            **_download_headers(filename),
+            "ETag": f'"{bytes_content_hash(content)}"',
+            "Cache-Control": "private, no-cache",
+        },
+    )
 
 
 @router.post("/{project_id}/workflows/create-pmp")

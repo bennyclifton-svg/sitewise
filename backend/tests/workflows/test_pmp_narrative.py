@@ -70,7 +70,9 @@ def _chen_stage1_source_texts() -> list[str]:
     return [
         ENGAGEMENT_FIXTURE.read_text(encoding="utf-8"),
         FEE_FIXTURE.read_text(encoding="utf-8"),
-        (FIXTURE_DIR / "03-owner-project-brief-chen-residence.md").read_text(encoding="utf-8"),
+        (FIXTURE_DIR / "03-owner-project-brief-chen-residence.md").read_text(
+            encoding="utf-8"
+        ),
         (FIXTURE_DIR / "04-email-thread-brief-signoff.md").read_text(encoding="utf-8"),
     ]
 
@@ -83,14 +85,14 @@ def _valid_harrison_clarke_narrative() -> PmpNarrativeOutput:
         ],
         recommendations=[
             "Owner to confirm working budget ceiling by 2026-06-28.",
-            "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-            "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+            "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+            "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
         ],
         register_rows=[
             RegisterRow(
                 id="R-001",
                 description="Master programme",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="engagement letter",
@@ -99,7 +101,7 @@ def _valid_harrison_clarke_narrative() -> PmpNarrativeOutput:
             RegisterRow(
                 id="R-002",
                 description="Linden conflict declaration",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="fee proposal",
@@ -133,7 +135,9 @@ def _valid_harrison_clarke_narrative() -> PmpNarrativeOutput:
 
 def test_build_pmp_narrative_prompt_is_compact_and_evidence_only() -> None:
     pack = _pack()
-    prompt = build_pmp_narrative_prompt(project=_project(), pack=pack, run_date=RUN_DATE)
+    prompt = build_pmp_narrative_prompt(
+        project=_project(), pack=pack, run_date=RUN_DATE
+    )
 
     assert "Evidence pack summary:" in prompt
     assert "Michael and Sarah Chen" in prompt
@@ -163,8 +167,8 @@ def test_validate_pmp_narrative_output_rejects_missing_recommendation_dates() ->
         update={
             "recommendations": [
                 "Owner to confirm budget soon.",
-                "Architect-PM to issue programme.",
-                "Architect-PM to declare conflict.",
+                "Architect to issue programme.",
+                "Architect to declare conflict.",
             ]
         }
     )
@@ -193,13 +197,15 @@ def test_validate_pmp_narrative_output_rejects_generic_judgements() -> None:
         validate_pmp_narrative_output(narrative, _pack(), run_date=RUN_DATE)
 
 
-def test_validate_pmp_narrative_output_rejects_architect_pm_certifier_appointment() -> None:
+def test_validate_pmp_narrative_output_rejects_architect_pm_certifier_appointment() -> (
+    None
+):
     narrative = _valid_harrison_clarke_narrative().model_copy(
         update={
             "recommendations": [
                 "Owner to confirm working budget ceiling by 2026-06-28.",
-                "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-                "Architect-PM must appoint a certifier and commission geotechnical report by 2026-06-22.",
+                "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+                "Architect must appoint a certifier and commission geotechnical report by 2026-06-22.",
             ]
         }
     )
@@ -212,8 +218,8 @@ def test_validate_pmp_narrative_output_rejects_certifier_da_scope() -> None:
         update={
             "recommendations": [
                 "Owner to appoint a principal certifier by 2026-06-28 to support DA submissions.",
-                "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-                "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+                "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+                "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
             ]
         }
     )
@@ -228,7 +234,7 @@ def test_validate_pmp_narrative_output_requires_master_programme_register_row() 
                 RegisterRow(
                     id="R-002",
                     description="Linden conflict declaration",
-                    owner="Architect-PM",
+                    owner="Architect",
                     status="Open",
                     due_date="2026-06-28",
                     source="fee proposal",
@@ -257,7 +263,7 @@ def test_validate_pmp_narrative_output_rejects_vague_register_source() -> None:
                 RegisterRow(
                     id="001",
                     description="Obtain formal sign-off on the owner project brief.",
-                    owner="Architect-PM",
+                    owner="Architect",
                     status="Open",
                     due_date="2026-06-28",
                     source="gaps",
@@ -279,7 +285,7 @@ def test_validate_pmp_narrative_output_rejects_invalid_register_source() -> None
                 RegisterRow(
                     id="R-002",
                     description="Linden conflict declaration",
-                    owner="Architect-PM",
+                    owner="Architect",
                     status="Open",
                     due_date="2026-06-28",
                     source="conflict disclosure",
@@ -294,14 +300,18 @@ def test_validate_pmp_narrative_output_rejects_invalid_register_source() -> None
 
 
 def test_validate_pmp_narrative_output_rejects_actions_for_closed_budget_gap() -> None:
-    pack = extract_mobilisation_evidence_pack(_chen_stage1_source_texts(), [ENGAGEMENT_REF, FEE_REF])
+    pack = extract_mobilisation_evidence_pack(
+        _chen_stage1_source_texts(), [ENGAGEMENT_REF, FEE_REF]
+    )
     narrative = _valid_harrison_clarke_narrative()
     with pytest.raises(WorkflowValidationError, match="Construction budget"):
         validate_pmp_narrative_output(narrative, pack, run_date=RUN_DATE)
 
 
 def test_pack_summary_for_narrative_includes_closed_gap_guidance() -> None:
-    pack = extract_mobilisation_evidence_pack(_chen_stage1_source_texts(), [ENGAGEMENT_REF, FEE_REF])
+    pack = extract_mobilisation_evidence_pack(
+        _chen_stage1_source_texts(), [ENGAGEMENT_REF, FEE_REF]
+    )
     summary = pack_summary_for_narrative(pack)
 
     assert "do NOT recommend budget confirmation" in summary
@@ -312,18 +322,23 @@ def test_pack_summary_for_narrative_includes_closed_gap_guidance() -> None:
 def test_format_register_rows_table_renders_markdown_table() -> None:
     table = format_register_rows_table(_valid_harrison_clarke_narrative().register_rows)
 
-    assert "| ID | Description | Owner | Status | Due date | Source | Next action |" in table
-    assert "| R-001 | Master programme | Architect-PM | Open | 2026-06-28 |" in table
+    assert (
+        "| ID | Description | Owner | Status | Due date | Source | Next action |"
+        in table
+    )
+    assert "| R-001 | Master programme | Architect | Open | 2026-06-28 |" in table
 
 
-def test_format_internal_audit_narrative_includes_judgements_and_register_table() -> None:
+def test_format_internal_audit_narrative_excludes_issued_actions_and_registers() -> (
+    None
+):
     fragment = format_internal_audit_narrative(_valid_harrison_clarke_narrative())
 
     assert "- **Judgements**" in fragment
-    assert "- **Recommendations**" in fragment
-    assert "- **Register rows**" in fragment
+    assert "- **Recommendations**" not in fragment
+    assert "- **Register rows**" not in fragment
     assert "September 2026" in fragment
-    assert "Linden" in fragment
+    assert "Linden" not in fragment
     assert "Geotechnical report not on file." in fragment
 
 
@@ -353,8 +368,8 @@ def test_run_pmp_narrative_model_completes_required_master_programme_items() -> 
         update={
             "recommendations": [
                 "Owner to confirm working budget ceiling by 2026-06-28.",
-                "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
-                "Architect-PM to coordinate geotechnical procurement by 2026-06-28.",
+                "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+                "Architect to coordinate geotechnical procurement by 2026-06-28.",
             ],
             "register_rows": [
                 *_valid_harrison_clarke_narrative().register_rows[1:],
@@ -391,15 +406,15 @@ def test_run_pmp_narrative_model_repairs_source_and_certifier_scope() -> None:
         update={
             "recommendations": [
                 "Owner to appoint a principal certifier by 2026-06-28 to ensure compliance and timely processing of DA submissions.",
-                "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-                "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+                "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+                "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
             ],
             "register_rows": [
                 _valid_harrison_clarke_narrative().register_rows[0],
                 RegisterRow(
                     id="R-002",
                     description="Linden conflict declaration",
-                    owner="Architect-PM",
+                    owner="Architect",
                     status="Open",
                     due_date="2026-06-28",
                     source="conflict disclosure",

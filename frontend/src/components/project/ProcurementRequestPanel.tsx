@@ -16,10 +16,7 @@ import type {
 } from "@/lib/types/project";
 import { workflowProgressStage, workflowProgressTitle } from "@/lib/workflow-progress";
 
-export type RunnableProcurementRequestKind = Exclude<
-  ProcurementRequestKind,
-  "contractor_eoi"
->;
+export type RunnableProcurementRequestKind = "consultant_rfp" | "trade_rft";
 
 const DraftReviewPanel = lazy(() =>
   import("@/components/project/DraftReviewPanel").then((module) => ({
@@ -28,9 +25,8 @@ const DraftReviewPanel = lazy(() =>
 );
 
 const KIND_OPTIONS: Array<{ value: RunnableProcurementRequestKind; label: string }> = [
-  { value: "consultant_rfp", label: "RFP" },
-  { value: "trade_rft", label: "RFT" },
-  { value: "trade_rfq", label: "RFQ" },
+  { value: "consultant_rfp", label: "Consultant services" },
+  { value: "trade_rft", label: "Trade or head contractor" },
 ];
 
 export function ProcurementRequestPanel({
@@ -126,7 +122,7 @@ export function ProcurementRequestPanel({
 
       <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-end">
         <div className="grid gap-1.5">
-          <Label htmlFor="procurement-kind">Request</Label>
+          <Label htmlFor="procurement-kind">Engagement</Label>
           <select
             id="procurement-kind"
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -149,7 +145,7 @@ export function ProcurementRequestPanel({
             id="procurement-target"
             value={targetName}
             onChange={(event) => setTargetName(event.target.value)}
-            placeholder={kind === "consultant_rfp" ? "Structural engineer" : "Electrical services"}
+            placeholder={kind === "consultant_rfp" ? "Structural engineer" : "Electrical services or main works"}
             disabled={isRunning}
           />
         </div>
@@ -159,7 +155,7 @@ export function ProcurementRequestPanel({
           ) : (
             <Play className="size-4" aria-hidden />
           )}
-          Create
+          Create tender
         </Button>
       </div>
 
@@ -203,8 +199,6 @@ export function ProcurementRequestPanel({
 }
 
 function kindLabel(kind: ProcurementRequestKind): string {
-  if (kind === "consultant_rfp") return "RFP";
   if (kind === "contractor_eoi") return "EOI";
-  if (kind === "trade_rft") return "RFT";
-  return "RFQ";
+  return "RFT";
 }

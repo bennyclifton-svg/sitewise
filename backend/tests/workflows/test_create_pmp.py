@@ -77,10 +77,12 @@ def test_create_pmp_instructions_teach_taxonomy_citation_contract() -> None:
         / "create_pmp_instructions.md"
     ).read_text(encoding="utf-8")
     compact = " ".join(instructions.split())
-    assert "| Field | Current PMP position | Citation |" in instructions
+    assert "no column-label header" in instructions
+    assert "Project**, **Address**, **Owner**, **Description" in compact
+    assert "Do not include a **Critical current position**" in compact
     assert "**Brief** is physical/client brief only" in instructions
     assert "**Consultants** is the appointment register" in instructions
-    assert "Close with **Citation key** only" in instructions
+    assert "issued body with **Citation key**" in instructions
     assert "Do not open taxonomy drafts with Evidence basis" in compact
     assert "Do not write **Grounded** in" in instructions
     assert "compact snapshot metadata table" not in instructions
@@ -95,9 +97,7 @@ def test_draft_workspace_path_uses_stable_pmp_md() -> None:
 
 def test_canonical_pmp_workspace_path_normalises_legacy_draft_paths() -> None:
     assert (
-        canonical_pmp_workspace_path(
-            "04-projects/demo/00-brief-pmp/PMP-draft-v01.md"
-        )
+        canonical_pmp_workspace_path("04-projects/demo/00-brief-pmp/PMP-draft-v01.md")
         == "04-projects/demo/00-brief-pmp/PMP.md"
     )
 
@@ -147,15 +147,17 @@ Gaps: formal owner project brief sign-off, geotech, certifier appointment, const
 - Post-engagement mobilisation posture; master programme required before September 2026 DA target.
 - **Recommendations**
 - Owner to confirm working budget ceiling by 2026-06-28.
-- Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.
-- Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.
+- Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.
+- Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.
 - **Workflow warnings**
 - Geotech and certifier not yet on file.
 """
-    markdown = _replace_pmp_section(markdown, "Evidence basis and document control", evidence_basis)
+    markdown = _replace_pmp_section(
+        markdown, "Evidence basis and document control", evidence_basis
+    )
     project_overview = """## Project overview
 
-Archetype: new dwelling. Role: Architect-PM. State: NSW.
+Archetype: new dwelling. Role: Architect. State: NSW.
 Owners: Michael and Sarah Chen.
 Site: 14 Wattle Grove, Lindfield NSW 2070.
 Dwelling: knockdown-rebuild Class 1a (~285 m² GFA per fee proposal).
@@ -288,7 +290,10 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
         markdown=_valid_pmp_markdown(),
         seed_consulted=_valid_seed_consulted(),
         evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md", "reference:seed/setup-and-commission-guide.md"],
+        context_refs=[
+            "doctrine:docs/clerk-brief.md",
+            "reference:seed/setup-and-commission-guide.md",
+        ],
     )
     draft = AsyncMock()
     draft.id = uuid.uuid4()
@@ -361,7 +366,9 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
     model_trace = next(event for event in result.trace if event.step == "model_config")
     assert model_trace.metadata["model"] == "gpt-5.6-terra"
     assert model_trace.metadata["model_label"] == "GPT-5.6 Terra (balanced)"
-    assert model_trace.metadata["model_execution_id"] == "openai-responses:gpt-5.6-terra"
+    assert (
+        model_trace.metadata["model_execution_id"] == "openai-responses:gpt-5.6-terra"
+    )
     retrieval_trace = next(event for event in result.trace if event.step == "retrieval")
     assert retrieval_trace.metadata["platform_retrieval"] == "overlay_mandatory_paths"
     assert retrieval_trace.metadata["draft_mode"] == "platform_seeded"
@@ -460,7 +467,10 @@ def test_create_pmp_saves_evidence_grounded_draft() -> None:
     assert result.status == "complete"
     assert result.draft is not None
     create_draft.assert_awaited_once()
-    assert create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"] == "evidence_grounded"
+    assert (
+        create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"]
+        == "evidence_grounded"
+    )
 
 
 def test_create_pmp_taxonomy_sweeps_current_corpus_for_coverage() -> None:
@@ -534,7 +544,9 @@ def test_create_pmp_taxonomy_sweeps_current_corpus_for_coverage() -> None:
     with (
         patch(
             "app.workflows.create_pmp.retrieve_create_pmp_sources",
-            new=AsyncMock(return_value=([platform_passage], 0, 1, "platform_seeded", [])),
+            new=AsyncMock(
+                return_value=([platform_passage], 0, 1, "platform_seeded", [])
+            ),
         ),
         patch(
             "app.workflows.create_pmp.sweep_current_pmp_corpus",
@@ -545,8 +557,13 @@ def test_create_pmp_taxonomy_sweeps_current_corpus_for_coverage() -> None:
             new=AsyncMock(return_value=output),
         ) as run_model,
         patch("app.workflows.create_pmp.validate_pmp_output"),
-        patch("app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)),
-        patch("app.workflows.create_pmp.create_draft_artifact", new=AsyncMock(return_value=draft)),
+        patch(
+            "app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)
+        ),
+        patch(
+            "app.workflows.create_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ),
         patch("app.workflows.create_pmp.sync_pmp_draft_workspace", new=AsyncMock()),
         patch("app.workflows.create_pmp.sync_decisions_from_markdown", new=AsyncMock()),
     ):
@@ -565,7 +582,10 @@ def test_create_pmp_taxonomy_sweeps_current_corpus_for_coverage() -> None:
     assert active_passage in call_kwargs["passages"]
     assert platform_passage in call_kwargs["passages"]
     assert "42 workstations" in call_kwargs["coverage_requirements"]
-    assert "01-email-tenant-fitout-brief-to-landlord.md" in call_kwargs["coverage_requirements"]
+    assert (
+        "01-email-tenant-fitout-brief-to-landlord.md"
+        in call_kwargs["coverage_requirements"]
+    )
 
 
 def test_create_pmp_repairs_taxonomy_engagement_status_before_validation() -> None:
@@ -607,10 +627,11 @@ def test_create_pmp_repairs_taxonomy_engagement_status_before_validation() -> No
 
 ## Project Summary
 
-| Field | Current PMP position | Citation |
+| Project | Greenfield Demo |  |
 | --- | --- | --- |
-| Client | Michael and Sarah Chen — Grounded | — |
-| Appointment and fee | Harrison Clarke Studio — Grounded | — |
+| Address | 14 Wattle Grove, Lindfield NSW 2070 |  |
+| Owner | Michael and Sarah Chen |  |
+| Description | Refurbishment of the existing office. |  |
 
 ## Brief
 
@@ -620,7 +641,7 @@ Commercial office refurbishment scope is being confirmed from setup inputs and c
 
 | Discipline | Firm | Scope / services | Fee | Status | Citation |
 | --- | --- | --- | --- | --- | --- |
-| Architect-PM | Harrison Clarke Studio | Appointment | TBC | Grounded | — |
+| Architect | Harrison Clarke Studio | Appointment | TBC | Grounded | — |
 
 ## Planning and Compliance
 
@@ -642,7 +663,7 @@ Procurement responsibilities remain Assumption pending appointment and tender re
 
 | Risk | Owner | Status | Next action | Due |
 | --- | --- | --- | --- | --- |
-| Approval pathway uncertainty | Architect-PM | Assumption | Confirm pathway | TBC |
+| Approval pathway uncertainty | Architect | Assumption | Confirm pathway | TBC |
 
 ## Actions and decisions
 
@@ -718,8 +739,13 @@ No project evidence documents numbered yet.
             "app.workflows.create_pmp.run_create_pmp_model",
             new=AsyncMock(return_value=output),
         ),
-        patch("app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)),
-        patch("app.workflows.create_pmp.create_draft_artifact", new=AsyncMock(return_value=draft)) as create_draft,
+        patch(
+            "app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)
+        ),
+        patch(
+            "app.workflows.create_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ) as create_draft,
         patch("app.workflows.create_pmp.sync_pmp_draft_workspace", new=AsyncMock()),
         patch("app.workflows.create_pmp.sync_decisions_from_markdown", new=AsyncMock()),
     ):
@@ -763,7 +789,9 @@ def _active_corpus_sweep_result() -> SimpleNamespace:
 
 def test_create_pmp_retries_structural_failure_with_validation_feedback() -> None:
     bad_markdown = _valid_pmp_markdown()
-    good_markdown = "# Project Management Plan\n\n## Actions and decisions\n\ngood draft"
+    good_markdown = (
+        "# Project Management Plan\n\n## Actions and decisions\n\ngood draft"
+    )
     bad_output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=bad_markdown,
@@ -797,7 +825,9 @@ def test_create_pmp_retries_structural_failure_with_validation_feedback() -> Non
         )
 
     assert run_model.await_count == 2
-    assert run_model.await_args_list[1].kwargs["validation_feedback"] == validation_message
+    assert (
+        run_model.await_args_list[1].kwargs["validation_feedback"] == validation_message
+    )
     assert result.status == "complete"
 
 
@@ -826,16 +856,26 @@ def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
     return (
         patch(
             "app.workflows.create_pmp.retrieve_create_pmp_sources",
-            new=AsyncMock(return_value=([platform_passage], 0, 1, "platform_seeded", [])),
+            new=AsyncMock(
+                return_value=([platform_passage], 0, 1, "platform_seeded", [])
+            ),
         ),
         patch(
             "app.workflows.create_pmp.sweep_current_pmp_corpus",
             new=AsyncMock(return_value=sweep_result),
         ),
         patch("app.workflows.create_pmp.run_create_pmp_model", new=run_model_mock),
-        patch("app.workflows.create_pmp.validate_pmp_output", side_effect=validate_side_effect),
-        patch("app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)),
-        patch("app.workflows.create_pmp.create_draft_artifact", new=AsyncMock(return_value=draft)),
+        patch(
+            "app.workflows.create_pmp.validate_pmp_output",
+            side_effect=validate_side_effect,
+        ),
+        patch(
+            "app.workflows.create_pmp._next_version_hint", new=AsyncMock(return_value=1)
+        ),
+        patch(
+            "app.workflows.create_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ),
     )
 
 
@@ -843,8 +883,7 @@ def test_validate_pmp_output_allows_over_length_taxonomy_draft() -> None:
     project = _taxonomy_project()
     sections = required_section_headings(project=project)
     body = "\n\n".join(
-        f"## {heading}\n\nAssumption content for {heading}."
-        for heading in sections
+        f"## {heading}\n\nAssumption content for {heading}." for heading in sections
     )
     output = PmpDraftOutput(
         title="PMP",
@@ -852,7 +891,8 @@ def test_validate_pmp_output_allows_over_length_taxonomy_draft() -> None:
         seed_consulted=_valid_seed_consulted()
         + list(
             required_platform_paths(
-                archetype="renovation",                project=project,
+                archetype="renovation",
+                project=project,
             )
         ),
         evidence_refs=[],
@@ -910,8 +950,12 @@ def test_validate_pmp_output_rejects_empty_scope_row_in_grounded_draft() -> None
     )
 
     with (
-        patch("app.workflows.create_pmp.taxonomy_provenance_violations", return_value=[]),
-        patch("app.workflows.create_pmp.greenfield_structure_violations", return_value=[]),
+        patch(
+            "app.workflows.create_pmp.taxonomy_provenance_violations", return_value=[]
+        ),
+        patch(
+            "app.workflows.create_pmp.greenfield_structure_violations", return_value=[]
+        ),
         patch("app.workflows.create_pmp.evidence_grounded_violations", return_value=[]),
         patch("app.workflows.create_pmp.length_violations", return_value=[]),
         pytest.raises(
@@ -928,7 +972,11 @@ def test_validate_pmp_output_rejects_empty_scope_row_in_grounded_draft() -> None
 
 
 def test_create_pmp_over_length_draft_completes_with_length_advisory() -> None:
-    over_markdown = _valid_pmp_markdown() + "\n\n" + " ".join(["filler"] * 2200)
+    over_markdown = _valid_pmp_markdown().replace(
+        "## Project overview",
+        "## Project overview\n\n" + " ".join(["filler"] * 2200),
+        1,
+    )
     output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=over_markdown,
@@ -969,7 +1017,9 @@ def _prompt_platform_passage() -> SourcePassage:
     )
 
 
-def test_build_create_pmp_prompt_puts_static_knowledge_first_and_volatile_last() -> None:
+def test_build_create_pmp_prompt_puts_static_knowledge_first_and_volatile_last() -> (
+    None
+):
     from datetime import date
 
     from app.workflows.create_pmp import build_create_pmp_prompt
@@ -1003,7 +1053,9 @@ def test_build_create_pmp_prompt_puts_static_knowledge_first_and_volatile_last()
     assert date_index < coverage_index < evidence_index < feedback_index
 
 
-def test_taxonomy_evidence_grounded_prompt_targets_citation_key_not_evidence_basis() -> None:
+def test_taxonomy_evidence_grounded_prompt_targets_citation_key_not_evidence_basis() -> (
+    None
+):
     from datetime import date
 
     from app.workflows.create_pmp import build_create_pmp_prompt
@@ -1112,9 +1164,8 @@ def test_create_pmp_coverage_misses_backfill_without_retry() -> None:
     advisory = next(event for event in result.trace if event.step == "coverage")
     assert advisory.status == "advisory"
     saved_markdown = create_draft.await_args.kwargs["content_markdown"]
-    assert "Evidence coverage register" in saved_markdown
-    assert "1 November 2026" in saved_markdown
-    assert "42 workstations" in saved_markdown
+    assert "Evidence coverage register" not in saved_markdown
+    assert "| Section | Evidence status | Citation |" not in saved_markdown
     sweep_ref = (
         f"project_evidence:{sweep_result.passages[0].relative_path}"
         f"#chunk={sweep_result.passages[0].chunk_id}"
@@ -1134,7 +1185,8 @@ def test_validate_pmp_output_allows_empty_evidence_refs_for_platform_seeded() ->
     validate_pmp_output(
         output,
         "platform_seeded",
-        archetype="renovation",    )
+        archetype="renovation",
+    )
 
 
 def test_normalize_pmp_markdown_strips_bullet_prefixed_table_rows() -> None:
@@ -1160,11 +1212,14 @@ def test_validate_pmp_output_fails_when_greenfield_markers_missing() -> None:
         validate_pmp_output(
             output,
             "platform_seeded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
     except Exception as exc:
         assert "depth markers" in str(exc)
     else:
-        raise AssertionError("Expected validation to fail for missing greenfield markers")
+        raise AssertionError(
+            "Expected validation to fail for missing greenfield markers"
+        )
 
 
 def test_validate_pmp_output_fails_when_mandatory_seed_missing() -> None:
@@ -1179,7 +1234,8 @@ def test_validate_pmp_output_fails_when_mandatory_seed_missing() -> None:
         validate_pmp_output(
             output,
             "platform_seeded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
     except Exception as exc:
         assert "mandatory seeds" in str(exc)
     else:
@@ -1224,7 +1280,8 @@ def test_validate_pmp_output_fails_evidence_grounded_contradictions() -> None:
         validate_pmp_output(
             output,
             "evidence_grounded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
     except Exception as exc:
         assert "evidence_grounded fidelity" in str(exc)
     else:
@@ -1247,7 +1304,8 @@ def test_validate_pmp_output_accepts_evidence_grounded_faithful_draft() -> None:
     validate_pmp_output(
         output,
         "evidence_grounded",
-        archetype="renovation",        source_texts=_project_source_texts(),
+        archetype="renovation",
+        source_texts=_project_source_texts(),
     )
 
 
@@ -1345,7 +1403,9 @@ def test_create_pmp_fails_when_mandatory_platform_paths_missing() -> None:
     assert "mandatory platform sources" in (result.message or "")
 
 
-def test_create_pmp_returns_failed_response_when_project_retrieval_openai_fails() -> None:
+def test_create_pmp_returns_failed_response_when_project_retrieval_openai_fails() -> (
+    None
+):
     platform_passage = _passage(
         project="seed",
         source_type="reference",
@@ -1513,14 +1573,14 @@ def _harrison_clarke_narrative() -> PmpNarrativeOutput:
         ],
         recommendations=[
             "Owner to confirm working budget ceiling by 2026-06-28.",
-            "Architect-PM to issue master programme aligned to September 2026 DA target by 2026-06-28.",
-            "Architect-PM to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
+            "Architect to issue master programme aligned to September 2026 DA target by 2026-06-28.",
+            "Architect to declare Linden Constructions conflict before tender list lock by 2026-06-28.",
         ],
         register_rows=[
             RegisterRow(
                 id="R-001",
                 description="Master programme",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="engagement letter",
@@ -1529,7 +1589,7 @@ def _harrison_clarke_narrative() -> PmpNarrativeOutput:
             RegisterRow(
                 id="R-002",
                 description="Linden conflict declaration",
-                owner="Architect-PM",
+                owner="Architect",
                 status="Open",
                 due_date="2026-06-28",
                 source="fee proposal",
@@ -1656,7 +1716,8 @@ def test_validate_update_pmp_rejects_missing_locked_decision_block() -> None:
         validate_update_pmp_output(
             output,
             baseline_markdown=baseline_with_decision,
-            archetype="renovation",            has_evidence_delta=True,
+            archetype="renovation",
+            has_evidence_delta=True,
             locked_ids={"procurement-route"},
         )
         raise AssertionError("expected WorkflowValidationError")
@@ -1683,4 +1744,7 @@ def test_apply_locked_decisions_preserves_user_selection() -> None:
     restamped = _apply_locked_decisions(output, {"procurement-route": "traditional"})
     assert '"selected": "traditional"' in restamped.markdown
     assert '"source": "user"' in restamped.markdown
-    assert restamp_decisions(markdown, {"procurement-route": "traditional"}) == restamped.markdown
+    assert (
+        restamp_decisions(markdown, {"procurement-route": "traditional"})
+        == restamped.markdown
+    )

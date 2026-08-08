@@ -196,6 +196,7 @@ not a cooperative flag that may or may not be observed.
 | `app/api/` | HTTP surface: auth, projects, chat/agent streaming, billing, config |
 | `app/agent/` | Pi subprocess supervision, prompt assembly, SSE relay, concurrency, cancellation |
 | `app/mcp_bridge/` | FastMCP server, turn-token mint/verify, per-call project authorisation |
+| `app/web_research/` | Official-source search, URL safety, bounded HTML/PDF extraction, provenance |
 | `app/workflows/` | Durable run engine + workflow implementations (PMP, cost plan, procurement, ingest, sort) |
 | `app/sitewise/` | Domain intelligence: taxonomy, section contracts, assemblers, renderers, evidence ledgers, coverage gates, knowledge catalog |
 | `app/cost_plan/` | Cost model, deterministic calculations, workbook rendering |
@@ -443,7 +444,7 @@ time for no safety gain.
 
 ### 5.3 Tool surface
 
-54 tools, grouped by the domain they open. This *is* the agent's world model —
+56 tools, grouped by the domain they open. This *is* the agent's world model —
 it can do these things and nothing else.
 
 | Group | Tools |
@@ -456,19 +457,22 @@ it can do these things and nothing else.
 | **Tender comparison** | `list_tender_comparisons`, `get_tender_comparison`, `start_tender_comparison`, `prepare_tender_comparison`, `get_comparison_status`, `get_comparison_result`, `find_candidate_tender_documents`, `get_tender_quote_selection`, `replace_tender_quote_selection` |
 | **Project evidence** | `find_document_text`, `search_documents`, `get_document` |
 | **Platform knowledge** | `list_platform_knowledge`, `search_platform_knowledge`, `read_platform_knowledge` |
+| **Official web research** | `search_web`, `read_web_source` |
 | **Workspace / artefacts** | `list_project_files`, `list_workspace`, `read_workspace_file`, `write_workspace_file`, `read_project_workbook`, `draft_consultant_procurement_artifact` |
 
-Note what is absent: no SQL, no shell, no `read_file` on an arbitrary path, no
-network fetch. Filesystem tools resolve through `app/agent/workspace_paths.py`
+Note what is absent: no SQL, no shell, no `read_file` on an arbitrary path, and no
+arbitrary network fetch. Web access is feature-gated and limited to official
+Australian government HTTPS sources; every URL and redirect is validated before
+bounded HTML/PDF extraction. Filesystem tools resolve through `app/agent/workspace_paths.py`
 against a per-project scratch root — traversal-safe by construction, and
 pointing at generated artefacts rather than at the canonical document store.
 
 ---
 
-## 6. Knowledge architecture — three planes
+## 6. Knowledge architecture — four planes
 
 Retrieval-augmented generation in most products is a single vector index. That
-conflates three epistemically different things. SiteWise separates them and
+conflates epistemically different things. SiteWise separates them and
 makes the agent declare which plane it is drawing on.
 
 ```mermaid
@@ -477,6 +481,7 @@ flowchart TB
 
     route -->|"'What is the site area?'<br/>project fact"| pe
     route -->|"'How should DLP be<br/>administered?' — guidance"| pk
+    route -->|"'What does the current<br/>Planning Act require?'"| wr
     route -->|last resort| mp
 
     subgraph pe["PLANE 1 · Project evidence"]
@@ -491,13 +496,20 @@ flowchart TB
         pk3["Labelled as GUIDANCE, never<br/>as project evidence."]
     end
 
-    subgraph mp["PLANE 3 · Model prior"]
+    subgraph wr["PLANE 3 · Official web reference"]
+        wr1["Current government legislation,<br/>planning instruments + guidance"]
+        wr2["search_web · read_web_source"]
+        wr3["Citable external reference.<br/>Never project evidence."]
+    end
+
+    subgraph mp["PLANE 4 · Model prior"]
         mp1["Parametric knowledge"]
         mp2["Last resort. Not citable."]
     end
 
     style pe fill:#eef6ff,stroke:#2563eb,stroke-width:2px
     style pk fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style wr fill:#eff6ff,stroke:#0284c7,stroke-width:2px
     style mp fill:#fef2f2,stroke:#dc2626,stroke-width:2px
 ```
 
@@ -506,6 +518,26 @@ reference rows — never copied into a project, never stored as
 `project_evidence`. That single rule prevents the failure mode where a generic
 NCC guide gets retrieved as if it were the project's own fire engineering
 report.
+
+Official web references remain external and are not ingested into the project
+corpus. The answer trace records their canonical URL, publisher, jurisdiction,
+authority class, version status, effective date, retrieval timestamp, excerpt,
+and content hash in `message_web_citations`. Search results alone do not count as
+a source; Pi must call `read_web_source` before the globe trace appears.
+
+The initial discovery adapter is `nsw_legislation`: a keyless, curated registry
+of stable `legislation.nsw.gov.au` current-document URLs covering core NSW Acts,
+regulations, and environmental planning instruments. Discovery ranks that
+registry locally; `read_web_source` still retrieves the live authoritative page
+before Pi may rely on it. `brave` remains an optional configured provider for
+broader official-government discovery and requires its own API key.
+
+Production acceptance for an official-source adapter must include a successful
+live read from the deployed API service's egress IP. If an authority presents a
+browser-verification or bot-protection challenge, the adapter fails explicitly;
+Clerk does not automate around that control. Obtain sanctioned machine access or
+an allowlisting arrangement from the publishing authority before enabling that
+source in production.
 
 ### 6.1 Platform knowledge catalog
 
@@ -977,6 +1009,7 @@ erDiagram
     CHAT_THREADS ||--o{ CHAT_MESSAGES : contains
     CHAT_MESSAGES ||--o{ MESSAGE_CITATIONS : cites
     MESSAGE_CITATIONS }o--|| SOURCE_DOCUMENTS : "resolves to"
+    CHAT_MESSAGES ||--o{ MESSAGE_WEB_CITATIONS : "cites official web"
     PROJECTS ||--o{ ACTIVITY_EVENTS : traces
     PROJECTS ||--o{ AGENT_TURNS : "capability rows"
     PROJECTS ||--o{ PROCUREMENT_REQUESTS : tracks
@@ -1171,7 +1204,7 @@ staged progress rather than an indeterminate spinner.
 | **Mutation scope** | A named write permission (`profile_mutation`) reserved at turn start from analysed user intent. |
 | **Capability row** | The `agent_turns` record whose existence authorises writes. Revocable mid-turn, independent of the token. |
 | **Grounding** | Requiring every asserted fact to resolve to a retrievable source passage. |
-| **Evidence plane** | One of three epistemic sources: project evidence, platform knowledge, model prior (§6). |
+| **Evidence plane** | One of four epistemic sources: project evidence, platform knowledge, official web reference, model prior (§6). |
 | **Hybrid retrieval** | Dense (pgvector) + sparse (Postgres FTS) retrieval combined by rank fusion. |
 | **Whole-document path** | Retrieval that returns full document text when the question is *about a document*, not about passages within one. |
 | **Scaffold** | The deterministic document skeleton — sections, order, computed tables — generated before any LLM call. |

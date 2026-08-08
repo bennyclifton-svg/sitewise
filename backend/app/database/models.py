@@ -7,6 +7,7 @@ from app.database.chat_thread import ChatThread
 from app.database.document_chunk import DocumentChunk
 from app.database.draft_artifact import DraftArtifact
 from app.database.message_citation import MessageCitation
+from app.database.message_web_citation import MessageWebCitation
 from app.database.project import Project
 from app.database.project_decision import ProjectDecision
 from app.database.project_event import ProjectEvent
@@ -42,6 +43,7 @@ __all__ = [
     "DocumentChunk",
     "DraftArtifact",
     "MessageCitation",
+    "MessageWebCitation",
     "Project",
     "ProjectDecision",
     "ProjectEvent",

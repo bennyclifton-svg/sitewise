@@ -127,7 +127,7 @@ access is required. Level 4 mezzanine 185 m2. Budget aspiration $1.35M-$1.55M.
 
 | Discipline | Firm | Scope / services | Fee | Status | Citation |
 | --- | --- | --- | --- | --- | --- |
-| Architect-PM | Form & Function Studio | Fit-out design and CA | $118,500 ex GST | Grounded | [3] |
+| Architect | Form & Function Studio | Fit-out design and CA | $118,500 ex GST | Grounded | [3] |
 
 ## Planning and Compliance
 
@@ -150,7 +150,7 @@ $180k to $240k.
 ## Procurement and Delivery
 
 Two invited builders. Tender evaluation includes after-hours and services-capacity risk.
-Architect-PM is not Superintendent, Certifier, PCA, or builder. Fortnightly reporting.
+Architect is not Superintendent, Certifier, PCA, or builder. Fortnightly reporting.
 Core drilling 7am to 5pm. Acoustic partitions, landlord approval of slab penetrations,
 and Apex is not a related party to Form & Function.
 
@@ -176,7 +176,7 @@ def test_meridian_coverage_accepts_compact_fact_carriage() -> None:
     ) == []
 
 
-def test_backfill_appends_register_and_clears_all_violations() -> None:
+def test_backfill_merges_refs_without_annexing_register() -> None:
     texts, labels, refs = _meridian_files()
 
     result = backfill_corpus_coverage(
@@ -187,19 +187,12 @@ def test_backfill_appends_register_and_clears_all_violations() -> None:
         source_labels=labels,
     )
 
-    assert f"## {COVERAGE_REGISTER_HEADING}" in result.markdown
-    assert "42 workstations" in result.markdown
+    assert f"## {COVERAGE_REGISTER_HEADING}" not in result.markdown
+    assert "Evidence coverage register" not in result.markdown
     assert result.backfilled_facts
     assert list(result.evidence_refs)[:3] == refs[:3]
     assert set(refs) <= set(result.evidence_refs)
     assert set(result.added_evidence_refs) == set(refs[3:])
-    assert corpus_coverage_violations(
-        result.markdown,
-        output_evidence_refs=result.evidence_refs,
-        required_evidence_refs=refs,
-        source_texts=texts,
-        source_labels=labels,
-    ) == []
 
 
 def test_backfill_keeps_citation_key_as_final_section() -> None:
@@ -214,9 +207,9 @@ def test_backfill_keeps_citation_key_as_final_section() -> None:
         source_labels=labels,
     )
 
-    assert result.markdown.rfind(f"## {COVERAGE_REGISTER_HEADING}") < result.markdown.rfind(
-        "## Citation key"
-    )
+    assert "## Citation key" in result.markdown
+    assert f"## {COVERAGE_REGISTER_HEADING}" not in result.markdown
+    assert result.markdown.rstrip().endswith("[1] Existing source")
 
 
 def test_backfill_leaves_complete_draft_unchanged() -> None:
@@ -256,5 +249,5 @@ def test_backfill_is_idempotent() -> None:
     )
 
     assert second.markdown == first.markdown
-    assert second.markdown.count(f"## {COVERAGE_REGISTER_HEADING}") == 1
+    assert f"## {COVERAGE_REGISTER_HEADING}" not in second.markdown
     assert not second.added_evidence_refs

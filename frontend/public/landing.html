@@ -7,9 +7,9 @@
     <meta name="theme-color" content="#060608" />
     <meta
       name="description"
-      content="SiteWise turns project evidence into checked, editable construction deliverables. AI where judgement is needed; deterministic software everywhere else."
+      content="SiteWise builds the plans, reports and comparisons your project runs on, from the drawings, specs and invoices you already have — with every line still pointing back at its source. You do the judgement."
     />
-    <title>SiteWise — project information in, finished work out</title>
+    <title>SiteWise — you do the judgement, SiteWise does the assembly</title>
     <link rel="icon" type="image/svg+xml" href="/style-guide/logo/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,18 +18,18 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/style-guide/tokens.css" />
-    <link rel="stylesheet" href="/style-guide/expose-font.css" />
+    <link rel="stylesheet" href="/style-guide/chillax-font.css" />
     <link rel="stylesheet" href="/style-guide/light.css" />
     <link rel="stylesheet" href="/style-guide/motion.css" />
     <link rel="stylesheet" href="/landing-assets/landing.css" />
   </head>
   <body>
     <!--
-      THESIS: SiteWise is a construction job line: disordered project material enters and professional work leaves. It refuses the generic AI-chat hero.
-      OWN-WORLD: Near-black architectural ground, graphite machinery, bone paper, one structural blue, lit edges, square controls, and restrained technical annotation.
-      STORY: See the finished artefacts first, understand the governed path that makes them, then open SiteWise.
-      FIRST VIEWPORT: A plain-language promise leads into a left-to-right line—source pile, conversational instruction, runtime, and a bright rack of six deliverables—with the primary action beside the promise.
-      FORM: Artefact-forward production line, explicitly selected by the user; seed brief-production-line-20260806.
+      THESIS: SiteWise turns disordered project material into professional work through one recognisable system: the open-corner Mark 3 facet engine.
+      OWN-WORLD: Near-black architectural ground, graphite and bone planes, one moving structural-blue judgement facet, real project records, and restrained technical annotation.
+      STORY: The real project-profile workspace establishes the product first; the mark then opens into deterministic tools; a clean artefact leaves through the missing facet.
+      FIRST VIEWPORT: A plain-language promise sits beside the actual Greenbank project-profile view. Scrolling rotates the 3D mark, reveals its six-sector geometry, and resolves the work into a current SiteWise issue sheet.
+      FORM: Artefact-forward production line expressed through the exact isometric geometry of SiteWise Mark 3; seed brief-facet-engine-20260806.
       FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
     -->
     <a class="sw-skip-link" href="#main-content">Skip to content</a>
@@ -59,177 +59,144 @@
     </header>
 
     <main id="main-content">
-      <section class="sw-landing-hero" id="hero" aria-labelledby="hero-title">
-        <div class="sw-landing-hero__copy sw-enter">
-          <h1 class="sw-landing-display" id="hero-title">
-            From project noise to <span>finished work.</span>
-          </h1>
-          <p class="sw-landing-lede">
-            Across several live projects, drawings, emails, tenders and cost information
-            arrive from every discipline. SiteWise selects what matters, keeps its source
-            attached and consolidates it into checked, editable project work.
-          </p>
-          <div class="sw-landing-cta-row">
-            <a class="sw-btn sw-btn--primary sw-transition" href="/login">
-              Open SiteWise
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M4 10h11M11 6l4 4-4 4" />
-              </svg>
-            </a>
-            <a class="sw-btn sw-btn--text sw-transition" href="#inside-sitewise">
-              See how it comes together
-            </a>
+      <section class="sw-mark-story" id="hero" aria-labelledby="hero-title">
+        <div class="sw-mark-stage" data-phase="source">
+          <div class="sw-mark-story__copy sw-enter">
+            <h1 class="sw-landing-display sw-landing-display--split" id="hero-title">
+              <b>You do the judgement.</b>
+              <b><span>SiteWise</span> does the assembly.</b>
+            </h1>
+            <p class="sw-landing-lede">
+              Drop in the drawings, specs, site notes and invoices as they land.
+              SiteWise reads them, files them, and builds the plan, report or
+              comparison you were going to write by hand — with every line still
+              pointing back at the document it came from.
+            </p>
+            <div class="sw-landing-cta-row">
+              <a class="sw-btn sw-btn--primary sw-transition" href="/login">
+                Open SiteWise
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M4 10h11M11 6l4 4-4 4" />
+                </svg>
+              </a>
+              <a class="sw-btn sw-btn--text sw-transition" href="#inside-sitewise">
+                See the working application
+              </a>
+            </div>
+            <p class="sw-mark-scroll-cue"><i aria-hidden="true"></i>Scroll the mark open</p>
           </div>
-        </div>
 
-        <figure class="sw-job-line sw-enter" aria-labelledby="job-line-title">
-          <figcaption class="sw-job-line__header">
-            <span id="job-line-title">The SiteWise job line</span>
-            <span class="sw-job-line__legend">
-              <span><i class="sw-legend-code"></i>Software</span>
-              <span><i class="sw-legend-ai">AI</i>Judgement</span>
-            </span>
-          </figcaption>
-
-          <div class="sw-job-line__track" aria-hidden="true"><i></i></div>
-
-          <div class="sw-job-line__canvas">
-            <section class="sw-input-bay" aria-labelledby="input-title">
-              <div class="sw-bay-heading">
-                <h2 id="input-title">Project inputs</h2>
-                <span>Unstructured</span>
-              </div>
-              <div class="sw-input-pile" aria-hidden="true">
-                <div class="sw-input-page sw-input-page--drawing">
-                  <i></i><i></i><i></i><i></i>
-                </div>
-                <div class="sw-input-page sw-input-page--contract"><i></i><i></i><i></i></div>
-                <div class="sw-input-page sw-input-page--invoice"><i></i><i></i><i></i></div>
-                <div class="sw-input-page sw-input-page--email"><i></i><i></i><i></i></div>
-              </div>
-              <ul class="sw-input-register" aria-label="Accepted project information">
-                <li>Drawings</li>
-                <li>Contracts</li>
-                <li>Invoices</li>
-                <li>Tenders</li>
-                <li>Emails</li>
-              </ul>
-            </section>
-
-            <section class="sw-runtime-bay" aria-labelledby="runtime-title">
-              <div class="sw-agent-rail">
-                <span>Conversational agent</span>
-                <p>“Prepare the PMP and show me every source you used.”</p>
-                <b>AI</b>
-              </div>
-
-              <div class="sw-runtime-machine sw-surface">
-                <div class="sw-bay-heading">
-                  <h2 id="runtime-title">Project record + tool runtime</h2>
-                  <span>Governed execution</span>
-                </div>
-
-                <div class="sw-runtime-core">
-                  <div class="sw-runtime-mark" aria-hidden="true">
-                    <canvas id="sw-mark-canvas"></canvas>
-                    <img
-                      id="sw-mark-fallback"
-                      src="/style-guide/logo/mark.svg"
-                      alt=""
-                      width="148"
-                      height="148"
-                      hidden
-                    />
+          <div class="sw-mark-world">
+            <figure class="sw-source-deck sw-profile-view" aria-labelledby="profile-view-title">
+              <div class="sw-profile-view__frame">
+                <img
+                  src="/landing-assets/application/project-profile-greenbank.png"
+                  alt="SiteWise project profile for Greenbank, showing project classification, scale and complexity fields beside the drawing register"
+                  width="1902"
+                  height="943"
+                  decoding="async"
+                />
+                <div class="sw-profile-ingest" aria-hidden="true">
+                  <div class="sw-ingest-window">
+                    <span>Incoming documents</span>
+                    <i></i><i></i><i></i>
                   </div>
-                  <ol class="sw-runtime-steps">
-                    <li>
-                      <span>Organise</span>
-                      <small>Parse, classify, extract</small>
-                      <b>AI when needed</b>
-                    </li>
-                    <li>
-                      <span>Run tools</span>
-                      <small>Retrieve, filter, calculate</small>
-                      <b>Software</b>
-                    </li>
-                    <li>
-                      <span>Check + assemble</span>
-                      <small>Validate, version, compile</small>
-                      <b>Software</b>
-                    </li>
-                  </ol>
+                  <div class="sw-profile-dropzone"><span>Document repository</span></div>
+                  <div class="sw-drop-document sw-drop-document--invoice">
+                    <img src="/landing-assets/source-documents/invoice-public-record.jpg" alt="" />
+                  </div>
+                  <div class="sw-drop-document sw-drop-document--plan">
+                    <img src="/landing-assets/source-documents/architectural-plan.jpg" alt="" />
+                  </div>
+                  <div class="sw-drop-document sw-drop-document--legislation">
+                    <img src="/landing-assets/source-documents/legislation-nsw.png" alt="" />
+                  </div>
                 </div>
               </div>
-            </section>
+              <figcaption>
+                <span id="profile-view-title">Project profile + document repository</span>
+                <small>Greenbank / current application view</small>
+              </figcaption>
+            </figure>
+            <figure class="sw-facet-system" aria-labelledby="facet-system-title">
+              <div class="sw-mark-scene" aria-hidden="true">
+                <canvas id="sw-mark-canvas"></canvas>
+                <img id="sw-mark-fallback" src="/style-guide/logo/mark.svg" alt="" width="420" height="420" hidden />
+              </div>
 
-            <section class="sw-output-bay" aria-labelledby="output-title">
-              <div class="sw-bay-heading">
-                <h2 id="output-title">Finished artefacts</h2>
-                <span>Review · edit · issue</span>
+              <div class="sw-facet-engine" aria-label="The SiteWise mark opened into six working facets">
+                <svg class="sw-facet-axes" viewBox="0 0 100 100" aria-hidden="true">
+                  <path d="M50 0v100M0 25l100 50M100 25L0 75" />
+                </svg>
+                <article class="sw-facet sw-facet--parse">
+                  <div><small>Recognise</small><strong>Parse</strong><span>Text, tables, pages</span></div>
+                </article>
+                <article class="sw-facet sw-facet--retrieve">
+                  <div><small>Ground</small><strong>Retrieve</strong><span>The right record</span></div>
+                </article>
+                <article class="sw-facet sw-facet--filter">
+                  <div><small>Scope</small><strong>Filter</strong><span>Files and revisions</span></div>
+                </article>
+                <article class="sw-facet sw-facet--calculate">
+                  <div><small>Resolve</small><strong>Calculate</strong><span>Totals and deltas</span></div>
+                </article>
+                <article class="sw-facet sw-facet--validate">
+                  <div><small>Control</small><strong>Validate</strong><span>Complete and consistent</span></div>
+                </article>
+                <article class="sw-facet sw-facet--aperture">
+                  <div><small>Open facet</small><strong>Issue</strong><span>Review, edit, export</span></div>
+                </article>
+                <div class="sw-agent-token" aria-hidden="true"><span>AI</span><small>Judgement</small></div>
+                <div class="sw-facet-centre" aria-hidden="true"></div>
               </div>
-              <div class="sw-output-rack">
-                <article class="sw-output-sheet" style="--sheet-x: 0; --sheet-r: -7deg; --sheet-y: 22px">
-                  <small>SW / RFP</small>
-                  <h3>Request for proposal</h3>
-                  <div class="sw-sheet-drawing" aria-hidden="true"></div>
-                </article>
-                <article class="sw-output-sheet" style="--sheet-x: 1; --sheet-r: -4deg; --sheet-y: 12px">
-                  <small>SW / TCM</small>
-                  <h3>Tender comparison</h3>
-                  <div class="sw-sheet-table" aria-hidden="true"></div>
-                </article>
-                <article class="sw-output-sheet" style="--sheet-x: 2; --sheet-r: -1deg; --sheet-y: 4px">
-                  <small>SW / PMP</small>
-                  <h3>Project management plan</h3>
-                  <div class="sw-sheet-lines" aria-hidden="true"></div>
-                </article>
-                <article class="sw-output-sheet" style="--sheet-x: 3; --sheet-r: 2deg; --sheet-y: 4px">
-                  <small>SW / COST</small>
-                  <h3>Cost plan</h3>
-                  <div class="sw-sheet-chart" aria-hidden="true"></div>
-                </article>
-                <article class="sw-output-sheet" style="--sheet-x: 4; --sheet-r: 5deg; --sheet-y: 12px">
-                  <small>SW / TX</small>
-                  <h3>Transmittal</h3>
-                  <div class="sw-sheet-lines" aria-hidden="true"></div>
-                </article>
-                <article class="sw-output-sheet" style="--sheet-x: 5; --sheet-r: 8deg; --sheet-y: 22px">
-                  <small>SW / CLAIM</small>
-                  <h3>Claim assessment</h3>
-                  <div class="sw-sheet-table" aria-hidden="true"></div>
-                </article>
+
+              <figcaption>
+                <span id="facet-system-title" data-mark-caption>Read the project record</span>
+                <small data-mark-detail>Five fixed tool facets. One moving judgement facet.</small>
+              </figcaption>
+            </figure>
+
+            <figure class="sw-issued-sheet" aria-labelledby="issued-sheet-title">
+              <div class="sw-issued-sheet__frame">
+                <img src="/landing-assets/sitewise-export-preview.png" alt="A clean Project Management Plan rendered from the current SiteWise issue export template" width="1265" height="1242" loading="lazy" decoding="async" />
               </div>
-            </section>
+              <figcaption>
+                <span id="issued-sheet-title">Current SiteWise issue template</span>
+                <small>Application-rendered / source-grounded / editable</small>
+              </figcaption>
+            </figure>
           </div>
 
-          <div class="sw-job-line__footer">
-            <p><span>AI</span> where judgement is needed.</p>
-            <p><span>Code</span> everywhere else.</p>
-          </div>
-        </figure>
+          <ol class="sw-mark-rail" aria-label="From application to issued work">
+            <li class="is-active" data-story-step="source"><b>Read</b><span>Every document, as it lands</span></li>
+            <li data-story-step="mark"><b>Interpret</b><span>Language needs judgement</span></li>
+            <li data-story-step="tools"><b>Run tools</b><span>Exact and repeatable</span></li>
+            <li data-story-step="issue"><b>Issue</b><span>Clean working artefact</span></li>
+          </ol>
+        </div>
       </section>
-
       <section class="sw-product-proof sw-reveal" id="inside-sitewise" aria-labelledby="proof-title">
         <div class="sw-section-intro sw-section-intro--proof">
-          <h2 id="proof-title">One report. Many project sources.</h2>
+          <h2 id="proof-title">This is the assembly.</h2>
           <p>
-            SiteWise finds the address in one file, the scope in another, the site
-            particulars in the drawings and the commercial position in the cost record.
-            It brings those fragments together without losing where they came from.
+            A real planning drawing, read by SiteWise and built into the plan beside it.
+            The register marks which documents the open artefact actually used, and every
+            statement keeps the source it came from — so checking the ones that matter is
+            cheap, and you can leave the rest alone.
           </p>
         </div>
 
         <figure class="sw-evidence-assembly" aria-labelledby="assembly-caption">
           <figcaption class="sw-evidence-assembly__header" id="assembly-caption">
-            <span>Open artefact · Project Management Plan v3</span>
-            <span>Illustrative project</span>
+            <span>Open artefact · Project Management Plan</span>
+            <span>Public-source demonstration</span>
           </figcaption>
 
           <div class="sw-source-schedule">
             <header>
               <div>
                 <strong>Document register</strong>
-                <small>Project evidence</small>
+                <small>Public document samples</small>
               </div>
               <span><i></i>Used by open PMP</span>
             </header>
@@ -237,86 +204,59 @@
               <span>No.</span><span>Document</span><span>Discipline</span>
             </div>
             <ul>
-              <li>
-                <code>A-100</code>
-                <span>General arrangement</span>
-                <small>Architect</small>
-                <i title="Used by Project Management Plan v3" aria-label="Used by Project Management Plan v3"></i>
+              <li class="sw-source-schedule__unused">
+                <code>INV-44</code>
+                <span>FOI-released tax invoice</span>
+                <small>NIAA public record</small>
               </li>
               <li>
-                <code>BR-02</code>
-                <span>Client project brief</span>
-                <small>Client</small>
-                <i title="Used by Project Management Plan v3" aria-label="Used by Project Management Plan v3"></i>
-              </li>
-              <li>
-                <code>C-001</code>
-                <span>Consultancy agreement</span>
-                <small>Project manager</small>
-                <i title="Used by Project Management Plan v3" aria-label="Used by Project Management Plan v3"></i>
-              </li>
-              <li>
-                <code>QS-03</code>
-                <span>Cost plan · Rev C</span>
-                <small>Quantity surveyor</small>
-                <i title="Used by Project Management Plan v3" aria-label="Used by Project Management Plan v3"></i>
-              </li>
-              <li>
-                <code>PR-07</code>
-                <span>Design programme</span>
-                <small>Architect</small>
-                <i title="Used by Project Management Plan v3" aria-label="Used by Project Management Plan v3"></i>
+                <code>DA-1100</code>
+                <span>Ground floor plan</span>
+                <small>NSW Planning Portal</small>
+                <i title="Used by the open Project Management Plan" aria-label="Used by the open Project Management Plan"></i>
               </li>
               <li class="sw-source-schedule__unused">
-                <code>E-106</code>
-                <span>Lighting layout</span>
-                <small>Electrical engineer</small>
+                <code>STR-060</code>
+                <span>Structural general notes</span>
+                <small>Infrastructure FOI</small>
+              </li>
+              <li class="sw-source-schedule__unused">
+                <code>B80-031</code>
+                <span>Concrete work specification</span>
+                <small>Transport for NSW</small>
+              </li>
+              <li class="sw-source-schedule__unused">
+                <code>EPA-2021</code>
+                <span>EP&amp;A Regulation 2021</span>
+                <small>NSW Legislation</small>
               </li>
             </ul>
           </div>
 
           <div class="sw-fact-stream" aria-label="Information selected from project evidence">
-            <span><b>Address</b>82 Queen Street</span>
-            <span><b>Site</b>Mixed use · 5 storeys</span>
-            <span><b>Scope</b>Consultant coordination</span>
-            <span><b>Cost</b>Cost plan · Rev C</span>
-            <span><b>Programme</b>Design milestones</span>
+            <span><b>Project</b>Brisbane Water apartments</span>
+            <span><b>Drawing</b>DA-1100 · ground floor</span>
+            <span><b>Status</b>Preliminary</span>
+            <span><b>Parking</b>14 internal spaces</span>
+            <span><b>Sources</b>1 cited drawing</span>
           </div>
 
-          <article class="sw-composed-pmp">
-            <header>
-              <small>SiteWise / PMP / Rev 03</small>
-              <h3>Project Management Plan</h3>
-              <p>Petersham mixed-use project</p>
-            </header>
-            <dl>
-              <div>
-                <dt>Project identity <span>A-100 · BR-02</span></dt>
-                <dd>82 Queen Street, Petersham NSW</dd>
-              </div>
-              <div>
-                <dt>Site particulars <span>A-100</span></dt>
-                <dd>Mixed-use development · five storeys</dd>
-              </div>
-              <div>
-                <dt>Delivery scope <span>BR-02 · C-001</span></dt>
-                <dd>Consultant coordination, reporting and project controls</dd>
-              </div>
-              <div>
-                <dt>Cost control <span>QS-03</span></dt>
-                <dd>Current cost plan forms the approved reporting baseline</dd>
-              </div>
-              <div>
-                <dt>Project programme <span>PR-07</span></dt>
-                <dd>Design milestones retained for coordination and client reporting</dd>
-              </div>
-            </dl>
+          <article class="sw-export-proof-panel">
+            <div class="sw-export-proof-panel__image">
+              <img
+                src="/landing-assets/sitewise-export-preview.png"
+                alt="Project Management Plan rendered by the current SiteWise issue export template"
+                width="1265"
+                height="1242"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
             <footer>
-              <span>5 source documents</span>
-              <span>Editable working draft</span>
+              <span>Current application issue template</span>
+              <span>PDF / Word ready</span>
             </footer>
           </article>
-
           <div class="sw-proof-principles">
             <p><strong>Grounded</strong><span>Every statement keeps its project source.</span></p>
             <p><strong>Deterministic</strong><span>Known fields are selected, checked and placed by software.</span></p>
@@ -344,11 +284,12 @@
 
       <section class="sw-boundary sw-reveal" id="how-it-works" aria-labelledby="boundary-title">
         <div class="sw-section-intro">
-          <h2 id="boundary-title">Software first. AI on call.</h2>
+          <h2 id="boundary-title">Where the judgement actually happens.</h2>
           <p>
-            SiteWise is not asking a model to improvise your project. The agent
-            interprets the job and chooses the workflow; purpose-built tools do the
-            repeatable work against a structured project record.
+            Two kinds of judgement run this project. Yours, over what the document
+            should say. The model's, over what a sentence means. Everything between
+            them — finding, filtering, counting, checking — is ordinary software, and
+            it runs the same way every time.
           </p>
         </div>
 
@@ -388,10 +329,10 @@
 
       <section class="sw-outputs sw-reveal" id="outputs" aria-labelledby="outputs-title">
         <div class="sw-section-intro sw-section-intro--outputs">
-          <h2 id="outputs-title">Not another answer. A working artefact.</h2>
+          <h2 id="outputs-title">You get a document, not an answer.</h2>
           <p>
-            The useful bit is what leaves the line: construction documents grounded in
-            the live project, ready for professional review and revision.
+            Six artefacts, built from the live project, ready to review and issue.
+            Not a chat log you have to turn into work yourself.
           </p>
         </div>
 
@@ -436,8 +377,8 @@
 
       <section class="sw-close sw-reveal" aria-labelledby="close-title">
         <div>
-          <h2 id="close-title">Keep every project moving.</h2>
-          <p>Bring the documents. Tell SiteWise what needs doing. Review what comes out.</p>
+          <h2 id="close-title">You've still got the last word.</h2>
+          <p>Bring the documents. Say what needs doing. Review what comes out.</p>
         </div>
         <a class="sw-btn sw-btn--primary sw-transition" href="/login">
           Open SiteWise
@@ -453,7 +394,7 @@
         <img src="/style-guide/logo/mark-mono.svg" alt="" width="28" height="28" />
         <span class="sw-landing-brand__word">SiteWise</span>
       </a>
-      <p>Construction work, properly grounded.</p>
+      <p>You keep the judgement.</p>
       <a href="/login">Sign in</a>
     </footer>
 
@@ -464,7 +405,7 @@
         }
       }
     </script>
-    <script type="module" src="/landing-assets/sitewise-hero.js"></script>
+    <script type="module" src="/landing-assets/sitewise-hero.js?v=20260806-facets-2"></script>
     <script type="module">
       let tx = innerWidth * 0.42;
       let ty = innerHeight * 0.3;

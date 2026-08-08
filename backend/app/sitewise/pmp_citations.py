@@ -51,7 +51,7 @@ def build_citation_index(
 
 
 def format_citation_key_lines(index: CitationIndex) -> list[str]:
-    """Return short numbered key lines: ``[n] {basename} — {date/status}``."""
+    """Return numbered key lines in citation order: ``[n] {basename} — {date/status}``."""
     return [
         f"{citation_token(n)} {_basename(path)} — {date_or_status}"
         for n, (path, date_or_status) in enumerate(index.documents, start=1)

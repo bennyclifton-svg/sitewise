@@ -55,11 +55,11 @@ export function ChatHistoryNav({
             "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
           )}
           disabled={createSessionMutation.isPending}
-          aria-label="New chat"
+          aria-label="Converse"
           onClick={createSession}
         >
           <MessageSquarePlus className="size-4 shrink-0 text-sky-600" aria-hidden />
-          <span className="truncate">New Chat</span>
+          <span className="truncate">Converse</span>
         </button>
         {error ? <p className="mt-1 px-1.5 text-xs text-destructive">{error}</p> : null}
       </div>

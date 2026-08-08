@@ -9,13 +9,18 @@ from fastapi.testclient import TestClient
 
 from app.api import chat as chat_api
 from app.agent.mutation_intent import classify_mutation_intent
-from app.agent.turn_context import _DOCUMENT_ACCESS_GUIDANCE, _ROLE_GUIDANCE
+from app.agent.turn_context import (
+    _DOCUMENT_ACCESS_GUIDANCE,
+    _ROLE_GUIDANCE,
+    _WEB_RESEARCH_GUIDANCE,
+)
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.config import settings
 from app.database.chat_message import ChatMessage
 from app.database.chat_thread import ChatThread
 from app.database.session import get_db
 from app.main import fastapi_app as app
+from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 OTHER_USER_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -432,9 +437,10 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "state: NSW\n"
         "site_address: (not declared)\n"
         "client: (not declared)\n"
-        "</project-context>\n"
-        "\n" + _DOCUMENT_ACCESS_GUIDANCE + "\n"
-        "\n"
+            "</project-context>\n"
+            "\n" + _DOCUMENT_ACCESS_GUIDANCE + "\n"
+            "\n" + _WEB_RESEARCH_GUIDANCE + "\n"
+            "\n"
         '<project-snapshot schema-version="1">\n'
         "content_fingerprint: snapshot-fingerprint\n"
         "profile_revision: 1\n"
@@ -631,6 +637,104 @@ def test_agent_source_trace_includes_consultant_procurement_sources() -> None:
         ],
         "model": {"used": True, "label": "LLM reasoning"},
     }
+
+
+def test_agent_source_trace_includes_read_web_source_provenance() -> None:
+    source = {
+        "url": "https://www.legislation.qld.gov.au/view/html/inforce/current/act-2016-025",
+        "title": "Planning Act 2016",
+        "publisher": "Queensland Government",
+        "jurisdiction": "QLD",
+        "authority_class": "official_legislation",
+        "source_type": "web_legislation",
+        "version_status": "current",
+        "effective_date": "29 November 2024",
+        "section": "section 8",
+        "content_hash": "a" * 64,
+        "retrieved_at": "2026-08-08T10:00:00+00:00",
+    }
+
+    trace = chat_api._agent_source_trace(
+        [
+            {
+                "kind": "tool",
+                "tool": "search_web",
+                "state": "done",
+                "message": "Searched official web sources",
+            },
+            {
+                "kind": "tool",
+                "tool": "read_web_source",
+                "state": "done",
+                "message": "Read official web source · Planning Act 2016",
+                "web_source": source,
+            },
+        ]
+    )
+
+    assert trace["web"] == {
+        "used": True,
+        "tools": ["search_web", "read_web_source"],
+        "sources": [source],
+    }
+    assert [tool["name"] for tool in trace["tools"]] == [
+        "search_web",
+        "read_web_source",
+    ]
+
+
+def test_persist_agent_message_writes_web_citations(monkeypatch) -> None:
+    turn_id = uuid.uuid4()
+    message_id = uuid.uuid4()
+    session = AsyncMock()
+    create = AsyncMock(
+        return_value=ChatMessage(
+            id=message_id,
+            thread_id=THREAD_ID,
+            role="assistant",
+            content="Planning response",
+            message_data={},
+            created_at=NOW,
+        )
+    )
+    persist_web = AsyncMock()
+    source = {
+        "url": "https://www.legislation.qld.gov.au/current-act",
+        "title": "Planning Act 2016",
+        "authority_class": "official_legislation",
+        "source_type": "web_legislation",
+        "version_status": "current",
+        "content_hash": "a" * 64,
+        "retrieved_at": "2026-08-08T10:00:00+00:00",
+    }
+    monkeypatch.setattr(chat_api, "create_message", create)
+    monkeypatch.setattr(chat_api, "persist_message_web_citations", persist_web)
+
+    run_async(
+        chat_api._persist_agent_assistant_message(
+            session,
+            thread_id=THREAD_ID,
+            project_id=PROJECT_ID,
+            turn_id=turn_id,
+            content="Planning response",
+            runtime="pi",
+            source_trace={
+                "web": {
+                    "used": True,
+                    "tools": ["read_web_source"],
+                    "sources": [source],
+                }
+            },
+        )
+    )
+
+    persist_web.assert_awaited_once_with(
+        session,
+        project_id=PROJECT_ID,
+        turn_id=turn_id,
+        message_id=message_id,
+        sources=[source],
+    )
 
 
 def test_agent_stream_pi_receives_project_context(

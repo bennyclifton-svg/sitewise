@@ -1,4 +1,4 @@
-"""Deterministic RFT and RFQ structure for trade procurement."""
+"""Deterministic universal RFT structure for trade procurement."""
 
 from __future__ import annotations
 
@@ -58,49 +58,30 @@ def render_trade_request_scaffold(
     missing_inputs: list[str],
     instructions: str | None,
 ) -> str:
-    """Render common RFT/RFQ controls without model judgement or arithmetic."""
+    """Render the universal external RFT controls without model judgement."""
     if kind not in {"rft", "rfq"}:
         raise ValueError("kind must be rft or rfq")
-    title = "Request for Tender" if kind == "rft" else "Request for Quotation"
     project_summary = render_procurement_project_summary(
         project=project,
-        target_label=f"- Procurement package: {target.name}",
         citation_index=citation_index,
         forecast=forecast,
         project_evidence=project_evidence,
     )
-    conditions_heading = (
-        "## Tender conditions and RFI process"
-        if kind == "rft"
-        else "## Quotation conditions"
-    )
-    conditions = (
-        [
-            "- Submit clarification questions before pricing. Responses and any addenda will be issued to all invitees.",
-            "- State all departures from the issued documents and proposed alternatives separately.",
-            "- This request is not an offer, and the client may accept none of the submissions.",
-        ]
-        if kind == "rft"
-        else [
-            "- State all exclusions, qualifications, substitutions, and assumptions separately.",
-            "- This quotation request is not an offer, and the client may accept none of the submissions.",
-        ]
-    )
-    additional_instruction = (
-        f"- Additional client instruction: {' '.join(instructions.split())}"
-        if instructions and instructions.strip()
-        else None
-    )
     sections = [
-        f"# {title} - {target.name}",
+        f"# Request for Tender - {target.name}",
         "",
-        "## Project Summary",
+        "## Tender particulars",
         project_summary,
         "",
-        "## Package basis",
         f"- Package: {target.name}",
-        "- Delivery basis: TBC by client before issue (supply only, install only, supply and install, or design and supply/install).",
-        "- Contract basis and design responsibility: TBC by client before issue.",
+        *(
+            [f"- Client instruction: {' '.join(instructions.split())}"]
+            if instructions and instructions.strip()
+            else []
+        ),
+        "",
+        "## Information issued and citations",
+        render_information_to_review_table(project_evidence, citation_index),
         "",
         "## Background",
         BACKGROUND_PLACEHOLDER,
@@ -108,39 +89,32 @@ def render_trade_request_scaffold(
         "## Scope and interfaces",
         REQUESTED_SERVICES_PLACEHOLDER,
         "",
-        "## Information to review",
-        render_information_to_review_table(project_evidence, citation_index),
-        "",
-        "## Programme and tender timetable",
+        "## Programme and submission",
         PROGRAMME_PLACEHOLDER,
-        "- Tender or quotation close date/time: TBC by client before issue.",
-        "- Required-on-site date, lead-time assumptions, and programme interfaces: TBC by client before issue.",
+        "- State lead times, required access, programme dependencies and earliest mobilisation.",
+        "- Submit one complete tender response with the price schedule and returnables.",
         "",
         "## Price schedule",
         "- Complete the following schedule or provide an equivalent schedule that preserves the same commercial breakdown.",
         "",
         *_price_schedule(target),
         "",
-        "## Returnables",
+        "## Tender return and conditions",
+        "**Returnables**",
         *(f"- {item}" for item in target.returnables),
         "",
-        "## Qualifications, exclusions, and assumptions",
+        "**Qualifications and commercial basis**",
         "- Identify exclusions, qualifications, provisional sums, allowances, options, rates, and alternates separately.",
         "- State GST treatment, validity period, proposed substitutions, and matters requiring client direction.",
         "",
-        "## Submission",
-        "- Submit the completed response, price schedule, programme/lead-time information, and returnables to the client-nominated contact.",
-        "- Lodgement method and contact: TBC by client before issue.",
+        "**Tender conditions and RFI process**",
+        "- Submit clarification questions before pricing. Responses and addenda will be issued to all invitees.",
+        "- State all departures from the issued documents and proposed alternatives separately.",
+        "- This request is not an offer, and the client may accept none of the submissions.",
         "",
-        conditions_heading,
-        *conditions,
-        "",
-        "## Review items before issue",
-        *(f"- TBC: {item}" for item in missing_inputs),
+        "## Trace & QA",
+        _trace_qa_block(assumptions, missing_inputs),
     ]
-    if additional_instruction:
-        index = sections.index("## Review items before issue")
-        sections[index:index] = [additional_instruction, ""]
     return "\n".join(sections).rstrip() + "\n"
 
 
@@ -150,14 +124,27 @@ def _price_schedule(target: TradeProfile) -> list[str]:
         "| --- | --- | ---: | ---: | ---: |",
     ]
     rows.extend(
-        f"| {item} | Confirm inclusions, exclusions, and interface | TBC | TBC | TBC |"
+        f"| {item} | State inclusions, exclusions and interfaces | — | — | — |"
         for item in target.price_rows
     )
     rows.extend(
         [
-            "| Options / alternates | Separately identify each option | TBC | TBC | TBC |",
-            "| Rates / provisional allowances | State unit, quantity assumption, and trigger | TBC | TBC | TBC |",
-            "| **Tender / quotation total** | Subject to stated qualifications | **TBC** | **TBC** | **TBC** |",
+            "| Options / alternates | Separately identify each option | — | — | — |",
+            "| Rates / provisional allowances | State unit, quantity assumption and trigger | — | — | — |",
+            "| **Tender total** | Subject to stated qualifications | **—** | **—** | **—** |",
         ]
     )
     return rows
+
+
+def _trace_qa_block(assumptions: list[str], missing_inputs: list[str]) -> str:
+    lines = ["This review-only section is excluded from Word and PDF exports."]
+    if missing_inputs:
+        lines.extend(["", "**Inputs to resolve**"])
+        lines.extend(f"- {item}" for item in missing_inputs)
+    if assumptions:
+        lines.extend(["", "**Working basis**"])
+        lines.extend(f"- {item}" for item in assumptions)
+    if not missing_inputs and not assumptions:
+        lines.extend(["", "- No unresolved generation inputs recorded."])
+    return "\n".join(lines)

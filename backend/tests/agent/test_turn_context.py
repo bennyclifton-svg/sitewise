@@ -52,6 +52,11 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     assert "client: (not declared)" in prompt
     assert f"project_id: {PROJECT_ID}" in prompt
     assert "find_document_text is the first choice" in prompt
+    assert "search_web" in prompt
+    assert "read_web_source" in prompt
+    assert "Search results are discovery candidates" in prompt
+    assert "Never put project-confidential details into a web search query" in prompt
+    assert "external reference, not project evidence" in prompt
     assert "run shell commands" in prompt
     assert "user: Any update on the quotes?" in prompt
     assert "assistant: Two received, one pending." in prompt

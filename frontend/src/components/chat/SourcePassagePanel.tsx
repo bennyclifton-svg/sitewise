@@ -1,5 +1,7 @@
+import { ExternalLink } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
-import { sourceTypeStyle } from "@/lib/citations";
+import { isWebSourceType, sourceTypeStyle } from "@/lib/citations";
 import type { Citation } from "@/lib/types/citation";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ export function SourcePassagePanel({ citation }: SourcePassagePanelProps) {
   }
 
   const style = sourceTypeStyle(citation.sourceType);
+  const isWeb = isWebSourceType(citation.sourceType);
 
   return (
     <aside
@@ -36,21 +39,60 @@ export function SourcePassagePanel({ citation }: SourcePassagePanelProps) {
       aria-label="Source passage details"
     >
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold">Source passage</h2>
+        <h2 className="text-sm font-semibold">
+          {isWeb ? "Web source details" : "Source passage"}
+        </h2>
         <Badge variant="outline" className="shrink-0">
           {style.label}
         </Badge>
       </div>
 
       <dl className="mt-4 space-y-2">
-        <MetaRow label="Project" value={citation.project} />
-        {citation.phase ? <MetaRow label="Phase" value={citation.phase} /> : null}
-        <MetaRow label="Document" value={citation.title} />
+        {isWeb ? (
+          <>
+            {citation.publisher ? (
+              <MetaRow label="Publisher" value={citation.publisher} />
+            ) : null}
+            {citation.jurisdiction ? (
+              <MetaRow label="Jurisdiction" value={citation.jurisdiction} />
+            ) : null}
+            {citation.versionStatus ? (
+              <MetaRow label="Version" value={citation.versionStatus} />
+            ) : null}
+            {citation.effectiveDate ? (
+              <MetaRow label="Effective" value={citation.effectiveDate} />
+            ) : null}
+            {citation.retrievedAt ? (
+              <MetaRow label="Retrieved" value={citation.retrievedAt} />
+            ) : null}
+            <MetaRow label="Source" value={citation.title} />
+          </>
+        ) : (
+          <>
+            <MetaRow label="Project" value={citation.project} />
+            {citation.phase ? <MetaRow label="Phase" value={citation.phase} /> : null}
+            <MetaRow label="Document" value={citation.title} />
+          </>
+        )}
         {citation.pageOrSection ? (
           <MetaRow label="Location" value={citation.pageOrSection} />
         ) : null}
-        {citation.label ? <MetaRow label="Label" value={citation.label} /> : null}
+        {!isWeb && citation.label ? (
+          <MetaRow label="Label" value={citation.label} />
+        ) : null}
       </dl>
+
+      {isWeb && citation.url ? (
+        <a
+          href={citation.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--sw-beam)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Open official source
+          <ExternalLink className="size-3.5" aria-hidden />
+        </a>
+      ) : null}
 
       <div className="mt-4">
         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">

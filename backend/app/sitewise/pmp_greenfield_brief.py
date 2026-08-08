@@ -227,7 +227,7 @@ ARCHITECT_PM_SECTION_BRIEFS: dict[str, str] = {
 - One-sentence project type from archetype overlay.
 - **Assumption**: site address, dwelling type, budget, and owner identity not yet evidenced.
 """,
-    "Architect-PM role and appointment": """
+    "Architect role and appointment": """
 - Default role declaration table: Architect/PM (advisory) | Superintendent (no, unless appointed) | Certifier (no) | Contract administrator (per engagement).
 - Engagement instruments gap: fee proposal, executed engagement letter, scope of services — all **Assumption: not yet filed**.
 - PI insurance: record required fields (holder, period, limit, exclusions) as gaps to verify.
@@ -239,7 +239,7 @@ ARCHITECT_PM_SECTION_BRIEFS: dict[str, str] = {
 - **Assumption**: neither brief filed yet — list minimum contents each must capture when drafted.
 """,
     "Governance and decisions": """
-- RACI-style matrix: Owner decides | Architect-PM recommends | Consultants advise | Builder executes | Certifier certifies.
+- RACI-style matrix: Owner decides | Architect recommends | Consultants advise | Builder executes | Certifier certifies.
 - Decision gates: planning pathway, scheme endorsement, builder award, contract signature, CC issue, PC/OC.
 - All decisions append-only per decision-discipline; file under `08-meetings-reporting/`.
 """,
@@ -310,12 +310,12 @@ ARCHITECT_PM_SECTION_BRIEFS: dict[str, str] = {
 """,
 }
 
-# Architect-PM section briefs when project evidence is available (Create/Update evidence_grounded).
+# Architect section briefs when project evidence is available (Create/Update evidence_grounded).
 ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
     "Evidence basis and document control": """
 - Status: draft, review-only, not issued. Version v01 (superseded at save with draft artefact version).
 - Source hierarchy: project evidence (listed below) → doctrine → seeds listed in seed_consulted.
-- **Evidence on file:** list each mobilisation document in Sources with date/status.
+- List each mobilisation document in Sources with date/status as plain bullets; omit redundant evidence-status labels — citations carry that signal.
 - **Gaps:** list only what is genuinely absent (owner brief sign-off, geotech, certifier, budget, etc.).
 - Evidence map table (MANDATORY): | Section | Evidence status | Ref |
 - Document control: save under `00-brief-pmp/`; supersede with next version when evidence arrives.
@@ -327,7 +327,7 @@ ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
 - Summarise project understanding from fee proposal where present (knockdown-rebuild, GFA, LGA, site constraints).
 - **Assumption** only for construction budget and other gaps not in Sources.
 """,
-    "Architect-PM role and appointment": """
+    "Architect role and appointment": """
 - Default role declaration table: Architect/PM (advisory) | Superintendent (no, unless appointed) | Certifier (no) | Contract administrator (per engagement).
 - When engagement letter is in Sources: state engagement **executed/on file** with date; scope from letter — not "not yet filed".
 - PI insurance: ground holder, period, limit from engagement letter when stated; certificate-on-request as next action only.
@@ -335,11 +335,11 @@ ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
 """,
     "Two-brief discipline": """
 - **Engagement brief (on file when letter + fee proposal in Sources):** fee, scope, PMP, governance, reporting, procurement services.
-- **Owner project brief:** draft from fee proposal project understanding — **pending owner formal sign-off** (not "not yet filed" for engagement brief).
+- **Owner project brief:** state the fee proposal project understanding directly. Do not prefix it with draft status or owner-sign-off commentary.
 - Examples: extra tender round = engagement variation; bigger kitchen = project brief + decision register.
 """,
     "Governance and decisions": """
-- RACI-style matrix: Owner decides | Architect-PM recommends | Consultants advise | Builder executes | Certifier certifies.
+- RACI-style matrix: Owner decides | Architect recommends | Consultants advise | Builder executes | Certifier certifies.
 - Decision gates: planning pathway, scheme endorsement, builder award, contract signature, CC issue, PC/OC.
 - Note from engagement letter: no owner commitment without written approval except routine consultant coordination within scope.
 - All decisions append-only per decision-discipline; file under `08-meetings-reporting/`.
@@ -363,7 +363,7 @@ ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
 - Owner/authority delay impact on fee/programme — extension mechanism from engagement letter or **Assumption** if silent.
 """,
     "Scope and change control": """
-- Building scope: draft from fee proposal project understanding where present — label **draft pending owner brief sign-off**.
+- Building scope: state the fee proposal project understanding directly where present.
 - Exclusions and owner-supplied allowances as open items.
 - Distinguish project-scope change (owner decision) from service-scope change (engagement variation).
 """,
@@ -599,11 +599,16 @@ def _contract_focus_line(
 ) -> str:
     if section_id == "snapshot":
         return (
-            "use a compact metadata table for site, address, client, class/type/"
-            "subclass, scale, budget, timeframe, procurement route, and evidence status"
+            "use one compact identity table whose first rows are Project, Address, Owner, "
+            "and Description; Project is the literal project name (never prefix Confirmed); "
+            "Address retains a building name where one exists; Owner is the client/owner name; "
+            "work scope belongs in Description; table only — no bridge paragraph under Project "
+            "Summary; use a numbered citation only — never add redundant evidence-status labels "
+            "or the word Conflict in detail cells (source disagreement is shown by citation colour)"
         )
     if section_id == "scope-client-requirements":
         focus = (
+            "lead with the project scope itself, without draft/sign-off commentary; "
             "cover the physical brief only: class/type/subclass, selected work-scope "
             "inclusions/exclusions, interfaces, finishes/fixtures where relevant, "
             "client requirements, scale fields, budget basis, and acceptance criteria"
@@ -620,7 +625,7 @@ def _contract_focus_line(
         disciplines = _taxonomy_consultant_labels(work_type, work_scope)
         roster = ", ".join(disciplines) if disciplines else "taxonomy-expected disciplines"
         return (
-            "cover the appointment register with Architect-PM first, then "
+            "cover the appointment register with Architect first, then "
             f"{roster}; keep firm/fee/status/citation columns and mark missing "
             "appointments as Assumption / Not evidenced"
         )
@@ -692,19 +697,19 @@ def _adaptive_greenfield_brief(
         )
 
     setup_rows = [
-        f"- User provided project title: {_format_value(user_provided_fields.get('title'))}",
-        f"- User provided state: {_format_value(state)}",
-        f"- User provided taxonomy: class={building_class}, work_type={work_type or 'TBC'}, "
+        f"- Project title: {_format_value(user_provided_fields.get('title'))}",
+        f"- State: {_format_value(state)}",
+        f"- Taxonomy: class={building_class}, work_type={work_type or 'TBC'}, "
         f"subclasses={', '.join(subclasses) or 'TBC'}",
     ]
     for key, value in scale.items():
-        setup_rows.append(f"- User provided scale - {key}: {_format_value(value)}")
+        setup_rows.append(f"- Scale - {key}: {_format_value(value)}")
     for label in complexity_labels.values():
-        setup_rows.append(f"- User provided complexity - {label}")
+        setup_rows.append(f"- Complexity - {label}")
     for key, value in user_provided_fields.items():
         if key in {"title"} or value in (None, "", [], {}):
             continue
-        setup_rows.append(f"- User provided {key}: {_format_value(value)}")
+        setup_rows.append(f"- {key}: {_format_value(value)}")
 
     scope_rows = [f"- {item.label}" for item in work_scope_items]
     if scope_rows:
@@ -721,7 +726,7 @@ def _adaptive_greenfield_brief(
     consultant_rows = (
         [f"- {label}" for label in consultant_labels]
         if consultant_labels
-        else ["- No taxonomy consultant roster yet; keep Architect-PM first and mark other disciplines as Assumption."]
+        else ["- No taxonomy consultant roster yet; keep Architect first and mark other disciplines as Assumption."]
     )
     risk_rows = [
         f"- {flag.severity.upper()}: {flag.title} - {flag.description}"
@@ -734,7 +739,7 @@ def _adaptive_greenfield_brief(
             f"Draft mode: {draft_mode}. Primary PMP target: {target_words} words inside the 2-4 page band.",
             "Length discipline: the maximum is binding. Spend up to a section budget where the project warrants it; cut generic prose before project-specific facts.",
             "Condensed registers: top ~8 risks and top ~8 actions/decisions only. Full registers are companion artifacts/annexures.",
-            "Evidence discipline: User setup facts are **User provided**. Missing current-corpus facts are **Assumption** or **Not evidenced**. Do not write **Grounded** in platform_seeded drafts.",
+            "Evidence discipline: use current project-profile facts directly, without a provenance label or citation. Missing current-corpus facts are **Assumption** or **Not evidenced**. Do not write **Grounded** in platform_seeded drafts.",
             "No fallback: if a required seed section is missing, state the gap for confirmation; do not fill it from pretrained domain content.",
             "",
             "### Project taxonomy",
@@ -744,7 +749,7 @@ def _adaptive_greenfield_brief(
             + (", ".join(f"{key}={_format_value(value)}" for key, value in scale.items()) or "scale TBC"),
             f"- Legacy archetype fallback label: {archetype or 'none'}",
             "",
-            "### User provided setup fields",
+            "### Current project profile",
             *setup_rows,
             "",
             *scope_section,
@@ -879,6 +884,22 @@ def _markdown_section(markdown: str, heading: str) -> str:
     return "\n".join(section_lines)
 
 
+def _project_summary_fields(section: str) -> list[str]:
+    fields: list[str] = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or stripped.count("|") < 3:
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        field = cells[0]
+        if field.lower() == "field" or not field.strip("-: "):
+            continue
+        if field.casefold() == "client":
+            field = "Owner"
+        fields.append(field)
+    return fields
+
+
 def greenfield_structure_violations(
     markdown: str,
     *,
@@ -886,6 +907,25 @@ def greenfield_structure_violations(
 ) -> list[str]:
     """Return structural quality issues beyond keyword depth markers."""
     violations: list[str] = []
+
+    project_summary = _markdown_section(markdown, "Project Summary")
+    if project_summary:
+        if "critical current position" in project_summary.lower():
+            violations.append(
+                "Project Summary must not include a Critical current position block"
+            )
+        expected_fields = [
+            "Project",
+            "Address",
+            "Owner",
+            "Description",
+        ]
+        summary_fields = _project_summary_fields(project_summary)
+        if summary_fields[: len(expected_fields)] != expected_fields:
+            violations.append(
+                "Project Summary must begin with the ordered rows: "
+                + ", ".join(expected_fields)
+            )
 
     audit_section = _markdown_section(markdown, "Internal audit layer").lower()
     if audit_section and "### facts" in audit_section:

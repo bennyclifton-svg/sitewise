@@ -68,7 +68,7 @@ describe("buildLifecycleTiles workflow capabilities", () => {
       "procurement",
     ]);
     expect(tiles.find((tile) => tile.id === "procurement-requests")?.label).toBe(
-      "RFP / RFT",
+      "Request for Tender",
     );
     expect(tiles.find((tile) => tile.id === "procurement")?.status).toBe("blocked");
   });

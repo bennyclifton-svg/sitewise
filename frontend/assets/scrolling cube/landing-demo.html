@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sitewise — scroll-driven mark</title>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9"
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="light.css">
+<link rel="stylesheet" href="motion.css">
+
+<style>
+  /* The track is tall; the stage inside it sticks. Scroll distance through
+     the track IS the camera path, so 400vh gives four screens of travel. */
+  #mark-track { position: relative; height: 400vh; }
+  #mark-stage { position: sticky; top: 0; height: 100vh; display: grid; place-items: center; }
+  #mark-canvas { width: min(78vmin, 720px); height: min(78vmin, 720px); display: block; }
+
+  .caption {
+    position: absolute; left: 50%; bottom: 12vh; transform: translateX(-50%);
+    display: grid; text-align: center; pointer-events: none;
+  }
+  .caption > * {
+    grid-area: 1 / 1; opacity: 0;
+    transition: opacity var(--sw-dur-enter) var(--sw-ease-enter);
+    font-family: var(--sw-font-mono); font-size: var(--sw-type-label-size);
+    letter-spacing: var(--sw-type-label-track); text-transform: uppercase;
+    color: var(--sw-text-tertiary); white-space: nowrap;
+  }
+  .caption > [data-on] { opacity: 1; }
+
+  .bay { max-width: 640px; margin: 0 auto; padding: 22vh 32px; }
+  .bay h2 { font-size: var(--sw-type-title-size); font-weight: var(--sw-weight-display);
+            letter-spacing: var(--sw-type-title-track); line-height: var(--sw-type-title-leading); margin: 0 0 var(--sw-space-3); }
+  .bay p { font-size: var(--sw-type-body-lg-size); line-height: var(--sw-type-body-lg-leading);
+           color: var(--sw-text-tertiary); max-width: var(--sw-measure); margin: 0; }
+</style>
+</head>
+<body>
+  <div class="sw-light-sun"></div>
+  <div class="sw-light-key"></div>
+  <div class="sw-light-vignette"></div>
+  <div class="sw-grain"></div>
+  <div class="sw-progress"></div>
+
+  <section class="bay" style="padding-top:34vh">
+    <h2>Scroll-driven mark</h2>
+    <p>The camera flies the four approved presets as the page moves past. Everything below the fold behaves as normal page content.</p>
+  </section>
+
+  <section id="mark-track">
+    <div id="mark-stage">
+      <canvas id="mark-canvas"></canvas>
+      <div class="caption">
+        <span data-stop="0" data-on>Logo lock — near-orthographic</span>
+        <span data-stop="1">Three-quarter — the enclosure</span>
+        <span data-stop="2">Plan — the footprint</span>
+        <span data-stop="3">Logo lock</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="bay">
+    <h2>Continues as page</h2>
+    <p>The track releases and the canvas unsticks. Rendering pauses automatically once it leaves the viewport.</p>
+  </section>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { mountScrollMark, DEFAULT_PATH } from './3d/scroll-mark.js';
+
+  const track = document.getElementById('mark-track');
+
+  mountScrollMark(THREE, {
+    canvas: document.getElementById('mark-canvas'),
+    track,
+    OrbitControls
+  });
+
+  // Captions, driven off the same progress value.
+  const caps = [...document.querySelectorAll('.caption [data-stop]')];
+  addEventListener('scroll', () => {
+    const r = track.getBoundingClientRect();
+    const total = r.height - innerHeight;
+    const p = total > 0 ? Math.max(0, Math.min(1, -r.top / total)) : 0;
+    let i = 0;
+    DEFAULT_PATH.forEach((s, n) => { if (p >= s.at - 0.16) i = n; });
+    caps.forEach((c, n) => c.toggleAttribute('data-on', n === i));
+  }, { passive: true });
+
+  // The key light follows the pointer, damped.
+  let tx = innerWidth * 0.42, ty = innerHeight * 0.3, cx = tx, cy = ty;
+  addEventListener('pointermove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
+  (function tick() {
+    cx += (tx - cx) * 0.055;
+    cy += (ty - cy) * 0.055;
+    document.documentElement.style.setProperty('--sw-key-x', cx.toFixed(1) + 'px');
+    document.documentElement.style.setProperty('--sw-key-y', cy.toFixed(1) + 'px');
+    requestAnimationFrame(tick);
+  })();
+</script>
+</body>
+</html>

@@ -149,8 +149,12 @@ def _install(
 
     create_draft = AsyncMock(side_effect=_create_draft)
     monkeypatch.setattr(workflow, "create_draft_artifact", create_draft)
-    sync_workspace = AsyncMock(side_effect=lambda session, **kwargs: kwargs["draft"].workspace_path)
-    monkeypatch.setattr(workflow, "sync_consultant_procurement_draft_workspace", sync_workspace)
+    sync_workspace = AsyncMock(
+        side_effect=lambda session, **kwargs: kwargs["draft"].workspace_path
+    )
+    monkeypatch.setattr(
+        workflow, "sync_consultant_procurement_draft_workspace", sync_workspace
+    )
 
     async def _narrative(**kwargs: Any) -> RfpNarrativeOutput:
         evidence = kwargs["project_evidence"]
@@ -231,22 +235,28 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
         workspace_path="04-projects/walsh-renovation/01-cost/cost_plan_v01.md",
         content_markdown=_cost_plan_markdown(),
     )
-    create_draft, sync_workspace = _install(monkeypatch, retriever=retriever, cost_plan=cost_plan)
+    create_draft, sync_workspace = _install(
+        monkeypatch, retriever=retriever, cost_plan=cost_plan
+    )
     session = _Session()
 
     result = _run(session=session, discipline="structural engineer")
 
-    assert result.draft.title == "Request for Fee Proposal - Structural engineer"
+    assert result.draft.title == "Request for Tender - Structural engineer"
     assert result.draft.workspace_path == (
         "04-projects/walsh-renovation/02-consultant/"
         "consultant_procurement_structural_engineer_v01.draft.md"
     )
-    assert "# Request for Fee Proposal - Structural engineer" in result.draft.content_markdown
-    assert "## Project Summary" in result.draft.content_markdown
-    assert "| Field | Project detail | Source |" in result.draft.content_markdown
-    assert "client-issued request for fee proposal" not in result.draft.content_markdown
+    assert "# Request for Tender - Structural engineer" in result.draft.content_markdown
+    assert "## Tender particulars" in result.draft.content_markdown
+    assert "| Field | Project detail | Source |" not in result.draft.content_markdown
+    assert "| Project |" in result.draft.content_markdown
+    primary, trace = result.draft.content_markdown.split("## Trace & QA", maxsplit=1)
+    assert "client-issued Request for Tender" not in primary
+    assert "client-issued Request for Tender" in trace
+    assert "Confirm" not in primary
     assert any(
-        "client-issued request for fee proposal" in item
+        "client-issued Request for Tender" in item
         for item in result.source_trace["assumptions"]
     )
     assert "| Document number | Title | Rev | Category | Citation |" in (
@@ -254,12 +264,8 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     )
     assert "## Citation key" not in result.draft.content_markdown
     assert "[1]" in result.draft.content_markdown
-    assert "| Site / address | TBC | Confirm |" in (
-        result.draft.content_markdown
-    )
-    assert "| Client | TBC | Confirm |" in (
-        result.draft.content_markdown
-    )
+    assert "| Site / address | TBC | Confirm |" not in result.draft.content_markdown
+    assert "| Client | TBC | Confirm |" not in result.draft.content_markdown
     assert result.source_trace["project_documents"]
     assert result.source_trace["platform_knowledge"][0]["path"] == (
         "seed/consultant-procurement.md"
@@ -308,7 +314,9 @@ def test_basix_alias_happy_path_uses_basix_scope_and_path(monkeypatch) -> None:
     assert result.source_trace["forecast"]["used"] is True
 
 
-def test_rfp_information_register_uses_document_repository_metadata(monkeypatch) -> None:
+def test_rfp_information_register_uses_document_repository_metadata(
+    monkeypatch,
+) -> None:
     retriever = _StubRetriever(
         project_passages={
             "project brief": [
@@ -335,7 +343,7 @@ def test_rfp_information_register_uses_document_repository_metadata(monkeypatch)
         in result.draft.content_markdown
     )
     assert "1. Tailor the requested services" in result.draft.content_markdown
-    assert "provide a short return brief" in result.draft.content_markdown
+    assert "Provide a concise return brief" in result.draft.content_markdown
 
 
 def test_rfp_prefers_user_adopted_cost_plan_budget_over_partial_trade_total(
@@ -410,12 +418,13 @@ def test_mechanical_rfp_consults_technical_guide_and_targeted_evidence(
         if item["path"] == "seed/mechanical-services-guide.md"
     )
     assert mechanical["source_type"] == "discipline-guidance"
-    assert "cross-lifecycle mechanical-services guidance" in mechanical[
-        "snippet"
-    ].lower()
-    assert "seed/mechanical-services-guide.md" in result.draft.provenance_metadata[
-        "seed_consulted"
-    ]
+    assert (
+        "cross-lifecycle mechanical-services guidance" in mechanical["snippet"].lower()
+    )
+    assert (
+        "seed/mechanical-services-guide.md"
+        in result.draft.provenance_metadata["seed_consulted"]
+    )
     assert "Establish the mechanical design basis" in result.draft.content_markdown
     assert "Commissioning plan and records" in result.draft.content_markdown
     assert any(
@@ -423,13 +432,9 @@ def test_mechanical_rfp_consults_technical_guide_and_targeted_evidence(
         for call in retriever.calls
     )
     platform_call = next(
-        call
-        for call in retriever.calls
-        if call["filters"].platform_knowledge_only
+        call for call in retriever.calls if call["filters"].platform_knowledge_only
     )
-    assert "HVAC ventilation exhaust controls commissioning" in platform_call[
-        "query"
-    ]
+    assert "HVAC ventilation exhaust controls commissioning" in platform_call["query"]
 
 
 def test_mechanical_rfp_uses_evidence_tailored_requested_services(monkeypatch) -> None:
@@ -466,8 +471,8 @@ def test_mechanical_rfp_uses_evidence_tailored_requested_services(monkeypatch) -
     )
 
     requested = result.draft.content_markdown.split(
-        "## Requested services", maxsplit=1
-    )[1].split("## Information to review", maxsplit=1)[0]
+        "## Services and deliverables", maxsplit=1
+    )[1].split("## Programme and submission", maxsplit=1)[0]
     assert (
         "Tailor the requested services to the evidenced project spaces and systems. [1]"
         in requested
@@ -566,12 +571,13 @@ def test_commercial_fitout_filters_semantic_guidance_to_project_taxonomy(
         ),
     )
 
-    paths = {
-        item["path"] for item in result.source_trace["platform_knowledge"]
-    }
+    paths = {item["path"] for item in result.source_trace["platform_knowledge"]}
     assert "skills/reference/nsw-commercial-fitout-cost-breakdown-reference.md" in paths
     assert "seed/hydraulic-services-guide.md" in paths
-    assert "skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md" not in paths
+    assert (
+        "skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md"
+        not in paths
+    )
     assert "seed/procurement-quoting-guide.md" not in paths
     assert "seed/mechanical-services-guide.md" not in paths
 
@@ -644,8 +650,12 @@ def test_no_evidence_still_creates_draft_with_assumptions(monkeypatch) -> None:
 
     result = _run(session=session, discipline="arborist")
 
-    assert "Confirm the project brief, approval pathway" in result.draft.content_markdown
-    assert "Project brief or owner scope brief." in result.source_trace["missing_inputs"]
+    primary, trace = result.draft.content_markdown.split("## Trace & QA", maxsplit=1)
+    assert "TBC" not in primary
+    assert "No project evidence was found" in trace
+    assert (
+        "Project brief or owner scope brief." in result.source_trace["missing_inputs"]
+    )
     assert result.source_trace["forecast"] == {
         "used": False,
         "reason": "No benchmark rule for this discipline.",
@@ -735,9 +745,10 @@ def test_other_discipline_fee_proposal_can_supply_project_scope(monkeypatch) -> 
         project=_project(building_class="commercial", work_type="refurb"),
     )
 
-    assert "04-fee-proposal-form-function-studio.md" in (
-        result.draft.provenance_metadata["evidence_refs"]
-    )[0]
+    assert (
+        "04-fee-proposal-form-function-studio.md"
+        in (result.draft.provenance_metadata["evidence_refs"])[0]
+    )
 
 
 def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
@@ -768,12 +779,14 @@ def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
         project=_project(building_class="commercial", work_type="refurb"),
     )
 
-    assert "| Timeframe | See programme below | [1] |" in (
+    assert "- Target possession is 1 November 2026. [1]" in (
         result.draft.content_markdown
     )
 
 
-def test_platform_guidance_resolved_from_catalog_when_semantic_search_empty(monkeypatch) -> None:
+def test_platform_guidance_resolved_from_catalog_when_semantic_search_empty(
+    monkeypatch,
+) -> None:
     retriever = _StubRetriever()  # no platform passages returned by semantic search
     _install(monkeypatch, retriever=retriever, cost_plan=None)
     session = _Session()
@@ -828,7 +841,9 @@ def test_required_seed_content_is_loaded_into_rfp_context(monkeypatch) -> None:
 
     async def _capture_narrative(**kwargs: Any) -> RfpNarrativeOutput:
         seen_platform_knowledge.extend(kwargs["platform_knowledge"])
-        return RfpNarrativeOutput(background="Confirm the project context before issue.")
+        return RfpNarrativeOutput(
+            background="Confirm the project context before issue."
+        )
 
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", _capture_narrative)
 
@@ -845,9 +860,10 @@ def test_required_seed_content_is_loaded_into_rfp_context(monkeypatch) -> None:
     )
     assert seed["snippet"] == full_seed
     assert any(item["snippet"] == full_seed for item in seen_platform_knowledge)
-    assert "seed/procurement-quoting-guide.md" in result.draft.provenance_metadata[
-        "seed_consulted"
-    ]
+    assert (
+        "seed/procurement-quoting-guide.md"
+        in result.draft.provenance_metadata["seed_consulted"]
+    )
 
 
 def test_source_documents_are_referenced_not_written_over(monkeypatch) -> None:
@@ -863,7 +879,9 @@ def test_source_documents_are_referenced_not_written_over(monkeypatch) -> None:
             ]
         }
     )
-    create_draft, _sync_workspace = _install(monkeypatch, retriever=retriever, cost_plan=None)
+    create_draft, _sync_workspace = _install(
+        monkeypatch, retriever=retriever, cost_plan=None
+    )
     session = _Session()
 
     result = _run(session=session, discipline="structural engineer")
@@ -915,13 +933,19 @@ def test_known_consultant_profiles_do_not_use_generic_fallback(
     assert profile.slug == slug
 
 
-def test_structural_profile_is_contract_ready_and_uses_discipline_specific_closeout() -> None:
+def test_structural_profile_is_contract_ready_and_uses_discipline_specific_closeout() -> (
+    None
+):
     profile = normalise_discipline("structural engineer")
 
     assert len(profile.requested_services) == 7
-    assert any("new-to-existing interface" in item for item in profile.requested_services)
+    assert any(
+        "new-to-existing interface" in item for item in profile.requested_services
+    )
     assert any("completion statements" in item for item in profile.requested_services)
-    assert not any("commissioning" in item.lower() for item in profile.requested_services)
+    assert not any(
+        "commissioning" in item.lower() for item in profile.requested_services
+    )
 
 
 def test_unknown_consultant_still_falls_through() -> None:

@@ -1,5 +1,6 @@
 import type { SourceDocumentUIPart } from "ai";
 
+import type { WebSourceTrace } from "@/lib/chat-events";
 import type { AssistantMessageMeta, Citation, SourceType } from "@/lib/types/citation";
 
 type ClerkProviderMetadata = {
@@ -55,6 +56,62 @@ export function citationFromRecord(record: unknown): Citation | null {
   };
 }
 
+function citationFromWebSourceRecord(record: unknown): Citation | null {
+  const data = asRecord(record);
+  if (!data) return null;
+  const url = readString(data, "url");
+  const title = readString(data, "title");
+  const excerpt = readString(data, "excerpt");
+  if (!url || !title || !excerpt) return null;
+
+  const contentHash = readString(data, "content_hash") ?? url;
+  const publisher = readString(data, "publisher") ?? undefined;
+  const jurisdiction = readString(data, "jurisdiction") ?? undefined;
+  return {
+    sourceId: `web:${contentHash}`,
+    chunkId: contentHash,
+    documentId: url,
+    title,
+    project: publisher ?? jurisdiction ?? "Official web source",
+    phase: null,
+    sourceType: (readString(data, "source_type") ?? "web_reference") as SourceType,
+    pageOrSection: readString(data, "section"),
+    excerpt,
+    label: readString(data, "version_status"),
+    url,
+    publisher,
+    jurisdiction,
+    authorityClass: readString(data, "authority_class") ?? undefined,
+    versionStatus: readString(data, "version_status") ?? undefined,
+    effectiveDate: readString(data, "effective_date") ?? undefined,
+    retrievedAt: readString(data, "retrieved_at") ?? undefined,
+  };
+}
+
+export function citationFromWebSourceTrace(source: WebSourceTrace): Citation | null {
+  if (!source.excerpt) return null;
+  const contentHash = source.contentHash ?? source.url;
+  return {
+    sourceId: `web:${contentHash}`,
+    chunkId: contentHash,
+    documentId: source.url,
+    title: source.title,
+    project: source.publisher ?? source.jurisdiction ?? "Official web source",
+    phase: null,
+    sourceType: (source.sourceType ?? "web_reference") as SourceType,
+    pageOrSection: source.section ?? null,
+    excerpt: source.excerpt,
+    label: source.versionStatus ?? null,
+    url: source.url,
+    publisher: source.publisher,
+    jurisdiction: source.jurisdiction,
+    authorityClass: source.authorityClass,
+    versionStatus: source.versionStatus,
+    effectiveDate: source.effectiveDate,
+    retrievedAt: source.retrievedAt,
+  };
+}
+
 export function citationFromSourcePart(part: SourceDocumentUIPart): Citation | null {
   const metadata = (part.providerMetadata ?? {}) as ClerkProviderMetadata;
   const clerk = metadata.clerk;
@@ -90,15 +147,28 @@ export function citationsFromMessageData(
   messageData: Record<string, unknown> | null | undefined,
 ): Citation[] {
   if (!messageData) return [];
-  const raw = messageData.citations;
-  if (!Array.isArray(raw)) return [];
-
   const citations: Citation[] = [];
-  for (const item of raw) {
-    const citation = citationFromRecord(item);
-    if (citation) citations.push(citation);
+  if (Array.isArray(messageData.citations)) {
+    for (const item of messageData.citations) {
+      const citation = citationFromRecord(item);
+      if (citation) citations.push(citation);
+    }
+  }
+
+  const agent = asRecord(messageData.agent);
+  const trace = asRecord(agent?.sourceTrace) ?? asRecord(messageData.sourceTrace);
+  const web = asRecord(trace?.web);
+  if (Array.isArray(web?.sources)) {
+    for (const item of web.sources) {
+      const citation = citationFromWebSourceRecord(item);
+      if (citation) citations.push(citation);
+    }
   }
   return dedupeCitations(citations);
+}
+
+export function isWebSourceType(sourceType: SourceType): boolean {
+  return typeof sourceType === "string" && sourceType.startsWith("web_");
 }
 
 export function assistantMetaFromMessageData(
@@ -150,6 +220,21 @@ export function sourceTypeStyle(sourceType: SourceType): SourceTypeStyle {
           "border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]",
         panelClassName:
           "border-[color-mix(in_oklch,var(--sw-caution)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_10%,transparent)]",
+      };
+    case "web_legislation":
+    case "web_planning":
+    case "web_reference":
+      return {
+        label:
+          sourceType === "web_legislation"
+            ? "Official legislation"
+            : sourceType === "web_planning"
+              ? "Official planning source"
+              : "Official web reference",
+        chipClassName:
+          "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-facet-blue)_28%,transparent)]",
+        panelClassName:
+          "border-[color-mix(in_oklch,var(--sw-facet-blue)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_12%,transparent)]",
       };
     default:
       return {

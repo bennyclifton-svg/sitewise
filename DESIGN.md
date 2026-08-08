@@ -116,6 +116,32 @@ Not the cliché architect loft with mood boards and espresso — a working drawi
 
 The technology undertone is structural, not neon. 3D clay models, viewfinder brackets, registration-tick corners, and tracked mono labels carry “agentic construction intelligence” the way a building information model carries coordination — visible as frame and mass, never as purple glow or chatbot chrome. Quiet hardware with one hot accent. Hope earned by substance.
 
+### Mark 3 landing surface
+
+The current standalone landing page is a deliberate Mark 3 branch of the
+persuade register. Its source of geometry is the SiteWise mark itself: a point-up
+isometric hex divided by three 60-degree axes, five occupied material facets
+(parse, retrieve, filter, calculate and validate) and one open issue aperture.
+The actual Greenbank project-profile application view establishes product
+reality in the first viewport. Small, attributable public-document thumbnails
+leave a compact incoming window and land inside the screenshot's real
+right-hand repository column. One small Blueprint Azure token then represents
+language judgement and visits the five deterministic facets; the open aperture
+issues the current application document template. The demonstration PMP cites
+only the `DA-1100` Ground Floor Plan, while the other four records remain
+available but uncited. Text and controls remain semantic DOM content. On
+desktop, WebGL owns only the scroll-driven camera transition. At `900px` and
+below, the project profile, facet engine and issued sheet appear sequentially
+in normal document flow. Reduced-motion mode also removes document and token
+travel.
+
+For this surface, graphite, bone and Blueprint Azure are the complete palette,
+and Chillax Light with Hanken Grotesk replaces the older SITEFORM
+Oxanium/Space Mono pairing. Public source previews must link to attributable
+originals; never fabricate a project document for visual credibility. The
+surface-specific brief at
+`.impeccable/surfaces/frontend-public-landing-html.md` governs this exception.
+
 **Key Characteristics:**
 - Dual-register system: sheet marketing vs workbench product, one brand spine
 - Warm paper greys + Formwork Ember / Signal Orange as the only hot voice

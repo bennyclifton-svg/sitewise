@@ -47,7 +47,7 @@ def test_minimal_brief_scaffold_meets_phase6_contract() -> None:
     )
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
     assert "Grounded" not in markdown
-    assert "User provided" in markdown
+    assert "User provided" not in markdown
     assert "$1,000,000" in markdown or "$1M" in markdown
     assert markdown.count("```pmp-decision") >= 4
     assert "Annexure" in markdown or "annexure" in markdown.lower()

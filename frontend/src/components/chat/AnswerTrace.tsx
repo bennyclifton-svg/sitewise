@@ -2,6 +2,7 @@ import type { ToolStatusEvent } from "@/lib/chat-events";
 import { answerTraceItems, type AnswerTraceTone } from "@/lib/answer-trace";
 import type { Citation } from "@/lib/types/citation";
 import { cn } from "@/lib/utils";
+import { Globe2 } from "lucide-react";
 
 type AnswerTraceProps = {
   agentMode?: boolean;
@@ -17,6 +18,8 @@ const toneClassName: Record<AnswerTraceTone, string> = {
     "border-[color-mix(in_oklch,var(--sw-positive)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-positive)_14%,transparent)] text-[var(--sw-positive)]",
   knowledge:
     "border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)]",
+  web:
+    "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)]",
   tools:
     "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)]",
   model: "border-border bg-muted/60 text-muted-foreground",
@@ -47,10 +50,17 @@ export function AnswerTrace({
           key={item.key}
           title={item.title}
           className={cn(
-            "inline-flex max-w-full items-center rounded-full border px-2 py-0.5 leading-5",
+            "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 leading-5",
             toneClassName[item.tone],
           )}
         >
+          {item.tone === "web" ? (
+            <Globe2
+              aria-label="Internet source"
+              role="img"
+              className="size-3 shrink-0"
+            />
+          ) : null}
           <span className="truncate">{item.label}</span>
         </span>
       ))}

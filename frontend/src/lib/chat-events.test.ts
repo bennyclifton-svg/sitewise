@@ -110,6 +110,47 @@ describe("toolStatusFromPart", () => {
       documents: ["L09 CC Plans - 02 Site Plan.pdf"],
     });
   });
+
+  it("carries official web-source provenance from a completed read", () => {
+    const part = {
+      type: "data-clerk-status",
+      data: {
+        kind: "tool",
+        tool: "read_web_source",
+        state: "done",
+        message: "Read official web source",
+        web_source: {
+          url: "https://www.legislation.qld.gov.au/current-act",
+          title: "Planning Act 2016",
+          publisher: "Queensland Government",
+          jurisdiction: "QLD",
+          authority_class: "official_legislation",
+          source_type: "web_legislation",
+          version_status: "current",
+          effective_date: "29 November 2024",
+          section: "section 8",
+          excerpt: "A planning instrument sets out policies.",
+          content_hash: "abc123",
+          retrieved_at: "2026-08-08T10:00:00+00:00",
+        },
+      },
+    } as MessagePart;
+
+    expect(toolStatusFromPart(part)?.webSource).toEqual({
+      url: "https://www.legislation.qld.gov.au/current-act",
+      title: "Planning Act 2016",
+      publisher: "Queensland Government",
+      jurisdiction: "QLD",
+      authorityClass: "official_legislation",
+      sourceType: "web_legislation",
+      versionStatus: "current",
+      effectiveDate: "29 November 2024",
+      section: "section 8",
+      excerpt: "A planning instrument sets out policies.",
+      contentHash: "abc123",
+      retrievedAt: "2026-08-08T10:00:00+00:00",
+    });
+  });
 });
 
 describe("resourceFromPart", () => {

@@ -67,7 +67,7 @@ describe("WorkflowRunCard", () => {
     vi.clearAllMocks();
   });
 
-  it("shows progress while the consultant RFP run is queued", async () => {
+  it("shows progress while the consultant tender run is queued", async () => {
     vi.mocked(api.getWorkflowRun).mockResolvedValue(run());
 
     render(
@@ -85,7 +85,7 @@ describe("WorkflowRunCard", () => {
     );
 
     expect(
-      await screen.findByText(/Queued Request for Fee Proposal/i),
+      await screen.findByText(/Queued Request for Tender/i),
     ).toBeInTheDocument();
   });
 
@@ -103,14 +103,14 @@ describe("WorkflowRunCard", () => {
       workflow_type: "consultant_procurement_mechanical_engineer",
       version: 1,
       status: "draft",
-      title: "Request for Fee Proposal - Mechanical engineer",
+      title: "Request for Tender - Mechanical engineer",
       workspace_path: "02-consultant/consultant_procurement_mechanical_engineer_v01.draft.md",
       author_user_id: "user-1",
       model: null,
       runtime: "clerk-consultant-procurement",
       created_at: "2026-07-21T00:00:00Z",
       updated_at: "2026-07-21T00:00:00Z",
-      content_markdown: "# RFP",
+      content_markdown: "# Request for Tender",
       provenance_metadata: null,
     });
 
@@ -129,7 +129,7 @@ describe("WorkflowRunCard", () => {
     );
 
     expect(
-      await screen.findByText("Request for Fee Proposal - Mechanical engineer"),
+      await screen.findByText("Request for Tender - Mechanical engineer"),
     ).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(

@@ -55,8 +55,12 @@ ENGAGEMENT_FILING_CONTRADICTIONS: tuple[str, ...] = (
     "engagement letter gap",
 )
 
+# Fallback when evidence_refs is empty: an evidence map means the draft is grounded.
+# Do not require the customer-facing phrase "Evidence on file".
 EVIDENCE_GROUNDED_MARKERS: tuple[str, ...] = (
-    "evidence on file",
+    "| section |",
+    "| evidence status |",
+    "evidence status | ref",
 )
 
 ENGAGEMENT_STATUS_MARKERS: tuple[str, ...] = (
@@ -68,14 +72,18 @@ ENGAGEMENT_STATUS_MARKERS: tuple[str, ...] = (
 APPOINTMENT_STATUS_SECTION_HEADINGS: tuple[str, ...] = (
     "Evidence basis and document control",
     "Project overview",
+    "Citation key",
+    "Consultants",
     "Project Summary",
     "Project snapshot",
-    "Architect-PM role and appointment",
+    "Architect role and appointment",
 )
 
 APPOINTMENT_STATUS_INSERT_HEADINGS: tuple[str, ...] = (
     "Evidence basis and document control",
-    "Project Summary",
+    "Citation key",
+    "Consultants",
+    "Architect role and appointment",
     "Project snapshot",
 )
 
@@ -97,7 +105,7 @@ EVIDENCE_SANITIZE_SECTION_HEADINGS: tuple[str, ...] = (
     "Scope & client requirements",
     "Consultants",
     "Consultant coordination",
-    "Architect-PM role and appointment",
+    "Architect role and appointment",
     "Two-brief discipline",
     "Internal audit layer",
 )
@@ -128,7 +136,9 @@ _OVERVIEW_LIKE_HEADINGS = frozenset(
 )
 
 _VERSION_PATTERN = re.compile(r"\bVersion v\d+\b", re.IGNORECASE)
-_ACCEPTED_DATE_PATTERN = re.compile(r"\bDate:\s*(\d{1,2}/\d{1,2}/\d{4})\b", re.IGNORECASE)
+_ACCEPTED_DATE_PATTERN = re.compile(
+    r"\bDate:\s*(\d{1,2}/\d{1,2}/\d{4})\b", re.IGNORECASE
+)
 
 _STREET_ADDRESS_PATTERN = re.compile(
     r"\d+\s+[A-Za-z][\w\s\-']{2,48}"
@@ -136,7 +146,9 @@ _STREET_ADDRESS_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _DEAR_OWNERS_PATTERN = re.compile(r"Dear\s+(.+?),", re.IGNORECASE)
-_PROJECT_HEADING_PATTERN = re.compile(r"^\*\*Project:\*\*\s*(.+)$", re.IGNORECASE | re.MULTILINE)
+_PROJECT_HEADING_PATTERN = re.compile(
+    r"^\*\*Project:\*\*\s*(.+)$", re.IGNORECASE | re.MULTILINE
+)
 _DATE_PREFIX_PATTERN = re.compile(
     r"^\d{1,2}\s+"
     r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
@@ -185,7 +197,9 @@ def _is_valid_grounding_anchor(anchor: str) -> bool:
         return False
     if _DATE_PREFIX_PATTERN.search(cleaned):
         return False
-    if re.search(r"\b(?:NSW|VIC|QLD|SA|WA|TAS|ACT|NT)\s+\d{4}\b", cleaned, re.IGNORECASE):
+    if re.search(
+        r"\b(?:NSW|VIC|QLD|SA|WA|TAS|ACT|NT)\s+\d{4}\b", cleaned, re.IGNORECASE
+    ):
         return True
     return len(cleaned.split()) <= 6
 
@@ -316,8 +330,10 @@ def _audit_label_items(markdown: str, label: str) -> list[str]:
 
 
 def _audit_subsection(markdown: str, subsection: str) -> str:
-    """Return lines under a Workflow warnings / **Assumptions** marker in Internal audit layer."""
-    audit = _markdown_section(markdown, "Internal audit layer")
+    """Return lines under a review-only marker in legacy or current QA sections."""
+    audit = _markdown_section(markdown, "Trace & QA") or _markdown_section(
+        markdown, "Internal audit layer"
+    )
     if not audit:
         return ""
 
@@ -349,9 +365,7 @@ def markdown_is_evidence_grounded(markdown: str, evidence_refs: list[str]) -> bo
     """True when refs are populated or the draft already states evidence on file."""
     if evidence_refs:
         return True
-    evidence_basis = _markdown_section(
-        markdown, "Evidence basis and document control"
-    )
+    evidence_basis = _markdown_section(markdown, "Evidence basis and document control")
     return _contains_any(evidence_basis.lower(), EVIDENCE_GROUNDED_MARKERS)
 
 
@@ -383,7 +397,9 @@ def _geotechnical_site_class_known(
     if not source_texts:
         return False
     combined = "\n".join(source_texts).lower()
-    return "site classification" in combined and re.search(r"\bh1\b", combined) is not None
+    return (
+        "site classification" in combined and re.search(r"\bh1\b", combined) is not None
+    )
 
 
 def _contradiction_phrases_for_refs(
@@ -444,7 +460,9 @@ def _strip_contradictory_bullets(section: str, phrases: tuple[str, ...]) -> str:
     kept: list[str] = []
     for line in section.splitlines():
         lower = line.lower()
-        if line.strip().startswith(("-", "*")) and any(phrase.lower() in lower for phrase in phrases):
+        if line.strip().startswith(("-", "*")) and any(
+            phrase.lower() in lower for phrase in phrases
+        ):
             continue
         kept.append(line)
     return "\n".join(kept)
@@ -460,7 +478,8 @@ def _strip_overview_contradictions(section: str) -> str:
         if any(phrase.lower() in lower for phrase in PROJECT_OVERVIEW_CONTRADICTIONS):
             continue
         if "not yet evidenced" in lower and any(
-            token in lower for token in ("site address", "owner identity", "dwelling type", "budget")
+            token in lower
+            for token in ("site address", "owner identity", "dwelling type", "budget")
         ):
             continue
         if "pre-brief / pre-engagement" in lower:
@@ -557,7 +576,8 @@ def _inject_engagement_appointment_status(
         body = section.rstrip()
         replacement = f"{body}\n{line}\n" if body else f"{line}\n"
         return _replace_markdown_section(markdown, heading, replacement)
-    return markdown
+    # Keep Project Summary table-only: fall back to a Citation key note.
+    return f"{markdown.rstrip()}\n\n## Citation key\n\n{line}\n"
 
 
 def _repair_geotech_workflow_bullet(line: str) -> str | None:
@@ -726,7 +746,9 @@ def sanitize_evidence_grounded_markdown(
         # Taxonomy Summary/snapshot tables must stay table-shaped; only inject
         # grounding prose into freeform overview-like sections.
         if source_texts and not _section_has_markdown_table(overview):
-            repaired_overview = _inject_project_overview_grounding(overview, source_texts)
+            repaired_overview = _inject_project_overview_grounding(
+                overview, source_texts
+            )
             if repaired_overview != overview:
                 updated = _replace_markdown_section(
                     updated, overview_heading, repaired_overview
@@ -775,7 +797,12 @@ _EVIDENCE_MAP_REF_MARKERS: dict[str, tuple[str, ...]] = {
     "engagement letter": ("letter of engagement", "engagement letter"),
     "fee proposal": ("fee proposal", "project understanding"),
     "owner project brief": ("project brief", "owner brief"),
-    "geotechnical report": ("geotech", "site classification", "soil classification", "as 2870"),
+    "geotechnical report": (
+        "geotech",
+        "site classification",
+        "soil classification",
+        "as 2870",
+    ),
     "certifier appointment": ("certifier",),
     "master programme": ("master programme", "master program"),
 }
@@ -859,13 +886,9 @@ def evidence_grounded_violations(
                 "status (executed, signed, or on file)"
             )
 
-    if evidence_basis and not _contains_any(evidence_basis, EVIDENCE_GROUNDED_MARKERS):
-        violations.append(
-            "evidence_grounded draft must state what evidence is on file "
-            "(e.g. 'Evidence on file:' in document control)"
-        )
-
-    if evidence_basis and not _contains_any(evidence_basis.lower(), EVIDENCE_MAP_MARKERS):
+    if evidence_basis and not _contains_any(
+        evidence_basis.lower(), EVIDENCE_MAP_MARKERS
+    ):
         violations.append(
             "Evidence basis section must include an evidence map table "
             "(| Section | Evidence status | Ref |)"
@@ -873,14 +896,6 @@ def evidence_grounded_violations(
 
     if source_texts:
         violations.extend(evidence_map_claim_violations(markdown, source_texts))
-
-    facts = _audit_label_items(markdown, "Facts")
-    grounded_facts = [item for item in facts if "assumption" not in item.lower()]
-    if len(grounded_facts) < 2:
-        violations.append(
-            "Internal audit Facts must list at least 2 evidenced project facts "
-            "when evidence_refs is populated"
-        )
 
     if evidence_refs_include_engagement_letter(evidence_refs):
         if workflow_warnings and "no engagement letter" in workflow_warnings.lower():
@@ -891,7 +906,8 @@ def evidence_grounded_violations(
 
     if _geotechnical_evidenced(markdown, evidence_refs):
         if workflow_warnings and any(
-            phrase in workflow_warnings.lower() for phrase in GEOTECH_REQUIRED_CONTRADICTIONS
+            phrase in workflow_warnings.lower()
+            for phrase in GEOTECH_REQUIRED_CONTRADICTIONS
         ):
             violations.append(
                 "Workflow warnings must not claim geotechnical report is required when "
@@ -900,7 +916,9 @@ def evidence_grounded_violations(
 
     if source_texts and project_overview:
         anchors = extract_grounding_anchors(source_texts)
-        if anchors and not any(_anchor_present(anchor, project_overview) for anchor in anchors):
+        if anchors and not any(
+            _anchor_present(anchor, project_overview) for anchor in anchors
+        ):
             violations.append(
                 "Project overview must ground site and/or owner from project evidence "
                 f"(expected one of: {', '.join(anchors[:3])})"
@@ -917,7 +935,12 @@ def evidence_grounded_violations(
 
 
 _USER_PROVIDED_LABEL = "user provided"
-_GROUNDED_LABELS = ("grounded", "partial", "on file — unverified", "on file - unverified")
+_GROUNDED_LABELS = (
+    "grounded",
+    "partial",
+    "on file — unverified",
+    "on file - unverified",
+)
 _DOWNGRADE_TARGET = "Not evidenced"
 _CONFLICTED_TARGET = "Conflict"
 
@@ -962,9 +985,11 @@ def apply_corpus_evidence_downgrades(
         section = _markdown_section(updated, heading)
         if not section:
             continue
-        repaired_section, section_downgraded, section_conflicted = _downgrade_inline_status_rows(
-            section,
-            removed_paths=removed_paths,
+        repaired_section, section_downgraded, section_conflicted = (
+            _downgrade_inline_status_rows(
+                section,
+                removed_paths=removed_paths,
+            )
         )
         if repaired_section != section:
             updated = _replace_markdown_section(updated, heading, repaired_section)
@@ -1010,11 +1035,15 @@ def _downgrade_evidence_map_rows(
             lines.append(line)
             continue
         path_match = _ref_matches_removed_paths(ref, removed_paths)
-        should_downgrade = path_match or section_name in violations or (
-            empty_corpus
-            and (
-                any(label in status_lower for label in _GROUNDED_LABELS)
-                or _USER_PROVIDED_LABEL in status_lower
+        should_downgrade = (
+            path_match
+            or section_name in violations
+            or (
+                empty_corpus
+                and (
+                    any(label in status_lower for label in _GROUNDED_LABELS)
+                    or _USER_PROVIDED_LABEL in status_lower
+                )
             )
         )
         if not should_downgrade:
@@ -1029,9 +1058,7 @@ def _downgrade_evidence_map_rows(
         else:
             lines.append(line)
             continue
-        lines.append(
-            f"| {section_name} | {new_status} | {ref} |"
-        )
+        lines.append(f"| {section_name} | {new_status} | {ref} |")
     return "\n".join(lines), downgraded, conflicted
 
 
@@ -1046,7 +1073,10 @@ def _downgrade_inline_status_rows(
     for line in section.splitlines():
         updated_line = line
         if "**Grounded**" in line or "**Partial**" in line:
-            if any(path.rsplit("/", 1)[-1].lower() in line.lower() for path in removed_paths):
+            if any(
+                path.rsplit("/", 1)[-1].lower() in line.lower()
+                for path in removed_paths
+            ):
                 if _USER_PROVIDED_LABEL in line.lower():
                     updated_line = line.replace(
                         "**Grounded**",
@@ -1059,8 +1089,12 @@ def _downgrade_inline_status_rows(
                         updated_line = f"{updated_line.rstrip()} — current corpus no longer supports"
                     conflicted.append(line.strip()[:80])
                 else:
-                    updated_line = line.replace("**Grounded**", f"**{_DOWNGRADE_TARGET}**")
-                    updated_line = updated_line.replace("**Partial**", f"**{_DOWNGRADE_TARGET}**")
+                    updated_line = line.replace(
+                        "**Grounded**", f"**{_DOWNGRADE_TARGET}**"
+                    )
+                    updated_line = updated_line.replace(
+                        "**Partial**", f"**{_DOWNGRADE_TARGET}**"
+                    )
                     downgraded.append(line.strip()[:80])
         updated_lines.append(updated_line)
     return "\n".join(updated_lines), downgraded, conflicted
@@ -1074,16 +1108,18 @@ def taxonomy_provenance_violations(
     """Validate provenance labels for taxonomy-backed PMP drafts."""
     violations: list[str] = []
     body_lower = markdown.lower()
-    if draft_mode == "platform_seeded" and re.search(r"\bgrounded\b", markdown, re.IGNORECASE):
-        violations.append(
-            "taxonomy platform_seeded drafts must not contain Grounded claims; "
-            "use User provided, Assumption, or Not evidenced"
-        )
-    if draft_mode == "platform_seeded" and not any(
-        label in body_lower for label in ("user provided", "assumption", "not evidenced")
+    if draft_mode == "platform_seeded" and re.search(
+        r"\bgrounded\b", markdown, re.IGNORECASE
     ):
         violations.append(
-            "taxonomy platform_seeded drafts must label setup facts and gaps with "
-            "User provided, Assumption, or Not evidenced"
+            "taxonomy platform_seeded drafts must not contain Grounded claims; "
+            "use project-profile facts directly and label only Assumption or Not evidenced"
+        )
+    if draft_mode == "platform_seeded" and not any(
+        label in body_lower for label in ("assumption", "not evidenced")
+    ):
+        violations.append(
+            "taxonomy platform_seeded drafts must label unsupported facts and gaps with "
+            "Assumption or Not evidenced"
         )
     return violations

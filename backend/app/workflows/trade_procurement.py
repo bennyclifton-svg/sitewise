@@ -1,4 +1,4 @@
-"""Evidence-grounded trade RFT and RFQ drafting through the shared engine."""
+"""Evidence-grounded trade and head-contractor RFT drafting."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.projects.artefact_revisions import set_export_result_for_path
+from app.sitewise.artifact_presentation import clean_issue_language
 from app.sitewise.rfp_evidence_validation import validate_procurement_output
 from app.sitewise.rfp_renderer import (
     BACKGROUND_PLACEHOLDER,
@@ -92,12 +93,22 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
         "Main Works",
         aliases=("head contractor", "main contractor", "builder"),
         baseline_scope=(
-            "Review the issued design information and confirm the proposed construction scope.",
+            "Review the issued design information and define the proposed construction scope.",
             "Coordinate all in-scope trade interfaces, site establishment, supervision, quality, safety, and programme obligations.",
             "Identify exclusions, design responsibility, authority interfaces, and required client decisions.",
         ),
-        price_rows=("Preliminaries", "Building works", "Services coordination", "Testing, commissioning and handover"),
-        returnables=("Programme", "Trade and consultant coordination approach", "Site management and WHS information", "Qualifications and exclusions"),
+        price_rows=(
+            "Preliminaries",
+            "Building works",
+            "Services coordination",
+            "Testing, commissioning and handover",
+        ),
+        returnables=(
+            "Programme",
+            "Trade and consultant coordination approach",
+            "Site management and WHS information",
+            "Qualifications and exclusions",
+        ),
     ),
     "structural steel": _profile(
         "Structural Steel",
@@ -107,8 +118,18 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
             "Coordinate set-out, connections, access, temporary works, and interfaces with concrete, framing, cladding, and services.",
             "Provide shop drawings, certifications, inspections, coatings, and handover records where required.",
         ),
-        price_rows=("Shop drawings and engineering coordination", "Fabrication and coatings", "Delivery and erection", "Connections, testing and certification"),
-        returnables=("Shop drawing schedule", "Programme and lead times", "Welding/coating certifications", "Qualifications and exclusions"),
+        price_rows=(
+            "Shop drawings and engineering coordination",
+            "Fabrication and coatings",
+            "Delivery and erection",
+            "Connections, testing and certification",
+        ),
+        returnables=(
+            "Shop drawing schedule",
+            "Programme and lead times",
+            "Welding/coating certifications",
+            "Qualifications and exclusions",
+        ),
     ),
     "electrical": _profile(
         "Electrical Services",
@@ -118,8 +139,18 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
             "Coordinate supply authority, switchboard, containment, lighting, power, controls, communications, and adjacent services interfaces.",
             "Include testing, commissioning, certification, as-builts, manuals, and training where applicable.",
         ),
-        price_rows=("Supply authority and metering", "Distribution and containment", "Lighting and power", "Controls, testing and commissioning"),
-        returnables=("Programme and lead times", "Shop drawings and samples", "Test records and certificates", "As-builts, manuals and warranties"),
+        price_rows=(
+            "Supply authority and metering",
+            "Distribution and containment",
+            "Lighting and power",
+            "Controls, testing and commissioning",
+        ),
+        returnables=(
+            "Programme and lead times",
+            "Shop drawings and samples",
+            "Test records and certificates",
+            "As-builts, manuals and warranties",
+        ),
     ),
     "windows and glazing": _profile(
         "Windows and Glazing",
@@ -129,8 +160,18 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
             "Coordinate openings, structural tolerances, façade/weatherproofing interfaces, access, and protection.",
             "Provide shop drawings, samples, performance evidence, warranties, and installation records where required.",
         ),
-        price_rows=("Shop drawings and samples", "Window and door supply", "Glazing, hardware and seals", "Installation, protection and warranties"),
-        returnables=("Shop drawings", "Samples and product data", "Lead-time programme", "Performance evidence and warranties"),
+        price_rows=(
+            "Shop drawings and samples",
+            "Window and door supply",
+            "Glazing, hardware and seals",
+            "Installation, protection and warranties",
+        ),
+        returnables=(
+            "Shop drawings",
+            "Samples and product data",
+            "Lead-time programme",
+            "Performance evidence and warranties",
+        ),
     ),
     "hydraulic and plumbing": _profile(
         "Hydraulic and Plumbing Services",
@@ -140,8 +181,18 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
             "Coordinate authority connections, penetrations, fire-water interfaces, fixtures, access, and adjacent services.",
             "Include testing, commissioning, certification, as-builts, manuals, and warranties where applicable.",
         ),
-        price_rows=("Authority and connection works", "Water, sanitary and stormwater services", "Fixtures and specialist systems", "Testing, commissioning and certification"),
-        returnables=("Shop drawings", "Programme and lead times", "Test records and certificates", "As-builts and manuals"),
+        price_rows=(
+            "Authority and connection works",
+            "Water, sanitary and stormwater services",
+            "Fixtures and specialist systems",
+            "Testing, commissioning and certification",
+        ),
+        returnables=(
+            "Shop drawings",
+            "Programme and lead times",
+            "Test records and certificates",
+            "As-builts and manuals",
+        ),
     ),
     "joinery and kitchens": _profile(
         "Joinery and Kitchens",
@@ -151,8 +202,18 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
             "Coordinate finishes, appliances, services rough-ins, tolerances, access, protection, and making good.",
             "Provide shop drawings, samples, prototypes where required, warranties, and handover information.",
         ),
-        price_rows=("Shop drawings and samples", "Manufacture and finishes", "Delivery and installation", "Appliance/service coordination and warranties"),
-        returnables=("Shop drawings", "Finish and hardware samples", "Programme", "Warranties and care information"),
+        price_rows=(
+            "Shop drawings and samples",
+            "Manufacture and finishes",
+            "Delivery and installation",
+            "Appliance/service coordination and warranties",
+        ),
+        returnables=(
+            "Shop drawings",
+            "Finish and hardware samples",
+            "Programme",
+            "Warranties and care information",
+        ),
     ),
 }
 
@@ -173,12 +234,21 @@ def normalise_trade_target(value: str) -> TradeProfile:
     return _profile(
         cleaned,
         baseline_scope=(
-            f"Confirm the in-scope {cleaned} work from the issued project information.",
+            f"Define the in-scope {cleaned} work from the issued project information.",
             "Identify interfaces, exclusions, design responsibility, programme constraints, and required client inputs.",
             "State required testing, commissioning, certification, warranties, as-builts, and handover information where applicable.",
         ),
-        price_rows=("Base scope", "Options and alternates", "Rates and provisional allowances"),
-        returnables=("Scope confirmation", "Programme and lead times", "Qualifications and exclusions", "Applicable warranties and certificates"),
+        price_rows=(
+            "Base scope",
+            "Options and alternates",
+            "Rates and provisional allowances",
+        ),
+        returnables=(
+            "Scope definition",
+            "Programme and lead times",
+            "Qualifications and exclusions",
+            "Applicable warranties and certificates",
+        ),
     )
 
 
@@ -197,7 +267,9 @@ def trade_procurement_workspace_path(
 
 
 def is_trade_procurement_workflow(workflow_type: str) -> bool:
-    return workflow_type.startswith("trade_rft_") or workflow_type.startswith("trade_rfq_")
+    return workflow_type.startswith("trade_rft_") or workflow_type.startswith(
+        "trade_rfq_"
+    )
 
 
 def _workflow_parts(workflow_type: str) -> tuple[str, str]:
@@ -268,12 +340,16 @@ async def sync_trade_procurement_draft_workspace(
         session,
         revision=draft,
         workspace_path=saved_path,
-        content_hash=bytes_content_hash((markdown or draft.content_markdown).encode("utf-8")),
+        content_hash=bytes_content_hash(
+            (markdown or draft.content_markdown).encode("utf-8")
+        ),
     )
     return saved_path
 
 
-async def _sync_for_engine(session: AsyncSession, *, document: Any, **kwargs: Any) -> str:
+async def _sync_for_engine(
+    session: AsyncSession, *, document: Any, **kwargs: Any
+) -> str:
     del document
     return await sync_trade_procurement_draft_workspace(session, **kwargs)
 
@@ -395,7 +471,9 @@ class TradeProcurementDocument(ProcurementDocument):
     runtime_name = RUNTIME_NAME
     trace_tool_name = "draft_trade_procurement_artifact"
     trace_generation_purpose = "Generated and saved the trade procurement artefact."
-    trace_evidence_purpose = "Gathered active-project evidence for the trade request basis."
+    trace_evidence_purpose = (
+        "Gathered active-project evidence for the trade request basis."
+    )
     trace_guidance_purpose = "Gathered SiteWise trade procurement guidance."
     load_required_seed_content = True
 
@@ -412,14 +490,21 @@ class TradeProcurementDocument(ProcurementDocument):
         return normalise_trade_target(raw)
 
     def title(self, target: ProcurementTarget) -> str:
-        label = "Request for Tender" if self.kind == "rft" else "Request for Quotation"
-        return f"{label} - {target.name}"
+        return f"Request for Tender - {target.name}"
 
     def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         name = target.name
         return (
-            EvidenceQuery("project_brief", "Project brief", "project brief owner objectives scope site constraints"),
-            EvidenceQuery("scope_of_works", "Scope and design information", f"{name} scope drawings specifications schedule interfaces"),
+            EvidenceQuery(
+                "project_brief",
+                "Project brief",
+                "project brief owner objectives scope site constraints",
+            ),
+            EvidenceQuery(
+                "scope_of_works",
+                "Scope and design information",
+                f"{name} scope drawings specifications schedule interfaces",
+            ),
             EvidenceQuery(
                 "interface_drawings",
                 "Relevant interface drawings",
@@ -428,9 +513,21 @@ class TradeProcurementDocument(ProcurementDocument):
                     "ceiling plans sections shafts penetrations louvres plant access coordination"
                 ),
             ),
-            EvidenceQuery("programme", "Programme", f"{name} programme milestones access lead time construction completion"),
-            EvidenceQuery("cost_plan_pmp", "Cost plan / Project Plan", f"cost plan project plan {name} procurement programme"),
-            EvidenceQuery("approvals", "Approvals and compliance", f"{name} approvals authority compliance certificates testing"),
+            EvidenceQuery(
+                "programme",
+                "Programme",
+                f"{name} programme milestones access lead time construction completion",
+            ),
+            EvidenceQuery(
+                "cost_plan_pmp",
+                "Cost plan / Project Plan",
+                f"cost plan project plan {name} procurement programme",
+            ),
+            EvidenceQuery(
+                "approvals",
+                "Approvals and compliance",
+                f"{name} approvals authority compliance certificates testing",
+            ),
         )
 
     async def supplemental_project_evidence(
@@ -460,7 +557,10 @@ class TradeProcurementDocument(ProcurementDocument):
         target: ProcurementTarget,
     ) -> dict[str, Any]:
         del session, project_id, target
-        return {"used": False, "reason": "Trade price schedules are deterministic blank returnables."}
+        return {
+            "used": False,
+            "reason": "Trade price schedules are deterministic blank returnables.",
+        }
 
     def assumptions_and_missing(
         self,
@@ -476,8 +576,14 @@ class TradeProcurementDocument(ProcurementDocument):
             item
             for role, item in (
                 ("project_brief", "Project brief and client objectives."),
-                ("scope_of_works", "Current drawings, specifications, and package scope."),
-                ("programme", "Tender close, required-on-site date, and programme assumptions."),
+                (
+                    "scope_of_works",
+                    "Current drawings, specifications, and package scope.",
+                ),
+                (
+                    "programme",
+                    "Tender close, required-on-site date, and programme assumptions.",
+                ),
             )
             if role not in roles
         ]
@@ -507,7 +613,11 @@ class TradeProcurementDocument(ProcurementDocument):
         instructions: str | None,
     ) -> str:
         del max_pages
-        profile = target if isinstance(target, TradeProfile) else normalise_trade_target(target.name)
+        profile = (
+            target
+            if isinstance(target, TradeProfile)
+            else normalise_trade_target(target.name)
+        )
         citation_index = build_rfp_citation_index(project_evidence)
         scaffold = render_trade_request_scaffold(
             kind=self.kind,
@@ -530,14 +640,17 @@ class TradeProcurementDocument(ProcurementDocument):
         )
         scope_items = narrative.requested_services or list(profile.baseline_scope)
         scope_markdown = "\n".join(
-            f"{index}. {_scope_item(item)}"
+            f"{index}. {clean_issue_language(_scope_item(item))}"
             for index, item in enumerate(scope_items, start=1)
         )
-        programme_markdown = "\n".join(f"- {item}" for item in narrative.programme)
-        if not programme_markdown:
-            programme_markdown = "- Programme details: TBC by client before issue."
+        programme_markdown = "\n".join(
+            f"- {clean_issue_language(item)}" for item in narrative.programme
+        )
         return (
-            scaffold.replace(BACKGROUND_PLACEHOLDER, narrative.background)
+            scaffold.replace(
+                BACKGROUND_PLACEHOLDER,
+                clean_issue_language(narrative.background),
+            )
             .replace(REQUESTED_SERVICES_PLACEHOLDER, scope_markdown)
             .replace(PROGRAMME_PLACEHOLDER, programme_markdown)
         )
@@ -566,9 +679,12 @@ async def draft_trade_procurement_artifact(
     instructions: str | None = None,
     auto_commit: bool = True,
 ) -> TradeProcurementResult:
-    document = TRADE_RFT_DOCUMENT if kind == "rft" else TRADE_RFQ_DOCUMENT if kind == "rfq" else None
-    if document is None:
+    if kind not in {"rft", "rfq"}:
         raise ValueError("kind must be rft or rfq")
+    # Quotation intent now uses the universal RFT profile. Historical RFQ
+    # revisions remain readable, but no new RFQ workflow type is created.
+    kind = "rft"
+    document = TRADE_RFT_DOCUMENT
     result: ProcurementRequestResult = await draft_procurement_request(
         session,
         project=project,

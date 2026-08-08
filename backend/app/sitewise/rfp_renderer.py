@@ -1,4 +1,4 @@
-"""Deterministic structure for evidence-grounded consultant RFPs."""
+"""Deterministic consultant content for externally titled RFTs."""
 
 from __future__ import annotations
 
@@ -26,9 +26,7 @@ PROGRAMME_PLACEHOLDER = "{{PROGRAMME}}"
 def build_rfp_citation_index(project_evidence: list[dict[str, Any]]) -> CitationIndex:
     """Build a stable citation index from the retrieved project documents."""
     documents = [
-        (path, "on file")
-        for item in project_evidence
-        if (path := _evidence_path(item))
+        (path, "on file") for item in project_evidence if (path := _evidence_path(item))
     ]
     return build_citation_index(documents)
 
@@ -36,7 +34,6 @@ def build_rfp_citation_index(project_evidence: list[dict[str, Any]]) -> Citation
 def render_procurement_project_summary(
     *,
     project: Project,
-    target_label: str,
     citation_index: CitationIndex,
     forecast: dict[str, Any],
     project_evidence: list[dict[str, Any]],
@@ -62,7 +59,6 @@ def render_procurement_project_summary(
         f"- Client / owners: {identity.get('client') or 'TBC'}",
         f"- State / phase: {getattr(project, 'state', None) or 'TBC'} / "
         f"{getattr(project, 'phase', None) or 'TBC'}",
-        target_label,
     ]
     if classification:
         project_lines.append(f"- Project type: {classification}")
@@ -74,30 +70,28 @@ def render_procurement_project_summary(
             citation_index,
         )
         budget, budget_source = _construction_budget_summary(forecast)
-        return render_project_summary_table(
-            project,
-            project_title=project_title,
-            project_title_source=project_title_source,
-            site_address=identity.get("site_address"),
-            client=identity.get("client"),
-            site_address_status=(
-                "User provided / Evidence on file"
-                if site_citation != "—"
-                else "User provided / Not evidenced"
-            ),
-            site_address_citation=site_citation,
-            client_status=(
-                "User provided / Evidence on file"
-                if client_citation != "—"
-                else "User provided / Not evidenced"
-            ),
-            client_citation=client_citation,
-            budget=budget,
-            budget_source=budget_source,
-            compact_sources=True,
+        return _omit_placeholder_rows(
+            render_project_summary_table(
+                project,
+                project_title=project_title,
+                project_title_source=project_title_source,
+                site_address=identity.get("site_address"),
+                client=identity.get("client"),
+                site_address_status=(
+                    "Profile" if site_citation != "—" else "Profile / Not evidenced"
+                ),
+                site_address_citation=site_citation,
+                client_status=(
+                    "Profile" if client_citation != "—" else "Profile / Not evidenced"
+                ),
+                client_citation=client_citation,
+                budget=budget,
+                budget_source=budget_source,
+                compact_sources=True,
+            )
         )
     except ValueError:
-        return "\n".join(project_lines)
+        return "\n".join(line for line in project_lines if "TBC" not in line)
 
 
 def render_rfp_scaffold(
@@ -109,54 +103,54 @@ def render_rfp_scaffold(
     max_pages: int,
     project_evidence: list[dict[str, Any]] | None = None,
     assumptions: list[str] | None = None,
+    missing_inputs: list[str] | None = None,
     instructions: str | None = None,
 ) -> str:
-    """Render the RFP sections that do not require language-model judgement."""
-    del max_pages, assumptions, instructions
-    # Consultant RFP scope is not truncated to a page target. Assumptions and
-    # user instructions remain internal provenance, never issue-document copy.
+    """Render consultant tender content under the universal external RFT title."""
+    del max_pages
     project_summary = render_procurement_project_summary(
         project=project,
-        target_label=f"- Consultant discipline: {target.name}",
         citation_index=citation_index,
         forecast=forecast,
         project_evidence=project_evidence or [],
     )
 
     sections = [
-        f"# Request for Fee Proposal - {target.name}",
+        f"# Request for Tender - {target.name}",
         "",
-        "## Project Summary",
+        "## Tender particulars",
         project_summary,
         "",
-        f"- Consultant discipline: {target.name}",
+        f"- Services package: {target.name}",
+        *(
+            [f"- Client instruction: {' '.join(instructions.split())}"]
+            if instructions and instructions.strip()
+            else []
+        ),
+        "",
+        "## Information issued and citations",
+        _information_to_review_table(project_evidence or [], citation_index),
         "",
         "## Background",
         BACKGROUND_PLACEHOLDER,
         "",
-        "## Requested services",
+        "## Services and deliverables",
         (
-            "Please review the proposed services and provide a short return brief "
-            "with your fee proposal, identifying any amendments, qualifications, "
-            "omissions, or additional services required."
+            "Provide a concise return brief with the tender response, identifying "
+            "amendments, qualifications, omissions and additional services."
         ),
         "",
         REQUESTED_SERVICES_PLACEHOLDER,
         "",
-        "## Information to review",
-        _information_to_review_table(project_evidence or [], citation_index),
-        "",
-        "## Required deliverables",
+        "**Required deliverables**",
         *_bullets(target.deliverables),
         "",
-        "## Programme / response date",
+        "## Programme and submission",
         PROGRAMME_PLACEHOLDER,
-        "- Provide earliest availability, key programme assumptions, and duration for each stage.",
-        "- Fee response date: TBC by client before issue.",
-        "- Submit the fee proposal to the client-nominated contact in PDF format.",
-        "- Include company details, insurances, proposed personnel, and any terms requiring acceptance.",
+        "- State earliest availability, stage durations and programme dependencies.",
+        "- Submit one PDF response with company details, insurances, proposed personnel and proposed terms.",
         "",
-        "## Fee response requirements",
+        "## Fee response",
         "- Submit a lump-sum fee excluding GST, with GST shown separately.",
         (
             "- Use the indicative breakdown below (mark stages N/A where not "
@@ -166,13 +160,15 @@ def render_rfp_scaffold(
         "",
         *_fee_breakdown_table(),
         "",
-        "**Assumptions, exclusions and clarifications**",
+        "**Qualifications and commercial basis**",
         "",
-        "- State assumptions, exclusions, client inputs, authority fees, fee validity, optional services, disbursements, and hourly rates.",
-        "- Separate consultant, client, authority, other-consultant, and contractor responsibilities.",
-        "- State allowances for investigations, surveys, meetings, site visits, tender support, construction support, inspections, testing, and handover.",
-        "- Confirm whether a site visit is required and any preconditions for attendance.",
-        "- Submit clarification questions before pricing where information is incomplete.",
+        "- State assumptions, exclusions, client inputs, authority fees, validity, optional services, disbursements and hourly rates.",
+        "- Separate consultant, client, authority, other-consultant and contractor responsibilities.",
+        "- Identify allowances for investigations, surveys, meetings, site visits, tender support, construction support, inspections, testing and handover.",
+        "- Submit clarification questions before pricing.",
+        "",
+        "## Trace & QA",
+        _trace_qa_block(assumptions or [], missing_inputs or []),
     ]
     return "\n".join(sections).rstrip() + "\n"
 
@@ -191,9 +187,7 @@ def _construction_budget_summary(
     source_path = str(forecast.get("source_path") or "")
     match = re.search(r"cost_plan_v(\d+)", source_path, flags=re.IGNORECASE)
     source = (
-        f"Current Cost Plan v{int(match.group(1))}"
-        if match
-        else "Current Cost Plan"
+        f"Current Cost Plan v{int(match.group(1))}" if match else "Current Cost Plan"
     )
     if forecast.get("construction_budget_basis") == "user_adopted":
         source += " (user-adopted)"
@@ -229,11 +223,11 @@ def render_information_to_review_table(
     ]
     lines.extend(f"| {' | '.join(row)} |" for row in rows)
     if not rows:
-        lines.append("| TBC | No project documents identified for issue | TBC | TBC | — |")
+        lines.append("| — | No source documents currently issued | — | — | — |")
     return "\n".join(lines)
 
 
-# Retained as a private compatibility alias while current RFP callers migrate.
+# Retained as a private compatibility alias while internal consultant callers migrate.
 _information_to_review_table = render_information_to_review_table
 
 
@@ -241,27 +235,27 @@ def _fee_breakdown_table() -> list[str]:
     return [
         "| Indicative fee stage | Scope / allowance to identify | Fee ex GST |",
         "| --- | --- | ---: |",
-        "| Information review, site visit and design basis | Confirm inputs, investigations and initial advice | TBC |",
-        "| Concept design | Options, design criteria and concept coordination | TBC |",
-        "| Detailed design and documentation | Calculations, drawings, specifications and coordination | TBC |",
-        "| Approval and tender support | Certification / authority inputs, tender queries and addenda | TBC |",
-        "| Construction phase | RFIs, submittal reviews, inspections and site attendance allowances | TBC |",
-        "| Completion and handover | Defects, completion statements and close-out deliverables | TBC |",
-        "| Optional / additional services | Separately identify scope, rates and trigger | TBC |",
-        "| Hourly rates | Identify rates by proposed personnel / role | TBC |",
-        "| Disbursements | Separately identify estimated expenses | TBC |",
-        "| **Total lump sum** | Excluding GST | **TBC** |",
+        "| Information review, site visit and design basis | Inputs, investigations and initial advice | — |",
+        "| Concept design | Options, design criteria and concept coordination | — |",
+        "| Detailed design and documentation | Calculations, drawings, specifications and coordination | — |",
+        "| Approval and tender support | Certification / authority inputs, tender queries and addenda | — |",
+        "| Construction phase | RFIs, submittal reviews, inspections and site attendance allowances | — |",
+        "| Completion and handover | Defects, completion statements and close-out deliverables | — |",
+        "| Optional / additional services | Separately identify scope, rates and trigger | — |",
+        "| Hourly rates | Identify rates by proposed personnel / role | — |",
+        "| Disbursements | Separately identify estimated expenses | — |",
+        "| **Total lump sum** | Excluding GST | **—** |",
     ]
 
 
 def _table_value(value: Any) -> str:
     if value is None or not str(value).strip():
-        return "TBC"
+        return "—"
     return " ".join(str(value).split()).replace("|", "\\|")
 
 
 def _natural_key(value: str) -> tuple[tuple[int, int | str], ...]:
-    if value == "TBC":
+    if value == "—":
         return ((2, ""),)
     return tuple(
         (0, int(part)) if part.isdigit() else (1, part.casefold())
@@ -363,3 +357,37 @@ def _project_title(
 
 def _bullets(items: tuple[str, ...]) -> list[str]:
     return [f"- {item}" for item in items]
+
+
+def _omit_placeholder_rows(markdown_table: str) -> str:
+    """Keep unresolved identity fields out of the issue-facing summary."""
+    lines: list[str] = []
+    for line in markdown_table.splitlines():
+        if not line.startswith("|") or "TBC" not in line:
+            lines.append(line.replace("| Confirm |", "| — |"))
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        cleaned_cells = [_without_placeholder_fragments(cell) for cell in cells]
+        if len(cleaned_cells) > 1 and cleaned_cells[1] == "—":
+            continue
+        lines.append(f"| {' | '.join(cleaned_cells)} |")
+    return "\n".join(lines)
+
+
+def _without_placeholder_fragments(value: str) -> str:
+    parts = re.split(r"\s*(?:;|\s/\s)\s*", value)
+    kept = [part for part in parts if "TBC" not in part]
+    return "; ".join(kept) if kept else "—"
+
+
+def _trace_qa_block(assumptions: list[str], missing_inputs: list[str]) -> str:
+    lines = ["This review-only section is excluded from Word and PDF exports."]
+    if missing_inputs:
+        lines.extend(["", "**Inputs to resolve**"])
+        lines.extend(f"- {item}" for item in missing_inputs)
+    if assumptions:
+        lines.extend(["", "**Working basis**"])
+        lines.extend(f"- {item}" for item in assumptions)
+    if not missing_inputs and not assumptions:
+        lines.extend(["", "- No unresolved generation inputs recorded."])
+    return "\n".join(lines)

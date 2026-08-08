@@ -62,7 +62,23 @@ def length_violations(
 
 
 def _primary_markdown(markdown: str) -> str:
-    return _replace_decision_fences(_drop_collapsed_blocks(_drop_annexure_sections(markdown)))
+    return _replace_decision_fences(
+        _drop_collapsed_blocks(_drop_review_sections(_drop_annexure_sections(markdown)))
+    )
+
+
+def _drop_review_sections(markdown: str) -> str:
+    lines = markdown.splitlines()
+    kept: list[str] = []
+    skipping = False
+    for line in lines:
+        stripped = line.strip().lower()
+        if stripped.startswith("## "):
+            heading = stripped[3:].strip()
+            skipping = heading in {"trace & qa", "internal audit layer"}
+        if not skipping:
+            kept.append(line)
+    return "\n".join(kept)
 
 
 def _drop_annexure_sections(markdown: str) -> str:
@@ -149,7 +165,11 @@ def _count_words(markdown: str) -> int:
 
 
 def _section_word_counts(markdown: str) -> list[tuple[str, int]]:
-    sections = [section for section in split_sections(_primary_markdown(markdown)) if section.level == 2]
+    sections = [
+        section
+        for section in split_sections(_primary_markdown(markdown))
+        if section.level == 2
+    ]
     return [(section.heading, _count_words(section.content)) for section in sections]
 
 

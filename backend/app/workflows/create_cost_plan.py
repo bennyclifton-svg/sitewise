@@ -487,8 +487,9 @@ def _role_drafting_note(*, draft_mode: DraftMode, state: str) -> str:
     else:
         evidence_note = (
             "Project cost evidence is available. Ground budget figures, appointments, and "
-            "claim schedules from Sources. Include Evidence on file and the evidence map table "
-            "in Source evidence used. Apply claim-first rule for progress claims and SOV. "
+            "claim schedules from Sources. List indexed evidence (document names/dates — "
+            "never write 'Evidence on file') and the evidence map table in Source evidence "
+            "used. Apply claim-first rule for progress claims and SOV. "
             "Do not collapse Construction to one line when claim evidence has trade rows."
         )
 

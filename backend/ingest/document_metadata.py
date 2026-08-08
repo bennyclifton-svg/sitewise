@@ -99,6 +99,8 @@ FILENAME_DISCIPLINE_KEYWORDS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bnbn\b|\bcommunications\b", re.I), "Communications"),
     (re.compile(r"\bcertif|\bdcd\b|\bdesign\s+certificate", re.I), "Certification"),
     (re.compile(r"^CC-A-", re.I), "Architectural"),
+    (re.compile(r"^(?:\d{3,6}\s+)?CC-\d{2,3}\b", re.I), "Architectural"),
+    (re.compile(r"(?<![A-Z0-9])\d{4,6}_S\d{3,4}(?![A-Z0-9])", re.I), "Structural"),
     (re.compile(r"^E\d{2}\s*-", re.I), "Electrical"),
     (re.compile(r"^H-", re.I), "Hydraulic"),
     (re.compile(r"^F-", re.I), "Fire"),
@@ -815,6 +817,7 @@ def _parse_windows_short_name(stem: str) -> _ParsedFields | None:
 def _parse_from_file_name(stem: str) -> _ParsedFields:
     attempts = [
         _match_cc_architectural,
+        _match_cc_sheet,
         _match_architect_number,
         _match_electrical_sheet,
         _match_nbn_sheet,
@@ -824,6 +827,7 @@ def _parse_from_file_name(stem: str) -> _ParsedFields:
         _match_for_construction,
         _match_cost_invoice,
         _match_vista_transmittal,
+        _match_job_structural_sheet,
         _match_structural_sheet,
         _match_fco_revision,
         _match_rev_parenthetical,
@@ -852,6 +856,23 @@ def _match_cc_architectural(stem: str) -> _ParsedFields | None:
         document_number=match.group(1).upper(),
         title=_clean_title(match.group(2)),
         revision="Current",
+        confidence="high",
+    )
+
+
+def _match_cc_sheet(stem: str) -> _ParsedFields | None:
+    """Project-prefixed architectural sheets: ``1115 CC-01 SETOUT PLAN D``."""
+    match = re.match(
+        r"^(?:\d{3,6}\s+)?(CC-\d{2,3})\s+(.+?)\s+([A-Z]\d?)$",
+        stem,
+        re.I,
+    )
+    if not match:
+        return None
+    return _ParsedFields(
+        document_number=match.group(1).upper(),
+        title=_clean_title(match.group(2)),
+        revision=_normalize_revision(match.group(3)),
         confidence="high",
     )
 
@@ -991,6 +1012,23 @@ def _match_vista_transmittal(stem: str) -> _ParsedFields | None:
     )
 
 
+def _match_job_structural_sheet(stem: str) -> _ParsedFields | None:
+    """Job-prefixed structural sheets: ``15123_S0001_Notes-(03)``.
+
+    The leading digits are a shared project/job number; the register drawing
+    number is the ``S####`` sheet code alone.
+    """
+    match = re.match(r"^\d{4,6}_(S\d{3,4})_(.+?)-\((\d{2})\)$", stem, re.I)
+    if not match:
+        return None
+    return _ParsedFields(
+        document_number=match.group(1).upper(),
+        title=_clean_title(match.group(2).replace("_", " ")),
+        revision=match.group(3),
+        confidence="high",
+    )
+
+
 def _match_structural_sheet(stem: str) -> _ParsedFields | None:
     repeated = re.match(
         r"^(S\d{3})\s*-\s*(.+?)\s+Drawing\s+No\.?\s*[-–—]\s*\1\s+Rev\s+([A-Z0-9]+)$",
@@ -1109,9 +1147,17 @@ def _match_leading_number_title(stem: str) -> _ParsedFields | None:
     match = re.match(r"^(\d{4,})\s+(.+)$", stem)
     if not match:
         return None
+    remainder = match.group(2)
+    # A leading project/job number ahead of a sheet code is not the document number.
+    if re.match(
+        r"^(?:CC-\d{2,3}|[A-Z]{1,3}-\d{2,4}|[A-Z]\d{2,3})\b",
+        remainder,
+        re.I,
+    ):
+        return None
     return _ParsedFields(
         document_number=match.group(1),
-        title=_clean_title(match.group(2)),
+        title=_clean_title(remainder),
         revision="Current",
         confidence="medium",
     )
@@ -1265,7 +1311,7 @@ def _strip_redundant_discipline_prefix(title: str, document_number: str) -> str:
         return re.sub(r"^ELECTRICAL\s*[-–—]\s*", "", title, flags=re.I).strip()
     if re.match(r"^H-", document_number, re.I):
         return re.sub(r"^HYDRAULIC\s*[-–—]\s*", "", title, flags=re.I).strip()
-    if re.match(r"^S\d{3}$", document_number, re.I):
+    if re.match(r"^S\d{3,4}$", document_number, re.I):
         return re.sub(r"^STRUCTURAL\s*[-–—]\s*", "", title, flags=re.I).strip()
     return title
 

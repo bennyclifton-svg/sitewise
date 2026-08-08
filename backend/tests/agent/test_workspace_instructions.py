@@ -19,6 +19,10 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "select_document_register_files" in WORKSPACE_AGENTS_MD
     assert "refresh_cost_plan with reconcile_evidence=true" in WORKSPACE_AGENTS_MD
     assert "process_invoices" in WORKSPACE_AGENTS_MD
+    assert "search_web" in WORKSPACE_AGENTS_MD
+    assert "read_web_source" in WORKSPACE_AGENTS_MD
+    assert "Search results are discovery candidates" in WORKSPACE_AGENTS_MD
+    assert "external reference, not project evidence" in WORKSPACE_AGENTS_MD
     assert "Never call upsert_cost_item" in WORKSPACE_AGENTS_MD
     assert "Prefer headings and bullet lists for structure" in WORKSPACE_AGENTS_MD
     assert "**bold**" in WORKSPACE_AGENTS_MD

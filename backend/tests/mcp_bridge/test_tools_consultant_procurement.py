@@ -99,7 +99,9 @@ def _install(
 ) -> tuple[Any, AsyncMock]:
     from app.mcp_bridge import server
 
-    monkeypatch.setattr(server, "read_project_snapshot", AsyncMock(return_value=object()))
+    monkeypatch.setattr(
+        server, "read_project_snapshot", AsyncMock(return_value=object())
+    )
     monkeypatch.setattr(server, "capability_block_message", lambda *_args: None)
 
     monkeypatch.setattr(
@@ -142,7 +144,9 @@ def _call(server, arguments: dict) -> Any:
     return run_async(_run())
 
 
-def test_draft_consultant_procurement_tool_returns_artefact_metadata(monkeypatch) -> None:
+def test_draft_consultant_procurement_tool_returns_artefact_metadata(
+    monkeypatch,
+) -> None:
     session = _Session(project=_project())
     server, run_workflow = _install(monkeypatch, session)
 
@@ -190,7 +194,9 @@ def test_draft_consultant_procurement_rejects_unauthorized_project(monkeypatch) 
     run_workflow.assert_not_awaited()
 
 
-def test_draft_consultant_procurement_publishes_status_and_artefact(monkeypatch) -> None:
+def test_draft_consultant_procurement_publishes_status_and_artefact(
+    monkeypatch,
+) -> None:
     turn_id = uuid.uuid4()
     session = _Session(project=_project())
     server, _run_workflow = _install(monkeypatch, session, turn_id=turn_id)
@@ -226,12 +232,14 @@ def test_draft_consultant_procurement_publishes_status_and_artefact(monkeypatch)
     assert artefact["workflowType"] == "consultant_procurement_structural_engineer"
 
 
-def test_draft_consultant_procurement_reports_upstream_model_failure(monkeypatch) -> None:
+def test_draft_consultant_procurement_reports_upstream_model_failure(
+    monkeypatch,
+) -> None:
     session = _Session(project=_project())
     server, run_workflow = _install(monkeypatch, session)
     run_workflow.side_effect = OpenAIError("model request failed")
 
-    with pytest.raises(ToolError, match="could not draft the RFP"):
+    with pytest.raises(ToolError, match="could not draft the consultant tender"):
         _call(
             server,
             {

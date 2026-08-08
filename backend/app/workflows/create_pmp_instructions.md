@@ -27,21 +27,28 @@ Label every project-specific claim without evidence as **Assumption**. Never pre
 When the prompt includes an **Adaptive taxonomy PMP content contract**, it supersedes
 the legacy role/archetype scaffold:
 - Prefer a compact 2-4 A4 page control document. Cut generic prose first. Put long
-  document registers and overflow detail in a compact `## Annexure` section immediately
-  before the final Citation key so it does not crowd out decisions. Do not truncate
-  project-specific substance solely to hit a word count.
+  document registers and overflow detail in companion records rather than the issued
+  body. Do not truncate project-specific substance solely to hit a word count.
 - Use the universal `##` headings supplied in the prompt exactly (e.g. **Project
   Summary**, **Brief**, **Consultants**, **Planning and Compliance**, **Programme**,
   **Cost Planning**, **Procurement and Delivery**, **Risks and mitigations**,
   **Actions and decisions**, **Citation key**).
-- Open with **Project Summary**. Put a compact **Critical current position** table first,
-  containing the highest-consequence identity/scope conflicts, statutory departures,
-  approval gates, programme gates and unresolved client decisions. Then use columns
-  `| Field | Current PMP position | Citation |`. Middle cell = value plus status
-  label; Citation cell = `[n]` or `—` only (no document titles).
+- Open with **Project Summary** and one compact identity table only (no bridge paragraph
+  under the table). Do not include a **Critical current position** heading, row, table, or
+  preamble. The first rows must be exactly this order: **Project**, **Address**, **Owner**,
+  **Description**. **Project** is the literal project name, not a scope sentence and never
+  prefixed with Confirmed. Keep a building or facility name in **Address** when it is known;
+  put owners/clients in **Owner**; put the description of the work in **Description**. Never
+  combine Project/Owner/Address into one slash-joined row. Use no column-label header row.
+  Keep the middle cell to the plain project detail, without evidence-status prose or the word
+  Confirmed. The Citation cell is `[n]` when evidenced, otherwise leave it blank (no document
+  titles, status dots, or dash placeholders). Do not write Conflict or "requiring resolution"
+  in table cells — source disagreement is signalled by citation colour in the UI. Put gates and
+  unresolved decisions in their relevant control sections and the final **Trace & QA** section.
 - **Brief** is physical/client brief only (inclusions, exclusions, interfaces,
-  finishes/fixtures, acceptance criteria). Do not put consultant rosters or
-  engagement/fee content in Brief.
+  finishes/fixtures, acceptance criteria). Lead with the project scope itself. Do not
+  prefix it with `Draft owner project brief`, draft status, formal-sign-off commentary,
+  consultant rosters, or engagement/fee content.
 - In evidence-grounded drafts, omit an empty work-scope taxonomy/fallback row. The
   fallback selector is for sparse projects only; do not ask the client to reconfirm
   scope already established by current documents.
@@ -54,26 +61,32 @@ the legacy role/archetype scaffold:
   Consultant status must distinguish appointed, proposed/required, report on file but
   appointment unverified, and not evidenced. A report on file does not by itself prove
   a live appointment.
-  Architect-PM engagement is the first row when that role applies; expected
+  Architect engagement is the first row when that role applies; expected
   disciplines without appointment evidence stay Assumption / Not evidenced with `—`.
 - Use one shared `[n]` number per active project evidence document across Summary,
-  Consultants, body refs, and **Citation key**. Do not invent citations for
-  user-provided or assumption-only facts.
+  Consultants, body refs, and **Citation key**. Use current project-profile facts directly,
+  without a provenance label or citation. Do not invent citations for assumption-only facts.
 - A citation must support the whole adjacent claim. Never assemble a claim by matching
   isolated tokens from separate source passages. Before citing `[n]`, ensure the named
   quantity, party, scope, status and action are stated or faithfully paraphrased by `[n]`.
-- Close with **Citation key** only (numbered docs, section evidence-status table,
-  short document-control note). Do **not** open the body with **Evidence basis and
-  document control**.
+- Keep inline `[n]` citations prominent and close the issued body with **Citation key**
+  as one clean numbered list (`- [n] filename — date/status`) plus a short document-control
+  note. Do not include a section evidence-status table, Evidence coverage register, or
+  Annexure. Do **not** open with **Evidence basis and document control**.
 - Use condensed registers only: top ~8 risks and top ~8 actions/decisions in the
   primary PMP. Preserve overflow detail as companion artifacts or annexures, not
   long inline prose.
 - Cite specific AS/NCC references from loaded seed sections. For fire-services
   scope, name AS 2419.1 hydrant systems and AS 2941 pumpsets when those seed
   refs are supplied.
-- User setup facts are **User provided**. Missing current-corpus facts are
-  **Assumption** or **Not evidenced**. Do not write **Grounded** in
+- Project-profile facts appear as ordinary project information, without **User provided**
+  labels or citations. Missing current-corpus facts are **Assumption** or **Not evidenced**.
+  Do not write **Grounded** in
   `platform_seeded` drafts.
+- Do not put `TBC`, `Confirm`, scaffold status, profile emphasis, seed-loading notes,
+  repository paths, or generation instructions in the issued body. Put unresolved
+  inputs and workflow warnings in one final `## Trace & QA` section after Citation
+  key. The application hides that section from Word and PDF exports.
 - Do not fill a missing required seed section from pretrained domain knowledge.
   Mark the gap and ask for confirmation.
 
@@ -90,8 +103,8 @@ When the prompt includes a **Greenfield content contract** (Create PMP), you mus
   accessibility, services-capacity and occupation controls.
 - Write plain formal Australian English — avoid filler phrases ("facilitate collaboration", "ensure alignment")
 - Markdown tables must start at column 0 on their own lines — never prefix table rows with list bullets (`- |`)
-- In **Internal audit layer**, include at least 3 **Recommendations** each with an owner ask and due date
-- Include draft register rows (ID, description, owner, status, due date, source, next action)
+- Keep recommendations and register rows in **Actions and decisions**. Do not repeat
+  them in an audit section.
 
 When `draft_mode: evidence_grounded` on **Create PMP**, still follow the full scaffold — use
 evidence to upgrade specific facts; keep Assumption rows where evidence is silent.
@@ -101,16 +114,18 @@ evidence to upgrade specific facts; keep Assumption rows where evidence is silen
 When the prompt includes an **Adaptive taxonomy PMP content contract**, the taxonomy
 **Citation key** + shared `[n]` citation rules above supersede front-loaded
 **Evidence basis and document control**. Do not open taxonomy drafts with Evidence
-basis; put numbered document list, section evidence-status table, and document-control
-note under **Citation key** at the end.
+basis; put a numbered document list and short document-control note under **Citation key**
+at the end (no section evidence-status table).
 
 When engagement letter, fee proposal, or other project evidence appears in **Sources**
 on the legacy (non-taxonomy) 14-section path:
 
-1. **Document control honesty** — Under **Evidence basis and document control**, state what is
-   **Evidence on file** (with dates/status). Never write "project evidence (none yet)" or label
-   filed documents as "not yet filed". List remaining **Gaps** separately (e.g. owner brief
-   formal sign-off, geotech, certifier, construction budget).
+1. **Document control honesty** — Under **Evidence basis and document control**, list each
+   mobilisation document from Sources with dates/status as plain bullets. Never write
+   "Evidence on file" (citations and the evidence map already communicate grounding). Never
+   write "project evidence (none yet)" or label filed documents as "not yet filed". List
+   remaining **Gaps** separately (e.g. owner brief formal sign-off, geotech, certifier,
+   construction budget).
 
 2. **Evidence map table** — Include a table in the evidence basis section:
 
@@ -124,8 +139,9 @@ on the legacy (non-taxonomy) 14-section path:
    must state evidenced owner(s), site address, and dwelling type when Sources include them.
 
 4. **Two-brief discipline** — If engagement letter + fee proposal are on file, the **engagement
-   brief** is substantially evidenced (not "not yet filed"). Summarise fee proposal project
-   understanding as a **draft owner project brief** pending owner formal sign-off.
+   brief** is substantially evidenced (not "not yet filed"). State the fee proposal project
+   understanding directly as the owner project brief. Do not prefix it with draft status or
+   owner-sign-off commentary.
 
 5. **Procurement and programme** — Surface fee proposal conflict disclosures and tender
    assumptions only when the cited project source states them. Surface engagement letter
@@ -134,13 +150,10 @@ on the legacy (non-taxonomy) 14-section path:
 6. **Service exclusions** — List engagement letter service exclusions under **Fee, services and
    programme relationship** (distinct from building scope exclusions).
 
-7. **Internal audit reconciliation** — **Facts** must cite concrete evidenced items (one per
-   major document on file). **Assumptions** only for genuine gaps. **Workflow warnings** must
-   reflect real gaps only — never warn "no engagement letter" when one is in evidence_refs;
-   never warn geotechnical report is required when geotech is on file. Risk rows must not
-   claim reactive soil or footing type is unknown when geotech site classification is cited.
-   Sub-milestone planning pathway notes must match evidenced pathway (e.g. single DA), not
-   generic "CDC / DA / exempt" scaffold text.
+7. **Trace & QA reconciliation** — keep only genuine unresolved inputs, conflicts and
+   workflow warnings. Never repeat facts, actions, recommendations, citations or seed paths
+   already present in the issued body. Never warn that evidence is missing when it is in
+   `evidence_refs`.
 
 8. **Register rows** — Tie each row to a specific source; avoid duplicate generic rows; use
    evidenced next actions (Stage 1 invoice, master programme, conflict declaration before
@@ -161,10 +174,11 @@ The prompt supplies a mobilisation run date. For register rows and recommendatio
 
 Use `##` headings exactly matching the required section list in the prompt. Stay concise and project-specific.
 
-This is the Project Management Plan facet from `contract-setup-system` Step 2A:
-- Review-only governance plan — not an issued instruction, statutory submission, tender, or construction management plan
+This is the Project Management Plan facet from `contract-setup-system` Step 2A.
+Treat it internally as a review-only governance plan, but do not print an owner-side
+review/governance disclaimer in the issued body.
 - Keep the architect-PM engagement brief separate from the owner's project brief
-- Architect-PM verifies the builder's applicable licence, insurances, levy/LSL
+- Architect verifies the builder's applicable licence, insurances, levy/LSL
   evidence and statutory instruments. Verify HOW/HBCF only where the project is
   eligible residential work; do not create a commercial-fit-out
   "non-applicability" task merely to preserve a residential checklist.
@@ -188,16 +202,15 @@ This is the Project Management Plan facet from `contract-setup-system` Step 2A:
 - Apply archetype-specific risks and due diligence from the loaded archetype seed
 - For non-NSW `state`, flag state-coverage gaps inline — do not silently extend NSW guidance
 
-## Internal audit layer
+## Trace & QA
 
-Include `## Internal audit layer` before the final `## Citation key` in taxonomy drafts,
-containing:
-- **Facts**, **Assumptions**, **Judgements**, **Recommendations** as separate bullet lists (do NOT use `###` subheadings)
-- Missing evidence and consequences
-- Early escalation flags for cost, programme, procurement, approvals, and compliance
-- Immediate next actions and register rows to open
-- Mandatory seeds consulted (repeat paths)
-- Workflow warnings (e.g. unsorted inbox, missing engagement letter, planning pathway unknown)
+Append `## Trace & QA` after `## Citation key`. It is a compact, web-only review section:
+- unresolved inputs that could not be stated in the issued body
+- evidence conflicts and their verification action
+- accurate workflow warnings
+
+Do not repeat facts, actions, recommendations, citation keys, seed paths or registers in
+Trace & QA. Never use `TBC` or `Confirm`; name the missing input plainly.
 
 ## Provenance fields
 

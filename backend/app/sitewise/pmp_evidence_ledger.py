@@ -228,7 +228,9 @@ def format_evidence_ledger(ledger: EvidenceLedger) -> str:
         lines.extend(
             [
                 "",
-                "Critical conflicts to place at the front of Project Summary as unresolved until verified:",
+                "Critical source conflicts — state both values in the relevant control "
+                "section detail cell and cite the sources; do not write Conflict or "
+                "requiring resolution as status labels (citation colour signals disagreement):",
             ]
         )
         for conflict in ledger.conflicts:
@@ -253,11 +255,10 @@ def conflict_summary_violations(
     markdown: str,
     ledger: EvidenceLedger,
 ) -> list[str]:
-    """Require every curated conflict value in the front Project Summary."""
+    """Require every curated conflict value somewhere in the issued draft body."""
     if not ledger.conflicts:
         return []
-    summary = _markdown_section(markdown, "Project Summary")
-    normalized = _normalize_comparison(summary)
+    normalized = _normalize_comparison(markdown)
     violations: list[str] = []
     for conflict in ledger.conflicts:
         missing = [
@@ -267,8 +268,7 @@ def conflict_summary_violations(
         ]
         if missing:
             violations.append(
-                f"Project Summary does not surface {conflict.subject}: "
-                + ", ".join(missing)
+                f"Draft does not surface {conflict.subject}: " + ", ".join(missing)
             )
     return violations
 

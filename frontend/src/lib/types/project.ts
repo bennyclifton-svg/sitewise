@@ -501,9 +501,15 @@ export type InvoiceLedger = {
   cost_items: InvoiceCostItemOption[];
 };
 
+export type PlatformKnowledgeDocument = {
+  filename: string;
+  relative_path: string;
+};
+
 export type PlatformKnowledgeBucket = {
   kind: string;
   document_count: number;
+  documents?: PlatformKnowledgeDocument[];
 };
 
 export type PlatformKnowledgeStatus = {

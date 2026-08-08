@@ -1,0 +1,16 @@
+{
+  "draft_id": null,
+  "conflicts": [],
+  "review_count": 0,
+  "review_items": [],
+  "workbook_path": null,
+  "conflict_count": 0,
+  "candidate_count": 0,
+  "duplicate_count": 0,
+  "cost_plan_version": 19,
+  "extraction_errors": [],
+  "register_row_count": 0,
+  "booked_invoice_count": 0,
+  "pending_ingest_count": 0,
+  "extraction_error_count": 0
+}

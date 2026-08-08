@@ -60,7 +60,7 @@ def _baseline_risk_rows(
         ),
         (
             "Reactive soil / footing type unknown",
-            "Architect-PM",
+            "Architect",
             "Assumption",
             "Commission geotechnical report before scheme lock",
             "TBC",
@@ -74,7 +74,7 @@ def _baseline_risk_rows(
         ),
         (
             "Builder conflict / related-party tender",
-            "Architect-PM",
+            "Architect",
             conflict_status,
             "Confirm related-party / conflict status of invited builders "
             "before tender list lock",
@@ -131,14 +131,14 @@ def _taxonomy_risk_rows(
             ),
             (
                 "Current corpus evidence not uploaded",
-                "Architect-PM",
+                "Architect",
                 "Not evidenced",
                 "Upload brief, authority, cost, programme, and consultant records",
                 "TBC",
             ),
             (
                 "Consultant and approval pathway unresolved",
-                "Architect-PM",
+                "Architect",
                 "Assumption",
                 "Confirm discipline roster and approval certifier/authority path",
                 "TBC",
@@ -151,7 +151,7 @@ def _taxonomy_risk_rows(
     rows.extend(
         (
             flag.title,
-            "Architect-PM",
+            "Architect",
             "Assumption",
             flag.description,
             "TBC",
@@ -187,14 +187,14 @@ def _renovation_risk_rows(
     return (
         (
             "Latent conditions in existing footings / masonry tie-ins",
-            "Architect-PM",
+            "Architect",
             "Assumption",
             "Allow contingency / provisional sums; stage investigation before scheme lock",
             "TBC",
         ),
         (
             "Heritage / conservation-area controls",
-            "Architect-PM",
+            "Architect",
             heritage_status,
             heritage_action,
             "TBC",
@@ -217,13 +217,13 @@ def _renovation_risk_rows(
             "Specialist reports not on file (geotechnical / survey)",
             "Owner",
             "Assumption",
-            "Architect-PM to coordinate owner's appointment of consultants "
+            "Architect to coordinate owner's appointment of consultants "
             "(owner-commissioned per engagement)",
             "TBC",
         ),
         (
             "Builder conflict / related-party tender",
-            "Architect-PM",
+            "Architect",
             conflict_status,
             "Confirm related-party / conflict status of invited builders "
             "before tender list lock",
@@ -288,7 +288,6 @@ def _render_evidence_basis(
             f"Status: draft, review-only, not issued. Version v{version:02d}.",
             "Source hierarchy: project evidence (listed below) → doctrine → seeds.",
             "",
-            "**Evidence on file:**",
             _bullet_lines(evidence_lines),
             "",
             "**Gaps:**",
@@ -345,9 +344,9 @@ def _render_role_and_appointment(pack: MobilisationEvidencePack) -> str:
             "Scope of services not evidenced — obtain and file the executed engagement letter."
         ]
     architect_row = (
-        "| Architect / PM (advisory) | Yes | Per executed engagement letter |"
+        "| Architect (advisory) | Yes | Per executed engagement letter |"
         if engaged
-        else "| Architect / PM (advisory) | Declared (project overlay) | "
+        else "| Architect (advisory) | Declared (project overlay) | "
         "Engagement letter not on file — obtain and file |"
     )
     role_table = "\n".join(
@@ -361,7 +360,7 @@ def _render_role_and_appointment(pack: MobilisationEvidencePack) -> str:
         ]
     )
     pi_block = (
-        f"PI insurance: {pack.pi_holder or pack.appointee or 'Architect-PM'} holds policy "
+        f"PI insurance: {pack.pi_holder or pack.appointee or 'Architect'} holds policy "
         f"with {pack.pi_insurer or 'TBC'}, "
         f"ref {pack.pi_policy_ref or 'TBC'}, limit {pack.pi_limit or 'TBC'}, "
         f"period {pack.pi_period or 'TBC'}. Certificate on request."
@@ -376,7 +375,7 @@ def _render_role_and_appointment(pack: MobilisationEvidencePack) -> str:
     )
     return "\n".join(
         [
-            "## Architect-PM role and appointment",
+            "## Architect role and appointment",
             "",
             role_table,
             "",
@@ -411,14 +410,12 @@ def _render_two_brief_discipline(pack: MobilisationEvidencePack) -> str:
         )
     elif has_fee_proposal_evidence(pack):
         owner_brief_line = (
-            "**Owner project brief:** draft from fee proposal project understanding — "
-            "**pending owner formal sign-off**."
+            _labeled_field("**Owner project brief**", pack.dwelling_summary)
+            if pack.dwelling_summary
+            else ""
         )
     else:
-        owner_brief_line = (
-            "**Owner project brief:** to be drafted with the owner — "
-            "**pending owner formal sign-off**."
-        )
+        owner_brief_line = ""
     if has_engagement_evidence(pack):
         engagement_brief_line = (
             "**Engagement brief (on file):** fee, scope, PMP, governance, reporting, and procurement "
@@ -434,7 +431,7 @@ def _render_two_brief_discipline(pack: MobilisationEvidencePack) -> str:
             "## Two-brief discipline",
             "",
             engagement_brief_line,
-            owner_brief_line,
+            *([owner_brief_line] if owner_brief_line else []),
             "Extra tender round = engagement variation; material scope change = owner project brief "
             "+ decision register entry.",
         ]
@@ -444,7 +441,7 @@ def _render_two_brief_discipline(pack: MobilisationEvidencePack) -> str:
 def _render_governance(pack: MobilisationEvidencePack) -> str:
     raci = "\n".join(
         [
-            "| Activity | Owner | Architect-PM | Consultants | Builder | Certifier |",
+            "| Activity | Owner | Architect | Consultants | Builder | Certifier |",
             "| --- | --- | --- | --- | --- | --- |",
             "| Scope / budget decisions | Decides | Recommends | Advises | Executes | — |",
             "| Planning pathway | Decides | Recommends | Advises | — | Certifies |",
@@ -543,10 +540,7 @@ def _render_fee_services(pack: MobilisationEvidencePack) -> str:
 
 
 def _render_scope_change(pack: MobilisationEvidencePack) -> str:
-    if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF):
-        scope_prefix = "Building scope (per signed owner project brief)"
-    else:
-        scope_prefix = "Building scope (draft pending owner brief sign-off)"
+    scope_prefix = "Building scope"
     return "\n".join(
         [
             "## Scope and change control",
@@ -621,11 +615,11 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     ]
     if state == "NSW":
         rows.append(
-            "| BASIX (commitment) | Assumption | Owner / Architect-PM | Appoint assessor; align with DA |"
+            "| BASIX (commitment) | Assumption | Owner / Architect | Appoint assessor; align with DA |"
         )
     if pack.heritage_approval_advice:
         rows.append(
-            "| Heritage impact statement | Partial | Architect-PM / heritage consultant | "
+            "| Heritage impact statement | Partial | Architect / heritage consultant | "
             "Prepare at schematic stage; allow 6-8 weeks council assessment |"
         )
     certifier_status = (
@@ -641,7 +635,7 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     rows.extend(
         [
             f"| Principal certifier | {certifier_status} | Owner | {certifier_action} |",
-            f"| DA / planning permit | {da_status} | Owner / Architect-PM | {da_action} |",
+            f"| DA / planning permit | {da_status} | Owner / Architect | {da_action} |",
             "| Construction Certificate | Assumption | Certifier | Issue before site start |",
             "| LSL receipt | Assumption | Builder | CC-blocking prerequisite |",
             f"| Utility connections ({state}) | Assumption | Owner / builder | Confirm capacity |",
@@ -685,7 +679,7 @@ def _render_programme(pack: MobilisationEvidencePack) -> str:
             "- Stage 3: construction documentation, procurement, and delivery.",
             "",
             target_line,
-            *_optional_bullet_block("Programme evidence on file", programme_evidence),
+            *_optional_bullet_block("Programme evidence", programme_evidence),
             "",
             "### Sub-milestone table",
             submilestone_table,
@@ -791,10 +785,10 @@ def _render_consultant_coordination(pack: MobilisationEvidencePack) -> str:
             "| Discipline | Appointed | Status | Notes |",
             "| --- | --- | --- | --- |",
             (
-                f"| Architect / PM ({pack.appointee or 'Architect-PM'}) | Yes | Executed "
+                f"| Architect ({pack.appointee or 'Architect'}) | Yes | Executed "
                 f"{pack.engagement_executed_date or 'TBC'} | Engagement letter on file |"
                 if has_engagement_evidence(pack)
-                else f"| Architect / PM ({pack.appointee or 'Architect-PM'}) | Declared | "
+                else f"| Architect ({pack.appointee or 'Architect'}) | Declared | "
                 "Assumption | Engagement letter not on file |"
             ),
             "| Structural engineer | No | Assumption | Not yet appointed |",
@@ -852,13 +846,13 @@ def _render_risks_skeleton(project: Project, pack: MobilisationEvidencePack) -> 
 def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[str]:
     """Facts for internal audit — brief and budget precede fee/pathway when evidenced."""
     engaged = has_engagement_evidence(pack)
-    holder = pack.pi_holder or "Architect-PM"
+    holder = pack.pi_holder or "Architect"
     facts: list[str] = [
         (
             f"{holder} engaged as architect-PM; engagement executed "
             f"{pack.engagement_executed_date or 'TBC'}."
             if engaged
-            else "Architect-PM role declared on the project record; executed engagement "
+            else "Architect role declared on the project record; executed engagement "
             "letter not on file."
         ),
     ]
@@ -1073,10 +1067,6 @@ def _emphasis_note(project: Project, section_id: str) -> str:
     )
 
 
-def _snapshot_position(value: str, status: str) -> str:
-    return f"{value} — {status}"
-
-
 def render_project_summary_table(
     project: Project,
     *,
@@ -1084,9 +1074,9 @@ def render_project_summary_table(
     project_title_source: str = "Profile",
     site_address: str | None = None,
     client: str | None = None,
-    site_address_status: str = "User provided / Not evidenced",
+    site_address_status: str = "Profile / Not evidenced",
     site_address_citation: str = "—",
-    client_status: str = "User provided / Not evidenced",
+    client_status: str = "Profile / Not evidenced",
     client_citation: str = "—",
     budget: str | None = None,
     budget_source: str | None = None,
@@ -1098,7 +1088,6 @@ def render_project_summary_table(
         raise ValueError("project summary requires project taxonomy")
     fields = context.user_provided_fields
     taxonomy_value = f"{context.building_class} / {context.work_type or 'TBC'}"
-    dash = "—"
     if compact_sources:
         project_value = project_title or _metadata_value(project.title)
         site_value = site_address or _metadata_value(fields.get("site_address"))
@@ -1106,10 +1095,8 @@ def render_project_summary_table(
         budget_value = budget or _metadata_value(fields.get("budget"))
         timeframe_value = _metadata_value(fields.get("timeframe"))
         procurement_value = _metadata_value(fields.get("procurement_route"))
-        return "\n".join(
+        return _summary_table_markdown(
             [
-                "| Field | Project detail | Source |",
-                "| --- | --- | --- |",
                 f"| Project | {project_value} | {project_title_source} |",
                 f"| Site / address | {site_value} | {_compact_summary_source(site_value, site_address_citation)} |",
                 f"| Client | {client_value} | {_compact_summary_source(client_value, client_citation)} |",
@@ -1121,20 +1108,45 @@ def render_project_summary_table(
                 f"| Procurement route | {procurement_value} | {_compact_summary_source(procurement_value)} |",
             ]
         )
-    rows = [
-        "| Field | Current PMP position | Citation |",
-        "| --- | --- | --- |",
-        f"| Project | {_snapshot_position(_metadata_value(project.title), 'User provided')} | {dash} |",
-        f"| Site / address | {_snapshot_position(site_address or _metadata_value(fields.get('site_address')), site_address_status)} | {site_address_citation} |",
-        f"| Client | {_snapshot_position(client or _metadata_value(fields.get('client')), client_status)} | {client_citation} |",
-        f"| State | {_snapshot_position(_metadata_value(project.state or 'NSW'), 'User provided')} | {dash} |",
-        f"| Taxonomy | {_snapshot_position(taxonomy_value, 'User provided')} | {dash} |",
-        f"| Subclass and scale | {_snapshot_position(_taxonomy_scale_summary(project), 'User provided')} | {dash} |",
-        f"| Budget | {_snapshot_position(_metadata_value(fields.get('budget')), 'User provided / Assumption')} | {dash} |",
-        f"| Timeframe | {_snapshot_position(_metadata_value(fields.get('timeframe')), 'User provided / Assumption')} | {dash} |",
-        f"| Procurement route | {_snapshot_position(_metadata_value(fields.get('procurement_route')), 'User provided / Assumption')} | {dash} |",
-    ]
-    return "\n".join(rows)
+    return _summary_table_markdown(
+        [
+            f"| Project | {_metadata_value(project.title)} |  |",
+            (
+                f"| Site / address | "
+                f"{site_address or _metadata_value(fields.get('site_address'))} | "
+                f"{_citation_cell(site_address_citation)} |"
+            ),
+            (
+                f"| Client | {client or _metadata_value(fields.get('client'))} | "
+                f"{_citation_cell(client_citation)} |"
+            ),
+            f"| State | {_metadata_value(project.state or 'NSW')} |  |",
+            f"| Taxonomy | {taxonomy_value} |  |",
+            f"| Subclass and scale | {_taxonomy_scale_summary(project)} |  |",
+            f"| Budget | {_metadata_value(fields.get('budget'))} |  |",
+            f"| Timeframe | {_metadata_value(fields.get('timeframe'))} |  |",
+            f"| Procurement route | {_metadata_value(fields.get('procurement_route'))} |  |",
+        ]
+    )
+
+
+def _citation_cell(citation: str) -> str:
+    """Render an empty citation cell when no source token is available."""
+    value = citation.strip()
+    if value in {"", "—", "-", "–"}:
+        return ""
+    return value
+
+
+def _summary_table_markdown(rows: list[str]) -> str:
+    """Build a GFM table without a column-label header row.
+
+    The first data row is used as the GFM header line so the table still parses;
+    presentation and export demote that row to body styling.
+    """
+    if not rows:
+        return ""
+    return "\n".join([rows[0], "| --- | --- | --- |", *rows[1:]])
 
 
 def _compact_summary_source(value: str, citation: str = "—") -> str:
@@ -1183,40 +1195,70 @@ def _compact_taxonomy_scale_summary(project: Project) -> str:
     return "; ".join(parts) if len(parts) > 1 else f"{parts[0]}; scale TBC"
 
 
+def _taxonomy_project_description(project: Project) -> str:
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        return "Not provided"
+    for key in ("brief", "notes"):
+        value = context.user_provided_fields.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    scope_items = work_scope_items_for(context.work_type, context.work_scope)
+    if scope_items:
+        scope = "; ".join(item.label for item in scope_items)
+        work_type = (context.work_type or "project").replace("_", " ")
+        asset = _compact_taxonomy_scale_summary(project)
+        return (
+            f"{work_type.capitalize()} works for {asset}. Scope includes {scope}. "
+            "This plan coordinates approvals, consultants, cost, programme, "
+            "procurement, risks, owner decisions, and delivery close-out."
+        )
+    project_type = " ".join(
+        part.replace("_", " ")
+        for part in (context.work_type, context.building_class)
+        if part
+    )
+    if not project_type:
+        return "Not provided"
+    return (
+        f"{project_type.capitalize()} project. This plan establishes the brief, "
+        "approvals, consultant, cost, programme, procurement, risk, and owner-decision "
+        "controls. Site, asset, and scope details remain to be confirmed from the "
+        "project profile or current evidence."
+    )
+
+
+def _summary_detail(value: object) -> str:
+    return _metadata_value(value) if value not in (None, "", [], {}) else "Not provided"
+
+
 def _render_taxonomy_snapshot(
     project: Project,
     *,
     citation_index: CitationIndex | None = None,
 ) -> str:
-    del citation_index  # reserved for grounded summary fields; user-provided rows use —
+    del citation_index  # reserved for grounded summary fields; profile rows need no citation
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     fields = context.user_provided_fields
-    taxonomy_value = f"{context.building_class} / {context.work_type or 'TBC'}"
-    dash = "—"
-    rows = [
-        "| Field | Current PMP position | Citation |",
-        "| --- | --- | --- |",
-        f"| Project | {_snapshot_position(_metadata_value(project.title), 'User provided')} | {dash} |",
-        f"| Site / address | {_snapshot_position(_metadata_value(fields.get('site_address')), 'User provided / Not evidenced')} | {dash} |",
-        f"| Client | {_snapshot_position(_metadata_value(fields.get('client')), 'User provided / Not evidenced')} | {dash} |",
-        f"| State | {_snapshot_position(_metadata_value(project.state or 'NSW'), 'User provided')} | {dash} |",
-        f"| Taxonomy | {_snapshot_position(taxonomy_value, 'User provided')} | {dash} |",
-        f"| Subclass and scale | {_snapshot_position(_taxonomy_scale_summary(project), 'User provided')} | {dash} |",
-        f"| Budget | {_snapshot_position(_metadata_value(fields.get('budget')), 'User provided / Assumption')} | {dash} |",
-        f"| Timeframe | {_snapshot_position(_metadata_value(fields.get('timeframe')), 'User provided / Assumption')} | {dash} |",
-        f"| Procurement route | {_snapshot_position(_metadata_value(fields.get('procurement_route')), 'User provided / Assumption')} | {dash} |",
-    ]
+    rows = _summary_table_markdown(
+        [
+            f"| Project | {_summary_detail(project.title)} |  |",
+            f"| Address | {_summary_detail(fields.get('site_address'))} |  |",
+            f"| Owner | {_summary_detail(fields.get('client'))} |  |",
+            f"| Description | {_taxonomy_project_description(project)} |  |",
+        ]
+    )
     return "\n".join(
         [
             f"## {heading_for_section_id('snapshot', work_type=context.work_type)}",
             "",
-            "\n".join(rows),
+            rows,
             "",
             "Scaffold status: this PMP is useful immediately from setup inputs, but every "
-            "project-specific delivery claim remains open until current project documents "
-            "are uploaded or the user confirms the assumption.",
+            "project-specific delivery claim remains open for owner review until current "
+            "project documents are uploaded or the user confirms the assumption.",
         ]
     )
 
@@ -1253,10 +1295,12 @@ def _render_taxonomy_scope(project: Project) -> str:
     lines = [
         f"## {heading_for_section_id('scope-client-requirements', work_type=context.work_type)}",
         "",
-        f"Class/type/subclass: **User provided** {context.building_class} / {context.work_type or 'TBC'} / {', '.join(context.subclasses) or 'TBC'}.",
-        f"Scale summary: **User provided** {_taxonomy_scale_summary(project)}.",
+        f"Class/type/subclass: {context.building_class} / {context.work_type or 'TBC'} / {', '.join(context.subclasses) or 'TBC'}.",
+        f"Scale summary: {_taxonomy_scale_summary(project)}.",
         residential_note,
-        "Project-specific scope without current corpus support remains **Assumption**.",
+        "Project-specific scope that is not established by the current profile or corpus "
+        "remains **Assumption** until clarified through design coordination and recorded "
+        "owner decisions.",
         _emphasis_note(project, "scope-client-requirements"),
         "",
         "**Inclusions (work scope):**",
@@ -1304,7 +1348,7 @@ def _render_taxonomy_consultants(
     engaged = has_engagement_evidence(pack)
     fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
     if engaged:
-        firm = pack.appointee or "Architect-PM"
+        firm = pack.appointee or "Architect"
         scope = (
             "; ".join(pack.scope_bullets[:3])
             if pack.scope_bullets
@@ -1320,7 +1364,7 @@ def _render_taxonomy_consultants(
         status = "Assumption"
         citation = "—"
     rows.append(
-        f"| Architect / PM | {firm} | {scope} | {fee} | {status} | {citation} |"
+        f"| Architect | {firm} | {scope} | {fee} | {status} | {citation} |"
     )
 
     seen: set[str] = set()
@@ -1344,7 +1388,8 @@ def _render_taxonomy_consultants(
         [
             f"## {heading_for_section_id('consultants', work_type=context.work_type)}",
             "",
-            "Appointment register for Architect-PM engagement and taxonomy-expected disciplines. "
+            "Appointment register for Architect engagement and taxonomy-expected disciplines. "
+            "The Architect row is the design lead; coordination duties sit under that appointment. "
             "Missing appointment evidence stays Assumption / Not evidenced until engagement letters "
             "or fee proposals are filed.",
             _emphasis_note(project, "consultants"),
@@ -1354,50 +1399,6 @@ def _render_taxonomy_consultants(
     )
 
 
-def _taxonomy_section_evidence_rows(
-    project: Project,
-    pack: MobilisationEvidencePack | None = None,
-    citation_index: CitationIndex | None = None,
-) -> list[str]:
-    context = pmp_taxonomy_context(project)
-    if context is None:
-        raise ValueError("taxonomy scaffold requires building_class")
-    consultants_status = "Assumption / Not evidenced"
-    consultants_citation = "—"
-    if pack is not None and has_engagement_evidence(pack):
-        consultants_status = "Partial"
-        if citation_index is not None:
-            token = _engagement_citation_token(pack, citation_index)
-            if token != "—":
-                consultants_citation = token
-    status_by_id = {
-        "snapshot": "User provided",
-        "scope-client-requirements": "User provided / Assumption",
-        "consultants": consultants_status,
-        "compliance-approvals": "Assumption",
-        "programme": "Assumption / Not evidenced",
-        "cost-budget": "User provided / Assumption",
-        "procurement-delivery": "Assumption / Not evidenced",
-        "risks": "Assumption",
-        "actions-decisions": "Assumption",
-    }
-    citation_by_id = {
-        "consultants": consultants_citation,
-    }
-    rows = [
-        "| Section | Evidence status | Citation |",
-        "| --- | --- | --- |",
-    ]
-    for section_id, _weight in context.section_weights.items():
-        if section_id == "citation-key":
-            continue
-        heading = heading_for_section_id(section_id, work_type=context.work_type)
-        status = status_by_id.get(section_id, "Assumption")
-        citation = citation_by_id.get(section_id, "—")
-        rows.append(f"| {heading} | {status} | {citation} |")
-    return rows
-
-
 def _render_taxonomy_citation_key(
     project: Project,
     pack: MobilisationEvidencePack | None = None,
@@ -1405,28 +1406,30 @@ def _render_taxonomy_citation_key(
     version: int = 1,
     citation_index: CitationIndex | None = None,
 ) -> str:
+    del pack  # reserved for grounded status; citation list is document-only
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     index = citation_index or build_citation_index([])
     if index.documents:
-        doc_block = "\n".join(format_citation_key_lines(index))
+        doc_block = "\n".join(f"- {line}" for line in format_citation_key_lines(index))
     else:
         doc_block = (
-            "No project evidence documents are cited yet. Upload brief, engagement, "
-            "approvals, programme, and cost records to populate numbered citations."
+            "- No project evidence documents are cited yet. Upload brief, engagement, "
+            "approvals, programme, and cost records to populate numbered citations that "
+            "match the inline `[n]` markers used in the body sections above."
         )
-    evidence_rows = _taxonomy_section_evidence_rows(project, pack, index)
     return "\n".join(
         [
             f"## {heading_for_section_id('citation-key', work_type=context.work_type)}",
             "",
-            "**Documents cited:**",
+            "Numbered project documents cited in this PMP. Each `[n]` marker in the body "
+            "refers to the matching entry in the list below.",
+            "",
             doc_block,
             "",
-            "\n".join(evidence_rows),
-            "",
             f"Document control: draft v{version:02d}, review-only. "
+            "Inline `[n]` markers in the body share these numbers. "
             "Supersede under `00-brief-pmp/` when new evidence arrives.",
         ]
     )
@@ -1489,7 +1492,7 @@ def _render_taxonomy_programme(project: Project) -> str:
             "",
             "| Milestone | Status | Basis | Next action |",
             "| --- | --- | --- | --- |",
-            "| Setup / brief confirmation | User provided | Taxonomy setup | Confirm scope and budget lock |",
+            "| Setup / brief confirmation | Active | Current project profile | Confirm scope and budget lock |",
             "| Authority pathway | Assumption | Seed doctrine | Confirm approval route and lead times |",
             "| Procurement / services start | Assumption | Work type and role | Confirm procurement or advisory deliverables programme |",
             "| Delivery / reporting cadence | Not evidenced | No programme document used | Upload programme or agree reporting cadence |",
@@ -1512,7 +1515,7 @@ def _render_taxonomy_cost(project: Project) -> str:
         [
             f"## {heading_for_section_id('cost-budget', work_type=context.work_type)}",
             "",
-            f"Budget: **User provided / Assumption** {_metadata_value(budget)}.",
+            f"Budget: {_metadata_value(budget)}.",
             f"Complexity/risk uplift watch: **Assumption** {risk_text}.",
             "Cost plan, contingency, PC/PS allowances, and benchmark basis are **Not evidenced** until current project documents are uploaded.",
             "Use companion cost/risk annexures for detailed line items; keep the primary PMP to budget status, constraints, and decisions.",
@@ -1540,7 +1543,7 @@ def _render_taxonomy_procurement(project: Project) -> str:
         rows = [
             "| Procurement / delivery item | Status | Next action |",
             "| --- | --- | --- |",
-            "| Procurement route | User provided / Assumption | Confirm contract and tender pathway |",
+            "| Procurement route | Current | Confirm contract and tender pathway |",
             "| Consultant inputs | Assumption | Appoint or confirm discipline roster |",
             "| Tender / award gates | Not evidenced | Upload procurement programme and evaluation criteria |",
         ]
@@ -1615,9 +1618,9 @@ def _render_taxonomy_actions(project: Project) -> str:
         "| Item | Owner | Status | Next |",
         "| --- | --- | --- | --- |",
         "| Scope boundary | Owner | Assumption | Lock brief |",
-        "| Approval pathway | Architect-PM | Assumption | Certifier |",
+        "| Approval pathway | Architect | Assumption | Certifier |",
         "| Budget basis | Owner | Assumption | Cost evidence |",
-        "| Consultant roster | Architect-PM | Assumption | Appoint |",
+        "| Consultant roster | Architect | Assumption | Appoint |",
     ]
     emphasis = _emphasis_note(project, "actions-decisions")
     depth = ""

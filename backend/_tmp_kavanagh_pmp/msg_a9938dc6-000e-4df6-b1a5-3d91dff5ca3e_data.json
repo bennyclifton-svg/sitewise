@@ -1,0 +1,43 @@
+{
+  "agent": {
+    "turnId": "4f1ad60d-b0e1-4cfd-a126-515cf7f8fe2c",
+    "runtime": "pi",
+    "sourceTrace": {
+      "model": {
+        "used": true,
+        "label": "LLM reasoning"
+      },
+      "tools": [
+        {
+          "name": "find_document_text",
+          "message": "Searched \u00b7 32-tax-invoice-flowline-hydraulics-02.md"
+        }
+      ],
+      "context": {
+        "used": true,
+        "label": "Project context"
+      },
+      "documents": {
+        "used": true,
+        "tools": [
+          "find_document_text"
+        ]
+      },
+      "knowledge": {
+        "used": false,
+        "tools": [],
+        "references": []
+      }
+    },
+    "terminalEvents": [
+      {
+        "kind": "resource",
+        "action": "queued",
+        "projectId": "7876bd93-87ce-4e95-89b2-67724fee458d",
+        "resourceId": "22bb2f38-7688-4b8f-ada3-f325d05f0bf4",
+        "resourceType": "workflow_run",
+        "workflowType": "process_invoices"
+      }
+    ]
+  }
+}

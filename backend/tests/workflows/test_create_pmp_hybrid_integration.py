@@ -64,7 +64,11 @@ def assert_hybrid_pmp_acceptance_criteria(markdown: str, *, project_slug: str) -
     source_texts = _harrison_clarke_source_texts()
     evidence_refs = _harrison_clarke_evidence_refs(project_slug)
 
-    assert markdown_section_headings(markdown) == list(required_section_headings())
+    expected_headings = [
+        "Trace & QA" if heading == "Internal audit layer" else heading
+        for heading in required_section_headings()
+    ]
+    assert markdown_section_headings(markdown) == expected_headings
     assert (
         evidence_grounded_violations(
             markdown,
@@ -91,8 +95,8 @@ def assert_hybrid_pmp_acceptance_criteria(markdown: str, *, project_slug: str) -
     assert "september 2026" in lower
     assert "linden" in lower
     assert "invited builders: 3" in lower
-    assert "pending owner formal sign-off" in lower
-    assert "- **judgements**" in lower
+    assert "pending owner formal sign-off" not in lower
+    assert "- judgements:" in lower
     assert "| r-001 | master programme |" in lower
     assert "basix" in lower
     assert "executed" in lower

@@ -34,9 +34,14 @@ from app.database.source_document import SourceDocument
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
-from app.schemas.projects import CreatePmpResponse, DraftArtifactResponse, WorkflowTraceEvent
+from app.schemas.projects import (
+    CreatePmpResponse,
+    DraftArtifactResponse,
+    WorkflowTraceEvent,
+)
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
+from app.sitewise.artifact_presentation import prepare_issue_markdown
 from app.sitewise.archetype_bridge import effective_taxonomy
 from app.sitewise.pmp_greenfield_brief import (
     build_greenfield_brief,
@@ -162,7 +167,9 @@ def _upstream_failure_message(
     )
 
 
-def _upstream_failure_metadata(exc: Exception, *, model: str | None = None) -> dict[str, object]:
+def _upstream_failure_metadata(
+    exc: Exception, *, model: str | None = None
+) -> dict[str, object]:
     metadata: dict[str, object] = {"error_type": exc.__class__.__name__}
     status_code = getattr(exc, "status_code", None)
     if status_code is not None:
@@ -195,9 +202,7 @@ async def _publish_preview(
     if on_preview is None:
         return
     try:
-        await on_preview(
-            {"stage": stage, "markdown": markdown[:PREVIEW_MAX_CHARS]}
-        )
+        await on_preview({"stage": stage, "markdown": markdown[:PREVIEW_MAX_CHARS]})
     except Exception:  # noqa: BLE001 — a broken preview channel is not a draft failure
         log.warning("pmp_preview_publish_failed", stage=stage, exc_info=True)
 
@@ -237,7 +242,9 @@ def _is_whole_document_passage(passage: SourcePassage) -> bool:
 
 
 def _source_excerpt_chars(passage: SourcePassage) -> int:
-    if passage.source_type == "project_evidence" and _is_whole_document_passage(passage):
+    if passage.source_type == "project_evidence" and _is_whole_document_passage(
+        passage
+    ):
         return CREATE_PMP_EVIDENCE_DOC_CHARS
     return CREATE_PMP_CHUNK_EXCERPT_CHARS
 
@@ -428,9 +435,9 @@ async def load_mobilisation_project_evidence_documents(
         session,
         project_id=project_id,
     )
-    merged_paths = list(
-        dict.fromkeys(semantic_relative_paths + marker_paths)
-    )[:CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS]
+    merged_paths = list(dict.fromkeys(semantic_relative_paths + marker_paths))[
+        :CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS
+    ]
     if not merged_paths:
         return []
     return await load_project_evidence_whole_documents(
@@ -656,18 +663,18 @@ def _role_drafting_note(
             "**Assumption**-labelled scaffold rows. Do NOT replace the PMP with an "
             "engagement summary or narrow consultant memo. "
             "If engagement letter or fee proposal appears in Sources, do NOT label them "
-            "missing or 'not yet filed'. State Evidence on file in document control, "
-            "include the evidence map table, upgrade Facts in the internal audit layer, "
-            "and omit false workflow warnings (e.g. 'no engagement letter found'). "
-            "Never write these phrases anywhere in Internal audit Assumptions or "
-            "Workflow warnings when the document is in Sources: "
+            "missing or 'not yet filed'. List indexed evidence documents in document "
+            "control (names/dates only — never write 'Evidence on file'), "
+            "include the evidence map table, and omit false workflow warnings "
+            "(e.g. 'no engagement letter found'). Never write these phrases in "
+            "Trace & QA when the document is in Sources: "
             "'no engagement letter', 'engagement instruments gap', "
             "'pre-brief / pre-engagement', 'project evidence (none yet)'. "
-            "In **Evidence basis and document control**, include a line starting "
-            "'Evidence on file:' and an evidence map table with columns "
+            "Never write 'Evidence on file' anywhere in the draft — citations and the "
+            "evidence map already communicate grounding. "
+            "In **Evidence basis and document control**, list mobilisation documents "
+            "with dates/status and include an evidence map table with columns "
             "'| Section | Evidence status | Ref |'. "
-            "In **Internal audit layer**, list at least two **Facts** bullets "
-            "grounded in Sources (not Assumptions). "
             "In **Project overview**, ground owner names, site address, and dwelling "
             "type from Sources — do not label them Assumption when the evidence states them."
         )
@@ -687,22 +694,25 @@ def _role_drafting_note(
             "**Assumption**-labelled scaffold rows. Do NOT replace the PMP with an "
             "engagement summary or narrow consultant memo. "
             "If engagement letter or fee proposal appears in Sources, do NOT label them "
-            "missing or 'not yet filed'. State Evidence on file under **Citation key**, "
-            "include the section evidence-status table with `[n]` / `—` citations, "
-            "upgrade Facts in the internal audit layer, and omit false workflow warnings "
+            "missing or 'not yet filed'. Under **Citation key**, list numbered evidence "
+            "documents only as `- [n] filename — date/status` "
+            "(never write 'Evidence on file' — citations carry that signal; never include "
+            "a section evidence-status table or Evidence coverage register), "
+            "and omit false workflow warnings "
             "(e.g. 'no engagement letter found'). "
-            "Never write these phrases anywhere in Internal audit Assumptions or "
-            "Workflow warnings when the document is in Sources: "
+            "Never write these phrases in Trace & QA when the document is in Sources: "
             "'no engagement letter', 'engagement instruments gap', "
             "'pre-brief / pre-engagement', 'project evidence (none yet)'. "
+            "Never write 'Evidence on file' anywhere in the draft. "
             "In **Citation key**, list numbered project evidence documents "
-            "`[n] filename — date/status`, a `| Section | Evidence status | Citation |` "
-            "table, and a short document-control note. Do not open with "
-            "**Evidence basis and document control**. "
-            "In **Internal audit layer**, list at least two **Facts** bullets "
-            "grounded in Sources (not Assumptions). "
-            "In **Project Summary**, ground owner names, site address, and dwelling "
-            "type from Sources — do not label them Assumption when the evidence states them."
+            "`- [n] filename — date/status` and a short document-control note. Do not open "
+            "with **Evidence basis and document control**. "
+            "In **Project Summary**, use the ordered identity rows Project, Address, Owner, "
+            "and Description only (no bridge paragraph); Project is the literal project name "
+            "(never Confirmed …), Address then Owner are separate rows, and the scope sentence "
+            "belongs in Description; never write Conflict or requiring resolution in cells; "
+            "ground evidence-derived values from Sources and do not add a Critical current "
+            "position block."
         )
 
     state_note = (
@@ -713,7 +723,7 @@ def _role_drafting_note(
     )
 
     role_note = (
-        "Produce the Architect-PM PMP facet: owner-side governance plan with two-brief "
+        "Produce the Architect PMP facet: owner-side governance plan with two-brief "
         "discipline, role declaration placeholders, builder evidence verification, and "
         "the baseline 3-stage programme regime unless evidence requires more detail."
     )
@@ -744,7 +754,9 @@ def build_create_pmp_prompt(
     )
     taxonomy_context = pmp_taxonomy_context(project)
     seed_section_refs = _seed_section_refs_by_section(passages)
-    platform_passages = [passage for passage in passages if _is_platform_passage(passage)]
+    platform_passages = [
+        passage for passage in passages if _is_platform_passage(passage)
+    ]
     evidence_passages = [
         passage for passage in passages if not _is_platform_passage(passage)
     ]
@@ -757,11 +769,7 @@ def build_create_pmp_prompt(
         "Sources (platform doctrine and seed):\n" + _format_sources(platform_passages),
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
-        (
-            "Overlays: "
-            f"archetype={project.archetype}, "
-            f"state={project.state}"
-        ),
+        (f"Overlays: archetype={project.archetype}, state={project.state}"),
         f"Draft mode: {draft_mode}",
         f"Required document title: {document_title(project=project)}",
         _role_drafting_note(
@@ -790,8 +798,13 @@ def build_create_pmp_prompt(
                 ),
                 (
                     "Taxonomy PMP rules: primary document is 2-4 A4 pages; open with "
-                    "Project Summary using | Field | Current PMP position | Citation | "
-                    "([n] or —); Brief is physical/client only and Consultants is the "
+                    "Project Summary as one compact identity table with no column-label "
+                    "header and the ordered rows Project, Address, Owner, Description "
+                    "(Project is the literal project name, never Confirmed; Address then "
+                    "Owner as separate rows; table only — no bridge paragraph; Citation is "
+                    "[n] when evidenced else blank; never write Conflict/requiring "
+                    "resolution in cells; no Critical current position block); "
+                    "Brief is physical/client only and Consultants is the "
                     "appointment register; close with Citation key (shared [n] numbers) "
                     "and do not open with Evidence basis; cite specific AS/NCC refs from "
                     "loaded seed sections; keep risks and actions to top ~8 rows each; "
@@ -807,14 +820,18 @@ def build_create_pmp_prompt(
             archetype=archetype,
             state=state,
             draft_mode=draft_mode,
-            building_class=taxonomy_context.building_class if taxonomy_context else None,
+            building_class=taxonomy_context.building_class
+            if taxonomy_context
+            else None,
             work_type=taxonomy_context.work_type if taxonomy_context else None,
             subclasses=taxonomy_context.subclasses if taxonomy_context else (),
             scale=taxonomy_context.scale if taxonomy_context else None,
             complexity=taxonomy_context.complexity if taxonomy_context else None,
             work_scope=taxonomy_context.work_scope if taxonomy_context else (),
             risk_flags=taxonomy_context.risk_flags if taxonomy_context else (),
-            section_weights=taxonomy_context.section_weights if taxonomy_context else None,
+            section_weights=taxonomy_context.section_weights
+            if taxonomy_context
+            else None,
             seed_section_refs=seed_section_refs,
             user_provided_fields=(
                 taxonomy_context.user_provided_fields if taxonomy_context else None
@@ -890,7 +907,9 @@ async def run_create_pmp_model(
         locked_decisions=locked_decisions,
         coverage_requirements=coverage_requirements,
     )
-    resolved_model = chat_model.strip() if chat_model else resolve_pmp_model().execution_id
+    resolved_model = (
+        chat_model.strip() if chat_model else resolve_pmp_model().execution_id
+    )
     result = await run_agent_with_retry(create_pmp_agent, prompt, model=resolved_model)
     return result.output
 
@@ -932,7 +951,9 @@ def _evidence_refs_from_passages(
 
 
 def _context_refs_from_passages(passages: list[SourcePassage]) -> list[str]:
-    return [_source_ref(passage) for passage in passages if _is_platform_passage(passage)]
+    return [
+        _source_ref(passage) for passage in passages if _is_platform_passage(passage)
+    ]
 
 
 def _seed_consulted_from_passages(passages: list[SourcePassage]) -> list[str]:
@@ -1027,13 +1048,13 @@ async def run_create_pmp_hybrid(
             raise
         trace.append(
             _trace(
-            "narrative",
-            "complete",
-            "Narrative model returned structured output.",
-            attempt=attempt + 1,
-            model=chat_model,
+                "narrative",
+                "complete",
+                "Narrative model returned structured output.",
+                attempt=attempt + 1,
+                model=chat_model,
+            )
         )
-    )
 
         markdown = assemble_pmp_markdown(
             scaffold,
@@ -1099,15 +1120,21 @@ def validate_pmp_output(
 ) -> None:
     taxonomy_context = pmp_taxonomy_context(project) if project is not None else None
     if not output.seed_consulted:
-        raise WorkflowValidationError("Create PMP output did not identify seed consulted.")
+        raise WorkflowValidationError(
+            "Create PMP output did not identify seed consulted."
+        )
     if not output.context_refs:
         raise WorkflowValidationError(
             "Create PMP output did not identify doctrine or seed context references."
         )
     if draft_mode == "evidence_grounded" and not output.evidence_refs:
-        raise WorkflowValidationError("Create PMP output did not identify evidence references.")
+        raise WorkflowValidationError(
+            "Create PMP output did not identify evidence references."
+        )
     if "# " not in output.markdown and "## " not in output.markdown:
-        raise WorkflowValidationError("Create PMP output is not structured as Markdown.")
+        raise WorkflowValidationError(
+            "Create PMP output is not structured as Markdown."
+        )
 
     missing_seeds = seed_consulted_includes_required(
         output.seed_consulted,
@@ -1124,6 +1151,10 @@ def validate_pmp_output(
         heading
         for heading in required_section_headings(project=project)
         if not _markdown_has_section(output.markdown, heading)
+        and not (
+            heading == "Internal audit layer"
+            and _markdown_has_section(output.markdown, "Trace & QA")
+        )
     ]
     if missing_sections:
         joined = ", ".join(missing_sections)
@@ -1173,8 +1204,7 @@ def validate_pmp_output(
             if conflict_issues:
                 raise WorkflowValidationError(
                     "Create PMP has unresolved evidence conflicts missing from the "
-                    "Project Summary: "
-                    + "; ".join(conflict_issues)
+                    "Project Summary: " + "; ".join(conflict_issues)
                 )
 
     structure_issues = greenfield_structure_violations(
@@ -1183,9 +1213,7 @@ def validate_pmp_output(
     )
     if structure_issues:
         joined = "; ".join(structure_issues)
-        raise WorkflowValidationError(
-            f"Create PMP draft structural issues: {joined}"
-        )
+        raise WorkflowValidationError(f"Create PMP draft structural issues: {joined}")
 
     if draft_mode == "evidence_grounded":
         evidence_issues = evidence_grounded_violations(
@@ -1222,7 +1250,9 @@ def validate_pmp_output(
         raise WorkflowValidationError(f"Create PMP decision block issues: {joined}")
 
 
-def _apply_locked_decisions(output: PmpDraftOutput, locked: dict[str, str]) -> PmpDraftOutput:
+def _apply_locked_decisions(
+    output: PmpDraftOutput, locked: dict[str, str]
+) -> PmpDraftOutput:
     if not locked:
         return output
     return output.model_copy(
@@ -1305,7 +1335,9 @@ async def sync_pmp_draft_workspace(
     )
     from app.projects.artefact_revisions import set_export_result_for_path
 
-    content = (markdown if markdown is not None else draft.content_markdown).encode("utf-8")
+    content = (markdown if markdown is not None else draft.content_markdown).encode(
+        "utf-8"
+    )
     await set_export_result_for_path(
         session,
         revision=draft,
@@ -1370,7 +1402,9 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="blocked",
         )
-        return CreatePmpResponse(status="blocked", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="blocked", gate=gate, trace=trace, message=message
+        )
 
     capability_message = (
         capability_block_message(snapshot, CREATE_PMP) if snapshot is not None else None
@@ -1421,7 +1455,9 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
     except OpenAIError as exc:
         message = _upstream_failure_message(exc, operation="retrieve project evidence")
         trace.append(
@@ -1429,7 +1465,9 @@ async def run_create_pmp_workflow(
                 "retrieval",
                 "failed",
                 message,
-                **_upstream_failure_metadata(exc, model=settings.openai_embedding_model),
+                **_upstream_failure_metadata(
+                    exc, model=settings.openai_embedding_model
+                ),
                 duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
             )
         )
@@ -1442,7 +1480,9 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     if missing_paths:
         message = (
@@ -1468,7 +1508,9 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     active_corpus_documents: int | None = None
     if project_has_taxonomy(project):
@@ -1505,10 +1547,12 @@ async def run_create_pmp_workflow(
             draft_mode=draft_mode,
             active_corpus_documents=active_corpus_documents,
             platform_retrieval="overlay_mandatory_paths",
-            mandatory_seed_count=len(required_platform_paths(
-                archetype=project.archetype or "",
-                project=project,
-            )),
+            mandatory_seed_count=len(
+                required_platform_paths(
+                    archetype=project.archetype or "",
+                    project=project,
+                )
+            ),
             duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
         )
     )
@@ -1529,7 +1573,9 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     project_source_texts = _project_source_texts(passages, project_id=project.id)
     project_source_labels = _project_source_labels(passages, project_id=project.id)
@@ -1699,7 +1745,9 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
     except (ModelAPIError, UnexpectedModelBehavior, OpenAIError) as exc:
         message = _upstream_failure_message(exc, operation="generate the draft")
         trace.append(
@@ -1722,14 +1770,20 @@ async def run_create_pmp_workflow(
             trace=trace,
             status="failed",
         )
-        return CreatePmpResponse(status="failed", gate=gate, trace=trace, message=message)
+        return CreatePmpResponse(
+            status="failed", gate=gate, trace=trace, message=message
+        )
 
     trace.append(
         _trace(
             "generation",
             "complete",
             "Generated and normalized the Project Plan draft.",
-            compiler="adaptive_scaffold" if use_scaffold else "hybrid" if use_hybrid else "legacy",
+            compiler="adaptive_scaffold"
+            if use_scaffold
+            else "hybrid"
+            if use_hybrid
+            else "legacy",
             duration_ms=int((time.perf_counter() - generation_started) * 1000),
         )
     )
@@ -1759,9 +1813,9 @@ async def run_create_pmp_workflow(
                     "coverage",
                     "advisory",
                     (
-                        "Coverage advisory (not enforced): backfilled "
+                        "Coverage advisory (not enforced): "
                         f"{len(coverage_backfill.backfilled_facts)} evidence fact(s) "
-                        "into the Evidence coverage register and merged "
+                        "remain outside the narrative body; merged "
                         f"{len(coverage_backfill.added_evidence_refs)} missing evidence ref(s)."
                     ),
                     backfilled_facts=[
@@ -1791,6 +1845,7 @@ async def run_create_pmp_workflow(
             )
 
     persistence_started = time.perf_counter()
+    output.markdown = prepare_issue_markdown(output.markdown, project_title=project.title)
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     output.markdown = sync_document_control_version(output.markdown, existing_version)
     draft = await create_draft_artifact(
@@ -1807,7 +1862,11 @@ async def run_create_pmp_workflow(
         actor_source="project_plan_workflow",
         provenance_metadata={
             "draft_mode": draft_mode,
-            "compiler": "adaptive_scaffold" if use_scaffold else "hybrid" if use_hybrid else "legacy",
+            "compiler": "adaptive_scaffold"
+            if use_scaffold
+            else "hybrid"
+            if use_hybrid
+            else "legacy",
             "model": resolved_model,
             "model_label": model_spec.label,
             "model_provider": model_spec.provider,
@@ -1830,7 +1889,9 @@ async def run_create_pmp_workflow(
             "pmp_min_words": settings.pmp_min_words,
             "pmp_max_words": settings.pmp_max_words,
             "section_weights": (
-                taxonomy_context.section_weights if taxonomy_context is not None else None
+                taxonomy_context.section_weights
+                if taxonomy_context is not None
+                else None
             ),
             "trace": [event.model_dump() for event in trace],
             "retrieval": {

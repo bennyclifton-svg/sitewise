@@ -39,3 +39,32 @@ def test_pmp_model_provider_is_validated():
             **_settings_kwargs(),
             pmp_model_provider="unknown",
         )
+
+
+def test_web_research_enabled_accepts_keyless_nsw_provider():
+    settings = Settings(
+        **_settings_kwargs(),
+        agent_web_research_enabled=True,
+        web_search_provider="nsw_legislation",
+        brave_search_api_key=None,
+    )
+
+    assert settings.web_search_provider == "nsw_legislation"
+
+
+def test_web_research_enabled_requires_key_for_brave_provider():
+    with pytest.raises(ValidationError, match="BRAVE_SEARCH_API_KEY"):
+        Settings(
+            **_settings_kwargs(),
+            agent_web_research_enabled=True,
+            web_search_provider="brave",
+            brave_search_api_key=None,
+        )
+
+
+def test_web_search_provider_is_validated():
+    with pytest.raises(ValidationError, match="WEB_SEARCH_PROVIDER"):
+        Settings(
+            **_settings_kwargs(),
+            web_search_provider="unknown",
+        )

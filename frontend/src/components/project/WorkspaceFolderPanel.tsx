@@ -1,9 +1,7 @@
 import { Bot, FileText, FolderOpen, Play } from "lucide-react";
 
-import {
-  MarkdownContent,
-  normalizeDraftMarkdown,
-} from "@/components/project/MarkdownContent";
+import { MarkdownContent } from "@/components/project/MarkdownContent";
+import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isMarkdownFilename } from "@/lib/markdown";

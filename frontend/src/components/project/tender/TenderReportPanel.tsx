@@ -2,10 +2,8 @@ import { AlertCircle, Check, ExternalLink, FileText, LoaderCircle, RefreshCw } f
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import {
-  MarkdownContent,
-  normalizeDraftMarkdown,
-} from "@/components/project/MarkdownContent";
+import { MarkdownContent } from "@/components/project/MarkdownContent";
+import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";

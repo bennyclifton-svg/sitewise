@@ -336,7 +336,7 @@ export function WorkbookGrid({
               onClick={() => setActiveSheet(item.name)}
             >
               <Table2 className="size-4" aria-hidden />
-              {item.name}
+              {workbookSheetLabel(item.name)}
             </Button>
           ))}
         </div>
@@ -492,6 +492,13 @@ type WorkbookCellKind =
 
 /** Excel workbook fills mapped to semantic preview kinds (ignore raw hex in the UI). */
 const EXCEL_FILL_KIND: Record<string, WorkbookCellKind> = {
+  "2F72C4": "title",
+  E8E8E4: "subtitle",
+  "2C3037": "header",
+  E8EEF6: "control",
+  F4F4F1: "subtotal",
+  EDEDEA: "muted",
+  // Read previously generated workbooks without changing their semantics.
   "1F4E78": "title",
   D9EAF7: "subtitle",
   "44546A": "header",
@@ -753,6 +760,7 @@ function SummaryCell({
         isHeader && isMoneyColumn && "workbook-cell--header-money",
         !isHeader && isMoneyColumn && "workbook-cell--money",
         !isHeader && isCodeColumn && "workbook-cell--code",
+        isHeader && isCodeColumn && "workbook-cell--code-header",
         (isHeader || columnIndex === 1 || columnIndex === 2) && "workbook-cell--wrap",
         !isHeader && style?.bold && "font-semibold",
       )}
@@ -1085,4 +1093,9 @@ function latestWorkbookPath(basePath: string, overridePath: string | null): stri
 
 function workbookVersion(path: string): number {
   return Number(/Cost_Plan_v(\d+)/i.exec(path)?.[1] ?? 0);
+}
+
+/** UI label for workbook sheets — Summary is shown as Cost Plan. */
+function workbookSheetLabel(sheetName: string): string {
+  return sheetName === "Summary" ? "Cost Plan" : sheetName;
 }

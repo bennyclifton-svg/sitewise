@@ -14,9 +14,7 @@ import type {
 vi.mock("@/lib/api", () => ({
   api: {
     analyzePdf: vi.fn(),
-    applyExistingDocumentRepairs: vi.fn(),
     commitStagedPdf: vi.fn(),
-    previewExistingDocumentRepairs: vi.fn(),
     uploadInboxFiles: vi.fn(),
   },
 }));

@@ -229,7 +229,7 @@ describe("InstructionTray", () => {
       />,
     );
 
-    expect(container.querySelectorAll(".streaming-trace__point")).toHaveLength(0);
+    expect(container.querySelectorAll(".streaming-cube__point")).toHaveLength(0);
 
     rerender(
       <InstructionTray
@@ -241,7 +241,7 @@ describe("InstructionTray", () => {
       />,
     );
 
-    expect(container.querySelectorAll(".streaming-trace__point")).toHaveLength(6);
+    expect(container.querySelectorAll(".streaming-cube__point")).toHaveLength(8);
     expect(screen.getByText("Revising the sections you marked…")).toBeInTheDocument();
   });
 
@@ -374,7 +374,7 @@ describe("SelectionInstructionCard", () => {
   });
 
   it("shows the quoted snippet and marks itself as instruction UI", () => {
-    const { container } = render(
+    render(
       <SelectionInstructionCard
         anchor={anchor}
         sectionHeading="Procurement posture"
@@ -384,13 +384,33 @@ describe("SelectionInstructionCard", () => {
     );
 
     expect(screen.getByText("single-stage invited tender")).toBeInTheDocument();
-    expect(container.querySelector("[data-instruction-ui]")).not.toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Add an instruction for the selected text" }),
+    ).toHaveAttribute("data-instruction-ui");
+  });
+
+  it("portals above the cockpit panel stacking contexts", () => {
+    render(
+      <div className="project-main-panel">
+        <SelectionInstructionCard
+          anchor={anchor}
+          sectionHeading="Procurement posture"
+          onAdd={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      </div>,
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Add an instruction for the selected text" })
+        .parentElement,
+    ).toBe(document.body);
   });
 
   it("paints on the Sitewise opaque overlay surface, never bg-background", () => {
     // The card floats over document text. `--background` is transparent inside
     // the dark cockpit panels, so bg-background would render it see-through.
-    const { container } = render(
+    render(
       <SelectionInstructionCard
         anchor={anchor}
         sectionHeading="Procurement posture"
@@ -399,7 +419,9 @@ describe("SelectionInstructionCard", () => {
       />,
     );
 
-    const card = container.querySelector("[role='dialog']")!;
+    const card = screen.getByRole("dialog", {
+      name: "Add an instruction for the selected text",
+    });
     expect(card).toHaveClass("sw-surface");
     expect(card).toHaveClass("sw-contact");
     expect(card.className).not.toMatch(/\bbg-background\b/);

@@ -128,7 +128,7 @@ def test_unknown_trade_uses_safe_generic_profile() -> None:
 
     assert profile.name == "Aquarium glazing"
     assert profile.slug == "aquarium_glazing"
-    assert "Confirm the in-scope Aquarium glazing work" in profile.baseline_scope[0]
+    assert "Define the in-scope Aquarium glazing work" in profile.baseline_scope[0]
     assert "certification" in profile.baseline_scope[-1]
 
 
@@ -204,14 +204,18 @@ def test_structural_steel_rft_generates_deterministic_controls(monkeypatch) -> N
     assert result.draft.workspace_path.endswith(
         "/05-procurement/structural_steel/02-tender-pack/structural_steel_rft_v01.draft.md"
     )
-    assert "## Project Summary" in markdown
+    assert "## Tender particulars" in markdown
     assert "## Scope and interfaces" in markdown
     assert "## Price schedule" in markdown
-    assert "## Tender conditions and RFI process" in markdown
+    assert "**Tender conditions and RFI process**" in markdown
+    dash = chr(0x2014)
     assert (
-        "| **Tender / quotation total** | Subject to stated qualifications | **TBC** | **TBC** | **TBC** |"
-        in markdown
+        f"| **Tender total** | Subject to stated qualifications | **{dash}** | "
+        f"**{dash}** | **{dash}** |" in markdown
     )
+    primary = markdown.split("## Trace & QA", maxsplit=1)[0]
+    assert "TBC" not in primary
+    assert "Confirm" not in primary
     assert result.draft.provenance_metadata["request_kind"] == "rft"
     assert result.draft.provenance_metadata["trade_package"] == "Structural Steel"
 
@@ -313,18 +317,19 @@ def test_trade_scope_strips_model_supplied_list_numbers(monkeypatch) -> None:
     assert "2. 2." not in scope
 
 
-def test_electrical_rfq_is_complete_without_a_hard_page_cap(monkeypatch) -> None:
+def test_legacy_rfq_input_creates_the_universal_rft(monkeypatch) -> None:
     result = _draft(monkeypatch, package="electrician", kind="rfq", max_pages=5)
 
     markdown = result.draft.content_markdown
-    assert result.kind == "rfq"
-    assert result.draft.title == "Request for Quotation - Electrical Services"
+    assert result.kind == "rft"
+    assert result.draft.title == "Request for Tender - Electrical Services"
+    assert result.draft.workflow_type == "trade_rft_electrical_services"
     assert result.draft.provenance_metadata["max_pages"] == 5
     assert "## Price schedule" in markdown
-    assert "## Returnables" in markdown
-    assert "## Quotation conditions" in markdown
-    assert "Tender conditions and RFI process" not in markdown
-    assert "## Review items before issue" in markdown
+    assert "**Returnables**" in markdown
+    assert "**Tender conditions and RFI process**" in markdown
+    assert "Request for Quotation" not in markdown
+    assert "## Trace & QA" in markdown
 
 
 @pytest.mark.parametrize("kind", ["", "quote", "tender"])

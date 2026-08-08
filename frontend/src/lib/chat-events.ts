@@ -6,6 +6,21 @@ type RecordLike = Record<string, unknown>;
 
 export type ToolStatusState = "running" | "done" | "error";
 
+export type WebSourceTrace = {
+  url: string;
+  title: string;
+  publisher?: string;
+  jurisdiction?: string;
+  authorityClass?: string;
+  sourceType?: string;
+  versionStatus?: string;
+  effectiveDate?: string;
+  section?: string;
+  excerpt?: string;
+  contentHash?: string;
+  retrievedAt?: string;
+};
+
 export type ToolStatusEvent = {
   kind: "tool";
   tool: string;
@@ -19,6 +34,7 @@ export type ToolStatusEvent = {
   percent?: number;
   doneUnits?: number;
   totalUnits?: number;
+  webSource?: WebSourceTrace;
 };
 
 export type ArtefactEvent = {
@@ -69,6 +85,31 @@ function clerkStatusData(part: MessagePart): RecordLike | null {
   return isRecord(data) ? data : null;
 }
 
+function optionalString(record: RecordLike, key: string): string | undefined {
+  return typeof record[key] === "string" ? record[key] : undefined;
+}
+
+function webSourceFromData(value: unknown): WebSourceTrace | undefined {
+  if (!isRecord(value)) return undefined;
+  const url = optionalString(value, "url");
+  const title = optionalString(value, "title");
+  if (!url || !title) return undefined;
+  return {
+    url,
+    title,
+    publisher: optionalString(value, "publisher"),
+    jurisdiction: optionalString(value, "jurisdiction"),
+    authorityClass: optionalString(value, "authority_class"),
+    sourceType: optionalString(value, "source_type"),
+    versionStatus: optionalString(value, "version_status"),
+    effectiveDate: optionalString(value, "effective_date"),
+    section: optionalString(value, "section"),
+    excerpt: optionalString(value, "excerpt"),
+    contentHash: optionalString(value, "content_hash"),
+    retrievedAt: optionalString(value, "retrieved_at"),
+  };
+}
+
 export function toolStatusFromPart(part: MessagePart): ToolStatusEvent | null {
   const data = clerkStatusData(part);
   if (!data || data.kind !== "tool") return null;
@@ -99,6 +140,7 @@ export function toolStatusFromPart(part: MessagePart): ToolStatusEvent | null {
     doneUnits: typeof data.doneUnits === "number" ? data.doneUnits : undefined,
     totalUnits:
       typeof data.totalUnits === "number" ? data.totalUnits : undefined,
+    webSource: webSourceFromData(data.web_source),
   };
 }
 

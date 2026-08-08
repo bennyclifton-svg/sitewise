@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { truncateQuote } from "@/lib/instruction-tray";
@@ -62,12 +63,12 @@ export function SelectionInstructionCard({
   // charcoal gradient through. A floating element painted with it has no
   // background at all, so overlays use the opaque popover token — the same
   // reason ChatHistoryPopover and ChatThreadActionsMenu do.
-  return (
+  return createPortal(
     <div
       data-instruction-ui
       role="dialog"
       aria-label="Add an instruction for the selected text"
-      className="sw-surface sw-contact fixed z-50 w-[340px] p-3 text-popover-foreground hover:translate-y-0 print:hidden"
+      className="sw-surface sw-contact fixed z-[100] w-[340px] p-3 text-popover-foreground hover:translate-y-0 print:hidden"
       style={{ top, left }}
     >
       <p className="text-xs font-medium text-muted-foreground">{sectionHeading}</p>
@@ -92,6 +93,7 @@ export function SelectionInstructionCard({
           Add to tray
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

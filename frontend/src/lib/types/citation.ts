@@ -11,6 +11,13 @@ export type Citation = {
   pageOrSection: string | null;
   excerpt: string;
   label: string | null;
+  url?: string;
+  publisher?: string;
+  jurisdiction?: string;
+  authorityClass?: string;
+  versionStatus?: string;
+  effectiveDate?: string;
+  retrievedAt?: string;
 };
 
 export type AssistantMessageMeta = {

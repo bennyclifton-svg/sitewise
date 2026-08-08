@@ -59,58 +59,15 @@ export function CreateProjectPanel({
 
   return (
     <section className="rounded-md border border-border bg-card">
-      <header className="border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <FolderPlus
-            className="size-4 text-[var(--info-text)]"
-            aria-hidden
-          />
-          <h2 className="text-base font-semibold">Create project</h2>
-        </div>
-      </header>
-
-      <form className="grid min-w-0 gap-4 p-4" onSubmit={(event) => void handleSubmit(event)}>
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7.5rem] sm:items-end">
-          <div className="grid gap-2">
-            <Label htmlFor="project-title">Project title</Label>
-            <Input
-              id="project-title"
-              value={title}
-              placeholder="Enter project name"
-              onChange={(event) => setTitle(event.target.value)}
+      <form onSubmit={(event) => void handleSubmit(event)}>
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+          <div className="flex items-center gap-2">
+            <FolderPlus
+              className="size-4 text-[var(--info-text)]"
+              aria-hidden
             />
+            <h2 className="text-base font-semibold">Create project</h2>
           </div>
-          <SelectField
-            id="project-state"
-            label="State"
-            value={state}
-            onChange={setState}
-            options={projectStateOptions.map((item) => ({ value: item, label: item }))}
-          />
-        </div>
-
-        <TaxonomyPicker
-          catalog={taxonomyQuery.data}
-          value={taxonomy}
-          onChange={setTaxonomy}
-          disabled={submitting}
-          idPrefix="create-project-taxonomy"
-          workScopeMode="starter"
-        />
-
-        {taxonomyQuery.error ? (
-          <p className="text-sm text-destructive" role="alert">
-            Project profile options could not load.
-          </p>
-        ) : null}
-
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="flex justify-end">
           <Button type="submit" disabled={!title.trim() || submitting}>
             {submitting ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -119,6 +76,48 @@ export function CreateProjectPanel({
             )}
             {submitting ? "Creating" : "Create project"}
           </Button>
+        </header>
+
+        <div className="grid min-w-0 gap-4 p-4">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7.5rem] sm:items-end">
+            <div className="grid gap-2">
+              <Label htmlFor="project-title">Project title</Label>
+              <Input
+                id="project-title"
+                value={title}
+                placeholder="Enter project name"
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </div>
+            <SelectField
+              id="project-state"
+              label="State"
+              value={state}
+              onChange={setState}
+              options={projectStateOptions.map((item) => ({ value: item, label: item }))}
+            />
+          </div>
+
+          <TaxonomyPicker
+            catalog={taxonomyQuery.data}
+            value={taxonomy}
+            onChange={setTaxonomy}
+            disabled={submitting}
+            idPrefix="create-project-taxonomy"
+            workScopeMode="starter"
+          />
+
+          {taxonomyQuery.error ? (
+            <p className="text-sm text-destructive" role="alert">
+              Project profile options could not load.
+            </p>
+          ) : null}
+
+          {error ? (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
       </form>
     </section>
@@ -144,7 +143,7 @@ function SelectField({
       <select
         id={id}
         value={value}
-        className="h-9 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="h-9 w-full min-w-0 max-w-full rounded-md border border-input bg-[var(--sw-panel)] px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         onChange={(event) => onChange(event.target.value)}
       >
         {options.map((option) => (

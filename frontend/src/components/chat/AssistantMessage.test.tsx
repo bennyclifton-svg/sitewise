@@ -175,4 +175,79 @@ describe("AssistantMessage", () => {
     expect(trace).toHaveTextContent("1 tool used");
     expect(trace).toHaveTextContent("LLM reasoning");
   });
+
+  it("shows a globe trace and citation only after an official web source was read", () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          messageData={{
+            agent: {
+              runtime: "pi",
+              sourceTrace: {
+                context: { used: true },
+                web: {
+                  used: true,
+                  tools: ["search_web", "read_web_source"],
+                  sources: [
+                    {
+                      url: "https://www.legislation.qld.gov.au/current-act",
+                      title: "Planning Act 2016",
+                      publisher: "Queensland Government",
+                      jurisdiction: "QLD",
+                      authority_class: "official_legislation",
+                      source_type: "web_legislation",
+                      version_status: "current",
+                      effective_date: "29 November 2024",
+                      section: "section 8",
+                      excerpt: "A planning instrument sets out policies.",
+                      content_hash: "abc123",
+                      retrieved_at: "2026-08-08T10:00:00+00:00",
+                    },
+                  ],
+                },
+                tools: [
+                  { name: "search_web" },
+                  { name: "read_web_source" },
+                ],
+                model: { used: true },
+              },
+            },
+          }}
+          agentMode
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText("Internet source")).toBeInTheDocument();
+    expect(screen.getByLabelText("Answer trace")).toHaveTextContent("Web source");
+    expect(
+      screen.getByRole("button", { name: "Citation 1: Planning Act 2016" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show a globe when web search produced no source read", () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          toolEvents={[
+            {
+              kind: "tool",
+              tool: "search_web",
+              state: "done",
+              message: "Searched official web sources",
+            },
+          ]}
+          agentMode
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByLabelText("Internet source")).not.toBeInTheDocument();
+  });
 });

@@ -79,9 +79,18 @@ export function CopyContentButton({
       title={copied ? "Copied" : label}
     >
       {copied ? (
-        <Check className="size-3.5 text-[var(--sw-positive)]" aria-hidden />
+        <Check
+          className={cn(
+            "text-[var(--sw-positive)]",
+            size === "icon" ? "size-5" : "size-3.5",
+          )}
+          aria-hidden
+        />
       ) : (
-        <Copy className="size-3.5" aria-hidden />
+        <Copy
+          className={cn(size === "icon" ? "size-5" : "size-3.5")}
+          aria-hidden
+        />
       )}
     </Button>
   );

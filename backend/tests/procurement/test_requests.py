@@ -128,6 +128,7 @@ def test_create_normalises_target_and_starts_at_draft_revision_one() -> None:
     assert request.target_slug == "electrical_services"
     assert request.status == "draft"
     assert request.revision == 1
+    assert request.kind == "trade_rft"
     assert session.added == [request]
 
 
@@ -193,7 +194,7 @@ def test_attach_rejects_a_draft_from_another_project() -> None:
 
 
 def test_attach_generated_draft_reuses_matching_open_request() -> None:
-    request = _request()
+    request = _request(kind="trade_rft")
     session = _Session(_Result(request))
 
     attached = run_async(
@@ -201,9 +202,9 @@ def test_attach_generated_draft_reuses_matching_open_request() -> None:
             session,
             project_id=PROJECT_ID,
             created_by_user_id=USER_ID,
-            draft=_draft(),
+            draft=_draft(workflow_type="trade_rft_electrical_services"),
             target_name="Electrical Services",
-            kind="trade_rfq",
+            kind="trade_rft",
         )
     )
 
@@ -220,9 +221,9 @@ def test_attach_generated_draft_creates_one_when_no_open_request_exists() -> Non
             session,
             project_id=PROJECT_ID,
             created_by_user_id=USER_ID,
-            draft=_draft(),
+            draft=_draft(workflow_type="trade_rft_electrical_services"),
             target_name="Electrical Services",
-            kind="trade_rfq",
+            kind="trade_rft",
         )
     )
 

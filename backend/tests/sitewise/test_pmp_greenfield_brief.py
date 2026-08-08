@@ -27,7 +27,8 @@ def test_build_greenfield_brief_evidence_grounded_omits_pre_engagement_defaults(
     assert "Evidence-grounded content contract" in brief
     assert "neither brief filed yet" not in brief
     assert "Engagement instruments gap" not in brief
-    assert "Evidence on file:" in brief
+    assert "evidence-status labels" in brief.lower()
+    assert "mobilisation document" in brief.lower()
     assert "post-engagement" in brief.lower()
 
 
@@ -132,6 +133,38 @@ def test_greenfield_structure_violations_detects_prose_risks() -> None:
         archetype="renovation",
     )
     assert any("risk register table" in issue for issue in violations)
+
+
+def test_greenfield_structure_violations_enforces_simple_project_summary() -> None:
+    markdown = """
+## Project Summary
+
+### Critical current position
+
+| Project | Roof Repair |  |
+| --- | --- | --- |
+| Owner | Owner | — |
+| Site | 10 Example Street | [1] |
+"""
+
+    violations = greenfield_structure_violations(markdown)
+
+    assert any("Critical current position" in issue for issue in violations)
+    assert any("ordered rows" in issue for issue in violations)
+
+
+def test_greenfield_structure_violations_accepts_ordered_identity_summary() -> None:
+    markdown = """
+## Project Summary
+
+| Project | Roof Repair |  |
+| --- | --- | --- |
+| Address | 10 Example Street | [1] |
+| Owner | Alex Smith | [2] |
+| Description | Repair the existing roof. | [3] |
+"""
+
+    assert greenfield_structure_violations(markdown) == []
 
 
 def test_greenfield_markers_missing_detects_gaps() -> None:
