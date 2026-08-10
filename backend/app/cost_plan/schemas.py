@@ -12,7 +12,13 @@ GstTreatment = Literal["exclusive", "inclusive", "not_applicable"]
 AllowanceType = Literal["none", "pc", "ps", "contingency"]
 InvoiceGstTreatment = Literal["taxable", "gst_free", "derived"]
 InvoiceMappingMethod = Literal[
-    "exact", "related_reference", "keyword", "model", "manual", "remembered", "unidentified"
+    "exact",
+    "related_reference",
+    "keyword",
+    "model",
+    "manual",
+    "remembered",
+    "unidentified",
 ]
 
 
@@ -32,6 +38,7 @@ class CostItemInput(BaseModel):
     cost_code: str = Field(min_length=1, max_length=128)
     category: str = Field(min_length=1, max_length=255)
     item: str = Field(min_length=1, max_length=512)
+    display_order: int = Field(default=0, ge=0)
     budget: Money | None = None
     committed: Money = Decimal("0")
     forecast: Money = Decimal("0")
@@ -142,6 +149,42 @@ class CostPlanMutationResult(BaseModel):
     conflicts: list[str] = Field(default_factory=list)
 
 
+class CostPlanOperation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operation: Literal["ADD", "UPDATE", "DELETE", "MOVE", "DUPLICATE"]
+    target_type: Literal["cost_item", "cost_category"]
+    target_id: str | None = Field(default=None, max_length=255)
+    values: dict[str, Any] = Field(default_factory=dict)
+    reference_id: str | None = Field(default=None, max_length=255)
+    placement: Literal["before", "after"] | None = None
+
+    @model_validator(mode="after")
+    def validate_operation(self) -> "CostPlanOperation":
+        if self.operation != "ADD" and not self.target_id:
+            raise ValueError(f"{self.operation} requires target_id")
+        if self.operation == "MOVE" and (
+            not self.reference_id or self.placement is None
+        ):
+            raise ValueError("MOVE requires reference_id and placement")
+        if self.operation in {"ADD", "UPDATE"} and not self.values:
+            raise ValueError(f"{self.operation} requires values")
+        return self
+
+
+class CostPlanDelta(BaseModel):
+    version: int
+    changed_items: list[CostItemInput] = Field(default_factory=list)
+    deleted_item_keys: list[str] = Field(default_factory=list)
+    totals: CostPlanTotals
+    workbook_status: Literal["pending", "ready"] = "pending"
+
+
+class CostPlanBatchMutationResult(BaseModel):
+    state: CostPlanState
+    delta: CostPlanDelta
+
+
 class InvoiceLineInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -179,9 +222,7 @@ class ExtractedInvoice(BaseModel):
     lines: list[InvoiceLineInput] = Field(min_length=1)
     provenance: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator(
-        "subtotal_ex_gst", "gst", "total_including_gst", mode="before"
-    )
+    @field_validator("subtotal_ex_gst", "gst", "total_including_gst", mode="before")
     @classmethod
     def invoice_decimal_only(cls, value: object, info) -> Decimal:
         return _decimal(value, field=info.field_name)
@@ -195,7 +236,9 @@ class ExtractedInvoice(BaseModel):
         gst = self.gst.quantize(Decimal("0.01"))
         inclusive = self.total_including_gst.quantize(Decimal("0.01"))
         if subtotal <= 0 or gst < 0 or inclusive <= 0:
-            raise ValueError("invoice totals must be positive and GST cannot be negative")
+            raise ValueError(
+                "invoice totals must be positive and GST cannot be negative"
+            )
         if line_total != subtotal:
             raise ValueError(
                 f"invoice line total {line_total} does not equal subtotal {subtotal}"

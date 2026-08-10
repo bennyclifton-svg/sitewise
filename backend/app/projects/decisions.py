@@ -44,7 +44,10 @@ class DecisionValidationError(ValueError):
 
 async def _locked_project(session: AsyncSession, project_id: uuid.UUID) -> Project:
     result = await session.execute(
-        select(Project).where(Project.id == project_id).with_for_update()
+        select(Project)
+        .where(Project.id == project_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     project = result.scalar_one_or_none()
     if project is None:
@@ -104,6 +107,7 @@ async def _locked_decision(
             ProjectDecision.decision_id == decision_id,
         )
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     row = result.scalar_one_or_none()
     if row is None:
@@ -118,6 +122,7 @@ async def _publish_change(
     row: ProjectDecision,
     actor_source: str,
     action: str,
+    changes_context: bool = True,
 ) -> None:
     project.decision_set_revision += 1
     await session.flush()
@@ -136,6 +141,7 @@ async def _publish_change(
             "evidence_conflict": row.evidence_conflict,
             "profile_revision": project.profile_revision,
         },
+        changes_context=changes_context,
         locked_project=project,
     )
 
@@ -297,6 +303,7 @@ async def sync_decisions_from_markdown(
     markdown: str,
     workflow_type: str,
     locked: dict[str, str] | None = None,
+    changes_context: bool = True,
 ) -> None:
     """Merge generated decisions without ever replacing a locked selection."""
     decisions = extract_decisions(markdown)
@@ -307,8 +314,10 @@ async def sync_decisions_from_markdown(
         select(ProjectDecision)
         .where(ProjectDecision.project_id == project_id)
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     existing = {row.decision_id: row for row in existing_result.scalars().all()}
+    context_change_published = False
     for decision in decisions:
         row = existing.get(decision.id)
         if row is None:
@@ -326,17 +335,23 @@ async def sync_decisions_from_markdown(
             session.add(row)
             await session.flush()
             existing[decision.id] = row
+            publish_context_change = changes_context and not context_change_published
             await _publish_change(
                 session,
                 project=project,
                 row=row,
                 actor_source="workflow",
                 action="created",
+                changes_context=publish_context_change,
+            )
+            context_change_published = (
+                context_change_published or publish_context_change
             )
             continue
 
         incoming_differs = decision.selected != row.selected
         if row.locked:
+            incoming_options = [dict(option) for option in decision.options]
             incoming_conflict = decision.evidence_conflict or incoming_differs
             incoming_suggestion = decision.agent_suggestion
             if incoming_suggestion is None and incoming_differs:
@@ -345,22 +360,43 @@ async def sync_decisions_from_markdown(
                 row.evidence_conflict != incoming_conflict
                 or row.agent_suggestion != incoming_suggestion
             )
-            row.section = decision.section
-            row.label = decision.label
-            row.options = [dict(option) for option in decision.options]
-            row.workflow_type = workflow_type
-            if conflict_changed:
+            metadata_changed = any(
+                (
+                    row.section != decision.section,
+                    row.label != decision.label,
+                    row.options != incoming_options,
+                    row.workflow_type != workflow_type,
+                )
+            )
+            if conflict_changed or metadata_changed:
+                row.section = decision.section
+                row.label = decision.label
+                row.options = incoming_options
+                row.workflow_type = workflow_type
                 row.evidence_conflict = incoming_conflict
                 row.agent_suggestion = incoming_suggestion
                 row.revision += 1
+                publish_context_change = (
+                    changes_context and not context_change_published
+                )
                 await _publish_change(
                     session,
                     project=project,
                     row=row,
                     actor_source="workflow",
-                    action="conflict_detected"
-                    if incoming_conflict
-                    else "conflict_cleared",
+                    action=(
+                        (
+                            "conflict_detected"
+                            if incoming_conflict
+                            else "conflict_cleared"
+                        )
+                        if conflict_changed
+                        else "updated"
+                    ),
+                    changes_context=publish_context_change,
+                )
+                context_change_published = (
+                    context_change_published or publish_context_change
                 )
             continue
 
@@ -384,10 +420,15 @@ async def sync_decisions_from_markdown(
             row.evidence_conflict = False
             row.agent_suggestion = None
             row.revision += 1
+            publish_context_change = changes_context and not context_change_published
             await _publish_change(
                 session,
                 project=project,
                 row=row,
                 actor_source="workflow",
                 action="updated",
+                changes_context=publish_context_change,
+            )
+            context_change_published = (
+                context_change_published or publish_context_change
             )

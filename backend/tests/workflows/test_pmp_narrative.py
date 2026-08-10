@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.database.project import Project
+from app.projects.artefact_context import PmpContext
+from app.projects.generation_brief import build_generation_brief
+from app.projects.generation_context import ContextField, FieldState
 from app.sitewise.mobilisation_evidence import extract_mobilisation_evidence_pack
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.pmp_narrative import (
@@ -64,6 +67,35 @@ def _pack():
         FEE_FIXTURE.read_text(encoding="utf-8"),
     ]
     return extract_mobilisation_evidence_pack(source_texts, [ENGAGEMENT_REF, FEE_REF])
+
+
+def _generation_brief():
+    title = ContextField(
+        key="title",
+        label="Project title",
+        value="Chen Residence",
+        state=FieldState.KNOWN,
+        source="project",
+    )
+    return build_generation_brief(
+        PmpContext(
+            project_id=PROJECT_ID,
+            context_version=7,
+            identity={"title": title},
+            taxonomy={},
+            scope={},
+            scale={},
+            complexity={},
+            commercial={},
+            programme={},
+            approvals={},
+            stakeholders={},
+            derived_risks=[],
+            section_weights={},
+            user_provided_fields={},
+            critical_unknowns=[],
+        )
+    )
 
 
 def _chen_stage1_source_texts() -> list[str]:
@@ -347,6 +379,7 @@ def test_run_pmp_narrative_model_validates_agent_output() -> None:
     agent_result = AsyncMock()
     agent_result.output = narrative
 
+    resolver = AsyncMock(return_value=set())
     with patch(
         "app.workflows.pmp_narrative.run_agent_with_retry",
         new=AsyncMock(return_value=agent_result),
@@ -356,11 +389,48 @@ def test_run_pmp_narrative_model_validates_agent_output() -> None:
                 project=_project(),
                 pack=_pack(),
                 run_date=RUN_DATE,
+                generation_brief=_generation_brief(),
+                consistency_resolver=resolver,
             )
         )
 
     assert output.judgements == narrative.judgements
-    run_agent.assert_awaited_once()
+    assert run_agent.await_count == 3
+    assert output.consistency_ai_call_count == 0
+    resolver.assert_not_awaited()
+
+
+def test_run_pmp_narrative_rejects_cross_section_project_name_conflict() -> None:
+    narrative = _valid_harrison_clarke_narrative().model_copy(
+        update={
+            "judgements": [
+                "Project name: Another Project",
+                _valid_harrison_clarke_narrative().judgements[1],
+            ]
+        }
+    )
+    agent_result = AsyncMock()
+    agent_result.output = narrative
+    resolver = AsyncMock(return_value=set())
+
+    with (
+        patch(
+            "app.workflows.pmp_narrative.run_agent_with_retry",
+            new=AsyncMock(return_value=agent_result),
+        ),
+        pytest.raises(WorkflowValidationError, match="Another Project"),
+    ):
+        run_async(
+            run_pmp_narrative_model(
+                project=_project(),
+                pack=_pack(),
+                run_date=RUN_DATE,
+                generation_brief=_generation_brief(),
+                consistency_resolver=resolver,
+            )
+        )
+
+    resolver.assert_not_awaited()
 
 
 def test_run_pmp_narrative_model_completes_required_master_programme_items() -> None:

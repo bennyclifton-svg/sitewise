@@ -274,6 +274,7 @@ def test_export_project_draft_renders_and_caches_pdf(
         project_title="Demo Project",
         artifact_title="Project Management Plan",
         version=3,
+        workflow_type="create_pmp",
     )
     upload.assert_called_once()
     upsert.assert_awaited_once()

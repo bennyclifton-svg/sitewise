@@ -1,147 +1,48 @@
-/**
- * Frontend time-budget progress for long-running workflow runs (PMP / cost plan).
- *
- * Backend progress is coarse (queued → starting → executing → terminal), so the
- * bar and stage copy are driven here: monotonic creep against a seeded budget,
- * real backend stage when available, and rotating sub-lines while a stage is
- * long-lived. Never reports 100% until the run is marked complete.
- */
-
-import { formatEtaSeconds } from "@/lib/ingest-progress";
-
-export { formatEtaSeconds };
-
-/** Seeded from Petersham-scale Create/Update PMP runs (~3–5 min). */
-export const WORKFLOW_BUDGET_SECONDS_DEFAULT = 4 * 60;
-const ACTIVE_FRACTION_CAP = 0.98;
-const SUBLINE_ROTATE_MS = 5_000;
-
 export type WorkflowProgressMode = "create" | "update" | "invoices";
 
 export type WorkflowProgressKind = "project_plan" | "cost_plan" | "procurement";
-
-export type WorkflowProgressSnapshot = {
-  /** Overall progress in [0, 1]; monotonic non-decreasing while active. */
-  fraction: number;
-  /** Estimated seconds remaining; null when idle. */
-  etaSeconds: number | null;
-};
 
 export type WorkflowDisplayStage = {
   id: string;
   message: string;
 };
 
-type PhaseDef = {
-  id: string;
-  message: string;
-  /** Relative weight within the executing window. */
-  weight: number;
-  sublines?: string[];
+export type WorkflowRunPreview = {
+  stage: string;
+  markdown: string;
 };
 
-const PROJECT_PLAN_EXECUTING: PhaseDef[] = [
-  { id: "evidence", message: "Reviewing project evidence…", weight: 0.15 },
-  { id: "platform", message: "Checking SiteWise guidance…", weight: 0.1 },
-  {
-    id: "drafting",
-    message: "Writing the project plan…",
-    weight: 0.45,
-    sublines: [
-      "Building Project Summary…",
-      "Filling Brief and Consultants…",
-      "Setting programme and risk register…",
-    ],
-  },
-  { id: "validating", message: "Checking citations and structure…", weight: 0.15 },
-  { id: "saving", message: "Saving draft…", weight: 0.15 },
-];
+export type WorkflowSection = {
+  id: string;
+  label: string;
+  status: "queued" | "generating" | "complete" | "failed";
+};
 
-const COST_PLAN_EXECUTING: PhaseDef[] = [
-  { id: "evidence", message: "Reviewing project evidence…", weight: 0.15 },
-  { id: "platform", message: "Checking SiteWise guidance…", weight: 0.1 },
-  {
-    id: "drafting",
-    message: "Writing the cost plan…",
-    weight: 0.45,
-    sublines: [
-      "Building cost summary…",
-      "Mapping elemental allowances…",
-      "Checking rates and contingencies…",
-    ],
-  },
-  { id: "validating", message: "Checking citations and structure…", weight: 0.15 },
-  { id: "saving", message: "Saving draft…", weight: 0.15 },
-];
+export type WorkflowSectionProgress = {
+  completed: number;
+  total: number;
+  sections: WorkflowSection[];
+};
 
-const PROCUREMENT_EXECUTING: PhaseDef[] = [
-  { id: "evidence", message: "Reviewing project evidence...", weight: 0.2 },
-  { id: "platform", message: "Checking procurement guidance...", weight: 0.15 },
-  {
-    id: "drafting",
-    message: "Preparing the request...",
-    weight: 0.45,
-    sublines: [
-      "Building the package summary...",
-      "Setting scope and interfaces...",
-      "Preparing the price and returnable schedules...",
-    ],
-  },
-  { id: "validating", message: "Checking citations and controls...", weight: 0.1 },
-  { id: "saving", message: "Saving draft...", weight: 0.1 },
-];
-
-export class WorkflowRunEstimator {
-  private readonly budgetSeconds: number;
-  private readonly startedAtMs: number;
-  private readonly now: () => number;
-  private maxReportedFraction = 0;
-  private complete = false;
-
-  constructor(
-    options: {
-      budgetSeconds?: number;
-      startedAtMs?: number;
-      now?: () => number;
-    } = {},
-  ) {
-    this.now = options.now ?? (() => Date.now());
-    this.budgetSeconds = options.budgetSeconds ?? WORKFLOW_BUDGET_SECONDS_DEFAULT;
-    this.startedAtMs = options.startedAtMs ?? this.now();
-  }
-
-  markComplete(): void {
-    this.complete = true;
-    this.maxReportedFraction = 1;
-  }
-
-  elapsedSeconds(): number {
-    return Math.max((this.now() - this.startedAtMs) / 1000, 0);
-  }
-
-  snapshot(): WorkflowProgressSnapshot {
-    if (this.complete) {
-      return { fraction: 1, etaSeconds: 0 };
-    }
-
-    const elapsed = this.elapsedSeconds();
-    const raw = elapsed / this.budgetSeconds;
-    const fraction = Math.max(
-      Math.min(raw, ACTIVE_FRACTION_CAP),
-      this.maxReportedFraction,
-    );
-    this.maxReportedFraction = fraction;
-
-    // Past the budget: keep a small positive ETA so the label stays honest
-    // ("a few seconds left") without claiming the bar is finished.
-    const etaSeconds =
-      elapsed < this.budgetSeconds
-        ? this.budgetSeconds - elapsed
-        : Math.max(5, (1 - fraction) * 20);
-
-    return { fraction, etaSeconds };
-  }
-}
+const STAGE_MESSAGES: Record<string, string> = {
+  queued: "Waiting for a worker…",
+  starting: "Loading project profile…",
+  context_ready: "Project context ready.",
+  retrieval_complete: "Project evidence and guidance ready.",
+  scaffold: "Document structure ready.",
+  scaffold_ready: "Document structure ready.",
+  section_started: "Writing document sections…",
+  section_completed: "Writing document sections…",
+  section_failed: "A document section failed.",
+  validation_started: "Checking structure, evidence, and citations…",
+  saving: "Saving draft…",
+  artefact_ready: "Draft ready.",
+  cancelling: "Cancelling…",
+  discovering_invoices: "Finding ingested invoices…",
+  extracting_and_mapping: "Extracting and mapping invoices…",
+  publishing_cost_plan: "Publishing the updated Cost Plan…",
+  verifying_workbook: "Checking invoice register and totals…",
+};
 
 export function workflowProgressTitle(
   kind: WorkflowProgressKind,
@@ -159,87 +60,72 @@ export function workflowProgressTitle(
   return mode === "update" ? "Updating Project Plan" : "Creating Project Plan";
 }
 
-/**
- * Map coarse backend stage + elapsed time onto user-facing copy.
- * Never invents a "complete" stage — caller stops rendering once terminal.
- */
 export function resolveWorkflowDisplayStage(options: {
   kind: WorkflowProgressKind;
   backendStage: string | null | undefined;
   runState: string | null | undefined;
-  elapsedSeconds: number;
-  budgetSeconds?: number;
-  nowMs?: number;
+  progress?: Record<string, unknown> | null;
 }): WorkflowDisplayStage {
   const stage = (options.backendStage ?? "").toLowerCase();
   const runState = (options.runState ?? "").toLowerCase();
-  const budget = options.budgetSeconds ?? WORKFLOW_BUDGET_SECONDS_DEFAULT;
-  const nowMs = options.nowMs ?? Date.now();
-
-  if (stage === "queued" || runState === "queued") {
-    return { id: "queued", message: "Waiting for a worker…" };
+  const sectionProgress = workflowSectionProgress(options.progress);
+  if ((stage === "section_started" || stage === "section_completed") && sectionProgress) {
+    const activeId = options.progress?.active_section;
+    const active = sectionProgress.sections.find((section) => section.id === activeId);
+    return {
+      id: stage,
+      message:
+        active?.status === "generating"
+          ? `Writing ${active.label}…`
+          : `${sectionProgress.completed} of ${sectionProgress.total} sections complete.`,
+    };
   }
-
-  if (stage === "cancelling") {
-    return { id: "cancelling", message: "Cancelling…" };
+  if (STAGE_MESSAGES[stage]) {
+    return { id: stage, message: STAGE_MESSAGES[stage]! };
   }
-
-  if (stage === "starting") {
-    return { id: "preparing", message: "Loading project profile…" };
+  if (runState === "queued") {
+    return { id: "queued", message: STAGE_MESSAGES.queued! };
   }
-
-  const invoiceStages: Record<string, string> = {
-    discovering_invoices: "Finding ingested invoices…",
-    extracting_and_mapping: "Extracting and mapping invoices…",
-    publishing_cost_plan: "Publishing the updated Cost Plan…",
-    verifying_workbook: "Checking invoice register and totals…",
-  };
-  if (invoiceStages[stage]) {
-    return { id: stage, message: invoiceStages[stage] };
-  }
-
-  // executing / running / unknown-while-active → timed phases
-  const phases =
-    options.kind === "cost_plan"
-      ? COST_PLAN_EXECUTING
-      : options.kind === "procurement"
-        ? PROCUREMENT_EXECUTING
-        : PROJECT_PLAN_EXECUTING;
-  const phase = pickExecutingPhase(phases, options.elapsedSeconds, budget);
-  return withRotatedSubline(phase, nowMs);
+  return { id: stage || "running", message: "Workflow running…" };
 }
 
-function pickExecutingPhase(
-  phases: PhaseDef[],
-  elapsedSeconds: number,
-  budgetSeconds: number,
-): PhaseDef {
-  const totalWeight = phases.reduce((sum, phase) => sum + phase.weight, 0);
-  // Spend early budget on queued/starting outside this picker; map elapsed
-  // across the full budget so late phases still appear before the cap.
-  const t = Math.min(Math.max(elapsedSeconds / budgetSeconds, 0), 0.999);
-  let cursor = 0;
-  for (const phase of phases) {
-    cursor += phase.weight / totalWeight;
-    if (t < cursor) return phase;
-  }
-  return phases[phases.length - 1]!;
+export function workflowSectionProgress(
+  progress: Record<string, unknown> | null | undefined,
+): WorkflowSectionProgress | null {
+  if (!progress || !Array.isArray(progress.sections)) return null;
+  const sections = progress.sections.flatMap((value): WorkflowSection[] => {
+    if (!value || typeof value !== "object") return [];
+    const raw = value as Record<string, unknown>;
+    if (
+      typeof raw.id !== "string" ||
+      typeof raw.label !== "string" ||
+      !["queued", "generating", "complete", "failed"].includes(String(raw.status))
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: raw.id,
+        label: raw.label,
+        status: raw.status as WorkflowSection["status"],
+      },
+    ];
+  });
+  if (!sections.length) return null;
+  const completed = sections.filter((section) => section.status === "complete").length;
+  return { completed, total: sections.length, sections };
 }
 
-function withRotatedSubline(phase: PhaseDef, nowMs: number): WorkflowDisplayStage {
-  if (!phase.sublines?.length) {
-    return { id: phase.id, message: phase.message };
-  }
-  const index = Math.floor(nowMs / SUBLINE_ROTATE_MS) % phase.sublines.length;
-  return { id: phase.id, message: phase.sublines[index]! };
+export function workflowRunPercent(
+  progress: Record<string, unknown> | null | undefined,
+): number | null {
+  const sections = workflowSectionProgress(progress);
+  if (sections) return Math.round((sections.completed / sections.total) * 100);
+  const percent = progress?.percent;
+  return typeof percent === "number" && Number.isFinite(percent)
+    ? Math.max(0, Math.min(100, Math.round(percent)))
+    : null;
 }
-
-/** Read `progress.stage` from a workflow run payload without assuming shape. */
-/** An in-progress draft a run has published while it is still working. */
-export type WorkflowRunPreview = {
-  stage: string;
-  markdown: string;
-};
 
 export function workflowRunPreview(
   progress: Record<string, unknown> | null | undefined,

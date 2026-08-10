@@ -7,7 +7,9 @@ run it only against a database where the tender tables carry no data you
 want to keep.
 """
 
+import json
 import os
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -208,6 +210,9 @@ def test_tender_migrations_roundtrip_against_database() -> None:
         profile_revision = project_columns["profile_revision"]
         assert profile_revision["nullable"] is False
         assert str(profile_revision["default"]) in {"1", "'1'::integer"}
+        context_version = project_columns["project_context_version"]
+        assert context_version["nullable"] is False
+        assert str(context_version["default"]) in {"1", "'1'::integer"}
         event_sequence = project_columns["event_sequence"]
         assert event_sequence["nullable"] is False
         assert str(event_sequence["default"]) in {"0", "'0'::integer"}
@@ -219,6 +224,12 @@ def test_tender_migrations_roundtrip_against_database() -> None:
         }
         assert "uq_project_events_project_sequence" in event_unique_names
         assert "uq_project_events_project_deduplication_key" in event_unique_names
+        workflow_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("workflow_runs")
+        }
+        frozen_context = workflow_columns["frozen_project_context_version"]
+        assert frozen_context["nullable"] is False
         comparison_columns = {
             column["name"] for column in inspector.get_columns("tender_comparisons")
         }
@@ -279,6 +290,133 @@ def test_tender_migrations_roundtrip_against_database() -> None:
     finally:
         if "engine" in locals():
             engine.dispose()
+        settings.database_url = original_database_url
+
+
+@pytest.mark.integration
+def test_project_context_migration_backfills_existing_revisions() -> None:
+    if os.environ.get(DESTRUCTIVE_OPT_IN) != "1":
+        pytest.skip(
+            f"Set TEST_DATABASE_URL and {DESTRUCTIVE_OPT_IN}=1 against a "
+            "disposable database to run it."
+        )
+
+    import sqlalchemy as sa
+    from alembic import command
+
+    from app.config import settings
+
+    test_database_url = require_destructive_test_database_url(
+        application_url=settings.database_url,
+        test_url=os.environ.get("TEST_DATABASE_URL"),
+        opted_in=True,
+    )
+    sync_url = test_database_url.replace(
+        "postgresql://", "postgresql+psycopg://", 1
+    )
+    if "sslmode=" not in sync_url:
+        separator = "&" if "?" in sync_url else "?"
+        sync_url = f"{sync_url}{separator}sslmode=require"
+
+    config = _alembic_config()
+    original_database_url = settings.database_url
+    settings.database_url = test_database_url
+    engine = sa.create_engine(sync_url)
+    user_id = uuid.uuid4()
+    project_id = uuid.uuid4()
+    run_id = uuid.uuid4()
+    try:
+        command.upgrade(config, "head")
+        command.downgrade(config, "044_cost_plan_item_order")
+        with engine.begin() as connection:
+            connection.execute(
+                sa.text(
+                    """
+                    INSERT INTO users (id, email)
+                    VALUES (:user_id, :email)
+                    """
+                ),
+                {"user_id": user_id, "email": f"context-{user_id}@example.com"},
+            )
+            connection.execute(
+                sa.text(
+                    """
+                    INSERT INTO projects (
+                        id, owner_user_id, slug, title, workspace_path,
+                        phase, status, event_sequence
+                    ) VALUES (
+                        :project_id, :user_id, :slug, 'Context migration',
+                        :workspace_path, 'brief-planning', 'active', 9
+                    )
+                    """
+                ),
+                {
+                    "project_id": project_id,
+                    "user_id": user_id,
+                    "slug": f"context-{project_id}",
+                    "workspace_path": f"04-projects/context-{project_id}",
+                },
+            )
+            connection.execute(
+                sa.text(
+                    """
+                    INSERT INTO workflow_runs (
+                        id, project_id, requested_by_user_id, workflow_type,
+                        run_brief, idempotency_key, canonical_request_hash,
+                        frozen_profile_revision, frozen_snapshot_fingerprint,
+                        frozen_evidence_fingerprint, frozen_decision_set_revision
+                    ) VALUES (
+                        :run_id, :project_id, :user_id, 'create_project_plan',
+                        CAST(:run_brief AS jsonb), 'context-backfill', :request_hash,
+                        1, :snapshot_hash, :evidence_hash, 1
+                    )
+                    """
+                ),
+                {
+                    "run_id": run_id,
+                    "project_id": project_id,
+                    "user_id": user_id,
+                    "run_brief": json.dumps(
+                        {
+                            "generation_context": {"context_version": 7},
+                            "snapshot": {"context_version": 8},
+                        }
+                    ),
+                    "request_hash": "a" * 64,
+                    "snapshot_hash": "b" * 64,
+                    "evidence_hash": "c" * 64,
+                },
+            )
+
+        command.upgrade(config, "head")
+        with engine.begin() as connection:
+            context_version = connection.execute(
+                sa.text(
+                    "SELECT project_context_version FROM projects WHERE id = :id"
+                ),
+                {"id": project_id},
+            ).scalar_one()
+            frozen_version = connection.execute(
+                sa.text(
+                    """
+                    SELECT frozen_project_context_version
+                    FROM workflow_runs
+                    WHERE id = :id
+                    """
+                ),
+                {"id": run_id},
+            ).scalar_one()
+            assert context_version == 10
+            assert frozen_version == 7
+            connection.execute(
+                sa.text("DELETE FROM workflow_runs WHERE id = :id"), {"id": run_id}
+            )
+            connection.execute(
+                sa.text("DELETE FROM users WHERE id = :id"), {"id": user_id}
+            )
+    finally:
+        command.upgrade(config, "head")
+        engine.dispose()
         settings.database_url = original_database_url
 
 

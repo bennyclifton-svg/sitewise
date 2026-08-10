@@ -16,14 +16,35 @@ from app.database.draft_artifacts import create_draft_artifact, next_draft_versi
 from app.database.project import Project
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
+from app.projects.artefact_context import ProcurementArtefactContext
+from app.projects.generation_brief import (
+    ArtefactGenerationBrief,
+    build_generation_brief,
+)
+from app.projects.generation_audit import build_generation_manifest
+from app.projects.artefact_blocks import materialize_block_identity
+from app.projects.generation_context import ProjectGenerationContext
+from app.retrieval.generation import (
+    EvidencePoolStats,
+    GenerationEvidenceInput,
+    GenerationEvidencePool,
+    GenerationRetrievalRequest,
+    RetrievalBudget,
+    RetrievalLevel,
+    retrieve_generation_evidence,
+    select_retrieval_level,
+)
 from app.retrieval.retriever import DocumentRetriever
-from app.retrieval.schemas import RetrievalFilters
+from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.sitewise.knowledge_catalog import (
-    DOCTRINE_PATH,
-    applicable_platform_paths,
     catalog_entry_for_path,
     load_sections,
-    select_required_paths,
+)
+from app.sitewise.seed_routing import (
+    ArtefactType,
+    SeedKnowledgeSelection,
+    select_seed_knowledge,
+    select_seed_knowledge_for_project,
 )
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
@@ -33,6 +54,15 @@ CORE_PROCUREMENT_GUIDANCE_PATHS = (
     "seed/procurement-tendering-guide.md",
     "seed/cost-management-principles.md",
 )
+PROCUREMENT_RETRIEVAL_BUDGET = RetrievalBudget(
+    max_searches=12,
+    max_chunks=24,
+    max_documents=16,
+    max_tokens=9_000,
+    max_chars=36_000,
+    max_concurrency=4,
+)
+PROCUREMENT_REQUIRED_GUIDANCE_MAX_CHARS = 6_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,10 +100,20 @@ class ProcurementDocument(ABC):
     trace_evidence_purpose: str
     trace_guidance_purpose: str
     load_required_seed_content = False
+    seed_artefact_type: ArtefactType
 
     def provenance_metadata(self, target: ProcurementTarget) -> dict[str, Any]:
         """Return document-specific metadata without duplicating publication."""
         return {}
+
+    def build_context(
+        self,
+        project_context: ProjectGenerationContext,
+        target: ProcurementTarget,
+    ) -> ProcurementArtefactContext | None:
+        """Build a target-specific lens when this document consumes one."""
+        del project_context, target
+        return None
 
     @abstractmethod
     def resolve_target(self, raw: str) -> ProcurementTarget: ...
@@ -174,6 +214,9 @@ class ProcurementDocument(ABC):
         missing_inputs: list[str],
         max_pages: int,
         instructions: str | None,
+        artefact_context: ProcurementArtefactContext | None,
+        generation_brief: ArtefactGenerationBrief | None,
+        on_progress: ProgressPublisher | None,
     ) -> str | Awaitable[str]: ...
 
 
@@ -181,6 +224,33 @@ RetrieverFactory = Callable[[AsyncSession], DocumentRetriever]
 NextVersion = Callable[..., Awaitable[int]]
 CreateDraft = Callable[..., Awaitable[DraftArtifact]]
 SyncWorkspace = Callable[..., Awaitable[str]]
+ProgressPublisher = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+@dataclass(slots=True)
+class _ProcurementProgressCapture:
+    downstream: ProgressPublisher | None
+    consistency_ai_call_count: int = 0
+
+    async def publish(self, progress: dict[str, Any]) -> None:
+        if progress.get("stage") == "consistency_complete":
+            call_count = progress.get("ai_call_count")
+            if isinstance(call_count, int) and not isinstance(call_count, bool):
+                self.consistency_ai_call_count += max(0, call_count)
+        await publish_procurement_progress(self.downstream, progress)
+
+
+async def publish_procurement_progress(
+    on_progress: ProgressPublisher | None,
+    progress: dict[str, Any],
+) -> None:
+    if on_progress is None:
+        return
+    try:
+        await on_progress(progress)
+    except Exception:
+        # Progress is advisory and must never invalidate a generated artefact.
+        return
 
 
 def workflow_type_for(document: ProcurementDocument, target: ProcurementTarget) -> str:
@@ -210,44 +280,55 @@ async def draft_procurement_request(
     raw_target: str,
     max_pages: int = 1,
     instructions: str | None = None,
+    generation_context: ProjectGenerationContext | None = None,
     auto_commit: bool = True,
     retriever_factory: RetrieverFactory | None = None,
     next_version: NextVersion | None = None,
     create_draft: CreateDraft | None = None,
     sync_workspace: SyncWorkspace | None = None,
+    on_progress: ProgressPublisher | None = None,
 ) -> ProcurementRequestResult:
     target = document.resolve_target(raw_target)
+    artefact_context = (
+        document.build_context(generation_context, target)
+        if generation_context is not None
+        else None
+    )
+    await publish_procurement_progress(on_progress, {"stage": "context_ready"})
     # A page target guides the bounded narrative prompt. It must not cause a
     # complete procurement document to fail or be truncated at an arbitrary cap.
     pages = max(1, max_pages)
     retriever = (retriever_factory or DocumentRetriever)(session)
-
-    project_evidence = await _retrieve_project_evidence(
-        retriever,
+    seed_selection = _select_procurement_seed_knowledge(
+        document=document,
         project=project,
-        queries=document.evidence_queries(target),
+        target=target,
+        generation_context=generation_context,
     )
-    project_evidence = _merge_project_evidence(
-        project_evidence,
-        await document.supplemental_project_evidence(
+    evidence_queries = document.evidence_queries(target)
+    evidence_pool, supplemental_evidence = await asyncio.gather(
+        _retrieve_procurement_evidence_pool(
+            retriever,
+            project=project,
+            project_queries=evidence_queries,
+            platform_query=document.platform_query(target),
+            artefact_context=artefact_context,
+        ),
+        document.supplemental_project_evidence(
             session,
             project=project,
             target=target,
         ),
     )
-    project_evidence = document.filter_project_evidence(project_evidence, target)
-    issued_documents = await document.issued_documents(
-        session,
-        project=project,
-        target=target,
-        narrative_evidence=project_evidence,
+    project_evidence = _project_evidence_from_pool(evidence_pool, evidence_queries)
+    project_evidence = _merge_project_evidence(
+        project_evidence,
+        supplemental_evidence,
     )
-    if not issued_documents:
-        issued_documents = list(project_evidence)
-    platform_knowledge = await _retrieve_platform_knowledge(
-        retriever,
-        query=document.platform_query(target),
-        project=project,
+    project_evidence = document.filter_project_evidence(project_evidence, target)
+    platform_knowledge = _platform_knowledge_from_pool(
+        evidence_pool,
+        allowed_paths=set(seed_selection.applicable_paths),
     )
     platform_knowledge = document.filter_platform_knowledge(
         platform_knowledge,
@@ -256,10 +337,40 @@ async def draft_procurement_request(
     platform_knowledge = await _merge_required_guidance(
         session,
         platform_knowledge,
-        project,
-        knowledge_workflow=document.knowledge_workflow,
+        selection=seed_selection,
         load_required_seed_content=document.load_required_seed_content,
-        target_guidance_paths=document.platform_guidance_paths(target),
+    )
+    retrieval_level = (
+        evidence_pool.stats.level
+        if evidence_pool.stats is not None
+        else RetrievalLevel.TARGETED_PROJECT
+    )
+    (
+        project_evidence,
+        platform_knowledge,
+        final_retrieval_stats,
+    ) = await _bound_procurement_inputs(
+        retriever,
+        project_evidence=project_evidence,
+        platform_knowledge=platform_knowledge,
+        level=retrieval_level,
+        budget=PROCUREMENT_RETRIEVAL_BUDGET,
+    )
+    issued_documents = await document.issued_documents(
+        session,
+        project=project,
+        target=target,
+        narrative_evidence=project_evidence,
+    )
+    if not issued_documents:
+        issued_documents = list(project_evidence)
+    await publish_procurement_progress(
+        on_progress,
+        {
+            "stage": "retrieval_complete",
+            "project_evidence_count": len(project_evidence),
+            "platform_guidance_count": len(platform_knowledge),
+        },
     )
     forecast = await document.forecast(
         session,
@@ -282,6 +393,37 @@ async def draft_procurement_request(
         assumptions=assumptions,
         missing_inputs=missing_inputs,
     )
+    search_stats = evidence_pool.stats or final_retrieval_stats
+    source_trace["retrieval"] = {
+        "level": search_stats.level.name.casefold(),
+        "requested_searches": search_stats.requested_searches,
+        "executed_searches": search_stats.executed_searches,
+        "selected_chunks": final_retrieval_stats.selected_chunks,
+        "selected_documents": final_retrieval_stats.selected_documents,
+        "selected_tokens": final_retrieval_stats.selected_tokens,
+        "selected_chars": final_retrieval_stats.selected_chars,
+    }
+    generation_brief = (
+        build_generation_brief(
+            artefact_context,
+            evidence_refs=_unique_paths(
+                [*project_evidence, *issued_documents],
+                key="relative_path",
+            ),
+            seed_refs=_unique_paths(platform_knowledge, key="path"),
+            constraints=[
+                f"Maximum narrative target: {pages} page(s).",
+                *(
+                    [instructions.strip()]
+                    if instructions and instructions.strip()
+                    else []
+                ),
+            ],
+        )
+        if artefact_context is not None
+        else None
+    )
+    progress_capture = _ProcurementProgressCapture(on_progress)
     rendered = document.render(
         project=project,
         target=target,
@@ -293,9 +435,27 @@ async def draft_procurement_request(
         missing_inputs=missing_inputs,
         max_pages=pages,
         instructions=instructions,
+        artefact_context=artefact_context,
+        generation_brief=generation_brief,
+        on_progress=progress_capture.publish,
     )
     markdown = await rendered if inspect.isawaitable(rendered) else rendered
+    source_trace["consistency_ai_call_count"] = (
+        progress_capture.consistency_ai_call_count
+    )
+    block_identity = materialize_block_identity(
+        markdown,
+        actor_source="ai"
+        if document.seed_artefact_type in {"rfp", "rft"}
+        else "system",
+        generation_input_hash=(
+            generation_brief.input_fingerprint if generation_brief is not None else None
+        ),
+        generation_version=document.runtime_name,
+    )
+    markdown = block_identity.markdown
 
+    await publish_procurement_progress(on_progress, {"stage": "saving"})
     workflow_type = workflow_type_for(document, target)
     version_hint = await (next_version or next_draft_version)(
         session,
@@ -325,6 +485,28 @@ async def draft_procurement_request(
             "max_pages": pages,
             "instructions": instructions,
             "source_trace": source_trace,
+            **(
+                {
+                    "artefact_context": artefact_context.model_dump(mode="json"),
+                }
+                if artefact_context is not None
+                else {}
+            ),
+            **(
+                {"generation_brief": generation_brief.model_dump(mode="json")}
+                if generation_brief is not None
+                else {}
+            ),
+            "blocks": block_identity.metadata,
+            **(
+                {
+                    "generation_manifest": build_generation_manifest(
+                        generation_brief
+                    ).model_dump(mode="json")
+                }
+                if generation_brief is not None
+                else {}
+            ),
             **document.provenance_metadata(target),
             **_provenance_references(project_evidence, platform_knowledge),
             "issued_document_refs": _unique_paths(
@@ -343,6 +525,7 @@ async def draft_procurement_request(
     )
     if auto_commit:
         await session.commit()
+    await publish_procurement_progress(on_progress, {"stage": "artefact_ready"})
     return ProcurementRequestResult(
         draft=draft,
         target_name=target.name,
@@ -350,33 +533,202 @@ async def draft_procurement_request(
     )
 
 
-async def _retrieve_project_evidence(
+async def _retrieve_procurement_evidence_pool(
     retriever: DocumentRetriever,
     *,
     project: Project,
-    queries: tuple[EvidenceQuery, ...],
-) -> list[dict[str, Any]]:
-    filters = RetrievalFilters(
+    project_queries: tuple[EvidenceQuery, ...],
+    platform_query: str,
+    artefact_context: ProcurementArtefactContext | None,
+) -> GenerationEvidencePool:
+    project_filters = RetrievalFilters(
         active_project_id=project.id,
         include_platform_knowledge=False,
     )
-    evidence: list[dict[str, Any]] = []
-    seen_chunks: set[str] = set()
-    for query in queries:
-        passages = await retriever.retrieve(
-            query.query,
-            filters=filters,
+    requests = [
+        GenerationRetrievalRequest(
+            key=f"project:{index}:{query.key}",
+            category=query.key,
+            query=query.query,
+            filters=project_filters,
             limit=3,
-            include_neighbours=False,
         )
-        for passage in passages:
-            chunk_key = str(_attr(passage, "chunk_id", ""))
-            if chunk_key and chunk_key in seen_chunks:
-                continue
-            if chunk_key:
-                seen_chunks.add(chunk_key)
+        for index, query in enumerate(project_queries)
+    ]
+    requests.append(
+        GenerationRetrievalRequest(
+            key="platform:guidance",
+            category="platform_guidance",
+            query=platform_query,
+            filters=RetrievalFilters(
+                platform_knowledge_only=True,
+                phase="reference",
+            ),
+            limit=5,
+        )
+    )
+    retrieval_level = select_retrieval_level(
+        structured_context_available=artefact_context is not None,
+        current_artefact_available=False,
+        project_evidence_required=(
+            artefact_context is None or bool(artefact_context.critical_unknowns)
+        ),
+    )
+    return await retrieve_generation_evidence(
+        retriever,
+        requests,
+        level=retrieval_level,
+        budget=PROCUREMENT_RETRIEVAL_BUDGET,
+    )
+
+
+async def _bound_procurement_inputs(
+    retriever: DocumentRetriever,
+    *,
+    project_evidence: list[dict[str, Any]],
+    platform_knowledge: list[dict[str, Any]],
+    level: RetrievalLevel,
+    budget: RetrievalBudget,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], EvidencePoolStats]:
+    """Apply one final budget to every narrative input, including required seeds."""
+    records: dict[uuid.UUID, dict[str, Any]] = {}
+
+    def passages_for(
+        items: list[dict[str, Any]],
+        *,
+        category: str,
+        path_key: str,
+    ) -> tuple[SourcePassage, ...]:
+        passages: list[SourcePassage] = []
+        for index, item in enumerate(items):
+            path = str(item.get(path_key) or "").strip()
+            document_key = str(item.get("document_id") or path or index)
+            chunk_key = str(
+                item.get("chunk_id")
+                or f"{path}:{item.get('page_or_section') or item.get('section') or index}"
+            )
+            document_id = uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                f"clerk:procurement:document:{document_key}",
+            )
+            chunk_id = uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                f"clerk:procurement:chunk:{category}:{chunk_key}",
+            )
+            records[chunk_id] = item
+            passages.append(
+                SourcePassage(
+                    chunk_id=chunk_id,
+                    document_id=document_id,
+                    chunk_index=index,
+                    content=str(item.get("snippet") or ""),
+                    page_or_section=(
+                        item.get("page_or_section") or item.get("section")
+                    ),
+                    project="active-project" if category == "project" else "sitewise",
+                    project_id=None,
+                    phase="project" if category == "project" else "reference",
+                    source_type=str(item.get("source_type") or category),
+                    document_class=str(item.get("document_class") or category),
+                    filename=str(
+                        item.get("filename")
+                        or item.get("title")
+                        or path.rsplit("/", maxsplit=1)[-1]
+                        or "source"
+                    ),
+                    relative_path=path,
+                    document_metadata=(
+                        item.get("document_metadata")
+                        if isinstance(item.get("document_metadata"), dict)
+                        else None
+                    ),
+                    score=float(item.get("score") or 0.0),
+                )
+            )
+        return tuple(passages)
+
+    pool = await retrieve_generation_evidence(
+        retriever,
+        (),
+        preloaded=(
+            GenerationEvidenceInput(
+                key="final:platform",
+                category="platform",
+                passages=passages_for(
+                    platform_knowledge,
+                    category="platform",
+                    path_key="path",
+                ),
+            ),
+            GenerationEvidenceInput(
+                key="final:project",
+                category="project",
+                passages=passages_for(
+                    project_evidence,
+                    category="project",
+                    path_key="relative_path",
+                ),
+            ),
+        ),
+        level=level,
+        budget=budget,
+    )
+
+    def restore(key: str) -> list[dict[str, Any]]:
+        return [
+            {**records[passage.chunk_id], "snippet": passage.content}
+            for passage in pool.passages_for(key)
+        ]
+
+    if pool.stats is None:  # pragma: no cover - the shared contract always sets it
+        raise RuntimeError("Procurement retrieval did not publish budget statistics")
+    return restore("final:project"), restore("final:platform"), pool.stats
+
+
+def _project_evidence_from_pool(
+    pool: GenerationEvidencePool,
+    queries: tuple[EvidenceQuery, ...],
+) -> list[dict[str, Any]]:
+    evidence: list[dict[str, Any]] = []
+    for index, query in enumerate(queries):
+        for passage in pool.passages_for(f"project:{index}:{query.key}"):
             evidence.append(_project_evidence_item(query, passage))
     return evidence
+
+
+def _select_procurement_seed_knowledge(
+    *,
+    document: ProcurementDocument,
+    project: Project,
+    target: ProcurementTarget,
+    generation_context: ProjectGenerationContext | None,
+) -> SeedKnowledgeSelection:
+    artefact_type = document.seed_artefact_type
+    target_kwargs = (
+        {"discipline": target.name}
+        if artefact_type == "rfp"
+        else {"package": target.name}
+    )
+    kwargs = {
+        **target_kwargs,
+        "required_paths": document.platform_guidance_paths(target),
+        "workflow": document.knowledge_workflow,
+    }
+    if generation_context is not None:
+        return select_seed_knowledge(
+            artefact_type,
+            generation_context,
+            **kwargs,
+        )
+    return select_seed_knowledge_for_project(
+        artefact_type,
+        project,
+        **kwargs,
+    )
+
+
+def _artefact_type_for_workflow(workflow: str) -> ArtefactType:
+    return "rfp" if workflow == "consultant-procurement" else "rft"
 
 
 def _merge_project_evidence(
@@ -417,42 +769,21 @@ def _merge_project_evidence(
     return merged
 
 
-async def _retrieve_platform_knowledge(
-    retriever: DocumentRetriever,
+def _platform_knowledge_from_pool(
+    pool: GenerationEvidencePool,
     *,
-    query: str,
-    project: Project,
+    allowed_paths: set[str],
 ) -> list[dict[str, Any]]:
-    from app.sitewise.archetype_bridge import (
-        effective_taxonomy,
-        effective_work_scopes,
-    )
-
-    taxonomy = effective_taxonomy(project)
-    passages = await retriever.retrieve(
-        query,
-        filters=RetrievalFilters(platform_knowledge_only=True, phase="reference"),
-        limit=5,
-        include_neighbours=False,
-    )
     knowledge: list[dict[str, Any]] = []
     seen_paths: set[str] = set()
-    applicable_paths = applicable_platform_paths(
-        archetype=getattr(project, "archetype", None),
-        building_class=taxonomy.building_class,
-        work_type=taxonomy.work_type,
-        subclasses=taxonomy.subclasses,
-        work_scopes=effective_work_scopes(project),
-        include_required=False,
-    )
-    for passage in passages:
+    for passage in pool.passages_for("platform:guidance"):
         path = str(_attr(passage, "relative_path", ""))
         if path and path in seen_paths:
             continue
         if (
             path
             and catalog_entry_for_path(path) is not None
-            and path not in applicable_paths
+            and path not in allowed_paths
         ):
             continue
         if path:
@@ -466,53 +797,27 @@ def _required_guidance_paths(
     *,
     knowledge_workflow: str,
 ) -> list[str]:
-    from app.sitewise.archetype_bridge import (
-        effective_taxonomy,
-        effective_work_scopes,
-    )
-
-    archetype = getattr(project, "archetype", None)
-    taxonomy = effective_taxonomy(project)
-    building_class = taxonomy.building_class
-    work_type = taxonomy.work_type
-    if not archetype and not building_class:
-        return []
     try:
-        resolved = select_required_paths(
+        selection = select_seed_knowledge_for_project(
+            _artefact_type_for_workflow(knowledge_workflow),
+            project,
             workflow=knowledge_workflow,
-            archetype=archetype or "",
-            building_class=building_class,
-            work_type=work_type,
-            subclasses=taxonomy.subclasses,
-            work_scopes=effective_work_scopes(project),
         )
     except ValueError:
         return []
-    guidance: list[str] = []
-    for path in resolved:
-        if path == DOCTRINE_PATH:
-            continue
-        entry = catalog_entry_for_path(path)
-        if entry is not None and knowledge_workflow in entry.required_by:
-            guidance.append(path)
-    return guidance
+    return list(selection.workflow_paths)
 
 
 async def _merge_required_guidance(
     session: AsyncSession,
     knowledge: list[dict[str, Any]],
-    project: Project,
     *,
-    knowledge_workflow: str,
+    selection: SeedKnowledgeSelection,
     load_required_seed_content: bool,
-    target_guidance_paths: tuple[str, ...] = (),
 ) -> list[dict[str, Any]]:
     existing = {str(item.get("path")): index for index, item in enumerate(knowledge)}
-    required_paths = _required_guidance_paths(
-        project,
-        knowledge_workflow=knowledge_workflow,
-    )
-    paths = list(dict.fromkeys((*target_guidance_paths, *required_paths)))
+    required_paths = set(selection.workflow_paths)
+    paths = list(selection.guidance_paths)
     for path in paths:
         entry = catalog_entry_for_path(path)
         loaded = None
@@ -521,7 +826,10 @@ async def _merge_required_guidance(
                 session,
                 path,
                 None,
-                max_chars=settings.whole_document_content_chars,
+                max_chars=min(
+                    settings.whole_document_content_chars,
+                    PROCUREMENT_REQUIRED_GUIDANCE_MAX_CHARS,
+                ),
             )
         if loaded is not None and loaded.passage is not None:
             item = {

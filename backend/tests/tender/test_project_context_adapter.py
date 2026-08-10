@@ -22,6 +22,7 @@ def test_residential_refurbishment_maps_to_strict_tender_context() -> None:
     assert prepared.ready is True
     assert prepared.context is not None
     assert prepared.context.build_type == "renovation"
+    assert prepared.context.context_version == 12
     assert prepared.context.state == "NSW"
     assert prepared.context.storeys == 2
     assert prepared.provenance.source_profile_revision == 7
@@ -45,6 +46,7 @@ def _snapshot(*, building_class: str, work_type: str, state: str, subclasses: li
     return ProjectSnapshot(
         generated_at=datetime.now(UTC),
         content_fingerprint="snapshot-fingerprint",
+        context_version=12,
         identity=ProjectSnapshotIdentity(
             project_id=project_id, title="House", slug="house", workspace_path="projects/house",
             phase="procurement", status="active", site_address=SnapshotValue(status="needs_input"), client=SnapshotValue(status="needs_input"),

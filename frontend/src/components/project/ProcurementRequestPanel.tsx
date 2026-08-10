@@ -138,6 +138,7 @@ export function ProcurementRequestPanel({
           runId={activeRun?.id ?? "pending-procurement-request"}
           runState={activeRun?.state ?? "queued"}
           progressStage={workflowProgressStage(activeRun?.progress) ?? "queued"}
+          progress={activeRun?.progress}
           onCancel={activeRun ? onCancel : undefined}
         />
       ) : null}

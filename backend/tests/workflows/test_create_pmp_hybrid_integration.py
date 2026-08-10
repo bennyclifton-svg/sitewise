@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from app.config import Settings
+from app.projects.generation_brief import build_generation_brief
+from app.projects.generation_context import (
+    ContextField,
+    FieldState,
+    ProjectGenerationContext,
+)
 from app.sitewise.pmp_evidence_validation import (
     evidence_grounded_violations,
     sync_document_control_version,
@@ -45,7 +52,9 @@ def _harrison_clarke_source_texts() -> list[str]:
         (FIXTURE_DIR / "01-engagement-letter-harrison-clarke-studio.md").read_text(
             encoding="utf-8"
         ),
-        (FIXTURE_DIR / "02-fee-proposal-harrison-clarke-studio.md").read_text(encoding="utf-8"),
+        (FIXTURE_DIR / "02-fee-proposal-harrison-clarke-studio.md").read_text(
+            encoding="utf-8"
+        ),
     ]
 
 
@@ -56,6 +65,38 @@ def _harrison_clarke_evidence_refs(project_slug: str) -> list[str]:
         f"project_evidence:{project_slug}/02-consultant/architect/"
         "02-fee-proposal-harrison-clarke-studio.md#chunk=def",
     ]
+
+
+def _generation_context(project_id) -> ProjectGenerationContext:
+    def known(key: str, value: object) -> ContextField:
+        return ContextField(
+            key=key,
+            label=key.replace("_", " ").title(),
+            value=value,
+            state=FieldState.KNOWN,
+            source="project",
+        )
+
+    return ProjectGenerationContext(
+        project_id=project_id,
+        context_version=7,
+        identity={"title": known("title", "Chen Residence")},
+        taxonomy={
+            "building_class": known("building_class", "residential"),
+            "work_type": known("work_type", "new"),
+            "subclasses": known("subclasses", ["house"]),
+            "state": known("state", "NSW"),
+            "user_role": known("user_role", "architect-pm"),
+        },
+        scale={},
+        complexity={},
+        scope={},
+        commercial={},
+        programme={},
+        approvals={},
+        stakeholders={},
+        derived_risks=[],
+    )
 
 
 def assert_hybrid_pmp_acceptance_criteria(markdown: str, *, project_slug: str) -> None:
@@ -80,7 +121,8 @@ def assert_hybrid_pmp_acceptance_criteria(markdown: str, *, project_slug: str) -
     assert (
         greenfield_structure_violations(
             markdown,
-            archetype="new-dwelling",        )
+            archetype="new-dwelling",
+        )
         == []
     )
 
@@ -108,9 +150,12 @@ def test_pmp_hybrid_compiler_defaults_to_enabled() -> None:
 
 def test_hybrid_harrison_clarke_integration_acceptance_criteria() -> None:
     project = harrison_clarke_project()
-    mobilisation_passages = harrison_clarke_mobilisation_passages(project_slug=project.slug)
+    mobilisation_passages = harrison_clarke_mobilisation_passages(
+        project_slug=project.slug
+    )
     platform_passages = platform_passages_for_project(project)
     draft = mock_draft_artifact()
+    narrative = AsyncMock(return_value=harrison_clarke_narrative())
 
     with (
         patch(
@@ -126,9 +171,22 @@ def test_hybrid_harrison_clarke_integration_acceptance_criteria() -> None:
             new=AsyncMock(return_value=(platform_passages, [])),
         ),
         patch(
-            "app.workflows.pmp_narrative.run_pmp_narrative_model",
-            new=AsyncMock(return_value=harrison_clarke_narrative()),
+            "app.workflows.create_pmp.load_seed_knowledge",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    passages=[],
+                    missing_required_refs=[],
+                )
+            ),
         ),
+        patch(
+            "app.workflows.pmp_narrative.run_pmp_narrative_model",
+            new=narrative,
+        ),
+        patch(
+            "app.workflows.create_pmp.build_generation_brief",
+            wraps=build_generation_brief,
+        ) as build_brief,
         patch(
             "app.workflows.create_pmp._next_version_hint",
             new=AsyncMock(return_value=1),
@@ -144,10 +202,11 @@ def test_hybrid_harrison_clarke_integration_acceptance_criteria() -> None:
                 user_id=USER_ID,
                 project=project,
                 thread_id=None,
+                generation_context=_generation_context(project.id),
             )
         )
 
-    assert result.status == "complete"
+    assert result.status == "complete", result.message
     markdown = create_draft.await_args.kwargs["content_markdown"]
     synced = sync_document_control_version(markdown, 1)
     assert "Version v01" in synced
@@ -157,21 +216,39 @@ def test_hybrid_harrison_clarke_integration_acceptance_criteria() -> None:
         PmpDraftOutput(
             title="Project Management Plan",
             markdown=synced,
-            seed_consulted=[p.relative_path for p in platform_passages if p.source_type == "reference"],
+            seed_consulted=[
+                p.relative_path
+                for p in platform_passages
+                if p.source_type == "reference"
+            ],
             evidence_refs=_harrison_clarke_evidence_refs(project.slug),
             context_refs=[
-                f"{p.source_type}:{p.relative_path}#chunk={p.chunk_id}" for p in platform_passages
+                f"{p.source_type}:{p.relative_path}#chunk={p.chunk_id}"
+                for p in platform_passages
             ],
         ),
         "evidence_grounded",
-        archetype="new-dwelling",        source_texts=_harrison_clarke_source_texts(),
+        archetype="new-dwelling",
+        source_texts=_harrison_clarke_source_texts(),
     )
 
     provenance = create_draft.await_args.kwargs["provenance_metadata"]
     assert provenance["compiler"] == "hybrid"
+    generated_brief = narrative.await_args.kwargs["generation_brief"]
+    assert build_brief.call_count == 1
+    assert provenance["generation_brief"] == generated_brief.model_dump(mode="json")
+    assert (
+        provenance["generation_manifest"]["input_fingerprint"]
+        == generated_brief.input_fingerprint
+    )
+    assert provenance["generation_manifest"][
+        "generation_brief"
+    ] == generated_brief.model_dump(mode="json")
     assert create_draft.await_args.kwargs["runtime"] == RUNTIME_HYBRID_NAME
     steps = {event.step for event in result.trace}
-    assert {"extract", "scaffold", "narrative", "assemble", "validation"}.issubset(steps)
+    assert {"extract", "scaffold", "narrative", "assemble", "validation"}.issubset(
+        steps
+    )
 
 
 def test_legacy_create_pmp_path_when_hybrid_compiler_disabled() -> None:
@@ -182,9 +259,14 @@ def test_legacy_create_pmp_path_when_hybrid_compiler_disabled() -> None:
     legacy_output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=_valid_evidence_grounded_pmp_markdown(),
-        seed_consulted=[p.relative_path for p in platform_passages if p.source_type == "reference"],
+        seed_consulted=[
+            p.relative_path for p in platform_passages if p.source_type == "reference"
+        ],
         evidence_refs=_harrison_clarke_evidence_refs(project.slug),
-        context_refs=[f"{p.source_type}:{p.relative_path}#chunk={p.chunk_id}" for p in platform_passages],
+        context_refs=[
+            f"{p.source_type}:{p.relative_path}#chunk={p.chunk_id}"
+            for p in platform_passages
+        ],
     )
     draft = mock_draft_artifact(runtime=RUNTIME_NAME)
 
@@ -196,7 +278,11 @@ def test_legacy_create_pmp_path_when_hybrid_compiler_disabled() -> None:
         ),
         patch(
             "app.workflows.create_pmp.load_mobilisation_project_evidence_documents",
-            new=AsyncMock(return_value=harrison_clarke_mobilisation_passages(project_slug=project.slug)),
+            new=AsyncMock(
+                return_value=harrison_clarke_mobilisation_passages(
+                    project_slug=project.slug
+                )
+            ),
         ),
         patch(
             "app.workflows.create_pmp.load_platform_documents_by_paths",
@@ -239,7 +325,9 @@ def test_legacy_create_pmp_path_when_hybrid_compiler_disabled() -> None:
 def _run_hybrid_with_preview(on_preview, narrative_hook=None):
     """Run the hybrid Create PMP path, capturing previews it publishes."""
     project = harrison_clarke_project()
-    mobilisation_passages = harrison_clarke_mobilisation_passages(project_slug=project.slug)
+    mobilisation_passages = harrison_clarke_mobilisation_passages(
+        project_slug=project.slug
+    )
     platform_passages = platform_passages_for_project(project)
 
     async def narrative(**kwargs):
@@ -295,9 +383,38 @@ def test_hybrid_publishes_the_scaffold_before_the_narrative_model_runs() -> None
 
     assert result.status == "complete"
     # The scaffold reaches the user before the multi-minute model call starts.
-    assert previews_at_narrative_time == [1]
-    assert published[0]["stage"] == "scaffold"
-    assert published[0]["markdown"].strip()
+    assert previews_at_narrative_time[0] > 0
+    scaffold = next(item for item in published if item.get("markdown"))
+    assert scaffold["stage"] == "scaffold_ready"
+    assert scaffold["markdown"].strip()
+
+
+def test_hybrid_persists_consistency_ai_calls_from_rejected_attempts() -> None:
+    from app.workflows.create_pmp import WorkflowValidationError
+
+    attempts = 0
+
+    def fail_first_attempt() -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise WorkflowValidationError(
+                "PMP narrative consistency failed: duplicate scope",
+                consistency_ai_call_count=1,
+            )
+
+    result = _run_hybrid_with_preview(None, narrative_hook=fail_first_attempt)
+
+    assert result.status == "complete"
+    assert attempts == 2
+    retry_event = next(
+        event
+        for event in result.trace
+        if event.step == "validation" and event.status == "retry"
+    )
+    assert retry_event.metadata["consistency_ai_call_count"] == 1
+    narrative_event = next(event for event in result.trace if event.step == "narrative")
+    assert narrative_event.metadata["consistency_ai_call_count"] == 1
 
 
 def test_published_scaffold_carries_the_document_headings() -> None:
@@ -308,7 +425,8 @@ def test_published_scaffold_carries_the_document_headings() -> None:
 
     _run_hybrid_with_preview(capture)
 
-    headings = markdown_section_headings(published[0]["markdown"])
+    scaffold = next(item for item in published if item.get("markdown"))
+    headings = markdown_section_headings(scaffold["markdown"])
     assert headings == list(required_section_headings())
 
 

@@ -11,8 +11,16 @@ from app.config import settings
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.database.source_document import SourceDocument
+from app.projects.artefact_blocks import reconcile_regenerated_blocks
+from app.projects.artefact_context import build_pmp_context
+from app.projects.generation_brief import build_generation_brief
+from app.projects.generation_context import ProjectGenerationContext
+from app.retrieval.generation import RetrievalBudget
 from app.schemas.projects import WorkflowTraceEvent
-from app.sitewise.mobilisation_evidence import MobilisationEvidencePack, merge_evidence_packs
+from app.sitewise.mobilisation_evidence import (
+    MobilisationEvidencePack,
+    merge_evidence_packs,
+)
 from app.sitewise.pmp_corpus import (
     CorpusListingResult,
     is_active_pmp_corpus_document,
@@ -25,7 +33,10 @@ from app.sitewise.pmp_sweep import (
     evidence_ref_path,
     sweep_current_pmp_corpus,
 )
-from app.workflows.create_pmp import CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS, PmpDraftOutput
+from app.workflows.create_pmp import (
+    CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS,
+    PmpDraftOutput,
+)
 from app.workflows.update_pmp import run_update_pmp_workflow
 from tests.conftest import run_async
 from tests.workflows.test_create_pmp import (
@@ -115,6 +126,23 @@ def _baseline_draft() -> DraftArtifact:
     )
 
 
+def _generation_context() -> ProjectGenerationContext:
+    return ProjectGenerationContext(
+        project_id=PROJECT_ID,
+        context_version=9,
+        identity={},
+        taxonomy={},
+        scale={},
+        complexity={},
+        scope={},
+        commercial={},
+        programme={},
+        approvals={},
+        stakeholders={},
+        derived_risks=[],
+    )
+
+
 def test_is_active_pmp_corpus_document_excludes_superseded_unless_retained() -> None:
     active = _document(
         relative_path="04-projects/demo/current.md",
@@ -179,7 +207,9 @@ class _FakeSession:
         self._documents = documents
 
     async def execute(self, _stmt):
-        return SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: self._documents))
+        return SimpleNamespace(
+            scalars=lambda: SimpleNamespace(all=lambda: self._documents)
+        )
 
 
 @pytest.mark.anyio
@@ -206,7 +236,9 @@ async def test_list_current_pmp_corpus_documents_filters_and_caps() -> None:
 
 
 @pytest.mark.anyio
-async def test_revision_dedupe_keeps_distinct_drawings_with_generic_document_number() -> None:
+async def test_revision_dedupe_keeps_distinct_drawings_with_generic_document_number() -> (
+    None
+):
     section_2 = _document(
         relative_path="04-projects/demo/03-design/Section 2 Rev DWN.pdf",
         metadata={
@@ -272,7 +304,9 @@ async def test_revision_dedupe_keeps_distinct_annexures_with_generic_number() ->
 
 
 @pytest.mark.anyio
-async def test_revision_dedupe_keeps_latest_real_document_number_despite_title_variation() -> None:
+async def test_revision_dedupe_keeps_latest_real_document_number_despite_title_variation() -> (
+    None
+):
     old = _document(
         relative_path="04-projects/demo/03-design/A-101 Rev A.pdf",
         metadata={
@@ -349,8 +383,17 @@ def test_batch_count_for_100_documents() -> None:
 
 
 def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
-    project = _taxonomy_project()
+    project = _taxonomy_project(project_context_version=9)
     baseline = _baseline_draft()
+    generation_context = _generation_context()
+    semantic_search = AsyncMock()
+
+    async def retrieve_sources(_session, *, project, generation_context=None):
+        del project
+        if generation_context is None or generation_context.critical_unknowns():
+            await semantic_search()
+        return [], 0, 2, "platform_seeded", []
+
     session = AsyncMock()
     session.flush = AsyncMock()
     session.refresh = AsyncMock()
@@ -403,7 +446,8 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
         patch(
             "app.workflows.update_pmp.overlay_status",
             return_value=overlay_status(
-                archetype="new-dwelling",                state="NSW",
+                archetype="new-dwelling",
+                state="NSW",
             ),
         ),
         patch(
@@ -416,8 +460,8 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
         ),
         patch(
             "app.workflows.update_pmp.retrieve_create_pmp_sources",
-            new=AsyncMock(return_value=([], 0, 2, "platform_seeded", [])),
-        ),
+            new=AsyncMock(side_effect=retrieve_sources),
+        ) as retrieve_sources_mock,
         patch(
             "app.workflows.update_pmp.sweep_current_pmp_corpus",
             new=AsyncMock(return_value=sweep_result),
@@ -438,7 +482,7 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
                     context_refs=["doctrine:docs/clerk-brief.md"],
                 )
             ),
-        ),
+        ) as run_model_mock,
         patch(
             "app.workflows.update_pmp.validate_update_pmp_output",
             return_value=None,
@@ -454,6 +498,18 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
             "app.workflows.create_pmp._next_version_hint",
             new=AsyncMock(return_value=2),
         ),
+        patch(
+            "app.workflows.update_pmp.block_input_hash",
+            return_value="incremental-input-hash",
+        ) as input_hash_mock,
+        patch(
+            "app.workflows.update_pmp.build_generation_brief",
+            wraps=build_generation_brief,
+        ) as build_brief_mock,
+        patch(
+            "app.workflows.update_pmp.reconcile_regenerated_blocks",
+            wraps=reconcile_regenerated_blocks,
+        ) as reconcile_blocks_mock,
     ):
         response = run_async(
             run_update_pmp_workflow(
@@ -461,24 +517,48 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
                 user_id=USER_ID,
                 project=project,
                 thread_id=None,
+                generation_context=generation_context,
             )
         )
 
+    retrieve_sources_mock.assert_awaited_once_with(
+        session,
+        project=project,
+        generation_context=generation_context,
+    )
+    semantic_search.assert_not_awaited()
     sweep_mock.assert_awaited_once()
     delta_mock.assert_not_awaited()
     assert response.status == "complete"
-    assert create_draft_mock.await_args.kwargs["model"] == "openai-responses:gpt-5.6-terra"
+    assert (
+        create_draft_mock.await_args.kwargs["model"] == "openai-responses:gpt-5.6-terra"
+    )
     provenance = create_draft_mock.await_args.kwargs["provenance_metadata"]
     assert provenance["model_label"] == "GPT-5.6 Terra (balanced)"
     assert provenance["model_provider"] == "openai-api"
     assert provenance["model_execution_provider"] == "openai-responses"
     assert provenance["model_execution_id"] == "openai-responses:gpt-5.6-terra"
+    assert input_hash_mock.call_args.kwargs["context_version"] == 9
     assert "sections_changed" in provenance
     assert "evidence_changed" in provenance
     assert provenance["active_corpus_documents"] == 0
+    build_brief_mock.assert_called_once()
+    generation_brief = run_model_mock.await_args.kwargs["generation_brief"]
+    assert provenance["generation_brief"] == generation_brief.model_dump(mode="json")
+    assert (
+        provenance["generation_manifest"]["input_fingerprint"]
+        == generation_brief.input_fingerprint
+    )
+    assert provenance["generation_manifest"][
+        "generation_brief"
+    ] == generation_brief.model_dump(mode="json")
+    assert (
+        reconcile_blocks_mock.call_args.kwargs["generation_input_hash"]
+        == generation_brief.input_fingerprint
+    )
 
 
-def test_build_update_pmp_prompt_puts_static_knowledge_first_and_volatile_last() -> None:
+def test_update_pmp_prompt_orders_static_and_volatile_content() -> None:
     from datetime import date
 
     from app.workflows.update_pmp import build_update_pmp_prompt
@@ -498,6 +578,15 @@ def test_build_update_pmp_prompt_puts_static_knowledge_first_and_volatile_last()
         whole_document=True,
         content="Tenant brief evidence content.",
     )
+    pmp_context = build_pmp_context(_generation_context())
+    generation_brief = build_generation_brief(
+        pmp_context,
+        evidence_refs=[
+            "project_evidence:04-projects/taxonomy-project/_inbox/tenant-brief.md"
+        ],
+        seed_refs=["platform_knowledge:seed/commercial-construction-guide.md"],
+        constraints=["Preserve human-controlled blocks during refresh."],
+    )
     prompt = build_update_pmp_prompt(
         project=_taxonomy_project(),
         baseline=_baseline_draft(),
@@ -506,6 +595,8 @@ def test_build_update_pmp_prompt_puts_static_knowledge_first_and_volatile_last()
         run_date=date(2026, 7, 8),
         validation_feedback="Fix the missing risk register.",
         coverage_requirements="- tenant-brief.md\n  - programme date: 1 November 2026",
+        pmp_context=pmp_context,
+        generation_brief=generation_brief,
     )
 
     platform_index = prompt.index("Seed guidance content for commercial construction.")
@@ -518,11 +609,26 @@ def test_build_update_pmp_prompt_puts_static_knowledge_first_and_volatile_last()
 
     assert platform_index < title_index
     assert title_index < date_index
-    assert date_index < baseline_index < coverage_index < evidence_index < feedback_index
+    assert (
+        date_index < baseline_index < coverage_index < evidence_index < feedback_index
+    )
+    assert generation_brief.input_fingerprint in prompt
 
 
-def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
-    project = _taxonomy_project()
+@pytest.mark.parametrize(
+    "use_corpus_sweep",
+    (True, False),
+    ids=("corpus-sweep", "evidence-delta"),
+)
+def test_update_pmp_bounds_corpus_and_delta_evidence_before_generation(
+    monkeypatch: pytest.MonkeyPatch,
+    use_corpus_sweep: bool,
+) -> None:
+    from tests.workflows.test_create_pmp import _passage
+
+    project = _taxonomy_project(
+        building_class="residential" if use_corpus_sweep else None
+    )
     baseline = _baseline_draft()
     session = AsyncMock()
     session.flush = AsyncMock()
@@ -544,30 +650,62 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
         updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
     )
 
-    active_passage = SimpleNamespace(
+    active_passage = _passage(
+        project="taxonomy-project",
+        source_type="project_evidence",
+        relative_path="04-projects/taxonomy-project/_inbox/tenant-brief.md",
+        whole_document=True,
         content=(
             "This tenant requirements brief lists functional requirements.\n"
             "Target possession for fit-out: 1 November 2026.\n"
-            "Fit-out includes 42 workstations."
+            "Fit-out includes 42 workstations.\n"
+            + "Additional unselected detail. "
+            * 40
         ),
-        filename="tenant-brief.md",
-        relative_path="04-projects/taxonomy-project/_inbox/tenant-brief.md",
     )
-    sweep_ref = (
-        "project_evidence:04-projects/taxonomy-project/_inbox/tenant-brief.md#chunk=1"
+    overflow_passage = _passage(
+        project="taxonomy-project",
+        source_type="project_evidence",
+        relative_path="04-projects/taxonomy-project/_inbox/overflow-brief.md",
+        whole_document=True,
+        content="This second project document must be excluded by the global budget.",
+    )
+    platform_passage = _passage(
+        project="seed",
+        source_type="reference",
+        relative_path="seed/procurement-tendering-guide.md",
+        whole_document=True,
+        content="Mandatory platform guidance for controlled project updates.",
+    )
+    sweep_refs = tuple(
+        f"project_evidence:{passage.relative_path}#chunk={passage.chunk_id}"
+        for passage in (active_passage, overflow_passage)
     )
     sweep_result = SimpleNamespace(
-        passages=(active_passage,),
-        merged_pack=SimpleNamespace(evidence_refs=[sweep_ref]),
-        evidence_refs=(sweep_ref,),
+        passages=(active_passage, overflow_passage),
+        merged_pack=SimpleNamespace(evidence_refs=list(sweep_refs)),
+        evidence_refs=sweep_refs,
         listing=SimpleNamespace(
-            documents=(active_passage,),
-            total_indexed=1,
+            documents=(active_passage, overflow_passage),
+            total_indexed=2,
             skipped_superseded=0,
             skipped_revision_duplicate=0,
             capped=False,
         ),
         trace_events=(),
+    )
+    update_budget = RetrievalBudget(
+        max_searches=1,
+        max_chunks=2,
+        max_documents=2,
+        max_tokens=48,
+        max_chars=360,
+        max_concurrency=1,
+    )
+    monkeypatch.setattr(
+        "app.workflows.update_pmp.UPDATE_PMP_RETRIEVAL_BUDGET",
+        update_budget,
+        raising=False,
     )
     run_model = AsyncMock(
         return_value=PmpDraftOutput(
@@ -584,7 +722,8 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
         patch(
             "app.workflows.update_pmp.overlay_status",
             return_value=overlay_status(
-                archetype="new-dwelling",                state="NSW",
+                archetype="new-dwelling",
+                state="NSW",
             ),
         ),
         patch(
@@ -597,12 +736,24 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
         ),
         patch(
             "app.workflows.update_pmp.retrieve_create_pmp_sources",
-            new=AsyncMock(return_value=([], 0, 2, "platform_seeded", [])),
+            new=AsyncMock(
+                return_value=(
+                    [platform_passage],
+                    0,
+                    1,
+                    "platform_seeded",
+                    [],
+                )
+            ),
         ),
         patch(
             "app.workflows.update_pmp.sweep_current_pmp_corpus",
             new=AsyncMock(return_value=sweep_result),
-        ),
+        ) as sweep_mock,
+        patch(
+            "app.workflows.create_pmp.retrieve_project_evidence_delta",
+            new=AsyncMock(return_value=[active_passage, overflow_passage]),
+        ) as delta_mock,
         patch("app.workflows.update_pmp.run_update_pmp_model", new=run_model),
         patch(
             "app.workflows.update_pmp.validate_update_pmp_output",
@@ -626,11 +777,32 @@ def test_update_pmp_coverage_misses_backfill_without_retry() -> None:
                 user_id=USER_ID,
                 project=project,
                 thread_id=None,
+                generation_context=_generation_context(),
             )
         )
 
     assert response.status == "complete"
     assert run_model.await_count == 1
+    selected_passages = run_model.await_args.kwargs["delta_passages"]
+    assert len(selected_passages) == 1
+    assert selected_passages[0].relative_path == active_passage.relative_path
+    assert len(selected_passages[0].content) <= update_budget.max_chars
+    assert selected_passages[0].content != active_passage.content
+    selected_platform = run_model.await_args.kwargs["platform_passages"]
+    assert [item.relative_path for item in selected_platform] == [
+        platform_passage.relative_path
+    ]
+    assert sum(
+        len(item.content) for item in [*selected_platform, *selected_passages]
+    ) <= update_budget.max_chars
+    generation_brief = run_model.await_args.kwargs["generation_brief"]
+    assert generation_brief.evidence_refs == (sweep_refs[0],)
+    if use_corpus_sweep:
+        sweep_mock.assert_awaited_once()
+        delta_mock.assert_not_awaited()
+    else:
+        sweep_mock.assert_not_awaited()
+        delta_mock.assert_awaited_once()
     advisory = next(event for event in response.trace if event.step == "coverage")
     assert advisory.status == "advisory"
     saved_markdown = create_draft_mock.await_args.kwargs["content_markdown"]
@@ -658,11 +830,15 @@ async def test_sweep_respects_config_cap(monkeypatch: pytest.MonkeyPatch) -> Non
     ]
     session = SimpleNamespace(
         execute=AsyncMock(
-            return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: docs))
+            return_value=SimpleNamespace(
+                scalars=lambda: SimpleNamespace(all=lambda: docs)
+            )
         )
     )
     project = SimpleNamespace(id=PROJECT_ID, slug="demo-project")
-    result = await sweep_current_pmp_corpus(session, project=project, previous_evidence_refs=[])
+    result = await sweep_current_pmp_corpus(
+        session, project=project, previous_evidence_refs=[]
+    )
     assert len(result.listing.documents) == 5
     assert result.listing.capped is True
     assert any(event.status == "warning" for event in result.trace_events)

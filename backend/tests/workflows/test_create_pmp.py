@@ -410,6 +410,10 @@ def test_create_pmp_saves_evidence_grounded_draft() -> None:
             new=AsyncMock(return_value=[]),
         ),
         patch(
+            "app.workflows.create_pmp.list_mobilisation_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
             "app.workflows.create_pmp.load_mobilisation_project_evidence_documents",
             new=AsyncMock(
                 return_value=[
@@ -1419,6 +1423,10 @@ def test_create_pmp_returns_failed_response_when_project_retrieval_openai_fails(
             new=AsyncMock(return_value=([platform_passage], [])),
         ),
         patch(
+            "app.workflows.create_pmp.list_mobilisation_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
             "app.workflows.create_pmp.DocumentRetriever.retrieve",
             new=AsyncMock(side_effect=OpenAIError("embedding request failed")),
         ),
@@ -1527,6 +1535,57 @@ def test_retrieve_create_pmp_sources_uses_mandatory_platform_paths() -> None:
     assert missing == []
     assert len(passages) == 2
     load_platform.assert_awaited_once()
+
+
+def test_retrieve_create_pmp_sources_skips_semantic_for_complete_context() -> None:
+    platform_passage = _passage(
+        project="seed",
+        source_type="doctrine",
+        relative_path="docs/clerk-brief.md",
+        whole_document=True,
+    )
+    selection = SimpleNamespace(required_paths=())
+    context = SimpleNamespace(critical_unknowns=lambda: [])
+
+    with (
+        patch(
+            "app.workflows.create_pmp.select_seed_knowledge",
+            return_value=selection,
+        ),
+        patch(
+            "app.workflows.create_pmp.load_seed_knowledge",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    passages=[],
+                    missing_required_refs=[],
+                )
+            ),
+        ),
+        patch(
+            "app.workflows.create_pmp.load_platform_documents_by_paths",
+            new=AsyncMock(return_value=([platform_passage], [])),
+        ),
+        patch(
+            "app.workflows.create_pmp.load_mobilisation_project_evidence_documents",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_pmp.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ) as semantic_retrieve,
+    ):
+        passages, project_count, _, draft_mode, _ = run_async(
+            retrieve_create_pmp_sources(
+                AsyncMock(),
+                project=_project(),
+                generation_context=context,
+            )
+        )
+
+    semantic_retrieve.assert_not_awaited()
+    assert passages == [platform_passage]
+    assert project_count == 0
+    assert draft_mode == "platform_seeded"
 
 
 def _evidence_passage(relative_path: str, content: str) -> SourcePassage:

@@ -1,5 +1,15 @@
 import { splitMarkdownSections } from "@/lib/markdown-sections";
 
+const ARTIFACT_BLOCK_MARKER =
+  /<!--\s*clerk:block\s+id=blk_[a-f0-9]{32}\s*-->/gi;
+
+/** Hide provenance syntax without shifting canonical Markdown offsets. */
+export function maskArtifactBlockMarkers(markdown: string): string {
+  return markdown.replace(ARTIFACT_BLOCK_MARKER, (marker) =>
+    " ".repeat(marker.length),
+  );
+}
+
 /**
  * Strip the leading `- |` generation artefact from table rows.
  *

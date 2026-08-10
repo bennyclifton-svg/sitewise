@@ -693,6 +693,39 @@ html.sw-atmosphere-dense {
   padding-right: 1rem;
 }
 
+.draft-markdown table.pmp-table-consultants {
+  table-layout: fixed;
+}
+
+.draft-markdown table.pmp-table-consultants col.pmp-col-discipline {
+  width: 11%;
+}
+
+.draft-markdown table.pmp-table-consultants col.pmp-col-firm {
+  width: 22%;
+}
+
+.draft-markdown table.pmp-table-consultants col.pmp-col-scope {
+  width: 37%;
+}
+
+.draft-markdown table.pmp-table-consultants col.pmp-col-fee {
+  width: 8%;
+}
+
+.draft-markdown table.pmp-table-consultants col.pmp-col-status {
+  width: 14%;
+}
+
+.draft-markdown table.pmp-table-consultants col.pmp-col-citation {
+  width: 8%;
+}
+
+.draft-markdown table.pmp-table-consultants th,
+.draft-markdown table.pmp-table-consultants td {
+  overflow-wrap: anywhere;
+}
+
 @media print {
   @page {
     size: A4;

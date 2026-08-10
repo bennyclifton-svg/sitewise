@@ -80,6 +80,9 @@ from app.schemas.projects import (
     AcceptDraftRequest,
     ApplyDraftInstructionsRequest,
     ApplyDraftInstructionsResponse,
+    ApplyArtefactBlockOperationsRequest,
+    ApplyArtefactBlockOperationsResponse,
+    ApplyCostPlanOperationsRequest,
     FailedInstructionResponse,
     BatchDeleteEvidenceFailure,
     BatchDeleteEvidenceRequest,
@@ -173,10 +176,27 @@ from app.schemas.document_selections import (
 from app.projects.workflow_capabilities import capability_for, workflow_capabilities
 from app.cost_plan.invoice_candidates import is_invoice_document
 from app.cost_plan.models import CostInvoice
-from app.cost_plan.schemas import CostItemInput
+from app.cost_plan.schemas import CostItemInput, CostPlanDelta, CostPlanState
+from app.cost_plan.service import (
+    apply_cost_plan_operations,
+    get_cost_plan as read_canonical_cost_plan,
+)
+from app.cost_plan.workbook_rebuild import (
+    flush_cost_plan_workbook_rebuild,
+    schedule_cost_plan_workbook_rebuild,
+)
 from app.projects.artefact_adapters import (
     accept_workflow_artefact,
     revise_workflow_artefact,
+)
+from app.projects.artefact_blocks import apply_block_operations
+from app.sitewise.markdown_sections import normalize_draft_markdown
+from app.projects.project_knowledge import (
+    ProjectObjectKind,
+    SharedProjectObject,
+    SharedProjectObjectConflict,
+    SharedProjectObjectUpdate,
+    write_shared_project_object,
 )
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
@@ -584,6 +604,11 @@ async def _ensure_cost_plan_workspace_file(
     cost_plan_summary = draft_summaries.get("create_cost_plan")
     if cost_plan_summary is None:
         return workspace_files
+
+    if await flush_cost_plan_workbook_rebuild(project.id):
+        workspace_files = await list_workspace_files_for_project(
+            session, project_id=project.id
+        )
 
     canonical_path = cost_plan_workbook_workspace_path(
         project, cost_plan_summary.version
@@ -2426,6 +2451,7 @@ async def _restamp_shared_decision_drafts(
             author_user_id=author_user_id,
             content_markdown=updated_markdown,
             actor_source="decision_override",
+            changes_context=False,
         )
         if primary is None or workflow_type == preferred_workflow_type:
             primary = updated_draft
@@ -2462,6 +2488,7 @@ async def put_project_decision(
             project_id=project.id,
             markdown=latest_draft.content_markdown,
             workflow_type=workflow_type,
+            changes_context=False,
         )
     else:
         workflow_type = existing.workflow_type
@@ -2502,6 +2529,7 @@ async def put_project_decision(
         project_id=project.id,
         markdown=updated_markdown,
         workflow_type=workflow_type,
+        changes_context=False,
     )
     row, set_revision = await read_project_decision(
         session, project_id=project.id, decision_id=decision_id
@@ -2563,6 +2591,137 @@ async def patch_project_draft(
     except ArtefactPolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return DraftArtifactResponse.model_validate(updated)
+
+
+@router.post("/{project_id}/drafts/{draft_id}/blocks")
+async def apply_project_draft_block_operations(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    body: ApplyArtefactBlockOperationsRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ApplyArtefactBlockOperationsResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    try:
+        mutation = apply_block_operations(
+            normalize_draft_markdown(draft.content_markdown),
+            body.operations,
+            existing_metadata=(draft.provenance_metadata or {}).get("blocks"),
+            actor_source="user",
+        )
+        updated = await revise_workflow_artefact(
+            session,
+            project=project,
+            draft=draft,
+            expected_base_version=body.expected_base_version,
+            author_user_id=user.id,
+            content_markdown=mutation.markdown,
+            actor_source="user_block_operation",
+        )
+    except ArtefactRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        # Stale/invalid block addresses are client errors, not revision conflicts.
+        # Mapping them to 409 made the UI "conflict-refresh" and drop optimistic inserts.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ArtefactPolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    provenance = dict(updated.provenance_metadata or {})
+    provenance.update(
+        {
+            "blocks": mutation.metadata,
+            "changed_block_ids": list(mutation.changed_block_ids),
+            "block_operations": [
+                operation.model_dump(mode="json") for operation in body.operations
+            ],
+        }
+    )
+    updated.provenance_metadata = provenance
+    await session.flush()
+    return ApplyArtefactBlockOperationsResponse(
+        draft=DraftArtifactResponse.model_validate(updated),
+        changed_block_ids=list(mutation.changed_block_ids),
+    )
+
+
+@router.get("/{project_id}/cost-plan/state")
+async def get_project_cost_plan_state(
+    project_id: uuid.UUID,
+    version: int | None = Query(default=None, ge=1),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CostPlanState:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        return await read_canonical_cost_plan(
+            session,
+            project_id=project.id,
+            owner_user_id=user.id,
+            version=version,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Cost Plan not found") from exc
+
+
+@router.post("/{project_id}/cost-plan/operations")
+async def apply_project_cost_plan_operations(
+    project_id: uuid.UUID,
+    body: ApplyCostPlanOperationsRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> CostPlanDelta:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        result = await apply_cost_plan_operations(
+            session,
+            project=project,
+            author_user_id=user.id,
+            expected_base_version=body.expected_base_version,
+            operations=body.operations,
+            actor_source="user_cost_plan_operation",
+        )
+        # The debounced builder opens a fresh session, so publish canonical
+        # state before it can observe this revision.
+        await session.commit()
+        schedule_cost_plan_workbook_rebuild(project.id, result.state.version)
+    except ArtefactRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ArtefactPolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return result.delta
+
+
+@router.put("/{project_id}/knowledge/{object_kind}/{object_id}")
+async def put_shared_project_object(
+    project_id: uuid.UUID,
+    object_kind: ProjectObjectKind,
+    object_id: str,
+    body: SharedProjectObjectUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> SharedProjectObject:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        result = await write_shared_project_object(
+            session,
+            project=project,
+            kind=object_kind,
+            object_id=object_id,
+            update=body,
+            source="user",
+        )
+    except SharedProjectObjectConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return result
 
 
 @router.post("/{project_id}/drafts/{draft_id}/apply-instructions")

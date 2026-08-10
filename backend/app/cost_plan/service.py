@@ -15,6 +15,9 @@ from app.cost_plan.renderer import render_cost_plan_markdown
 from app.cost_plan.schemas import (
     CostItemInput,
     CostPlanMutationResult,
+    CostPlanBatchMutationResult,
+    CostPlanDelta,
+    CostPlanOperation,
     CostPlanState,
     DependencySnapshot,
     ExternalCostProposal,
@@ -111,6 +114,7 @@ def _state(row: CostPlanVersion) -> CostPlanState:
                 cost_code=item.cost_code,
                 category=item.category,
                 item=item.item,
+                display_order=item.display_order,
                 budget=item.budget,
                 committed=item.committed,
                 forecast=item.forecast,
@@ -127,7 +131,7 @@ def _state(row: CostPlanVersion) -> CostPlanState:
             )
             for item in row.items
         ],
-        key=_cost_item_sort_key,
+        key=lambda item: (item.display_order or 10**9, _cost_item_sort_key(item)),
     )
     return CostPlanState(
         id=row.id,
@@ -256,6 +260,7 @@ async def _publish_state(
             cost_code=item.cost_code,
             category=item.category,
             item=item.item,
+            display_order=item.display_order or index,
             budget=optional_budget(item),
             committed=item.committed,
             forecast=item.forecast,
@@ -270,7 +275,7 @@ async def _publish_state(
             status=item.status,
             locked=item.locked,
         )
-        for item in proposed.items
+        for index, item in enumerate(proposed.items, start=1)
     ]
     session.add(row)
     await session.flush()
@@ -356,9 +361,22 @@ async def upsert_cost_item(
         expected_base_version=expected_base_version,
         current_snapshot=current_snapshot,
     )
-    items = [existing for existing in base.items if existing.item_key != item.item_key]
-    items.append(item)
-    items.sort(key=_cost_item_sort_key)
+    items = list(base.items)
+    existing_index = next(
+        (
+            index
+            for index, existing in enumerate(items)
+            if existing.item_key == item.item_key
+        ),
+        None,
+    )
+    if existing_index is None:
+        next_order = max((existing.display_order for existing in items), default=0) + 1
+        items.append(item.model_copy(update={"display_order": next_order}))
+    else:
+        items[existing_index] = item.model_copy(
+            update={"display_order": items[existing_index].display_order}
+        )
     state = await _publish_state(
         session,
         project=project,
@@ -368,6 +386,199 @@ async def upsert_cost_item(
         actor_source=actor_source,
     )
     return CostPlanMutationResult(state=state, changed_item_keys=[item.item_key])
+
+
+async def apply_cost_plan_operations(
+    session: AsyncSession,
+    *,
+    project: Project,
+    author_user_id: uuid.UUID,
+    expected_base_version: int,
+    operations: list[CostPlanOperation],
+    current_snapshot: ProjectSnapshot | None = None,
+    actor_source: str = "cost_plan_operation",
+) -> CostPlanBatchMutationResult:
+    """Apply a validated operation batch in one revision and one transaction."""
+    if not operations or len(operations) > 50:
+        raise ValueError("operations must contain between 1 and 50 items")
+    base = await _base_for_mutation(
+        session,
+        project=project,
+        author_user_id=author_user_id,
+        expected_base_version=expected_base_version,
+        current_snapshot=current_snapshot,
+    )
+    items = [item.model_copy(deep=True) for item in base.items]
+    narrative = dict(base.narrative)
+    categories = [
+        value
+        for value in narrative.get("categories", [])
+        if isinstance(value, str) and value.strip()
+    ]
+    changed: list[str] = []
+    deleted: list[str] = []
+
+    for operation in operations:
+        if operation.target_type == "cost_category":
+            category = str(
+                operation.values.get("category") or operation.target_id or ""
+            ).strip()
+            if not category:
+                raise ValueError("cost category name is required")
+            if operation.operation == "ADD":
+                if category not in categories:
+                    categories.append(category)
+                continue
+            if operation.operation == "DELETE":
+                if any(item.category == category for item in items):
+                    raise ArtefactPolicyViolation(
+                        f"Cannot delete non-empty cost category {category!r}"
+                    )
+                categories = [value for value in categories if value != category]
+                continue
+            raise ValueError("cost categories support ADD and DELETE only")
+
+        index = next(
+            (
+                position
+                for position, item in enumerate(items)
+                if item.item_key == operation.target_id
+            ),
+            None,
+        )
+        if operation.operation == "ADD":
+            item = CostItemInput.model_validate(
+                {**operation.values, "status": operation.values.get("status", "manual")}
+            )
+            if any(existing.item_key == item.item_key for existing in items):
+                raise ValueError(f"cost item {item.item_key!r} already exists")
+            items.append(item)
+            changed.append(item.item_key)
+            continue
+        if index is None:
+            raise ValueError(f"cost item {operation.target_id!r} was not found")
+        current = items[index]
+        if operation.operation == "UPDATE":
+            updated = CostItemInput.model_validate(
+                {
+                    **current.model_dump(mode="python"),
+                    **operation.values,
+                    "item_key": current.item_key,
+                    "status": "manual",
+                }
+            )
+            items[index] = updated
+            changed.append(updated.item_key)
+            continue
+        if operation.operation == "DELETE":
+            dependencies = _cost_item_dependencies(current)
+            if dependencies:
+                raise ArtefactPolicyViolation(
+                    f"Cannot delete {current.item_key!r}; referenced by "
+                    + ", ".join(dependencies)
+                )
+            items.pop(index)
+            deleted.append(current.item_key)
+            continue
+        if operation.operation == "DUPLICATE":
+            copy_key = str(
+                operation.values.get("item_key") or f"{current.item_key}-copy"
+            )
+            copy_code = str(
+                operation.values.get("cost_code") or f"{current.cost_code}-COPY"
+            )
+            duplicate = CostItemInput.model_validate(
+                {
+                    **current.model_dump(mode="python"),
+                    **operation.values,
+                    "item_key": copy_key,
+                    "cost_code": copy_code,
+                    "status": "manual",
+                    "locked": False,
+                }
+            )
+            if any(
+                item.item_key == copy_key or item.cost_code == copy_code
+                for item in items
+            ):
+                raise ValueError("duplicate item_key and cost_code must be unique")
+            items.insert(index + 1, duplicate)
+            changed.append(duplicate.item_key)
+            continue
+        reference_index = next(
+            (
+                position
+                for position, item in enumerate(items)
+                if item.item_key == operation.reference_id
+            ),
+            None,
+        )
+        if reference_index is None:
+            raise ValueError(
+                f"reference cost item {operation.reference_id!r} was not found"
+            )
+        moving = items.pop(index)
+        reference_index = next(
+            position
+            for position, item in enumerate(items)
+            if item.item_key == operation.reference_id
+        )
+        destination = reference_index + (1 if operation.placement == "after" else 0)
+        items.insert(destination, moving)
+        changed.append(moving.item_key)
+
+    ordered = [
+        item.model_copy(update={"display_order": index})
+        for index, item in enumerate(items, start=1)
+    ]
+    state = await _publish_state(
+        session,
+        project=project,
+        author_user_id=author_user_id,
+        expected_base_version=expected_base_version,
+        state=base.model_copy(
+            update={
+                "items": ordered,
+                "narrative": {**narrative, "categories": categories},
+            }
+        ),
+        actor_source=actor_source,
+    )
+    changed_set = set(changed)
+    return CostPlanBatchMutationResult(
+        state=state,
+        delta=CostPlanDelta(
+            version=state.version,
+            changed_items=[
+                item for item in state.items if item.item_key in changed_set
+            ],
+            deleted_item_keys=list(dict.fromkeys(deleted)),
+            totals=state.totals,
+            workbook_status="pending",
+        ),
+    )
+
+
+def _cost_item_dependencies(item: CostItemInput) -> list[str]:
+    dependencies: list[str] = []
+    if item.paid:
+        dependencies.append("paid invoices")
+    if item.committed:
+        dependencies.append("commitments")
+    referenced_kinds = {
+        str(reference.get("kind") or "").casefold()
+        for reference in item.source_refs
+        if isinstance(reference, dict)
+    }
+    for kind, label in (
+        ("invoice", "invoices"),
+        ("variation", "variations"),
+        ("commitment", "commitments"),
+        ("procurement", "procurement references"),
+    ):
+        if any(kind in value for value in referenced_kinds):
+            dependencies.append(label)
+    return list(dict.fromkeys(dependencies))
 
 
 async def set_contingency(

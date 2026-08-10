@@ -298,6 +298,7 @@ def test_apply_profile_patch_keeps_revision_and_audit_unchanged_for_no_op() -> N
     assert change.previous_revision == change.new_revision == 3
     assert change.changed_fields == []
     assert change.cleared_fields == []
+    assert project.project_context_version == 1
     assert session.added == []
     assert session.flush_count == 0
 
@@ -317,6 +318,7 @@ def test_apply_profile_patch_updates_once_and_records_one_audit_run() -> None:
 
     assert project.state == "VIC"
     assert project.profile_revision == 4
+    assert project.project_context_version == 2
     assert change.previous_revision == 3
     assert change.new_revision == 4
     assert change.changed_fields == ["state"]
@@ -405,6 +407,7 @@ def _orm_project(**overrides) -> Project:
         "user_role": "architect-pm",
         "state": "NSW",
         "profile_revision": 1,
+        "project_context_version": 1,
         "status": "active",
         "project_metadata": {},
     }

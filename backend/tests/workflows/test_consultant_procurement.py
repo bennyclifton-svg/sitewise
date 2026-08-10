@@ -1,3 +1,4 @@
+from datetime import date
 import re
 import uuid
 from types import SimpleNamespace
@@ -16,6 +17,7 @@ from app.workflows.consultant_procurement import (
 from app.sitewise.rfp_renderer import build_rfp_citation_index
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.rfp_narrative import RfpNarrativeOutput
+from app.retrieval.generation import RetrievalLevel
 from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -48,6 +50,31 @@ class _StubRetriever:
             if key in query.lower():
                 return passages
         return []
+
+
+def test_complete_procurement_context_skips_semantic_retrieval() -> None:
+    retriever = _StubRetriever()
+
+    pool = run_async(
+        procurement_request._retrieve_procurement_evidence_pool(
+            retriever,
+            project=_project(),
+            project_queries=(
+                procurement_request.EvidenceQuery(
+                    key="scope",
+                    label="Scope",
+                    query="project scope",
+                ),
+            ),
+            platform_query="procurement guidance",
+            artefact_context=SimpleNamespace(critical_unknowns=[]),
+        )
+    )
+
+    assert retriever.calls == []
+    assert pool.stats is not None
+    assert pool.stats.level == RetrievalLevel.STRUCTURED_FACTS
+    assert pool.stats.executed_searches == 0
 
 
 def _project(**overrides: Any) -> SimpleNamespace:
@@ -280,6 +307,11 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     assert any(
         item["path"] == "seed/consultant-procurement.md"
         for item in result.source_trace["platform_knowledge"]
+    )
+    retrieval_trace = result.source_trace["retrieval"]
+    assert retrieval_trace["executed_searches"] == len(retriever.calls)
+    assert retrieval_trace["selected_tokens"] <= (
+        procurement_request.PROCUREMENT_RETRIEVAL_BUDGET.max_tokens
     )
     assert result.source_trace["forecast"]["used"] is True
     assert result.source_trace["forecast"]["status"] == "Judgement"
@@ -1049,6 +1081,97 @@ def test_rfp_narrative_retries_after_invalid_citation(monkeypatch) -> None:
     assert output == valid
     assert run_narrative.await_count == 2
     assert "[99]" in run_narrative.await_args_list[1].kwargs["validation_feedback"]
+
+
+def test_rfp_narrative_retries_after_consistency_failure(monkeypatch) -> None:
+    valid = RfpNarrativeOutput(
+        background="The project brief identifies the scope.",
+        requested_services=["Provide project-specific planning services."],
+    )
+    consistency_error = WorkflowValidationError(
+        "RFP narrative consistency failed: conflicting project name"
+    )
+    run_narrative = AsyncMock(side_effect=[consistency_error, valid])
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
+
+    output = run_async(
+        run_validated_rfp_narrative(
+            project=_project(),
+            target=normalise_discipline("town planner"),
+            project_evidence=[],
+            platform_knowledge=[],
+            citation_index=build_rfp_citation_index([]),
+        )
+    )
+
+    assert output == valid
+    assert run_narrative.await_count == 2
+    assert (
+        "conflicting project name"
+        in run_narrative.await_args_list[1].kwargs["validation_feedback"]
+    )
+
+
+def test_rfp_narrative_preserves_consistency_call_count_across_retry(
+    monkeypatch,
+) -> None:
+    consistency_error = WorkflowValidationError(
+        "RFP narrative consistency failed: duplicate scope"
+    )
+    consistency_error.consistency_ai_call_count = 1
+    valid = RfpNarrativeOutput(
+        background="The project brief identifies the scope.",
+        requested_services=["Provide project-specific planning services."],
+        consistency_ai_call_count=1,
+    )
+    monkeypatch.setattr(
+        workflow,
+        "run_rfp_narrative_model",
+        AsyncMock(side_effect=[consistency_error, valid]),
+    )
+
+    output = run_async(
+        run_validated_rfp_narrative(
+            project=_project(),
+            target=normalise_discipline("town planner"),
+            project_evidence=[],
+            platform_knowledge=[],
+            citation_index=build_rfp_citation_index([]),
+        )
+    )
+
+    assert output.consistency_ai_call_count == 2
+
+
+def test_rfp_narrative_uses_one_run_date_across_retries(monkeypatch) -> None:
+    run_date = date(2026, 8, 10)
+    seen_run_dates: list[date] = []
+
+    async def run_narrative(**kwargs):
+        seen_run_dates.append(kwargs["run_date"])
+        if len(seen_run_dates) == 1:
+            raise WorkflowValidationError(
+                "RFP narrative consistency failed: conflicting date"
+            )
+        return RfpNarrativeOutput(
+            background="The project brief identifies the scope.",
+            requested_services=["Provide project-specific planning services."],
+        )
+
+    monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
+
+    run_async(
+        run_validated_rfp_narrative(
+            project=_project(),
+            target=normalise_discipline("town planner"),
+            project_evidence=[],
+            platform_knowledge=[],
+            citation_index=build_rfp_citation_index([]),
+            run_date=run_date,
+        )
+    )
+
+    assert seen_run_dates == [run_date, run_date]
 
 
 def test_rfp_narrative_reraises_after_three_invalid_attempts(monkeypatch) -> None:

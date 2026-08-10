@@ -72,6 +72,73 @@ describe("MarkdownContent", () => {
     expect(screen.getByText("Sections")).toBeInTheDocument();
   });
 
+  it("renders provenance-stamped PMP summary rows as a table without exposing markers", () => {
+    const stamped = `## Project Summary
+
+| Project | Walsh 2 |
+| --- | --- |
+| Address | 42 Hargrave Street, Paddington NSW 2021 |<!-- clerk:block id=blk_c5b155667c74837540ac88af34a7d358 -->
+| Owner | David and Emma Walsh |<!-- clerk:block id=blk_9a7b77fe4970e4836f3c148540452ecf -->`;
+
+    const { container } = render(<MarkdownContent markdown={stamped} />);
+
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+    expect(table?.querySelectorAll("tr")).toHaveLength(3);
+    expect(table?.querySelectorAll("th, td")).toHaveLength(6);
+    expect(container).not.toHaveTextContent("clerk:block");
+    expect(screen.getByText("Walsh 2")).toBeInTheDocument();
+  });
+
+  it("keeps stamped table-row edit ranges in canonical Markdown offsets", () => {
+    const onEditSelection = vi.fn();
+    const addressRow =
+      "| Address | Paddington |<!-- clerk:block id=blk_c5b155667c74837540ac88af34a7d358 -->";
+    const stamped = `## Project Summary
+
+| Field | Value |
+| --- | --- |
+${addressRow}`;
+    render(
+      <MarkdownContent
+        markdown={stamped}
+        onEditSelection={onEditSelection}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Paddington"));
+
+    const start = stamped.indexOf(addressRow);
+    expect(onEditSelection).toHaveBeenCalledWith(
+      {
+        start,
+        end: start + addressRow.length,
+      },
+      { focusCellIndex: 1 },
+    );
+  });
+
+  it("hides paragraph and list markers in primary and review content", () => {
+    const stamped = `## Scope
+
+<!-- clerk:block id=blk_ae7e9c02710fe52df14282380c2979db -->
+Coordinate the issued design.
+
+- Confirm the tender programme. <!-- clerk:block id=blk_c5b155667c74837540ac88af34a7d358 -->
+
+## Trace & QA
+
+<!-- clerk:block id=blk_9a7b77fe4970e4836f3c148540452ecf -->
+Review note.`;
+
+    const { container } = render(<MarkdownContent markdown={stamped} />);
+
+    expect(screen.getByText("Coordinate the issued design.")).toBeInTheDocument();
+    expect(screen.getByText("Confirm the tender programme.")).toBeInTheDocument();
+    expect(screen.getByText("Review note.")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent("clerk:block");
+  });
+
   it("keeps Trace & QA collapsed, out of section navigation, and optionally hidden", () => {
     const markdown = `${MARKDOWN}\n## Trace & QA\n\n**Inputs to resolve**\n- Tender close date\n`;
     const view = render(<MarkdownContent markdown={markdown} />);
@@ -281,6 +348,32 @@ Scope.`}
     expect(grounded.querySelector("[data-status-dot='positive']")).toBeTruthy();
   });
 
+  it("narrows consultant discipline and blanks Fee Not evidenced", () => {
+    const { container } = render(
+      <MarkdownContent
+        markdown={[
+          "## Consultants",
+          "",
+          "| Discipline | Firm | Scope / services | Fee | Status | Citation |",
+          "| --- | --- | --- | --- | --- | --- |",
+          "| Structural engineer | — | Assumption — services not yet appointed | Not evidenced | Not evidenced | — |",
+          "| Surveyor | Acme Survey | Contour and detail survey | $4,200 | Partial | [1] |",
+        ].join("\n")}
+      />,
+    );
+
+    expect(container.querySelector("table.pmp-table-consultants")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-discipline")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-firm")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-scope")).toBeTruthy();
+
+    const rows = screen.getAllByRole("row");
+    const structuralCells = rows[1]?.querySelectorAll("td") ?? [];
+    expect(structuralCells[3]?.textContent?.trim()).toBe("");
+    expect(structuralCells[4]?.textContent).toMatch(/Not evidenced/);
+    expect(screen.getByText("$4,200")).toBeInTheDocument();
+  });
+
   it("stamps source offsets on block elements that slice back to the markdown", () => {
     const { container } = render(
       <MarkdownContent markdown={MARKDOWN} projectId="project-1" version={2} />,
@@ -346,15 +439,73 @@ Scope.`}
     expect(editor.querySelector("strong")).toHaveTextContent("scope");
     expect(editor.querySelector("a")).toHaveTextContent("guidance");
     expect(editor).not.toHaveTextContent("**scope**");
+    expect(screen.queryByRole("button", { name: "Save selection" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edit paragraph manually/i })).not.toBeInTheDocument();
 
     editor.innerHTML = "Gamma <strong>scope</strong> with <a href=\"https://example.com\">guidance</a>. [1]";
     fireEvent.input(editor);
-    fireEvent.click(screen.getByRole("button", { name: "Save selection" }));
+    fireEvent.blur(editor);
 
     expect(onSaveSelectionEdit).toHaveBeenCalledWith(
       range,
       "Gamma **scope** with [guidance](https://example.com). [1]",
     );
+  });
+
+  it("does not offer a pen icon; double-click edits the clicked table cell in place", async () => {
+    const markdown = `## Snapshot
+
+| Field | Status |
+| --- | --- |
+| Budget | Grounded |
+`;
+    const row = "| Budget | Grounded |";
+    const start = markdown.indexOf(row);
+    const range = { start, end: start + row.length };
+    const onSaveSelectionEdit = vi.fn().mockResolvedValue(undefined);
+
+    function Harness() {
+      const [editingRange, setEditingRange] = useState<{
+        start: number;
+        end: number;
+      } | null>(null);
+      const [focusCellIndex, setFocusCellIndex] = useState(0);
+      return (
+        <MarkdownContent
+          markdown={markdown}
+          editingRange={editingRange}
+          editingFocusCellIndex={focusCellIndex}
+          onEditSelection={(next, options) => {
+            setEditingRange(next);
+            setFocusCellIndex(options?.focusCellIndex ?? 0);
+          }}
+          onCancelSelectionEdit={() => setEditingRange(null)}
+          onSaveSelectionEdit={onSaveSelectionEdit}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    fireEvent.mouseEnter(screen.getByText("Budget").closest("tr")!);
+    expect(screen.queryByRole("button", { name: /Edit paragraph manually/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edit .* manually/i })).not.toBeInTheDocument();
+
+    fireEvent.doubleClick(screen.getByText("Grounded"));
+
+    const cells = screen.getAllByRole("textbox", { name: /Edit table cell/i });
+    expect(cells).toHaveLength(2);
+    expect(cells[0]).toHaveTextContent("Budget");
+    expect(cells[1]).toHaveTextContent("Grounded");
+    expect(cells[1]).toHaveFocus();
+    expect(screen.queryByDisplayValue(/\| Budget \|/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Add paragraph|Edit paragraph/i })).not.toBeInTheDocument();
+
+    cells[1].textContent = "Partial";
+    fireEvent.input(cells[1]);
+    fireEvent.blur(cells[1]);
+
+    expect(onSaveSelectionEdit).toHaveBeenCalledWith(range, "| Budget | Partial |");
   });
 
   it("enters inline editing from a real double-click sequence", async () => {
@@ -413,8 +564,7 @@ Editable after decisions.`;
       />,
     );
 
-    fireEvent.mouseEnter(screen.getByText("Editable after decisions."));
-    fireEvent.click(screen.getByRole("button", { name: "Edit paragraph manually" }));
+    fireEvent.doubleClick(screen.getByText("Editable after decisions."));
 
     const start = markdown.indexOf("Editable after decisions.");
     expect(onEditSelection).toHaveBeenCalledWith({
@@ -423,32 +573,51 @@ Editable after decisions.`;
     });
   });
 
-  it("places manual and AI actions on the right side of the active section heading", () => {
+  it("places block actions beside the hovered paragraph without a pen or heading toolbar", () => {
     const markdown = "## Brief\n\nFirst paragraph.\n\nSecond paragraph.\n\n## Risks\n\nRisk text.";
     const onEditSelection = vi.fn();
     const onEditWithAi = vi.fn();
+    const onMutateBlock = vi.fn();
 
     render(
       <MarkdownContent
         markdown={markdown}
         onEditSelection={onEditSelection}
         onEditWithAi={onEditWithAi}
+        onMutateBlock={onMutateBlock}
       />,
     );
 
     expect(screen.queryByRole("button", { name: /Edit paragraph/i })).not.toBeInTheDocument();
+    const reserved = screen.getByText("First paragraph.").parentElement?.querySelector(
+      "[data-block-actions]",
+    );
+    expect(reserved).not.toBeNull();
+    expect(reserved).toHaveClass("w-[6.75rem]");
 
+    fireEvent.mouseEnter(
+      screen.getByText("First paragraph.").parentElement ??
+        screen.getByText("First paragraph."),
+    );
+
+    expect(screen.queryByRole("button", { name: "Edit paragraph manually" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add paragraph above/i })).not.toBeInTheDocument();
     const firstParagraph = screen.getByText("First paragraph.");
-    fireEvent.mouseEnter(firstParagraph);
-
-    const headingRow = screen.getByRole("heading", { name: "Brief", level: 2 }).parentElement;
-    const manual = screen.getByRole("button", { name: "Edit paragraph manually" });
+    const row = firstParagraph.parentElement;
     const ai = screen.getByRole("button", { name: "Edit paragraph with AI" });
-    expect(headingRow).toContainElement(manual);
-    expect(headingRow).toContainElement(ai);
-    expect(manual.parentElement).toHaveClass("ml-auto");
-    expect(firstParagraph).not.toContainElement(manual);
+    const addBelow = screen.getByRole("button", { name: "Add paragraph below" });
+    const duplicate = screen.getByRole("button", { name: "Duplicate paragraph" });
+    const remove = screen.getByRole("button", { name: "Delete paragraph" });
+    expect(row).toContainElement(ai);
+    expect(row).toContainElement(addBelow);
+    expect(row).toContainElement(duplicate);
+    expect(row).toContainElement(remove);
+    expect(row?.querySelector("[data-block-actions]")).toHaveClass("w-[6.75rem]");
+    expect(
+      screen.getByRole("heading", { name: "Brief", level: 2 }).parentElement,
+    ).not.toContainElement(ai);
     expect(ai.querySelector('img[src="/style-guide/logo/mark-solid.svg"]')).not.toBeNull();
+    expect(remove.querySelector("svg.lucide-trash")).not.toBeNull();
 
     fireEvent.click(ai);
     const firstStart = markdown.indexOf("First paragraph.");
@@ -463,6 +632,43 @@ Editable after decisions.`;
       start: secondStart,
       end: secondStart + "Second paragraph.".length,
     });
+  });
+
+  it("renders a chrome-free add-paragraph editor below the target paragraph", () => {
+    const markdown = "## Brief\n\nFirst paragraph.\n\nSecond paragraph.";
+    const firstStart = markdown.indexOf("First paragraph.");
+    const firstEnd = firstStart + "First paragraph.".length;
+    const target = {
+      type: "paragraph" as const,
+      range: { start: firstStart, end: firstEnd },
+      sectionStart: 0,
+    };
+
+    render(
+      <MarkdownContent
+        markdown={markdown}
+        onEditSelection={vi.fn()}
+        onMutateBlock={vi.fn()}
+        blockComposer={{
+          operation: "ADD",
+          target,
+          placement: "after",
+          initialContent: "",
+        }}
+        onCancelBlockComposer={vi.fn()}
+        onSaveBlockComposer={vi.fn()}
+      />,
+    );
+
+    const composer = screen.getByRole("textbox", { name: /Add paragraph/i });
+    expect(composer.tagName).toBe("P");
+    expect(composer).not.toHaveClass("border");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    const firstAfter = screen.getByText("First paragraph.");
+    expect(
+      firstAfter.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("does not stamp offsets on table cells, whose rendered text is synthesized", () => {

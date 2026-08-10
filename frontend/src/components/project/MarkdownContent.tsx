@@ -2,12 +2,21 @@ import type { Components } from "react-markdown";
 import {
   Children,
   cloneElement,
+  createContext,
   isValidElement,
+  useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { ChevronRight, PencilLine } from "lucide-react";
+import {
+  ChevronRight,
+  Copy,
+  Plus,
+  Trash,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -18,20 +27,41 @@ import {
   parseEmbeddedDecision,
   type EmbeddedDecision,
 } from "@/components/project/DecisionControl";
+import { InlineListItemEditor } from "@/components/project/InlineListItemEditor";
 import { InlineMarkdownEditor } from "@/components/project/InlineMarkdownEditor";
+import { InlineTableRowEditor } from "@/components/project/InlineTableRowEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { splitTraceQa } from "@/lib/artifact-markdown";
+import {
+  maskArtifactBlockMarkers,
+  splitTraceQa,
+} from "@/lib/artifact-markdown";
 import { sourceRangeForRenderedBlock } from "@/lib/inline-markdown";
+import type { ArtifactBlockTarget } from "@/lib/artifact-blocks";
 import {
   splitMarkdownSections,
   type MarkdownSectionSlice,
 } from "@/lib/markdown-sections";
 import type { MarkdownRange } from "@/lib/markdown-selection";
+import { expandRangeWithTrailingMarker } from "@/lib/table-row-edit";
 import type {
   DraftArtifact,
   ProjectDecision,
 } from "@/lib/types/project";
+
+const BLOCK_ID_RE = /<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->/i;
+
+function blockIdNearRange(
+  source: string,
+  range: MarkdownRange,
+): string | undefined {
+  const embedded = source.slice(range.start, range.end).match(BLOCK_ID_RE);
+  if (embedded) return embedded[1];
+  const preceding = source
+    .slice(Math.max(0, range.start - 80), range.start)
+    .match(/<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->\s*$/i);
+  return preceding?.[1];
+}
 
 const EVIDENCE_STATUSES = [
   "Grounded",
@@ -44,6 +74,17 @@ const EVIDENCE_STATUSES = [
   "Confirm",
 ] as const;
 
+/** Column layout hints for markdown tables rendered in the draft sheet. */
+type PmpTableLayout = {
+  blankFeeNotEvidenced: boolean;
+};
+
+const PmpTableLayoutContext = createContext<PmpTableLayout>({
+  blankFeeNotEvidenced: false,
+});
+
+const CONSULTANTS_FEE_COLUMN_INDEX = 3;
+
 /**
  * Offsets into the source markdown for one block element.
  *
@@ -51,7 +92,7 @@ const EVIDENCE_STATUSES = [
  * mdast `position` onto every hast node, so every custom component already
  * receives these for free — no rehype plugin and no extra dependency.
  *
- * Paragraph actions slice quoted text out of the *source* using these offsets
+ * Block actions slice quoted text out of the *source* using these offsets
  * and never read rendered text back (design decision D1): evidence-cell and
  * decision-fence renderers replace source text with synthesized elements, so
  * rendered text does not map back to markdown.
@@ -62,27 +103,367 @@ type MdPositionAttributes = {
   "data-md-changed"?: string;
 };
 
+export type ArtifactBlockComposerState = {
+  operation: "ADD" | "UPDATE";
+  target: ArtifactBlockTarget;
+  placement?: "before" | "after";
+  initialContent: string;
+};
+
 type InlineEditOptions = {
   sourceMarkdown: string;
   renderedMarkdown: string;
   sourceSections: MarkdownSectionSlice[];
-  activeParagraph?: ParagraphTarget | null;
+  activeBlock?: ArtifactBlockTarget | null;
   editingRange?: MarkdownRange | null;
+  editingFocusCellIndex?: number;
   isSavingEdit?: boolean;
   editError?: string | null;
-  onActivateParagraph?: (target: ParagraphTarget) => void;
-  onEditSelection?: (range: MarkdownRange) => void;
+  blockComposer?: ArtifactBlockComposerState | null;
+  isSavingBlockComposer?: boolean;
+  onActivateBlock?: (target: ArtifactBlockTarget) => void;
+  onEditSelection?: (
+    range: MarkdownRange,
+    options?: { focusCellIndex?: number },
+  ) => void;
   onEditWithAi?: (range: MarkdownRange, rect: DOMRect) => void;
   onCancelSelectionEdit?: () => void;
   onSaveSelectionEdit?: (range: MarkdownRange, markdown: string) => Promise<void>;
+  onCancelBlockComposer?: () => void;
+  onSaveBlockComposer?: (content: string) => void;
+  onMutateBlock?: (
+    operation: "ADD" | "DELETE" | "DUPLICATE",
+    target: ArtifactBlockTarget,
+    placement?: "before" | "after",
+  ) => void;
   informationRegisterOpen?: boolean;
   onToggleInformationRegister?: () => void;
 };
 
-type ParagraphTarget = {
-  range: MarkdownRange;
-  sectionStart: number;
-};
+/** Chrome-free insert: looks like a normal block, Escape/empty blur discards. */
+function ArtifactBlockComposer({
+  blockType,
+  initialContent,
+  isSaving,
+  onCancel,
+  onSave,
+}: {
+  blockType: ArtifactBlockTarget["type"];
+  initialContent: string;
+  isSaving: boolean;
+  onCancel: () => void;
+  onSave: (content: string) => void;
+}) {
+  if (blockType === "table_row") {
+    return (
+      <InlineTableRowEditor
+        sourceRow={initialContent}
+        sourceStart={0}
+        sourceEnd={0}
+        isSaving={isSaving}
+        onCancel={onCancel}
+        onSave={async (markdown) => {
+          if (!markdown.replace(/\|/g, "").trim()) {
+            onCancel();
+            return;
+          }
+          onSave(markdown);
+        }}
+      />
+    );
+  }
+
+  if (blockType === "list_item") {
+    return (
+      <PendingListItemInsert
+        initialContent={initialContent}
+        isSaving={isSaving}
+        onCancel={onCancel}
+        onSave={onSave}
+      />
+    );
+  }
+
+  return (
+    <PendingParagraphInsert
+      isSaving={isSaving}
+      onCancel={onCancel}
+      onSave={onSave}
+    />
+  );
+}
+
+function PendingParagraphInsert({
+  isSaving,
+  onCancel,
+  onSave,
+}: {
+  isSaving: boolean;
+  onCancel: () => void;
+  onSave: (content: string) => void;
+}) {
+  const editorRef = useRef<HTMLParagraphElement>(null);
+  const dirtyRef = useRef(false);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    editor.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, []);
+
+  function commitOrDiscard() {
+    const text = (editorRef.current?.innerText ?? "").replace(/\u00a0/g, " ").trim();
+    if (!text) {
+      onCancel();
+      return;
+    }
+    onSave(text);
+  }
+
+  return (
+    <p
+      ref={editorRef}
+      role="textbox"
+      aria-label="Add paragraph"
+      aria-multiline="true"
+      aria-busy={isSaving}
+      contentEditable={!isSaving}
+      suppressContentEditableWarning
+      spellCheck
+      data-block-composer
+      data-instruction-ui
+      className="my-3 min-h-5 whitespace-pre-wrap leading-relaxed caret-[var(--sw-beam-hex)] outline-none"
+      onInput={() => {
+        dirtyRef.current = true;
+      }}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onCancel();
+          return;
+        }
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          commitOrDiscard();
+        }
+      }}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && editorRef.current?.contains(next)) return;
+        if (!dirtyRef.current) {
+          onCancel();
+          return;
+        }
+        commitOrDiscard();
+      }}
+    />
+  );
+}
+
+function PendingListItemInsert({
+  initialContent,
+  isSaving,
+  onCancel,
+  onSave,
+}: {
+  initialContent: string;
+  isSaving: boolean;
+  onCancel: () => void;
+  onSave: (content: string) => void;
+}) {
+  const marker =
+    initialContent.match(/^\s*(?:[-*+] |\d+[.)] )/)?.[0]?.trimStart() ?? "- ";
+  return (
+    <InlineListItemEditor
+      sourceItem={initialContent || marker}
+      sourceStart={0}
+      sourceEnd={0}
+      isSaving={isSaving}
+      onCancel={onCancel}
+      onSave={async (markdown) => {
+        const body = markdown.replace(/^\s*(?:[-*+] |\d+[.)] )/, "").trim();
+        if (!body) {
+          onCancel();
+          return;
+        }
+        onSave(markdown);
+      }}
+    >
+      {null}
+    </InlineListItemEditor>
+  );
+}
+
+function composerForTarget(
+  target: ArtifactBlockTarget | null | undefined,
+  options?: InlineEditOptions,
+): ReactNode {
+  const composer = options?.blockComposer;
+  if (
+    !composer ||
+    !target ||
+    !rangesEqual(composer.target.range, target.range) ||
+    !options.onCancelBlockComposer ||
+    !options.onSaveBlockComposer
+  ) {
+    return null;
+  }
+  return (
+    <ArtifactBlockComposer
+      blockType={composer.target.type}
+      initialContent={composer.initialContent}
+      isSaving={Boolean(options.isSavingBlockComposer)}
+      onCancel={options.onCancelBlockComposer}
+      onSave={options.onSaveBlockComposer}
+    />
+  );
+}
+
+/** Four icon-xs (24px) buttons + three gap-1 (4px) gutters. */
+const BLOCK_ACTIONS_SLOT_CLASS =
+  "flex h-6 w-[6.75rem] shrink-0 items-center justify-end gap-1 print:hidden";
+
+/** Resting: muted grey icons, no black chip. Hover keeps outline beam treatment. */
+const BLOCK_ACTION_BUTTON_CLASS =
+  "border-transparent bg-transparent text-muted-foreground shadow-none";
+
+function blockActionsAvailable(
+  target: ArtifactBlockTarget | null | undefined,
+  options?: InlineEditOptions,
+): boolean {
+  if (!target || !options) return false;
+  return Boolean(options.onEditWithAi || options.onMutateBlock);
+}
+
+function blockActionsVisible(
+  target: ArtifactBlockTarget | null | undefined,
+  options?: InlineEditOptions,
+): boolean {
+  if (!blockActionsAvailable(target, options)) return false;
+  if (!options?.activeBlock) return false;
+  if (!rangesEqual(options.activeBlock.range, target!.range)) return false;
+  if (options.activeBlock.type !== target!.type) return false;
+  if (options.editingRange || options.blockComposer) return false;
+  return true;
+}
+
+function BlockHoverActions({
+  target,
+  options,
+}: {
+  target: ArtifactBlockTarget;
+  options?: InlineEditOptions;
+}) {
+  // Always reserve the icon strip so hover does not shift citation/paragraph text.
+  if (!blockActionsAvailable(target, options)) return null;
+  const visible = blockActionsVisible(target, options);
+  return (
+    <div
+      className={BLOCK_ACTIONS_SLOT_CLASS}
+      data-instruction-ui={visible ? "" : undefined}
+      data-block-actions
+      aria-hidden={!visible}
+      onMouseDown={
+        visible ? (event) => event.preventDefault() : undefined
+      }
+    >
+      {visible ? (
+        <>
+          {options?.onMutateBlock ? (
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="outline"
+              className={BLOCK_ACTION_BUTTON_CLASS}
+              aria-label={`Add ${blockLabel(target.type)} below`}
+              title="Add below"
+              onClick={() => options.onMutateBlock?.("ADD", target, "after")}
+            >
+              <Plus aria-hidden />
+            </Button>
+          ) : null}
+          {options?.onEditWithAi ? (
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="outline"
+              className={BLOCK_ACTION_BUTTON_CLASS}
+              aria-label={`Edit ${blockLabel(target.type)} with AI`}
+              title="Edit with AI"
+              onClick={(event) =>
+                options.onEditWithAi?.(
+                  target.range,
+                  event.currentTarget.getBoundingClientRect(),
+                )
+              }
+            >
+              <img
+                src="/style-guide/logo/mark-solid.svg"
+                alt=""
+                aria-hidden
+                className="size-3.5 opacity-55 transition-opacity group-hover/button:opacity-100"
+              />
+            </Button>
+          ) : null}
+          {options?.onMutateBlock ? (
+            <>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="outline"
+                className={BLOCK_ACTION_BUTTON_CLASS}
+                aria-label={`Duplicate ${blockLabel(target.type)}`}
+                title="Duplicate"
+                onClick={() => options.onMutateBlock?.("DUPLICATE", target)}
+              >
+                <Copy aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="outline"
+                className={BLOCK_ACTION_BUTTON_CLASS}
+                aria-label={`Delete ${blockLabel(target.type)}`}
+                title="Delete"
+                onClick={() => options.onMutateBlock?.("DELETE", target)}
+              >
+                <Trash aria-hidden />
+              </Button>
+            </>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function composerPlacement(
+  options?: InlineEditOptions,
+): "before" | "after" | null {
+  const composer = options?.blockComposer;
+  if (!composer) return null;
+  if (composer.operation === "ADD") return composer.placement ?? "after";
+  return "before";
+}
+
+function withAdjacentComposer(
+  target: ArtifactBlockTarget | null | undefined,
+  block: ReactNode,
+  options?: InlineEditOptions,
+): ReactNode {
+  const form = composerForTarget(target, options);
+  const placement = composerPlacement(options);
+  if (!form || !placement) return block;
+  return (
+    <>
+      {placement === "before" ? form : null}
+      {block}
+      {placement === "after" ? form : null}
+    </>
+  );
+}
 
 function mdPosition(
   node: unknown,
@@ -110,6 +491,38 @@ function baseComponents(
   editOptions?: InlineEditOptions,
 ): Components {
   const position = (node: unknown) => mdPosition(node, changedRanges);
+  const blockTarget = (
+    node: unknown,
+    type: ArtifactBlockTarget["type"],
+  ): ArtifactBlockTarget | null => {
+    const attributes = position(node);
+    if (!attributes || !editOptions) return null;
+    const renderedRange = {
+      start: attributes["data-md-start"],
+      end: attributes["data-md-end"],
+    };
+    const mapped = sourceRangeForRenderedBlock(
+      editOptions.sourceMarkdown,
+      editOptions.renderedMarkdown,
+      renderedRange,
+    );
+    if (!mapped) return null;
+    const range = expandRangeWithTrailingMarker(
+      editOptions.sourceMarkdown,
+      mapped,
+    );
+    const section = editOptions.sourceSections.find(
+      (item) => item.start <= range.start && range.start < item.end,
+    );
+    if (!section) return null;
+    const blockId = blockIdNearRange(editOptions.sourceMarkdown, range);
+    return {
+      ...(blockId ? { id: blockId } : {}),
+      type,
+      range,
+      sectionStart: section.start,
+    };
+  };
   return {
     h1: ({ children }) => (
       <h1 className="mb-4 text-2xl font-semibold leading-tight">{children}</h1>
@@ -163,12 +576,17 @@ function baseComponents(
         : null;
       const paragraphTarget =
         sourceRange && section
-          ? { range: sourceRange, sectionStart: section.start }
+          ? {
+              range: sourceRange,
+              sectionStart: section.start,
+              type: "paragraph" as const,
+            }
           : null;
       const canTargetParagraph =
         visibleText === text &&
         paragraphTarget !== null &&
         Boolean(editOptions?.onEditSelection || editOptions?.onEditWithAi) &&
+        !editOptions?.blockComposer &&
         (!editOptions?.editingRange || isEditing);
 
       if (
@@ -194,28 +612,38 @@ function baseComponents(
       }
 
       if (canTargetParagraph && paragraphTarget && sourceRange) {
-        return (
-          <p
-            className="my-3 leading-relaxed"
-            {...attributes}
-            onMouseEnter={() => editOptions?.onActivateParagraph?.(paragraphTarget)}
-            onClick={() => editOptions?.onActivateParagraph?.(paragraphTarget)}
-            onDoubleClick={(event) => {
-              if (!editOptions?.onEditSelection) return;
-              event.preventDefault();
-              editOptions.onEditSelection(sourceRange);
-            }}
+        return withAdjacentComposer(
+          paragraphTarget,
+          <div
+            className="group relative my-3 flex items-start gap-2"
+            onMouseEnter={() => editOptions?.onActivateBlock?.(paragraphTarget)}
+            onClick={() => editOptions?.onActivateBlock?.(paragraphTarget)}
           >
-            {children}
-          </p>
+            <p
+              className="min-w-0 flex-1 leading-relaxed"
+              {...attributes}
+              onDoubleClick={(event) => {
+                if (!editOptions?.onEditSelection) return;
+                event.preventDefault();
+                editOptions.onEditSelection(sourceRange);
+              }}
+            >
+              {children}
+            </p>
+            <BlockHoverActions target={paragraphTarget} options={editOptions} />
+          </div>,
+          editOptions,
         );
       }
 
-      return (
+      const staticParagraph = (
         <p className="my-3 leading-relaxed" {...attributes}>
           {visibleText === text ? children : visibleText}
         </p>
       );
+      return paragraphTarget
+        ? withAdjacentComposer(paragraphTarget, staticParagraph, editOptions)
+        : staticParagraph;
     },
     a: ({ children, href }) => (
       <a className="font-medium text-primary underline underline-offset-2" href={href}>
@@ -241,10 +669,81 @@ function baseComponents(
       const text = flattenText(children);
       const visibleText = stripEvidenceOnFileLabel(stripUserProvidedLabel(text));
       if (visibleText !== text && !visibleText) return null;
-      return (
-        <li className="leading-relaxed" {...position(node)}>
-          {visibleText === text ? children : visibleText}
+      const target = blockTarget(node, "list_item");
+      const isEditing = rangesEqual(editOptions?.editingRange, target?.range);
+      if (
+        isEditing &&
+        target &&
+        editOptions?.onCancelSelectionEdit &&
+        editOptions.onSaveSelectionEdit
+      ) {
+        const sourceItem = editOptions.sourceMarkdown.slice(
+          target.range.start,
+          target.range.end,
+        );
+        return (
+          <InlineListItemEditor
+            sourceItem={sourceItem}
+            sourceStart={target.range.start}
+            sourceEnd={target.range.end}
+            isSaving={Boolean(editOptions.isSavingEdit)}
+            error={editOptions.editError}
+            onCancel={editOptions.onCancelSelectionEdit}
+            onSave={(markdown) =>
+              editOptions.onSaveSelectionEdit?.(target.range, markdown) ??
+              Promise.resolve()
+            }
+          >
+            {visibleText === text ? children : visibleText}
+          </InlineListItemEditor>
+        );
+      }
+      const canEdit =
+        target !== null &&
+        Boolean(editOptions?.onEditSelection || editOptions?.onEditWithAi) &&
+        !editOptions?.editingRange &&
+        !editOptions?.blockComposer;
+      const form = composerForTarget(target, editOptions);
+      const placement = composerPlacement(editOptions);
+      const item = (
+        <li
+          className="relative flex items-start gap-2 leading-relaxed"
+          {...position(node)}
+          data-block-type="list_item"
+          onMouseEnter={
+            canEdit
+              ? () => editOptions?.onActivateBlock?.(target)
+              : undefined
+          }
+          onClick={
+            canEdit
+              ? () => editOptions?.onActivateBlock?.(target)
+              : undefined
+          }
+          onDoubleClick={
+            canEdit && editOptions?.onEditSelection
+              ? (event) => {
+                  event.preventDefault();
+                  editOptions.onEditSelection?.(target.range);
+                }
+              : undefined
+          }
+        >
+          <span className="min-w-0 flex-1">
+            {visibleText === text ? children : visibleText}
+          </span>
+          {target ? (
+            <BlockHoverActions target={target} options={editOptions} />
+          ) : null}
         </li>
+      );
+      if (!form || !placement) return item;
+      return (
+        <>
+          {placement === "before" ? form : null}
+          {item}
+          {placement === "after" ? form : null}
+        </>
       );
     },
     strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
@@ -261,20 +760,42 @@ function baseComponents(
     },
     table: ({ children }) => {
       const isInformationRegister = informationRegisterTable(children);
+      const isConsultants = consultantsAppointmentTable(children);
       const collapsed =
         isInformationRegister && editOptions?.informationRegisterOpen === false;
       return (
-        <div
-          id={isInformationRegister ? "project-documents-register" : undefined}
-          className={[
-            "my-4 overflow-x-auto border pmp-table-wrap",
-            collapsed ? "hidden print:block" : "",
-          ].join(" ")}
+        <PmpTableLayoutContext.Provider
+          value={{ blankFeeNotEvidenced: isConsultants }}
         >
-          <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
-            {normalizeSummaryTable(children, projectTitle)}
-          </table>
-        </div>
+          <div
+            id={isInformationRegister ? "project-documents-register" : undefined}
+            className={[
+              "my-4 overflow-x-auto border pmp-table-wrap",
+              collapsed ? "hidden print:block" : "",
+            ].join(" ")}
+          >
+            <table
+              className={[
+                "w-full border-collapse text-left text-sm",
+                isConsultants
+                  ? "min-w-[40rem] table-fixed pmp-table-consultants"
+                  : "min-w-[32rem]",
+              ].join(" ")}
+            >
+              {isConsultants ? (
+                <colgroup>
+                  <col className="pmp-col-discipline" />
+                  <col className="pmp-col-firm" />
+                  <col className="pmp-col-scope" />
+                  <col className="pmp-col-fee" />
+                  <col className="pmp-col-status" />
+                  <col className="pmp-col-citation" />
+                </colgroup>
+              ) : null}
+              {normalizeSummaryTable(children, projectTitle)}
+            </table>
+          </div>
+        </PmpTableLayoutContext.Provider>
       );
     },
     thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
@@ -290,26 +811,154 @@ function baseComponents(
     ),
     // `tr` is the addressable unit for a table, never `td`/`th` — renderEvidenceCell
     // replaces cell content with badges, so a cell's rendered text is not its source.
-    tr: ({ children, node }) => {
-      const firstCell = Children.toArray(children)[0];
-      const label = summaryLabel(firstCell);
-      if (label === "critical current position" || label === "field") return null;
-      const conflicted = rowHasConflict(children);
-      const cells = Children.toArray(children).map((cell, index) => {
-        if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
-        return cloneElement(
-          cell,
-          { key: `cell-${index}` },
-          renderEvidenceCell(cell.props.children, { conflicted }),
-        );
-      });
-      return (
-        <tr className="sw-table-row even:bg-muted/20" {...position(node)}>
-          {normalizeSummaryRow(cells, projectTitle)}
-        </tr>
-      );
-    },
+    tr: ({ children, node }) => (
+      <MarkdownTableRow
+        node={node}
+        projectTitle={projectTitle}
+        editOptions={editOptions}
+        position={position}
+        blockTarget={blockTarget}
+      >
+        {children}
+      </MarkdownTableRow>
+    ),
   };
+}
+
+function MarkdownTableRow({
+  children,
+  node,
+  projectTitle,
+  editOptions,
+  position,
+  blockTarget,
+}: {
+  children?: ReactNode;
+  node?: unknown;
+  projectTitle?: string;
+  editOptions?: InlineEditOptions;
+  position: (node: unknown) => MdPositionAttributes | undefined;
+  blockTarget: (
+    node: unknown,
+    type: ArtifactBlockTarget["type"],
+  ) => ArtifactBlockTarget | null;
+}) {
+  const { blankFeeNotEvidenced } = useContext(PmpTableLayoutContext);
+  const firstCell = Children.toArray(children)[0];
+  const label = summaryLabel(firstCell);
+  if (label === "critical current position" || label === "field") return null;
+  const isHeader =
+    isValidElement(firstCell) && String(firstCell.type).toLowerCase() === "th";
+  const target = isHeader ? null : blockTarget(node, "table_row");
+  const isEditing = rangesEqual(editOptions?.editingRange, target?.range);
+  if (
+    isEditing &&
+    target &&
+    editOptions?.onCancelSelectionEdit &&
+    editOptions.onSaveSelectionEdit
+  ) {
+    return (
+      <InlineTableRowEditor
+        sourceRow={editOptions.sourceMarkdown.slice(
+          target.range.start,
+          target.range.end,
+        )}
+        sourceStart={target.range.start}
+        sourceEnd={target.range.end}
+        isSaving={Boolean(editOptions.isSavingEdit)}
+        error={editOptions.editError}
+        focusCellIndex={editOptions.editingFocusCellIndex ?? 0}
+        onCancel={editOptions.onCancelSelectionEdit}
+        onSave={(markdown) =>
+          editOptions.onSaveSelectionEdit?.(target.range, markdown) ??
+          Promise.resolve()
+        }
+      />
+    );
+  }
+  const canEdit =
+    target !== null &&
+    Boolean(editOptions?.onEditSelection || editOptions?.onEditWithAi) &&
+    !editOptions?.editingRange &&
+    !editOptions?.blockComposer;
+  const conflicted = rowHasConflict(children);
+  const cells = Children.toArray(children).map((cell, index) => {
+    if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
+    const raw = cell.props.children;
+    const blankFee =
+      blankFeeNotEvidenced &&
+      index === CONSULTANTS_FEE_COLUMN_INDEX &&
+      /^not evidenced$/i.test(flattenText(raw).trim());
+    return cloneElement(
+      cell,
+      { key: `cell-${index}` },
+      blankFee ? "" : renderEvidenceCell(raw, { conflicted }),
+    );
+  });
+  const normalized = Children.toArray(
+    normalizeSummaryRow(cells, projectTitle),
+  );
+  const reserveRowActions = Boolean(
+    target && blockActionsAvailable(target, editOptions),
+  );
+  const rowCells =
+    reserveRowActions && target
+      ? normalized.map((cell, index, all) => {
+          if (index !== all.length - 1) return cell;
+          if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
+          return cloneElement(
+            cell,
+            { key: cell.key ?? `cell-actions-${index}` },
+            <div className="flex items-start justify-end gap-2">
+              <div className="min-w-0">{cell.props.children}</div>
+              <BlockHoverActions target={target} options={editOptions} />
+            </div>,
+          );
+        })
+      : normalized;
+  const row = (
+    <tr
+      className="sw-table-row even:bg-muted/20"
+      {...position(node)}
+      data-block-type={target ? "table_row" : undefined}
+      onMouseEnter={
+        canEdit ? () => editOptions?.onActivateBlock?.(target) : undefined
+      }
+      onClick={
+        canEdit ? () => editOptions?.onActivateBlock?.(target) : undefined
+      }
+      onDoubleClick={
+        canEdit && editOptions?.onEditSelection
+          ? (event) => {
+              event.preventDefault();
+              const cell = (event.target as HTMLElement | null)?.closest(
+                "td,th",
+              );
+              const cellIndex = cell
+                ? Array.from(
+                    event.currentTarget.querySelectorAll("td,th"),
+                  ).indexOf(cell)
+                : 0;
+              editOptions.onEditSelection?.(target.range, {
+                focusCellIndex: Math.max(0, cellIndex),
+              });
+            }
+          : undefined
+      }
+    >
+      {rowCells}
+    </tr>
+  );
+  const form = composerForTarget(target, editOptions);
+  const placement = composerPlacement(editOptions);
+  if (!form || !placement) return row;
+  return (
+    <>
+      {placement === "before" ? form : null}
+      {row}
+      {placement === "after" ? form : null}
+    </>
+  );
 }
 
 function markdownComponents(
@@ -433,22 +1082,6 @@ function markdownComponents(
               renderedRange,
             )
           : null;
-      const section = sourceRange
-        ? options?.sourceSections.find((item) => item.start === sourceRange.start)
-        : null;
-      const activeParagraph =
-        section && options?.activeParagraph?.sectionStart === section.start
-          ? options.activeParagraph
-          : null;
-      const isEditingSection = Boolean(
-        section &&
-        options?.editingRange &&
-        section.start <= options.editingRange.start &&
-        options.editingRange.start < section.end,
-      );
-      const showActions = Boolean(
-        section && (isEditingSection || (activeParagraph && !options?.editingRange)),
-      );
       if (isInformationRegister) {
         const open = options?.informationRegisterOpen ?? false;
         return (
@@ -487,48 +1120,6 @@ function markdownComponents(
           >
             {children}
           </h2>
-          {showActions && section ? (
-            <div
-              className="ml-auto flex shrink-0 items-center gap-1 print:hidden"
-              data-instruction-ui
-              data-paragraph-actions={section.start}
-            >
-              {activeParagraph && !isEditingSection && options?.onEditSelection ? (
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="outline"
-                  aria-label="Edit paragraph manually"
-                  title="Edit paragraph"
-                  onClick={() => options.onEditSelection?.(activeParagraph.range)}
-                >
-                  <PencilLine aria-hidden />
-                </Button>
-              ) : null}
-              {activeParagraph && !isEditingSection && options?.onEditWithAi ? (
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="outline"
-                  aria-label="Edit paragraph with AI"
-                  title="Edit with AI"
-                  onClick={(event) =>
-                    options.onEditWithAi?.(
-                      activeParagraph.range,
-                      event.currentTarget.getBoundingClientRect(),
-                    )
-                  }
-                >
-                  <img
-                    src="/style-guide/logo/mark-solid.svg"
-                    alt=""
-                    aria-hidden
-                    className="size-3.5"
-                  />
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       );
     },
@@ -545,6 +1136,14 @@ function flattenText(children: ReactNode): string {
   return "";
 }
 
+function blockLabel(type: ArtifactBlockTarget["type"]): string {
+  return type === "table_row"
+    ? "table row"
+    : type === "list_item"
+      ? "list item"
+      : "paragraph";
+}
+
 function informationRegisterTable(children: ReactNode): boolean {
   const text = flattenText(children).toLowerCase();
   return (
@@ -552,6 +1151,18 @@ function informationRegisterTable(children: ReactNode): boolean {
     text.includes("title") &&
     text.includes("rev") &&
     text.includes("category")
+  );
+}
+
+function consultantsAppointmentTable(children: ReactNode): boolean {
+  const text = flattenText(children).toLowerCase();
+  return (
+    text.includes("discipline") &&
+    text.includes("firm") &&
+    text.includes("scope / services") &&
+    text.includes("fee") &&
+    text.includes("status") &&
+    text.includes("citation")
   );
 }
 
@@ -745,7 +1356,7 @@ function normalizeSummaryTable(children: ReactNode, projectTitle?: string): Reac
   }
 
   const bodyRows = collectedRows.map((row, index) =>
-    asSummaryBodyRow(row, projectTitle, index),
+    asSummaryBodyRow(row, index),
   );
   const bodyKinds = bodyRows.map((row) => summaryRowKind(row, projectTitle));
   const rowsByKind = new Map<string, ReactNode>();
@@ -762,9 +1373,14 @@ function normalizeSummaryTable(children: ReactNode, projectTitle?: string): Reac
   }
   const knownRows = new Set(rowsByKind.values());
   const otherRows = bodyRows.filter((row) => !knownRows.has(row));
+  // Extra user/AI rows must keep document order; appending them after the
+  // identity quartet made freshly inserted rows jump to the table bottom.
+  if (otherRows.length > 0) {
+    return <tbody key="summary-body">{bodyRows}</tbody>;
+  }
   const orderedRows = orderedKinds.map((kind) => rowsByKind.get(kind) as ReactNode);
   return (
-    <tbody key="summary-body">{[...orderedRows, ...otherRows]}</tbody>
+    <tbody key="summary-body">{orderedRows}</tbody>
   );
 }
 
@@ -809,27 +1425,26 @@ function summaryIdentityRow(
 
 function asSummaryBodyRow(
   row: ReactNode,
-  projectTitle: string | undefined,
   index: number,
 ): ReactNode {
   if (!isValidElement<{ children?: ReactNode }>(row)) return row;
-  const conflicted = rowHasConflict(Children.toArray(row.props.children));
+  // Keep the original row element (offsets, double-click, activate) while forcing
+  // body cells to `td` — GFM identity headers otherwise stay as `th`.
   const cells = Children.toArray(row.props.children).map((cell, cellIndex) => {
     if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
+    if (typeof cell.type === "string" && cell.type.toLowerCase() === "td") {
+      return cell;
+    }
     return (
       <td
-        key={`summary-cell-${index}-${cellIndex}`}
+        key={cell.key ?? `summary-cell-${index}-${cellIndex}`}
         className="border-b px-3 py-2 align-top text-foreground"
       >
-        {renderEvidenceCell(cell.props.children, { conflicted })}
+        {cell.props.children}
       </td>
     );
   });
-  return (
-    <tr key={`summary-row-${index}`} className="sw-table-row even:bg-muted/20">
-      {normalizeSummaryRow(cells, projectTitle)}
-    </tr>
-  );
+  return cloneElement(row, { key: `summary-row-${index}` }, cells);
 }
 
 function summaryRowKind(row: ReactNode, projectTitle?: string): string | null {
@@ -1046,12 +1661,18 @@ export function MarkdownContent({
   containerRef,
   onDraftUpdated,
   editingRange,
+  editingFocusCellIndex,
   isSavingEdit = false,
   editError,
+  blockComposer = null,
+  isSavingBlockComposer = false,
   onEditSelection,
   onEditWithAi,
   onCancelSelectionEdit,
   onSaveSelectionEdit,
+  onCancelBlockComposer,
+  onSaveBlockComposer,
+  onMutateBlock,
 }: {
   /**
    * Already normalized (see `normalizeDraftMarkdown`). Callers own the
@@ -1070,21 +1691,30 @@ export function MarkdownContent({
   containerRef?: React.Ref<HTMLDivElement>;
   onDraftUpdated?: (draft: DraftArtifact) => void;
   editingRange?: MarkdownRange | null;
+  editingFocusCellIndex?: number;
   isSavingEdit?: boolean;
   editError?: string | null;
-  onEditSelection?: (range: MarkdownRange) => void;
+  blockComposer?: ArtifactBlockComposerState | null;
+  isSavingBlockComposer?: boolean;
+  onEditSelection?: InlineEditOptions["onEditSelection"];
   onEditWithAi?: (range: MarkdownRange, rect: DOMRect) => void;
   onCancelSelectionEdit?: () => void;
   onSaveSelectionEdit?: (range: MarkdownRange, markdown: string) => Promise<void>;
+  onCancelBlockComposer?: () => void;
+  onSaveBlockComposer?: (content: string) => void;
+  onMutateBlock?: InlineEditOptions["onMutateBlock"];
 }) {
-  const [paragraphTarget, setParagraphTarget] = useState<{
+  const [blockTarget, setBlockTarget] = useState<{
     sourceMarkdown: string;
-    target: ParagraphTarget;
+    target: ArtifactBlockTarget;
   } | null>(null);
   const [informationRegisterOpen, setInformationRegisterOpen] = useState(false);
   const traceQa = useMemo(() => splitTraceQa(markdown), [markdown]);
   const presentedPrimary = useMemo(
-    () => groupConsecutiveDecisionFences(blankProjectSummaryProse(traceQa.primary)),
+    () =>
+      groupConsecutiveDecisionFences(
+        blankProjectSummaryProse(maskArtifactBlockMarkers(traceQa.primary)),
+      ),
     [traceQa.primary],
   );
   const sections = useMemo(
@@ -1095,9 +1725,10 @@ export function MarkdownContent({
     () => splitMarkdownSections(traceQa.primary),
     [traceQa.primary],
   );
-  const activeParagraph =
-    paragraphTarget?.sourceMarkdown === traceQa.primary
-      ? paragraphTarget.target
+  const activeBlock = blockComposer
+    ? blockComposer.target
+    : blockTarget?.sourceMarkdown === traceQa.primary
+      ? blockTarget.target
       : null;
   const activeRanges = useMemo(
     () => (showChanges ? (changedRanges ?? []) : []),
@@ -1122,7 +1753,7 @@ export function MarkdownContent({
         {sections.length > 1 ? (
           <nav
             aria-label="Document sections"
-            className="sticky top-4 hidden h-fit min-w-44 shrink-0 lg:block print:hidden"
+            className="sticky top-4 hidden h-fit w-28 shrink-0 lg:block print:hidden"
           >
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Sections
@@ -1131,7 +1762,7 @@ export function MarkdownContent({
               {sections.map((section) => (
                 <li key={section.heading}>
                   <a
-                    className="block px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="block px-1.5 py-1 leading-snug text-muted-foreground hover:bg-muted hover:text-foreground"
                     href={`#${sectionAnchor(section.heading)}`}
                   >
                     {section.heading}
@@ -1154,22 +1785,30 @@ export function MarkdownContent({
               sourceMarkdown: traceQa.primary,
               renderedMarkdown: presentedPrimary,
               sourceSections,
-              activeParagraph,
+              activeBlock,
               editingRange,
+              editingFocusCellIndex,
               isSavingEdit,
               editError,
-              onActivateParagraph: (target) =>
-                setParagraphTarget((current) =>
-                  current?.sourceMarkdown === traceQa.primary &&
-                  current.target.sectionStart === target.sectionStart &&
-                  rangesEqual(current.target.range, target.range)
-                    ? current
-                    : { sourceMarkdown: traceQa.primary, target },
-                ),
+              blockComposer,
+              isSavingBlockComposer,
+              onActivateBlock: blockComposer
+                ? undefined
+                : (target) =>
+                    setBlockTarget((current) =>
+                      current?.sourceMarkdown === traceQa.primary &&
+                      current.target.sectionStart === target.sectionStart &&
+                      rangesEqual(current.target.range, target.range)
+                        ? current
+                        : { sourceMarkdown: traceQa.primary, target },
+                    ),
               onEditSelection,
               onEditWithAi,
               onCancelSelectionEdit,
               onSaveSelectionEdit,
+              onCancelBlockComposer,
+              onSaveBlockComposer,
+              onMutateBlock,
               informationRegisterOpen,
               onToggleInformationRegister: () =>
                 setInformationRegisterOpen((current) => !current),
@@ -1188,7 +1827,7 @@ export function MarkdownContent({
                   remarkPlugins={[remarkGfm]}
                   components={baseComponents([])}
                 >
-                  {traceQa.qa}
+                  {maskArtifactBlockMarkers(traceQa.qa)}
                 </ReactMarkdown>
               </div>
             </details>

@@ -46,6 +46,7 @@ def _project() -> Project:
         state="NSW",
         profile_revision=2,
         decision_set_revision=4,
+        project_context_version=4,
         event_sequence=8,
         status="active",
         project_metadata={
@@ -79,7 +80,7 @@ def _decision() -> ProjectDecision:
     )
 
 
-def _session(*, content_hash: str = "abc") -> AsyncMock:
+def _query_results(project: Project, *, content_hash: str = "abc") -> list[_Result]:
     evidence = SimpleNamespace(
         id=uuid.UUID("33333333-3333-3333-3333-333333333333"),
         relative_path="brief.md",
@@ -92,9 +93,8 @@ def _session(*, content_hash: str = "abc") -> AsyncMock:
         ingest_error="parse failed",
         total_count=1,
     )
-    session = AsyncMock()
-    session.execute.side_effect = [
-        _Result(value=_project()),
+    return [
+        _Result(value=project),
         _Result(rows=[_decision()]),
         _Result(rows=[]),
         _Result(rows=[evidence]),
@@ -103,6 +103,15 @@ def _session(*, content_hash: str = "abc") -> AsyncMock:
         _Result(rows=[]),
         _Result(rows=[]),
         _Result(value=None),
+    ]
+
+
+def _session(*, content_hash: str = "abc") -> AsyncMock:
+    project = _project()
+    session = AsyncMock()
+    session.execute.side_effect = [
+        *_query_results(project, content_hash=content_hash),
+        _Result(value=project),
     ]
     return session
 
@@ -131,7 +140,7 @@ def test_snapshot_fingerprint_ignores_generation_time_and_exposes_missing_inputs
     assert first.identity.client.status == "needs_input"
     assert first.confirmed_inputs["timeframe"].status == "needs_input"
     assert first.confirmed_inputs["procurement_route"].value == "traditional"
-    assert first.context_version == 9
+    assert first.context_version == 4
     assert first.field_states == {
         "scope.facade_system": "explicitly_excluded"
     }
@@ -157,6 +166,31 @@ def test_snapshot_fingerprint_changes_with_evidence_content() -> None:
     )
     assert before.evidence.fingerprint != after.evidence.fingerprint
     assert before.content_fingerprint != after.content_fingerprint
+
+
+def test_snapshot_retries_if_context_changes_while_it_is_read() -> None:
+    before = _project()
+    after = _project()
+    after.project_context_version = 5
+    after.state = "VIC"
+    session = AsyncMock()
+    session.execute.side_effect = [
+        *_query_results(before),
+        _Result(value=after),
+        *_query_results(after),
+        _Result(value=after),
+    ]
+
+    snapshot = asyncio.run(
+        get_project_snapshot(
+            session,
+            project_id=PROJECT_ID,
+            owner_user_id=OWNER_ID,
+        )
+    )
+
+    assert snapshot.context_version == 5
+    assert snapshot.profile.state == "VIC"
 
 
 def test_snapshot_not_found_covers_cross_tenant_lookup() -> None:

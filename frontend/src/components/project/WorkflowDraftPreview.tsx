@@ -6,6 +6,7 @@ import type { WorkflowRunPreview } from "@/lib/workflow-progress";
 
 const PREVIEW_STAGE_LABELS: Record<string, string> = {
   scaffold: "Drafting — structure and evidence in place, writing the narrative…",
+  scaffold_ready: "Drafting — structure and evidence in place, writing the narrative…",
 };
 
 /**

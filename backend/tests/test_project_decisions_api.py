@@ -145,7 +145,9 @@ def test_put_project_decision_rewrites_draft_markdown(
             "app.api.projects.update_project_decision",
             new=AsyncMock(return_value=(row, 2)),
         ) as update_decision,
-        patch("app.api.projects.sync_decisions_from_markdown", new=AsyncMock()),
+        patch(
+            "app.api.projects.sync_decisions_from_markdown", new=AsyncMock()
+        ) as sync_decisions,
         patch(
             "app.api.projects.read_project_decision",
             new=AsyncMock(return_value=(row, 3)),
@@ -181,8 +183,11 @@ def test_put_project_decision_rewrites_draft_markdown(
     revise_artefact.assert_awaited_once()
     rewritten = revise_artefact.await_args.kwargs["content_markdown"]
     assert revise_artefact.await_args.kwargs["expected_base_version"] == 1
+    assert revise_artefact.await_args.kwargs["changes_context"] is False
     assert '"selected": "design_construct"' in rewritten
     assert '"source": "user"' in rewritten
+    sync_decisions.assert_awaited_once()
+    assert sync_decisions.await_args.kwargs["changes_context"] is False
 
 
 def test_put_project_decision_restamps_cost_plan_and_pmp(

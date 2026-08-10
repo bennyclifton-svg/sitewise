@@ -102,6 +102,11 @@ def _install(
     monkeypatch.setattr(
         server, "read_project_snapshot", AsyncMock(return_value=object())
     )
+    monkeypatch.setattr(
+        server,
+        "resolve_project_generation_context",
+        lambda _snapshot: object(),
+    )
     monkeypatch.setattr(server, "capability_block_message", lambda *_args: None)
 
     monkeypatch.setattr(
@@ -172,6 +177,7 @@ def test_draft_consultant_procurement_tool_returns_artefact_metadata(
     assert run_workflow.await_args.kwargs["project"] is session.project
     assert run_workflow.await_args.kwargs["user_id"] == USER_ID
     assert run_workflow.await_args.kwargs["discipline"] == "structural engineer"
+    assert run_workflow.await_args.kwargs["generation_context"] is not None
 
 
 def test_draft_consultant_procurement_rejects_unauthorized_project(monkeypatch) -> None:

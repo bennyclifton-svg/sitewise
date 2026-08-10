@@ -55,6 +55,7 @@ async def publish_project_event(
     action: str,
     payload: dict[str, Any] | None = None,
     deduplication_key: str | None = None,
+    changes_context: bool = False,
     locked_project: Project | None = None,
 ) -> ProjectEvent:
     safe_payload = dict(payload or {})
@@ -82,6 +83,8 @@ async def publish_project_event(
         if existing is not None:
             return existing
 
+    if changes_context:
+        project.project_context_version = (project.project_context_version or 1) + 1
     project.event_sequence = (project.event_sequence or 0) + 1
     event = ProjectEvent(
         project_id=project_id,

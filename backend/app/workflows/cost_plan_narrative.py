@@ -13,6 +13,11 @@ from app.assistant.chat_models import resolve_chat_model
 from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
 from app.database.project import Project
+from app.projects.artefact_context import CostPlanContext, format_artefact_context
+from app.projects.generation_brief import (
+    ArtefactGenerationBrief,
+    format_generation_brief,
+)
 from app.sitewise.cost_plan_evidence import CostPlanEvidencePack
 from app.sitewise.mobilisation_evidence import (
     GAP_CERTIFIER,
@@ -21,7 +26,19 @@ from app.sitewise.mobilisation_evidence import (
     pack_has_gap,
 )
 from app.workflows.create_pmp import WorkflowValidationError
+from app.workflows.generation_consistency import (
+    ConsistencyResolver,
+    ConsistencySection,
+    format_consistency_failures,
+    run_generation_consistency_gate,
+)
+from app.workflows.generation_consistency_agent import resolve_consistency_candidates
 from app.workflows.pmp_narrative import RiskRow, format_risk_rows_table
+from app.workflows.section_generation import (
+    SectionGenerationJob,
+    SectionProgressPublisher,
+    run_section_generation,
+)
 
 _INSTRUCTIONS_PATH = Path(__file__).with_name("cost_plan_narrative_instructions.md")
 _ISO_DATE_PATTERN = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
@@ -75,6 +92,7 @@ class CostPlanNarrativeOutput(BaseModel):
     recommendations: list[str] = Field(min_length=3)
     risk_rows: list[RiskRow] = Field(min_length=5)
     next_steps: list[str] = Field(min_length=3)
+    consistency_ai_call_count: int = Field(default=0, ge=0, exclude=True)
 
     @field_validator("next_steps")
     @classmethod
@@ -85,14 +103,42 @@ class CostPlanNarrativeOutput(BaseModel):
         return values
 
 
+class _CostAssessmentOutput(BaseModel):
+    judgements: list[str] = Field(min_length=2)
+
+
+class _CostActionsOutput(BaseModel):
+    recommendations: list[str] = Field(min_length=3)
+    next_steps: list[str] = Field(min_length=3)
+
+
+class _CostRisksOutput(BaseModel):
+    risk_rows: list[RiskRow] = Field(min_length=5)
+
+
 def _load_agent_instructions() -> str:
     return _INSTRUCTIONS_PATH.read_text(encoding="utf-8")
 
 
-cost_plan_narrative_agent = Agent(
+_assessment_agent = Agent(
     f"openai-responses:{settings.cost_plan_model}",
-    output_type=CostPlanNarrativeOutput,
-    instructions=_load_agent_instructions(),
+    output_type=_CostAssessmentOutput,
+    instructions=_load_agent_instructions() + "\nReturn only cost-control judgements.",
+    defer_model_check=True,
+)
+_actions_agent = Agent(
+    f"openai-responses:{settings.cost_plan_model}",
+    output_type=_CostActionsOutput,
+    instructions=(
+        _load_agent_instructions()
+        + "\nReturn only dated recommendations and next steps."
+    ),
+    defer_model_check=True,
+)
+_risks_agent = Agent(
+    f"openai-responses:{settings.cost_plan_model}",
+    output_type=_CostRisksOutput,
+    instructions=_load_agent_instructions() + "\nReturn only cost risk rows.",
     defer_model_check=True,
 )
 
@@ -143,16 +189,20 @@ def build_cost_plan_narrative_prompt(
     *,
     project: Project,
     pack: CostPlanEvidencePack,
+    cost_plan_context: CostPlanContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
     run_date: date | None = None,
     validation_feedback: str | None = None,
 ) -> str:
     run_iso = (run_date or date.today()).isoformat()
     parts = [
         f"Project: {project.title}",
-        (
-            "Overlays: "
-            f"archetype={project.archetype}, "
-            f"state={project.state}"
+        *(
+            [format_generation_brief(generation_brief)]
+            if generation_brief is not None
+            else [format_artefact_context(cost_plan_context)]
+            if cost_plan_context is not None
+            else [f"Overlays: archetype={project.archetype}, state={project.state}"]
         ),
         (
             f"Cost plan run date: {run_iso} — set due dates 2–4 weeks forward from this date "
@@ -172,7 +222,9 @@ def build_cost_plan_narrative_prompt(
 
 
 def _iso_dates_in_text(text: str) -> list[date]:
-    return [date.fromisoformat(match.group(1)) for match in _ISO_DATE_PATTERN.finditer(text)]
+    return [
+        date.fromisoformat(match.group(1)) for match in _ISO_DATE_PATTERN.finditer(text)
+    ]
 
 
 def validate_cost_plan_narrative_output(
@@ -220,7 +272,8 @@ def validate_cost_plan_narrative_output(
                     f"narrative must use owner brief ceiling, not invented budget ({phrase!r})"
                 )
         if re.search(r"\bconfirm budget\b", combined) and not any(
-            variant.lower() in combined for variant in _money_variants(pack.construction_budget_ceiling)
+            variant.lower() in combined
+            for variant in _money_variants(pack.construction_budget_ceiling)
         ):
             issues.append(
                 "recommendations must reference the evidenced construction ceiling when discussing budget"
@@ -263,7 +316,10 @@ def validate_cost_plan_narrative_output(
                 )
 
     if not pack_has_gap(pack.mobilisation, GAP_CERTIFIER):
-        if re.search(r"\bappoint (?:a )?principal certifier\b", combined) and "coordinate" not in combined:
+        if (
+            re.search(r"\bappoint (?:a )?principal certifier\b", combined)
+            and "coordinate" not in combined
+        ):
             issues.append(
                 "narrative must not assign certifier appointment when certifier is already on file"
             )
@@ -271,40 +327,153 @@ def validate_cost_plan_narrative_output(
     for index, recommendation in enumerate(output.recommendations, start=1):
         dates = _iso_dates_in_text(recommendation)
         if not dates:
-            issues.append(f"recommendation {index} must include an ISO due date (YYYY-MM-DD)")
+            issues.append(
+                f"recommendation {index} must include an ISO due date (YYYY-MM-DD)"
+            )
             continue
         for due in dates:
             if due < anchor_date:
-                issues.append(f"recommendation {index} due date {due} is before cost plan run date")
+                issues.append(
+                    f"recommendation {index} due date {due} is before cost plan run date"
+                )
 
     for index, step in enumerate(output.next_steps, start=1):
         dates = _iso_dates_in_text(step)
         if not dates:
-            issues.append(f"next_steps item {index} must include an ISO due date (YYYY-MM-DD)")
+            issues.append(
+                f"next_steps item {index} must include an ISO due date (YYYY-MM-DD)"
+            )
 
     if issues:
         joined = "; ".join(issues)
-        raise WorkflowValidationError(f"Cost plan narrative validation failed: {joined}")
+        raise WorkflowValidationError(
+            f"Cost plan narrative validation failed: {joined}"
+        )
 
 
 async def run_cost_plan_narrative_model(
     *,
     project: Project,
     pack: CostPlanEvidencePack,
+    cost_plan_context: CostPlanContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
     run_date: date | None = None,
     validation_feedback: str | None = None,
     chat_model: str | None = None,
+    on_progress: SectionProgressPublisher | None = None,
+    consistency_resolver: ConsistencyResolver | None = None,
 ) -> CostPlanNarrativeOutput:
     prompt = build_cost_plan_narrative_prompt(
         project=project,
         pack=pack,
+        cost_plan_context=cost_plan_context,
+        generation_brief=generation_brief,
         run_date=run_date,
         validation_feedback=validation_feedback,
     )
     resolved_model = resolve_chat_model(chat_model)
-    result = await run_agent_with_retry(cost_plan_narrative_agent, prompt, model=resolved_model)
-    validate_cost_plan_narrative_output(result.output, pack, run_date=run_date)
-    return result.output
+
+    async def run_section(agent: Agent, task: str):
+        return await run_agent_with_retry(
+            agent,
+            f"{prompt}\n\nSECTION JOB:\n{task}",
+            model=resolved_model,
+        )
+
+    results = await run_section_generation(
+        (
+            SectionGenerationJob(
+                key="assessment",
+                label="Cost-control assessment",
+                run=lambda: run_section(
+                    _assessment_agent,
+                    "Assess the cost position and evidence only.",
+                ),
+            ),
+            SectionGenerationJob(
+                key="actions",
+                label="Recommendations and next steps",
+                run=lambda: run_section(
+                    _actions_agent,
+                    "Produce dated recommendations and next steps only.",
+                ),
+            ),
+            SectionGenerationJob(
+                key="risks",
+                label="Cost risk review",
+                run=lambda: run_section(
+                    _risks_agent,
+                    "Produce accountable cost risk rows only.",
+                ),
+            ),
+        ),
+        max_concurrency=3,
+        on_progress=on_progress,
+    )
+    assessment = results["assessment"].output
+    actions = results["actions"].output
+    risks = results["risks"].output
+    output = CostPlanNarrativeOutput(
+        judgements=assessment.judgements,
+        recommendations=actions.recommendations,
+        next_steps=actions.next_steps,
+        risk_rows=risks.risk_rows,
+    )
+    if generation_brief is not None:
+        report = await run_generation_consistency_gate(
+            generation_brief,
+            (
+                ConsistencySection(
+                    key="assessment",
+                    text=_consistency_lines(*output.judgements),
+                ),
+                ConsistencySection(
+                    key="actions",
+                    text=_consistency_lines(
+                        *output.recommendations,
+                        *output.next_steps,
+                    ),
+                    scope_items=tuple([*output.recommendations, *output.next_steps]),
+                ),
+                ConsistencySection(
+                    key="risks",
+                    text=_consistency_lines(
+                        *(
+                            value
+                            for row in output.risk_rows
+                            for value in row.model_dump(mode="json").values()
+                        ),
+                    ),
+                    risk_items=tuple(row.risk for row in output.risk_rows),
+                ),
+            ),
+            run_date=run_date,
+            resolver=consistency_resolver or resolve_consistency_candidates,
+        )
+        if not report.is_consistent:
+            raise WorkflowValidationError(
+                "Cost Plan narrative consistency failed: "
+                + format_consistency_failures(report),
+                consistency_ai_call_count=report.ai_call_count,
+            )
+        output = output.model_copy(
+            update={"consistency_ai_call_count": report.ai_call_count}
+        )
+    validate_cost_plan_narrative_output(output, pack, run_date=run_date)
+    return output
 
 
-__all__ = ["CostPlanNarrativeOutput", "format_risk_rows_table", "run_cost_plan_narrative_model"]
+def _consistency_lines(*values: object) -> tuple[str, ...]:
+    return tuple(
+        line.strip()
+        for value in values
+        for line in str(value).splitlines()
+        if line.strip()
+    )
+
+
+__all__ = [
+    "CostPlanNarrativeOutput",
+    "format_risk_rows_table",
+    "run_cost_plan_narrative_model",
+]

@@ -13,6 +13,8 @@ from pydantic import (
 
 from app.assistant.chat_models import InvalidChatModelError, resolve_chat_model
 from app.assistant.pmp_models import InvalidPmpModelError, resolve_pmp_model
+from app.projects.artefact_blocks import ArtefactBlockOperation
+from app.cost_plan.schemas import CostPlanOperation
 from app.sitewise.gate import OverlayStatus
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 
@@ -397,14 +399,17 @@ class EvidencePreview(BaseModel):
     document_number: str | None = None
     revision: str | None = None
     category: str | None = None
-    invoice_status: Literal[
-        "reading",
-        "ready_to_process",
-        "processing",
-        "booked",
-        "needs_review",
-        "failed",
-    ] | None = None
+    invoice_status: (
+        Literal[
+            "reading",
+            "ready_to_process",
+            "processing",
+            "booked",
+            "needs_review",
+            "failed",
+        ]
+        | None
+    ) = None
     used_by: list[DocumentUsageMark] = Field(default_factory=list)
 
 
@@ -648,6 +653,21 @@ class UpdatePmpRequest(BaseModel):
 class PatchDraftRequest(BaseModel):
     content_markdown: str = Field(min_length=1)
     expected_base_version: int = Field(ge=1)
+
+
+class ApplyArtefactBlockOperationsRequest(BaseModel):
+    expected_base_version: int = Field(ge=1)
+    operations: list[ArtefactBlockOperation] = Field(min_length=1, max_length=50)
+
+
+class ApplyArtefactBlockOperationsResponse(BaseModel):
+    draft: "DraftArtifactResponse"
+    changed_block_ids: list[str]
+
+
+class ApplyCostPlanOperationsRequest(BaseModel):
+    expected_base_version: int = Field(ge=1)
+    operations: list[CostPlanOperation] = Field(min_length=1, max_length=50)
 
 
 class DraftInstructionInput(BaseModel):

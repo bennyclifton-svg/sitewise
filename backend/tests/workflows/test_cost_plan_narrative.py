@@ -1,15 +1,26 @@
 from datetime import date
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.projects.artefact_context import CostPlanContext
+from app.projects.generation_brief import build_generation_brief
+from app.projects.generation_context import ContextField, FieldState
 from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
 from app.workflows.cost_plan_narrative import (
     CostPlanNarrativeOutput,
+    run_cost_plan_narrative_model,
     validate_cost_plan_narrative_output,
 )
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.pmp_narrative import RiskRow
 from tests.sitewise.test_cost_plan_evidence import _read, _read_walsh
+from tests.workflows.hybrid_cost_plan_fixtures import (
+    PROJECT_ID,
+    harrison_clarke_cost_narrative,
+    harrison_clarke_cost_project,
+)
+from tests.conftest import run_async
 
 
 def _full_chen_pack():
@@ -29,6 +40,90 @@ def _walsh_pack():
     return extract_cost_plan_evidence_pack(_read_walsh(), [])
 
 
+def _generation_brief():
+    title = ContextField(
+        key="title",
+        label="Project title",
+        value="Chen Residence",
+        state=FieldState.KNOWN,
+        source="project",
+    )
+    return build_generation_brief(
+        CostPlanContext(
+            project_id=PROJECT_ID,
+            context_version=7,
+            identity={"title": title},
+            taxonomy={},
+            scope={},
+            scale={},
+            complexity={},
+            commercial={},
+            programme={},
+            procurement={},
+            known_exclusions={},
+            critical_unknowns=[],
+        )
+    )
+
+
+def test_run_cost_plan_narrative_valid_output_uses_no_consistency_model() -> None:
+    narrative = harrison_clarke_cost_narrative()
+    agent_result = AsyncMock()
+    agent_result.output = narrative
+    resolver = AsyncMock(return_value=set())
+
+    with patch(
+        "app.workflows.cost_plan_narrative.run_agent_with_retry",
+        new=AsyncMock(return_value=agent_result),
+    ) as run_agent:
+        output = run_async(
+            run_cost_plan_narrative_model(
+                project=harrison_clarke_cost_project(),
+                pack=_full_chen_pack(),
+                generation_brief=_generation_brief(),
+                run_date=date(2026, 6, 8),
+                consistency_resolver=resolver,
+            )
+        )
+
+    assert run_agent.await_count == 3
+    assert output.consistency_ai_call_count == 0
+    resolver.assert_not_awaited()
+
+
+def test_run_cost_plan_narrative_rejects_project_name_conflict() -> None:
+    narrative = harrison_clarke_cost_narrative().model_copy(
+        update={
+            "judgements": [
+                "Project: Another Project",
+                harrison_clarke_cost_narrative().judgements[1],
+            ]
+        }
+    )
+    agent_result = AsyncMock()
+    agent_result.output = narrative
+    resolver = AsyncMock(return_value=set())
+
+    with (
+        patch(
+            "app.workflows.cost_plan_narrative.run_agent_with_retry",
+            new=AsyncMock(return_value=agent_result),
+        ),
+        pytest.raises(WorkflowValidationError, match="Another Project"),
+    ):
+        run_async(
+            run_cost_plan_narrative_model(
+                project=harrison_clarke_cost_project(),
+                pack=_full_chen_pack(),
+                generation_brief=_generation_brief(),
+                run_date=date(2026, 6, 8),
+                consistency_resolver=resolver,
+            )
+        )
+
+    resolver.assert_not_awaited()
+
+
 def _narrative(
     *,
     judgements: list[str],
@@ -43,11 +138,41 @@ def _narrative(
             "Declare Linden conflict by 2026-07-05.",
         ],
         risk_rows=[
-            RiskRow(risk="A", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="B", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="C", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="D", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="E", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(
+                risk="A",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="B",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="C",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="D",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="E",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
         ],
         next_steps=[
             "Step one by 2026-07-05.",
@@ -101,11 +226,41 @@ def test_validate_cost_plan_narrative_rejects_geotech_commission_when_on_file() 
             "Declare Linden conflict by 2026-07-05.",
         ],
         risk_rows=[
-            RiskRow(risk="A", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="B", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="C", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="D", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="E", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(
+                risk="A",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="B",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="C",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="D",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="E",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
         ],
         next_steps=[
             "Step one by 2026-07-05.",
@@ -216,7 +371,9 @@ def test_validator_accepts_specific_risk_owners() -> None:
     validate_cost_plan_narrative_output(output, pack, run_date=date(2026, 6, 8))
 
 
-def test_validator_accepts_project_specific_budget_ceiling_when_confirming_budget() -> None:
+def test_validator_accepts_project_specific_budget_ceiling_when_confirming_budget() -> (
+    None
+):
     pack = _walsh_pack()
     output = CostPlanNarrativeOutput(
         judgements=[
@@ -229,10 +386,34 @@ def test_validator_accepts_project_specific_budget_ceiling_when_confirming_budge
             "Record heritage impact statement allowance by 2026-07-05.",
         ],
         risk_rows=[
-            RiskRow(risk="A", owner="Owner", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="B", owner="Architect-PM", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="C", owner="Builder", status="Open", next_action="Act", due_date="2026-07-05"),
-            RiskRow(risk="D", owner="Certifier", status="Open", next_action="Act", due_date="2026-07-05"),
+            RiskRow(
+                risk="A",
+                owner="Owner",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="B",
+                owner="Architect-PM",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="C",
+                owner="Builder",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
+            RiskRow(
+                risk="D",
+                owner="Certifier",
+                status="Open",
+                next_action="Act",
+                due_date="2026-07-05",
+            ),
             RiskRow(
                 risk="E",
                 owner="Structural Engineer",

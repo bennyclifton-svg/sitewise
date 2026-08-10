@@ -2,6 +2,12 @@ import { getAccessToken } from "@/lib/auth";
 import type { AgentConfigurationResponse, AgentModelsResponse } from "@/lib/agent-model";
 import { workflowChatModelPayload, type ChatModelsResponse } from "@/lib/chat-model";
 import { env } from "@/lib/env";
+import type { ArtifactBlockOperation } from "@/lib/artifact-blocks";
+import type {
+  CostPlanDelta,
+  CostPlanOperation,
+  CostPlanState,
+} from "@/lib/cost-plan";
 import {
   ApiError,
   httpRequest,
@@ -773,6 +779,30 @@ export const api = {
     api.patch<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`, {
       content_markdown: contentMarkdown,
       expected_base_version: expectedBaseVersion,
+    }),
+
+  applyDraftBlockOperations: async (
+    projectId: string,
+    draftId: string,
+    expectedBaseVersion: number,
+    operations: ArtifactBlockOperation[],
+  ): Promise<{ draft: DraftArtifact; changed_block_ids: string[] }> =>
+    api.post(`/projects/${projectId}/drafts/${draftId}/blocks`, {
+      expected_base_version: expectedBaseVersion,
+      operations,
+    }),
+
+  getCostPlanState: async (projectId: string): Promise<CostPlanState> =>
+    api.get(`/projects/${projectId}/cost-plan/state`),
+
+  applyCostPlanOperations: async (
+    projectId: string,
+    expectedBaseVersion: number,
+    operations: CostPlanOperation[],
+  ): Promise<CostPlanDelta> =>
+    api.post(`/projects/${projectId}/cost-plan/operations`, {
+      expected_base_version: expectedBaseVersion,
+      operations,
     }),
 
   applyDraftInstructions: async (

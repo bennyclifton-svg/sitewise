@@ -96,7 +96,7 @@ def required_platform_paths(
     source of truth); tests/sitewise/test_catalog_parity.py pins the output
     to the frozen constants above.
     """
-    from app.sitewise.knowledge_catalog import select_required_paths
+    from app.sitewise.seed_routing import select_seed_knowledge_for_taxonomy
 
     taxonomy_kwargs = _project_taxonomy_kwargs(project)
     if building_class is not None:
@@ -107,11 +107,12 @@ def required_platform_paths(
         taxonomy_kwargs["subclasses"] = subclasses
     if work_scopes is not None:
         taxonomy_kwargs["work_scopes"] = work_scopes
-    return select_required_paths(
-        workflow="create-pmp",
+    selection = select_seed_knowledge_for_taxonomy(
+        "pmp",
         archetype=archetype,
         **taxonomy_kwargs,
     )
+    return list(selection.required_paths)
 
 
 def required_section_headings(

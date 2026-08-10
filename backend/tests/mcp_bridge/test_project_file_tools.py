@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastmcp import Client
@@ -268,7 +268,9 @@ def test_pi_runtime_allows_project_file_tools() -> None:
     assert "start_transmittal" in PI_MCP_DIRECT_TOOLS
 
 
-def test_list_document_register_supports_keyword_and_numeric_filters(monkeypatch) -> None:
+def test_list_document_register_supports_keyword_and_numeric_filters(
+    monkeypatch,
+) -> None:
     from app.projects.document_register import DocumentRegisterRow
 
     session = _Session(project=_project())
@@ -565,7 +567,7 @@ def test_apply_consultant_fee_forecast_rejects_cross_project_token(monkeypatch) 
         )
 
 
-def test_upsert_cost_item_publishes_its_workbook_revision(monkeypatch) -> None:
+def test_upsert_cost_item_queues_its_workbook_revision(monkeypatch) -> None:
     session = _Session(project=_project())
     server = _install(monkeypatch, session)
     updated = _draft(version=10, content="# typed Cost Plan v10")
@@ -588,21 +590,14 @@ def test_upsert_cost_item_publishes_its_workbook_revision(monkeypatch) -> None:
             changed_item_keys=["kitchen-engineered-stone"],
         )
     )
-    sync_artifacts = AsyncMock(
-        return_value={
-            "file_name": "Cost_Plan_v10.draft.xlsx",
-            "workspace_path": "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
-            "version": 10,
-        }
-    )
+    schedule_rebuild = MagicMock(return_value={"status": "pending", "version": 10})
     monkeypatch.setattr(
         server,
         "read_project_snapshot",
         AsyncMock(return_value=SimpleNamespace()),
     )
     monkeypatch.setattr(server, "persist_cost_item", persist)
-    monkeypatch.setattr(server, "get_draft_artifact", AsyncMock(return_value=updated))
-    monkeypatch.setattr(server, "sync_cost_plan_revision_artifacts", sync_artifacts)
+    monkeypatch.setattr(server, "schedule_cost_plan_workbook_rebuild", schedule_rebuild)
 
     result = _call(
         server,
@@ -623,17 +618,8 @@ def test_upsert_cost_item_publishes_its_workbook_revision(monkeypatch) -> None:
         },
     )
 
-    assert result.data["workbook"] == {
-        "file_name": "Cost_Plan_v10.draft.xlsx",
-        "workspace_path": "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
-        "version": 10,
-    }
-    sync_artifacts.assert_awaited_once_with(
-        session,
-        project=session.project,
-        draft=updated,
-        typed_state=state,
-    )
+    assert result.data["workbook"] == {"status": "pending", "version": 10}
+    schedule_rebuild.assert_called_once_with(PROJECT_ID, 10)
     session.commit.assert_awaited_once()
 
 

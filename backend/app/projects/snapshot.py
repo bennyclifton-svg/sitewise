@@ -31,9 +31,14 @@ MAX_EVIDENCE_FINGERPRINT_ROWS = 2_000
 MAX_INGEST_FAILURE_ROWS = 100
 MAX_DECISIONS = 200
 MAX_OPEN_PROPOSALS = 100
+MAX_CONTEXT_READ_ATTEMPTS = 3
 
 
 class ProjectSnapshotNotFound(LookupError):
+    pass
+
+
+class ProjectSnapshotUnstable(RuntimeError):
     pass
 
 
@@ -106,6 +111,7 @@ async def get_project_snapshot(
     project_id: uuid.UUID,
     owner_user_id: uuid.UUID | None = None,
     generated_at: datetime | None = None,
+    _context_read_attempt: int = 1,
 ) -> ProjectSnapshot:
     project_statement = select(Project).where(Project.id == project_id)
     if owner_user_id is not None:
@@ -120,6 +126,7 @@ async def get_project_snapshot(
         .where(ProjectDecision.project_id == project.id)
         .order_by(ProjectDecision.decision_id.asc())
         .limit(MAX_DECISIONS + 1)
+        .execution_options(populate_existing=True)
     )
     all_decision_rows = list(decisions_result.scalars().all())
     decisions_complete = len(all_decision_rows) <= MAX_DECISIONS
@@ -133,6 +140,7 @@ async def get_project_snapshot(
         )
         .order_by(ProjectProfileProposal.created_at.asc(), ProjectProfileProposal.id.asc())
         .limit(MAX_OPEN_PROPOSALS + 1)
+        .execution_options(populate_existing=True)
     )
     all_proposal_rows = list(proposals_result.scalars().all())
     proposals_complete = len(all_proposal_rows) <= MAX_OPEN_PROPOSALS
@@ -202,7 +210,7 @@ async def get_project_snapshot(
     snapshot = ProjectSnapshot(
         generated_at=generated_at or datetime.now(UTC),
         content_fingerprint="pending",
-        context_version=(project.event_sequence or 0) + 1,
+        context_version=project.project_context_version or 1,
         field_states=_context_field_states(project),
         identity=ProjectSnapshotIdentity(
             project_id=project.id,
@@ -252,6 +260,27 @@ async def get_project_snapshot(
         open_profile_proposals_complete=proposals_complete,
     )
     enriched = await enrich_project_snapshot(session, snapshot)
-    return enriched.model_copy(
+    completed = enriched.model_copy(
         update={"content_fingerprint": snapshot_content_fingerprint(enriched)}
+    )
+    current_result = await session.execute(
+        project_statement.execution_options(populate_existing=True)
+    )
+    current_project = current_result.scalar_one_or_none()
+    if current_project is None:
+        raise ProjectSnapshotNotFound(str(project_id))
+    current_version = current_project.project_context_version or 1
+    if current_version == completed.context_version:
+        return completed
+    if _context_read_attempt >= MAX_CONTEXT_READ_ATTEMPTS:
+        raise ProjectSnapshotUnstable(
+            f"project {project_id} context changed during "
+            f"{MAX_CONTEXT_READ_ATTEMPTS} snapshot attempts"
+        )
+    return await get_project_snapshot(
+        session,
+        project_id=project_id,
+        owner_user_id=owner_user_id,
+        generated_at=generated_at,
+        _context_read_attempt=_context_read_attempt + 1,
     )

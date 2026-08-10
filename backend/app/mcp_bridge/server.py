@@ -42,6 +42,11 @@ from app.database.draft_artifacts import (
     get_latest_draft_artifact_by_workspace_path,
 )
 from app.projects.artefact_adapters import revise_workflow_artefact
+from app.projects.artefact_blocks import (
+    ArtefactBlockOperation,
+    apply_block_operations,
+)
+from app.agent.task_routing import route_ai_task
 from app.projects.document_register import (
     DocumentRegisterRow,
     list_document_register_rows,
@@ -95,6 +100,7 @@ from app.projects.decisions import (
     update_project_decision as persist_decision_update,
 )
 from app.projects.snapshot import get_project_snapshot as read_project_snapshot
+from app.projects.generation_context import resolve_project_generation_context
 from app.projects.document_selections import (
     SelectionRevisionConflict,
     SelectionValidationError,
@@ -110,15 +116,17 @@ from app.projects.workflow_capabilities import (
     workflow_capabilities,
 )
 from app.cost_plan.dependencies import dependency_snapshot as cost_dependency_snapshot
-from app.cost_plan.schemas import CostItemInput, CostPlanState
+from app.cost_plan.schemas import CostItemInput, CostPlanOperation, CostPlanState
 from app.cost_plan.service import (
     apply_external_proposal,
     get_cost_plan as read_typed_cost_plan,
+    apply_cost_plan_operations as persist_cost_operations,
     refresh_cost_plan as persist_cost_refresh,
     set_contingency as persist_cost_contingency,
     set_cost_plan_assumption as persist_cost_assumption,
     upsert_cost_item as persist_cost_item,
 )
+from app.cost_plan.workbook_rebuild import schedule_cost_plan_workbook_rebuild
 from app.mcp_bridge.tender_cost_handoff import map_tender_handoff
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
@@ -133,6 +141,7 @@ from app.sitewise.cost_plan_budget_forecast import (
     build_adopted_budget_forecast,
 )
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
+from app.sitewise.markdown_sections import normalize_draft_markdown
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.knowledge_catalog import (
     applicable_platform_paths,
@@ -1449,12 +1458,10 @@ async def upsert_cost_item(
                 item=CostItemInput.model_validate(item),
                 current_snapshot=snapshot,
             )
-            workbook_metadata = await _sync_cost_plan_workbook(
-                session,
-                project=authorization.project,
-                state=result.state,
-            )
             await session.commit()
+            workbook_metadata = schedule_cost_plan_workbook_rebuild(
+                authorization.project.id, result.state.version
+            )
         except (
             ToolAuthError,
             ValidationError,
@@ -1492,12 +1499,10 @@ async def set_contingency(
                 percent=Decimal(percent),
                 current_snapshot=snapshot,
             )
-            workbook_metadata = await _sync_cost_plan_workbook(
-                session,
-                project=authorization.project,
-                state=result.state,
-            )
             await session.commit()
+            workbook_metadata = schedule_cost_plan_workbook_rebuild(
+                authorization.project.id, result.state.version
+            )
         except (ToolAuthError, ValueError, RuntimeError, LookupError) as exc:
             raise ToolError(str(exc)) from exc
     return {**result.model_dump(mode="json"), "workbook": workbook_metadata}
@@ -1531,15 +1536,143 @@ async def set_cost_plan_assumption(
                 value=value,
                 current_snapshot=snapshot,
             )
-            workbook_metadata = await _sync_cost_plan_workbook(
-                session,
-                project=authorization.project,
-                state=result.state,
-            )
             await session.commit()
+            workbook_metadata = schedule_cost_plan_workbook_rebuild(
+                authorization.project.id, result.state.version
+            )
         except (ToolAuthError, ValueError, RuntimeError, LookupError) as exc:
             raise ToolError(str(exc)) from exc
     return {**result.model_dump(mode="json"), "workbook": workbook_metadata}
+
+
+@mcp.tool
+async def apply_cost_plan_operations(
+    project_id: str,
+    expected_base_version: int,
+    operations: list[dict],
+) -> dict:
+    """Apply up to 50 structured Cost Plan operations in one revision.
+
+    Interpret natural language into ADD/UPDATE/DELETE/MOVE/DUPLICATE operations;
+    deterministic application code validates dependencies and recalculates totals.
+    The workbook is queued separately and is never edited as text.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            parsed = [CostPlanOperation.model_validate(item) for item in operations]
+            result = await persist_cost_operations(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                operations=parsed,
+                actor_source="ai_cost_plan_operation",
+            )
+            await session.commit()
+            schedule_cost_plan_workbook_rebuild(
+                authorization.project.id, result.state.version
+            )
+        except (
+            ToolAuthError,
+            ValidationError,
+            ValueError,
+            RuntimeError,
+            LookupError,
+            ArtefactPolicyViolation,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return {
+        "kind": "cost_plan_operations_applied",
+        "delta": result.delta.model_dump(mode="json"),
+        "task_route": route_ai_task(
+            "apply structured cost plan operations",
+            has_structured_operation=True,
+        ).model_dump(mode="json"),
+    }
+
+
+@mcp.tool
+async def apply_artefact_operations(
+    project_id: str,
+    draft_id: str,
+    expected_base_version: int,
+    operations: list[dict],
+) -> dict:
+    """Apply validated ADD/UPDATE/DELETE/MOVE/DUPLICATE Markdown block operations.
+
+    Use this after interpreting a narrowly scoped PMP, RFP, or RFT request. The
+    application performs the mutation; do not rewrite the whole artefact.
+    """
+    if not 1 <= len(operations) <= 50:
+        raise ToolError("operations must contain between 1 and 50 items")
+    pid = uuid.UUID(project_id)
+    did = uuid.UUID(draft_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            draft = await get_draft_artifact(session, did)
+            if draft is None or draft.project_id != pid:
+                raise ToolError("Draft not found")
+            parsed = [
+                ArtefactBlockOperation.model_validate(item) for item in operations
+            ]
+            mutation = apply_block_operations(
+                normalize_draft_markdown(draft.content_markdown),
+                parsed,
+                existing_metadata=(draft.provenance_metadata or {}).get("blocks"),
+                actor_source="ai",
+            )
+            updated = await revise_workflow_artefact(
+                session,
+                project=authorization.project,
+                draft=draft,
+                expected_base_version=expected_base_version,
+                author_user_id=authorization.claims.user_id,
+                content_markdown=mutation.markdown,
+                actor_source="ai_block_operation",
+            )
+            provenance = dict(updated.provenance_metadata or {})
+            provenance.update(
+                {
+                    "blocks": mutation.metadata,
+                    "changed_block_ids": list(mutation.changed_block_ids),
+                    "block_operations": [
+                        operation.model_dump(mode="json") for operation in parsed
+                    ],
+                }
+            )
+            updated.provenance_metadata = provenance
+            await session.commit()
+        except ToolError:
+            raise
+        except (
+            ToolAuthError,
+            ValidationError,
+            ValueError,
+            ArtefactRevisionConflict,
+            ArtefactPolicyViolation,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return {
+        "kind": "artefact_operations_applied",
+        "draft_id": str(updated.id),
+        "version": updated.version,
+        "changed_block_ids": list(mutation.changed_block_ids),
+        "task_route": route_ai_task(
+            "apply structured artefact operations",
+            has_structured_operation=True,
+        ).model_dump(mode="json"),
+    }
 
 
 @mcp.tool
@@ -1801,7 +1934,7 @@ async def start_trade_procurement(
     max_pages: int = 3,
     instructions: str | None = None,
 ) -> dict:
-    """Queue a durable client-issued Request for Tender draft artefact."""
+    """Queue a durable client-issued Request for Tender/Quotation artefact."""
     if kind not in {"rft", "rfq"}:
         raise ToolError("kind must be rft or rfq")
     try:
@@ -1817,7 +1950,7 @@ async def start_trade_procurement(
         expected_decision_set_revision=expected_decision_set_revision,
         parameters={
             "package": package,
-            "kind": "rft",
+            "kind": kind,
             "max_pages": max(1, max_pages),
             "instructions": instructions,
         },
@@ -3104,6 +3237,7 @@ async def draft_consultant_procurement_artifact(
                     discipline=discipline,
                     max_pages=max_pages,
                     instructions=instructions,
+                    generation_context=resolve_project_generation_context(snapshot),
                 )
             except (ModelAPIError, UnexpectedModelBehavior, OpenAIError) as exc:
                 raise ToolError(
@@ -3257,13 +3391,17 @@ async def search_web(
             "VIC",
             "WA",
         }:
-            raise ToolError("jurisdiction must be an Australian state, territory, or CTH")
+            raise ToolError(
+                "jurisdiction must be an Australian state, territory, or CTH"
+            )
         result_limit = max(1, min(max_results, settings.web_search_max_results))
         running_subject = f"\u201c{_clip_status_text(query, max_len=48)}\u201d"
         async with _tool_status(
             _turn_id(authorization),
             tool="search_web",
-            running=_activity_message("Searching official sources", subject=running_subject),
+            running=_activity_message(
+                "Searching official sources", subject=running_subject
+            ),
             done="Searched official sources",
             error="Official source search failed",
         ) as extra:
@@ -3321,9 +3459,7 @@ async def read_web_source(
                 subject=source.title,
             )
             extra["web_source"] = {
-                key: value
-                for key, value in source_data.items()
-                if key != "excerpt"
+                key: value for key, value in source_data.items() if key != "excerpt"
             }
             extra["web_source"]["excerpt"] = source.excerpt[:2000]
             return source_data

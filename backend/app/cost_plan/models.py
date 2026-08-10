@@ -124,6 +124,7 @@ class CostPlanItem(Base):
     cost_code: Mapped[str] = mapped_column(String(128), nullable=False)
     category: Mapped[str] = mapped_column(String(255), nullable=False)
     item: Mapped[str] = mapped_column(String(512), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     budget: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     committed: Mapped[Decimal] = mapped_column(
         Numeric(18, 2), nullable=False, default=0
@@ -208,9 +209,7 @@ class CostInvoice(Base):
     related_reference: Mapped[str | None] = mapped_column(String(255))
     subtotal_ex_gst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     gst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    total_including_gst: Mapped[Decimal] = mapped_column(
-        Numeric(18, 2), nullable=False
-    )
+    total_including_gst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="AUD")
     paid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     processing_status: Mapped[str] = mapped_column(
@@ -261,9 +260,7 @@ class CostInvoice(Base):
             name="ck_cost_invoices_billing_month",
         ),
         CheckConstraint("revision > 0", name="ck_cost_invoices_revision"),
-        UniqueConstraint(
-            "id", "project_id", name="uq_cost_invoices_id_project"
-        ),
+        UniqueConstraint("id", "project_id", name="uq_cost_invoices_id_project"),
         UniqueConstraint(
             "project_id",
             "source_content_hash",

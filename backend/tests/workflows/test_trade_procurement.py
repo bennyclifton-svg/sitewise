@@ -1,21 +1,74 @@
+from datetime import date
 import uuid
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.projects.artefact_context import RftContext
+from app.projects.generation_brief import build_generation_brief
+from app.projects.generation_context import ContextField, FieldState
 from app.workflows import procurement_request as engine
 from app.workflows import trade_procurement as workflow
+from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.rfp_narrative import ProcurementNarrativeOutput
 from tests.conftest import run_async
 from tests.workflows.test_consultant_procurement import (
     DRAFT_ID,
+    PROJECT_ID,
     USER_ID,
     _Session,
     _StubRetriever,
     _passage,
     _project,
 )
+
+
+def _rft_generation_brief():
+    title = ContextField(
+        key="title",
+        label="Project title",
+        value="Walsh Renovation",
+        state=FieldState.KNOWN,
+        source="project",
+    )
+    return build_generation_brief(
+        RftContext(
+            project_id=PROJECT_ID,
+            context_version=7,
+            package="Electrical Services",
+            identity={"title": title},
+            taxonomy={},
+            scope={},
+            scale={},
+            complexity={},
+            programme={},
+            procurement={},
+            approvals={},
+            known_exclusions={},
+            critical_unknowns=[],
+        )
+    )
+
+
+def _rft_section_results(*, programme: list[str]) -> dict:
+    return {
+        "background": SimpleNamespace(
+            output=SimpleNamespace(
+                background="Project: Walsh Renovation",
+                evidence_refs=[],
+            )
+        ),
+        "requested_services": SimpleNamespace(
+            output=SimpleNamespace(
+                requested_services=["Provide the documented electrical package."],
+                evidence_refs=[],
+            )
+        ),
+        "programme": SimpleNamespace(
+            output=SimpleNamespace(programme=programme, evidence_refs=[])
+        ),
+    }
 
 
 def _install(
@@ -268,13 +321,13 @@ def test_main_works_register_includes_every_project_source_document() -> None:
     assert evidence[0]["content_hash"] == "hash-Mosaic Apartments PPR.pdf"
 
 
-def test_main_works_register_repairs_generic_discipline_and_duplicate_revision() -> None:
+def test_main_works_register_repairs_generic_discipline_and_duplicate_revision() -> (
+    None
+):
     document = SimpleNamespace(
         id=uuid.uuid4(),
         filename="11049 M-200 REV B.pdf",
-        relative_path=(
-            "04-projects/demo/03-design/mechanical/11049 M-200 REV B.pdf"
-        ),
+        relative_path=("04-projects/demo/03-design/mechanical/11049 M-200 REV B.pdf"),
         document_class="drawing",
         document_metadata={
             "document_number": "M-200 B",
@@ -544,3 +597,93 @@ def test_trade_narrative_retries_invalid_citation(monkeypatch) -> None:
     assert result == valid
     assert run_model.await_count == 2
     assert "[99]" in run_model.await_args_list[1].kwargs["validation_feedback"]
+
+
+def test_rft_narrative_retries_after_consistency_failure(monkeypatch) -> None:
+    profile = workflow.normalise_trade_target("electrical")
+    valid = ProcurementNarrativeOutput(
+        background="The project brief defines the electrical package.",
+        requested_services=["Provide the documented electrical package."],
+    )
+    consistency_error = WorkflowValidationError(
+        "Procurement narrative consistency failed: conflicting project name"
+    )
+    run_model = AsyncMock(side_effect=[consistency_error, valid])
+    monkeypatch.setattr(workflow, "run_procurement_narrative_model", run_model)
+
+    output = run_async(
+        workflow.run_validated_trade_narrative(
+            project=_project(),
+            target=profile,
+            kind="rft",
+            project_evidence=[],
+            platform_knowledge=[],
+            citation_index=workflow.build_rfp_citation_index([]),
+        )
+    )
+
+    assert output == valid
+    assert run_model.await_count == 2
+    assert (
+        "conflicting project name"
+        in run_model.await_args_list[1].kwargs["validation_feedback"]
+    )
+
+
+def test_rft_narrative_preserves_consistency_call_count_across_retry(
+    monkeypatch,
+) -> None:
+    profile = workflow.normalise_trade_target("electrical")
+    consistency_error = WorkflowValidationError(
+        "Procurement narrative consistency failed: duplicate scope"
+    )
+    consistency_error.consistency_ai_call_count = 1
+    valid = ProcurementNarrativeOutput(
+        background="The project brief defines the electrical package.",
+        requested_services=["Provide the documented electrical package."],
+        consistency_ai_call_count=1,
+    )
+    monkeypatch.setattr(
+        workflow,
+        "run_procurement_narrative_model",
+        AsyncMock(side_effect=[consistency_error, valid]),
+    )
+
+    output = run_async(
+        workflow.run_validated_trade_narrative(
+            project=_project(),
+            target=profile,
+            kind="rft",
+            project_evidence=[],
+            platform_knowledge=[],
+            citation_index=workflow.build_rfp_citation_index([]),
+        )
+    )
+
+    assert output.consistency_ai_call_count == 2
+
+
+def test_rft_narrative_rejects_past_due_date() -> None:
+    with (
+        patch(
+            "app.workflows.rfp_narrative.run_section_generation",
+            new=AsyncMock(
+                return_value=_rft_section_results(
+                    programme=["Tender response due 2026-08-09."]
+                )
+            ),
+        ),
+        pytest.raises(WorkflowValidationError, match="before generation date"),
+    ):
+        run_async(
+            workflow.run_validated_trade_narrative(
+                project=_project(),
+                target=workflow.normalise_trade_target("electrical"),
+                kind="rft",
+                generation_brief=_rft_generation_brief(),
+                project_evidence=[],
+                platform_knowledge=[],
+                citation_index=workflow.build_rfp_citation_index([]),
+                run_date=date(2026, 8, 10),
+            )
+        )

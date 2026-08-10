@@ -17,6 +17,8 @@ import type {
 
 vi.mock("@/lib/api", () => ({
   api: {
+    applyCostPlanOperations: vi.fn(),
+    getCostPlanState: vi.fn(),
     updateProject: vi.fn(),
     listProcurementRequests: vi.fn(),
   },
@@ -68,6 +70,19 @@ const catalog: TaxonomyCatalog = {
 describe("ProjectControlBoard project profile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.getCostPlanState).mockResolvedValue({
+      version: 1,
+      items: [],
+      totals: {
+        budget: "0.00",
+        committed: "0.00",
+        forecast: "0.00",
+        paid: "0.00",
+        variance: "0.00",
+        total_excluding_gst: "0.00",
+        total_including_gst: "0.00",
+      },
+    });
     vi.mocked(useTaxonomy).mockReturnValue({
       data: catalog,
       error: null,
@@ -973,6 +988,7 @@ const runningWorkflowRun: WorkflowRun = {
   workflow_type: "create_pmp",
   idempotency_key: "key-1",
   schema_version: 1,
+  frozen_project_context_version: 1,
   frozen_profile_revision: 1,
   frozen_snapshot_fingerprint: "b".repeat(64),
   frozen_evidence_fingerprint: "c".repeat(64),

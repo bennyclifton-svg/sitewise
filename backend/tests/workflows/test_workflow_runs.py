@@ -11,10 +11,12 @@ from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.workflows.runs import (
     SUPPORTED_WORKFLOWS,
+    WorkflowRunCapabilityConflict,
     build_workflow_run_brief,
     canonical_request_hash,
     complete_workflow_run,
     heartbeat_run,
+    start_workflow_run,
 )
 from app.workflows.worker import _json_result
 from app.workflows.document_ingest import DocumentIngestResult
@@ -142,6 +144,145 @@ def test_workflow_brief_freezes_the_canonical_generation_context() -> None:
     assert brief["generation_context"]["commercial"]["budget"]["state"] == "unknown"
 
 
+def test_new_workflow_run_rejects_snapshot_stale_under_project_lock() -> None:
+    snapshot = _snapshot().model_copy(update={"context_version": 6})
+    project = _project_for_snapshot(snapshot, context_version=6)
+    locked_project = _project_for_snapshot(snapshot, context_version=7)
+
+    with (
+        patch(
+            "app.workflows.runs.lock_project",
+            new=AsyncMock(return_value=locked_project),
+        ),
+        patch(
+            "app.workflows.runs._find_idempotent_run",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        with pytest.raises(WorkflowRunCapabilityConflict, match="context changed"):
+            run_async(
+                start_workflow_run(
+                    AsyncMock(),
+                    project=project,
+                    user_id=project.owner_user_id,
+                    workflow_type="create_project_plan",
+                    request=_request(),
+                    snapshot=snapshot,
+                )
+            )
+
+
+def test_new_workflow_run_persists_exact_frozen_context_version() -> None:
+    snapshot = _snapshot().model_copy(update={"context_version": 6})
+    project = _project_for_snapshot(snapshot, context_version=6)
+    session = _RunSession()
+
+    with (
+        patch(
+            "app.workflows.runs.lock_project",
+            new=AsyncMock(return_value=project),
+        ),
+        patch(
+            "app.workflows.runs._find_idempotent_run",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.workflows.runs.publish_project_event",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        run, created = run_async(
+            start_workflow_run(
+                session,
+                project=project,
+                user_id=project.owner_user_id,
+                workflow_type="create_project_plan",
+                request=_request(),
+                snapshot=snapshot,
+            )
+        )
+
+    assert created is True
+    assert run.frozen_project_context_version == 6
+    assert run.run_brief["snapshot"]["context_version"] == 6
+    assert run.run_brief["generation_context"]["context_version"] == 6
+
+
+def test_idempotent_replay_keeps_its_frozen_version_after_context_advances() -> None:
+    snapshot = _snapshot().model_copy(update={"context_version": 6})
+    project = _project_for_snapshot(snapshot, context_version=6)
+    locked_project = _project_for_snapshot(snapshot, context_version=7)
+    request = _request()
+    existing = SimpleNamespace(
+        canonical_request_hash=canonical_request_hash(
+            "create_project_plan", request
+        ),
+        frozen_project_context_version=6,
+    )
+
+    with (
+        patch(
+            "app.workflows.runs.lock_project",
+            new=AsyncMock(return_value=locked_project),
+        ),
+        patch(
+            "app.workflows.runs._find_idempotent_run",
+            new=AsyncMock(return_value=existing),
+        ),
+    ):
+        replay, created = run_async(
+            start_workflow_run(
+                AsyncMock(),
+                project=project,
+                user_id=project.owner_user_id,
+                workflow_type="create_project_plan",
+                request=request,
+                snapshot=snapshot,
+            )
+        )
+
+    assert replay is existing
+    assert created is False
+    assert replay.frozen_project_context_version == 6
+
+
+def _project_for_snapshot(
+    snapshot: ProjectSnapshot, *, context_version: int
+) -> Project:
+    return Project(
+        id=snapshot.identity.project_id,
+        owner_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        slug="test",
+        title="Test",
+        workspace_path="04-projects/test",
+        phase="procurement",
+        status="active",
+        archetype=None,
+        project_context_version=context_version,
+        project_metadata={},
+    )
+
+
+class _RunSession:
+    def __init__(self) -> None:
+        self.added = []
+
+    def begin_nested(self):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return None
+
+    def add(self, row) -> None:
+        self.added.append(row)
+
+    async def flush(self) -> None:
+        pass
+
+
 def test_successful_retry_clears_stale_workflow_error_fields() -> None:
     run = SimpleNamespace(
         id=uuid.uuid4(),
@@ -229,6 +370,7 @@ def test_dispatches_contractor_eoi_to_durable_draft(monkeypatch) -> None:
         workflow_type="contractor_eoi",
         requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
         requested_by_thread_id=None,
+        frozen_project_context_version=1,
         frozen_artefact_version=None,
         run_brief={
             "snapshot": _snapshot().model_dump(mode="json"),
@@ -287,6 +429,7 @@ def test_dispatches_trade_procurement_to_durable_draft(monkeypatch) -> None:
         workflow_type="trade_procurement",
         requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
         requested_by_thread_id=None,
+        frozen_project_context_version=1,
         frozen_artefact_version=None,
         run_brief={
             "snapshot": _snapshot().model_dump(mode="json"),
@@ -327,6 +470,10 @@ def test_dispatches_trade_procurement_to_durable_draft(monkeypatch) -> None:
     assert payload["kind"] == "rfq"
     assert payload["procurement_request_id"] == "00000000-0000-0000-0000-000000000020"
     assert draft_trade.await_args.kwargs["auto_commit"] is False
+    assert (
+        draft_trade.await_args.kwargs["generation_context"].project_id
+        == _snapshot().identity.project_id
+    )
 
 
 def test_dispatches_document_ingest_to_the_worker(monkeypatch) -> None:
@@ -336,6 +483,7 @@ def test_dispatches_document_ingest_to_the_worker(monkeypatch) -> None:
         workflow_type="ingest_project_document",
         requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
         requested_by_thread_id=None,
+        frozen_project_context_version=1,
         frozen_artefact_version=None,
         run_brief={
             "snapshot": _snapshot().model_dump(mode="json"),
@@ -440,6 +588,7 @@ def _plan_run(workflow_type: str) -> SimpleNamespace:
         workflow_type=workflow_type,
         requested_by_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
         requested_by_thread_id=None,
+        frozen_project_context_version=1,
         frozen_artefact_version=None,
         run_brief={
             "snapshot": _snapshot().model_dump(mode="json"),
@@ -486,6 +635,14 @@ def test_dispatch_works_without_a_preview_publisher(monkeypatch) -> None:
     assert create_pmp.await_args.kwargs["on_preview"] is None
 
 
+def test_dispatch_rejects_corrupt_frozen_context_versions() -> None:
+    run = _plan_run("create_project_plan")
+    run.frozen_project_context_version = 2
+
+    with pytest.raises(ValueError, match="frozen project context mismatch"):
+        run_async(workflow_worker._dispatch(AsyncMock(), run))
+
+
 class _FakeSessionFactory:
     """Hands out the same session for every `async with session_factory()`."""
 
@@ -512,7 +669,7 @@ def test_preview_publisher_writes_the_preview_onto_the_run() -> None:
     run_async(publish({"stage": "scaffold", "markdown": "# Draft"}))
 
     assert run.progress["preview"] == {"stage": "scaffold", "markdown": "# Draft"}
-    assert run.progress["stage"] == "executing"
+    assert run.progress["stage"] == "scaffold"
 
 
 def test_run_once_gives_the_workflow_a_publisher_bound_to_this_run(monkeypatch) -> None:
@@ -569,9 +726,7 @@ def test_dispatch_process_invoices_uses_the_frozen_cost_plan_version(
 ) -> None:
     run = _plan_run("process_invoices")
     run.frozen_artefact_version = 8
-    process = AsyncMock(
-        return_value=SimpleNamespace(status="complete", draft_id=None)
-    )
+    process = AsyncMock(return_value=SimpleNamespace(status="complete", draft_id=None))
     monkeypatch.setattr(workflow_worker, "process_invoices", process)
     monkeypatch.setattr(
         workflow_worker,
@@ -642,7 +797,9 @@ def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> N
     monkeypatch.setattr(workflow_worker, "refresh_cost_plan", refresh)
     monkeypatch.setattr(workflow_worker, "read_typed_cost_plan", read_cost_plan)
     monkeypatch.setattr(workflow_worker, "load_cost_evidence_documents", load_documents)
-    monkeypatch.setattr(workflow_worker, "build_cost_evidence_reconciliation", reconcile)
+    monkeypatch.setattr(
+        workflow_worker, "build_cost_evidence_reconciliation", reconcile
+    )
     monkeypatch.setattr(
         workflow_worker,
         "sync_cost_plan_revision_artifacts",
@@ -661,10 +818,14 @@ def test_refresh_cost_plan_synchronizes_the_published_workbook(monkeypatch) -> N
         typed_state=state,
     )
     assert payload["draft"]["id"] == str(refreshed_draft.id)
-    assert payload["draft"]["provenance_metadata"] == refreshed_draft.provenance_metadata
+    assert (
+        payload["draft"]["provenance_metadata"] == refreshed_draft.provenance_metadata
+    )
 
 
-def test_refresh_cost_plan_rejects_an_empty_evidence_reconciliation(monkeypatch) -> None:
+def test_refresh_cost_plan_rejects_an_empty_evidence_reconciliation(
+    monkeypatch,
+) -> None:
     run = _plan_run("refresh_cost_plan")
     run.frozen_artefact_version = 2
     monkeypatch.setattr(

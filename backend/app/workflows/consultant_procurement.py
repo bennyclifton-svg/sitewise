@@ -4,6 +4,7 @@ import asyncio
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,13 @@ from app.database.draft_artifacts import (
 from app.database.project import Project
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
+from app.projects.artefact_context import (
+    ProcurementArtefactContext,
+    RfpContext,
+    build_rfp_context,
+)
+from app.projects.generation_context import ProjectGenerationContext
+from app.projects.generation_brief import ArtefactGenerationBrief
 from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 from app.retrieval.retriever import DocumentRetriever
@@ -44,9 +52,11 @@ from app.workflows.create_cost_plan import (
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.procurement_request import (
     EvidenceQuery,
+    ProgressPublisher,
     ProcurementDocument,
     ProcurementTarget,
     draft_procurement_request,
+    publish_procurement_progress,
 )
 from app.workflows.procurement_register import load_procurement_document_register
 from app.workflows.rfp_narrative import RfpNarrativeOutput, run_rfp_narrative_model
@@ -706,26 +716,47 @@ async def run_validated_rfp_narrative(
     *,
     project: Project,
     target: DisciplineProfile,
+    rfp_context: RfpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
+    run_date: date | None = None,
     project_evidence: list[dict[str, Any]],
     platform_knowledge: list[dict[str, Any]],
     citation_index: CitationIndex,
+    on_progress: ProgressPublisher | None = None,
 ) -> RfpNarrativeOutput:
     """Run and validate the bounded RFP narrative, retrying invalid output twice."""
     validation_feedback: str | None = None
+    consistency_ai_call_count = 0
+    resolved_run_date = run_date or date.today()
     for attempt in range(RFP_NARRATIVE_MAX_ATTEMPTS):
-        output = await run_rfp_narrative_model(
-            project=project,
-            target=target,
-            project_evidence=project_evidence,
-            platform_knowledge=platform_knowledge,
-            citation_index=citation_index,
-            validation_feedback=validation_feedback,
-        )
         try:
+            output = await run_rfp_narrative_model(
+                project=project,
+                target=target,
+                rfp_context=rfp_context,
+                generation_brief=generation_brief,
+                project_evidence=project_evidence,
+                platform_knowledge=platform_knowledge,
+                citation_index=citation_index,
+                validation_feedback=validation_feedback,
+                on_progress=on_progress,
+                run_date=resolved_run_date,
+            )
+            consistency_ai_call_count += output.consistency_ai_call_count
+            await publish_procurement_progress(
+                on_progress,
+                {"stage": "validation_started"},
+            )
             validate_rfp_output(output, citation_index=citation_index)
-            return output
+            return output.model_copy(
+                update={"consistency_ai_call_count": consistency_ai_call_count}
+            )
         except WorkflowValidationError as exc:
+            consistency_ai_call_count += int(
+                getattr(exc, "consistency_ai_call_count", 0) or 0
+            )
             if attempt == RFP_NARRATIVE_MAX_ATTEMPTS - 1:
+                exc.consistency_ai_call_count = consistency_ai_call_count
                 raise
             validation_feedback = str(exc)
 
@@ -733,6 +764,7 @@ async def run_validated_rfp_narrative(
 
 
 class ConsultantDocument(ProcurementDocument):
+    seed_artefact_type = "rfp"
     document_key = WORKFLOW_TYPE_PREFIX
     workspace_subfolder = "02-consultant"
     filename_stem = "consultant_procurement"
@@ -754,6 +786,13 @@ class ConsultantDocument(ProcurementDocument):
 
     def title(self, target: ProcurementTarget) -> str:
         return f"Request for Proposal - {target.name}"
+
+    def build_context(
+        self,
+        project_context: ProjectGenerationContext,
+        target: ProcurementTarget,
+    ) -> RfpContext:
+        return build_rfp_context(project_context, target.name)
 
     def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         return _evidence_queries(target)
@@ -856,7 +895,13 @@ class ConsultantDocument(ProcurementDocument):
         missing_inputs: list[str],
         max_pages: int,
         instructions: str | None,
+        artefact_context: ProcurementArtefactContext | None,
+        generation_brief: ArtefactGenerationBrief | None,
+        on_progress: ProgressPublisher | None,
     ) -> str:
+        rfp_context = (
+            artefact_context if isinstance(artefact_context, RfpContext) else None
+        )
         rfp_evidence = _reviewable_evidence(project_evidence, target)
         citation_index = build_rfp_citation_index(rfp_evidence)
         scaffold = render_rfp_scaffold(
@@ -871,12 +916,19 @@ class ConsultantDocument(ProcurementDocument):
             project_evidence=rfp_evidence,
             issued_documents=issued_documents,
         )
+        await publish_procurement_progress(
+            on_progress,
+            {"stage": "scaffold_ready", "markdown": scaffold},
+        )
         narrative = await run_validated_rfp_narrative(
             project=project,
             target=target,
+            rfp_context=rfp_context,
+            generation_brief=generation_brief,
             project_evidence=rfp_evidence,
             platform_knowledge=platform_knowledge,
             citation_index=citation_index,
+            on_progress=on_progress,
         )
         requested_services = narrative.requested_services or list(
             target.requested_services
@@ -916,7 +968,9 @@ async def draft_consultant_procurement_artifact(
     discipline: str,
     max_pages: int = 3,
     instructions: str | None = None,
+    generation_context: ProjectGenerationContext | None = None,
     auto_commit: bool = True,
+    on_progress: ProgressPublisher | None = None,
 ) -> ConsultantProcurementResult:
     result = await draft_procurement_request(
         session,
@@ -926,11 +980,13 @@ async def draft_consultant_procurement_artifact(
         raw_target=discipline,
         max_pages=max_pages,
         instructions=instructions,
+        generation_context=generation_context,
         auto_commit=auto_commit,
         retriever_factory=DocumentRetriever,
         next_version=next_draft_version,
         create_draft=create_draft_artifact,
         sync_workspace=_sync_for_engine,
+        on_progress=on_progress,
     )
     return ConsultantProcurementResult(
         draft=result.draft,

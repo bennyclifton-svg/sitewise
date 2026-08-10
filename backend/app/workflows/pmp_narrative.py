@@ -13,6 +13,11 @@ from app.assistant.pmp_models import resolve_pmp_model
 from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
 from app.database.project import Project
+from app.projects.artefact_context import PmpContext, format_artefact_context
+from app.projects.generation_brief import (
+    ArtefactGenerationBrief,
+    format_generation_brief,
+)
 from app.sitewise.mobilisation_evidence import (
     GAP_CONSTRUCTION_BUDGET,
     GAP_MASTER_PROGRAMME,
@@ -22,6 +27,18 @@ from app.sitewise.mobilisation_evidence import (
 )
 from app.sitewise.pmp_evidence_validation import evidence_refs_include_engagement_letter
 from app.workflows.create_pmp import WorkflowValidationError
+from app.workflows.generation_consistency import (
+    ConsistencyResolver,
+    ConsistencySection,
+    format_consistency_failures,
+    run_generation_consistency_gate,
+)
+from app.workflows.generation_consistency_agent import resolve_consistency_candidates
+from app.workflows.section_generation import (
+    SectionGenerationJob,
+    SectionProgressPublisher,
+    run_section_generation,
+)
 
 _INSTRUCTIONS_PATH = Path(__file__).with_name("pmp_narrative_instructions.md")
 _ISO_DATE_PATTERN = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
@@ -459,16 +476,52 @@ class PmpNarrativeOutput(BaseModel):
     register_rows: list[RegisterRow] = Field(min_length=1)
     risk_rows: list[RiskRow] = Field(default_factory=list)
     workflow_warnings: list[str] = Field(default_factory=list)
+    consistency_ai_call_count: int = Field(default=0, ge=0, exclude=True)
+
+
+class PmpAssessmentOutput(BaseModel):
+    judgements: list[str] = Field(min_length=2)
+    workflow_warnings: list[str] = Field(default_factory=list)
+
+
+class PmpActionsOutput(BaseModel):
+    recommendations: list[str] = Field(min_length=3)
+    register_rows: list[RegisterRow] = Field(min_length=1)
+
+
+class PmpRisksOutput(BaseModel):
+    risk_rows: list[RiskRow] = Field(default_factory=list)
 
 
 def _load_agent_instructions() -> str:
     return _INSTRUCTIONS_PATH.read_text(encoding="utf-8")
 
 
-pmp_narrative_agent = Agent(
+_assessment_agent = Agent(
     f"openai-responses:{settings.pmp_model}",
-    output_type=PmpNarrativeOutput,
-    instructions=_load_agent_instructions(),
+    output_type=PmpAssessmentOutput,
+    instructions=(
+        _load_agent_instructions()
+        + "\nReturn only evidence-specific judgements and workflow warnings."
+    ),
+    defer_model_check=True,
+)
+_actions_agent = Agent(
+    f"openai-responses:{settings.pmp_model}",
+    output_type=PmpActionsOutput,
+    instructions=(
+        _load_agent_instructions()
+        + "\nReturn only dated recommendations and the action register rows."
+    ),
+    defer_model_check=True,
+)
+_risks_agent = Agent(
+    f"openai-responses:{settings.pmp_model}",
+    output_type=PmpRisksOutput,
+    instructions=(
+        _load_agent_instructions()
+        + "\nReturn only the concise project risk register rows."
+    ),
     defer_model_check=True,
 )
 
@@ -524,6 +577,8 @@ def build_pmp_narrative_prompt(
     *,
     project: Project,
     pack: MobilisationEvidencePack,
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
     run_date: date | None = None,
     validation_feedback: str | None = None,
 ) -> str:
@@ -531,7 +586,13 @@ def build_pmp_narrative_prompt(
     mobilisation_date = (run_date or date.today()).isoformat()
     parts = [
         f"Project: {project.title}",
-        (f"Overlays: archetype={project.archetype}, state={project.state}"),
+        *(
+            [format_generation_brief(generation_brief)]
+            if generation_brief is not None
+            else [format_artefact_context(pmp_context)]
+            if pmp_context is not None
+            else [f"Overlays: archetype={project.archetype}, state={project.state}"]
+        ),
         (
             f"Mobilisation run date: {mobilisation_date} — set register due dates and "
             "recommendation due dates 2–4 weeks forward from this date."
@@ -677,27 +738,134 @@ async def run_pmp_narrative_model(
     *,
     project: Project,
     pack: MobilisationEvidencePack,
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
     run_date: date | None = None,
     validation_feedback: str | None = None,
     chat_model: str | None = None,
+    on_progress: SectionProgressPublisher | None = None,
+    consistency_resolver: ConsistencyResolver | None = None,
 ) -> PmpNarrativeOutput:
-    """Run the bounded narrative agent and validate structured output."""
+    """Generate independent PMP narrative slices with bounded concurrency."""
     prompt = build_pmp_narrative_prompt(
         project=project,
         pack=pack,
+        pmp_context=pmp_context,
+        generation_brief=generation_brief,
         run_date=run_date,
         validation_feedback=validation_feedback,
     )
     resolved_model = (
         chat_model.strip() if chat_model else resolve_pmp_model().execution_id
     )
-    result = await run_agent_with_retry(
-        pmp_narrative_agent, prompt, model=resolved_model
+
+    async def run_section(agent: Agent, instruction: str):
+        return await run_agent_with_retry(
+            agent,
+            f"{prompt}\n\nSECTION JOB:\n{instruction}",
+            model=resolved_model,
+        )
+
+    results = await run_section_generation(
+        (
+            SectionGenerationJob(
+                key="assessment",
+                label="Judgements and warnings",
+                run=lambda: run_section(
+                    _assessment_agent,
+                    "Produce the evidence-specific assessment only.",
+                ),
+            ),
+            SectionGenerationJob(
+                key="actions",
+                label="Recommendations and action register",
+                run=lambda: run_section(
+                    _actions_agent,
+                    "Produce dated recommendations and action register rows only.",
+                ),
+            ),
+            SectionGenerationJob(
+                key="risks",
+                label="Risk register",
+                run=lambda: run_section(
+                    _risks_agent,
+                    "Produce the risk register rows only.",
+                ),
+            ),
+        ),
+        max_concurrency=3,
+        on_progress=on_progress,
+    )
+    assessment = results["assessment"].output
+    actions = results["actions"].output
+    risks = results["risks"].output
+    combined = PmpNarrativeOutput(
+        judgements=assessment.judgements,
+        workflow_warnings=assessment.workflow_warnings,
+        recommendations=actions.recommendations,
+        register_rows=actions.register_rows,
+        risk_rows=risks.risk_rows,
     )
     output = complete_pack_driven_narrative_requirements(
-        result.output,
+        combined,
         pack,
         run_date=run_date,
     )
+    if generation_brief is not None:
+        report = await run_generation_consistency_gate(
+            generation_brief,
+            (
+                ConsistencySection(
+                    key="assessment",
+                    text=_consistency_lines(
+                        *output.judgements,
+                        *output.workflow_warnings,
+                    ),
+                ),
+                ConsistencySection(
+                    key="actions",
+                    text=_consistency_lines(
+                        *output.recommendations,
+                        *(
+                            value
+                            for row in output.register_rows
+                            for value in row.model_dump(mode="json").values()
+                        ),
+                    ),
+                    scope_items=tuple(output.recommendations),
+                ),
+                ConsistencySection(
+                    key="risks",
+                    text=_consistency_lines(
+                        *(
+                            value
+                            for row in output.risk_rows
+                            for value in row.model_dump(mode="json").values()
+                        ),
+                    ),
+                    risk_items=tuple(row.risk for row in output.risk_rows),
+                ),
+            ),
+            run_date=run_date,
+            resolver=consistency_resolver or resolve_consistency_candidates,
+        )
+        if not report.is_consistent:
+            raise WorkflowValidationError(
+                "PMP narrative consistency failed: "
+                + format_consistency_failures(report),
+                consistency_ai_call_count=report.ai_call_count,
+            )
+        output = output.model_copy(
+            update={"consistency_ai_call_count": report.ai_call_count}
+        )
     validate_pmp_narrative_output(output, pack, run_date=run_date)
     return output
+
+
+def _consistency_lines(*values: object) -> tuple[str, ...]:
+    return tuple(
+        line.strip()
+        for value in values
+        for line in str(value).splitlines()
+        if line.strip()
+    )

@@ -19,12 +19,23 @@ from app.database.chats import create_message
 from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
+from app.projects.artefact_context import (
+    CostPlanContext,
+    build_cost_plan_context,
+    format_artefact_context,
+    known_context_values,
+)
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.projects.generation_context import (
     ProjectGenerationContext,
-    format_generation_context,
     resolve_project_generation_context,
 )
+from app.projects.generation_brief import (
+    ArtefactGenerationBrief,
+    build_generation_brief,
+    format_generation_brief,
+)
+from app.projects.generation_audit import build_generation_manifest
 from app.projects.workflow_capabilities import (
     CREATE_COST_PLAN,
     capability_block_message,
@@ -42,6 +53,14 @@ from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.storage.project_files import upload_project_file
 from app.retrieval.retriever import DocumentRetriever
+from app.retrieval.generation import (
+    GenerationEvidenceInput,
+    GenerationRetrievalRequest,
+    RetrievalBudget,
+    RetrievalLevel,
+    retrieve_generation_evidence,
+    select_retrieval_level,
+)
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
 from app.schemas.projects import (
@@ -75,12 +94,17 @@ from app.sitewise.cost_plan_sources import (
     seed_consulted_includes_required,
 )
 from app.sitewise.gate import format_overlay_failure, overlay_status
+from app.sitewise.seed_routing import (
+    select_seed_knowledge,
+    select_seed_knowledge_for_project,
+)
 from app.workflows.create_pmp import (
     PreviewPublisher,
     WorkflowValidationError,
     _is_platform_passage,
     _is_project_passage,
     _publish_preview,
+    _publish_progress,
     _source_ref,
     normalize_pmp_markdown,
 )
@@ -97,8 +121,21 @@ CREATE_COST_PLAN_PROJECT_QUERY = (
 CREATE_COST_PLAN_PLATFORM_CONTENT_CHARS = 10_000
 CREATE_COST_PLAN_EVIDENCE_DOC_CHARS = 5_000
 CREATE_COST_PLAN_MAX_EVIDENCE_DOCS = 12
-CREATE_COST_PLAN_MIN_MARKER_PATHS_SKIP_SEMANTIC = 999
+CREATE_COST_PLAN_MIN_MARKER_PATHS_SKIP_SEMANTIC = 2
 CREATE_COST_PLAN_SEMANTIC_LIMIT = 8
+CREATE_COST_PLAN_RETRIEVAL_BUDGET = RetrievalBudget(
+    max_searches=1,
+    max_chunks=32,
+    max_documents=28,
+    max_tokens=36_000,
+    max_chars=144_000,
+    max_concurrency=1,
+)
+CREATE_COST_PLAN_GENERATION_CONSTRAINTS = (
+    "All arithmetic and totals are deterministic.",
+    "Use deterministic typed cost rows and calculations.",
+    "Narrative may interpret evidence but must not overwrite canonical typed cost items.",
+)
 
 _PLATFORM_CORPUS_INGEST_HINT = (
     "Ingest from backend/: "
@@ -429,11 +466,14 @@ async def retrieve_create_cost_plan_sources(
     session: AsyncSession,
     *,
     project: Project,
+    generation_context: ProjectGenerationContext | None = None,
 ) -> tuple[list[SourcePassage], int, int, DraftMode, list[str]]:
-    mandatory_paths = required_platform_paths(
-        archetype=project.archetype or "",
-        project=project,
+    seed_selection = (
+        select_seed_knowledge("cost_plan", generation_context)
+        if generation_context is not None
+        else select_seed_knowledge_for_project("cost_plan", project)
     )
+    mandatory_paths = list(seed_selection.required_paths)
     # AsyncSession is not safe for concurrent awaits on the same instance.
     platform_passages, missing_paths = await load_platform_documents_by_paths(
         session,
@@ -442,18 +482,37 @@ async def retrieve_create_cost_plan_sources(
     )
     marker_paths = await list_cost_evidence_paths(session, project_id=project.id)
 
-    semantic_paths: list[str] = []
-    if len(marker_paths) < CREATE_COST_PLAN_MIN_MARKER_PATHS_SKIP_SEMANTIC:
-        retriever = DocumentRetriever(session)
-        project_passages = await retriever.retrieve(
-            CREATE_COST_PLAN_PROJECT_QUERY,
-            filters=RetrievalFilters(
-                active_project_id=project.id,
-                include_platform_knowledge=False,
+    structured_context_sufficient = (
+        generation_context is not None and not generation_context.critical_unknowns()
+    )
+    retrieval_level = select_retrieval_level(
+        structured_context_available=generation_context is not None,
+        current_artefact_available=bool(marker_paths),
+        project_evidence_required=(
+            len(marker_paths) < CREATE_COST_PLAN_MIN_MARKER_PATHS_SKIP_SEMANTIC
+            and not structured_context_sufficient
+        ),
+    )
+    evidence_pool = await retrieve_generation_evidence(
+        DocumentRetriever(session),
+        (
+            GenerationRetrievalRequest(
+                key="cost_plan:project",
+                category="project_evidence",
+                query=CREATE_COST_PLAN_PROJECT_QUERY,
+                filters=RetrievalFilters(
+                    active_project_id=project.id,
+                    include_platform_knowledge=False,
+                ),
+                limit=CREATE_COST_PLAN_SEMANTIC_LIMIT,
             ),
-            limit=CREATE_COST_PLAN_SEMANTIC_LIMIT,
-            include_neighbours=False,
-        )
+        ),
+        level=retrieval_level,
+        budget=CREATE_COST_PLAN_RETRIEVAL_BUDGET,
+    )
+    semantic_paths: list[str] = []
+    if retrieval_level >= RetrievalLevel.TARGETED_PROJECT:
+        project_passages = evidence_pool.passages_for("cost_plan:project")
         semantic_paths = list(
             dict.fromkeys(
                 passage.relative_path
@@ -468,12 +527,28 @@ async def retrieve_create_cost_plan_sources(
         semantic_relative_paths=semantic_paths,
         marker_paths=marker_paths,
     )
-    if cost_passages:
-        passages = cost_passages + platform_passages
-        project_count = len(cost_passages)
-    else:
-        passages = platform_passages
-        project_count = 0
+    bounded_pool = await retrieve_generation_evidence(
+        DocumentRetriever(session),
+        (),
+        preloaded=(
+            GenerationEvidenceInput(
+                key="cost_plan:platform",
+                category="platform_guidance",
+                passages=tuple(platform_passages),
+            ),
+            GenerationEvidenceInput(
+                key="cost_plan:project_documents",
+                category="project_evidence",
+                passages=tuple(cost_passages),
+            ),
+        ),
+        level=RetrievalLevel.STRUCTURED_FACTS,
+        budget=CREATE_COST_PLAN_RETRIEVAL_BUDGET,
+    )
+    platform_passages = bounded_pool.category("platform_guidance")
+    cost_passages = bounded_pool.category("project_evidence")
+    passages = cost_passages + platform_passages
+    project_count = len(cost_passages)
 
     platform_count = sum(1 for passage in passages if _is_platform_passage(passage))
     draft_mode: DraftMode = (
@@ -515,20 +590,33 @@ async def run_create_cost_plan_model(
     validation_feedback: str | None = None,
     chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
-    generation_context: ProjectGenerationContext | None = None,
+    cost_plan_context: CostPlanContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
 ) -> CostPlanDraftOutput:
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
         project=project,
     )
+    lens_taxonomy = (
+        known_context_values(cost_plan_context.taxonomy)
+        if cost_plan_context is not None
+        else {}
+    )
+    context_state = str(lens_taxonomy.get("state") or project.state or "NSW")
 
     prompt_parts = [
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
-        (f"Overlays: archetype={project.archetype}, state={project.state}"),
         *(
-            [format_generation_context(generation_context)]
-            if generation_context is not None
+            []
+            if cost_plan_context is not None
+            else [f"Overlays: archetype={project.archetype}, state={project.state}"]
+        ),
+        *(
+            [format_generation_brief(generation_brief)]
+            if generation_brief is not None
+            else [format_artefact_context(cost_plan_context)]
+            if cost_plan_context is not None
             else []
         ),
         (
@@ -539,7 +627,7 @@ async def run_create_cost_plan_model(
         f"Required document title: {document_title()}",
         _role_drafting_note(
             draft_mode=draft_mode,
-            state=project.state or "NSW",
+            state=context_state,
         ),
         "Required cost plan sections (use these exact ## headings):",
         _format_required_sections(),
@@ -555,7 +643,7 @@ async def run_create_cost_plan_model(
         ),
         build_greenfield_brief(
             archetype=project.archetype or "",
-            state=project.state or "NSW",
+            state=context_state,
             draft_mode=draft_mode,
         ),
     ]
@@ -1103,6 +1191,8 @@ async def run_create_cost_plan_hybrid(
     chat_model: str,
     project_source_texts: list[str],
     trace: list[WorkflowTraceEvent],
+    cost_plan_context: CostPlanContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
     on_preview: PreviewPublisher | None = None,
 ) -> CostPlanDraftOutput:
     """Hybrid compiler path: extract → render → narrate → assemble."""
@@ -1156,20 +1246,31 @@ async def run_create_cost_plan_hybrid(
             "Rendered deterministic cost plan scaffold.",
         )
     )
-    await _publish_preview(on_preview, stage="scaffold", markdown=scaffold)
+    await _publish_preview(on_preview, stage="scaffold_ready", markdown=scaffold)
 
     validation_feedback: str | None = None
+    consistency_ai_call_count = 0
     run_date = date.today()
     for attempt in range(HYBRID_NARRATIVE_MAX_ATTEMPTS):
         try:
             narrative = await run_cost_plan_narrative_model(
                 project=project,
                 pack=pack,
+                cost_plan_context=cost_plan_context,
+                generation_brief=generation_brief,
                 run_date=run_date,
                 validation_feedback=validation_feedback,
                 chat_model=chat_model,
+                on_progress=(
+                    lambda progress: (
+                        _publish_progress(on_preview, progress)
+                        if on_preview is not None
+                        else None
+                    )
+                ),
             )
         except WorkflowValidationError as exc:
+            consistency_ai_call_count += exc.consistency_ai_call_count
             if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
                 validation_feedback = str(exc)
                 trace.append(
@@ -1178,19 +1279,24 @@ async def run_create_cost_plan_hybrid(
                         "retry",
                         f"Cost plan narrative validation failed — retrying: {validation_feedback}",
                         attempt=attempt + 1,
+                        consistency_ai_call_count=consistency_ai_call_count,
                     )
                 )
                 continue
+            exc.consistency_ai_call_count = consistency_ai_call_count
             raise
+        consistency_ai_call_count += narrative.consistency_ai_call_count
         trace.append(
             _trace(
                 "narrative",
                 "complete",
                 "Cost plan narrative model returned structured output.",
                 attempt=attempt + 1,
+                consistency_ai_call_count=consistency_ai_call_count,
             )
         )
 
+        await _publish_progress(on_preview, {"stage": "validation_started"})
         markdown = assemble_cost_plan_markdown(
             scaffold,
             narrative,
@@ -1223,6 +1329,7 @@ async def run_create_cost_plan_hybrid(
             )
             return output
         except WorkflowValidationError as exc:
+            consistency_ai_call_count += exc.consistency_ai_call_count
             if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
                 validation_feedback = str(exc)
                 trace.append(
@@ -1231,9 +1338,11 @@ async def run_create_cost_plan_hybrid(
                         "retry",
                         f"Hybrid cost plan validation failed — retrying narrative: {validation_feedback}",
                         attempt=attempt + 1,
+                        consistency_ai_call_count=consistency_ai_call_count,
                     )
                 )
                 continue
+            exc.consistency_ai_call_count = consistency_ai_call_count
             raise
 
     msg = "Hybrid cost plan compiler exhausted narrative retries"
@@ -1248,13 +1357,28 @@ async def run_create_cost_plan_workflow(
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
     snapshot: ProjectSnapshot | None = None,
+    generation_context: ProjectGenerationContext | None = None,
     on_preview: PreviewPublisher | None = None,
 ) -> CreateCostPlanResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
     context_started = time.perf_counter()
-    generation_context = (
+    canonical_context = generation_context or (
         resolve_project_generation_context(snapshot) if snapshot is not None else None
+    )
+    cost_plan_context = (
+        build_cost_plan_context(canonical_context)
+        if canonical_context is not None
+        else None
+    )
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "context_ready",
+            "context_version": canonical_context.context_version
+            if canonical_context is not None
+            else None,
+        },
     )
     context_duration_ms = int((time.perf_counter() - context_started) * 1000)
     resolved_model = resolve_chat_model(chat_model)
@@ -1272,11 +1396,12 @@ async def run_create_cost_plan_workflow(
             _trace(
                 "context_ready",
                 "complete",
-                "Resolved canonical project generation context.",
+                "Built the Cost Plan context lens from canonical project context.",
                 context_version=snapshot.context_version,
-                critical_unknown_count=len(generation_context.critical_unknowns())
-                if generation_context is not None
+                critical_unknown_count=len(cost_plan_context.critical_unknowns)
+                if cost_plan_context is not None
                 else 0,
+                artefact_type="cost_plan",
                 duration_ms=context_duration_ms,
             )
         )
@@ -1333,7 +1458,11 @@ async def run_create_cost_plan_workflow(
             platform_count,
             draft_mode,
             missing_paths,
-        ) = await retrieve_create_cost_plan_sources(session, project=project)
+        ) = await retrieve_create_cost_plan_sources(
+            session,
+            project=project,
+            generation_context=canonical_context,
+        )
     except ValueError as exc:
         message = str(exc)
         trace.append(
@@ -1409,6 +1538,14 @@ async def run_create_cost_plan_workflow(
             duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
         )
     )
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "retrieval_complete",
+            "project_passages": project_count,
+            "platform_passages": platform_count,
+        },
+    )
 
     if project_count == 0 and platform_count == 0:
         message = (
@@ -1431,6 +1568,16 @@ async def run_create_cost_plan_workflow(
         )
 
     project_source_texts = _project_source_texts(passages, project_id=project.id)
+    generation_brief = (
+        build_generation_brief(
+            cost_plan_context,
+            evidence_refs=_evidence_refs_from_passages(passages, project.id),
+            seed_refs=_context_refs_from_passages(passages),
+            constraints=CREATE_COST_PLAN_GENERATION_CONSTRAINTS,
+        )
+        if cost_plan_context is not None
+        else None
+    )
     use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
     runtime_name = RUNTIME_HYBRID_NAME if use_hybrid else RUNTIME_NAME
     locked_decisions = await locked_selections(session, project_id=project.id)
@@ -1444,6 +1591,8 @@ async def run_create_cost_plan_workflow(
                 chat_model=resolved_model,
                 project_source_texts=project_source_texts,
                 trace=trace,
+                cost_plan_context=cost_plan_context,
+                generation_brief=generation_brief,
                 on_preview=on_preview,
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
@@ -1459,7 +1608,8 @@ async def run_create_cost_plan_workflow(
                     validation_feedback=validation_feedback,
                     chat_model=resolved_model,
                     locked_decisions=locked_decisions,
-                    generation_context=generation_context,
+                    cost_plan_context=cost_plan_context,
+                    generation_brief=generation_brief,
                 )
                 output.markdown = normalize_pmp_markdown(output.markdown)
                 output.markdown = restamp_decisions(output.markdown, locked_decisions)
@@ -1549,6 +1699,16 @@ async def run_create_cost_plan_workflow(
         "seed_consulted": output.seed_consulted,
         "evidence_refs": output.evidence_refs,
         "context_refs": output.context_refs,
+        "generation_brief": (
+            generation_brief.model_dump(mode="json")
+            if generation_brief is not None
+            else None
+        ),
+        "generation_manifest": (
+            build_generation_manifest(generation_brief).model_dump(mode="json")
+            if generation_brief is not None
+            else None
+        ),
         "trace": [event.model_dump() for event in trace],
         "retrieval": {
             "project_passages": project_count,
@@ -1578,6 +1738,7 @@ async def run_create_cost_plan_workflow(
     }
 
     persistence_started = time.perf_counter()
+    await _publish_progress(on_preview, {"stage": "saving"})
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     draft = await create_draft_artifact(
         session,
@@ -1668,6 +1829,7 @@ async def run_create_cost_plan_workflow(
         status="complete",
         draft_id=draft.id,
     )
+    await _publish_progress(on_preview, {"stage": "artefact_ready"})
     return CreateCostPlanResponse(
         status="complete",
         gate=gate,

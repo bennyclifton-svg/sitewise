@@ -43,6 +43,7 @@ async def revise_workflow_artefact(
     author_user_id: uuid.UUID,
     content_markdown: str,
     actor_source: str,
+    changes_context: bool = True,
 ) -> DraftArtifact:
     if draft.project_id != project.id:
         raise ArtefactPolicyViolation("artefact does not belong to project")
@@ -75,6 +76,7 @@ async def revise_workflow_artefact(
             project_id=project.id,
             markdown=content_markdown,
             workflow_type=revision.workflow_type,
+            changes_context=changes_context,
         )
     elif is_cost_plan_workflow(revision.workflow_type):
         await sync_cost_plan_revision_artifacts(
@@ -85,6 +87,7 @@ async def revise_workflow_artefact(
             project_id=project.id,
             markdown=content_markdown,
             workflow_type=revision.workflow_type,
+            changes_context=changes_context,
         )
     elif is_consultant_procurement_workflow(revision.workflow_type):
         await sync_consultant_procurement_draft_workspace(

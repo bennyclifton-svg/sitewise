@@ -47,6 +47,9 @@ class WorkflowRun(Base):
         Integer, nullable=False, default=1, server_default="1"
     )
     canonical_request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    frozen_project_context_version: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
     frozen_profile_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     frozen_snapshot_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     frozen_evidence_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -97,6 +100,10 @@ class WorkflowRun(Base):
         CheckConstraint(
             "state IN ('queued','running','needs_input','complete','failed','cancelled')",
             name="ck_workflow_runs_state",
+        ),
+        CheckConstraint(
+            "frozen_project_context_version >= 1",
+            name="ck_workflow_runs_frozen_project_context_version",
         ),
         CheckConstraint("attempt >= 0 AND max_attempts > 0", name="ck_workflow_runs_attempts"),
         Index("ix_workflow_runs_claim", "state", "run_after", "lease_expires_at"),

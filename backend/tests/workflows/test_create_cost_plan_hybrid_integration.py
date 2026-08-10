@@ -11,6 +11,12 @@ import pytest
 
 from app.config import Settings
 from app.cost_plan.import_legacy import parse_legacy_draft
+from app.projects.generation_brief import build_generation_brief
+from app.projects.generation_context import (
+    ContextField,
+    FieldState,
+    ProjectGenerationContext,
+)
 from app.sitewise.cost_plan_evidence_validation import (
     cost_plan_evidence_grounded_violations,
 )
@@ -29,7 +35,10 @@ from app.workflows.create_cost_plan import (
 )
 from tests.conftest import run_async
 from tests.sitewise.test_cost_plan_evidence import FIXTURE_DIR
-from tests.sitewise.test_cost_plan_renderer import _warehouse_cost_pack, _warehouse_project
+from tests.sitewise.test_cost_plan_renderer import (
+    _warehouse_cost_pack,
+    _warehouse_project,
+)
 from tests.workflows.hybrid_cost_plan_fixtures import (
     USER_ID,
     harrison_clarke_cost_narrative,
@@ -57,6 +66,38 @@ CONTRACT_PRICE_SCHEDULE_FIXTURE = (
 
 def _typed_import(draft):
     return replace(parse_legacy_draft(draft), typed_version_id=draft.id)
+
+
+def _generation_context(project_id) -> ProjectGenerationContext:
+    def known(key: str, value: object) -> ContextField:
+        return ContextField(
+            key=key,
+            label=key.replace("_", " ").title(),
+            value=value,
+            state=FieldState.KNOWN,
+            source="project",
+        )
+
+    return ProjectGenerationContext(
+        project_id=project_id,
+        context_version=7,
+        identity={"title": known("title", "Chen Residence")},
+        taxonomy={
+            "building_class": known("building_class", "residential"),
+            "work_type": known("work_type", "new"),
+            "subclasses": known("subclasses", ["house"]),
+            "state": known("state", "NSW"),
+            "user_role": known("user_role", "architect-pm"),
+        },
+        scale={},
+        complexity={},
+        scope={},
+        commercial={},
+        programme={},
+        approvals={},
+        stakeholders={},
+        derived_risks=[],
+    )
 
 
 def _harrison_clarke_source_texts() -> list[str]:
@@ -110,9 +151,7 @@ def assert_hybrid_cost_plan_acceptance_criteria(
         "03-owner-project-brief-chen-residence.md#chunk=0",
     ]
 
-    assert _section_headings(markdown) == list(
-        required_section_headings()
-    )
+    assert _section_headings(markdown) == list(required_section_headings())
     assert (
         cost_plan_evidence_grounded_violations(
             markdown,
@@ -149,6 +188,7 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
     ]
     platform_passages = platform_passages_for_cost_plan(project)
     draft = mock_cost_plan_draft()
+    narrative = AsyncMock(return_value=harrison_clarke_cost_narrative())
     workbook_metadata = {
         "file_name": "Cost_Plan_v01.draft.xlsx",
         "workspace_path": "04-projects/test-project-112/01-cost/Cost_Plan_v01.draft.xlsx",
@@ -184,8 +224,12 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
         ),
         patch(
             "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
-            new=AsyncMock(return_value=harrison_clarke_cost_narrative()),
+            new=narrative,
         ),
+        patch(
+            "app.workflows.create_cost_plan.build_generation_brief",
+            wraps=build_generation_brief,
+        ) as build_brief,
         patch(
             "app.workflows.create_cost_plan._next_version_hint",
             new=AsyncMock(return_value=1),
@@ -213,10 +257,11 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
                 user_id=USER_ID,
                 project=project,
                 thread_id=None,
+                generation_context=_generation_context(project.id),
             )
         )
 
-    assert result.status == "complete"
+    assert result.status == "complete", result.message
     markdown = create_draft.await_args.kwargs["content_markdown"]
     assert_hybrid_cost_plan_acceptance_criteria(markdown, project_slug=project.slug)
 
@@ -238,11 +283,22 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
             ],
         ),
         "evidence_grounded",
-        archetype="new-dwelling",        source_texts=_harrison_clarke_source_texts(),
+        archetype="new-dwelling",
+        source_texts=_harrison_clarke_source_texts(),
     )
 
     provenance = create_draft.await_args.kwargs["provenance_metadata"]
     assert provenance["compiler"] == "hybrid"
+    generated_brief = narrative.await_args.kwargs["generation_brief"]
+    assert build_brief.call_count == 1
+    assert provenance["generation_brief"] == generated_brief.model_dump(mode="json")
+    assert (
+        provenance["generation_manifest"]["input_fingerprint"]
+        == generated_brief.input_fingerprint
+    )
+    assert provenance["generation_manifest"][
+        "generation_brief"
+    ] == generated_brief.model_dump(mode="json")
     assert create_draft.await_args.kwargs["runtime"] == RUNTIME_HYBRID_NAME
     steps = {event.step for event in result.trace}
     assert {"extract", "scaffold", "narrative", "assemble", "validation"}.issubset(
@@ -250,7 +306,9 @@ def test_hybrid_harrison_clarke_cost_plan_integration() -> None:
     )
 
 
-def test_hybrid_create_cost_plan_maps_received_main_works_proposal_to_typed_rows() -> None:
+def test_hybrid_create_cost_plan_maps_received_main_works_proposal_to_typed_rows() -> (
+    None
+):
     """A structured fixed-price proposal must price a newly created Cost Plan."""
     project = harrison_clarke_cost_project()
     passages = [
@@ -496,7 +554,8 @@ def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
         side_effect=[
             WorkflowValidationError(
                 "Cost plan narrative validation failed: "
-                "next_steps item 3 must include an ISO due date (YYYY-MM-DD)"
+                "next_steps item 3 must include an ISO due date (YYYY-MM-DD)",
+                consistency_ai_call_count=1,
             ),
             narrative,
         ]
@@ -566,9 +625,14 @@ def test_hybrid_cost_plan_retries_on_narrative_validation_failure() -> None:
     ]
     assert len(retry_events) == 1
     assert "next_steps item 3" in retry_events[0].message
+    assert retry_events[0].metadata["consistency_ai_call_count"] == 1
+    narrative_event = next(event for event in result.trace if event.step == "narrative")
+    assert narrative_event.metadata["consistency_ai_call_count"] == 1
 
 
-def test_hybrid_industrial_warehouse_cost_plan_smoke_excludes_residential_content() -> None:
+def test_hybrid_industrial_warehouse_cost_plan_smoke_excludes_residential_content() -> (
+    None
+):
     """Segment 4 smoke: an NSW industrial warehouse hybrid run must never leak
     residential-only kitchen/BASIX taxonomy into the assembled Cost Plan.
 
@@ -721,7 +785,10 @@ def test_hybrid_cost_plan_publishes_the_scaffold_before_the_narrative_model() ->
             "app.workflows.create_cost_plan.load_platform_documents_by_paths",
             new=AsyncMock(return_value=(platform_passages, [])),
         ),
-        patch("app.workflows.cost_plan_narrative.run_cost_plan_narrative_model", new=narrative),
+        patch(
+            "app.workflows.cost_plan_narrative.run_cost_plan_narrative_model",
+            new=narrative,
+        ),
         patch(
             "app.workflows.create_cost_plan._next_version_hint",
             new=AsyncMock(return_value=1),
@@ -768,6 +835,7 @@ def test_hybrid_cost_plan_publishes_the_scaffold_before_the_narrative_model() ->
         )
 
     assert result.status == "complete"
-    assert previews_at_narrative_time == [1]
-    assert published[0]["stage"] == "scaffold"
-    assert published[0]["markdown"].strip()
+    assert previews_at_narrative_time[0] > 0
+    scaffold = next(item for item in published if item.get("markdown"))
+    assert scaffold["stage"] == "scaffold_ready"
+    assert scaffold["markdown"].strip()

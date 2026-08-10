@@ -1,8 +1,42 @@
 # SiteWise — Unified Project Context, Addressable Artefacts, Incremental Generation & High-Performance Editing
 ## Full Staged Implementation Plan
 
-**Status:** Implementation in progress (Stage 0 baseline and Stage 1 foundation started 2026-08-10)
+**Status:** Follow-up remediation in progress (F0-F1 complete; F2-F10 pending)
 **Primary objectives:** Improve artefact quality, responsiveness, consistency, flexibility, maintainability and user trust.
+
+## Verified Implementation Status
+
+The 2026-08-10 post-implementation audit found original Stages 2, 3, 6, 9, 11
+and 22 implemented and the other 20 stages partially implemented. The former
+blanket completion claim and its test counts were not supported by the available
+workspace. Closeout is governed by
+`docs/plans/unified-project-context/01-post-implementation-follow-up.md`.
+
+Follow-up Stage F0 is complete in the current, uncommitted workspace. It restored
+the green regression baseline, made block-marker stripping reversible, preserved
+valid addressable table rows through rendering and export, and documented the
+internal Markdown boundary. Verification at that checkpoint:
+
+```text
+Backend default suite     1,814 passed, 0 failed, 7 skipped, 27 deselected
+Frontend suite            53 files, 326 tests passed
+Frontend production build passed enforced bundle budgets
+Backend Ruff              passed
+F0 frontend ESLint        passed
+Repository-wide ESLint    3 pre-existing errors and 2 warnings remain
+```
+
+Follow-up Stage F1 is also complete in the current, uncommitted workspace. It
+separates the canonical project-context revision from the audit-event cursor,
+advances it once per logical structured mutation, freezes it explicitly on
+durable workflow runs, and closes stale-snapshot and concurrent shared-object
+write races. Its final focused checks passed 92 tests; PostgreSQL concurrency
+checks passed 5 tests and migration round-trip/backfill checks passed 2 tests.
+The final post-review backend suite passed 1,826 tests with zero failures, and
+the frontend passed 53 files / 327 tests plus its production build.
+
+This checkpoint does not assert completion of follow-up Stages F2-F10 or of the
+corresponding partially implemented stages below.
 
 ---
 
@@ -727,6 +761,14 @@ quality requirements
 
 Artefact workflows no longer manually reconstruct project-profile context.
 
+**Implementation status (2026-08-10): complete.** Typed PMP, Cost Plan, RFP and
+RFT lenses now project the frozen `ProjectGenerationContext` into focused prompt
+inputs. Durable workflows derive the lens from their frozen run brief; direct
+PMP/Cost Plan and retained consultant entry points resolve the same canonical
+context from their snapshot. Procurement drafts persist the lens in provenance.
+Seed routing, retrieval selection and renderer-internal compatibility helpers
+were intentionally deferred to Stages 3-5.
+
 ---
 
 # STAGE 3 — Unified Seed Knowledge Routing
@@ -787,6 +829,14 @@ Avoid repeatedly loading and reparsing unchanged seed knowledge.
 One shared routing system exists.
 
 Old routing code is migrated or removed.
+
+**Implementation status (2026-08-10): complete.** `select_seed_knowledge()` now
+routes PMP, Cost Plan, consultant RFP and trade RFT/RFQ knowledge from the same
+canonical project context. The cached key includes artefact/workflow, taxonomy,
+scope, complexity, risk flags, target, section and a fingerprinted seed-routing
+version. Parsed catalogue metadata, path indexes and PMP section maps are reused.
+PMP's dedicated router was removed; source loaders and procurement candidate and
+mandatory-guidance selection now consume the shared route plan.
 
 ---
 
@@ -892,6 +942,15 @@ Fewer redundant searches.
 Parallel retrieval reduces wall-clock time.
 
 Prompt context remains focused.
+
+**Implementation status (2026-08-10): complete.** Generation retrieval now uses
+typed escalation levels, hard search/chunk/document/character budgets and a
+reusable evidence pool keyed by request and evidence category. Independent
+procurement project and platform queries run with bounded concurrency on isolated
+database sessions; their results are shared across downstream RFP/RFT rendering.
+PMP and Cost Plan loaders now prefer structurally discoverable project evidence
+and escalate to semantic retrieval only when that lower-cost evidence is
+insufficient.
 
 ---
 

@@ -24,12 +24,25 @@ from app.database.activity_events import record_activity_events
 from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
+from app.projects.artefact_context import (
+    PmpContext,
+    build_pmp_context,
+    format_artefact_context,
+    known_context_values,
+    selected_scope_values,
+)
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.projects.generation_context import (
     ProjectGenerationContext,
-    format_generation_context,
     resolve_project_generation_context,
 )
+from app.projects.generation_brief import (
+    ArtefactGenerationBrief,
+    build_generation_brief,
+    format_generation_brief,
+)
+from app.projects.generation_audit import build_generation_manifest
+from app.projects.artefact_blocks import materialize_block_identity
 from app.projects.workflow_capabilities import CREATE_PMP, capability_block_message
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
@@ -37,6 +50,14 @@ from app.logging import get_logger
 from app.storage.project_files import upload_project_file
 from app.database.source_document import SourceDocument
 from app.retrieval.retriever import DocumentRetriever
+from app.retrieval.generation import (
+    GenerationEvidenceInput,
+    GenerationRetrievalRequest,
+    RetrievalBudget,
+    RetrievalLevel,
+    retrieve_generation_evidence,
+    select_retrieval_level,
+)
 from app.retrieval.schemas import RetrievalFilters, SourcePassage
 from app.retrieval.whole_document import load_platform_documents_by_paths
 from app.schemas.projects import (
@@ -47,7 +68,6 @@ from app.schemas.projects import (
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.artifact_presentation import prepare_issue_markdown
-from app.sitewise.archetype_bridge import effective_taxonomy
 from app.sitewise.pmp_greenfield_brief import (
     build_greenfield_brief,
     greenfield_markers_missing,
@@ -86,9 +106,18 @@ from app.sitewise.pmp_sources import (
     required_section_headings,
     seed_consulted_includes_required,
 )
-from app.sitewise.pmp_seed_routing import load_pmp_seed_sections
+from app.sitewise.seed_routing import (
+    load_seed_knowledge,
+    select_seed_knowledge,
+    select_seed_knowledge_for_project,
+)
 from app.sitewise.pmp_sweep import sweep_current_pmp_corpus
-from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
+from app.sitewise.pmp_taxonomy_context import (
+    PmpTaxonomyContext,
+    pmp_taxonomy_context,
+    project_has_taxonomy,
+)
+from app.sitewise.taxonomy import risk_flag_definitions
 from ingest.hashing import bytes_content_hash
 
 log = get_logger(__name__)
@@ -110,6 +139,20 @@ CREATE_PMP_PLATFORM_CONTENT_CHARS = 16_000
 CREATE_PMP_CHUNK_EXCERPT_CHARS = 1_200
 CREATE_PMP_EVIDENCE_DOC_CHARS = 8_000
 CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS = 8
+CREATE_PMP_MIN_MARKER_PATHS_SKIP_SEMANTIC = 2
+CREATE_PMP_RETRIEVAL_BUDGET = RetrievalBudget(
+    max_searches=1,
+    max_chunks=32,
+    max_documents=24,
+    max_tokens=48_000,
+    max_chars=192_000,
+    max_concurrency=1,
+)
+CREATE_PMP_GENERATION_CONSTRAINTS = (
+    "Preserve explicit user decisions and evidence citations.",
+    "Use the deterministic scaffold as the document structure when supplied.",
+    "Treat platform knowledge as guidance, never project evidence.",
+)
 
 MOBILISATION_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
     "engagement-letter",
@@ -137,6 +180,15 @@ class PmpDraftOutput(BaseModel):
 
 class WorkflowValidationError(Exception):
     """Raised when a workflow output is not safe to persist."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        consistency_ai_call_count: int = 0,
+    ) -> None:
+        super().__init__(message)
+        self.consistency_ai_call_count = max(0, consistency_ai_call_count)
 
 
 def _upstream_failure_message(
@@ -212,6 +264,22 @@ async def _publish_preview(
         await on_preview({"stage": stage, "markdown": markdown[:PREVIEW_MAX_CHARS]})
     except Exception:  # noqa: BLE001 — a broken preview channel is not a draft failure
         log.warning("pmp_preview_publish_failed", stage=stage, exc_info=True)
+
+
+async def _publish_progress(
+    on_preview: PreviewPublisher | None,
+    progress: dict[str, Any],
+) -> None:
+    if on_preview is None:
+        return
+    try:
+        await on_preview(progress)
+    except Exception:  # noqa: BLE001 - progress must not fail generation
+        log.warning(
+            "workflow_progress_publish_failed",
+            stage=progress.get("stage"),
+            exc_info=True,
+        )
 
 
 def _trace(step: str, status: str, message: str, **metadata) -> WorkflowTraceEvent:
@@ -333,16 +401,24 @@ def _format_project_taxonomy(project: Project) -> str:
     )
 
 
-def _format_section_budgets(project: Project) -> str:
-    context = pmp_taxonomy_context(project)
-    if context is None:
-        return "Per-section word budgets: not applicable to legacy archetype draft."
+def _format_section_budgets(
+    project: Project,
+    *,
+    pmp_context: PmpContext | None = None,
+) -> str:
+    if pmp_context is not None:
+        weights = pmp_context.section_weights
+    else:
+        context = pmp_taxonomy_context(project)
+        if context is None:
+            return "Per-section word budgets: not applicable to legacy archetype draft."
+        weights = context.section_weights
     return "\n".join(
         [
             "Per-section word budgets:",
             *[
                 f"- {section_id}: ~{int(weight * _target_words())} words"
-                for section_id, weight in context.section_weights.items()
+                for section_id, weight in weights.items()
             ],
         ]
     )
@@ -357,6 +433,70 @@ def _format_loaded_seed_sections(passages: list[SourcePassage]) -> str:
     if not refs:
         return "Loaded seed sections: none routed at section level."
     return "\n".join(["Loaded seed sections:", *[f"- {ref}" for ref in refs]])
+
+
+def _build_contextual_greenfield_brief(
+    *,
+    project: Project,
+    draft_mode: DraftMode,
+    pmp_context: PmpContext | None,
+    taxonomy_context: PmpTaxonomyContext | None,
+    seed_section_refs: dict[str, tuple[str, ...]],
+) -> str:
+    archetype = project.archetype or ""
+    if pmp_context is not None:
+        taxonomy = known_context_values(pmp_context.taxonomy)
+        risk_definitions = risk_flag_definitions()
+        return build_greenfield_brief(
+            archetype=archetype,
+            state=str(taxonomy.get("state") or project.state or "NSW"),
+            draft_mode=draft_mode,
+            building_class=_optional_string(taxonomy.get("building_class")),
+            work_type=_optional_string(taxonomy.get("work_type")),
+            subclasses=tuple(str(value) for value in taxonomy.get("subclasses", [])),
+            scale=known_context_values(pmp_context.scale),
+            complexity={
+                key: str(value)
+                for key, value in known_context_values(pmp_context.complexity).items()
+            },
+            work_scope=selected_scope_values(pmp_context.scope),
+            risk_flags=tuple(
+                risk_definitions[key]
+                for key in pmp_context.risk_flag_values
+                if key in risk_definitions
+            ),
+            section_weights=pmp_context.section_weights,
+            seed_section_refs=seed_section_refs,
+            user_provided_fields=pmp_context.user_provided_fields,
+            target_words=_target_words(),
+        )
+    if taxonomy_context is not None:
+        return build_greenfield_brief(
+            archetype=archetype,
+            state=project.state or "NSW",
+            draft_mode=draft_mode,
+            building_class=taxonomy_context.building_class,
+            work_type=taxonomy_context.work_type,
+            subclasses=taxonomy_context.subclasses,
+            scale=taxonomy_context.scale,
+            complexity=taxonomy_context.complexity,
+            work_scope=taxonomy_context.work_scope,
+            risk_flags=taxonomy_context.risk_flags,
+            section_weights=taxonomy_context.section_weights,
+            seed_section_refs=seed_section_refs,
+            user_provided_fields=taxonomy_context.user_provided_fields,
+            target_words=_target_words(),
+        )
+    return build_greenfield_brief(
+        archetype=archetype,
+        state=project.state or "NSW",
+        draft_mode=draft_mode,
+        seed_section_refs=seed_section_refs,
+    )
+
+
+def _optional_string(value: Any) -> str | None:
+    return str(value) if value is not None else None
 
 
 def normalize_pmp_markdown(markdown: str) -> str:
@@ -436,12 +576,14 @@ async def load_mobilisation_project_evidence_documents(
     *,
     project_id: uuid.UUID,
     semantic_relative_paths: list[str],
+    marker_paths: list[str] | None = None,
 ) -> list[SourcePassage]:
     """Load whole mobilisation evidence docs (semantic hits + path-marked files)."""
-    marker_paths = await list_mobilisation_evidence_paths(
-        session,
-        project_id=project_id,
-    )
+    if marker_paths is None:
+        marker_paths = await list_mobilisation_evidence_paths(
+            session,
+            project_id=project_id,
+        )
     merged_paths = list(dict.fromkeys(semantic_relative_paths + marker_paths))[
         :CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS
     ]
@@ -515,90 +657,115 @@ async def expand_project_passages_to_whole_documents(
     return merged
 
 
-def _taxonomy_metadata_values(project: Project, key: str) -> tuple[str, ...]:
-    metadata = project.project_metadata
-    if not isinstance(metadata, dict):
-        return ()
-    taxonomy = metadata.get("taxonomy")
-    values = None
-    if isinstance(taxonomy, dict):
-        values = taxonomy.get(key)
-    if values is None:
-        values = metadata.get(key)
-    if isinstance(values, str):
-        return (values,) if values.strip() else ()
-    if not isinstance(values, list):
-        return ()
-
-    result: list[str] = []
-    for item in values:
-        if isinstance(item, str) and item.strip():
-            result.append(item)
-        elif isinstance(item, dict):
-            value = item.get("value")
-            if isinstance(value, str) and value.strip():
-                result.append(value)
-    return tuple(result)
-
-
 async def retrieve_create_pmp_sources(
     session: AsyncSession,
     *,
     project: Project,
+    generation_context: ProjectGenerationContext | None = None,
 ) -> tuple[list[SourcePassage], int, int, DraftMode, list[str]]:
     """Load mandatory platform sources; load mobilisation project evidence whole documents."""
-    mandatory_paths = required_platform_paths(
-        archetype=project.archetype or "",
-        project=project,
+    seed_selection = (
+        select_seed_knowledge("pmp", generation_context)
+        if generation_context is not None
+        else select_seed_knowledge_for_project("pmp", project)
     )
+    mandatory_paths = list(seed_selection.required_paths)
     platform_passages, missing_paths = await load_platform_documents_by_paths(
         session,
         mandatory_paths,
         content_chars=CREATE_PMP_PLATFORM_CONTENT_CHARS,
     )
-    if getattr(project, "building_class", None) is not None:
-        taxonomy = effective_taxonomy(project)
-        routed = await load_pmp_seed_sections(
+    if (
+        generation_context is not None
+        or getattr(project, "building_class", None) is not None
+    ):
+        routed = await load_seed_knowledge(
             session,
-            selected_paths=mandatory_paths,
-            building_class=taxonomy.building_class,
-            work_type=taxonomy.work_type,
-            subclasses=taxonomy.subclasses,
-            work_scope=_taxonomy_metadata_values(project, "work_scope"),
-            risk_flags=_taxonomy_metadata_values(project, "risk_flags"),
+            seed_selection,
             max_chars=CREATE_PMP_PLATFORM_CONTENT_CHARS,
         )
         platform_passages.extend(routed.passages)
         missing_paths.extend(routed.missing_required_refs)
 
-    retriever = DocumentRetriever(session)
-    project_passages = await retriever.retrieve(
-        CREATE_PMP_PROJECT_QUERY,
-        filters=RetrievalFilters(
-            active_project_id=project.id,
-            include_platform_knowledge=False,
-        ),
-        limit=8,
-        include_neighbours=False,
-    )
-    semantic_paths = list(
-        dict.fromkeys(
-            passage.relative_path
-            for passage in project_passages
-            if _is_project_passage(passage, project.id)
-        )
-    )
     mobilisation_passages = await load_mobilisation_project_evidence_documents(
         session,
         project_id=project.id,
-        semantic_relative_paths=semantic_paths,
+        semantic_relative_paths=[],
     )
-    if mobilisation_passages:
-        passages = mobilisation_passages + platform_passages
-        project_count = len(mobilisation_passages)
-    else:
-        passages = platform_passages
-        project_count = 0
+    structured_context_sufficient = (
+        generation_context is not None and not generation_context.critical_unknowns()
+    )
+    retrieval_level = select_retrieval_level(
+        structured_context_available=generation_context is not None,
+        current_artefact_available=bool(mobilisation_passages),
+        project_evidence_required=(
+            len(mobilisation_passages) < CREATE_PMP_MIN_MARKER_PATHS_SKIP_SEMANTIC
+            and not structured_context_sufficient
+        ),
+    )
+    evidence_pool = await retrieve_generation_evidence(
+        DocumentRetriever(session),
+        (
+            GenerationRetrievalRequest(
+                key="pmp:project",
+                category="project_evidence",
+                query=CREATE_PMP_PROJECT_QUERY,
+                filters=RetrievalFilters(
+                    active_project_id=project.id,
+                    include_platform_knowledge=False,
+                ),
+                limit=CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS,
+            ),
+        ),
+        level=retrieval_level,
+        budget=CREATE_PMP_RETRIEVAL_BUDGET,
+    )
+    if retrieval_level >= RetrievalLevel.TARGETED_PROJECT:
+        project_passages = evidence_pool.passages_for("pmp:project")
+        semantic_paths = list(
+            dict.fromkeys(
+                passage.relative_path
+                for passage in project_passages
+                if _is_project_passage(passage, project.id)
+            )
+        )
+        semantic_passages = await load_mobilisation_project_evidence_documents(
+            session,
+            project_id=project.id,
+            semantic_relative_paths=semantic_paths,
+            marker_paths=[],
+        )
+        passages_by_path = {
+            passage.relative_path: passage for passage in mobilisation_passages
+        }
+        passages_by_path.update(
+            {passage.relative_path: passage for passage in semantic_passages}
+        )
+        mobilisation_passages = list(passages_by_path.values())[
+            :CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS
+        ]
+    bounded_pool = await retrieve_generation_evidence(
+        DocumentRetriever(session),
+        (),
+        preloaded=(
+            GenerationEvidenceInput(
+                key="pmp:platform",
+                category="platform_guidance",
+                passages=tuple(platform_passages),
+            ),
+            GenerationEvidenceInput(
+                key="pmp:project_documents",
+                category="project_evidence",
+                passages=tuple(mobilisation_passages),
+            ),
+        ),
+        level=RetrievalLevel.STRUCTURED_FACTS,
+        budget=CREATE_PMP_RETRIEVAL_BUDGET,
+    )
+    platform_passages = bounded_pool.category("platform_guidance")
+    mobilisation_passages = bounded_pool.category("project_evidence")
+    passages = mobilisation_passages + platform_passages
+    project_count = len(mobilisation_passages)
 
     platform_count = sum(1 for passage in passages if _is_platform_passage(passage))
     draft_mode: DraftMode = (
@@ -747,7 +914,8 @@ def build_create_pmp_prompt(
     validation_feedback: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
-    generation_context: ProjectGenerationContext | None = None,
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
 ) -> str:
     """Assemble the Create PMP prompt with cache-friendly ordering.
 
@@ -772,17 +940,25 @@ def build_create_pmp_prompt(
         [passage.content for passage in evidence_passages],
         [passage.filename or passage.relative_path for passage in evidence_passages],
     )
+    lens_taxonomy = (
+        known_context_values(pmp_context.taxonomy) if pmp_context is not None else {}
+    )
+    context_state = str(lens_taxonomy.get("state") or project.state or "NSW")
 
     prompt_parts = [
         "Sources (platform doctrine and seed):\n" + _format_sources(platform_passages),
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
-        (f"Overlays: archetype={project.archetype}, state={project.state}"),
+        *(
+            []
+            if pmp_context is not None
+            else [f"Overlays: archetype={project.archetype}, state={project.state}"]
+        ),
         f"Draft mode: {draft_mode}",
         f"Required document title: {document_title(project=project)}",
         _role_drafting_note(
             draft_mode=draft_mode,
-            state=project.state or "NSW",
+            state=context_state,
             project=project,
         ),
         "Required PM-facing sections (use these exact ## headings):",
@@ -790,13 +966,15 @@ def build_create_pmp_prompt(
         "Mandatory seed paths (must all appear in seed_consulted):",
         _format_mandatory_seeds(mandatory_paths),
     ]
-    if taxonomy_context is not None:
+    if pmp_context is not None or taxonomy_context is not None:
         prompt_parts.extend(
             [
-                format_generation_context(generation_context)
-                if generation_context is not None
+                format_generation_brief(generation_brief)
+                if generation_brief is not None
+                else format_artefact_context(pmp_context)
+                if pmp_context is not None
                 else _format_project_taxonomy(project),
-                _format_section_budgets(project),
+                _format_section_budgets(project, pmp_context=pmp_context),
                 _format_loaded_seed_sections(passages),
                 format_decision_option_sets(project),
                 (
@@ -823,35 +1001,18 @@ def build_create_pmp_prompt(
                 ),
             ]
         )
-    archetype = project.archetype or ""
-    state = project.state or "NSW"
     prompt_parts.append(
-        build_greenfield_brief(
-            archetype=archetype,
-            state=state,
+        _build_contextual_greenfield_brief(
+            project=project,
             draft_mode=draft_mode,
-            building_class=taxonomy_context.building_class
-            if taxonomy_context
-            else None,
-            work_type=taxonomy_context.work_type if taxonomy_context else None,
-            subclasses=taxonomy_context.subclasses if taxonomy_context else (),
-            scale=taxonomy_context.scale if taxonomy_context else None,
-            complexity=taxonomy_context.complexity if taxonomy_context else None,
-            work_scope=taxonomy_context.work_scope if taxonomy_context else (),
-            risk_flags=taxonomy_context.risk_flags if taxonomy_context else (),
-            section_weights=taxonomy_context.section_weights
-            if taxonomy_context
-            else None,
+            pmp_context=pmp_context,
+            taxonomy_context=taxonomy_context,
             seed_section_refs=seed_section_refs,
-            user_provided_fields=(
-                taxonomy_context.user_provided_fields if taxonomy_context else None
-            ),
-            target_words=_target_words() if taxonomy_context else None,
         )
     )
     if draft_mode == "platform_seeded":
         depth_markers = greenfield_quality_markers(
-            archetype=archetype,
+            archetype=project.archetype or "",
         )
         marker_list = ", ".join(depth_markers)
         prompt_parts.append(
@@ -865,7 +1026,7 @@ def build_create_pmp_prompt(
 
     # Volatile tail: everything below changes per run; keep it after the
     # cacheable prefix above.
-    if taxonomy_context is not None:
+    if pmp_context is not None or taxonomy_context is not None:
         prompt_parts.append(format_locked_decisions(locked_decisions or {}))
     prompt_parts.append(
         f"Mobilisation run date: {run_date.isoformat()} — use for register "
@@ -907,7 +1068,8 @@ async def run_create_pmp_model(
     chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
-    generation_context: ProjectGenerationContext | None = None,
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
 ) -> PmpDraftOutput:
     prompt = build_create_pmp_prompt(
         project=project,
@@ -917,7 +1079,8 @@ async def run_create_pmp_model(
         validation_feedback=validation_feedback,
         locked_decisions=locked_decisions,
         coverage_requirements=coverage_requirements,
-        generation_context=generation_context,
+        pmp_context=pmp_context,
+        generation_brief=generation_brief,
     )
     resolved_model = (
         chat_model.strip() if chat_model else resolve_pmp_model().execution_id
@@ -991,6 +1154,15 @@ def _should_use_hybrid_compiler(project: Project, draft_mode: DraftMode) -> bool
     )
 
 
+def _render_generation_skeleton(project: Project) -> str:
+    sections = [f"# {document_title(project=project)}"]
+    sections.extend(
+        f"## {heading}\n\n_Drafting this section from project evidence…_"
+        for heading in required_section_headings(project=project)
+    )
+    return "\n\n".join(sections).rstrip() + "\n"
+
+
 async def run_create_pmp_hybrid(
     *,
     project: Project,
@@ -999,6 +1171,8 @@ async def run_create_pmp_hybrid(
     chat_model: str,
     project_source_texts: list[str],
     trace: list[WorkflowTraceEvent],
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
     locked_decisions: dict[str, str] | None = None,
     on_preview: PreviewPublisher | None = None,
 ) -> PmpDraftOutput:
@@ -1032,20 +1206,31 @@ async def run_create_pmp_hybrid(
     )
     # The scaffold is a complete document skeleton and it exists before the
     # multi-minute narrative call. Show it now rather than after.
-    await _publish_preview(on_preview, stage="scaffold", markdown=scaffold)
+    await _publish_preview(on_preview, stage="scaffold_ready", markdown=scaffold)
 
     validation_feedback: str | None = None
+    consistency_ai_call_count = 0
     run_date = date.today()
     for attempt in range(HYBRID_NARRATIVE_MAX_ATTEMPTS):
         try:
             narrative = await run_pmp_narrative_model(
                 project=project,
                 pack=pack,
+                pmp_context=pmp_context,
+                generation_brief=generation_brief,
                 run_date=run_date,
                 validation_feedback=validation_feedback,
                 chat_model=chat_model,
+                on_progress=(
+                    lambda progress: (
+                        _publish_progress(on_preview, progress)
+                        if on_preview is not None
+                        else None
+                    )
+                ),
             )
         except WorkflowValidationError as exc:
+            consistency_ai_call_count += exc.consistency_ai_call_count
             if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
                 validation_feedback = str(exc)
                 trace.append(
@@ -1054,10 +1239,13 @@ async def run_create_pmp_hybrid(
                         "retry",
                         f"PMP narrative validation failed — retrying: {validation_feedback}",
                         attempt=attempt + 1,
+                        consistency_ai_call_count=consistency_ai_call_count,
                     )
                 )
                 continue
+            exc.consistency_ai_call_count = consistency_ai_call_count
             raise
+        consistency_ai_call_count += narrative.consistency_ai_call_count
         trace.append(
             _trace(
                 "narrative",
@@ -1065,9 +1253,11 @@ async def run_create_pmp_hybrid(
                 "Narrative model returned structured output.",
                 attempt=attempt + 1,
                 model=chat_model,
+                consistency_ai_call_count=consistency_ai_call_count,
             )
         )
 
+        await _publish_progress(on_preview, {"stage": "validation_started"})
         markdown = assemble_pmp_markdown(
             scaffold,
             narrative,
@@ -1104,6 +1294,7 @@ async def run_create_pmp_hybrid(
             )
             return output
         except WorkflowValidationError as exc:
+            consistency_ai_call_count += exc.consistency_ai_call_count
             if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
                 validation_feedback = str(exc)
                 trace.append(
@@ -1112,9 +1303,11 @@ async def run_create_pmp_hybrid(
                         "retry",
                         f"Hybrid draft validation failed — retrying narrative: {validation_feedback}",
                         attempt=attempt + 1,
+                        consistency_ai_call_count=consistency_ai_call_count,
                     )
                 )
                 continue
+            exc.consistency_ai_call_count = consistency_ai_call_count
             raise
 
     msg = "Hybrid Create PMP exhausted narrative validation retries."
@@ -1367,13 +1560,26 @@ async def run_create_pmp_workflow(
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
     snapshot: ProjectSnapshot | None = None,
+    generation_context: ProjectGenerationContext | None = None,
     on_preview: PreviewPublisher | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
     context_started = time.perf_counter()
-    generation_context = (
+    canonical_context = generation_context or (
         resolve_project_generation_context(snapshot) if snapshot is not None else None
+    )
+    pmp_context = (
+        build_pmp_context(canonical_context) if canonical_context is not None else None
+    )
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "context_ready",
+            "context_version": canonical_context.context_version
+            if canonical_context is not None
+            else None,
+        },
     )
     context_duration_ms = int((time.perf_counter() - context_started) * 1000)
     model_spec = resolve_pmp_model(chat_model)
@@ -1393,11 +1599,12 @@ async def run_create_pmp_workflow(
             _trace(
                 "context_ready",
                 "complete",
-                "Resolved canonical project generation context.",
+                "Built the PMP context lens from canonical project context.",
                 context_version=snapshot.context_version,
-                critical_unknown_count=len(generation_context.critical_unknowns())
-                if generation_context is not None
+                critical_unknown_count=len(pmp_context.critical_unknowns)
+                if pmp_context is not None
                 else 0,
+                artefact_type="pmp",
                 duration_ms=context_duration_ms,
             )
         )
@@ -1412,7 +1619,6 @@ async def run_create_pmp_workflow(
             **model_metadata,
         )
     )
-
     gate = overlay_status(
         archetype=project.archetype,
         state=project.state,
@@ -1464,7 +1670,11 @@ async def run_create_pmp_workflow(
             platform_count,
             draft_mode,
             missing_paths,
-        ) = await retrieve_create_pmp_sources(session, project=project)
+        ) = await retrieve_create_pmp_sources(
+            session,
+            project=project,
+            generation_context=canonical_context,
+        )
     except ValueError as exc:
         message = str(exc)
         trace.append(
@@ -1550,8 +1760,28 @@ async def run_create_pmp_workflow(
         trace.extend(sweep_result.trace_events)
         active_corpus_documents = len(sweep_result.listing.documents)
         if sweep_result.passages:
-            passages = list(sweep_result.passages) + platform_passages
-            project_count = len(sweep_result.passages)
+            bounded_sweep = await retrieve_generation_evidence(
+                DocumentRetriever(session),
+                (),
+                preloaded=(
+                    GenerationEvidenceInput(
+                        key="pmp:platform",
+                        category="platform_guidance",
+                        passages=tuple(platform_passages),
+                    ),
+                    GenerationEvidenceInput(
+                        key="pmp:corpus",
+                        category="project_evidence",
+                        passages=tuple(sweep_result.passages),
+                    ),
+                ),
+                level=RetrievalLevel.STRUCTURED_FACTS,
+                budget=CREATE_PMP_RETRIEVAL_BUDGET,
+            )
+            platform_passages = bounded_sweep.category("platform_guidance")
+            project_passages = bounded_sweep.category("project_evidence")
+            passages = project_passages + platform_passages
+            project_count = len(project_passages)
             draft_mode = "evidence_grounded"
         else:
             passages = platform_passages
@@ -1584,6 +1814,14 @@ async def run_create_pmp_workflow(
             ),
             duration_ms=int((time.perf_counter() - retrieval_started) * 1000),
         )
+    )
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "retrieval_complete",
+            "project_passages": project_count,
+            "platform_passages": platform_count,
+        },
     )
 
     if project_count == 0 and platform_count == 0:
@@ -1644,6 +1882,16 @@ async def run_create_pmp_workflow(
         if coverage_required_evidence_refs
         else None
     )
+    generation_brief = (
+        build_generation_brief(
+            pmp_context,
+            evidence_refs=required_evidence_refs,
+            seed_refs=_context_refs_from_passages(passages),
+            constraints=CREATE_PMP_GENERATION_CONSTRAINTS,
+        )
+        if pmp_context is not None
+        else None
+    )
     taxonomy_context = pmp_taxonomy_context(project)
     use_scaffold = taxonomy_context is not None and draft_mode == "platform_seeded"
     use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
@@ -1674,6 +1922,12 @@ async def run_create_pmp_workflow(
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
             output = _apply_locked_decisions(output, locked_decisions)
+            await _publish_preview(
+                on_preview,
+                stage="scaffold_ready",
+                markdown=output.markdown,
+            )
+            await _publish_progress(on_preview, {"stage": "validation_started"})
             validate_pmp_output(
                 output,
                 draft_mode,
@@ -1700,6 +1954,8 @@ async def run_create_pmp_workflow(
                 chat_model=resolved_model,
                 project_source_texts=project_source_texts,
                 trace=trace,
+                pmp_context=pmp_context,
+                generation_brief=generation_brief,
                 locked_decisions=locked_decisions,
                 on_preview=on_preview,
             )
@@ -1710,6 +1966,11 @@ async def run_create_pmp_workflow(
                 source_texts=project_source_texts,
             )
         else:
+            await _publish_preview(
+                on_preview,
+                stage="scaffold_ready",
+                markdown=_render_generation_skeleton(project),
+            )
             validation_feedback: str | None = None
             max_attempts = 3
             for attempt in range(max_attempts):
@@ -1721,7 +1982,8 @@ async def run_create_pmp_workflow(
                     chat_model=resolved_model,
                     locked_decisions=locked_decisions,
                     coverage_requirements=coverage_requirements,
-                    generation_context=generation_context,
+                    pmp_context=pmp_context,
+                    generation_brief=generation_brief,
                 )
                 output.markdown = normalize_pmp_markdown(output.markdown)
                 if draft_mode == "evidence_grounded":
@@ -1740,6 +2002,10 @@ async def run_create_pmp_workflow(
                         draft_mode=draft_mode,
                         attempt=attempt + 1,
                     )
+                )
+                await _publish_progress(
+                    on_preview,
+                    {"stage": "validation_started"},
                 )
                 try:
                     validate_pmp_output(
@@ -1875,9 +2141,21 @@ async def run_create_pmp_workflow(
             )
 
     persistence_started = time.perf_counter()
-    output.markdown = prepare_issue_markdown(output.markdown, project_title=project.title)
+    await _publish_progress(on_preview, {"stage": "saving"})
+    output.markdown = prepare_issue_markdown(
+        output.markdown, project_title=project.title
+    )
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     output.markdown = sync_document_control_version(output.markdown, existing_version)
+    block_identity = materialize_block_identity(
+        output.markdown,
+        actor_source="ai" if not use_scaffold else "system",
+        generation_input_hash=(
+            generation_brief.input_fingerprint if generation_brief is not None else None
+        ),
+        generation_version=runtime_name,
+    )
+    output.markdown = block_identity.markdown
     draft = await create_draft_artifact(
         session,
         project_id=project.id,
@@ -1916,6 +2194,17 @@ async def run_create_pmp_workflow(
             "seed_consulted": output.seed_consulted,
             "evidence_refs": output.evidence_refs,
             "context_refs": output.context_refs,
+            "generation_brief": (
+                generation_brief.model_dump(mode="json")
+                if generation_brief is not None
+                else None
+            ),
+            "generation_manifest": (
+                build_generation_manifest(generation_brief).model_dump(mode="json")
+                if generation_brief is not None
+                else None
+            ),
+            "blocks": block_identity.metadata,
             "word_count": pmp_word_count(output.markdown),
             "pmp_min_words": settings.pmp_min_words,
             "pmp_max_words": settings.pmp_max_words,
@@ -1968,6 +2257,7 @@ async def run_create_pmp_workflow(
         status="complete",
         draft_id=draft.id,
     )
+    await _publish_progress(on_preview, {"stage": "artefact_ready"})
     return CreatePmpResponse(
         status="complete",
         gate=gate,

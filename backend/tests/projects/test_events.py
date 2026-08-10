@@ -23,6 +23,7 @@ def _project() -> Project:
         workspace_path="04-projects/demo",
         phase="brief-planning",
         profile_revision=1,
+        project_context_version=3,
         event_sequence=0,
         status="active",
     )
@@ -61,8 +62,33 @@ def test_publish_project_event_assigns_monotonic_project_sequences() -> None:
 
     assert (first.sequence, second.sequence) == (1, 2)
     assert project.event_sequence == 2
+    assert project.project_context_version == 3
     assert session.add.call_count == 2
     assert session.flush.await_count == 2
+
+
+def test_publish_project_event_advances_context_once_for_structured_change() -> None:
+    project = _project()
+    session = AsyncMock()
+    session.add = MagicMock()
+
+    event = asyncio.run(
+        publish_project_event(
+            session,
+            project_id=project.id,
+            actor_source="user",
+            resource_type="project_profile",
+            resource_id=project.id,
+            resource_revision=2,
+            action="updated",
+            changes_context=True,
+            locked_project=project,
+        )
+    )
+
+    assert event.sequence == 1
+    assert project.event_sequence == 1
+    assert project.project_context_version == 4
 
 
 def test_publish_project_event_returns_existing_deduplicated_event() -> None:
@@ -93,12 +119,14 @@ def test_publish_project_event_returns_existing_deduplicated_event() -> None:
             resource_revision=1,
             action="completed",
             deduplication_key="workflow:run-1:complete",
+            changes_context=True,
             locked_project=project,
         )
     )
 
     assert event is existing
     assert project.event_sequence == 0
+    assert project.project_context_version == 3
     session.add.assert_not_called()
     session.flush.assert_not_awaited()
 

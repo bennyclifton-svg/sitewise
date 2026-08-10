@@ -1,5 +1,8 @@
+import asyncio
 import time
 import uuid
+from collections.abc import Sequence
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,14 +10,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.retrieval.embedding import embed_query
 from app.retrieval import fusion, queries
+from app.retrieval.generation import GenerationRetrievalRequest
 from app.retrieval.schemas import NeighbourChunk, RetrievalFilters, SourcePassage
 
 logger = structlog.get_logger(__name__)
 
 
 class DocumentRetriever:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, session_factory: Any = None) -> None:
         self._session = session
+        self._session_factory = session_factory
+
+    async def retrieve_many(
+        self,
+        requests: Sequence[GenerationRetrievalRequest],
+        *,
+        max_concurrency: int = 4,
+    ) -> dict[str, list[SourcePassage]]:
+        """Run independent searches with isolated sessions and bounded concurrency."""
+        from app.database.session import get_session_factory
+
+        factory = self._session_factory or get_session_factory()
+        semaphore = asyncio.Semaphore(max(1, max_concurrency))
+
+        async def retrieve_one(
+            request: GenerationRetrievalRequest,
+        ) -> tuple[str, list[SourcePassage]]:
+            async with semaphore, factory() as session:
+                retriever = DocumentRetriever(session, session_factory=factory)
+                passages = await retriever.retrieve(
+                    request.query,
+                    filters=request.filters,
+                    limit=request.limit,
+                    include_neighbours=request.include_neighbours,
+                )
+                return request.key, passages
+
+        results = await asyncio.gather(*(retrieve_one(request) for request in requests))
+        return dict(results)
 
     async def retrieve(
         self,

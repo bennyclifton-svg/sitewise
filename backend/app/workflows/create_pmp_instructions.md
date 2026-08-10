@@ -62,7 +62,9 @@ the legacy role/archetype scaffold:
   appointment unverified, and not evidenced. A report on file does not by itself prove
   a live appointment.
   Architect engagement is the first row when that role applies; expected
-  disciplines without appointment evidence stay Assumption / Not evidenced with `—`.
+  disciplines without appointment evidence stay Assumption / Not evidenced in
+  **Status** with `—` citation. Leave **Fee** blank until a fee proposal is on
+  file — never put `Not evidenced` in the Fee column.
 - Use one shared `[n]` number per active project evidence document across Summary,
   Consultants, body refs, and **Citation key**. Use current project-profile facts directly,
   without a provenance label or citation. Do not invent citations for assumption-only facts.

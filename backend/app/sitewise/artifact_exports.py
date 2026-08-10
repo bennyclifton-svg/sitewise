@@ -7,10 +7,14 @@ import re
 from io import BytesIO
 from typing import Literal
 
+from app.projects.artefact_blocks import strip_block_markers
 from app.sitewise.artifact_presentation import issue_export_markdown
 
 ExportFormat = Literal["pdf", "docx"]
-EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v1"
+EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v2"
+
+# Discipline narrow; Firm + Scope / services take the spare width.
+_CONSULTANTS_TABLE_WEIGHTS = (11, 22, 37, 8, 14, 8)
 
 _DECISION_FENCE_RE = re.compile(
     r"```pmp-decision\s*\n(?P<payload>\{.*?\})\s*\n```",
@@ -29,7 +33,7 @@ def render_artifact_export(
 ) -> bytes:
     issue_markdown = _render_static_decisions(
         issue_export_markdown(
-            markdown,
+            strip_block_markers(markdown),
             project_title=project_title,
         )
     )
@@ -193,6 +197,21 @@ def _pdf_bytes(html: str) -> bytes:
     from weasyprint import HTML
 
     return HTML(string=html).write_pdf()
+
+
+def _consultants_table_weights(rows: list, column_count: int) -> list[int] | None:
+    if column_count != len(_CONSULTANTS_TABLE_WEIGHTS) or not rows:
+        return None
+    header_cells = rows[0].find_all(["th", "td"], recursive=False)
+    labels = [cell.get_text(" ", strip=True).casefold() for cell in header_cells]
+    if not (
+        "discipline" in labels
+        and "firm" in labels
+        and "fee" in labels
+        and any("scope" in label for label in labels)
+    ):
+        return None
+    return list(_CONSULTANTS_TABLE_WEIGHTS)
 
 
 def _docx_bytes(
@@ -380,6 +399,14 @@ def _docx_bytes(
         usable_twips = int(
             (section.page_width - section.left_margin - section.right_margin) / 635
         )
+        consultants_weights = _consultants_table_weights(rows, column_count)
+        if consultants_weights is not None:
+            weight_total = sum(consultants_weights) or 1
+            widths = [
+                usable_twips * weight // weight_total for weight in consultants_weights
+            ]
+            widths[-1] += usable_twips - sum(widths)
+            return widths
         minimum = min(720, usable_twips // max(column_count * 2, 1))
         scores = [8] * column_count
         for row in rows:

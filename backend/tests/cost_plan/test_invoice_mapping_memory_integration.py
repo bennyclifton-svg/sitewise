@@ -95,6 +95,7 @@ def _workflow_run(
         run_brief={},
         idempotency_key=key,
         canonical_request_hash=key * 64,
+        frozen_project_context_version=1,
         frozen_profile_revision=1,
         frozen_snapshot_fingerprint="s" * 64,
         frozen_evidence_fingerprint="e" * 64,

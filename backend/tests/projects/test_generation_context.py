@@ -101,6 +101,28 @@ def test_request_cache_keys_by_project_and_context_version() -> None:
     assert list(cache) == [(PROJECT_ID, 7)]
 
 
+def test_cache_survives_non_context_snapshot_activity() -> None:
+    snapshot = _snapshot(
+        building_class="commercial",
+        work_type="refurb",
+        subclass="office",
+        work_scope=["partitions_walls"],
+    )
+    cache = {}
+
+    first = resolve_project_generation_context(snapshot, cache=cache)
+    after_operational_event = snapshot.model_copy(
+        update={"content_fingerprint": "c" * 64}
+    )
+    reused = resolve_project_generation_context(after_operational_event, cache=cache)
+    after_context_change = snapshot.model_copy(update={"context_version": 8})
+    refreshed = resolve_project_generation_context(after_context_change, cache=cache)
+
+    assert reused is first
+    assert refreshed is not first
+    assert list(cache) == [(PROJECT_ID, 7), (PROJECT_ID, 8)]
+
+
 def test_prompt_format_marks_unknowns_without_inventing_values() -> None:
     context = resolve_project_generation_context(
         _snapshot(

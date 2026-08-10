@@ -126,6 +126,12 @@ async def start_workflow_run(
         _require_matching_request(existing, request_hash)
         return existing, False
 
+    current_context_version = project.project_context_version or 1
+    if snapshot.context_version != current_context_version:
+        raise WorkflowRunCapabilityConflict(
+            "project context changed: "
+            f"expected v{snapshot.context_version}, current v{current_context_version}"
+        )
     _validate_expected_snapshot(snapshot, request)
     if workflow_type in {
         "refresh_project_plan",
@@ -167,6 +173,7 @@ async def start_workflow_run(
         idempotency_key=request.idempotency_key,
         schema_version=1,
         canonical_request_hash=request_hash,
+        frozen_project_context_version=snapshot.context_version,
         frozen_profile_revision=snapshot.profile.profile_revision,
         frozen_snapshot_fingerprint=snapshot.content_fingerprint,
         frozen_evidence_fingerprint=snapshot.evidence.fingerprint,

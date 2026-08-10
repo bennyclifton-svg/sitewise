@@ -9,12 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
+from app.projects.artefact_context import ProcurementArtefactContext
+from app.projects.generation_brief import ArtefactGenerationBrief
+from app.projects.generation_context import ProjectGenerationContext
 from app.projects.identity import classification_summary, resolve_project_identity
 from app.workflows.procurement_request import (
     EvidenceQuery,
+    ProgressPublisher,
     ProcurementDocument,
     ProcurementTarget,
     draft_procurement_request,
+    publish_procurement_progress,
     sync_procurement_draft_workspace,
 )
 
@@ -44,6 +49,7 @@ def is_contractor_eoi_workflow(workflow_type: str) -> bool:
 
 
 class ContractorEoiDocument(ProcurementDocument):
+    seed_artefact_type = "rft"
     document_key = WORKFLOW_TYPE_PREFIX
     workspace_subfolder = "02-procurement"
     filename_stem = "contractor_eoi"
@@ -138,7 +144,7 @@ class ContractorEoiDocument(ProcurementDocument):
         ]
         return assumptions, missing
 
-    def render(
+    async def render(
         self,
         *,
         project: Project,
@@ -151,8 +157,11 @@ class ContractorEoiDocument(ProcurementDocument):
         missing_inputs: list[str],
         max_pages: int,
         instructions: str | None,
+        artefact_context: ProcurementArtefactContext | None,
+        generation_brief: ArtefactGenerationBrief | None,
+        on_progress: ProgressPublisher | None,
     ) -> str:
-        del issued_documents
+        del issued_documents, artefact_context, generation_brief
         state = getattr(project, "state", None) or "TBC"
         identity = resolve_project_identity(project, evidence=project_evidence)
         site_address = identity.get("site_address") or "TBC"
@@ -215,7 +224,16 @@ class ContractorEoiDocument(ProcurementDocument):
                 -1,
                 f"- Additional instruction: {' '.join(instructions.split())}",
             )
-        return "\n".join(sections).rstrip() + "\n"
+        markdown = "\n".join(sections).rstrip() + "\n"
+        await publish_procurement_progress(
+            on_progress,
+            {"stage": "scaffold_ready", "markdown": markdown},
+        )
+        await publish_procurement_progress(
+            on_progress,
+            {"stage": "validation_started"},
+        )
+        return markdown
 
 
 CONTRACTOR_EOI_DOCUMENT = ContractorEoiDocument()
@@ -252,7 +270,9 @@ async def draft_contractor_eoi_artifact(
     package: str = "Main Works",
     max_pages: int = 1,
     instructions: str | None = None,
+    generation_context: ProjectGenerationContext | None = None,
     auto_commit: bool = True,
+    on_progress: ProgressPublisher | None = None,
 ) -> ContractorEoiResult:
     result = await draft_procurement_request(
         session,
@@ -262,7 +282,9 @@ async def draft_contractor_eoi_artifact(
         raw_target=package,
         max_pages=max_pages,
         instructions=instructions,
+        generation_context=generation_context,
         auto_commit=auto_commit,
+        on_progress=on_progress,
     )
     return ContractorEoiResult(
         draft=result.draft,

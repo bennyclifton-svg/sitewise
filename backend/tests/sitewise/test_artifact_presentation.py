@@ -1,8 +1,18 @@
+from datetime import UTC, datetime
+
+from app.projects.artefact_blocks import (
+    materialize_block_identity,
+    markdown_blocks,
+    strip_block_markers,
+)
 from app.sitewise.artifact_presentation import (
     clean_issue_language,
     issue_export_markdown,
     prepare_issue_markdown,
 )
+
+
+NOW = datetime(2026, 8, 10, tzinfo=UTC)
 
 
 def test_clean_issue_language_removes_review_shorthand_without_model_work() -> None:
@@ -114,6 +124,52 @@ This review-only section is excluded from Word and PDF exports.
     assert "Tender close date" not in exported
     assert "Information issued and citations" in exported
     assert "[1]" in exported
+
+
+def test_prepare_issue_markdown_preserves_materialized_block_identity() -> None:
+    source = prepare_issue_markdown(
+        """# Project Management Plan
+
+## Project Summary
+
+| Field | Project detail | Citation |
+| --- | --- | --- |
+| Project | Walsh 2 |  |
+| Address | 42 Harvey Street, Petersham NSW | [1] |
+| Owner | David and Emma Walsh | [1] |
+
+## Brief
+
+Coordinate the issued scope.
+
+- Confirm the tender programme.
+""",
+        project_title="Walsh 2",
+    )
+    materialized = materialize_block_identity(
+        source,
+        actor_source="ai",
+        generation_input_hash="context-v1",
+        generation_version="v1",
+        now=NOW,
+    )
+    identity_before = [
+        (block.type, block.content, block.id)
+        for block in markdown_blocks(materialized.markdown)
+    ]
+
+    prepared = prepare_issue_markdown(
+        materialized.markdown,
+        project_title="Walsh 2",
+    )
+
+    assert strip_block_markers(prepared) == source
+    assert [
+        (block.type, block.content, block.id) for block in markdown_blocks(prepared)
+    ] == identity_before
+    exported = issue_export_markdown(prepared, project_title="Walsh 2")
+    assert "clerk:block" not in exported
+    assert "42 Harvey Street, Petersham NSW" in exported
 
 
 def test_prepare_issue_markdown_removes_pmp_governance_disclaimer() -> None:
@@ -278,3 +334,25 @@ Document control: draft v01.
     assert "- [1] Brief.pdf — on file" in prepared
     assert "- [2] Engagement.pdf — on file" in prepared
     assert "Document control: draft v01." in prepared
+
+
+def test_prepare_issue_markdown_blanks_consultants_fee_not_evidenced() -> None:
+    source = """# Project Management Plan
+
+## Consultants
+
+| Discipline | Firm | Scope / services | Fee | Status | Citation |
+| --- | --- | --- | --- | --- | --- |
+| Structural engineer | — | Assumption — services not yet appointed | Not evidenced | Not evidenced | — |
+| Surveyor | Acme Survey | Contour and detail survey | $4,200 | Partial | [1] |
+"""
+
+    prepared = prepare_issue_markdown(source)
+
+    assert (
+        "| Structural engineer | — | Assumption — services not yet appointed |  | "
+        "Not evidenced | — |"
+    ) in prepared
+    assert (
+        "| Surveyor | Acme Survey | Contour and detail survey | $4,200 | Partial | [1] |"
+    ) in prepared

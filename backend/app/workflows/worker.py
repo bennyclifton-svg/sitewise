@@ -22,6 +22,10 @@ from app.database.project import Project
 from app.database.draft_artifact import DraftArtifact
 from app.database.session import get_session_factory
 from app.logging import configure_logging, get_logger
+from app.projects.generation_context import (
+    ProjectGenerationContext,
+    resolve_project_generation_context,
+)
 from app.procurement.requests import (
     attach_generated_draft,
     request_kind_for_workflow,
@@ -78,16 +82,40 @@ def _frozen_project(run) -> Project:
         work_type=snapshot.profile.work_type,
         user_role=snapshot.profile.user_role,
         state=snapshot.profile.state,
+        project_context_version=run.frozen_project_context_version,
         profile_revision=snapshot.profile.profile_revision,
         decision_set_revision=snapshot.decisions.set_revision,
         project_metadata=raw.get("project_metadata"),
     )
 
 
+def _frozen_generation_context(
+    run,
+    snapshot: ProjectSnapshot,
+) -> ProjectGenerationContext:
+    raw = run.run_brief.get("generation_context")
+    if isinstance(raw, dict):
+        context = ProjectGenerationContext.model_validate(raw)
+    else:
+        context = resolve_project_generation_context(snapshot)
+    frozen_version = run.frozen_project_context_version
+    if (
+        snapshot.context_version != frozen_version
+        or context.context_version != frozen_version
+    ):
+        raise ValueError(
+            "workflow run frozen project context mismatch: "
+            f"column={frozen_version}, snapshot={snapshot.context_version}, "
+            f"generation_context={context.context_version}"
+        )
+    return context
+
+
 async def _dispatch(
     session: AsyncSession, run, on_preview: PreviewPublisher | None = None
 ) -> dict[str, Any]:
     snapshot = ProjectSnapshot.model_validate(run.run_brief["snapshot"])
+    generation_context = _frozen_generation_context(run, snapshot)
     project = _frozen_project(run)
     chat_model = run.run_brief.get("chat_model")
     parameters = run.run_brief.get("parameters") or {}
@@ -101,15 +129,26 @@ async def _dispatch(
     }
     if run.workflow_type == "create_project_plan":
         result = await run_create_pmp_workflow(
-            **common, chat_model=chat_model, snapshot=snapshot, on_preview=on_preview
+            **common,
+            chat_model=chat_model,
+            snapshot=snapshot,
+            generation_context=generation_context,
+            on_preview=on_preview,
         )
     elif run.workflow_type == "refresh_project_plan":
         result = await run_update_pmp_workflow(
-            **common, chat_model=chat_model, snapshot=snapshot
+            **common,
+            chat_model=chat_model,
+            snapshot=snapshot,
+            generation_context=generation_context,
         )
     elif run.workflow_type == "create_cost_plan":
         result = await run_create_cost_plan_workflow(
-            **common, chat_model=chat_model, snapshot=snapshot, on_preview=on_preview
+            **common,
+            chat_model=chat_model,
+            snapshot=snapshot,
+            generation_context=generation_context,
+            on_preview=on_preview,
         )
     elif run.workflow_type == "refresh_cost_plan":
         explicit_items = [
@@ -163,7 +202,9 @@ async def _dispatch(
             )
         if reconcile_evidence:
             current_by_key = {item.item_key: item for item in base.items}
-            if all(current_by_key.get(item.item_key) == item for item in proposed_items):
+            if all(
+                current_by_key.get(item.item_key) == item for item in proposed_items
+            ):
                 raise RuntimeError(
                     "The current Cost Plan already reflects every reconciled received proposal."
                 )
@@ -217,7 +258,9 @@ async def _dispatch(
             progress=invoice_progress,
         )
         if result.draft_id is not None:
-            refreshed_cost_plan_draft = await session.get(DraftArtifact, result.draft_id)
+            refreshed_cost_plan_draft = await session.get(
+                DraftArtifact, result.draft_id
+            )
             if refreshed_cost_plan_draft is None:
                 raise RuntimeError("processed invoice Cost Plan draft was not found")
     elif run.workflow_type == "sort_project_files":
@@ -241,7 +284,9 @@ async def _dispatch(
             discipline=str(parameters["discipline"]),
             max_pages=int(parameters.get("max_pages", 1)),
             instructions=parameters.get("instructions"),
+            generation_context=generation_context,
             auto_commit=False,
+            on_progress=on_preview,
         )
     elif run.workflow_type == "contractor_eoi":
         result = await draft_contractor_eoi_artifact(
@@ -251,7 +296,9 @@ async def _dispatch(
             package=str(parameters.get("package", "Main Works")),
             max_pages=int(parameters.get("max_pages", 1)),
             instructions=parameters.get("instructions"),
+            generation_context=generation_context,
             auto_commit=False,
+            on_progress=on_preview,
         )
     elif run.workflow_type == "trade_procurement":
         result = await draft_trade_procurement_artifact(
@@ -262,7 +309,9 @@ async def _dispatch(
             kind=str(parameters["kind"]),
             max_pages=int(parameters.get("max_pages", 3)),
             instructions=parameters.get("instructions"),
+            generation_context=generation_context,
             auto_commit=False,
+            on_progress=on_preview,
         )
     elif run.workflow_type == "create_transmittal":
         result = await run_create_transmittal_workflow(
@@ -368,13 +417,7 @@ async def _stamp_result_dependencies(
 
 
 def _project_context_version(run) -> int:
-    raw = run.run_brief.get("generation_context")
-    if isinstance(raw, dict):
-        value = raw.get("context_version")
-        if isinstance(value, int) and value >= 1:
-            return value
-    snapshot = ProjectSnapshot.model_validate(run.run_brief["snapshot"])
-    return snapshot.context_version
+    return run.frozen_project_context_version
 
 
 def _json_result(result: Any) -> dict[str, Any]:
@@ -419,7 +462,6 @@ async def _heartbeat_loop(
                 session,
                 run_id=run_id,
                 worker_id=worker_id,
-                progress={"stage": "executing", "percent": 50},
                 lease_seconds=settings.workflow_worker_lease_seconds,
             )
         if not alive:
@@ -434,7 +476,14 @@ def _preview_publisher(
     async def publish(preview: dict[str, Any]) -> None:
         async with session_factory() as preview_session:
             progress = (
-                {"preview": preview}
+                {
+                    **{
+                        key: value
+                        for key, value in preview.items()
+                        if key != "markdown"
+                    },
+                    "preview": preview,
+                }
                 if isinstance(preview.get("markdown"), str)
                 else preview
             )

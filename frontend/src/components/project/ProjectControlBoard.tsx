@@ -872,6 +872,7 @@ function WorkflowDetail({
                 progressStage={
                   workflowProgressStage(activeWorkflowRun?.progress) ?? "queued"
                 }
+                progress={activeWorkflowRun?.progress}
                 onCancel={activeWorkflowRun ? onCancelWorkflow : undefined}
               />
             ) : null}
@@ -1036,6 +1037,7 @@ function WorkflowDetail({
                 progressStage={
                   workflowProgressStage(activeCostPlanRun?.progress) ?? "queued"
                 }
+                progress={activeCostPlanRun?.progress}
                 onCancel={activeCostPlanRun ? onCancelCostPlan : undefined}
               />
             ) : null}

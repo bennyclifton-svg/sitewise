@@ -2,7 +2,10 @@ import uuid
 
 from app.retrieval.schemas import SourcePassage
 from app.sitewise.knowledge_catalog import LoadedKnowledge, select_required_paths
-from app.sitewise.pmp_seed_routing import load_pmp_seed_sections, resolve_seed_routes
+from app.sitewise.seed_routing import (
+    load_seed_knowledge,
+    select_seed_knowledge_for_taxonomy,
+)
 from tests.conftest import run_async
 
 
@@ -24,8 +27,15 @@ def _selected(
 
 
 def _refs(**kwargs) -> set[str]:
-    plan = resolve_seed_routes(**kwargs)
-    return set(plan.refs)
+    kwargs.pop("selected_paths")
+    work_scopes = kwargs.pop("work_scope", ())
+    selection = select_seed_knowledge_for_taxonomy(
+        "pmp",
+        archetype="",
+        work_scopes=work_scopes,
+        **kwargs,
+    )
+    return set(selection.section_refs)
 
 
 def test_residential_new_scope_heavy_routes() -> None:
@@ -181,15 +191,13 @@ def test_advisory_routes_service_deliverable_sections() -> None:
 
 
 def test_archetype_fallback_selected_paths_validate_base_routes() -> None:
-    selected_paths = select_required_paths(
-        workflow="create-pmp",
+    selection = select_seed_knowledge_for_taxonomy(
+        "pmp",
         archetype="renovation",
-    )
-    refs = _refs(
-        selected_paths=selected_paths,
         building_class=None,
         work_type=None,
     )
+    refs = set(selection.section_refs)
 
     assert "seed/setup-and-commission-guide.md#shared-setup-workflow-all-roles" in refs
     assert "seed/cost-management-principles.md#cost-planning-fundamentals" in refs
@@ -224,23 +232,23 @@ def test_loader_records_section_refs_and_warns_for_optional_missing(monkeypatch)
             available_sections=[section_id],
         )
 
-    from app.sitewise import pmp_seed_routing
+    from app.sitewise import seed_routing
 
-    monkeypatch.setattr(pmp_seed_routing, "load_sections", fake_load_sections)
+    monkeypatch.setattr(seed_routing, "load_sections", fake_load_sections)
+
+    selection = select_seed_knowledge_for_taxonomy(
+        "pmp",
+        archetype="",
+        building_class="residential",
+        work_type="new",
+        subclasses=("house",),
+        work_scopes=("wet_areas",),
+    )
 
     result = run_async(
-        load_pmp_seed_sections(
+        load_seed_knowledge(
             object(),
-            selected_paths=_selected(
-                "residential",
-                "new",
-                subclasses=("house",),
-                work_scopes=("wet_areas",),
-            ),
-            building_class="residential",
-            work_type="new",
-            subclasses=("house",),
-            work_scope=("wet_areas",),
+            selection,
             max_chars=1000,
         )
     )

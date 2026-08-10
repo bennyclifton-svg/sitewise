@@ -38,6 +38,7 @@ function run(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
     workflow_type: "consultant_procurement",
     idempotency_key: "key-1",
     schema_version: 1,
+    frozen_project_context_version: 1,
     frozen_profile_revision: 1,
     frozen_snapshot_fingerprint: "fp",
     frozen_evidence_fingerprint: "ev",

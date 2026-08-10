@@ -193,9 +193,7 @@ def _valid_cost_plan_markdown() -> str:
             ),
         }
     )
-    body = "\n\n".join(
-        sections[heading] for heading in required_section_headings()
-    )
+    body = "\n\n".join(sections[heading] for heading in required_section_headings())
     return f"# Project Cost Plan\n\n{body}"
 
 
@@ -475,7 +473,8 @@ def test_validate_cost_plan_output_accepts_platform_seeded() -> None:
     validate_cost_plan_output(
         output,
         "platform_seeded",
-        archetype="renovation",    )
+        archetype="renovation",
+    )
 
 
 def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
@@ -490,7 +489,8 @@ def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
 
 
 def test_validate_cost_plan_output_fails_when_section_missing() -> None:
@@ -508,7 +508,8 @@ def test_validate_cost_plan_output_fails_when_section_missing() -> None:
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
 
 
 def test_validate_cost_plan_output_fails_when_greenfield_markers_missing() -> None:
@@ -527,7 +528,8 @@ def test_validate_cost_plan_output_fails_when_greenfield_markers_missing() -> No
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
 
 
 def test_validate_cost_plan_evidence_grounded_requires_evidence_map() -> None:
@@ -542,7 +544,8 @@ def test_validate_cost_plan_evidence_grounded_requires_evidence_map() -> None:
         validate_cost_plan_output(
             output,
             "evidence_grounded",
-            archetype="renovation",        )
+            archetype="renovation",
+        )
 
 
 def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
@@ -559,7 +562,8 @@ def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
     validate_cost_plan_output(
         output,
         "evidence_grounded",
-        archetype="renovation",    )
+        archetype="renovation",
+    )
 
 
 def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figures() -> (
@@ -580,7 +584,8 @@ def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figu
         validate_cost_plan_output(
             output,
             "evidence_grounded",
-            archetype="renovation",            source_texts=_walsh_source_texts(),
+            archetype="renovation",
+            source_texts=_walsh_source_texts(),
         )
 
 
@@ -683,6 +688,51 @@ def test_retrieve_create_cost_plan_sources_platform_seeded_when_no_project_evide
     assert passages == [platform_passage]
 
 
+def test_retrieve_create_cost_plan_skips_semantic_for_complete_context() -> None:
+    platform_passage = _passage(
+        project="seed",
+        source_type="reference",
+        relative_path="seed/cost-management-principles.md",
+    )
+    selection = SimpleNamespace(required_paths=())
+    context = SimpleNamespace(critical_unknowns=lambda: [])
+
+    with (
+        patch(
+            "app.workflows.create_cost_plan.select_seed_knowledge",
+            return_value=selection,
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_platform_documents_by_paths",
+            new=AsyncMock(return_value=([platform_passage], [])),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.list_cost_evidence_paths",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.create_cost_plan.DocumentRetriever.retrieve",
+            new=AsyncMock(return_value=[]),
+        ) as semantic_retrieve,
+    ):
+        passages, project_count, _, draft_mode, _ = run_async(
+            retrieve_create_cost_plan_sources(
+                AsyncMock(),
+                project=_project(),
+                generation_context=context,
+            )
+        )
+
+    semantic_retrieve.assert_not_awaited()
+    assert passages == [platform_passage]
+    assert project_count == 0
+    assert draft_mode == "platform_seeded"
+
+
 def test_retrieve_create_cost_plan_sources_uses_session_sequentially() -> None:
     """AsyncSession forbids concurrent awaits; gather on one session is illegal."""
     in_flight = 0
@@ -760,14 +810,12 @@ def test_retrieve_create_cost_plan_sources_uses_taxonomy_when_archetype_empty() 
         passages, project_count, _, draft_mode, missing = run_async(
             retrieve_create_cost_plan_sources(
                 AsyncMock(),
-                    project=_project(
-                        archetype="",
-                        building_class="residential",
-                        work_type="refurb",
-                        project_metadata={
-                            "taxonomy": {"subclasses": ["house"]}
-                        },
-                    ),
+                project=_project(
+                    archetype="",
+                    building_class="residential",
+                    work_type="refurb",
+                    project_metadata={"taxonomy": {"subclasses": ["house"]}},
+                ),
             )
         )
 
@@ -782,7 +830,9 @@ def test_retrieve_create_cost_plan_sources_uses_taxonomy_when_archetype_empty() 
     )
 
 
-def test_retrieve_create_cost_plan_sources_supplements_with_semantic_search() -> None:
+def test_retrieve_create_cost_plan_sources_skips_semantic_when_markers_suffice() -> (
+    None
+):
     platform_passage = _passage(
         project="seed",
         source_type="reference",
@@ -820,7 +870,7 @@ def test_retrieve_create_cost_plan_sources_supplements_with_semantic_search() ->
             retrieve_create_cost_plan_sources(AsyncMock(), project=_project())
         )
 
-    retrieve.assert_awaited_once()
+    retrieve.assert_not_awaited()
     assert project_count == 1
     assert draft_mode == "evidence_grounded"
 

@@ -11,9 +11,19 @@ import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { SelectionInstructionCard } from "@/components/project/SelectionInstructionCard";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { WorkbookGrid } from "@/components/project/WorkbookGrid";
+import { CostPlanGrid } from "@/components/project/CostPlanGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { normalizeDraftMarkdown, splitTraceQa } from "@/lib/artifact-markdown";
+import {
+  deleteBlock,
+  duplicateBlock,
+  insertAfterBlock,
+  insertBeforeBlock,
+  operationForTarget,
+  replaceBlock,
+  type ArtifactBlockTarget,
+} from "@/lib/artifact-blocks";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import {
@@ -27,11 +37,12 @@ import {
   splitMarkdownSections,
   type MarkdownSectionSlice,
 } from "@/lib/markdown-sections";
-import { replaceMarkdownRange } from "@/lib/inline-markdown";
+import { runOptimisticMutation } from "@/lib/optimistic-mutation";
 import {
   type MarkdownAnchor,
   type MarkdownRange,
 } from "@/lib/markdown-selection";
+import { expandRangeWithTrailingMarker } from "@/lib/table-row-edit";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
@@ -52,6 +63,137 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
  */
 function supportsAnchoredInstructions(workflowType: string): boolean {
   return workflowType !== "create_cost_plan" && workflowType !== "tender_report";
+}
+
+function blockTargetForRange(
+  source: string,
+  sections: MarkdownSectionSlice[],
+  range: MarkdownRange,
+): ArtifactBlockTarget {
+  const content = editableBlockContent(
+    source.slice(range.start, range.end),
+  ).trimStart();
+  const type = /^\|.*\|\s*$/.test(content)
+    ? "table_row"
+    : /^(?:[-*+]\s+|\d+[.)]\s+)/.test(content)
+      ? "list_item"
+      : "paragraph";
+  const markerPattern = /<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->/i;
+  const embeddedMarker = source.slice(range.start, range.end).match(markerPattern);
+  const precedingMarker = source
+    .slice(Math.max(0, range.start - 80), range.start)
+    .match(/<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->\s*$/i);
+  const marker = embeddedMarker ?? precedingMarker;
+  return {
+    ...(marker ? { id: marker[1] } : {}),
+    type,
+    range,
+    sectionStart:
+      sections.find(
+        (section) => section.start <= range.start && range.start < section.end,
+      )?.start ?? 0,
+  };
+}
+
+function editableBlockContent(content: string): string {
+  return content
+    .replace(/<!--\s*clerk:block\s+id=blk_[a-f0-9]{32}\s*-->\s*/gi, "")
+    .trimEnd();
+}
+
+function contentWithPreservedMarker(
+  source: string,
+  target: ArtifactBlockTarget,
+  content: string,
+): string {
+  const raw = source.slice(target.range.start, target.range.end);
+  const marker = raw.match(/<!--\s*clerk:block\s+id=blk_[a-f0-9]{32}\s*-->/i)?.[0];
+  const normalized = editableBlockContent(content);
+  if (!marker) return normalized;
+  if (target.type === "table_row") return `${normalized}${marker}`;
+  if (target.type === "list_item") return `${normalized} ${marker}`;
+  return `${marker}\n${normalized}`;
+}
+
+function emptySiblingBlock(
+  targetContent: string,
+  type: ArtifactBlockTarget["type"],
+): string {
+  if (type === "list_item") {
+    const marker = targetContent.match(/^\s*(?:[-*+] |\d+[.)] )/)?.[0] ?? "- ";
+    return marker;
+  }
+  if (type === "table_row") {
+    const columns = Math.max(1, targetContent.split("|").length - 2);
+    return `| ${Array.from({ length: columns }, () => "").join(" | ")} |`;
+  }
+  return "";
+}
+
+type GenerationManifestViewModel = {
+  taxonomy: Record<string, unknown>;
+  known_profile: Record<string, unknown>;
+  unknown_relevant_fields: string[];
+  evidence_used: string[];
+  seed_knowledge: string[];
+  input_fingerprint: string;
+};
+
+function generationManifestFrom(value: unknown): GenerationManifestViewModel | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.input_fingerprint !== "string") return null;
+  return {
+    taxonomy:
+      raw.taxonomy && typeof raw.taxonomy === "object"
+        ? (raw.taxonomy as Record<string, unknown>)
+        : {},
+    known_profile:
+      raw.known_profile && typeof raw.known_profile === "object"
+        ? (raw.known_profile as Record<string, unknown>)
+        : {},
+    unknown_relevant_fields: metadataStringList(raw.unknown_relevant_fields),
+    evidence_used: metadataStringList(raw.evidence_used),
+    seed_knowledge: metadataStringList(raw.seed_knowledge),
+    input_fingerprint: raw.input_fingerprint,
+  };
+}
+
+function GenerationManifestView({
+  manifest,
+}: {
+  manifest: GenerationManifestViewModel | null;
+}) {
+  if (!manifest) return null;
+  return (
+    <section className="mt-4 border-t pt-4" aria-label="Sources and context">
+      <p className="text-sm font-semibold">Sources &amp; Context</p>
+      <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+        <MetaItem
+          label="Taxonomy"
+          value={Object.entries(manifest.taxonomy)
+            .map(([key, value]) => `${key}: ${String(value)}`)
+            .join(" · ") || "None"}
+        />
+        <MetaItem
+          label="Known profile facts"
+          value={String(Object.keys(manifest.known_profile).length)}
+        />
+        <MetaItem
+          label="Unknown relevant fields"
+          value={manifest.unknown_relevant_fields.join(", ") || "None"}
+        />
+        <MetaItem
+          label="Input fingerprint"
+          value={manifest.input_fingerprint.slice(0, 12)}
+        />
+      </dl>
+      <div className="mt-3 grid gap-4 lg:grid-cols-2">
+        <ReferenceList title="Evidence used" items={manifest.evidence_used} />
+        <ReferenceList title="Seed knowledge" items={manifest.seed_knowledge} />
+      </div>
+    </section>
+  );
 }
 
 function changedRangesFrom(value: unknown): MarkdownRange[] {
@@ -103,6 +245,13 @@ export function DraftReviewPanel({
     draftId: string;
     version: number;
     range: MarkdownRange;
+    focusCellIndex?: number;
+  } | null>(null);
+  const [blockComposer, setBlockComposer] = useState<{
+    operation: "ADD" | "UPDATE";
+    target: ArtifactBlockTarget;
+    placement?: "before" | "after";
+    initialContent: string;
   } | null>(null);
   const [anchor, setAnchor] = useState<MarkdownAnchor | null>(null);
   const [trayOverride, setTrayOverride] = useState<{
@@ -346,16 +495,26 @@ export function DraftReviewPanel({
   const sectionsChanged = metadataStringList(loadedDraft?.provenance_metadata?.sections_changed);
   const evidenceChanged = evidenceChangedSummary(loadedDraft?.provenance_metadata?.evidence_changed);
   const workbook = workbookMetadata(loadedDraft?.provenance_metadata?.workbook);
+  const generationManifest = generationManifestFrom(
+    loadedDraft?.provenance_metadata?.generation_manifest,
+  );
   const isAccepted = displayDraft.status === "accepted";
   const canEditDraft =
     !isAccepted && supportsAnchoredInstructions(displayDraft.workflow_type);
 
-  function startSelectionEdit(range: MarkdownRange) {
+  function startSelectionEdit(
+    range: MarkdownRange,
+    options?: { focusCellIndex?: number },
+  ) {
     if (!loadedDraft) return;
+    setBlockComposer(null);
     setSelectionEdit({
       draftId: loadedDraft.id,
       version: loadedDraft.version,
       range,
+      ...(options?.focusCellIndex !== undefined
+        ? { focusCellIndex: options.focusCellIndex }
+        : {}),
     });
     setAnchor(null);
     setActionError(null);
@@ -393,27 +552,132 @@ export function DraftReviewPanel({
       return;
     }
 
-    const nextMarkdown = replaceMarkdownRange(source, range, replacement);
+    const expandedRange = expandRangeWithTrailingMarker(source, range);
+    const target = blockTargetForRange(source, sections, expandedRange);
+    const content = editableBlockContent(replacement);
+    // Inline edits always patch the full document. Block operations are reserved
+    // for structural ADD/DELETE/DUPLICATE — their start/end addressing is brittle
+    // when presentation transforms shift table-row offsets.
+    const nextMarkdown = replaceBlock(
+      source,
+      { ...target, range: expandedRange },
+      target.type === "paragraph"
+        ? content
+        : contentWithPreservedMarker(source, { ...target, range: expandedRange }, content),
+    );
     if (nextMarkdown === source) {
       setSelectionEdit(null);
       return;
     }
 
+    const snapshot = loadedDraft;
+    setIsSaving(true);
+    setActionError(null);
+    setSelectionEdit(null);
+    try {
+      const updated = await runOptimisticMutation({
+        snapshot,
+        optimistic: { ...snapshot, content_markdown: nextMarkdown },
+        apply: setLoadedDraft,
+        commit: () =>
+          api.patchDraft(projectId, snapshot.id, nextMarkdown, snapshot.version),
+        confirmed: (value) => value,
+        onConflict: async () =>
+          (await api.getLatestDraft(projectId, snapshot.workflow_type)) ?? snapshot,
+      });
+      onDraftUpdated(updated);
+    } catch (error) {
+      setActionError(
+        error instanceof ApiError && error.status === 409
+          ? rebaseMessage(error)
+          : error instanceof ApiError
+            ? error.message
+            : "Could not save selection.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function canonicalBlockTarget(target: ArtifactBlockTarget): ArtifactBlockTarget {
+    const expanded = expandRangeWithTrailingMarker(source, target.range);
+    const resolved = blockTargetForRange(source, sections, expanded);
+    return {
+      ...resolved,
+      // Keep the caller's type when marker sniffing is ambiguous on empty inserts.
+      type: target.type || resolved.type,
+      sectionStart: target.sectionStart || resolved.sectionStart,
+    };
+  }
+
+  function openBlockOperation(
+    operation: "ADD" | "DELETE" | "DUPLICATE",
+    target: ArtifactBlockTarget,
+    placement?: "before" | "after",
+  ) {
+    const canonical = canonicalBlockTarget(target);
+    if (operation === "ADD") {
+      setBlockComposer({
+        operation,
+        target: canonical,
+        placement,
+        initialContent: emptySiblingBlock(
+          source.slice(canonical.range.start, canonical.range.end),
+          canonical.type,
+        ),
+      });
+      return;
+    }
+    void mutateBlock(operation, canonical);
+  }
+
+  async function mutateBlock(
+    operation: "ADD" | "UPDATE" | "DELETE" | "DUPLICATE",
+    target: ArtifactBlockTarget,
+    content?: string,
+    placement?: "before" | "after",
+  ) {
+    if (!loadedDraft) return;
+    const snapshot = loadedDraft;
+    const canonical = canonicalBlockTarget(target);
+    const nextMarkdown =
+      operation === "UPDATE"
+        ? replaceBlock(
+            source,
+            canonical,
+            contentWithPreservedMarker(source, canonical, content ?? ""),
+          )
+        : operation === "ADD" && placement === "before"
+          ? insertBeforeBlock(source, canonical, content ?? "")
+          : operation === "ADD"
+            ? insertAfterBlock(source, canonical, content ?? "")
+            : operation === "DUPLICATE"
+              ? duplicateBlock(source, canonical)
+              : deleteBlock(source, canonical);
+    setBlockComposer(null);
     setIsSaving(true);
     setActionError(null);
     try {
-      const updated = await api.patchDraft(
-        projectId,
-        loadedDraft.id,
-        nextMarkdown,
-        loadedDraft.version,
-      );
-      setLoadedDraft(updated);
-      onDraftUpdated(updated);
-      setSelectionEdit(null);
+      const response = await runOptimisticMutation({
+        snapshot,
+        optimistic: { ...snapshot, content_markdown: nextMarkdown },
+        apply: setLoadedDraft,
+        commit: () =>
+          api.applyDraftBlockOperations(projectId, snapshot.id, snapshot.version, [
+            operationForTarget(operation, canonical, { content, placement }),
+          ]),
+        confirmed: (value) => value.draft,
+        onConflict: async () =>
+          (await api.getLatestDraft(projectId, snapshot.workflow_type)) ?? snapshot,
+      });
+      onDraftUpdated(response.draft);
     } catch (error) {
       setActionError(
-        error instanceof ApiError ? error.message : "Could not save selection.",
+        error instanceof ApiError && error.status === 409
+          ? rebaseMessage(error)
+          : error instanceof ApiError
+            ? error.message
+            : "Could not update this block.",
       );
     } finally {
       setIsSaving(false);
@@ -428,6 +692,7 @@ export function DraftReviewPanel({
           embedded ? "" : "p-4 lg:p-6",
         )}
       >
+        <CostPlanGrid projectId={projectId} />
         <CostWorkbookSection
           workbook={workbook}
           isLoading={isLoadingDraft}
@@ -447,6 +712,9 @@ export function DraftReviewPanel({
                 aria-hidden
               />
               <span className="text-sm font-semibold">Trace &amp; QA</span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                Sources &amp; Context
+              </span>
             </summary>
 
             <div className="border-t p-4">
@@ -476,6 +744,7 @@ export function DraftReviewPanel({
                 <ReferenceList title="Evidence refs" items={evidence} />
                 <ReferenceList title="Context refs" items={context} />
               </div>
+              <GenerationManifestView manifest={generationManifest} />
             </div>
           </details>
         ) : null}
@@ -531,8 +800,11 @@ export function DraftReviewPanel({
                 );
               }}
               editingRange={selectionEditRange}
+              editingFocusCellIndex={selectionEdit?.focusCellIndex}
               isSavingEdit={isSaving}
               editError={selectionEditRange ? actionError : null}
+              blockComposer={blockComposer}
+              isSavingBlockComposer={isSaving}
               onEditSelection={canEditDraft ? startSelectionEdit : undefined}
               onEditWithAi={canInstruct ? startAiEdit : undefined}
               onCancelSelectionEdit={() => {
@@ -540,6 +812,21 @@ export function DraftReviewPanel({
                 setActionError(null);
               }}
               onSaveSelectionEdit={saveSelectionEdit}
+              onCancelBlockComposer={() => setBlockComposer(null)}
+              onSaveBlockComposer={(content) => {
+                if (!blockComposer) return;
+                if (!content.trim()) {
+                  setBlockComposer(null);
+                  return;
+                }
+                void mutateBlock(
+                  blockComposer.operation,
+                  blockComposer.target,
+                  content,
+                  blockComposer.placement,
+                );
+              }}
+              onMutateBlock={canEditDraft ? openBlockOperation : undefined}
             />
           </div>
         )}
@@ -604,6 +891,9 @@ export function DraftReviewPanel({
             aria-hidden
           />
           <span className="text-sm font-semibold">Trace &amp; QA</span>
+          <span className="ml-auto text-xs text-muted-foreground">
+            Sources &amp; Context
+          </span>
         </summary>
 
         <div className="border-t p-4">
@@ -688,6 +978,7 @@ export function DraftReviewPanel({
             <ReferenceList title="Evidence refs" items={evidence} />
             <ReferenceList title="Context refs" items={context} />
           </div>
+          <GenerationManifestView manifest={generationManifest} />
         </div>
       </details>
     </article>

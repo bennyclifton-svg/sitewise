@@ -98,6 +98,7 @@ def map_project_context(
         unsupported.append(f"State {profile.state or 'missing'} is unsupported")
 
     values: dict[str, Any] = {
+        "context_version": snapshot.context_version,
         "context_source": "repository_selection",
         "state": profile.state if profile.state in {"NSW", "VIC", "QLD"} else None,
         "build_type": build_type,
@@ -105,7 +106,13 @@ def map_project_context(
         "storeys": profile.scale.get("storeys"),
         "floor_area_m2": profile.scale.get("gfa_sqm"),
     }
-    values.update(overrides or {})
+    values.update(
+        {
+            key: value
+            for key, value in (overrides or {}).items()
+            if key != "context_version"
+        }
+    )
     try:
         context = ProjectContext.model_validate(values)
     except ValidationError as exc:

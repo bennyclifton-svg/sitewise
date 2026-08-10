@@ -1,3 +1,4 @@
+import time
 import uuid
 from datetime import date
 
@@ -17,8 +18,34 @@ from app.database.draft_artifacts import (
     get_latest_draft_artifact,
 )
 from app.database.project import Project
+from app.projects.artefact_context import (
+    PmpContext,
+    build_pmp_context,
+    format_artefact_context,
+)
+from app.projects.artefact_blocks import (
+    block_input_hash,
+    reconcile_regenerated_blocks,
+)
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.generation_audit import build_generation_manifest
+from app.projects.generation_brief import (
+    ArtefactGenerationBrief,
+    build_generation_brief,
+    format_generation_brief,
+)
+from app.projects.generation_context import (
+    ProjectGenerationContext,
+    resolve_project_generation_context,
+)
 from app.projects.workflow_capabilities import UPDATE_PMP, capability_block_message
+from app.retrieval.generation import (
+    GenerationEvidenceInput,
+    RetrievalBudget,
+    RetrievalLevel,
+    retrieve_generation_evidence,
+)
+from app.retrieval.retriever import DocumentRetriever
 from app.schemas.projects import (
     CreatePmpResponse,
     DraftArtifactResponse,
@@ -69,6 +96,7 @@ from app.workflows.create_pmp import (
     PmpDraftOutput,
     WorkflowValidationError,
     _apply_locked_decisions,
+    _context_refs_from_passages,
     _format_mandatory_seeds,
     _format_project_taxonomy,
     _format_section_budgets,
@@ -87,6 +115,14 @@ from app.workflows.create_pmp import (
 
 UPDATE_RUNTIME_NAME = "clerk-sitewise-update-pmp"
 UPDATE_WORKFLOW_TYPE = "update_pmp"
+UPDATE_PMP_RETRIEVAL_BUDGET = RetrievalBudget(
+    max_searches=1,
+    max_chunks=32,
+    max_documents=24,
+    max_tokens=48_000,
+    max_chars=192_000,
+    max_concurrency=1,
+)
 
 
 def validate_update_pmp_output(
@@ -243,6 +279,8 @@ def build_update_pmp_prompt(
     validation_feedback: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
 ) -> str:
     """Assemble the Update PMP prompt with cache-friendly ordering.
 
@@ -264,7 +302,11 @@ def build_update_pmp_prompt(
         + _format_sources(platform_passages),
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
-        (f"Overlays: archetype={project.archetype}, state={project.state}"),
+        *(
+            []
+            if generation_brief is not None or pmp_context is not None
+            else [f"Overlays: archetype={project.archetype}, state={project.state}"]
+        ),
         "Workflow: update_pmp",
         f"Required document title: {document_title(project=project)}",
         (
@@ -281,11 +323,19 @@ def build_update_pmp_prompt(
         "Mandatory seed paths (must all appear in seed_consulted):",
         _format_mandatory_seeds(mandatory_paths),
     ]
-    if taxonomy_context is not None:
+    if (
+        generation_brief is not None
+        or pmp_context is not None
+        or taxonomy_context is not None
+    ):
         prompt_parts.extend(
             [
-                _format_project_taxonomy(project),
-                _format_section_budgets(project),
+                format_generation_brief(generation_brief)
+                if generation_brief is not None
+                else format_artefact_context(pmp_context)
+                if pmp_context is not None
+                else _format_project_taxonomy(project),
+                _format_section_budgets(project, pmp_context=pmp_context),
                 _format_loaded_seed_sections(platform_passages),
                 format_decision_option_sets(project),
                 (
@@ -307,7 +357,11 @@ def build_update_pmp_prompt(
 
     # Volatile tail: everything below changes per run/version; keep it after
     # the cacheable prefix above.
-    if taxonomy_context is not None:
+    if (
+        generation_brief is not None
+        or pmp_context is not None
+        or taxonomy_context is not None
+    ):
         prompt_parts.append(format_locked_decisions(locked_decisions or {}))
     prompt_parts.extend(
         [
@@ -315,6 +369,10 @@ def build_update_pmp_prompt(
             f"Baseline revision: v{baseline.version} (id {baseline.id})",
             "Baseline section headings that MUST remain:",
             heading_list,
+            (
+                "Preserve every <!-- clerk:block id=... --> marker beside the same "
+                "logical block. Never invent, rewrite, or remove an existing block ID."
+            ),
             "Baseline PMP markdown (preserve structure):",
             baseline.content_markdown,
         ]
@@ -368,6 +426,8 @@ async def run_update_pmp_model(
     chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
+    pmp_context: PmpContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
 ) -> PmpDraftOutput:
     prompt = build_update_pmp_prompt(
         project=project,
@@ -378,6 +438,8 @@ async def run_update_pmp_model(
         validation_feedback=validation_feedback,
         locked_decisions=locked_decisions,
         coverage_requirements=coverage_requirements,
+        pmp_context=pmp_context,
+        generation_brief=generation_brief,
     )
     resolved_model = (
         chat_model.strip() if chat_model else resolve_pmp_model().execution_id
@@ -394,9 +456,18 @@ async def run_update_pmp_workflow(
     thread_id: uuid.UUID | None,
     chat_model: str | None = None,
     snapshot: ProjectSnapshot | None = None,
+    generation_context: ProjectGenerationContext | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
+    context_started = time.perf_counter()
+    canonical_context = generation_context or (
+        resolve_project_generation_context(snapshot) if snapshot is not None else None
+    )
+    pmp_context = (
+        build_pmp_context(canonical_context) if canonical_context is not None else None
+    )
+    context_duration_ms = int((time.perf_counter() - context_started) * 1000)
     model_spec = resolve_pmp_model(chat_model)
     resolved_model = model_spec.execution_id
     model_metadata = pmp_model_metadata(model_spec)
@@ -408,6 +479,19 @@ async def run_update_pmp_workflow(
                 "Loaded deterministic Project Snapshot v1.",
                 schema_version=snapshot.schema_version,
                 content_fingerprint=snapshot.content_fingerprint,
+            )
+        )
+        trace.append(
+            _trace(
+                "context_ready",
+                "complete",
+                "Built the PMP context lens from canonical project context.",
+                context_version=snapshot.context_version,
+                critical_unknown_count=len(pmp_context.critical_unknowns)
+                if pmp_context is not None
+                else 0,
+                artefact_type="pmp",
+                duration_ms=context_duration_ms,
             )
         )
     trace.append(
@@ -505,7 +589,11 @@ async def run_update_pmp_workflow(
             platform_count,
             _draft_mode,
             missing_paths,
-        ) = await retrieve_create_pmp_sources(session, project=project)
+        ) = await retrieve_create_pmp_sources(
+            session,
+            project=project,
+            generation_context=canonical_context,
+        )
     except ValueError as exc:
         message = str(exc)
         trace.append(_trace("retrieval", "failed", message))
@@ -605,6 +693,27 @@ async def run_update_pmp_workflow(
     platform_passages = [
         passage for passage in _passages if _is_platform_passage(passage)
     ]
+    bounded_evidence = await retrieve_generation_evidence(
+        DocumentRetriever(session),
+        (),
+        preloaded=(
+            GenerationEvidenceInput(
+                key="update_pmp:platform_documents",
+                category="platform_guidance",
+                passages=tuple(platform_passages),
+            ),
+            GenerationEvidenceInput(
+                key="update_pmp:project_documents",
+                category="project_evidence",
+                passages=tuple(delta_passages),
+            ),
+        ),
+        level=RetrievalLevel.STRUCTURED_FACTS,
+        budget=UPDATE_PMP_RETRIEVAL_BUDGET,
+    )
+    delta_passages = bounded_evidence.category("project_evidence")
+    platform_passages = bounded_evidence.category("platform_guidance")
+    has_delta = bool(delta_passages)
 
     delta_source_texts = (
         [passage.content for passage in delta_passages if passage.content.strip()]
@@ -652,12 +761,23 @@ async def run_update_pmp_workflow(
         if has_delta
         else []
     )
+    selected_evidence_refs = [_source_ref(passage) for passage in delta_passages]
     coverage_requirements = (
         format_corpus_coverage_requirements(
             delta_source_texts,
             delta_source_labels,
         )
         if delta_source_texts and required_evidence_refs
+        else None
+    )
+    generation_brief = (
+        build_generation_brief(
+            pmp_context,
+            evidence_refs=selected_evidence_refs,
+            seed_refs=_context_refs_from_passages(platform_passages),
+            constraints=("Preserve human-controlled blocks during refresh.",),
+        )
+        if pmp_context is not None
         else None
     )
     sanitize_source_texts = delta_source_texts or _project_source_texts(
@@ -677,6 +797,8 @@ async def run_update_pmp_workflow(
                 chat_model=resolved_model,
                 locked_decisions=locked_decisions,
                 coverage_requirements=coverage_requirements,
+                pmp_context=pmp_context,
+                generation_brief=generation_brief,
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
             if markdown_is_evidence_grounded(output.markdown, output.evidence_refs):
@@ -794,10 +916,17 @@ async def run_update_pmp_workflow(
             )
 
     taxonomy_context = pmp_taxonomy_context(project)
-    if taxonomy_context is not None:
+    length_weights = (
+        pmp_context.section_weights
+        if pmp_context is not None
+        else taxonomy_context.section_weights
+        if taxonomy_context is not None
+        else None
+    )
+    if length_weights is not None:
         length_advisories = length_violations(
             output.markdown,
-            weights=taxonomy_context.section_weights,
+            weights=length_weights,
             min_words=settings.pmp_min_words,
             max_words=settings.pmp_max_words,
         )
@@ -812,10 +941,6 @@ async def run_update_pmp_workflow(
                 )
             )
 
-    sections_changed = compute_sections_changed(
-        baseline.content_markdown,
-        output.markdown,
-    )
     evidence_changed = (
         sweep_result.evidence_changed
         if sweep_result is not None
@@ -837,8 +962,44 @@ async def run_update_pmp_workflow(
     )
 
     next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
-    output.markdown = prepare_issue_markdown(output.markdown, project_title=project.title)
+    incremental_input_hash = block_input_hash(
+        context_version=(
+            snapshot.context_version
+            if snapshot is not None
+            else project.project_context_version or 1
+        ),
+        source_version=(
+            snapshot.content_fingerprint
+            if snapshot is not None
+            else "|".join(output.evidence_refs) or "no-project-evidence"
+        ),
+        seed_version="|".join(output.seed_consulted) or "no-seed-guidance",
+        inputs={"artefact_type": "pmp"},
+    )
+    output.markdown = prepare_issue_markdown(
+        output.markdown, project_title=project.title
+    )
     output.markdown = sync_document_control_version(output.markdown, next_version)
+    incremental = reconcile_regenerated_blocks(
+        baseline.content_markdown,
+        (
+            baseline_provenance["blocks"]
+            if isinstance(baseline_provenance.get("blocks"), dict)
+            else {}
+        ),
+        output.markdown,
+        generation_input_hash=(
+            generation_brief.input_fingerprint
+            if generation_brief is not None
+            else incremental_input_hash
+        ),
+        generation_version=f"{UPDATE_RUNTIME_NAME}:{next_version}",
+    )
+    output.markdown = incremental.markdown
+    sections_changed = compute_sections_changed(
+        baseline.content_markdown,
+        output.markdown,
+    )
     draft = await create_draft_artifact(
         session,
         project_id=project.id,
@@ -865,6 +1026,7 @@ async def run_update_pmp_workflow(
                 {
                     "schema_version": snapshot.schema_version,
                     "content_fingerprint": snapshot.content_fingerprint,
+                    "context_version": snapshot.context_version,
                 }
                 if snapshot is not None
                 else None
@@ -883,6 +1045,23 @@ async def run_update_pmp_workflow(
             "seed_consulted": output.seed_consulted,
             "evidence_refs": output.evidence_refs,
             "context_refs": output.context_refs,
+            "generation_brief": (
+                generation_brief.model_dump(mode="json")
+                if generation_brief is not None
+                else None
+            ),
+            "blocks": incremental.metadata,
+            "incremental_update": {
+                "updated": list(incremental.updated),
+                "preserved": list(incremental.preserved),
+                "conflicts": list(incremental.conflicts),
+                "input_hash": incremental_input_hash,
+            },
+            "generation_manifest": (
+                build_generation_manifest(generation_brief).model_dump(mode="json")
+                if generation_brief is not None
+                else None
+            ),
             "trace": [event.model_dump() for event in trace],
         },
     )

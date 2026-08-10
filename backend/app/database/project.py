@@ -4,7 +4,16 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,6 +50,9 @@ class Project(Base):
     decision_set_revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )
+    project_context_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
     event_sequence: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
@@ -62,5 +74,9 @@ class Project(Base):
     workspace_files: Mapped[list["WorkspaceFile"]] = relationship(back_populates="project")
     __table_args__ = (
         UniqueConstraint("owner_user_id", "slug", name="uq_projects_owner_user_id_slug"),
+        CheckConstraint(
+            "project_context_version >= 1",
+            name="ck_projects_project_context_version",
+        ),
         Index("ix_projects_owner_user_id", "owner_user_id"),
     )

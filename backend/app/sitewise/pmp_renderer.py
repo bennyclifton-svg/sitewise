@@ -1408,12 +1408,12 @@ def _render_taxonomy_consultants(
                 continue
             seen.add(key)
             rows.append(
-                f"| {consultant} | TBC | Assumption — services not yet appointed | TBC | "
+                f"| {consultant} | TBC | Assumption — services not yet appointed | | "
                 f"Not evidenced | — |"
             )
     if len(rows) == 2:
         rows.append(
-            "| Discipline roster | TBC | Assumption — confirm required appointments | TBC | "
+            "| Discipline roster | TBC | Assumption — confirm required appointments | | "
             "Not evidenced | — |"
         )
 

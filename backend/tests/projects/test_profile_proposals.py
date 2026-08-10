@@ -33,6 +33,7 @@ def _project(**overrides) -> Project:
         "user_role": "architect-pm",
         "state": "NSW",
         "profile_revision": 3,
+        "project_context_version": 7,
         "event_sequence": 0,
         "status": "active",
         "project_metadata": {"taxonomy": {"subclasses": ["house"]}},
@@ -100,6 +101,7 @@ def test_evidence_derived_proposal_persists_values_and_references() -> None:
     assert result.current_values["state"] == "NSW"
     assert result.proposed_values == {"state": "VIC"}
     assert result.evidence_references[0].source_document_id == source_id
+    assert project.project_context_version == 7
     publish.assert_awaited_once()
 
 
@@ -140,7 +142,7 @@ def test_accept_stale_identity_proposal_rebases_onto_empty_fields() -> None:
 
     with patch(
         "app.projects.profile_proposals.publish_project_event", new=publish
-    ), patch("app.projects.profile.publish_project_event", new=AsyncMock()):
+    ):
         resolution = asyncio.run(
             accept_profile_proposal(
                 session,
@@ -158,6 +160,7 @@ def test_accept_stale_identity_proposal_rebases_onto_empty_fields() -> None:
         "Atelier North for David & Emma Walsh"
     )
     assert project.project_metadata["identity_review"] == {"fields": ["client"]}
+    assert project.project_context_version == 8
     publish.assert_awaited_once()
 
 
@@ -183,6 +186,7 @@ def test_reject_proposal_persists_resolution_without_profile_change() -> None:
     assert resolution.proposal.state == "rejected"
     assert resolution.profile_change is None
     assert proposal.resolved_at is not None
+    assert project.project_context_version == 7
     publish.assert_awaited_once()
 
 

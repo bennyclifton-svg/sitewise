@@ -35,6 +35,7 @@ class WorkflowRunView(BaseModel):
     workflow_type: str
     idempotency_key: str
     schema_version: int
+    frozen_project_context_version: int
     frozen_profile_revision: int
     frozen_snapshot_fingerprint: str
     frozen_evidence_fingerprint: str

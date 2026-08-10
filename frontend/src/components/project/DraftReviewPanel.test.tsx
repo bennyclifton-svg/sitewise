@@ -12,11 +12,14 @@ vi.mock("@/lib/api", () => ({
     acceptDraft: vi.fn(),
     applyDraftInstructions: vi.fn(),
     downloadWorkspaceFile: vi.fn(),
+    getCostPlanState: vi.fn(),
     getWorkbookPreview: vi.fn(),
     getProjectDraft: vi.fn(),
     getLatestDraft: vi.fn(),
     listDecisions: vi.fn(),
     patchDraft: vi.fn(),
+    applyDraftBlockOperations: vi.fn(),
+    applyCostPlanOperations: vi.fn(),
   },
 }));
 
@@ -79,6 +82,19 @@ describe("DraftReviewPanel", () => {
     vi.mocked(api.listDecisions).mockResolvedValue({
       decisions: [],
       set_revision: 1,
+    });
+    vi.mocked(api.getCostPlanState).mockResolvedValue({
+      version: 1,
+      items: [],
+      totals: {
+        budget: "0.00",
+        committed: "0.00",
+        forecast: "0.00",
+        paid: "0.00",
+        variance: "0.00",
+        total_excluding_gst: "0.00",
+        total_including_gst: "0.00",
+      },
     });
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -222,7 +238,7 @@ Issued content. [1]
     ["create_pmp", "Project Management Plan"],
     ["consultant_procurement_structural_engineer", "Request for Tender - Structural Engineer"],
     ["trade_rft_electrical_services", "Request for Tender - Electrical Services"],
-  ])("offers the same paragraph actions for %s drafts", (workflowType, title) => {
+  ])("offers AI and block actions without a pen icon for %s drafts", (workflowType, title) => {
     render(
       <DraftReviewPanel
         projectId={PROJECT_ID}
@@ -238,9 +254,7 @@ Issued content. [1]
     fireEvent.mouseEnter(screen.getByText("Current scope."));
 
     const headingRow = screen.getByRole("heading", { name: "Scope", level: 2 }).parentElement;
-    expect(headingRow).toContainElement(
-      screen.getByRole("button", { name: "Edit paragraph manually" }),
-    );
+    expect(screen.queryByRole("button", { name: "Edit paragraph manually" })).not.toBeInTheDocument();
     const aiAction = screen.getByRole("button", { name: "Edit paragraph with AI" });
     expect(headingRow).toContainElement(aiAction);
     expect(screen.queryByRole("button", { name: /edit source/i })).not.toBeInTheDocument();
@@ -306,7 +320,7 @@ Issued content. [1]
     expect(editor).not.toHaveTextContent("## First");
     editor.textContent = "Gamma";
     fireEvent.input(editor);
-    fireEvent.click(screen.getByRole("button", { name: "Save selection" }));
+    fireEvent.blur(editor);
 
     await waitFor(() => {
       expect(onDraftUpdated).toHaveBeenCalledWith(updated);
@@ -319,6 +333,56 @@ Issued content. [1]
     );
     expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).toContain("Gamma");
     expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).not.toContain("Alpha");
+  });
+
+  it("double-clicks a table cell in place and persists via patchDraft", async () => {
+    const original = draft({
+      content_markdown: `## Snapshot
+
+| Field | Status |
+| --- | --- |
+| Budget | Grounded |
+`,
+    });
+    const updated = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: `## Snapshot
+
+| Field | Status |
+| --- | --- |
+| Budget | Partial |
+`,
+    });
+    vi.mocked(api.patchDraft).mockResolvedValue(updated);
+    const onDraftUpdated = vi.fn();
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={onDraftUpdated}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Grounded"));
+    const cells = screen.getAllByRole("textbox", { name: /Edit table cell/i });
+    expect(cells[1]).toHaveFocus();
+    expect(cells[1]).toHaveTextContent("Grounded");
+    cells[1].textContent = "Partial";
+    fireEvent.input(cells[1]);
+    fireEvent.blur(cells[1]);
+
+    await waitFor(() => {
+      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+    });
+    expect(api.patchDraft).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "draft-1",
+      expect.stringContaining("| Budget | Partial |"),
+      1,
+    );
+    expect(api.applyDraftBlockOperations).not.toHaveBeenCalled();
   });
 
   describe("anchored instructions", () => {

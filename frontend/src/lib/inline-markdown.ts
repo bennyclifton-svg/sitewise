@@ -1,4 +1,5 @@
 import type { MarkdownRange } from "@/lib/markdown-selection";
+import { maskArtifactBlockMarkers } from "@/lib/artifact-markdown";
 
 /** Convert the small, allowed rich-text surface back into inline Markdown. */
 export function serializeInlineMarkdown(root: HTMLElement): string {
@@ -68,7 +69,14 @@ export function sourceRangeForRenderedBlock(
 
   const block = rendered.slice(renderedRange.start, renderedRange.end);
   if (!block) return null;
-  if (source.slice(renderedRange.start, renderedRange.end) === block) {
+  const sourceBlock = source.slice(renderedRange.start, renderedRange.end);
+  if (sourceBlock === block) {
+    return { ...renderedRange };
+  }
+  if (
+    source.length === rendered.length &&
+    maskArtifactBlockMarkers(sourceBlock) === block
+  ) {
     return { ...renderedRange };
   }
 
@@ -89,15 +97,4 @@ export function sourceRangeForRenderedBlock(
     cursor = sourceStart + block.length;
   }
   return { start: sourceStart, end: sourceStart + block.length };
-}
-
-export function replaceMarkdownRange(
-  source: string,
-  range: MarkdownRange,
-  replacement: string,
-): string {
-  if (range.start < 0 || range.end > source.length || range.start >= range.end) {
-    return source;
-  }
-  return source.slice(0, range.start) + replacement + source.slice(range.end);
 }

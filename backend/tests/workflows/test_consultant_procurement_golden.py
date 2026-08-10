@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from types import SimpleNamespace
 
 from tests.workflows.test_consultant_procurement import (
@@ -14,6 +15,16 @@ FIXTURE = Path(__file__).parent / "fixtures" / "consultant_rfp_structural_v01.md
 TOWN_PLANNER_FIXTURE = (
     Path(__file__).parent / "fixtures" / "consultant_rfp_town_planner_v01.md"
 )
+_BLOCK_MARKER = re.compile(r"<!--\s*clerk:block\s+id=blk_[a-f0-9]{32}\s*-->")
+
+
+def _visible_markdown(markdown: str) -> str:
+    lines: list[str] = []
+    for line in markdown.splitlines():
+        visible = _BLOCK_MARKER.sub("", line).rstrip()
+        if visible or not _BLOCK_MARKER.search(line):
+            lines.append(visible)
+    return "\n".join(lines).strip()
 
 
 def _deterministic_retriever() -> _StubRetriever:
@@ -43,7 +54,9 @@ def test_consultant_rfp_matches_golden(monkeypatch) -> None:
         FIXTURE.parent.mkdir(parents=True, exist_ok=True)
         FIXTURE.write_text(result.draft.content_markdown, encoding="utf-8")
 
-    assert result.draft.content_markdown == FIXTURE.read_text(encoding="utf-8")
+    assert _visible_markdown(result.draft.content_markdown) == _visible_markdown(
+        FIXTURE.read_text(encoding="utf-8")
+    )
     assert result.draft.workflow_type == "consultant_procurement_structural_engineer"
     assert result.draft.title == "Request for Proposal - Structural engineer"
 
@@ -57,8 +70,8 @@ def test_town_planner_rfp_matches_golden(monkeypatch) -> None:
     _install(monkeypatch, retriever=retriever, cost_plan=cost_plan)
     result = _run(session=_Session(), discipline="town planner")
 
-    assert result.draft.content_markdown == TOWN_PLANNER_FIXTURE.read_text(
-        encoding="utf-8"
+    assert _visible_markdown(result.draft.content_markdown) == _visible_markdown(
+        TOWN_PLANNER_FIXTURE.read_text(encoding="utf-8")
     )
     assert result.draft.workflow_type == "consultant_procurement_town_planner"
     assert result.draft.title == "Request for Proposal - Town planner"

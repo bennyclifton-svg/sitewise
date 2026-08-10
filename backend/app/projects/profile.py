@@ -99,6 +99,17 @@ async def apply_profile_patch(
         changed_fields=(*plan.changed_fields, *plan.cleared_fields),
         actor_source=actor_source,
     )
+    from app.projects.dependencies import (
+        dirty_categories_for_profile_fields,
+        mark_project_dirty,
+    )
+
+    mark_project_dirty(
+        project,
+        dirty_categories_for_profile_fields(
+            (*plan.changed_fields, *plan.cleared_fields)
+        ),
+    )
     project.profile_revision = new_revision
     session.add(
         ActivityEvent(
@@ -134,6 +145,7 @@ async def apply_profile_patch(
             "changed_fields": list(plan.changed_fields),
             "cleared_fields": list(plan.cleared_fields),
         },
+        changes_context=True,
         locked_project=project,
     )
     return _profile_change(project, plan, new_revision=new_revision)
@@ -180,9 +192,7 @@ def validate_profile_patch(
         if getattr(before, field) != getattr(after, field)
     )
     cleared = tuple(
-        field
-        for field in effective_changes
-        if getattr(after, field) in (None, [], {})
+        field for field in effective_changes if getattr(after, field) in (None, [], {})
     )
     changed = tuple(field for field in effective_changes if field not in cleared)
     return ProfileUpdatePlan(
@@ -206,7 +216,9 @@ def read_profile(project: Project) -> ProjectProfileView:
         scale=_dict_value(taxonomy.get("scale")),
         complexity=_dict_value(taxonomy.get("complexity")),
         work_scope=[
-            item for item in _list_value(taxonomy.get("work_scope")) if isinstance(item, str)
+            item
+            for item in _list_value(taxonomy.get("work_scope"))
+            if isinstance(item, str)
         ],
         user_role=getattr(project, "user_role", None),
         state=getattr(project, "state", None),
@@ -255,7 +267,9 @@ def _validate_scale(profile: ProjectProfileView) -> list[str]:
         if field is None:
             errors.append(f"Unknown scale field: {key!r}")
             continue
-        if field.type == "integer" and (isinstance(value, bool) or not isinstance(value, int)):
+        if field.type == "integer" and (
+            isinstance(value, bool) or not isinstance(value, int)
+        ):
             errors.append(f"scale {key!r} must be an integer")
             continue
         if field.type == "number" and (
@@ -318,9 +332,8 @@ def _dependent_conflicts(
         valid_subclasses = {
             item.value for item in subclasses_for(after.building_class or "")
         }
-        if (
-            "subclasses" not in patch.model_fields_set
-            and any(value not in valid_subclasses for value in subclass_values)
+        if "subclasses" not in patch.model_fields_set and any(
+            value not in valid_subclasses for value in subclass_values
         ):
             conflicts.add("subclasses")
         dependent_view = after.model_copy(
@@ -348,7 +361,9 @@ def _dependent_conflicts(
     return tuple(field for field in PROFILE_FIELDS if field in conflicts)
 
 
-def _empty_profile_value(field: ProjectProfileField) -> None | list[Any] | dict[str, Any]:
+def _empty_profile_value(
+    field: ProjectProfileField,
+) -> None | list[Any] | dict[str, Any]:
     if field in {"subclasses", "work_scope"}:
         return []
     if field in {"scale", "complexity"}:

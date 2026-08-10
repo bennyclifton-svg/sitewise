@@ -785,6 +785,53 @@ register tells the reviewer exactly where to apply their own judgement. That is
 a deliberate product decision about where human review belongs, not an
 unfinished gate.
 
+### 8.4 Bounded retrieval, exact briefs and combined-section validation
+
+PMP, Cost Plan, consultant RFP and trade RFT/RFQ generation share one bounded
+input contract. The artefact-specific context lens selects the lowest sufficient
+`RetrievalLevel`; equivalent logical queries are deduplicated; and one
+`RetrievalBudget` limits searches, chunks, documents, tokens, characters and
+concurrency. Whole-document, corpus-sweep, supplemental and mandatory-guidance
+inputs re-enter the same `GenerationEvidencePool` as preloaded evidence before
+they reach a model. A structured-complete context therefore performs no semantic
+search, while broader retrieval remains explicit and measurable.
+
+Once the final evidence set is known, the workflow creates one frozen
+`ArtefactGenerationBrief`. Every concurrent section prompt, block-generation
+hash and persisted `GenerationManifest` uses that exact brief and fingerprint;
+the manifest embeds the full brief rather than reconstructing a lossy summary
+after generation.
+
+The bounded section runner rejects duplicate job keys and gathers typed section
+outputs concurrently. Before assembly, a shared consistency gate checks explicit
+project and consultant identity claims, procurement-route terminology, dates,
+and duplicate scope or risk items. Deterministic conflicts enter each workflow's
+bounded retry loop. Only ambiguous near-duplicates reach one batched AI resolver,
+and its call count is carried across rejected attempts into workflow trace or
+procurement provenance.
+
+### 8.5 Addressable Markdown and presentation boundaries
+
+PMP, RFP and RFT drafts carry stable internal block identity for paragraphs,
+list items and table body rows. Table headers and delimiter rows are structural
+syntax, not editable blocks. Identity is encoded as an internal
+`<!-- clerk:block id=... -->` comment: on its own line before a paragraph, as a
+list-item suffix, or immediately after a table body row's closing pipe.
+
+These comments are canonical editing metadata, not issue-document content.
+Every presentation boundary must therefore do one of the following before a
+Markdown parser sees the document:
+
+- the web renderer replaces each marker with the same number of spaces so
+  canonical source offsets remain stable;
+- Word/PDF and other issued-output paths strip markers completely;
+- deterministic Markdown transforms detach and reattach row markers while
+  parsing or rebuilding cells.
+
+Marker stripping is reversible for supported Markdown, including original line
+endings and terminal-newline state. No issued document may contain a
+`clerk:block` marker.
+
 ---
 
 ## 9. Tender Comparison Module
@@ -934,6 +981,21 @@ sequenceDiagram
 The `run_brief` freezes the entire project snapshot at enqueue time, so a worker
 picking the job up ten minutes later generates against exactly the state the
 user saw — not against whatever the project has drifted into since.
+
+`projects.project_context_version` is the authoritative revision for structured
+generation context. It advances once for an effective profile, decision or
+shared-project-object transaction. `projects.event_sequence` is a separate audit
+cursor and continues to advance for workflow, draft, export and other
+operational events without invalidating project context.
+
+Snapshot construction uses a bounded optimistic read/check/retry cycle so a
+context commit between its component queries cannot publish a torn snapshot.
+When a new run is inserted, the API locks the Project row and rechecks that the
+snapshot context revision is still current. The run stores that value in
+`frozen_project_context_version` as well as in its JSON brief; the worker rejects
+any mismatch between the column, snapshot and generation context before
+dispatch. Idempotent replay is checked first, so replaying an already-queued run
+still returns the original frozen execution after live context advances.
 
 ### 10.3 Worker loop
 

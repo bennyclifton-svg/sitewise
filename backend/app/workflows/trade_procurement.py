@@ -6,6 +6,7 @@ import asyncio
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,14 @@ from app.config import settings
 from app.database.draft_artifact import DraftArtifact
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
+from app.projects.artefact_context import (
+    ProcurementArtefactContext,
+    RftContext,
+    build_rft_context,
+)
 from app.projects.artefact_revisions import set_export_result_for_path
+from app.projects.generation_brief import ArtefactGenerationBrief
+from app.projects.generation_context import ProjectGenerationContext
 from app.sitewise.artifact_presentation import clean_issue_language
 from app.sitewise.rfp_evidence_validation import validate_procurement_output
 from app.sitewise.rfp_renderer import (
@@ -29,10 +37,12 @@ from app.storage.project_files import upload_project_file
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.procurement_request import (
     EvidenceQuery,
+    ProgressPublisher,
     ProcurementDocument,
     ProcurementRequestResult,
     ProcurementTarget,
     draft_procurement_request,
+    publish_procurement_progress,
 )
 from app.workflows.procurement_register import load_procurement_document_register
 from app.workflows.rfp_narrative import (
@@ -382,9 +392,13 @@ async def run_validated_trade_narrative(
     project: Any,
     target: TradeProfile,
     kind: str,
+    rft_context: RftContext | None = None,
+    generation_brief: ArtefactGenerationBrief | None = None,
+    run_date: date | None = None,
     project_evidence: list[dict[str, Any]],
     platform_knowledge: list[dict[str, Any]],
     citation_index: Any,
+    on_progress: ProgressPublisher | None = None,
 ) -> ProcurementNarrativeOutput:
     instructions_path = Path(__file__).with_name(
         "trade_rft_narrative_instructions.md"
@@ -392,23 +406,40 @@ async def run_validated_trade_narrative(
         else "trade_rfq_narrative_instructions.md"
     )
     validation_feedback: str | None = None
+    consistency_ai_call_count = 0
+    resolved_run_date = run_date or date.today()
     for attempt in range(NARRATIVE_MAX_ATTEMPTS):
-        output = await run_procurement_narrative_model(
-            project=project,
-            target_name=target.name,
-            target_label="Procurement package",
-            baseline_scope=target.baseline_scope,
-            project_evidence=project_evidence,
-            platform_knowledge=platform_knowledge,
-            citation_index=citation_index,
-            instructions_path=instructions_path,
-            validation_feedback=validation_feedback,
-        )
         try:
+            output = await run_procurement_narrative_model(
+                project=project,
+                target_name=target.name,
+                target_label="Procurement package",
+                rft_context=rft_context,
+                generation_brief=generation_brief,
+                baseline_scope=target.baseline_scope,
+                project_evidence=project_evidence,
+                platform_knowledge=platform_knowledge,
+                citation_index=citation_index,
+                instructions_path=instructions_path,
+                validation_feedback=validation_feedback,
+                on_progress=on_progress,
+                run_date=resolved_run_date,
+            )
+            consistency_ai_call_count += output.consistency_ai_call_count
+            await publish_procurement_progress(
+                on_progress,
+                {"stage": "validation_started"},
+            )
             validate_procurement_output(output, citation_index=citation_index)
-            return output
+            return output.model_copy(
+                update={"consistency_ai_call_count": consistency_ai_call_count}
+            )
         except WorkflowValidationError as exc:
+            consistency_ai_call_count += int(
+                getattr(exc, "consistency_ai_call_count", 0) or 0
+            )
             if attempt == NARRATIVE_MAX_ATTEMPTS - 1:
+                exc.consistency_ai_call_count = consistency_ai_call_count
                 raise
             validation_feedback = str(exc)
     raise RuntimeError("trade narrative retry loop exited unexpectedly")
@@ -486,6 +517,7 @@ def _is_meaningful_item(item: dict[str, Any]) -> bool:
 
 
 class TradeProcurementDocument(ProcurementDocument):
+    seed_artefact_type = "rft"
     workspace_subfolder = "05-procurement"
     filename_stem = "trade"
     knowledge_workflow = KNOWLEDGE_WORKFLOW
@@ -515,6 +547,13 @@ class TradeProcurementDocument(ProcurementDocument):
             "Request for Tender" if self.kind == "rft" else "Request for Quotation"
         )
         return f"{request_name} - {target.name}"
+
+    def build_context(
+        self,
+        project_context: ProjectGenerationContext,
+        target: ProcurementTarget,
+    ) -> RftContext:
+        return build_rft_context(project_context, target.name)
 
     def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         name = target.name
@@ -721,9 +760,7 @@ class TradeProcurementDocument(ProcurementDocument):
             if role not in roles
         ]
         if "design_responsibility" not in roles:
-            missing.append(
-                "Delivery basis, contract basis, and design responsibility."
-            )
+            missing.append("Delivery basis, contract basis, and design responsibility.")
         missing.append("Submission contact and lodgement method.")
         assumptions = [
             "This is a client-issued draft procurement request, not an offer or award.",
@@ -744,7 +781,13 @@ class TradeProcurementDocument(ProcurementDocument):
         missing_inputs: list[str],
         max_pages: int,
         instructions: str | None,
+        artefact_context: ProcurementArtefactContext | None,
+        generation_brief: ArtefactGenerationBrief | None,
+        on_progress: ProgressPublisher | None,
     ) -> str:
+        rft_context = (
+            artefact_context if isinstance(artefact_context, RftContext) else None
+        )
         del max_pages
         profile = (
             target
@@ -764,13 +807,20 @@ class TradeProcurementDocument(ProcurementDocument):
             missing_inputs=missing_inputs,
             instructions=instructions,
         )
+        await publish_procurement_progress(
+            on_progress,
+            {"stage": "scaffold_ready", "markdown": scaffold},
+        )
         narrative = await run_validated_trade_narrative(
             project=project,
             target=profile,
             kind=self.kind,
+            rft_context=rft_context,
+            generation_brief=generation_brief,
             project_evidence=project_evidence,
             platform_knowledge=platform_knowledge,
             citation_index=citation_index,
+            on_progress=on_progress,
         )
         scope_items = (
             list(profile.baseline_scope)
@@ -815,7 +865,9 @@ async def draft_trade_procurement_artifact(
     kind: str,
     max_pages: int = 3,
     instructions: str | None = None,
+    generation_context: ProjectGenerationContext | None = None,
     auto_commit: bool = True,
+    on_progress: ProgressPublisher | None = None,
 ) -> TradeProcurementResult:
     if kind not in {"rft", "rfq"}:
         raise ValueError("kind must be rft or rfq")
@@ -828,8 +880,10 @@ async def draft_trade_procurement_artifact(
         raw_target=package,
         max_pages=max_pages,
         instructions=instructions,
+        generation_context=generation_context,
         auto_commit=auto_commit,
         sync_workspace=_sync_for_engine,
+        on_progress=on_progress,
     )
     return TradeProcurementResult(
         draft=result.draft,

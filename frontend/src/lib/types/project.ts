@@ -371,6 +371,7 @@ export type WorkflowRun = {
   workflow_type: string;
   idempotency_key: string;
   schema_version: number;
+  frozen_project_context_version: number;
   frozen_profile_revision: number;
   frozen_snapshot_fingerprint: string;
   frozen_evidence_fingerprint: string;
