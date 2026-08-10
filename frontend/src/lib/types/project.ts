@@ -491,6 +491,7 @@ export type InvoiceLedgerRow = {
     | "keyword"
     | "model"
     | "manual"
+    | "remembered"
     | "unidentified";
 };
 

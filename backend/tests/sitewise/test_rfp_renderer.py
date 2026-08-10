@@ -65,8 +65,8 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
 
     assert scaffold.count(BACKGROUND_PLACEHOLDER) == 1
     assert scaffold.count(REQUESTED_SERVICES_PLACEHOLDER) == 1
-    assert scaffold.startswith("# Request for Tender - Town planner")
-    assert "## Tender particulars" in scaffold
+    assert scaffold.startswith("# Request for Proposal - Town planner")
+    assert "## Proposal particulars" in scaffold
     assert "| Field | Project detail | Source |" not in scaffold
     assert "| Project |" in scaffold
     assert "| --- | --- | --- |" in scaffold
@@ -74,11 +74,11 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
         ("04-projects/walsh/00-brief/project-brief.pdf", "on file"),
         ("04-projects/walsh/03-design/drawings.pdf", "on file"),
     )
-    assert "| Document number | Title | Rev | Category | Citation |" in scaffold
-    assert "| 001 | Project brief | A | Project | [1] |" in scaffold
-    assert "| 420 | Structural details | P3 | Structural | [2] |" in scaffold
+    assert "| Document number | Title | Rev | Category |" in scaffold
+    assert "| 001 | Project brief | A | Project |" in scaffold
+    assert "| 420 | Structural details | P3 | Structural |" in scaffold
     assert "## Citation key" not in scaffold
-    assert len(re.findall(r"^## ", scaffold, flags=re.MULTILINE)) == 7
+    assert len(re.findall(r"^## ", scaffold, flags=re.MULTILINE)) == 8
     assert "Provide a concise return brief" in scaffold
     assert (
         "| Indicative fee stage | Scope / allowance to identify | Fee ex GST |"
@@ -141,10 +141,12 @@ def test_rfp_summary_keeps_provenance_in_source_column_without_status_prose() ->
         instructions="Use the supplied project context and do not invent details.",
     )
 
-    summary = scaffold.split("## Tender particulars", maxsplit=1)[1].split(
-        "## Information issued and citations", maxsplit=1
+    summary = scaffold.split("## Proposal particulars", maxsplit=1)[1].split(
+        "## Background", maxsplit=1
     )[0]
-    assert "| Project | Walsh Renovation | Profile |" in summary
+    assert "| Project | Walsh Renovation |  |" in summary
+    assert "Profile" not in summary
+    assert "Confirm" not in summary
     assert "| Budget |" not in summary
     assert "User provided" not in summary
     assert "Evidence on file" not in summary
@@ -168,9 +170,7 @@ def test_rfp_summary_uses_current_cost_plan_construction_budget() -> None:
         max_pages=3,
     )
 
-    assert (
-        "| Budget | $400,000 ex GST | Current Cost Plan v3 (user-adopted) |" in scaffold
-    )
+    assert "| Budget | $400,000 ex GST |  |" in scaffold
 
 
 def test_rfp_summary_prefers_evidenced_project_name_over_generic_profile_title() -> (
@@ -224,7 +224,7 @@ def test_rfp_summary_humanises_scale_labels_and_singular_counts() -> None:
 
     assert (
         "| Subclass and scale | office; 365 m² NLA; 2 storeys; "
-        "1 tenancy; 180 m² floor plate | Profile |"
+        "1 tenancy; 180 m² floor plate |  |"
     ) in scaffold
 
 
@@ -283,10 +283,47 @@ def test_consultant_rft_keeps_citations_prominent_and_qa_out_of_issue_body() -> 
     )
 
     primary, qa = scaffold.split("## Trace & QA", maxsplit=1)
-    assert primary.index("## Information issued and citations") < primary.index(
-        "## Background"
+    assert primary.index("## Proposal conditions and RFI process") < primary.index(
+        "## Project Documents"
     )
-    assert "[1]" in primary
+    assert scaffold.index("## Project Documents") < scaffold.index("## Trace & QA")
     assert "Tender close date" not in primary
     assert "Tender close date" in qa
     assert "TBC" not in primary
+
+
+def test_information_register_is_distinct_from_cited_narrative_evidence() -> None:
+    cited = [
+        {
+            "relative_path": "04-projects/walsh/00-brief-pmp/ppr.pdf",
+            "filename": "ppr.pdf",
+            "document_metadata": {"title": "Principal's Project Requirements"},
+        }
+    ]
+    issued = [
+        *cited,
+        {
+            "relative_path": "04-projects/walsh/03-design/electrical/E001.pdf",
+            "filename": "E001.pdf",
+            "document_metadata": {
+                "document_number": "E001",
+                "title": "Electrical layout",
+                "revision": "C",
+                "discipline": "Electrical",
+            },
+        },
+    ]
+    scaffold = render_rfp_scaffold(
+        project=_project(),
+        target=normalise_discipline("electrical engineer"),
+        citation_index=build_rfp_citation_index(cited),
+        forecast={"used": False},
+        max_pages=3,
+        project_evidence=cited,
+        issued_documents=issued,
+    )
+
+    assert "## Project Documents (2 documents)" in scaffold
+    assert "| Document number | Title | Rev | Category |" in scaffold
+    assert "| E001 | Electrical layout | C | Electrical |" in scaffold
+    assert "| Citation |" not in scaffold

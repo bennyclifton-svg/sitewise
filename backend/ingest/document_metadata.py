@@ -81,9 +81,19 @@ LIFECYCLE_CATEGORY_BY_FOLDER: list[tuple[re.Pattern[str], str]] = [
 ]
 
 FILENAME_DISCIPLINE_KEYWORDS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"^M\d{2,3}\b", re.I), "Mechanical"),
+    (
+        re.compile(r"^(?:\d{3,6}[\s_-]+)?M-?\d{2,4}\b", re.I),
+        "Mechanical",
+    ),
+    (
+        re.compile(r"^(?:\d{3,6}[\s_-]+)?E-?\d{2,4}\b", re.I),
+        "Electrical",
+    ),
     (re.compile(r"\belectrical\b", re.I), "Electrical"),
-    (re.compile(r"\bhydraulic\b|\bhw\s*&\s*gas\b|\bsanitary\b|\bdrainage\b", re.I), "Hydraulic"),
+    (
+        re.compile(r"\bhydraulic\b|\bhw\s*&\s*gas\b|\bsanitary\b|\bdrainage\b", re.I),
+        "Hydraulic",
+    ),
     (re.compile(r"\bmechanical\b", re.I), "Mechanical"),
     (re.compile(r"\bstructural\b|^S\d{3}-", re.I), "Structural"),
     (re.compile(r"\barchitect", re.I), "Architectural"),
@@ -101,7 +111,6 @@ FILENAME_DISCIPLINE_KEYWORDS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^CC-A-", re.I), "Architectural"),
     (re.compile(r"^(?:\d{3,6}\s+)?CC-\d{2,3}\b", re.I), "Architectural"),
     (re.compile(r"(?<![A-Z0-9])\d{4,6}_S\d{3,4}(?![A-Z0-9])", re.I), "Structural"),
-    (re.compile(r"^E\d{2}\s*-", re.I), "Electrical"),
     (re.compile(r"^H-", re.I), "Hydraulic"),
     (re.compile(r"^F-", re.I), "Fire"),
 ]
@@ -152,7 +161,9 @@ def parse_document_metadata(
                     confidence="low",
                 ),
             )
-            return _build_metadata(merged, base_name, filed_path, extension, source_path)
+            return _build_metadata(
+                merged, base_name, filed_path, extension, source_path
+            )
         if stub:
             # The Windows 8.3 alias hides the title, but the sheet-number prefix
             # (e.g. "E01") is reliable. Record it for the register while keeping
@@ -190,33 +201,30 @@ def parse_document_metadata(
 def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None:
     compact = re.sub(r"\s+", " ", text.replace("\x00", " "))
     line_fields = _parse_title_block_lines(text)
-    document_number = (
-        line_fields.get("document_number")
-        or _extract_label_value(
-            compact,
-            [
-                re.compile(
-                    r"(?:drawing|drg|dwg|sheet)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
-                    re.I,
-                ),
-                re.compile(
-                    r"(?:drawing|sketch)\s*/\s*(?:drawing|sketch)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
-                    re.I,
-                ),
-                re.compile(
-                    r"(?:document|doc)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
-                    re.I,
-                ),
-                re.compile(
-                    r"(?:reference|ref)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
-                    re.I,
-                ),
-                re.compile(
-                    r"(?:project|job|report)\s+(?:no|number|ref)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
-                    re.I,
-                ),
-            ],
-        )
+    document_number = line_fields.get("document_number") or _extract_label_value(
+        compact,
+        [
+            re.compile(
+                r"(?:drawing|drg|dwg|sheet)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
+                re.I,
+            ),
+            re.compile(
+                r"(?:drawing|sketch)\s*/\s*(?:drawing|sketch)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
+                re.I,
+            ),
+            re.compile(
+                r"(?:document|doc)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
+                re.I,
+            ),
+            re.compile(
+                r"(?:reference|ref)\s+(?:no|number|#)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
+                re.I,
+            ),
+            re.compile(
+                r"(?:project|job|report)\s+(?:no|number|ref)\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]*)",
+                re.I,
+            ),
+        ],
     )
     title = (
         line_fields.get("title")
@@ -254,7 +262,9 @@ def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None
     )
 
     expanded_ctmp_title = _expand_ctmp_title_from_text(compact, title)
-    resolved_title = expanded_ctmp_title if expanded_ctmp_title is not None else (title or "")
+    resolved_title = (
+        expanded_ctmp_title if expanded_ctmp_title is not None else (title or "")
+    )
     resolved_document_number = document_number
     if not resolved_document_number and re.search(
         r"\bctmp\b|\bconstruction\s+traffic\s+management\s+plan\b", compact, re.I
@@ -309,9 +319,9 @@ def infer_discipline_from_inbox_path(source_path: str) -> str | None:
         return None
     folder_key = inbox_match.group(1).upper()
     decoded_key = unquote(inbox_match.group(1)).upper()
-    return INBOX_FOLDER_DISCIPLINE_LABELS.get(decoded_key) or INBOX_FOLDER_DISCIPLINE_LABELS.get(
-        folder_key
-    )
+    return INBOX_FOLDER_DISCIPLINE_LABELS.get(
+        decoded_key
+    ) or INBOX_FOLDER_DISCIPLINE_LABELS.get(folder_key)
 
 
 def infer_discipline_from_file_name(stem: str) -> str | None:
@@ -399,9 +409,13 @@ def _merge_parsed_fields(
         return _normalize_parsed_fields(file_name)
 
     preview_doc = preview.get("document_number", "")
-    preview_document_number = preview_doc if _is_valid_document_number(str(preview_doc)) else ""
+    preview_document_number = (
+        preview_doc if _is_valid_document_number(str(preview_doc)) else ""
+    )
     file_document_number = (
-        file_name.document_number if _is_valid_document_number(file_name.document_number) else ""
+        file_name.document_number
+        if _is_valid_document_number(file_name.document_number)
+        else ""
     )
     # A high-confidence filename that already carries both a number and a title
     # is authored deliberately (e.g. "CC-A-182 RCP - LEVEL 1.pdf") and is more
@@ -424,7 +438,9 @@ def _merge_parsed_fields(
         else ""
     )
     file_title = (
-        _normalize_title_for_canonical(file_name.title, document_number) if file_name.title else ""
+        _normalize_title_for_canonical(file_name.title, document_number)
+        if file_name.title
+        else ""
     )
     if strong_filename_identity:
         title = file_title
@@ -433,17 +449,23 @@ def _merge_parsed_fields(
 
     preview_rev = preview.get("revision", "")
     preview_revision = (
-        str(preview_rev) if preview_rev and _is_valid_revision(str(preview_rev)) else "Current"
+        str(preview_rev)
+        if preview_rev and _is_valid_revision(str(preview_rev))
+        else "Current"
     )
     file_revision = (
-        file_name.revision if file_name.revision and _is_valid_revision(file_name.revision) else "Current"
+        file_name.revision
+        if file_name.revision and _is_valid_revision(file_name.revision)
+        else "Current"
     )
     if strong_filename_identity:
         # Keep the filename's revision; only accept a clean single-token revision
         # from the title block (rejects noise like "FOR CONSTRUCTION").
         if file_revision != "Current":
             revision = file_revision
-        elif preview_revision != "Current" and re.match(r"^[A-Z0-9]{1,4}$", preview_revision):
+        elif preview_revision != "Current" and re.match(
+            r"^[A-Z0-9]{1,4}$", preview_revision
+        ):
             revision = preview_revision
         else:
             revision = "Current"
@@ -482,7 +504,9 @@ def _merge_parsed_fields(
     )
 
 
-def _choose_best_title(preview_title: str, file_title: str, document_number: str) -> str:
+def _choose_best_title(
+    preview_title: str, file_title: str, document_number: str
+) -> str:
     preview_is_placeholder = _is_placeholder_title(preview_title, document_number)
     file_is_placeholder = _is_placeholder_title(file_title, document_number)
     preview_is_corrupted = _is_corrupted_extracted_title(preview_title, file_title)
@@ -512,7 +536,9 @@ def _is_corrupted_extracted_title(preview_title: str, file_title: str) -> bool:
 
 def _normalize_parsed_fields(fields: _ParsedFields) -> _ParsedFields:
     document_number = (
-        fields.document_number.strip() if _is_valid_document_number(fields.document_number) else ""
+        fields.document_number.strip()
+        if _is_valid_document_number(fields.document_number)
+        else ""
     )
     title = _normalize_title_for_canonical(fields.title, document_number)
     revision = fields.revision if _is_valid_revision(fields.revision) else "Current"
@@ -533,11 +559,13 @@ def _parse_from_preview(preview: str) -> dict[str, str | Confidence] | None:
     if not markdown and not title_block:
         return None
 
-    document_number = (title_block or {}).get("document_number") or (markdown or {}).get(
-        "document_number", ""
-    )
+    document_number = (title_block or {}).get("document_number") or (
+        markdown or {}
+    ).get("document_number", "")
     title = (title_block or {}).get("title") or (markdown or {}).get("title", "")
-    revision = (title_block or {}).get("revision") or (markdown or {}).get("revision", "Current")
+    revision = (title_block or {}).get("revision") or (markdown or {}).get(
+        "revision", "Current"
+    )
     md_conf = (markdown or {}).get("confidence")
     tb_conf = (title_block or {}).get("confidence")
     if md_conf == "high" or tb_conf == "high":
@@ -560,17 +588,23 @@ def _parse_from_preview(preview: str) -> dict[str, str | Confidence] | None:
 
 def _parse_from_markdown_table(preview: str) -> dict[str, str | Confidence] | None:
     frontmatter_match = re.search(r"^title:\s*(.+)$", preview, re.M)
-    frontmatter_title = frontmatter_match.group(1).strip() if frontmatter_match else None
+    frontmatter_title = (
+        frontmatter_match.group(1).strip() if frontmatter_match else None
+    )
 
     drawing_number_match = re.search(
         r"\*\*Drawing number\*\*\s*\|\s*(.+?)\s*\|", preview, re.I
     ) or re.search(r"\*\*Drawing No\.?\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
-    drawing_number = drawing_number_match.group(1).strip() if drawing_number_match else None
+    drawing_number = (
+        drawing_number_match.group(1).strip() if drawing_number_match else None
+    )
 
     drawing_title_match = re.search(
         r"\*\*Drawing title\*\*\s*\|\s*(.+?)\s*\|", preview, re.I
     ) or re.search(r"\*\*Title\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
-    drawing_title = drawing_title_match.group(1).strip() if drawing_title_match else None
+    drawing_title = (
+        drawing_title_match.group(1).strip() if drawing_title_match else None
+    )
 
     revision_match = re.search(
         r"\*\*Revision\*\*\s*\|\s*\*?\*?(.+?)\*?\*?\s*\|", preview, re.I
@@ -631,7 +665,9 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
         for field_name, patterns in label_matchers:
             if not any(p.search(line) for p in patterns):
                 continue
-            if field_name == "title" and re.search(r"^drawing\s+title\s+block\b", line, re.I):
+            if field_name == "title" and re.search(
+                r"^drawing\s+title\s+block\b", line, re.I
+            ):
                 continue
 
             next_line = lines[index + 1] if index + 1 < len(lines) else None
@@ -653,7 +689,9 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
                     continue
                 fields["revision"] = normalized_revision
             elif field_name == "document_number":
-                if not _is_valid_document_number(value) or _is_title_block_noise_value(value):
+                if not _is_valid_document_number(value) or _is_title_block_noise_value(
+                    value
+                ):
                     continue
                 fields["document_number"] = value
             else:
@@ -723,19 +761,75 @@ def _extract_label_value(text: str, patterns: list[re.Pattern[str]]) -> str | No
 # words is noise regardless of how many words it has.
 _TITLE_BLOCK_LABEL_WORDS = frozenset(
     {
-        "scale", "date", "drawn", "checked", "approved", "sheet", "size",
-        "format", "project", "job", "title", "description", "status", "stage",
-        "client", "revision", "rev", "issue", "version", "note", "notes",
-        "drawing", "document", "report", "reference", "ref", "number", "no",
-        "consultant", "contractor", "plot", "designed", "design", "datum",
-        "north", "dwg", "drg", "amendment", "amendments", "builder", "architect",
+        "scale",
+        "date",
+        "drawn",
+        "checked",
+        "approved",
+        "sheet",
+        "size",
+        "format",
+        "project",
+        "job",
+        "title",
+        "description",
+        "status",
+        "stage",
+        "client",
+        "revision",
+        "rev",
+        "issue",
+        "version",
+        "note",
+        "notes",
+        "drawing",
+        "document",
+        "report",
+        "reference",
+        "ref",
+        "number",
+        "no",
+        "consultant",
+        "contractor",
+        "plot",
+        "designed",
+        "design",
+        "datum",
+        "north",
+        "dwg",
+        "drg",
+        "amendment",
+        "amendments",
+        "builder",
+        "architect",
         "engineer",
         # NSW Regulated Design Record stamp — a second label column on the same
         # sheet, whose labels otherwise read as plausible values.
-        "regulated", "record", "practitioner", "practitioners", "dp", "full",
-        "name", "address", "body", "corporate", "consent", "declaration",
-        "reg", "dd", "mm", "yy",
-        "at", "as", "not", "for", "use", "tbc", "tba", "nil", "none",
+        "regulated",
+        "record",
+        "practitioner",
+        "practitioners",
+        "dp",
+        "full",
+        "name",
+        "address",
+        "body",
+        "corporate",
+        "consent",
+        "declaration",
+        "reg",
+        "dd",
+        "mm",
+        "yy",
+        "at",
+        "as",
+        "not",
+        "for",
+        "use",
+        "tbc",
+        "tba",
+        "nil",
+        "none",
     }
 )
 
@@ -782,10 +876,14 @@ def _title_above_scale(text: str) -> str | None:
     return best
 
 
-def _expand_ctmp_title_from_text(text: str, existing_title: str | None = None) -> str | None:
+def _expand_ctmp_title_from_text(
+    text: str, existing_title: str | None = None
+) -> str | None:
     if existing_title and not re.match(r"^ctmp\b", existing_title, re.I):
         return None
-    if not re.search(r"\bctmp\b|\bconstruction\s+traffic\s+management\s+plan\b", text, re.I):
+    if not re.search(
+        r"\bctmp\b|\bconstruction\s+traffic\s+management\s+plan\b", text, re.I
+    ):
         return None
 
     status_match = None
@@ -890,7 +988,9 @@ def _match_architect_number(stem: str) -> _ParsedFields | None:
 
 
 def _match_electrical_sheet(stem: str) -> _ParsedFields | None:
-    match = re.match(r"^(E\d{2})\s*-\s*([A-Z\s]+?)\s*-\s*(.+?)\s*-\s*\[([^\]]+)\]$", stem, re.I)
+    match = re.match(
+        r"^(E\d{2})\s*-\s*([A-Z\s]+?)\s*-\s*(.+?)\s*-\s*\[([^\]]+)\]$", stem, re.I
+    )
     if not match:
         return None
     title = _clean_title(
@@ -1083,9 +1183,9 @@ def _match_fco_revision(stem: str) -> _ParsedFields | None:
 
 
 def _match_rev_parenthetical(stem: str) -> _ParsedFields | None:
-    match = re.match(r"^(.+?)\s*\(\s*Rev(?:ision)?\s*([^)]+)\)$", stem, re.I) or re.match(
-        r"^(.+?)\s*\(\s*rev([^)]+)\)$", stem, re.I
-    )
+    match = re.match(
+        r"^(.+?)\s*\(\s*Rev(?:ision)?\s*([^)]+)\)$", stem, re.I
+    ) or re.match(r"^(.+?)\s*\(\s*rev([^)]+)\)$", stem, re.I)
     if not match:
         return None
     title_part = _clean_title(match.group(1))
@@ -1232,7 +1332,9 @@ def _lifecycle_discipline(filed_path: str) -> str | None:
 
 
 def _is_unparseable_file_name(file_name: str) -> bool:
-    return "~" in file_name or bool(re.search(r"\d{4}-\d{2}-\d{2}_.*VAR", file_name, re.I))
+    return "~" in file_name or bool(
+        re.search(r"\d{4}-\d{2}-\d{2}_.*VAR", file_name, re.I)
+    )
 
 
 def _extract_extension(file_name: str) -> str:

@@ -145,6 +145,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     isRunningProcurement,
     onRunProcurement,
     onSelectWorkflow,
+    onDraftSelected,
   }: {
     isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
@@ -157,6 +158,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     isRunningProcurement: boolean;
     onRunProcurement?: (kind: string, targetName: string) => void;
     onSelectWorkflow?: (workflowId: string) => void;
+    onDraftSelected?: (draft: DraftArtifactSummary) => void;
   }) => (
     <div>
       <div data-testid="control-cost-plan-state">
@@ -166,8 +168,31 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
         Create cost plan
       </button>
       {onSelectWorkflow ? (
-        <button type="button" onClick={() => onSelectWorkflow("cost-plan")}>
-          Open Cost Plan panel
+        <>
+          <button type="button" onClick={() => onSelectWorkflow("cost-plan")}>
+            Open Cost Plan panel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectWorkflow("procurement-requests")}
+          >
+            Open Procurement panel
+          </button>
+        </>
+      ) : null}
+      {onDraftSelected ? (
+        <button
+          type="button"
+          onClick={() =>
+            onDraftSelected({
+              ...costPlanSummary,
+              id: "main-works-rft-v2",
+              workflow_type: "trade_rft_main_works",
+              title: "Request for Tender - Main Works",
+            })
+          }
+        >
+          Select Main Works RFT
         </button>
       ) : null}
       {onRunRefreshCostPlan ? (
@@ -344,6 +369,18 @@ describe("ProjectCockpitPage cost plan workflow", () => {
 
     expect(await screen.findByTestId("draft-review")).toHaveTextContent("draft-v2");
     expect(screen.getByTestId("repository")).toHaveTextContent(rftDraft.id);
+  });
+
+  it("highlights documents for the RFT selected in the procurement workbench", async () => {
+    const user = userEvent.setup();
+    renderProjectCockpit();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Open Procurement panel" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Select Main Works RFT" }));
+
+    expect(screen.getByTestId("repository")).toHaveTextContent("main-works-rft-v2");
   });
 
   it("shows the workbook draft returned by a Cost Plan refresh", async () => {

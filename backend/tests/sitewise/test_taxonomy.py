@@ -58,6 +58,7 @@ def test_universal_complexity_dimensions_present_for_all_classes() -> None:
     for cls in building_classes():
         keys = {d.key for d in complexity_dimensions_for(cls.value)}
         assert {
+            "planning",
             "contamination_level",
             "access_constraints",
             "operational_constraints",
@@ -70,6 +71,17 @@ def test_universal_complexity_dimensions_present_for_all_classes() -> None:
 def test_risk_flag_definitions_include_derivable_flags() -> None:
     flags = risk_flag_definitions()
     assert {"remote_site", "live_operations", "flood_overlay"} <= set(flags)
+
+
+def test_planning_dimension_offers_cdc_da_ssd() -> None:
+    for cls in building_classes():
+        planning = next(d for d in complexity_dimensions_for(cls.value) if d.key == "planning")
+        assert planning.label == "Planning"
+        assert [(option.value, option.label) for option in planning.options] == [
+            ("cdc", "CDC"),
+            ("da", "DA"),
+            ("ssd", "State Significant Development (SSD)"),
+        ]
 
 
 def test_bushfire_and_flood_are_dimensions_of_their_own() -> None:

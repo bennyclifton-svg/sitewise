@@ -1,5 +1,10 @@
 You write only three narrative fields for consultant services in a client-issued
-Request for Tender.
+Request for Proposal.
+
+Apply the supplied evidence hierarchy. SiteWise platform guidance frames the
+appointment and response structure. The PPR and project brief define overarching
+project intent. Detailed design documents provide supporting facts only and must
+not pull the whole request down into one discipline's detail.
 
 - `background`: write 2–4 concise sentences. Every sentence that refers to a
   specific project document or its contents must end with that document's exact

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-import re
 from decimal import Decimal
 
+from app.cost_plan.normalization import (
+    normalize_business_key,
+    normalize_description_key,
+)
 from app.cost_plan.schemas import (
     CostItemInput,
     CostPlanState,
@@ -49,9 +52,16 @@ _PROFESSIONAL_TRADE_MARKERS = {
 def map_invoice_allocations(
     invoice: ExtractedInvoice,
     cost_plan: CostPlanState,
+    remembered_mappings: dict[tuple[str, str], tuple[str, str]] | None = None,
 ) -> list[InvoiceAllocationInput]:
     return [
-        _map_line(invoice, line, line_number, cost_plan.items)
+        _map_line(
+            invoice,
+            line,
+            line_number,
+            cost_plan.items,
+            remembered_mappings=remembered_mappings,
+        )
         for line_number, line in enumerate(invoice.lines, start=1)
     ]
 
@@ -61,7 +71,17 @@ def _map_line(
     line: InvoiceLineInput,
     line_number: int,
     items: list[CostItemInput],
+    remembered_mappings: dict[tuple[str, str], tuple[str, str]] | None = None,
 ) -> InvoiceAllocationInput:
+    remembered = (remembered_mappings or {}).get(
+        (
+            normalize_business_key(invoice.supplier_name),
+            normalize_description_key(line.description),
+        )
+    )
+    if remembered is not None:
+        return _mapped(line, line_number, remembered, "remembered", Decimal("1"))
+
     eligible_items = _eligible_items(line, items)
     exact = [
         item
@@ -162,17 +182,21 @@ def _markers(value: str) -> set[str]:
 def _mapped(
     line: InvoiceLineInput,
     line_number: int,
-    item: CostItemInput,
+    item: CostItemInput | tuple[str, str],
     method: str,
     confidence: Decimal,
 ) -> InvoiceAllocationInput:
+    if isinstance(item, tuple):
+        cost_item_key, cost_item_label = item
+    else:
+        cost_item_key, cost_item_label = item.item_key, item.item
     return InvoiceAllocationInput(
         line_number=line_number,
         description=line.description,
         amount_ex_gst=line.amount_ex_gst,
         gst_treatment=line.gst_treatment,
-        cost_item_key=item.item_key,
-        cost_item_label=item.item,
+        cost_item_key=cost_item_key,
+        cost_item_label=cost_item_label,
         mapping_method=method,  # type: ignore[arg-type]
         mapping_confidence=confidence,
         review_status="mapped",
@@ -180,5 +204,4 @@ def _mapped(
     )
 
 
-def _normalize(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+_normalize = normalize_description_key

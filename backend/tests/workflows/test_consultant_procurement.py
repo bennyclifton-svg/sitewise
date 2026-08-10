@@ -128,6 +128,11 @@ def _install(
         "get_latest_draft_artifact",
         AsyncMock(return_value=cost_plan),
     )
+    monkeypatch.setattr(
+        workflow,
+        "load_procurement_document_register",
+        AsyncMock(return_value=[]),
+    )
 
     async def _create_draft(session, **kwargs):
         match = re.search(r"_v(\d+)\.draft\.md$", kwargs["workspace_path"])
@@ -242,24 +247,26 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
 
     result = _run(session=session, discipline="structural engineer")
 
-    assert result.draft.title == "Request for Tender - Structural engineer"
+    assert result.draft.title == "Request for Proposal - Structural engineer"
     assert result.draft.workspace_path == (
         "04-projects/walsh-renovation/02-consultant/"
         "consultant_procurement_structural_engineer_v01.draft.md"
     )
-    assert "# Request for Tender - Structural engineer" in result.draft.content_markdown
-    assert "## Tender particulars" in result.draft.content_markdown
+    assert (
+        "# Request for Proposal - Structural engineer" in result.draft.content_markdown
+    )
+    assert "## Proposal particulars" in result.draft.content_markdown
     assert "| Field | Project detail | Source |" not in result.draft.content_markdown
     assert "| Project |" in result.draft.content_markdown
     primary, trace = result.draft.content_markdown.split("## Trace & QA", maxsplit=1)
-    assert "client-issued Request for Tender" not in primary
-    assert "client-issued Request for Tender" in trace
+    assert "client-issued Request for Proposal" not in primary
+    assert "client-issued Request for Proposal" in trace
     assert "Confirm" not in primary
     assert any(
-        "client-issued Request for Tender" in item
+        "client-issued Request for Proposal" in item
         for item in result.source_trace["assumptions"]
     )
-    assert "| Document number | Title | Rev | Category | Citation |" in (
+    assert "| Document number | Title | Rev | Category |" in (
         result.draft.content_markdown
     )
     assert "## Citation key" not in result.draft.content_markdown
@@ -268,18 +275,22 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     assert "| Client | TBC | Confirm |" not in result.draft.content_markdown
     assert result.source_trace["project_documents"]
     assert result.source_trace["platform_knowledge"][0]["path"] == (
-        "seed/consultant-procurement.md"
+        "seed/procurement-tendering-guide.md"
+    )
+    assert any(
+        item["path"] == "seed/consultant-procurement.md"
+        for item in result.source_trace["platform_knowledge"]
     )
     assert result.source_trace["forecast"]["used"] is True
     assert result.source_trace["forecast"]["status"] == "Judgement"
     assert result.source_trace["forecast"]["construction_budget"] == 920_000
-    assert "| Budget | $920,000 ex GST | Current Cost Plan v1 |" in (
-        result.draft.content_markdown
-    )
+    assert "| Budget | $920,000 ex GST |  |" in (result.draft.content_markdown)
     assert create_draft.await_args.kwargs["runtime"] == "clerk-consultant-procurement"
     assert result.draft.provenance_metadata["seed_consulted"] == [
-        "seed/consultant-procurement.md",
+        "seed/procurement-tendering-guide.md",
+        "seed/cost-management-principles.md",
         "seed/procurement-quoting-guide.md",
+        "seed/consultant-procurement.md",
     ]
     assert result.draft.provenance_metadata["evidence_refs"] == [
         "04-projects/walsh-renovation/00-brief/project-brief.pdf",
@@ -287,8 +298,10 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
         "04-projects/walsh-renovation/03-design/markups.pdf",
     ]
     assert result.draft.provenance_metadata["context_refs"] == [
-        "seed/consultant-procurement.md",
+        "seed/procurement-tendering-guide.md",
+        "seed/cost-management-principles.md",
         "seed/procurement-quoting-guide.md",
+        "seed/consultant-procurement.md",
     ]
     sync_workspace.assert_awaited_once()
     assert sync_workspace.await_args.kwargs["markdown"] == result.draft.content_markdown
@@ -339,7 +352,7 @@ def test_rfp_information_register_uses_document_repository_metadata(
     result = _run(session=_Session(), discipline="structural engineer")
 
     assert (
-        "| 420 | STRUCTURAL ENG. DETAILS | P3 | Structural | [1] |"
+        "| 420 | STRUCTURAL ENG. DETAILS | P3 | Structural |"
         in result.draft.content_markdown
     )
     assert "1. Tailor the requested services" in result.draft.content_markdown
@@ -371,9 +384,7 @@ def test_rfp_prefers_user_adopted_cost_plan_budget_over_partial_trade_total(
     result = _run(session=_Session(), discipline="structural engineer")
 
     assert result.source_trace["forecast"]["construction_budget"] == 400_000
-    assert "| Budget | $400,000 ex GST | Current Cost Plan v3 (user-adopted) |" in (
-        result.draft.content_markdown
-    )
+    assert "| Budget | $400,000 ex GST |  |" in (result.draft.content_markdown)
 
 
 @pytest.mark.parametrize(
@@ -579,6 +590,8 @@ def test_commercial_fitout_filters_semantic_guidance_to_project_taxonomy(
         not in paths
     )
     assert "seed/procurement-quoting-guide.md" not in paths
+    assert "seed/procurement-tendering-guide.md" in paths
+    assert "seed/cost-management-principles.md" in paths
     assert "seed/mechanical-services-guide.md" not in paths
 
 

@@ -30,7 +30,7 @@ def render_artifact_export(
     issue_markdown = _render_static_decisions(
         issue_export_markdown(
             markdown,
-            project_title=project_title if workflow_type == "create_pmp" else None,
+            project_title=project_title,
         )
     )
     html_body = _markdown_html(issue_markdown)

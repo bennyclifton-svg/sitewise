@@ -87,7 +87,7 @@ describe("ChatPanel long answer streaming", () => {
     fireEvent.change(screen.getByLabelText("Message"), {
       target: { value: "Create a transmittal with the selected files" },
     });
-    fireEvent.click(screen.getByLabelText("Send message"));
+    fireEvent.click(screen.getByLabelText("Ask SiteWise"));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
@@ -136,7 +136,7 @@ describe("ChatPanel long answer streaming", () => {
     fireEvent.change(screen.getByLabelText("Message"), {
       target: { value: "Create a transmittal with the selected files" },
     });
-    fireEvent.click(screen.getByLabelText("Send message"));
+    fireEvent.click(screen.getByLabelText("Ask SiteWise"));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
@@ -174,7 +174,7 @@ describe("ChatPanel long answer streaming", () => {
     fireEvent.change(screen.getByLabelText("Message"), {
       target: { value: "identify risks not captured in the profile" },
     });
-    fireEvent.click(screen.getByLabelText("Send message"));
+    fireEvent.click(screen.getByLabelText("Ask SiteWise"));
 
     await waitFor(
       () => {

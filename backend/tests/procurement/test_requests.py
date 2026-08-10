@@ -128,7 +128,7 @@ def test_create_normalises_target_and_starts_at_draft_revision_one() -> None:
     assert request.target_slug == "electrical_services"
     assert request.status == "draft"
     assert request.revision == 1
-    assert request.kind == "trade_rft"
+    assert request.kind == "trade_rfq"
     assert session.added == [request]
 
 

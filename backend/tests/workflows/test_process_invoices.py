@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.cost_plan.invoice_candidates import InvoiceCandidate
 from app.cost_plan.invoice_service import InvoiceBookingResult
@@ -160,6 +160,16 @@ def test_process_invoices_books_and_publishes_one_cost_plan_version() -> None:
         runtime="test",
     )
     session = AsyncMock()
+    memory_result = MagicMock()
+    memory_result.scalars.return_value.all.return_value = [
+        SimpleNamespace(
+            supplier_key="quoinarchitectureptyltd",
+            description_key="stage 1 schematic design completed",
+            cost_item_key="architect",
+            cost_item_label="Architect / PM",
+        )
+    ]
+    session.execute.return_value = memory_result
     session.get.return_value = draft
     progress = AsyncMock()
 
@@ -183,7 +193,7 @@ def test_process_invoices_books_and_publishes_one_cost_plan_version() -> None:
         patch(
             "app.workflows.process_invoices.map_invoice_allocations",
             return_value=[_allocation()],
-        ),
+        ) as map_allocations,
         patch(
             "app.workflows.process_invoices.book_invoice",
             new=AsyncMock(
@@ -221,6 +231,13 @@ def test_process_invoices_books_and_publishes_one_cost_plan_version() -> None:
     assert result.cost_plan_version == 6
     assert result.draft_id == draft_id
     assert result.workbook_path.endswith("Cost_Plan_v06.draft.xlsx")
+    session.execute.assert_awaited_once()
+    assert map_allocations.call_args.kwargs["remembered_mappings"] == {
+        (
+            "quoinarchitectureptyltd",
+            "stage 1 schematic design completed",
+        ): ("architect", "Architect / PM")
+    }
     assert book.await_args.kwargs["first_published_cost_plan_version"] == 6
     assert publish.await_args.kwargs["expected_base_version"] == 5
     assert sync.await_args.kwargs["provenance_updates"] == {
@@ -235,6 +252,9 @@ def test_process_invoices_books_and_publishes_one_cost_plan_version() -> None:
 
 def test_process_invoices_duplicate_only_is_a_noop() -> None:
     session = AsyncMock()
+    memory_result = MagicMock()
+    memory_result.scalars.return_value.all.return_value = []
+    session.execute.return_value = memory_result
     with (
         patch(
             "app.workflows.process_invoices.count_pending_invoice_ingests",

@@ -60,9 +60,7 @@ class ContractorEoiDocument(ProcurementDocument):
     def title(self, target: ProcurementTarget) -> str:
         return f"Expression of Interest - {target.name}"
 
-    def evidence_queries(
-        self, target: ProcurementTarget
-    ) -> tuple[EvidenceQuery, ...]:
+    def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         return (
             EvidenceQuery(
                 "project_brief",
@@ -146,6 +144,7 @@ class ContractorEoiDocument(ProcurementDocument):
         project: Project,
         target: ProcurementTarget,
         project_evidence: list[dict[str, Any]],
+        issued_documents: list[dict[str, Any]],
         platform_knowledge: list[dict[str, Any]],
         forecast: dict[str, Any],
         assumptions: list[str],
@@ -153,6 +152,7 @@ class ContractorEoiDocument(ProcurementDocument):
         max_pages: int,
         instructions: str | None,
     ) -> str:
+        del issued_documents
         state = getattr(project, "state", None) or "TBC"
         identity = resolve_project_identity(project, evidence=project_evidence)
         site_address = identity.get("site_address") or "TBC"
@@ -289,18 +289,22 @@ def _basis_footer(
     knowledge: list[dict[str, Any]],
     missing_inputs: list[str],
 ) -> str:
-    docs = ", ".join(
-        sorted(
-            {
-                item.get("filename") or item.get("relative_path") or ""
-                for item in evidence
-            }
-            - {""}
+    docs = (
+        ", ".join(
+            sorted(
+                {
+                    item.get("filename") or item.get("relative_path") or ""
+                    for item in evidence
+                }
+                - {""}
+            )
         )
-    ) or "none found"
-    guidance = ", ".join(
-        item.get("title", "") for item in knowledge[:2] if item.get("title")
-    ) or "none found"
+        or "none found"
+    )
+    guidance = (
+        ", ".join(item.get("title", "") for item in knowledge[:2] if item.get("title"))
+        or "none found"
+    )
     missing = "; ".join(missing_inputs[:4])
     return (
         f"Basis used: project docs: {docs}. Platform guidance: {guidance}. "

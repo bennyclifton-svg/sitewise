@@ -134,6 +134,7 @@ export function ProjectControlBoard({
   isRunningSortFiles,
   onProjectUpdated,
   onProfileProposalsResolved,
+  onDraftSelected,
   onDraftUpdated,
   invoiceProcessResult = null,
 }: {
@@ -182,6 +183,7 @@ export function ProjectControlBoard({
   isRunningSortFiles: boolean;
   onProjectUpdated?: (project: ProjectDetail) => void;
   onProfileProposalsResolved?: () => void;
+  onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
   invoiceProcessResult?: ProcessInvoicesResult | null;
 }) {
@@ -259,6 +261,7 @@ export function ProjectControlBoard({
           sortFilesError={sortFilesError}
           isRunningSortFiles={isRunningSortFiles}
           onProjectUpdated={onProjectUpdated}
+          onDraftSelected={onDraftSelected}
           onDraftUpdated={onDraftUpdated}
           invoiceProcessResult={invoiceProcessResult}
         />
@@ -699,6 +702,7 @@ function WorkflowDetail({
   sortFilesError,
   isRunningSortFiles,
   onProjectUpdated,
+  onDraftSelected,
   onDraftUpdated,
   invoiceProcessResult,
 }: {
@@ -741,6 +745,7 @@ function WorkflowDetail({
   isRunningSortFiles: boolean;
   onSelectWorkflow?: (workflowId: string) => void;
   onProjectUpdated?: (project: ProjectDetail) => void;
+  onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
   invoiceProcessResult: ProcessInvoicesResult | null;
 }) {
@@ -1191,7 +1196,13 @@ function WorkflowDetail({
               if (capability && capability.status !== "supported") {
                 return (
                   <CapabilityGateNotice
-                    workflow="Request for Tender"
+                    workflow={
+                      kind === "consultant_rfp"
+                        ? "Request for Proposal"
+                        : kind === "trade_rfq"
+                          ? "Request for Quotation"
+                          : "Request for Tender"
+                    }
                     capability={capability}
                   />
                 );
@@ -1200,6 +1211,7 @@ function WorkflowDetail({
             }}
             onCreate={(kind, targetName) => onRunProcurement?.(kind, targetName)}
             onCancel={onCancelProcurement}
+            onDraftSelected={onDraftSelected}
             onDraftUpdated={onDraftUpdated}
           />
         ) : isDocumentIntake ? (

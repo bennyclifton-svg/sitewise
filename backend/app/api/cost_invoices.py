@@ -237,6 +237,7 @@ async def patch_invoice_allocation(
         invoice = await update_invoice_allocation(
             session,
             project_id=project.id,
+            user_id=user.id,
             allocation_id=allocation_id,
             expected_revision=body.expected_revision,
             cost_item_key=target.item_key,

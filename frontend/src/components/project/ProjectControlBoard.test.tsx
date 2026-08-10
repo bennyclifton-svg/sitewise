@@ -273,7 +273,7 @@ describe("ProjectControlBoard project profile", () => {
     await screen.findByText("No procurement requests yet.");
     await user.selectOptions(screen.getByLabelText("Engagement"), "trade_rft");
     await user.type(screen.getByLabelText("Target"), "Electrical services");
-    await user.click(screen.getByRole("button", { name: "Create tender" }));
+    await user.click(screen.getByRole("button", { name: "Create RFT" }));
 
     expect(onRunProcurement).toHaveBeenCalledWith(
       "trade_rft",

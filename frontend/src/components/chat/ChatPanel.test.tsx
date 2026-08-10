@@ -196,7 +196,7 @@ describe("ChatPanel submit promotion", () => {
     );
 
     await user.type(screen.getByRole("textbox", { name: /message/i }), "What next?");
-    await user.click(screen.getByRole("button", { name: /send message/i }));
+    await user.click(screen.getByRole("button", { name: /ask sitewise/i }));
 
     expect(onUserSubmit).toHaveBeenCalledOnce();
     expect(sendMessage).toHaveBeenCalledWith({ text: "What next?" });

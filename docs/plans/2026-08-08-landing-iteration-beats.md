@@ -57,6 +57,31 @@ claim — beats 1–2 build trust in the capability, beat 3 is where it pays off
 just builders/trades. Confirm that comparison actually runs across all three before
 this goes live — the copy is making a real scope claim.
 
+### Beat P — project initiation
+
+> **You don't fill in the profile. You correct it.**
+>
+> Class, subclass, scale, complexity, scope — the handful of attributes every new
+> project starts with. Ask SiteWise to populate them, and it drafts the profile in
+> seconds. Override what's wrong, confirm what's right, and you're straight into the
+> project — not stuck in the intake form.
+
+Alt headline, not used: *"Start with a project, not a form."* Flatter, less pain-led;
+kept here in case the sharper version reads as too confrontational once animated.
+
+**Placement — decided provisionally, needs one confirm:** per direction this sits
+*after* beat 3, at ~1:14–1:18, not before beat 1. That reads as a new project
+starting right as the last one finishes — a nice reinforcement of the iteration
+theme (the cycle doesn't stop at handover). If that's the intended read, this is the
+right slot. If it's meant to be the true opening beat (chronologically, project
+initiation happens before drawings/specs ever land), it needs to move before beat 1
+and the whole transcript re-times. Confirm before this goes to Claude Design.
+
+**Graphic:** the profile-population animation already exists per the brief — fields
+(class / subclass / scale / complexity / scope) filling in live, either from
+documents landing or from a typed prompt, with each field briefly highlighted as
+it's set and remaining editable/clickable to correct.
+
 ## Timestamped transcript (first-pass pacing, placeholder)
 
 Broken into reveal units at roughly clause/sentence granularity, since the stated
@@ -87,10 +112,17 @@ starting point and re-time against the actual motion, not as fixed marks.
 | 0:58 | 3 | B3c | so it checks each tender against that scope, not just against its price. |
 | 1:02 | 3 | B3d | Consultants, contractors, trades: one comparison engine, line by line, exclusions flagged. |
 | 1:06 | 3 | B3e | Evaluation in moments, grounded and traced. |
+| 1:14 | P | HPa | You don't fill in the profile. |
+| 1:16 | P | HPb | You correct it. |
+| 1:19 | P | BPa | Class, subclass, scale, complexity, scope — |
+| 1:22 | P | BPb | the handful of attributes every new project starts with. |
+| 1:25 | P | BPc | Ask SiteWise to populate them, and it drafts the profile in seconds. |
+| 1:29 | P | BPd | Override what's wrong, confirm what's right, and you're straight into the project — not stuck in the intake form. |
 
-Total run ~1:10 across three beats, ~20–25s each. Adjust freely — the unit IDs
-(H1a, B2c, etc.) are the stable handles for mapping animation keyframes, independent
-of whatever timing ends up used.
+Total run ~1:33 across four beats. Adjust freely — the unit IDs (H1a, B2c, HPa,
+etc.) are the stable handles for mapping animation keyframes, independent of
+whatever timing ends up used. Beat P's placement after beat 3 is provisional — see
+the open flag under Beat P above.
 
 ## What's implemented vs. deferred
 

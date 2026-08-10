@@ -45,8 +45,14 @@ INBOX_PACKAGE_DESTINATIONS: dict[str, str] = {
 
 _FILENAME_DESTINATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^CC-A-", re.I), "03-design/architect"),
-    (re.compile(r"^M\d{2,3}\b", re.I), "03-design/mechanical"),
-    (re.compile(r"^E\d{2}\b", re.I), "03-design/electrical"),
+    (
+        re.compile(r"^(?:\d{3,6}[\s_-]+)?M-?\d{2,4}\b", re.I),
+        "03-design/mechanical",
+    ),
+    (
+        re.compile(r"^(?:\d{3,6}[\s_-]+)?E-?\d{2,4}\b", re.I),
+        "03-design/electrical",
+    ),
     (re.compile(r"^H-", re.I), "03-design/hydraulic"),
     (re.compile(r"^F-", re.I), "03-design/fire"),
     (re.compile(r"^S\d{3}", re.I), "03-design/structural"),
@@ -57,6 +63,8 @@ _FILENAME_DESTINATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 _BRIEF_FILENAME_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\bppr\b", re.I),
+    re.compile(r"\bprincipal'?s?[-_ ]+project[-_ ]+requirements?\b", re.I),
     re.compile(r"\b(owner[-_ ]?)?project[-_ ]?brief\b", re.I),
     re.compile(r"\bclient[-_ ]?brief\b", re.I),
     re.compile(r"\bpmp[-_ ]?(draft|brief)\b", re.I),
@@ -94,6 +102,11 @@ _PREVIEW_AUTHORITY_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 _PREVIEW_BRIEF_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(
+        r"^\s*#\s*principal'?s?\s+project\s+requirements?\b",
+        re.I | re.M,
+    ),
+    re.compile(r"\bprincipal'?s?\s+project\s+requirements?\s*\(PPR\)", re.I),
     re.compile(r"^\s*#\s*(owner[-_ ]?)?project[-_ ]?brief\b", re.I | re.M),
     re.compile(r"^\s*#\s*client[-_ ]?brief\b", re.I | re.M),
     re.compile(r"^\s*#\s*project[-_ ]?management[-_ ]?plan\b", re.I | re.M),

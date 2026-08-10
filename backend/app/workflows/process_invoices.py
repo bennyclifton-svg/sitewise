@@ -4,6 +4,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cost_plan.dependencies import dependency_snapshot
@@ -13,6 +14,7 @@ from app.cost_plan.invoice_candidates import (
 )
 from app.cost_plan.invoice_extraction import InvoiceExtractionError, extract_invoice
 from app.cost_plan.invoice_mapping import map_invoice_allocations
+from app.cost_plan.models import CostInvoiceMappingMemory
 from app.cost_plan.invoice_service import book_invoice
 from app.cost_plan.service import republish_cost_plan_for_ledger
 from app.database.draft_artifact import DraftArtifact
@@ -79,6 +81,26 @@ async def process_invoices(
         if candidates
         else None
     )
+    remembered_mappings: dict[tuple[str, str], tuple[str, str]] = {}
+    if candidates:
+        memories = (
+            (
+                await session.execute(
+                    select(CostInvoiceMappingMemory).where(
+                        CostInvoiceMappingMemory.project_id == project.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        remembered_mappings = {
+            (memory.supplier_key, memory.description_key): (
+                memory.cost_item_key,
+                memory.cost_item_label,
+            )
+            for memory in memories
+        }
 
     for index, candidate in enumerate(candidates, start=1):
         if mapping_plan is None:
@@ -93,6 +115,7 @@ async def process_invoices(
         allocations = map_invoice_allocations(
             extracted,
             mapping_plan,
+            remembered_mappings=remembered_mappings,
         )
         booking = await book_invoice(
             session,

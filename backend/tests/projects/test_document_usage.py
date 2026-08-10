@@ -20,6 +20,7 @@ def _draft(
     version: int = 1,
     title: str = "Project Management Plan",
     evidence_refs: list[str] | None = None,
+    issued_document_refs: list[str] | None = None,
     artefact_id: uuid.UUID | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
@@ -27,7 +28,10 @@ def _draft(
         workflow_type=workflow_type,
         version=version,
         title=title,
-        provenance_metadata={"evidence_refs": evidence_refs or []},
+        provenance_metadata={
+            "evidence_refs": evidence_refs or [],
+            "issued_document_refs": issued_document_refs or [],
+        },
     )
 
 
@@ -92,6 +96,28 @@ class TestUsageMarksByRelativePath:
         marks = usage_marks_by_relative_path([draft])
 
         assert len(marks["04-projects/chen/brief.pdf"]) == 1
+
+    def test_marks_every_document_issued_with_a_procurement_request(self):
+        draft = _draft(
+            workflow_type="trade_rft_main_works",
+            evidence_refs=[
+                "project_evidence:04-projects/mosaic/00-brief-pmp/ppr.pdf#chunk=1"
+            ],
+            issued_document_refs=[
+                "04-projects/mosaic/00-brief-pmp/ppr.pdf",
+                "04-projects/mosaic/03-design/architect/A001.pdf",
+                "04-projects/mosaic/03-design/electrical/E001.pdf",
+            ],
+        )
+
+        marks = usage_marks_by_relative_path([draft])
+
+        assert set(marks) == {
+            "04-projects/mosaic/00-brief-pmp/ppr.pdf",
+            "04-projects/mosaic/03-design/architect/A001.pdf",
+            "04-projects/mosaic/03-design/electrical/E001.pdf",
+        }
+        assert len(marks["04-projects/mosaic/00-brief-pmp/ppr.pdf"]) == 1
 
     def test_mark_carries_the_artefact_identity(self):
         artefact_id = uuid.uuid4()

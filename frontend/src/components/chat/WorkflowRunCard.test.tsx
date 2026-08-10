@@ -85,7 +85,7 @@ describe("WorkflowRunCard", () => {
     );
 
     expect(
-      await screen.findByText(/Queued Request for Tender/i),
+      await screen.findByText(/Queued Request for Proposal/i),
     ).toBeInTheDocument();
   });
 

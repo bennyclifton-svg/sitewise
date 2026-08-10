@@ -228,7 +228,7 @@ describe("AssistantMessage", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not show a globe when web search produced no source read", () => {
+  it("shows an internet-search globe when search informed the answer but source read failed", () => {
     render(
       <MemoryRouter>
         <AssistantMessage
@@ -239,6 +239,39 @@ describe("AssistantMessage", () => {
               tool: "search_web",
               state: "done",
               message: "Searched official web sources",
+            },
+            {
+              kind: "tool",
+              tool: "read_web_source",
+              state: "error",
+              message: "Official web source read failed",
+            },
+          ]}
+          agentMode
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText("Internet source")).toBeInTheDocument();
+    expect(screen.getByLabelText("Answer trace")).toHaveTextContent(
+      "Internet search",
+    );
+    expect(screen.queryByText("Web source")).not.toBeInTheDocument();
+  });
+
+  it("does not show a globe while an internet search is still running", () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          toolEvents={[
+            {
+              kind: "tool",
+              tool: "search_web",
+              state: "running",
+              message: "Searching official web sources",
             },
           ]}
           agentMode

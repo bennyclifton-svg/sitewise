@@ -37,6 +37,8 @@ def test_rfp_narrative_prompt_pairs_each_evidence_snippet_with_its_token() -> No
         token = citation_index.token_for(item["relative_path"])
         assert f"{token} {item['filename']}: {item['snippet']}" in prompt
     assert "Platform knowledge (guidance only, not project evidence):" in prompt
+    assert prompt.index("Platform knowledge") < prompt.index("Project evidence")
+    assert "PPR/project brief for overarching project intent" in prompt
 
 
 def test_rfp_narrative_prompt_prioritises_project_specific_requested_services() -> None:

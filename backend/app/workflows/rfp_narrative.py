@@ -63,6 +63,14 @@ def build_rfp_narrative_prompt(
         "Relevant taxonomy emphasis:",
         _format_taxonomy_emphasis(project),
         (
+            "Evidence hierarchy: use SiteWise platform guidance to frame the appointment, "
+            "then use the PPR/project brief for overarching project intent, and use detailed "
+            "design documents only for supporting project facts. Do not let an isolated "
+            "discipline drawing redefine the whole request."
+        ),
+        "Platform knowledge (guidance only, not project evidence):",
+        _format_platform_knowledge(platform_knowledge),
+        (
             "Requested services is the highest-priority RFP section. Give it the most "
             "project-specific detail and cut generic or inapplicable template language first."
         ),
@@ -73,8 +81,6 @@ def build_rfp_narrative_prompt(
         ),
         "Project evidence (use the assigned token exactly; do not invent citations):",
         _format_project_evidence(project_evidence, citation_index),
-        "Platform knowledge (guidance only, not project evidence):",
-        _format_platform_knowledge(platform_knowledge),
     ]
     if validation_feedback:
         parts.append(
@@ -104,13 +110,26 @@ def build_procurement_narrative_prompt(
         _format_project_profile(project),
         "Relevant taxonomy emphasis:",
         _format_taxonomy_emphasis(project),
+        (
+            "Evidence hierarchy: use SiteWise procurement, tendering, and cost guidance "
+            "to frame the request; use the PPR/project brief for overarching project intent; "
+            "and use detailed design documents only for supporting facts. Do not let one "
+            "services document drive the whole package."
+        ),
+        (
+            "For a whole-of-project Main Works request, keep the background and scope at "
+            "head-contractor level. Do not describe the PPR's document composition, drawing "
+            "schedule, or individual electrical, hydraulic, mechanical, or other trade "
+            "requirements. Mention a detailed-design fact only when it identifies a material "
+            "whole-project interface, approval, programme constraint, or delivery risk."
+        ),
+        "Platform knowledge (guidance only, not project evidence):",
+        _format_platform_knowledge(platform_knowledge),
         "Baseline scope items to tailor:",
         "\n".join(f"- {item}" for item in baseline_scope),
         "Write only the Background, Requested services, and Programme narrative slots.",
         "Project evidence (use the assigned token exactly; do not invent citations):",
         _format_project_evidence(project_evidence, citation_index),
-        "Platform knowledge (guidance only, not project evidence):",
-        _format_platform_knowledge(platform_knowledge),
     ]
     if validation_feedback:
         parts.append(
@@ -184,14 +203,19 @@ def _format_project_evidence(
     project_evidence: list[dict[str, Any]], citation_index: CitationIndex
 ) -> str:
     if not project_evidence:
-        return "- No project evidence was retrieved. Do not make project-specific claims."
+        return (
+            "- No project evidence was retrieved. Do not make project-specific claims."
+        )
     lines: list[str] = []
     for item in project_evidence:
         path = str(item.get("relative_path") or item.get("filename") or "")
         token = citation_index.token_for(path)
         filename = str(item.get("filename") or path or "Unknown document")
-        snippet = " ".join(str(item.get("snippet") or "").split()) or "No extract available."
-        lines.append(f"- {token} {filename}: {snippet}")
+        snippet = (
+            " ".join(str(item.get("snippet") or "").split()) or "No extract available."
+        )
+        role = str(item.get("role_label") or item.get("role") or "Project evidence")
+        lines.append(f"- {role} — {token} {filename}: {snippet}")
     return "\n".join(lines)
 
 

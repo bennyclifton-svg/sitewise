@@ -23,26 +23,26 @@ RFT_SECTION_KEYS = (
     "package_basis",
     "background",
     "scope_interfaces",
-    "information_to_review",
     "programme",
     "price_schedule",
     "returnables",
     "qualifications",
     "submission",
     "tender_conditions",
+    "information_to_review",
 )
 RFQ_SECTION_KEYS = (
     "project_summary",
     "package_basis",
     "background",
     "scope_interfaces",
-    "information_to_review",
     "programme",
     "price_schedule",
     "returnables",
     "qualifications",
     "submission",
     "quotation_conditions",
+    "information_to_review",
 )
 
 
@@ -54,6 +54,7 @@ def render_trade_request_scaffold(
     citation_index: CitationIndex,
     forecast: dict[str, Any],
     project_evidence: list[dict[str, Any]],
+    issued_documents: list[dict[str, Any]],
     assumptions: list[str],
     missing_inputs: list[str],
     instructions: str | None,
@@ -68,7 +69,7 @@ def render_trade_request_scaffold(
         project_evidence=project_evidence,
     )
     sections = [
-        f"# Request for Tender - {target.name}",
+        f"# {'Request for Tender' if kind == 'rft' else 'Request for Quotation'} - {target.name}",
         "",
         "## Tender particulars",
         project_summary,
@@ -79,9 +80,6 @@ def render_trade_request_scaffold(
             if instructions and instructions.strip()
             else []
         ),
-        "",
-        "## Information issued and citations",
-        render_information_to_review_table(project_evidence, citation_index),
         "",
         "## Background",
         BACKGROUND_PLACEHOLDER,
@@ -107,15 +105,31 @@ def render_trade_request_scaffold(
         "- Identify exclusions, qualifications, provisional sums, allowances, options, rates, and alternates separately.",
         "- State GST treatment, validity period, proposed substitutions, and matters requiring client direction.",
         "",
-        "**Tender conditions and RFI process**",
-        "- Submit clarification questions before pricing. Responses and addenda will be issued to all invitees.",
-        "- State all departures from the issued documents and proposed alternatives separately.",
-        "- This request is not an offer, and the client may accept none of the submissions.",
+        f"**{'Tender' if kind == 'rft' else 'Quotation'} conditions and RFI process**",
+        "- Submit RFIs through the nominated contact by the stated cutoff. Responses and addenda will be issued consistently to invitees.",
+        "- Acknowledge every addendum and state all departures, substitutions, non-conformances, and alternatives separately.",
+        "- Base the submission on the complete issued information and identify any document discrepancy or precedence query before pricing.",
+        "- State the submission validity period and whether a conforming submission accompanies each alternative.",
+        "- Allow for any stated site inspection, confidentiality, probity, and submission requirements. Respondents bear their own preparation costs.",
+        "- This request is not an offer. The client may clarify, negotiate, accept none of the submissions, or discontinue the process.",
+        "",
+        _project_documents_heading(issued_documents),
+        render_information_to_review_table(issued_documents),
         "",
         "## Trace & QA",
         _trace_qa_block(assumptions, missing_inputs),
     ]
     return "\n".join(sections).rstrip() + "\n"
+
+
+def _project_documents_heading(evidence: list[dict[str, Any]]) -> str:
+    paths = {
+        str(item.get("relative_path") or item.get("filename") or "").strip()
+        for item in evidence
+    }
+    count = len(paths - {""})
+    noun = "document" if count == 1 else "documents"
+    return f"## Project Documents ({count} {noun})"
 
 
 def _price_schedule(target: TradeProfile) -> list[str]:

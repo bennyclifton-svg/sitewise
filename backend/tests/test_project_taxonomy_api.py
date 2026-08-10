@@ -551,6 +551,7 @@ def test_taxonomy_endpoint_includes_universal_dimensions(client: TestClient) -> 
     ]:
         keys = {dimension["key"] for dimension in dimensions[class_name]}
         assert {
+            "planning",
             "contamination_level",
             "access_constraints",
             "operational_constraints",

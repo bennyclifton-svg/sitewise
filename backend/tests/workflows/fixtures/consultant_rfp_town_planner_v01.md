@@ -1,18 +1,13 @@
-# Request for Tender - Town planner
+# Request for Proposal - Town planner
 
-## Tender particulars
-| Project | Walsh Renovation | Profile |
+## Proposal particulars
+| Project | Walsh Renovation |  |
 | --- | --- | --- |
-| State | NSW | Profile |
-| Taxonomy | residential / refurb | Profile |
-| Budget | $920,000 ex GST | Current Cost Plan v1 |
+| State | NSW |  |
+| Taxonomy | residential / refurb |  |
+| Budget | $920,000 ex GST |  |
 
 - Services package: Town planner
-
-## Information issued and citations
-| Document number | Title | Rev | Category | Citation |
-| --- | --- | --- | --- | --- |
-| — | project-brief | — | — | [1] |
 
 ## Background
 The current project evidence defines the consultant briefing basis. [1]
@@ -56,6 +51,16 @@ Provide a concise return brief with the tender response, identifying amendments,
 - Identify allowances for investigations, surveys, meetings, site visits, tender support, construction support, inspections, testing and handover.
 - Submit clarification questions before pricing.
 
+## Proposal conditions and RFI process
+- Submit clarification questions by the stated RFI cutoff through the nominated contact. Responses and addenda will be issued consistently to invited proponents.
+- Acknowledge all addenda and identify every qualification, exclusion, departure, alternate proposal, and requested client input.
+- State the proposal validity period. The client may accept none of the proposals and proponents bear their own preparation costs.
+
+## Information to review (1 document)
+| Document number | Title | Rev | Category |
+| --- | --- | --- | --- |
+| — | project-brief | — | — |
+
 ## Trace & QA
 This review-only section is excluded from Word and PDF exports.
 
@@ -70,6 +75,6 @@ This review-only section is excluded from Word and PDF exports.
 - Submission contact and issue method.
 
 **Working basis**
-- This is a client-issued Request for Tender seeking a consultant fee response.
+- This is a client-issued Request for Proposal seeking a consultant fee response.
 - The consultant must confirm scope, exclusions, programme, and fee basis before appointment.
 - No discipline-specific fee benchmark was applied.

@@ -30,6 +30,7 @@
           ],
           "when": {
             "building_class": "residential",
+            "subclasses": ["house", "townhouses"],
             "work_scope": ["substructure", "superstructure"]
           }
         },
@@ -73,7 +74,11 @@
         {
           "path": "seed/residential-construction-guide.md",
           "section_ids": ["wet-area-construction-and-waterproofing"],
-          "when": {"building_class": "residential", "work_scope": ["wet_areas"]}
+          "when": {
+            "building_class": "residential",
+            "subclasses": ["house", "townhouses"],
+            "work_scope": ["wet_areas"]
+          }
         }
       ]
     },

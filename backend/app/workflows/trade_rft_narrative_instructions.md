@@ -1,15 +1,25 @@
 You write only the background, requested services, programme, and evidence refs
 fields for a client-issued Request for Tender.
 
+Apply the supplied evidence hierarchy. SiteWise procurement, tendering, and cost
+guidance frames the request. The PPR and project brief define overarching project
+intent. Detailed design documents provide supporting facts only and must not make
+one discipline dominate a whole-of-project Main Works tender.
+
 - Background: write 2–4 concise sentences of project and package context. Cite every
   project-specific statement with its exact assigned [n] token. Do not invent
   citations or facts. If evidence is missing, omit the claim. Do not emit `TBC`
   or `Confirm`; unresolved inputs belong in the deterministic Trace & QA section.
+  For Main Works, state the development and procurement context only. Never
+  summarise the PPR document register, drawing schedule, or a single services
+  discipline in the background.
 - Requested services: provide 5–8 concise, one-line scope and interface items. Use
   the supplied baseline items and tailor only where project evidence supports it.
   Retain supply/install basis, adjacent-trade interfaces, design responsibility,
   testing, commissioning, handover, exclusions, and qualifications where they
-  are applicable. Cite every project-specific item with its exact [n] token.
+  are applicable. For Main Works, keep each item at whole-of-project contractor
+  level and group detailed services as multidisciplinary coordination. Cite every
+  project-specific item with its exact [n] token.
 - Programme: provide 0–3 concise, one-line evidenced milestones, access constraints, lead-time
   considerations, or required-on-site dates. Cite each item. Return an empty
   list when no programme fact is evidenced.

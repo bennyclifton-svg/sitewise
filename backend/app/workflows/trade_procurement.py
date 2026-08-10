@@ -9,12 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.draft_artifact import DraftArtifact
-from app.database.source_document import SourceDocument
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.projects.artefact_revisions import set_export_result_for_path
@@ -36,19 +34,26 @@ from app.workflows.procurement_request import (
     ProcurementTarget,
     draft_procurement_request,
 )
+from app.workflows.procurement_register import load_procurement_document_register
 from app.workflows.rfp_narrative import (
     ProcurementNarrativeOutput,
     run_procurement_narrative_model,
 )
-from ingest.document_metadata import infer_discipline_from_file_name
 from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE_PREFIX = "trade"
 RUNTIME_NAME = "clerk-trade-procurement"
 KNOWLEDGE_WORKFLOW = "trade-procurement"
 NARRATIVE_MAX_ATTEMPTS = 3
-_PACKAGE_DOCUMENT_CLASSES = frozenset({"drawing", "schedule", "specification"})
 _LEADING_LIST_MARKER = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)")
+_MAIN_WORKS_PLATFORM_EXCLUSIONS = (
+    "electrical-services-guide",
+    "fire-services-guide",
+    "hydraulic-services-guide",
+    "ict-av-security-guide",
+    "mechanical-services-guide",
+    "vertical-transportation-guide",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,21 +98,39 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
         "Main Works",
         aliases=("head contractor", "main contractor", "builder"),
         baseline_scope=(
-            "Review the issued design information and define the proposed construction scope.",
-            "Coordinate all in-scope trade interfaces, site establishment, supervision, quality, safety, and programme obligations.",
-            "Identify exclusions, design responsibility, authority interfaces, and required client decisions.",
+            "Deliver the complete Main Works in accordance with the PPR, project brief, approvals, and issued design information.",
+            "Provide site establishment, temporary works, logistics, supervision, safety, environmental, quality, and programme management.",
+            "Coordinate architectural, structural, civil, services, specialist-subcontractor, authority, and utility interfaces.",
+            "State the design-management and design-responsibility basis, including shop drawings, temporary works, delegated design, and consultant coordination.",
+            "Provide testing, commissioning, certification, defects close-out, as-builts, manuals, warranties, training, and handover.",
+            "Identify every exclusion, qualification, departure, substitution, provisional allowance, authority interface, and required client decision.",
         ),
         price_rows=(
             "Preliminaries",
-            "Building works",
-            "Services coordination",
+            "Site establishment, demolition and temporary works",
+            "Structure and building fabric",
+            "Envelope, facade, roofing and waterproofing",
+            "Internal construction, finishes and joinery",
+            "Civil, landscape and external works",
+            "Hydraulic and fire services",
+            "Mechanical and vertical transportation",
+            "Electrical, communications and security",
+            "Design management, approvals and specialist coordination",
             "Testing, commissioning and handover",
         ),
         returnables=(
-            "Programme",
-            "Trade and consultant coordination approach",
-            "Site management and WHS information",
-            "Qualifications and exclusions",
+            "Signed Form of Tender and Addenda acknowledgement",
+            "Detailed completed price schedule, trade breakdown, GST, provisional sums, allowances, options, and rates",
+            "Tender programme, procurement schedule, critical path, and lead times",
+            "Project organisation chart, key personnel, experience, and availability",
+            "Construction methodology, staging, site logistics, access, and neighbour management",
+            "Design management and design-responsibility matrix",
+            "Proposed consultants, major subcontractors, suppliers, and procurement status",
+            "WHS, environmental, quality assurance, inspection, and test-plan approach",
+            "Current licences, registrations, insurances, financial capacity, and comparable project references",
+            "Proposed contract departures and departures schedule",
+            "Detailed qualifications, exclusions, assumptions, substitutions, alternatives, and allowances",
+            "Commissioning, certification, defects, as-built, manuals, warranties, and handover plan",
         ),
     ),
     "structural steel": _profile(
@@ -397,71 +420,69 @@ async def load_trade_package_evidence(
     project_id: uuid.UUID,
     target: ProcurementTarget,
 ) -> list[dict[str, Any]]:
-    """Load every primary-discipline design document for a trade package."""
-    discipline = infer_discipline_from_file_name(target.name)
-    if discipline is None:
-        return []
-
-    result = await session.execute(
-        select(
-            SourceDocument.id,
-            SourceDocument.filename,
-            SourceDocument.relative_path,
-            SourceDocument.document_class,
-            SourceDocument.document_metadata,
-        )
-        .where(SourceDocument.project_id == project_id)
-        .order_by(SourceDocument.relative_path.asc())
+    """Compatibility wrapper for the shared scope-aware issue register."""
+    return await load_procurement_document_register(
+        session,
+        project_id=project_id,
+        target_name=target.name,
     )
-    evidence: list[dict[str, Any]] = []
-    for document in result.all():
-        metadata = (
-            dict(document.document_metadata)
-            if isinstance(document.document_metadata, dict)
-            else {}
-        )
-        metadata_discipline = str(metadata.get("discipline") or "").casefold()
-        filename_discipline = infer_discipline_from_file_name(document.filename)
-        is_primary_discipline = (
-            metadata_discipline == discipline.casefold()
-            or filename_discipline == discipline
-        )
-        if (
-            not is_primary_discipline
-            or document.document_class not in _PACKAGE_DOCUMENT_CLASSES
-        ):
-            continue
-
-        # A discipline-coded drawing number is stronger than a conflicting
-        # caption elsewhere in a split-sheet filename (for example M01 ... Electrical).
-        metadata["discipline"] = discipline
-        document_number = metadata.get("document_number") or metadata.get(
-            "drawing_number"
-        )
-        label = str(document_number or document.filename)
-        evidence.append(
-            {
-                "role": "scope_of_works",
-                "role_label": f"Issued {discipline} package document",
-                "document_id": str(document.id),
-                "chunk_id": str(document.id),
-                "filename": document.filename,
-                "relative_path": document.relative_path,
-                "page_or_section": metadata.get("revision"),
-                "snippet": (
-                    f"{discipline} package register entry: {label}. "
-                    f"Title: {metadata.get('title') or document.filename}. "
-                    f"Revision: {metadata.get('revision') or 'unknown'}."
-                ),
-                "score": None,
-                "document_metadata": metadata,
-            }
-        )
-    return evidence
 
 
 def _scope_item(value: str) -> str:
     return _LEADING_LIST_MARKER.sub("", value, count=1).strip()
+
+
+def _evidence_item_text(item: dict[str, Any]) -> str:
+    metadata = item.get("document_metadata")
+    metadata_text = " ".join(
+        str(value)
+        for value in (metadata.values() if isinstance(metadata, dict) else ())
+    )
+    return " ".join(
+        (
+            str(item.get("filename") or ""),
+            str(item.get("relative_path") or ""),
+            str(item.get("page_or_section") or ""),
+            metadata_text,
+        )
+    ).casefold()
+
+
+def _is_overarching_item(item: dict[str, Any]) -> bool:
+    text = _evidence_item_text(item)
+    return any(
+        marker in text
+        for marker in (
+            "00-brief-pmp",
+            "principal project requirement",
+            "principal's project requirement",
+            "principals project requirement",
+            " ppr ",
+            "project brief",
+        )
+    )
+
+
+def _is_project_control_item(item: dict[str, Any]) -> bool:
+    text = _evidence_item_text(item)
+    return any(
+        marker in text
+        for marker in (
+            "00-brief-pmp",
+            "cost plan",
+            "project management plan",
+            " pmp ",
+            "budget",
+        )
+    )
+
+
+def _is_meaningful_item(item: dict[str, Any]) -> bool:
+    snippet = " ".join(str(item.get("snippet") or "").split())
+    if len(snippet) < 80:
+        return False
+    punctuation = sum(1 for char in snippet if char in ".·")
+    return punctuation / max(len(snippet), 1) < 0.25
 
 
 class TradeProcurementDocument(ProcurementDocument):
@@ -490,15 +511,72 @@ class TradeProcurementDocument(ProcurementDocument):
         return normalise_trade_target(raw)
 
     def title(self, target: ProcurementTarget) -> str:
-        return f"Request for Tender - {target.name}"
+        request_name = (
+            "Request for Tender" if self.kind == "rft" else "Request for Quotation"
+        )
+        return f"{request_name} - {target.name}"
 
     def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         name = target.name
+        if target.slug == "main_works":
+            return (
+                EvidenceQuery(
+                    "project_brief",
+                    "PPR and project brief — overarching intent",
+                    (
+                        "Principal Project Requirements project overview development "
+                        "description client objectives apartment quality outcomes"
+                    ),
+                ),
+                EvidenceQuery(
+                    "scope_of_works",
+                    "PPR — whole-of-project contractor responsibilities",
+                    (
+                        "PPR main works contractor responsibilities whole project site "
+                        "management design coordination quality assurance reporting construction"
+                    ),
+                ),
+                EvidenceQuery(
+                    "design_responsibility",
+                    "PPR — delivery and design responsibility",
+                    (
+                        "PPR preliminary design design and construct contractor design "
+                        "responsibility multidisciplinary coordination"
+                    ),
+                ),
+                EvidenceQuery(
+                    "programme",
+                    "PPR and project controls — programme",
+                    (
+                        "PPR staging programme milestones commencement completion site "
+                        "access construction sequencing"
+                    ),
+                ),
+                EvidenceQuery(
+                    "cost_plan_pmp",
+                    "Cost plan / Project Management Plan",
+                    (
+                        "project management plan PMP cost plan budget procurement strategy "
+                        "main works"
+                    ),
+                ),
+                EvidenceQuery(
+                    "approvals",
+                    "PPR and authorities — approvals and compliance",
+                    (
+                        "PPR development application conditions authority approvals "
+                        "construction certificate contractor compliance"
+                    ),
+                ),
+            )
         return (
             EvidenceQuery(
                 "project_brief",
-                "Project brief",
-                "project brief owner objectives scope site constraints",
+                "PPR and project brief",
+                (
+                    "Principal's Project Requirements PPR project brief owner "
+                    "objectives overarching scope quality outcomes site constraints"
+                ),
             ),
             EvidenceQuery(
                 "scope_of_works",
@@ -530,18 +608,73 @@ class TradeProcurementDocument(ProcurementDocument):
             ),
         )
 
-    async def supplemental_project_evidence(
+    def filter_project_evidence(
+        self,
+        evidence: list[dict[str, Any]],
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        if target.slug != "main_works":
+            return evidence
+
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        role_order: list[str] = []
+        for item in evidence:
+            role = str(item.get("role") or "")
+            if role not in grouped:
+                grouped[role] = []
+                role_order.append(role)
+            grouped[role].append(item)
+
+        filtered: list[dict[str, Any]] = []
+        for role in role_order:
+            candidates = grouped[role]
+            if role == "project_brief":
+                candidates = [item for item in candidates if _is_overarching_item(item)]
+            elif role == "cost_plan_pmp":
+                candidates = [
+                    item for item in candidates if _is_project_control_item(item)
+                ]
+            candidates = [item for item in candidates if _is_meaningful_item(item)]
+            candidates.sort(key=lambda item: 0 if _is_overarching_item(item) else 1)
+            filtered.extend(candidates[:2])
+        return filtered
+
+    async def issued_documents(
         self,
         session: AsyncSession,
         *,
         project: Any,
         target: ProcurementTarget,
+        narrative_evidence: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
+        del narrative_evidence
         return await load_trade_package_evidence(
             session,
             project_id=project.id,
             target=target,
         )
+
+    def platform_guidance_paths(self, target: ProcurementTarget) -> tuple[str, ...]:
+        return (
+            *super().platform_guidance_paths(target),
+            "seed/trade-interfaces-coordination-guide.md",
+        )
+
+    def filter_platform_knowledge(
+        self,
+        knowledge: list[dict[str, Any]],
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        if target.slug != "main_works":
+            return knowledge
+        return [
+            item
+            for item in knowledge
+            if not any(
+                marker in str(item.get("path") or "").casefold()
+                for marker in _MAIN_WORKS_PLATFORM_EXCLUSIONS
+            )
+        ]
 
     def platform_query(self, target: ProcurementTarget) -> str:
         return (
@@ -587,12 +720,11 @@ class TradeProcurementDocument(ProcurementDocument):
             )
             if role not in roles
         ]
-        missing.extend(
-            [
-                "Delivery basis, contract basis, and design responsibility.",
-                "Submission contact and lodgement method.",
-            ]
-        )
+        if "design_responsibility" not in roles:
+            missing.append(
+                "Delivery basis, contract basis, and design responsibility."
+            )
+        missing.append("Submission contact and lodgement method.")
         assumptions = [
             "This is a client-issued draft procurement request, not an offer or award.",
             "Tenderers must identify qualifications, exclusions, and departures before issue or pricing.",
@@ -605,6 +737,7 @@ class TradeProcurementDocument(ProcurementDocument):
         project: Any,
         target: ProcurementTarget,
         project_evidence: list[dict[str, Any]],
+        issued_documents: list[dict[str, Any]],
         platform_knowledge: list[dict[str, Any]],
         forecast: dict[str, Any],
         assumptions: list[str],
@@ -626,6 +759,7 @@ class TradeProcurementDocument(ProcurementDocument):
             citation_index=citation_index,
             forecast=forecast,
             project_evidence=project_evidence,
+            issued_documents=issued_documents,
             assumptions=assumptions,
             missing_inputs=missing_inputs,
             instructions=instructions,
@@ -638,7 +772,11 @@ class TradeProcurementDocument(ProcurementDocument):
             platform_knowledge=platform_knowledge,
             citation_index=citation_index,
         )
-        scope_items = narrative.requested_services or list(profile.baseline_scope)
+        scope_items = (
+            list(profile.baseline_scope)
+            if profile.slug == "main_works"
+            else narrative.requested_services or list(profile.baseline_scope)
+        )
         scope_markdown = "\n".join(
             f"{index}. {clean_issue_language(_scope_item(item))}"
             for index, item in enumerate(scope_items, start=1)
@@ -681,10 +819,7 @@ async def draft_trade_procurement_artifact(
 ) -> TradeProcurementResult:
     if kind not in {"rft", "rfq"}:
         raise ValueError("kind must be rft or rfq")
-    # Quotation intent now uses the universal RFT profile. Historical RFQ
-    # revisions remain readable, but no new RFQ workflow type is created.
-    kind = "rft"
-    document = TRADE_RFT_DOCUMENT
+    document = TRADE_RFT_DOCUMENT if kind == "rft" else TRADE_RFQ_DOCUMENT
     result: ProcurementRequestResult = await draft_procurement_request(
         session,
         project=project,

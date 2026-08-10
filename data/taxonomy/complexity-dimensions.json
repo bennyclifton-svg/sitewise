@@ -2,6 +2,27 @@
   "_comment": "Source: docs/pmp2.0/pmp2.md Objective 3. Universal dimensions are applied to every class. The agricultural block in the source has no matching six-matrix building class, so water/power/remoteness/environment overlays are folded into industrial and infrastructure.",
   "universal": [
     {
+      "key": "planning",
+      "label": "Planning",
+      "options": [
+        {"value": "cdc", "label": "CDC"},
+        {"value": "da", "label": "DA"},
+        {"value": "ssd", "label": "State Significant Development (SSD)"}
+      ]
+    },
+    {
+      "key": "procurement_route",
+      "label": "Procurement route",
+      "options": [
+        {"value": "traditional", "label": "Traditional (Lump Sum)"},
+        {"value": "design_construct", "label": "Design & Construct"},
+        {"value": "eci", "label": "Early Contractor Involvement"},
+        {"value": "managing_contractor", "label": "Managing Contractor"},
+        {"value": "alliance", "label": "Alliance (+5-10%)"},
+        {"value": "ppp", "label": "PPP"}
+      ]
+    },
+    {
       "key": "contamination_level",
       "label": "Contamination level",
       "options": [
@@ -29,18 +50,6 @@
         {"value": "partial_occupation", "label": "Partial Occupation"},
         {"value": "live_environment", "label": "Live Environment (+10-20%)"},
         {"value": "24_7_occupied", "label": "24/7 Occupied (+20-30%)"}
-      ]
-    },
-    {
-      "key": "procurement_route",
-      "label": "Procurement route",
-      "options": [
-        {"value": "traditional", "label": "Traditional (Lump Sum)"},
-        {"value": "design_construct", "label": "Design & Construct"},
-        {"value": "eci", "label": "Early Contractor Involvement"},
-        {"value": "managing_contractor", "label": "Managing Contractor"},
-        {"value": "alliance", "label": "Alliance (+5-10%)"},
-        {"value": "ppp", "label": "PPP"}
       ]
     },
     {

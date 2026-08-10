@@ -1,18 +1,24 @@
 from __future__ import annotations
 
-import re
 import uuid
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.cost_plan.invoice_candidates import InvoiceCandidate
-from app.cost_plan.models import CostInvoice, CostInvoiceAllocation
+from app.cost_plan.invoice_mapping import normalize_description_key
+from app.cost_plan.models import (
+    CostInvoice,
+    CostInvoiceAllocation,
+    CostInvoiceMappingMemory,
+)
+from app.cost_plan.normalization import normalize_business_key
 from app.cost_plan.schemas import (
     CostPlanState,
     ExtractedInvoice,
@@ -40,10 +46,6 @@ class InvoiceBookingResult:
     status: BookingStatus
     invoice: CostInvoice | None
     message: str | None = None
-
-
-def normalize_business_key(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
 async def book_invoice(
@@ -284,6 +286,7 @@ async def update_invoice_allocation(
     session: AsyncSession,
     *,
     project_id: uuid.UUID,
+    user_id: uuid.UUID,
     allocation_id: uuid.UUID,
     expected_revision: int,
     cost_item_key: str,
@@ -315,6 +318,29 @@ async def update_invoice_allocation(
     allocation.mapping_method = "manual"
     allocation.mapping_confidence = None
     allocation.review_status = "mapped"
+    if allocation.mapping_method == "manual":
+        statement = insert(CostInvoiceMappingMemory).values(
+            project_id=invoice.project_id,
+            supplier_key=invoice.supplier_key,
+            description_key=normalize_description_key(allocation.description),
+            cost_item_key=cost_item_key,
+            cost_item_label=cost_item_label,
+            updated_by_user_id=user_id,
+        )
+        statement = statement.on_conflict_do_update(
+            index_elements=[
+                CostInvoiceMappingMemory.project_id,
+                CostInvoiceMappingMemory.supplier_key,
+                CostInvoiceMappingMemory.description_key,
+            ],
+            set_={
+                "cost_item_key": cost_item_key,
+                "cost_item_label": cost_item_label,
+                "updated_by_user_id": user_id,
+                "updated_at": func.now(),
+            },
+        )
+        await session.execute(statement)
     invoice.processing_status = (
         "needs_review"
         if any(item.review_status == "needs_review" for item in invoice.allocations)

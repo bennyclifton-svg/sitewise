@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SiteWise composer — handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── SiteWise composer ───────────────────────────────────────────────────
+   Self-contained. Copy the CSS block and the .sw-composer markup.
+   Tokens are CSS custom properties on .sw-composer — override them from
+   your own theme layer rather than editing rules.                        */
+
+.sw-composer {
+  --sw-bg: #0B0C0F;
+  --sw-edge: rgba(255,255,255,.08);
+  --sw-edge-top: rgba(255,255,255,.14);
+  --sw-rule: rgba(255,255,255,.09);
+  --sw-ink: #E8E8E4;
+  --sw-ink-dim: #6F747C;
+  --sw-ink-mid: #B4B9C1;
+  --sw-placeholder: #5C616A;
+  --sw-blue: #2F72C4;
+  --sw-sky: #7FB0E4;
+  --sw-ease: cubic-bezier(.4,0,.2,1);
+
+  position: relative;
+  width: 1040px;
+  max-width: 100%;
+  background: var(--sw-bg);
+  border: 1px solid var(--sw-edge);
+  border-top-color: var(--sw-edge-top);
+  color: var(--sw-ink);
+  font-family: 'Hanken Grotesk', Helvetica, sans-serif;
+  font-weight: 300;
+}
+
+/* collapse handle, seated on the top edge */
+.sw-collapse {
+  position: absolute; top: -1px; left: 50%;
+  transform: translate(-50%,-50%);
+  display: flex; align-items: center; gap: 9px;
+  background: var(--sw-bg); padding: 0 12px;
+  border: 0; cursor: pointer;
+  color: var(--sw-ink-dim);
+  transition: color .18s var(--sw-ease);
+}
+.sw-collapse:hover { color: var(--sw-ink); }
+.sw-collapse i { width: 26px; height: 1px; background: rgba(255,255,255,.12); }
+
+.sw-body { display: flex; align-items: stretch; }
+.sw-main {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 24px;
+  padding: 28px 22px 20px 26px;
+}
+
+/* the field — swap for a textarea in production */
+.sw-field {
+  font-size: 16px; color: var(--sw-placeholder);
+  display: flex; align-items: center; gap: 1px;
+}
+.sw-field input {
+  all: unset; flex: 1 1 auto; font: inherit; color: var(--sw-ink);
+}
+.sw-field input::placeholder { color: var(--sw-placeholder); }
+.sw-caret {
+  display: inline-block; width: 1.5px; height: 19px;
+  background: var(--sw-sky); animation: sw-caret 1.1s steps(1,end) infinite;
+}
+@keyframes sw-caret { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
+
+.sw-controls { display: flex; align-items: center; gap: 18px; }
+.sw-spacer { flex: 1 1 auto; }
+
+/* depth rail: one plane, two, three */
+.sw-depth { display: flex; align-items: stretch; border: 1px solid var(--sw-rule); }
+.sw-depth hr { width: 1px; margin: 0; border: 0; background: var(--sw-rule); }
+.sw-depth button {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 15px; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13.5px; letter-spacing: .01em;
+  color: var(--sw-ink-dim);
+  transition: color .18s var(--sw-ease), background .18s var(--sw-ease);
+}
+.sw-depth button:hover { color: var(--sw-ink-mid); background: rgba(255,255,255,.03); }
+.sw-depth button[aria-pressed="true"] {
+  color: var(--sw-ink);
+  background: rgba(47,114,196,.14);
+  box-shadow: inset 0 -2px 0 var(--sw-blue);
+}
+
+.sw-icon {
+  display: grid; place-items: center; width: 38px; height: 38px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--sw-ink-dim); transition: color .18s var(--sw-ease);
+}
+.sw-icon:hover { color: var(--sw-ink); }
+
+/* submit: the mark, open corner facing the field. No label, no glyph. */
+.sw-send {
+  flex: 0 0 auto; width: 104px;
+  border: 0; border-left: 1px solid var(--sw-edge);
+  display: grid; place-items: center;
+  background: transparent; cursor: pointer;
+  transition: background .18s var(--sw-ease);
+}
+.sw-send:hover { background: rgba(47,114,196,.10); }
+.sw-send:disabled { opacity: .38; cursor: default; background: transparent; }
+</style>
+</head>
+<body style="margin:0;background:#060608;display:grid;place-items:center;min-height:100vh;padding:40px">
+
+<form class="sw-composer">
+  <button type="button" class="sw-collapse" aria-label="Collapse composer">
+    <i></i>
+    <svg width="11" height="7" viewBox="0 0 11 7" fill="none" aria-hidden="true"><path d="M1 1L5.5 5.5L10 1" stroke="currentColor" stroke-width="1.3"></path></svg>
+    <i></i>
+  </button>
+
+  <div class="sw-body">
+    <div class="sw-main">
+      <label class="sw-field">
+        <input type="text" placeholder="Ask about your project documents">
+        <span class="sw-caret" aria-hidden="true"></span>
+      </label>
+
+      <div class="sw-controls">
+        <div class="sw-depth" role="group" aria-label="Reasoning depth">
+          <button type="button" aria-pressed="false">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 3.6L12.2 6.3L7.5 9L2.8 6.3Z" fill="currentColor" opacity=".85"></path></svg>
+            Fast
+          </button>
+          <hr>
+          <button type="button" aria-pressed="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.9L12.2 4.6L7.5 7.3L2.8 4.6Z" fill="#7FB0E4"></path><path d="M7.5 6.1L12.2 8.8L7.5 11.5L2.8 8.8Z" fill="#2F72C4"></path></svg>
+            Balanced
+          </button>
+          <hr>
+          <button type="button" aria-pressed="false">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 0.9L12.2 3.6L7.5 6.3L2.8 3.6Z" fill="currentColor" opacity=".9"></path><path d="M7.5 4.6L12.2 7.3L7.5 10L2.8 7.3Z" fill="currentColor" opacity=".6"></path><path d="M7.5 8.3L12.2 11L7.5 13.7L2.8 11Z" fill="currentColor" opacity=".35"></path></svg>
+            Complex
+          </button>
+        </div>
+
+        <div class="sw-spacer"></div>
+
+        <button type="button" class="sw-icon" aria-label="Dictate">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true"><rect x="6" y="1.5" width="5" height="8.5" rx="2.5" stroke="currentColor" stroke-width="1.3"></rect><path d="M3.5 8.2a5 5 0 0010 0M8.5 13.2v2.3" stroke="currentColor" stroke-width="1.3"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" class="sw-send" aria-label="Ask SiteWise">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+        <path d="M22 5.5L37 14.1L22 22.7L7 14.1Z" fill="#2C3037"></path>
+        <path d="M22 22.7L7 31.3L22 39.9Z" fill="#D6D6D0"></path>
+        <path d="M22 22.7L37 14.1L37 31.3Z" fill="#123564"></path>
+        <path d="M22 22.7L37 31.3L22 39.9Z" fill="#2F72C4"></path>
+        <path d="M22 22.7L37 14.1" stroke="#A9C6E8" stroke-width="1" opacity=".32"></path>
+        <path d="M22 22.7L7 14.1" stroke="#8C95A2" stroke-width="1" opacity=".26"></path>
+      </svg>
+    </button>
+  </div>
+</form>
+
+</body>
+</html>

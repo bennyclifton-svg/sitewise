@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { ArrowDown, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -131,11 +131,6 @@ export function ChatPanel({
 
   const activeCitationId =
     onSelectCitation !== undefined ? selectedCitationId : internalSelectedCitation?.sourceId ?? null;
-
-  function togglePanelCollapsed() {
-    const next = !collapsed;
-    onCollapsedChange?.(next);
-  }
 
   function handleSelectCitation(citation: Citation | null) {
     if (onSelectCitation) {
@@ -394,25 +389,6 @@ export function ChatPanel({
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />
         ) : null}
 
-        {collapsible ? (
-          <div className="flex shrink-0 items-center justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={collapsed ? "Expand chat" : "Collapse chat"}
-              title={collapsed ? "Expand chat" : "Collapse chat"}
-              onClick={togglePanelCollapsed}
-            >
-              {collapsed ? (
-                <ChevronUp className="size-4" aria-hidden />
-              ) : (
-                <ChevronDown className="size-4" aria-hidden />
-              )}
-            </Button>
-          </div>
-        ) : null}
-
         <ChatComposer
           value={input}
           onChange={setInput}
@@ -422,6 +398,9 @@ export function ChatPanel({
           crossProject={crossProject}
           onCrossProjectChange={onCrossProjectChange}
           showScopeControls={showScopeControls}
+          collapsed={collapsed}
+          collapsible={collapsible}
+          onCollapsedChange={(next) => onCollapsedChange?.(next)}
         />
       </div>
 

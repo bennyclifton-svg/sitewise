@@ -930,7 +930,7 @@ export function ProjectCockpitPage() {
             }
           : {
               package: targetName,
-              kind: "rft",
+              kind: kind === "trade_rfq" ? "rfq" : "rft",
               max_pages: 3,
             };
       const queued = await api.startWorkflowRun(
@@ -1098,16 +1098,23 @@ export function ProjectCockpitPage() {
   const trace = workflowResult?.trace ?? [];
   const costPlanTrace = costPlanWorkflowResult?.trace ?? [];
   const activeDraft =
-    reviewDraft ??
-    (selectedWorkflowId === "cost-plan" ? latestCostPlanDraft : latestDraft);
-  const activeWorkflowType =
-    reviewDraft?.workflow_type ??
-    (selectedWorkflowId === "cost-plan" ? "create_cost_plan" : "create_pmp");
+    activeView === "draft"
+      ? reviewDraft
+      : selectedWorkflowId === "cost-plan"
+        ? latestCostPlanDraft
+        : selectedWorkflowId === "procurement-requests"
+          ? reviewDraft && isProcurementDraftWorkflow(reviewDraft.workflow_type)
+            ? reviewDraft
+            : null
+          : latestDraft;
+  const activeWorkflowType = activeDraft?.workflow_type ?? "create_pmp";
   const usageHighlightArtefactId =
     activeDraft &&
     (activeView === "draft" ||
       (activeView === "workbench" &&
-        ["create-pmp", "cost-plan"].includes(selectedWorkflowId)))
+        ["create-pmp", "cost-plan", "procurement-requests"].includes(
+          selectedWorkflowId,
+        )))
       ? activeDraft.id
       : null;
   const inboxCount = evidence.filter((item) => item.relative_path.includes("/_inbox/")).length;
@@ -1299,6 +1306,14 @@ export function ProjectCockpitPage() {
           }
           onCancelSortFiles={() => {
             if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);
+          }}
+          onDraftSelected={(draft) => {
+            setReviewDraft((current) => (current?.id === draft.id ? current : draft));
+            setLatestDraftsMap((current) => ({
+              ...current,
+              [draft.workflow_type]: draft,
+            }));
+            setSelectedWorkspacePath(draft.workspace_path);
           }}
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 _CITATION_RE = re.compile(r"\[(\d+)\]")
 _KEY_LINE_RE = re.compile(r"^\s*(?:[-*]\s*)?\[(\d+)\]\s+(.+?)\s*$")
 _WORD_RE = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)?", re.IGNORECASE)
+_REGISTER_ROW_RE = re.compile(r"(?:^\s*\**\s*|\|\s*)([RA]\d{2})\b")
 _NUMBER_WORDS = frozenset(
     {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
 )
@@ -37,6 +38,14 @@ _STOPWORDS = frozenset(
         "with",
     }
 )
+_PROVENANCE_MARKERS = (
+    "assumption",
+    "user provided",
+    "not evidenced",
+    "unverified",
+    "design-development gap",
+    "design development gap",
+)
 
 
 def citation_claim_support_violations(
@@ -50,12 +59,17 @@ def citation_claim_support_violations(
     This is deliberately conservative: it does not try to prove every
     paraphrase. It catches citations where a concrete, content-rich claim has
     almost no lexical relationship to the cited document.
+
+    Provenance-labelled lines (Assumption / User provided / Not evidenced),
+    forward action/risk register rows, and evidence-status meta rows are out of
+    scope — those are not grounded evidence claims.
     """
     if not source_texts or not source_labels:
         return []
     citation_sources = _citation_source_map(markdown, source_texts, source_labels)
     if not citation_sources:
         return []
+    citation_labels = _citation_label_map(markdown, source_labels, source_texts)
 
     body = _before_citation_key(markdown)
     violations: list[str] = []
@@ -64,6 +78,8 @@ def citation_claim_support_violations(
         if not refs:
             continue
         claim = _CITATION_RE.sub("", line)
+        if _is_exempt_claim(claim):
+            continue
         claim_tokens = _meaningful_tokens(claim)
         if len(claim_tokens) < 4:
             continue
@@ -72,14 +88,32 @@ def citation_claim_support_violations(
             continue
         source_tokens = set(_meaningful_tokens(source))
         overlap = set(claim_tokens) & source_tokens
-        concrete = any(token.isdigit() or token in _NUMBER_WORDS for token in claim_tokens)
+        # Comma-insensitive numeric support: "$1,234,000" vs "$1234000".
+        overlap.update(_numeric_overlap(claim, source))
+        concrete = any(
+            token.isdigit() or token in _NUMBER_WORDS for token in claim_tokens
+        ) or bool(_numeric_runs(claim))
         minimum_overlap = 2 if concrete else 3
         if len(overlap) >= minimum_overlap:
             continue
+        # If another loaded project document clearly supports the claim, the
+        # citation is pointed at the wrong file — do not hard-block Create PMP.
+        if _corpus_supports_claim(
+            claim,
+            claim_tokens,
+            source_texts=source_texts,
+            minimum_overlap=minimum_overlap,
+            concrete=concrete,
+        ):
+            continue
         excerpt = " ".join(claim.split()).strip(" |-")
+        mapped = ", ".join(
+            citation_labels.get(ref, f"[{ref}]") for ref in refs if ref in citation_sources
+        )
         violations.append(
-            "Cited claim is not supported by the mapped source text: "
-            f"{excerpt[:180]}"
+            "Cited claim is not supported by the mapped source text"
+            + (f" ({mapped})" if mapped else "")
+            + f": {excerpt[:180]}"
         )
     return _dedupe(violations)
 
@@ -136,17 +170,55 @@ def exclusion_citation_violations(markdown: str) -> list[str]:
     return _dedupe(violations)
 
 
+def _is_exempt_claim(claim: str) -> bool:
+    lowered = claim.casefold()
+    if any(marker in lowered for marker in _PROVENANCE_MARKERS):
+        return True
+    if _REGISTER_ROW_RE.search(claim):
+        return True
+    first_cell = claim.strip().strip("|").split("|", 1)[0].strip().casefold()
+    if first_cell in {"evidence status", "section", "citation", "ref"}:
+        return True
+    return False
+
+
+def _corpus_supports_claim(
+    claim: str,
+    claim_tokens: list[str],
+    *,
+    source_texts: Sequence[str],
+    minimum_overlap: int,
+    concrete: bool,
+) -> bool:
+    claim_token_set = set(claim_tokens)
+    for source in source_texts:
+        if not source.strip():
+            continue
+        overlap = claim_token_set & set(_meaningful_tokens(source))
+        overlap.update(_numeric_overlap(claim, source))
+        if len(overlap) >= minimum_overlap:
+            return True
+        if concrete and len(overlap) >= 2:
+            return True
+    return False
+
+
+def _numeric_runs(value: str) -> set[str]:
+    """Digit runs of length >= 3 with commas/spaces stripped from the source span."""
+    compact = re.sub(r"[,\s]", "", value)
+    return {match.group(0) for match in re.finditer(r"\d{3,}", compact)}
+
+
+def _numeric_overlap(claim: str, source: str) -> set[str]:
+    return _numeric_runs(claim) & _numeric_runs(source)
+
+
 def _citation_source_map(
     markdown: str,
     source_texts: Sequence[str],
     source_labels: Sequence[str],
 ) -> dict[str, str]:
-    labels = list(source_labels[: len(source_texts)])
-    labels.extend(
-        f"evidence document {index + 1}"
-        for index in range(len(labels), len(source_texts))
-    )
-    normalized = [(_normalize_label(label), text) for label, text in zip(labels, source_texts, strict=True)]
+    labeled = _labeled_sources(source_texts, source_labels)
     key = _citation_key(markdown)
     output: dict[str, str] = {}
     for line in key.splitlines():
@@ -154,34 +226,103 @@ def _citation_source_map(
         if not match:
             continue
         number, description = match.groups()
-        description_key = _normalize_label(description)
-        matches = [
-            text
-            for label, text in normalized
-            if label and (label in description_key or description_key.startswith(label))
-        ]
+        matches = _match_sources(description, labeled)
         if matches:
-            output[number] = "\n".join(matches)
+            output[number] = "\n".join(text for _label, text in matches)
     return output
 
 
+def _citation_label_map(
+    markdown: str,
+    source_labels: Sequence[str],
+    source_texts: Sequence[str],
+) -> dict[str, str]:
+    labeled = _labeled_sources(source_texts, source_labels)
+    key = _citation_key(markdown)
+    output: dict[str, str] = {}
+    for line in key.splitlines():
+        match = _KEY_LINE_RE.match(line)
+        if not match:
+            continue
+        number, description = match.groups()
+        matches = _match_sources(description, labeled)
+        if matches:
+            output[number] = ", ".join(label for label, _text in matches)
+    return output
+
+
+def _labeled_sources(
+    source_texts: Sequence[str],
+    source_labels: Sequence[str],
+) -> list[tuple[str, str, str]]:
+    labels = list(source_labels[: len(source_texts)])
+    labels.extend(
+        f"evidence document {index + 1}"
+        for index in range(len(labels), len(source_texts))
+    )
+    return [
+        (label, _normalize_label(label), text)
+        for label, text in zip(labels, source_texts, strict=True)
+    ]
+
+
+def _match_sources(
+    description: str,
+    labeled: Sequence[tuple[str, str, str]],
+) -> list[tuple[str, str]]:
+    description_key = _normalize_label(description)
+    if not description_key:
+        return []
+    exact = [
+        (label, text)
+        for label, normalized, text in labeled
+        if normalized and normalized == description_key
+    ]
+    if exact:
+        return exact
+    # Prefer the longest label match so short stems cannot steal a citation.
+    partial = [
+        (len(normalized), label, text)
+        for label, normalized, text in labeled
+        if normalized
+        and (
+            normalized in description_key
+            or description_key in normalized
+            or description_key.startswith(normalized)
+        )
+    ]
+    if not partial:
+        return []
+    partial.sort(reverse=True)
+    best_len = partial[0][0]
+    return [(label, text) for length, label, text in partial if length == best_len]
+
+
 def _citation_key(markdown: str) -> str:
+    sections: list[str] = []
     collecting = False
-    lines: list[str] = []
+    current: list[str] = []
     for line in markdown.splitlines():
         stripped = line.strip().casefold()
         if stripped.startswith("## "):
+            if collecting:
+                sections.append("\n".join(current))
             collecting = stripped[3:].strip() == "citation key"
+            current = []
             continue
         if collecting:
-            lines.append(line)
-    return "\n".join(lines)
+            current.append(line)
+    if collecting:
+        sections.append("\n".join(current))
+    # Prefer the final Citation key when a draft accidentally emits more than one.
+    return sections[-1] if sections else ""
 
 
 def _before_citation_key(markdown: str) -> str:
     lines: list[str] = []
     for line in markdown.splitlines():
-        if line.strip().casefold() == "## citation key":
+        stripped = line.strip().casefold()
+        if stripped.startswith("## ") and stripped[3:].strip() == "citation key":
             break
         lines.append(line)
     return "\n".join(lines)
@@ -204,6 +345,8 @@ def _markdown_section(markdown: str, heading: str) -> str:
 def _normalize_label(value: str) -> str:
     value = value.split("—", 1)[0].split(" - ", 1)[0]
     value = value.replace("\\", "/").rsplit("/", 1)[-1]
+    # Drop fragment / query suffixes from evidence-ref style paths.
+    value = value.split("#", 1)[0].split("?", 1)[0]
     return re.sub(r"[^a-z0-9]+", "", value.casefold())
 
 

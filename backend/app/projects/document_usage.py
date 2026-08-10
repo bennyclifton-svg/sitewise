@@ -1,10 +1,10 @@
-"""Which project documents the latest drafts actually consulted.
+"""Which project documents the latest drafts consulted or issued.
 
 Workflows record what they read as source refs on the draft artefact
-(``project_evidence:<relative_path>#chunk=<chunk_id>``). Mapping those back onto
-relative paths lets the document repository mark the rows a draft was built
-from, so "which of my files did it use?" survives the run instead of scrolling
-past in the activity feed.
+(``project_evidence:<relative_path>#chunk=<chunk_id>``). Procurement workflows
+also freeze the complete outbound schedule in ``issued_document_refs``. Mapping
+both sets back onto relative paths lets the repository mark every row consulted
+or included in the selected artefact.
 """
 
 from __future__ import annotations
@@ -34,12 +34,12 @@ def relative_path_from_source_ref(ref: str) -> str | None:
 def usage_marks_by_relative_path(
     drafts: Iterable[DraftArtifact],
 ) -> dict[str, list[DocumentUsageMark]]:
-    """Map each cited document path to the latest drafts that consulted it."""
+    """Map each cited or issued path to the latest relevant drafts."""
     marks: dict[str, list[DocumentUsageMark]] = {}
     for draft in _latest_per_workflow(drafts):
         metadata = draft.provenance_metadata or {}
-        refs = metadata.get("evidence_refs")
-        if not isinstance(refs, list):
+        refs = _draft_document_refs(metadata)
+        if not refs:
             continue
         mark = DocumentUsageMark(
             artefact_id=draft.id,
@@ -91,3 +91,12 @@ def _unique_paths(refs: Sequence[object]) -> list[str]:
         if path is not None and path not in paths:
             paths.append(path)
     return paths
+
+
+def _draft_document_refs(metadata: dict[object, object]) -> list[object]:
+    refs: list[object] = []
+    for key in ("evidence_refs", "issued_document_refs"):
+        value = metadata.get(key)
+        if isinstance(value, list):
+            refs.extend(value)
+    return refs

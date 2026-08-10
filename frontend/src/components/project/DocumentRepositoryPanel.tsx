@@ -1105,10 +1105,10 @@ export function DocumentRepositoryPanel({
 function artefactScheduleLabel(workflowType: string): string {
   if (workflowType === "create_pmp") return "Project Plan";
   if (workflowType === "create_cost_plan") return "Cost Plan";
-  if (workflowType.startsWith("consultant_procurement_")) return "RFT";
+  if (workflowType.startsWith("consultant_procurement_")) return "RFP";
   if (workflowType.startsWith("contractor_eoi_")) return "EOI";
   if (workflowType.startsWith("trade_rft_")) return "RFT";
-  if (workflowType.startsWith("trade_rfq_")) return "RFT";
+  if (workflowType.startsWith("trade_rfq_")) return "RFQ";
   return "Generated";
 }
 

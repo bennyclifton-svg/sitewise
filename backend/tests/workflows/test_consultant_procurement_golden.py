@@ -45,7 +45,7 @@ def test_consultant_rfp_matches_golden(monkeypatch) -> None:
 
     assert result.draft.content_markdown == FIXTURE.read_text(encoding="utf-8")
     assert result.draft.workflow_type == "consultant_procurement_structural_engineer"
-    assert result.draft.title == "Request for Tender - Structural engineer"
+    assert result.draft.title == "Request for Proposal - Structural engineer"
 
 
 def test_town_planner_rfp_matches_golden(monkeypatch) -> None:
@@ -61,4 +61,4 @@ def test_town_planner_rfp_matches_golden(monkeypatch) -> None:
         encoding="utf-8"
     )
     assert result.draft.workflow_type == "consultant_procurement_town_planner"
-    assert result.draft.title == "Request for Tender - Town planner"
+    assert result.draft.title == "Request for Proposal - Town planner"

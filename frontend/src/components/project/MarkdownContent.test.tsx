@@ -230,6 +230,48 @@ Scope.`}
     expect(conflictCitation.className).toMatch(/sw-critical/);
   });
 
+  it("collapses the project document schedule behind a chevron", async () => {
+    const user = userEvent.setup();
+    render(
+      <MarkdownContent
+        markdown={[
+          "# Request for Tender - Main Works",
+          "",
+          "## Tender conditions and RFI process",
+          "",
+          "Issue conditions.",
+          "",
+          "## Project Documents (2 documents)",
+          "",
+          "| Document number | Title | Rev | Category |",
+          "| --- | --- | --- | --- |",
+          "| A001 | General arrangement | C | Architectural |",
+          "| E001 | Electrical layout | B | Electrical |",
+        ].join("\n")}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", {
+      name: "Project Documents (2 documents)",
+    });
+    const register = document.getElementById("project-documents-register");
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(register).toHaveClass("hidden");
+
+    await user.click(toggle);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Project Documents (2 documents)",
+      }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("project-documents-register")).not.toHaveClass(
+      "hidden",
+    );
+    expect(screen.getByText("General arrangement")).toBeVisible();
+  });
+
   it("marks grounded evidence chips with a positive status dot", () => {
     render(
       <MarkdownContent markdown={MARKDOWN} projectId="project-1" version={2} />,

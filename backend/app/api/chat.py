@@ -472,7 +472,7 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
     }
     if web_tools:
         trace["web"] = {
-            "used": bool(web_sources),
+            "used": True,
             "tools": web_tools,
             "sources": web_sources,
         }

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PencilLine } from "lucide-react";
+import { ChevronRight, PencilLine } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -75,6 +75,8 @@ type InlineEditOptions = {
   onEditWithAi?: (range: MarkdownRange, rect: DOMRect) => void;
   onCancelSelectionEdit?: () => void;
   onSaveSelectionEdit?: (range: MarkdownRange, markdown: string) => Promise<void>;
+  informationRegisterOpen?: boolean;
+  onToggleInformationRegister?: () => void;
 };
 
 type ParagraphTarget = {
@@ -257,13 +259,24 @@ function baseComponents(
         <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</code>
       );
     },
-    table: ({ children }) => (
-      <div className="my-4 overflow-x-auto border pmp-table-wrap">
-        <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
-          {normalizeSummaryTable(children, projectTitle)}
-        </table>
-      </div>
-    ),
+    table: ({ children }) => {
+      const isInformationRegister = informationRegisterTable(children);
+      const collapsed =
+        isInformationRegister && editOptions?.informationRegisterOpen === false;
+      return (
+        <div
+          id={isInformationRegister ? "project-documents-register" : undefined}
+          className={[
+            "my-4 overflow-x-auto border pmp-table-wrap",
+            collapsed ? "hidden print:block" : "",
+          ].join(" ")}
+        >
+          <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+            {normalizeSummaryTable(children, projectTitle)}
+          </table>
+        </div>
+      );
+    },
     thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
     th: ({ children }) => (
       <th className="border-b px-3 py-2 align-top font-medium text-foreground">
@@ -402,6 +415,9 @@ function markdownComponents(
     },
     h2: ({ children, node }) => {
       const heading = flattenText(children);
+      const isInformationRegister = /^(?:Project Documents|Information to review)\b/i.test(
+        heading.trim(),
+      );
       const attributes = position(node);
       const renderedRange = attributes
         ? {
@@ -433,6 +449,35 @@ function markdownComponents(
       const showActions = Boolean(
         section && (isEditingSection || (activeParagraph && !options?.editingRange)),
       );
+      if (isInformationRegister) {
+        const open = options?.informationRegisterOpen ?? false;
+        return (
+          <div className="mt-8 border-b pb-2 first:mt-0 print:break-before-page">
+            <h2
+              id={sectionAnchor(heading)}
+              className="pmp-section-heading text-lg font-semibold"
+              {...attributes}
+            >
+              <button
+                type="button"
+                className="flex min-h-11 w-full items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring print:pointer-events-none"
+                aria-expanded={open}
+                aria-controls="project-documents-register"
+                onClick={options?.onToggleInformationRegister}
+              >
+                <ChevronRight
+                  className={[
+                    "size-4 shrink-0 transition-transform",
+                    open ? "rotate-90" : "",
+                  ].join(" ")}
+                  aria-hidden
+                />
+                <span>{children}</span>
+              </button>
+            </h2>
+          </div>
+        );
+      }
       return (
         <div className="mt-8 flex min-h-8 items-center gap-2 border-b pb-2 first:mt-0">
           <h2
@@ -498,6 +543,16 @@ function flattenText(children: ReactNode): string {
     return flattenText(props.children);
   }
   return "";
+}
+
+function informationRegisterTable(children: ReactNode): boolean {
+  const text = flattenText(children).toLowerCase();
+  return (
+    text.includes("document number") &&
+    text.includes("title") &&
+    text.includes("rev") &&
+    text.includes("category")
+  );
 }
 
 function rangesEqual(
@@ -1026,6 +1081,7 @@ export function MarkdownContent({
     sourceMarkdown: string;
     target: ParagraphTarget;
   } | null>(null);
+  const [informationRegisterOpen, setInformationRegisterOpen] = useState(false);
   const traceQa = useMemo(() => splitTraceQa(markdown), [markdown]);
   const presentedPrimary = useMemo(
     () => groupConsecutiveDecisionFences(blankProjectSummaryProse(traceQa.primary)),
@@ -1114,6 +1170,9 @@ export function MarkdownContent({
               onEditWithAi,
               onCancelSelectionEdit,
               onSaveSelectionEdit,
+              informationRegisterOpen,
+              onToggleInformationRegister: () =>
+                setInformationRegisterOpen((current) => !current),
             })}
           >
             {presentedPrimary}

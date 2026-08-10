@@ -48,6 +48,7 @@ from app.workflows.procurement_request import (
     ProcurementTarget,
     draft_procurement_request,
 )
+from app.workflows.procurement_register import load_procurement_document_register
 from app.workflows.rfp_narrative import RfpNarrativeOutput, run_rfp_narrative_model
 
 WORKFLOW_TYPE_PREFIX = "consultant_procurement"
@@ -752,7 +753,7 @@ class ConsultantDocument(ProcurementDocument):
         return normalise_discipline(raw)
 
     def title(self, target: ProcurementTarget) -> str:
-        return f"Request for Tender - {target.name}"
+        return f"Request for Proposal - {target.name}"
 
     def evidence_queries(self, target: ProcurementTarget) -> tuple[EvidenceQuery, ...]:
         return _evidence_queries(target)
@@ -766,7 +767,26 @@ class ConsultantDocument(ProcurementDocument):
         return f"{query} {terms}".strip()
 
     def platform_guidance_paths(self, target: ProcurementTarget) -> tuple[str, ...]:
-        return tuple(getattr(target, "knowledge_paths", ()))
+        return (
+            *super().platform_guidance_paths(target),
+            *tuple(getattr(target, "knowledge_paths", ())),
+        )
+
+    async def issued_documents(
+        self,
+        session: AsyncSession,
+        *,
+        project: Project,
+        target: ProcurementTarget,
+        narrative_evidence: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        del narrative_evidence
+        documents = await load_procurement_document_register(
+            session,
+            project_id=project.id,
+            target_name=target.name,
+        )
+        return _reviewable_evidence(documents, target)
 
     def filter_platform_knowledge(
         self,
@@ -829,6 +849,7 @@ class ConsultantDocument(ProcurementDocument):
         project: Project,
         target: ProcurementTarget,
         project_evidence: list[dict[str, Any]],
+        issued_documents: list[dict[str, Any]],
         platform_knowledge: list[dict[str, Any]],
         forecast: dict[str, Any],
         assumptions: list[str],
@@ -848,6 +869,7 @@ class ConsultantDocument(ProcurementDocument):
             assumptions=assumptions,
             missing_inputs=missing_inputs,
             project_evidence=rfp_evidence,
+            issued_documents=issued_documents,
         )
         narrative = await run_validated_rfp_narrative(
             project=project,
@@ -1007,8 +1029,11 @@ def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
     queries = [
         EvidenceQuery(
             "project_brief",
-            "Project brief",
-            "project brief owner brief objectives scope site constraints",
+            "PPR and project brief",
+            (
+                "Principal's Project Requirements PPR project brief owner brief "
+                "objectives overarching scope quality outcomes site constraints"
+            ),
         ),
         EvidenceQuery(
             "planning_pathway",
@@ -1099,7 +1124,7 @@ def _assumptions_and_missing_inputs(
         )
 
     assumptions = [
-        "This is a client-issued Request for Tender seeking a consultant fee response.",
+        "This is a client-issued Request for Proposal seeking a consultant fee response.",
         "The consultant must confirm scope, exclusions, programme, and fee basis before appointment.",
     ]
     if not evidence:

@@ -172,6 +172,16 @@ def test_package_loader_selects_all_primary_trade_design_documents() -> None:
             document_class="certificate",
             document_metadata={"discipline": "Mechanical"},
         ),
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            filename="Mosaic Apartments PPR.pdf",
+            relative_path="04-projects/demo/_inbox/mosaic-ppr.pdf",
+            document_class="report",
+            document_metadata={
+                "title": "Principal's Project Requirements",
+                "discipline": "Project",
+            },
+        ),
     ]
     result = SimpleNamespace(all=lambda: documents)
     session = _Session()
@@ -186,12 +196,110 @@ def test_package_loader_selects_all_primary_trade_design_documents() -> None:
     )
 
     assert [item["relative_path"] for item in evidence] == [
+        "04-projects/demo/03-design/architect/CC-A-182.pdf",
         "04-projects/demo/_inbox/M01.pdf",
         "04-projects/demo/_inbox/M02.pdf",
+        "04-projects/demo/_inbox/mechanical-certificate.pdf",
+        "04-projects/demo/_inbox/mosaic-ppr.pdf",
     ]
-    assert all(
-        item["document_metadata"]["discipline"] == "Mechanical" for item in evidence
+    assert {item["document_metadata"]["discipline"] for item in evidence} == {
+        "Architectural",
+        "Mechanical",
+        "Project",
+    }
+
+
+def test_main_works_register_includes_every_project_source_document() -> None:
+    documents = [
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            filename=filename,
+            relative_path=f"04-projects/demo/{folder}/{filename}",
+            document_class=document_class,
+            document_metadata=metadata,
+            content_hash=f"hash-{filename}",
+        )
+        for folder, filename, document_class, metadata in (
+            (
+                "00-brief-pmp",
+                "Mosaic Apartments PPR.pdf",
+                "report",
+                {"title": "Principal's Project Requirements", "revision": "Current"},
+            ),
+            (
+                "03-design/architect",
+                "A001.pdf",
+                "drawing",
+                {"discipline": "Architectural", "revision": "02"},
+            ),
+            (
+                "03-design/electrical",
+                "11049 E001.pdf",
+                "drawing",
+                {"discipline": "Electrical", "revision": "C"},
+            ),
+            (
+                "04-planning-and-authorities",
+                "Development Consent.pdf",
+                "unknown",
+                {"discipline": "Authorities"},
+            ),
+        )
+    ]
+    result = SimpleNamespace(all=lambda: documents)
+    session = _Session()
+    session.execute = AsyncMock(return_value=result)
+
+    evidence = run_async(
+        workflow.load_trade_package_evidence(
+            session,
+            project_id=_project().id,
+            target=workflow.normalise_trade_target("main works"),
+        )
     )
+
+    assert [item["filename"] for item in evidence] == [
+        "Mosaic Apartments PPR.pdf",
+        "A001.pdf",
+        "11049 E001.pdf",
+        "Development Consent.pdf",
+    ]
+    assert evidence[0]["document_metadata"]["revision"] == ""
+    assert evidence[0]["content_hash"] == "hash-Mosaic Apartments PPR.pdf"
+
+
+def test_main_works_register_repairs_generic_discipline_and_duplicate_revision() -> None:
+    document = SimpleNamespace(
+        id=uuid.uuid4(),
+        filename="11049 M-200 REV B.pdf",
+        relative_path=(
+            "04-projects/demo/03-design/mechanical/11049 M-200 REV B.pdf"
+        ),
+        document_class="drawing",
+        document_metadata={
+            "document_number": "M-200 B",
+            "title": "Mechanical services layout",
+            "revision": "B",
+            "discipline": "Project",
+        },
+        content_hash="b" * 64,
+    )
+    result = SimpleNamespace(all=lambda: [document])
+    session = _Session()
+    session.execute = AsyncMock(return_value=result)
+
+    evidence = run_async(
+        workflow.load_trade_package_evidence(
+            session,
+            project_id=_project().id,
+            target=workflow.normalise_trade_target("main works"),
+        )
+    )
+
+    metadata = evidence[0]["document_metadata"]
+    assert metadata["discipline"] == "Mechanical"
+    assert metadata["document_number"] == "M-200"
+    assert metadata["revision"] == "B"
 
 
 def test_structural_steel_rft_generates_deterministic_controls(monkeypatch) -> None:
@@ -220,7 +328,74 @@ def test_structural_steel_rft_generates_deterministic_controls(monkeypatch) -> N
     assert result.draft.provenance_metadata["trade_package"] == "Structural Steel"
 
 
-def test_mechanical_rft_includes_every_primary_trade_sheet_and_marks_it_used(
+def test_main_works_keeps_scope_at_head_contractor_level(monkeypatch) -> None:
+    retriever = _StubRetriever(
+        project_passages={
+            "principal project requirements": [
+                _passage(
+                    filename="Bankstown PPR October 2015.pdf",
+                    path="04-projects/mosaic-apartments/_inbox/Bankstown PPR.pdf",
+                    content=(
+                        "The development comprises an eight-storey residential building "
+                        "with basement parking and associated site works for the Principal."
+                    ),
+                    metadata={"title": "Principal's Project Requirements"},
+                )
+            ]
+        }
+    )
+    _install(monkeypatch, retriever=retriever)
+    monkeypatch.setattr(
+        workflow,
+        "run_procurement_narrative_model",
+        AsyncMock(
+            return_value=ProcurementNarrativeOutput(
+                background="The PPR defines the development. [1]",
+                requested_services=[
+                    "Test every energised electrical circuit and safety device. [1]"
+                ],
+            )
+        ),
+    )
+
+    result = run_async(
+        workflow.draft_trade_procurement_artifact(
+            _Session(),
+            project=_project(),
+            user_id=USER_ID,
+            package="main works",
+            kind="rft",
+        )
+    )
+
+    scope = result.draft.content_markdown.split("## Scope and interfaces", maxsplit=1)[
+        1
+    ].split("## Programme and submission", maxsplit=1)[0]
+    assert "Deliver the complete Main Works" in scope
+    assert "Coordinate architectural, structural, civil, services" in scope
+    assert "energised electrical circuit" not in scope
+    assert "Signed Form of Tender" in result.draft.content_markdown
+    assert "Detailed completed price schedule" in result.draft.content_markdown
+    assert "Addenda acknowledgement" in result.draft.content_markdown
+
+
+def test_main_works_discards_discipline_guides_from_semantic_guidance() -> None:
+    document = workflow.TradeProcurementDocument("rft")
+    target = workflow.normalise_trade_target("main works")
+    knowledge = [
+        {"path": "seed/procurement-tendering-guide.md"},
+        {"path": "seed/electrical-services-guide.md"},
+        {"path": "seed/mechanical-services-guide.md"},
+    ]
+
+    filtered = document.filter_platform_knowledge(knowledge, target)
+
+    assert [item["path"] for item in filtered] == [
+        "seed/procurement-tendering-guide.md"
+    ]
+
+
+def test_mechanical_rft_includes_every_primary_trade_sheet_in_issue_register(
     monkeypatch,
 ) -> None:
     package_evidence = [
@@ -261,10 +436,11 @@ def test_mechanical_rft_includes_every_primary_trade_sheet_and_marks_it_used(
     )
 
     markdown = result.draft.content_markdown
-    assert "| M01 | Mechanical sheet M01 | C | Mechanical | [1] |" in markdown
-    assert "| M02 | Mechanical sheet M02 | C | Mechanical | [2] |" in markdown
-    assert "| M10 | Mechanical sheet M10 | C | Mechanical | [3] |" in markdown
-    assert result.draft.provenance_metadata["evidence_refs"] == [
+    assert "| M01 | Mechanical sheet M01 | C | Mechanical |" in markdown
+    assert "| M02 | Mechanical sheet M02 | C | Mechanical |" in markdown
+    assert "| M10 | Mechanical sheet M10 | C | Mechanical |" in markdown
+    assert result.draft.provenance_metadata["evidence_refs"] == []
+    assert result.draft.provenance_metadata["issued_document_refs"] == [
         "04-projects/walsh-renovation/_inbox/M01.pdf",
         "04-projects/walsh-renovation/_inbox/M02.pdf",
         "04-projects/walsh-renovation/_inbox/M10.pdf",
@@ -310,25 +486,26 @@ def test_trade_scope_strips_model_supplied_list_numbers(monkeypatch) -> None:
 
     scope = result.draft.content_markdown.split("## Scope and interfaces", maxsplit=1)[
         1
-    ].split("## Information to review", maxsplit=1)[0]
+    ].split("## Project Documents", maxsplit=1)[0]
     assert "1. Supply and install the mechanical works. [1]" in scope
     assert "2. Coordinate all trade interfaces. [1]" in scope
     assert "1. 1." not in scope
     assert "2. 2." not in scope
 
 
-def test_legacy_rfq_input_creates_the_universal_rft(monkeypatch) -> None:
+def test_rfq_input_creates_a_distinct_request_for_quotation(monkeypatch) -> None:
     result = _draft(monkeypatch, package="electrician", kind="rfq", max_pages=5)
 
     markdown = result.draft.content_markdown
-    assert result.kind == "rft"
-    assert result.draft.title == "Request for Tender - Electrical Services"
-    assert result.draft.workflow_type == "trade_rft_electrical_services"
+    assert result.kind == "rfq"
+    assert result.draft.title == "Request for Quotation - Electrical Services"
+    assert result.draft.workflow_type == "trade_rfq_electrical_services"
     assert result.draft.provenance_metadata["max_pages"] == 5
     assert "## Price schedule" in markdown
     assert "**Returnables**" in markdown
-    assert "**Tender conditions and RFI process**" in markdown
-    assert "Request for Quotation" not in markdown
+    assert "**Quotation conditions and RFI process**" in markdown
+    assert "Request for Quotation" in markdown
+    assert "Request for Tender" not in markdown
     assert "## Trace & QA" in markdown
 
 

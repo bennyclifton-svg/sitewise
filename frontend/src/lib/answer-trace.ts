@@ -13,6 +13,8 @@ const PLATFORM_KNOWLEDGE_TOOLS = new Set([
   "read_platform_knowledge",
 ]);
 
+const WEB_RESEARCH_TOOLS = new Set(["search_web", "read_web_source"]);
+
 export type AnswerTraceTone =
   | "context"
   | "documents"
@@ -101,6 +103,10 @@ export function answerTraceItems({
     ...stringList(knowledge?.tools),
     ...allToolNames.filter((tool) => PLATFORM_KNOWLEDGE_TOOLS.has(tool)),
   ]);
+  const webTools = unique([
+    ...stringList(web?.tools),
+    ...allToolNames.filter((tool) => WEB_RESEARCH_TOOLS.has(tool)),
+  ]);
   const knowledgeRefs = stringList(knowledge?.references);
   const liveKnowledgeRefs = toolEvents
     .map((event) => event.knowledgePath)
@@ -127,7 +133,8 @@ export function answerTraceItems({
     (citation) =>
       citation.sourceType === "doctrine" || citation.sourceType === "reference",
   );
-  const showWeb = webSourceTitles.length > 0;
+  const showWebSource = webSourceTitles.length > 0;
+  const showWeb = showWebSource || webTools.length > 0;
 
   const showContext =
     context?.used === true || agentMode || hasAgentMetadata(messageData);
@@ -178,12 +185,15 @@ export function answerTraceItems({
   if (showWeb) {
     items.push({
       key: "web",
-      label:
-        webSourceTitles.length === 1
+      label: showWebSource
+        ? webSourceTitles.length === 1
           ? "Web source"
-          : `Web sources · ${webSourceTitles.length}`,
+          : `Web sources · ${webSourceTitles.length}`
+        : "Internet search",
       tone: "web",
-      title: `Official web material influenced this answer. Sources: ${webSourceTitles.join(", ")}.`,
+      title: showWebSource
+        ? `Official web material influenced this answer. Sources: ${webSourceTitles.join(", ")}.`
+        : "An official-source internet search informed this answer. Search results are discovery candidates, not source evidence.",
     });
   }
   if (allToolNames.length > 0) {

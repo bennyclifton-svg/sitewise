@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.dialects import postgresql
 
 from app.cost_plan.invoice_candidates import InvoiceCandidate, is_invoice_document
 from app.cost_plan.invoice_extraction import InvoiceExtractionError, extract_invoice
@@ -171,6 +172,46 @@ def test_invoice_mapping_withholds_an_ambiguous_allocation() -> None:
     assert allocation.review_status == "needs_review"
 
 
+def test_remembered_invoice_mapping_wins_over_keyword_scoring() -> None:
+    state = _state(
+        [
+            _item(key="architect", code="1", label="Architect"),
+            _item(key="statutory", code="2", label="Statutory fees"),
+        ]
+    )
+    invoice = ExtractedInvoice(
+        supplier_name="Quoin Architecture Pty Ltd",
+        invoice_number="QUA-REMEMBERED-1",
+        invoice_date=date(2026, 8, 1),
+        subtotal_ex_gst="100.00",
+        gst="10.00",
+        total_including_gst="110.00",
+        lines=[
+            InvoiceLineInput(
+                description="Architecture services",
+                amount_ex_gst="100.00",
+            )
+        ],
+    )
+
+    allocation = map_invoice_allocations(
+        invoice,
+        state,
+        remembered_mappings={
+            ("quoinarchitectureptyltd", "architecture services"): (
+                "statutory",
+                "Statutory fees",
+            )
+        },
+    )[0]
+
+    assert allocation.cost_item_key == "statutory"
+    assert allocation.cost_item_label == "Statutory fees"
+    assert allocation.mapping_method == "remembered"
+    assert allocation.mapping_confidence == Decimal("1")
+    assert allocation.review_status == "mapped"
+
+
 def test_structural_invoice_prefers_consultant_trade_over_construction_wording() -> None:
     state = _state(
         [
@@ -256,9 +297,12 @@ def test_non_invoice_document_is_rejected() -> None:
 
 
 def test_manual_invoice_controls_increment_revision_and_resolve_review() -> None:
+    project_id = uuid.uuid4()
+    user_id = uuid.uuid4()
     allocation_id = uuid.uuid4()
     allocation = SimpleNamespace(
         id=allocation_id,
+        description="Structural framing — DESIGN",
         cost_item_key=None,
         cost_item_label="Unidentified",
         mapping_method="unidentified",
@@ -267,6 +311,8 @@ def test_manual_invoice_controls_increment_revision_and_resolve_review() -> None
     )
     invoice = SimpleNamespace(
         id=uuid.uuid4(),
+        project_id=project_id,
+        supplier_key="catenarystructuresptyltd",
         revision=3,
         paid=False,
         billing_month=date(2026, 3, 1),
@@ -281,7 +327,8 @@ def test_manual_invoice_controls_increment_revision_and_resolve_review() -> None
     updated = run_async(
         update_invoice_allocation(
             session,
-            project_id=uuid.uuid4(),
+            project_id=project_id,
+            user_id=user_id,
             allocation_id=allocation_id,
             expected_revision=3,
             cost_item_key="structural-engineer",
@@ -294,7 +341,39 @@ def test_manual_invoice_controls_increment_revision_and_resolve_review() -> None
     assert allocation.cost_item_key == "structural-engineer"
     assert allocation.mapping_method == "manual"
     assert allocation.review_status == "mapped"
-    session.flush.assert_awaited_once()
+
+    updated = run_async(
+        update_invoice_allocation(
+            session,
+            project_id=project_id,
+            user_id=user_id,
+            allocation_id=allocation_id,
+            expected_revision=4,
+            cost_item_key="architect",
+            cost_item_label="Architect",
+        )
+    )
+
+    assert updated.revision == 5
+    assert allocation.cost_item_key == "architect"
+    assert allocation.cost_item_label == "Architect"
+    assert session.execute.await_count == 4
+    first_upsert = session.execute.await_args_list[1].args[0]
+    second_upsert = session.execute.await_args_list[3].args[0]
+    sql = str(first_upsert.compile(dialect=postgresql.dialect()))
+    assert "ON CONFLICT (project_id, supplier_key, description_key) DO UPDATE" in sql
+    assert first_upsert.compile().params["cost_item_key"] == "structural-engineer"
+    assert first_upsert.compile().params["cost_item_label"] == "Structural engineer"
+    assert first_upsert.compile().params["supplier_key"] == (
+        "catenarystructuresptyltd"
+    )
+    assert second_upsert.compile().params["cost_item_key"] == "architect"
+    assert second_upsert.compile().params["cost_item_label"] == "Architect"
+    assert second_upsert.compile().params["updated_by_user_id"] == user_id
+    assert second_upsert.compile().params["description_key"] == (
+        "structural framing design"
+    )
+    assert session.flush.await_count == 2
 
 
 def test_paid_and_billing_month_update_is_invoice_level() -> None:

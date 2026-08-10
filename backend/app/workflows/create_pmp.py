@@ -111,6 +111,8 @@ MOBILISATION_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
     "engagement_letter",
     "fee-proposal",
     "fee_proposal",
+    "building-proposal",
+    "building_proposal",
     "00-brief",
     "owner-brief",
     "project-brief",

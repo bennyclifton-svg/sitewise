@@ -29,6 +29,12 @@ from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 
 
+CORE_PROCUREMENT_GUIDANCE_PATHS = (
+    "seed/procurement-tendering-guide.md",
+    "seed/cost-management-principles.md",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class EvidenceQuery:
     key: str
@@ -85,7 +91,7 @@ class ProcurementDocument(ABC):
 
     def platform_guidance_paths(self, target: ProcurementTarget) -> tuple[str, ...]:
         """Return target-specific platform guidance that must be consulted."""
-        return ()
+        return CORE_PROCUREMENT_GUIDANCE_PATHS
 
     def filter_platform_knowledge(
         self,
@@ -105,6 +111,27 @@ class ProcurementDocument(ABC):
         """Return complete structured inputs that semantic passage search can miss."""
         del session, project, target
         return []
+
+    def filter_project_evidence(
+        self,
+        evidence: list[dict[str, Any]],
+        target: ProcurementTarget,
+    ) -> list[dict[str, Any]]:
+        """Remove false-positive retrieval hits before drafting the narrative."""
+        del target
+        return evidence
+
+    async def issued_documents(
+        self,
+        session: AsyncSession,
+        *,
+        project: Project,
+        target: ProcurementTarget,
+        narrative_evidence: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Return the deterministic outbound register, separate from grounding."""
+        del session, project, target
+        return list(narrative_evidence)
 
     @abstractmethod
     async def forecast(
@@ -140,6 +167,7 @@ class ProcurementDocument(ABC):
         project: Project,
         target: ProcurementTarget,
         project_evidence: list[dict[str, Any]],
+        issued_documents: list[dict[str, Any]],
         platform_knowledge: list[dict[str, Any]],
         forecast: dict[str, Any],
         assumptions: list[str],
@@ -207,6 +235,15 @@ async def draft_procurement_request(
             target=target,
         ),
     )
+    project_evidence = document.filter_project_evidence(project_evidence, target)
+    issued_documents = await document.issued_documents(
+        session,
+        project=project,
+        target=target,
+        narrative_evidence=project_evidence,
+    )
+    if not issued_documents:
+        issued_documents = list(project_evidence)
     platform_knowledge = await _retrieve_platform_knowledge(
         retriever,
         query=document.platform_query(target),
@@ -239,6 +276,7 @@ async def draft_procurement_request(
     source_trace = _source_trace(
         document=document,
         project_evidence=project_evidence,
+        issued_documents=issued_documents,
         platform_knowledge=platform_knowledge,
         forecast=forecast,
         assumptions=assumptions,
@@ -248,6 +286,7 @@ async def draft_procurement_request(
         project=project,
         target=target,
         project_evidence=project_evidence,
+        issued_documents=issued_documents,
         platform_knowledge=platform_knowledge,
         forecast=forecast,
         assumptions=assumptions,
@@ -288,6 +327,10 @@ async def draft_procurement_request(
             "source_trace": source_trace,
             **document.provenance_metadata(target),
             **_provenance_references(project_evidence, platform_knowledge),
+            "issued_document_refs": _unique_paths(
+                issued_documents,
+                key="relative_path",
+            ),
         },
     )
     sync = sync_workspace or _sync_draft_workspace
@@ -469,7 +512,7 @@ async def _merge_required_guidance(
         project,
         knowledge_workflow=knowledge_workflow,
     )
-    paths = list(dict.fromkeys((*required_paths, *target_guidance_paths)))
+    paths = list(dict.fromkeys((*target_guidance_paths, *required_paths)))
     for path in paths:
         entry = catalog_entry_for_path(path)
         loaded = None
@@ -515,7 +558,14 @@ async def _merge_required_guidance(
         else:
             existing[path] = len(knowledge)
             knowledge.append(item)
-    return knowledge
+    priority = {path: index for index, path in enumerate(paths)}
+    return sorted(
+        knowledge,
+        key=lambda item: (
+            priority.get(str(item.get("path") or ""), len(priority)),
+            str(item.get("title") or "").casefold(),
+        ),
+    )
 
 
 def _project_evidence_item(query: EvidenceQuery, passage: Any) -> dict[str, Any]:
@@ -550,6 +600,7 @@ def _source_trace(
     *,
     document: ProcurementDocument,
     project_evidence: list[dict[str, Any]],
+    issued_documents: list[dict[str, Any]],
     platform_knowledge: list[dict[str, Any]],
     forecast: dict[str, Any],
     assumptions: list[str],
@@ -575,6 +626,7 @@ def _source_trace(
         )
     return {
         "project_documents": project_evidence,
+        "issued_documents": issued_documents,
         "platform_knowledge": platform_knowledge,
         "forecast": forecast,
         "assumptions": assumptions,

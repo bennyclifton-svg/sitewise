@@ -56,6 +56,25 @@ def test_residential_new_scope_heavy_routes() -> None:
     )
 
 
+def test_apartment_new_with_structure_scopes_does_not_require_class1_guide() -> None:
+    """Apartments select the multi-res guide; Class 1 house routes must not fire."""
+    refs = _refs(
+        selected_paths=_selected(
+            "residential",
+            "new",
+            subclasses=("apartments",),
+            work_scopes=("substructure", "superstructure", "wet_areas"),
+        ),
+        building_class="residential",
+        work_type="new",
+        subclasses=("apartments",),
+        work_scope=("substructure", "superstructure", "wet_areas"),
+    )
+
+    assert any("multi-residential-apartments-guide.md" in ref for ref in refs)
+    assert not any("residential-construction-guide.md" in ref for ref in refs)
+
+
 def test_commercial_refurb_fire_services_routes_to_ncc_and_as_sections() -> None:
     refs = _refs(
         selected_paths=_selected(
@@ -212,9 +231,15 @@ def test_loader_records_section_refs_and_warns_for_optional_missing(monkeypatch)
     result = run_async(
         load_pmp_seed_sections(
             object(),
-            selected_paths=_selected("residential", "new"),
+            selected_paths=_selected(
+                "residential",
+                "new",
+                subclasses=("house",),
+                work_scopes=("wet_areas",),
+            ),
             building_class="residential",
             work_type="new",
+            subclasses=("house",),
             work_scope=("wet_areas",),
             max_chars=1000,
         )

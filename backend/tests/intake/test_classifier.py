@@ -165,6 +165,30 @@ def test_classify_project_brief_to_brief_pmp_folder() -> None:
     assert destination == "00-brief-pmp"
 
 
+@pytest.mark.parametrize(
+    ("filename", "preview_snippet"),
+    [
+        ("Mosaic Apartments PPR.pdf", None),
+        (
+            "project-requirements.pdf",
+            "# Principal's Project Requirements\n\nProject objectives and overarching delivery requirements.",
+        ),
+    ],
+)
+def test_classify_principal_project_requirements_to_brief_pmp_folder(
+    filename: str,
+    preview_snippet: str | None,
+) -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/{filename}",
+        filename=filename,
+        project_workspace_path=PROJECT,
+        preview_snippet=preview_snippet,
+    )
+
+    assert destination == "00-brief-pmp"
+
+
 def test_classify_email_thread_brief_signoff_to_brief_pmp_folder() -> None:
     destination = classify_inbox_destination(
         workspace_path=f"{PROJECT}/_inbox/04-email-thread-brief-signoff.md",

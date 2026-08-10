@@ -87,7 +87,7 @@ def render_procurement_project_summary(
                 client_citation=client_citation,
                 budget=budget,
                 budget_source=budget_source,
-                compact_sources=True,
+                compact_sources=False,
             )
         )
     except ValueError:
@@ -102,11 +102,12 @@ def render_rfp_scaffold(
     forecast: dict[str, Any],
     max_pages: int,
     project_evidence: list[dict[str, Any]] | None = None,
+    issued_documents: list[dict[str, Any]] | None = None,
     assumptions: list[str] | None = None,
     missing_inputs: list[str] | None = None,
     instructions: str | None = None,
 ) -> str:
-    """Render consultant tender content under the universal external RFT title."""
+    """Render the deterministic consultant Request for Proposal scaffold."""
     del max_pages
     project_summary = render_procurement_project_summary(
         project=project,
@@ -114,11 +115,14 @@ def render_rfp_scaffold(
         forecast=forecast,
         project_evidence=project_evidence or [],
     )
+    register_documents = (
+        issued_documents if issued_documents is not None else project_evidence or []
+    )
 
     sections = [
-        f"# Request for Tender - {target.name}",
+        f"# Request for Proposal - {target.name}",
         "",
-        "## Tender particulars",
+        "## Proposal particulars",
         project_summary,
         "",
         f"- Services package: {target.name}",
@@ -127,9 +131,6 @@ def render_rfp_scaffold(
             if instructions and instructions.strip()
             else []
         ),
-        "",
-        "## Information issued and citations",
-        _information_to_review_table(project_evidence or [], citation_index),
         "",
         "## Background",
         BACKGROUND_PLACEHOLDER,
@@ -167,6 +168,14 @@ def render_rfp_scaffold(
         "- Identify allowances for investigations, surveys, meetings, site visits, tender support, construction support, inspections, testing and handover.",
         "- Submit clarification questions before pricing.",
         "",
+        "## Proposal conditions and RFI process",
+        "- Submit clarification questions by the stated RFI cutoff through the nominated contact. Responses and addenda will be issued consistently to invited proponents.",
+        "- Acknowledge all addenda and identify every qualification, exclusion, departure, alternate proposal, and requested client input.",
+        "- State the proposal validity period. The client may accept none of the proposals and proponents bear their own preparation costs.",
+        "",
+        _information_to_review_heading(register_documents),
+        _information_to_review_table(register_documents),
+        "",
         "## Trace & QA",
         _trace_qa_block(assumptions or [], missing_inputs or []),
     ]
@@ -194,10 +203,8 @@ def _construction_budget_summary(
     return f"${value:,.0f} ex GST", source
 
 
-def render_information_to_review_table(
-    evidence: list[dict[str, Any]], citation_index: CitationIndex
-) -> str:
-    rows: list[tuple[str, str, str, str, str]] = []
+def render_information_to_review_table(evidence: list[dict[str, Any]]) -> str:
+    rows: list[tuple[str, str, str, str]] = []
     seen_paths: set[str] = set()
     for item in evidence:
         path = _evidence_path(item)
@@ -213,22 +220,27 @@ def render_information_to_review_table(
                 _table_value(metadata.get("title") or Path(filename).stem),
                 _table_value(metadata.get("revision")),
                 _table_value(metadata.get("discipline") or metadata.get("category")),
-                citation_index.token_for(path),
             )
         )
     rows.sort(key=lambda row: (_natural_key(row[0]), row[1].casefold()))
     lines = [
-        "| Document number | Title | Rev | Category | Citation |",
-        "| --- | --- | --- | --- | --- |",
+        "| Document number | Title | Rev | Category |",
+        "| --- | --- | --- | --- |",
     ]
     lines.extend(f"| {' | '.join(row)} |" for row in rows)
     if not rows:
-        lines.append("| — | No source documents currently issued | — | — | — |")
+        lines.append("| — | No source documents currently issued | — | — |")
     return "\n".join(lines)
 
 
 # Retained as a private compatibility alias while internal consultant callers migrate.
 _information_to_review_table = render_information_to_review_table
+
+
+def _information_to_review_heading(evidence: list[dict[str, Any]]) -> str:
+    count = len({_evidence_path(item) for item in evidence if _evidence_path(item)})
+    noun = "document" if count == 1 else "documents"
+    return f"## Project Documents ({count} {noun})"
 
 
 def _fee_breakdown_table() -> list[str]:
@@ -352,7 +364,7 @@ def _project_title(
         candidate = re.sub(r"[*_#]+", "", match.group(1)).strip(" -–—")
         if 3 <= len(candidate) <= 120:
             return candidate, citation_index.token_for(_evidence_path(item))
-    return str(project.title), "Profile"
+    return str(project.title), ""
 
 
 def _bullets(items: tuple[str, ...]) -> list[str]:

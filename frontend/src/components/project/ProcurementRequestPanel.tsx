@@ -1,5 +1,13 @@
 import { LoaderCircle, Play } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import type {
   DraftArtifact,
+  DraftArtifactSummary,
   ProcurementRequest,
   ProcurementRequestKind,
   ProjectDetail,
@@ -16,7 +25,10 @@ import type {
 } from "@/lib/types/project";
 import { workflowProgressStage, workflowProgressTitle } from "@/lib/workflow-progress";
 
-export type RunnableProcurementRequestKind = "consultant_rfp" | "trade_rft";
+export type RunnableProcurementRequestKind =
+  | "consultant_rfp"
+  | "trade_rft"
+  | "trade_rfq";
 
 const DraftReviewPanel = lazy(() =>
   import("@/components/project/DraftReviewPanel").then((module) => ({
@@ -25,8 +37,9 @@ const DraftReviewPanel = lazy(() =>
 );
 
 const KIND_OPTIONS: Array<{ value: RunnableProcurementRequestKind; label: string }> = [
-  { value: "consultant_rfp", label: "Consultant services" },
-  { value: "trade_rft", label: "Trade or head contractor" },
+  { value: "consultant_rfp", label: "Consultant RFP" },
+  { value: "trade_rft", label: "Trade or head contractor RFT" },
+  { value: "trade_rfq", label: "Trade or supplier RFQ" },
 ];
 
 export function ProcurementRequestPanel({
@@ -38,6 +51,7 @@ export function ProcurementRequestPanel({
   renderGate,
   onCreate,
   onCancel,
+  onDraftSelected,
   onDraftUpdated,
 }: {
   project: ProjectDetail;
@@ -48,6 +62,7 @@ export function ProcurementRequestPanel({
   renderGate: (kind: ProcurementRequestKind) => ReactNode;
   onCreate: (kind: RunnableProcurementRequestKind, targetName: string) => void;
   onCancel?: () => void;
+  onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
 }) {
   const [kind, setKind] = useState<RunnableProcurementRequestKind>("consultant_rfp");
@@ -55,6 +70,7 @@ export function ProcurementRequestPanel({
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const reportedDraftId = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +98,12 @@ export function ProcurementRequestPanel({
     () => requests.find((request) => request.id === selectedRequestId) ?? requests[0] ?? null,
     [requests, selectedRequestId],
   );
+  useEffect(() => {
+    const draft = selectedRequest?.current_draft ?? null;
+    if (!draft || draft.id === reportedDraftId.current) return;
+    reportedDraftId.current = draft.id;
+    onDraftSelected?.(draft);
+  }, [onDraftSelected, selectedRequest?.current_draft]);
   const capability =
     kind === "consultant_rfp"
       ? project.workflow_capabilities?.capabilities.consultant_procurement
@@ -145,7 +167,13 @@ export function ProcurementRequestPanel({
             id="procurement-target"
             value={targetName}
             onChange={(event) => setTargetName(event.target.value)}
-            placeholder={kind === "consultant_rfp" ? "Structural engineer" : "Electrical services or main works"}
+            placeholder={
+              kind === "consultant_rfp"
+                ? "Structural engineer"
+                : kind === "trade_rfq"
+                  ? "Electrical supplier"
+                  : "Electrical services or main works"
+            }
             disabled={isRunning}
           />
         </div>
@@ -155,7 +183,7 @@ export function ProcurementRequestPanel({
           ) : (
             <Play className="size-4" aria-hidden />
           )}
-          Create tender
+          Create {kindLabel(kind)}
         </Button>
       </div>
 
@@ -185,6 +213,7 @@ export function ProcurementRequestPanel({
             projectId={project.id}
             draft={selectedRequest.current_draft}
             workflowType={selectedRequest.current_draft.workflow_type}
+            projectTitle={project.title}
             embedded
             onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
           />
@@ -200,5 +229,7 @@ export function ProcurementRequestPanel({
 
 function kindLabel(kind: ProcurementRequestKind): string {
   if (kind === "contractor_eoi") return "EOI";
+  if (kind === "consultant_rfp") return "RFP";
+  if (kind === "trade_rfq") return "RFQ";
   return "RFT";
 }

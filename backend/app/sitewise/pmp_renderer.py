@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from app.database.project import Project
@@ -38,6 +39,7 @@ from app.sitewise.taxonomy import work_scope_items_for
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
 NARRATIVE_PLACEHOLDER = "[Pending narrative generation — Phase 3]"
+
 
 def _baseline_risk_rows(
     pack: MobilisationEvidencePack,
@@ -183,7 +185,9 @@ def _renovation_risk_rows(
         f"{da_target} lodgement target"
     )
     live_signal = " ".join([pack.dwelling_summary or "", *pack.builder_rom_caveats])
-    live_status = "Partial" if "live occupation" in live_signal.lower() else "Assumption"
+    live_status = (
+        "Partial" if "live occupation" in live_signal.lower() else "Assumption"
+    )
     return (
         (
             "Latent conditions in existing footings / masonry tie-ins",
@@ -547,8 +551,12 @@ def _render_scope_change(pack: MobilisationEvidencePack) -> str:
             "",
             _labeled_field(scope_prefix, pack.dwelling_summary),
             _labeled_field("Site / planning constraints", pack.site_constraints),
-            *_optional_bullet_block("Owner design objectives", pack.owner_brief_objectives),
-            *_optional_bullet_block("Heritage design constraints", pack.heritage_design_advice),
+            *_optional_bullet_block(
+                "Owner design objectives", pack.owner_brief_objectives
+            ),
+            *_optional_bullet_block(
+                "Heritage design constraints", pack.heritage_design_advice
+            ),
             "Service exclusions: "
             + (
                 pack.service_exclusions
@@ -564,7 +572,11 @@ def _render_scope_change(pack: MobilisationEvidencePack) -> str:
 
 
 def _render_heritage_controls(pack: MobilisationEvidencePack) -> str:
-    if not (pack.heritage_context or pack.heritage_approval_advice or pack.heritage_design_advice):
+    if not (
+        pack.heritage_context
+        or pack.heritage_approval_advice
+        or pack.heritage_design_advice
+    ):
         return ""
     lines = ["### Heritage / character controls"]
     if pack.heritage_context:
@@ -572,7 +584,9 @@ def _render_heritage_controls(pack: MobilisationEvidencePack) -> str:
     if pack.heritage_approval_advice:
         lines.append(_labeled_field("Approval advice", pack.heritage_approval_advice))
     if pack.heritage_design_advice:
-        lines.extend(["", "**Design controls:**", _bullet_lines(pack.heritage_design_advice)])
+        lines.extend(
+            ["", "**Design controls:**", _bullet_lines(pack.heritage_design_advice)]
+        )
     return "\n".join(lines)
 
 
@@ -623,9 +637,7 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
             "Prepare at schematic stage; allow 6-8 weeks council assessment |"
         )
     certifier_status = (
-        "Partial"
-        if not pack_has_gap(pack, GAP_CERTIFIER)
-        else "Assumption"
+        "Partial" if not pack_has_gap(pack, GAP_CERTIFIER) else "Assumption"
     )
     certifier_action = (
         "Appointed — coordinate CC pathway"
@@ -647,9 +659,9 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
 
 def _render_programme(pack: MobilisationEvidencePack) -> str:
     submilestone_block = programme_submilestone_table()
-    submilestone_table = _table_lines_from_brief(submilestone_block) or _table_lines_from_brief(
-        ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
-    )
+    submilestone_table = _table_lines_from_brief(
+        submilestone_block
+    ) or _table_lines_from_brief(ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE)
     brief_note = (
         "brief signed on file"
         if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF)
@@ -698,9 +710,7 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
                 "signal only; it is not an owner budget."
             )
         else:
-            budget_line = (
-                "Assumption: construction budget not evidenced — owner to confirm working budget ceiling."
-            )
+            budget_line = "Assumption: construction budget not evidenced — owner to confirm working budget ceiling."
     elif pack.construction_budget_ceiling:
         budget_line = (
             f"Construction budget confirmed — {pack.construction_budget_ceiling} working ceiling "
@@ -720,10 +730,18 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
                 else []
             ),
         ]
-        quote_block = ["", "**Builder ROM on file (market signal only):**", _bullet_lines(rom_items)]
+        quote_block = [
+            "",
+            "**Builder ROM on file (market signal only):**",
+            _bullet_lines(rom_items),
+        ]
     if pack.builder_quotes:
         quote_block.extend(
-            ["", "**Builder pricing on file (unverified):**", _bullet_lines(pack.builder_quotes)]
+            [
+                "",
+                "**Builder pricing on file (unverified):**",
+                _bullet_lines(pack.builder_quotes),
+            ]
         )
     contingency_line = (
         f"Owner-held contingency: {pack.owner_additional_contingency}"
@@ -734,7 +752,9 @@ def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
     if pack_has_gap(pack, GAP_MASTER_PROGRAMME):
         missing.insert(1, "master programme")
     missing_line = f"Missing artefacts: {', '.join(missing)}."
-    conflict = pack.conflict_disclosure or pack.builder_conflict_disclosure or "None stated."
+    conflict = (
+        pack.conflict_disclosure or pack.builder_conflict_disclosure or "None stated."
+    )
     return "\n".join(
         [
             "## Cost, programme and procurement posture",
@@ -771,9 +791,7 @@ def _render_consultant_coordination(pack: MobilisationEvidencePack) -> str:
     geotech_appointed = "Yes" if not pack_has_gap(pack, GAP_GEOTECHNICAL) else "No"
     certifier_appointed = "Yes" if not pack_has_gap(pack, GAP_CERTIFIER) else "No"
     certifier_status = (
-        "Appointed"
-        if not pack_has_gap(pack, GAP_CERTIFIER)
-        else "Assumption"
+        "Appointed" if not pack_has_gap(pack, GAP_CERTIFIER) else "Assumption"
     )
     certifier_notes = (
         "Principal certifier appointed"
@@ -828,7 +846,10 @@ def _render_risks_skeleton(project: Project, pack: MobilisationEvidencePack) -> 
     else:
         risk_rows = _baseline_risk_rows(pack)
     for risk, owner, status, action, due in risk_rows:
-        if pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET) is False and "budget not evidenced" in risk.lower():
+        if (
+            pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET) is False
+            and "budget not evidenced" in risk.lower()
+        ):
             continue
         rows.append(f"| {risk} | {owner} | {status} | {action} | {due} |")
     return "\n".join(
@@ -859,7 +880,9 @@ def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[st
     if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF):
         signed = pack.owner_brief_signed_date or "on file"
         facts.append(f"Owner project brief signed {signed}.")
-    if pack.construction_budget_ceiling and not pack_has_gap(pack, GAP_CONSTRUCTION_BUDGET):
+    if pack.construction_budget_ceiling and not pack_has_gap(
+        pack, GAP_CONSTRUCTION_BUDGET
+    ):
         facts.append(
             f"Construction budget confirmed {pack.construction_budget_ceiling} working ceiling."
         )
@@ -878,7 +901,9 @@ def _prioritized_internal_audit_facts(pack: MobilisationEvidencePack) -> list[st
         )
     facts.append(f"DA pathway: {pack.planning_pathway or 'TBC'}.")
     if pack.target_da_lodgement:
-        facts.append(f"Target DA lodgement {pack.target_da_lodgement} per engagement letter.")
+        facts.append(
+            f"Target DA lodgement {pack.target_da_lodgement} per engagement letter."
+        )
     return facts[:5]
 
 
@@ -893,7 +918,9 @@ def _fact_ledger_lines(pack: MobilisationEvidencePack) -> list[str]:
 
 def _render_internal_audit(pack: MobilisationEvidencePack) -> str:
     facts = _prioritized_internal_audit_facts(pack)
-    assumptions = [f"Assumption: {gap}." for gap in pack.gaps] or ["Assumption: none identified."]
+    assumptions = [f"Assumption: {gap}." for gap in pack.gaps] or [
+        "Assumption: none identified."
+    ]
     workflow_warnings = [
         f"Workflow warning: {gap}."
         for gap in pack.gaps
@@ -936,11 +963,14 @@ def _metadata_value(value: object) -> str:
     if isinstance(value, list):
         return ", ".join(_metadata_value(item) for item in value) or "TBC"
     if isinstance(value, dict):
-        return ", ".join(
-            f"{key}: {_metadata_value(item)}"
-            for key, item in value.items()
-            if item not in (None, "", [], {})
-        ) or "TBC"
+        return (
+            ", ".join(
+                f"{key}: {_metadata_value(item)}"
+                for key, item in value.items()
+                if item not in (None, "", [], {})
+            )
+            or "TBC"
+        )
     text = str(value).strip()
     return text or "TBC"
 
@@ -1110,7 +1140,10 @@ def render_project_summary_table(
         )
     return _summary_table_markdown(
         [
-            f"| Project | {_metadata_value(project.title)} |  |",
+            (
+                f"| Project | {_metadata_value(project_title or project.title)} | "
+                f"{_citation_cell(project_title_source)} |"
+            ),
             (
                 f"| Site / address | "
                 f"{site_address or _metadata_value(fields.get('site_address'))} | "
@@ -1122,8 +1155,11 @@ def render_project_summary_table(
             ),
             f"| State | {_metadata_value(project.state or 'NSW')} |  |",
             f"| Taxonomy | {taxonomy_value} |  |",
-            f"| Subclass and scale | {_taxonomy_scale_summary(project)} |  |",
-            f"| Budget | {_metadata_value(fields.get('budget'))} |  |",
+            f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} |  |",
+            (
+                f"| Budget | {_metadata_value(budget or fields.get('budget'))} | "
+                f"{_citation_cell(budget_source or '')} |"
+            ),
             f"| Timeframe | {_metadata_value(fields.get('timeframe'))} |  |",
             f"| Procurement route | {_metadata_value(fields.get('procurement_route'))} |  |",
         ]
@@ -1133,7 +1169,7 @@ def render_project_summary_table(
 def _citation_cell(citation: str) -> str:
     """Render an empty citation cell when no source token is available."""
     value = citation.strip()
-    if value in {"", "—", "-", "–"}:
+    if re.fullmatch(r"\[\d+\](?:\s+\[\d+\])*", value) is None:
         return ""
     return value
 
@@ -1237,7 +1273,9 @@ def _render_taxonomy_snapshot(
     *,
     citation_index: CitationIndex | None = None,
 ) -> str:
-    del citation_index  # reserved for grounded summary fields; profile rows need no citation
+    del (
+        citation_index
+    )  # reserved for grounded summary fields; profile rows need no citation
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
@@ -1268,10 +1306,9 @@ def _render_taxonomy_scope(project: Project) -> str:
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     scope_items = work_scope_items_for(context.work_type, context.work_scope)
-    inclusions = [
-        f"- {item.label}"
-        for item in scope_items
-    ] or ["- Scope selection pending — confirm inclusions with the client."]
+    inclusions = [f"- {item.label}" for item in scope_items] or [
+        "- Scope selection pending — confirm inclusions with the client."
+    ]
     brief_is_emphasis = _top_weighted_section_id(project) == "scope-client-requirements"
 
     if context.building_class == "residential" and context.work_type == "new":
@@ -1288,9 +1325,7 @@ def _render_taxonomy_scope(project: Project) -> str:
             "and client acceptance criteria before procurement or advisory delivery."
         )
     else:
-        residential_note = (
-            "Confirm inclusions, exclusions, interfaces, and acceptance criteria before procurement."
-        )
+        residential_note = "Confirm inclusions, exclusions, interfaces, and acceptance criteria before procurement."
 
     lines = [
         f"## {heading_for_section_id('scope-client-requirements', work_type=context.work_type)}",
@@ -1363,9 +1398,7 @@ def _render_taxonomy_consultants(
         fee = "TBC"
         status = "Assumption"
         citation = "—"
-    rows.append(
-        f"| Architect | {firm} | {scope} | {fee} | {status} | {citation} |"
-    )
+    rows.append(f"| Architect | {firm} | {scope} | {fee} | {status} | {citation} |")
 
     seen: set[str] = set()
     for item in work_scope_items_for(context.work_type, context.work_scope):
@@ -1435,11 +1468,15 @@ def _render_taxonomy_citation_key(
     )
 
 
-def _render_taxonomy_compliance(project: Project, seed_section_refs: dict[str, tuple[str, ...]] | None) -> str:
+def _render_taxonomy_compliance(
+    project: Project, seed_section_refs: dict[str, tuple[str, ...]] | None
+) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
-    refs = seed_section_refs.get("compliance-approvals", ()) if seed_section_refs else ()
+    refs = (
+        seed_section_refs.get("compliance-approvals", ()) if seed_section_refs else ()
+    )
     rows = [
         "| Approval / compliance item | Status | Basis | Next action |",
         "| --- | --- | --- | --- |",
@@ -1454,7 +1491,11 @@ def _render_taxonomy_compliance(project: Project, seed_section_refs: dict[str, t
                 "| Fire pumpsets | Assumption | AS 2941 seed reference | Confirm pumpset duty, redundancy, and commissioning pathway |",
             ]
         )
-    ref_line = f"Loaded seed sections: {', '.join(refs)}." if refs else "Loaded seed sections: TBC."
+    ref_line = (
+        f"Loaded seed sections: {', '.join(refs)}."
+        if refs
+        else "Loaded seed sections: TBC."
+    )
     emphasis = _emphasis_note(project, "compliance-approvals")
     depth = ""
     if _top_weighted_section_id(project) == "compliance-approvals":
@@ -1510,7 +1551,10 @@ def _render_taxonomy_cost(project: Project) -> str:
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     budget = context.user_provided_fields.get("budget")
-    risk_text = "; ".join(flag.title for flag in context.risk_flags) or "No derived uplift flags"
+    risk_text = (
+        "; ".join(flag.title for flag in context.risk_flags)
+        or "No derived uplift flags"
+    )
     return "\n".join(
         [
             f"## {heading_for_section_id('cost-budget', work_type=context.work_type)}",
@@ -1565,7 +1609,10 @@ def _render_taxonomy_risks(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
-    rows = ["| Risk | Owner | Status | Next action | Due |", "| --- | --- | --- | --- | --- |"]
+    rows = [
+        "| Risk | Owner | Status | Next action | Due |",
+        "| --- | --- | --- | --- | --- |",
+    ]
     for risk, owner, status, action, due in _taxonomy_risk_rows(project):
         rows.append(f"| {risk} | {owner} | {status} | {action} | {due} |")
     trailer = [
@@ -1641,13 +1688,29 @@ def _render_taxonomy_actions(project: Project) -> str:
             depth,
             emphasis,
             "",
-            _decision_block("scope-boundary", "Scope boundary", "Confirm the scope boundary and exclusions."),
+            _decision_block(
+                "scope-boundary",
+                "Scope boundary",
+                "Confirm the scope boundary and exclusions.",
+            ),
             "",
-            _decision_block("approval-pathway", "Approval pathway", "Confirm the approval and certification pathway."),
+            _decision_block(
+                "approval-pathway",
+                "Approval pathway",
+                "Confirm the approval and certification pathway.",
+            ),
             "",
-            _decision_block("budget-basis", "Budget basis", "Confirm the budget, contingency, and cost-plan basis."),
+            _decision_block(
+                "budget-basis",
+                "Budget basis",
+                "Confirm the budget, contingency, and cost-plan basis.",
+            ),
             "",
-            _decision_block("consultant-roster", "Consultant roster", "Confirm the required consultant roster."),
+            _decision_block(
+                "consultant-roster",
+                "Consultant roster",
+                "Confirm the required consultant roster.",
+            ),
         ]
     )
 
@@ -1742,7 +1805,9 @@ def render_pmp_scaffold(
         for line in section.splitlines()
         if line.strip().startswith("## ")
     }
-    missing = [heading for heading in headings if heading.lower() not in rendered_headings]
+    missing = [
+        heading for heading in headings if heading.lower() not in rendered_headings
+    ]
     if missing:
         joined = ", ".join(missing)
         raise RuntimeError(f"PMP scaffold missing required sections: {joined}")

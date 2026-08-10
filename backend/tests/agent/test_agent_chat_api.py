@@ -683,6 +683,31 @@ def test_agent_source_trace_includes_read_web_source_provenance() -> None:
     ]
 
 
+def test_agent_source_trace_marks_successful_web_search_as_used_without_source_read() -> None:
+    trace = chat_api._agent_source_trace(
+        [
+            {
+                "kind": "tool",
+                "tool": "search_web",
+                "state": "done",
+                "message": "Searched official web sources",
+            },
+            {
+                "kind": "tool",
+                "tool": "read_web_source",
+                "state": "error",
+                "message": "Official web source read failed",
+            },
+        ]
+    )
+
+    assert trace["web"] == {
+        "used": True,
+        "tools": ["search_web"],
+        "sources": [],
+    }
+
+
 def test_persist_agent_message_writes_web_citations(monkeypatch) -> None:
     turn_id = uuid.uuid4()
     message_id = uuid.uuid4()

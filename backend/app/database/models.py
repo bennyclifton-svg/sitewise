@@ -29,6 +29,7 @@ from app.database.workflow_run import WorkflowRun
 from app.cost_plan.models import (
     CostInvoice,
     CostInvoiceAllocation,
+    CostInvoiceMappingMemory,
     CostPlanItem,
     CostPlanVersion,
 )
@@ -64,4 +65,5 @@ __all__ = [
     "CostPlanVersion",
     "CostInvoice",
     "CostInvoiceAllocation",
+    "CostInvoiceMappingMemory",
 ]

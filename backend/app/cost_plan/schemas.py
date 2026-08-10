@@ -12,7 +12,7 @@ GstTreatment = Literal["exclusive", "inclusive", "not_applicable"]
 AllowanceType = Literal["none", "pc", "ps", "contingency"]
 InvoiceGstTreatment = Literal["taxable", "gst_free", "derived"]
 InvoiceMappingMethod = Literal[
-    "exact", "related_reference", "keyword", "model", "manual", "unidentified"
+    "exact", "related_reference", "keyword", "model", "manual", "remembered", "unidentified"
 ]
 
 

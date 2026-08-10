@@ -506,9 +506,7 @@ export function DraftReviewPanel({
               version={displayDraft.version}
               projectId={projectId}
               decisions={projectDecisions ?? undefined}
-              projectTitle={
-                displayDraft.workflow_type === "create_pmp" ? projectTitle : undefined
-              }
+              projectTitle={projectTitle}
               readOnly={isAccepted || projectDecisions === null}
               changedRanges={changedRanges}
               showChanges={showChanges}
