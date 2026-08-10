@@ -6,10 +6,12 @@ from decimal import Decimal
 import pytest
 
 from app.cost_plan.schemas import CostItemInput
+from app.database.project import Project
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.workflows.runs import (
     SUPPORTED_WORKFLOWS,
+    build_workflow_run_brief,
     canonical_request_hash,
     complete_workflow_run,
     heartbeat_run,
@@ -110,6 +112,34 @@ def test_snapshot_fixture_carries_all_frozen_revision_inputs() -> None:
     assert snapshot.profile.profile_revision == 2
     assert snapshot.decisions.set_revision == 3
     assert snapshot.evidence.fingerprint == "b" * 64
+
+
+def test_workflow_brief_freezes_the_canonical_generation_context() -> None:
+    snapshot = _snapshot().model_copy(update={"context_version": 6})
+    project = Project(
+        id=snapshot.identity.project_id,
+        owner_user_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        slug="test",
+        title="Test",
+        workspace_path="04-projects/test",
+        phase="procurement",
+        status="active",
+        archetype=None,
+        project_metadata={},
+    )
+
+    brief = build_workflow_run_brief(
+        project=project,
+        request=_request(),
+        snapshot=snapshot,
+    )
+
+    assert brief["generation_context"]["context_version"] == 6
+    assert (
+        brief["generation_context"]["taxonomy"]["building_class"]["value"]
+        == "residential"
+    )
+    assert brief["generation_context"]["commercial"]["budget"]["state"] == "unknown"
 
 
 def test_successful_retry_clears_stale_workflow_error_fields() -> None:

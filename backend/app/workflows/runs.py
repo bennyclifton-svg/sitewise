@@ -14,6 +14,7 @@ from app.database.project import Project
 from app.database.draft_artifact import DraftArtifact
 from app.database.workflow_run import WorkflowRun
 from app.projects.events import publish_project_event
+from app.projects.generation_context import resolve_project_generation_context
 from app.projects.locks import lock_project
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
@@ -68,6 +69,34 @@ def canonical_request_hash(workflow_type: str, request: WorkflowRunStartRequest)
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def build_workflow_run_brief(
+    *,
+    project: Project,
+    request: WorkflowRunStartRequest,
+    snapshot: ProjectSnapshot,
+) -> dict[str, Any]:
+    """Freeze one canonical context alongside every durable workflow request."""
+    generation_context = resolve_project_generation_context(snapshot)
+    return {
+        "schema_version": 1,
+        "snapshot": snapshot.model_dump(mode="json"),
+        "generation_context": generation_context.model_dump(mode="json"),
+        "project": {
+            "id": str(project.id),
+            "owner_user_id": str(project.owner_user_id),
+            "slug": project.slug,
+            "title": project.title,
+            "workspace_path": project.workspace_path,
+            "phase": project.phase,
+            "status": project.status,
+            "archetype": project.archetype,
+            "project_metadata": project.project_metadata,
+        },
+        "chat_model": request.chat_model,
+        "parameters": request.parameters,
+    }
 
 
 async def start_workflow_run(
@@ -130,23 +159,11 @@ async def start_workflow_run(
         requested_by_thread_id=request.thread_id,
         requested_by_turn_id=request.turn_id,
         workflow_type=workflow_type,
-        run_brief={
-            "schema_version": 1,
-            "snapshot": snapshot.model_dump(mode="json"),
-            "project": {
-                "id": str(project.id),
-                "owner_user_id": str(project.owner_user_id),
-                "slug": project.slug,
-                "title": project.title,
-                "workspace_path": project.workspace_path,
-                "phase": project.phase,
-                "status": project.status,
-                "archetype": project.archetype,
-                "project_metadata": project.project_metadata,
-            },
-            "chat_model": request.chat_model,
-            "parameters": request.parameters,
-        },
+        run_brief=build_workflow_run_brief(
+            project=project,
+            request=request,
+            snapshot=snapshot,
+        ),
         idempotency_key=request.idempotency_key,
         schema_version=1,
         canonical_request_hash=request_hash,

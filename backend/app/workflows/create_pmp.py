@@ -25,6 +25,11 @@ from app.database.chats import create_message
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.generation_context import (
+    ProjectGenerationContext,
+    format_generation_context,
+    resolve_project_generation_context,
+)
 from app.projects.workflow_capabilities import CREATE_PMP, capability_block_message
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
@@ -742,6 +747,7 @@ def build_create_pmp_prompt(
     validation_feedback: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
+    generation_context: ProjectGenerationContext | None = None,
 ) -> str:
     """Assemble the Create PMP prompt with cache-friendly ordering.
 
@@ -787,7 +793,9 @@ def build_create_pmp_prompt(
     if taxonomy_context is not None:
         prompt_parts.extend(
             [
-                _format_project_taxonomy(project),
+                format_generation_context(generation_context)
+                if generation_context is not None
+                else _format_project_taxonomy(project),
                 _format_section_budgets(project),
                 _format_loaded_seed_sections(passages),
                 format_decision_option_sets(project),
@@ -899,6 +907,7 @@ async def run_create_pmp_model(
     chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
     coverage_requirements: str | None = None,
+    generation_context: ProjectGenerationContext | None = None,
 ) -> PmpDraftOutput:
     prompt = build_create_pmp_prompt(
         project=project,
@@ -908,6 +917,7 @@ async def run_create_pmp_model(
         validation_feedback=validation_feedback,
         locked_decisions=locked_decisions,
         coverage_requirements=coverage_requirements,
+        generation_context=generation_context,
     )
     resolved_model = (
         chat_model.strip() if chat_model else resolve_pmp_model().execution_id
@@ -1361,6 +1371,11 @@ async def run_create_pmp_workflow(
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
+    context_started = time.perf_counter()
+    generation_context = (
+        resolve_project_generation_context(snapshot) if snapshot is not None else None
+    )
+    context_duration_ms = int((time.perf_counter() - context_started) * 1000)
     model_spec = resolve_pmp_model(chat_model)
     resolved_model = model_spec.execution_id
     model_metadata = pmp_model_metadata(model_spec)
@@ -1372,6 +1387,18 @@ async def run_create_pmp_workflow(
                 "Loaded deterministic Project Snapshot v1.",
                 schema_version=snapshot.schema_version,
                 content_fingerprint=snapshot.content_fingerprint,
+            )
+        )
+        trace.append(
+            _trace(
+                "context_ready",
+                "complete",
+                "Resolved canonical project generation context.",
+                context_version=snapshot.context_version,
+                critical_unknown_count=len(generation_context.critical_unknowns())
+                if generation_context is not None
+                else 0,
+                duration_ms=context_duration_ms,
             )
         )
     trace.append(
@@ -1694,6 +1721,7 @@ async def run_create_pmp_workflow(
                     chat_model=resolved_model,
                     locked_decisions=locked_decisions,
                     coverage_requirements=coverage_requirements,
+                    generation_context=generation_context,
                 )
                 output.markdown = normalize_pmp_markdown(output.markdown)
                 if draft_mode == "evidence_grounded":
@@ -1880,6 +1908,7 @@ async def run_create_pmp_workflow(
                 {
                     "schema_version": snapshot.schema_version,
                     "content_fingerprint": snapshot.content_fingerprint,
+                    "context_version": snapshot.context_version,
                 }
                 if snapshot is not None
                 else None

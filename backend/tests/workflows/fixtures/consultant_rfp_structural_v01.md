@@ -56,7 +56,7 @@ Provide a concise return brief with the tender response, identifying amendments,
 - Acknowledge all addenda and identify every qualification, exclusion, departure, alternate proposal, and requested client input.
 - State the proposal validity period. The client may accept none of the proposals and proponents bear their own preparation costs.
 
-## Information to review (1 document)
+## Project Documents (1 document)
 | Document number | Title | Rev | Category |
 | --- | --- | --- | --- |
 | — | project-brief | — | — |

@@ -1,7 +1,7 @@
 # SiteWise — Unified Project Context, Addressable Artefacts, Incremental Generation & High-Performance Editing
 ## Full Staged Implementation Plan
 
-**Status:** Proposed implementation roadmap  
+**Status:** Implementation in progress (Stage 0 baseline and Stage 1 foundation started 2026-08-10)
 **Primary objectives:** Improve artefact quality, responsiveness, consistency, flexibility, maintainability and user trust.
 
 ---

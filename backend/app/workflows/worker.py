@@ -354,6 +354,7 @@ async def _stamp_result_dependencies(
             }
         )
     metadata["dependency_snapshot"] = {
+        "project_context_version": _project_context_version(run),
         "profile_revision": run.frozen_profile_revision,
         "evidence_fingerprint": run.frozen_evidence_fingerprint,
         "decision_set_revision": run.frozen_decision_set_revision,
@@ -364,6 +365,16 @@ async def _stamp_result_dependencies(
     }
     draft.provenance_metadata = metadata
     await session.flush()
+
+
+def _project_context_version(run) -> int:
+    raw = run.run_brief.get("generation_context")
+    if isinstance(raw, dict):
+        value = raw.get("context_version")
+        if isinstance(value, int) and value >= 1:
+            return value
+    snapshot = ProjectSnapshot.model_validate(run.run_brief["snapshot"])
+    return snapshot.context_version
 
 
 def _json_result(result: Any) -> dict[str, Any]:

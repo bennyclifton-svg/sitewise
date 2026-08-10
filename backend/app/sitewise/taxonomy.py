@@ -230,6 +230,15 @@ def work_scope_items_for(
     selected = {value for value in selected_values if value}
     if not work_type or not selected:
         return ()
+    return tuple(
+        item for item in work_scope_options_for(work_type) if item.value in selected
+    )
+
+
+def work_scope_options_for(work_type: str | None) -> tuple[WorkScopeItem, ...]:
+    """Return the complete profiler scope schema applicable to a work type."""
+    if not work_type:
+        return ()
     raw_work_type = _work_scope_config()["work_types"].get(work_type)
     if not isinstance(raw_work_type, dict):
         return ()
@@ -237,7 +246,7 @@ def work_scope_items_for(
     for category in raw_work_type.get("categories", []):
         for raw_item in category.get("items", []):
             value = str(raw_item.get("value", ""))
-            if value not in selected:
+            if not value:
                 continue
             items.append(
                 WorkScopeItem(

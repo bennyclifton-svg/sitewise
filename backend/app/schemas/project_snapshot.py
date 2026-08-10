@@ -110,6 +110,11 @@ class ProjectSnapshot(BaseModel):
     schema_version: Literal[1] = 1
     generated_at: datetime
     content_fingerprint: str
+    context_version: int = Field(default=1, ge=1)
+    field_states: dict[
+        str,
+        Literal["explicitly_excluded", "not_applicable"],
+    ] = Field(default_factory=dict)
     identity: ProjectSnapshotIdentity
     profile: ProjectProfileView
     decisions: ProjectSnapshotDecisions

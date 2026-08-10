@@ -20,6 +20,11 @@ from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import create_draft_artifact
 from app.database.project import Project
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
+from app.projects.generation_context import (
+    ProjectGenerationContext,
+    format_generation_context,
+    resolve_project_generation_context,
+)
 from app.projects.workflow_capabilities import (
     CREATE_COST_PLAN,
     capability_block_message,
@@ -510,6 +515,7 @@ async def run_create_cost_plan_model(
     validation_feedback: str | None = None,
     chat_model: str | None = None,
     locked_decisions: dict[str, str] | None = None,
+    generation_context: ProjectGenerationContext | None = None,
 ) -> CostPlanDraftOutput:
     mandatory_paths = required_platform_paths(
         archetype=project.archetype or "",
@@ -520,6 +526,11 @@ async def run_create_cost_plan_model(
         f"Project: {project.title}",
         f"Workspace path: {project.workspace_path}",
         (f"Overlays: archetype={project.archetype}, state={project.state}"),
+        *(
+            [format_generation_context(generation_context)]
+            if generation_context is not None
+            else []
+        ),
         (
             f"Cost plan run date: {date.today().isoformat()} — use for recommendation "
             "due dates (2–4 weeks forward or relative phrasing; never past years)."
@@ -1241,6 +1252,11 @@ async def run_create_cost_plan_workflow(
 ) -> CreateCostPlanResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
+    context_started = time.perf_counter()
+    generation_context = (
+        resolve_project_generation_context(snapshot) if snapshot is not None else None
+    )
+    context_duration_ms = int((time.perf_counter() - context_started) * 1000)
     resolved_model = resolve_chat_model(chat_model)
     if snapshot is not None:
         trace.append(
@@ -1250,6 +1266,18 @@ async def run_create_cost_plan_workflow(
                 "Loaded deterministic Project Snapshot v1.",
                 schema_version=snapshot.schema_version,
                 content_fingerprint=snapshot.content_fingerprint,
+            )
+        )
+        trace.append(
+            _trace(
+                "context_ready",
+                "complete",
+                "Resolved canonical project generation context.",
+                context_version=snapshot.context_version,
+                critical_unknown_count=len(generation_context.critical_unknowns())
+                if generation_context is not None
+                else 0,
+                duration_ms=context_duration_ms,
             )
         )
 
@@ -1431,6 +1459,7 @@ async def run_create_cost_plan_workflow(
                     validation_feedback=validation_feedback,
                     chat_model=resolved_model,
                     locked_decisions=locked_decisions,
+                    generation_context=generation_context,
                 )
                 output.markdown = normalize_pmp_markdown(output.markdown)
                 output.markdown = restamp_decisions(output.markdown, locked_decisions)
@@ -1512,6 +1541,7 @@ async def run_create_cost_plan_workflow(
             {
                 "schema_version": snapshot.schema_version,
                 "content_fingerprint": snapshot.content_fingerprint,
+                "context_version": snapshot.context_version,
             }
             if snapshot is not None
             else None

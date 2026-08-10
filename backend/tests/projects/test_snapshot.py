@@ -46,11 +46,16 @@ def _project() -> Project:
         state="NSW",
         profile_revision=2,
         decision_set_revision=4,
+        event_sequence=8,
         status="active",
         project_metadata={
             "taxonomy": {
                 "site_address": "10 Test Street",
                 "budget": "$1.2m",
+                "field_states": {
+                    "scope.facade_system": "explicitly_excluded",
+                    "scope.invalid": "not-a-state",
+                },
             }
         },
     )
@@ -126,6 +131,10 @@ def test_snapshot_fingerprint_ignores_generation_time_and_exposes_missing_inputs
     assert first.identity.client.status == "needs_input"
     assert first.confirmed_inputs["timeframe"].status == "needs_input"
     assert first.confirmed_inputs["procurement_route"].value == "traditional"
+    assert first.context_version == 9
+    assert first.field_states == {
+        "scope.facade_system": "explicitly_excluded"
+    }
     assert first.evidence.active_count == 1
     assert first.evidence.ingest_failure_count == 1
     assert first.evidence.selection_status == "not_persisted"

@@ -61,6 +61,18 @@ def _taxonomy_metadata(project: Project) -> dict[str, Any]:
     return dict(taxonomy) if isinstance(taxonomy, dict) else {}
 
 
+def _context_field_states(project: Project) -> dict[str, str]:
+    raw = _taxonomy_metadata(project).get("field_states")
+    if not isinstance(raw, dict):
+        return {}
+    allowed = {"explicitly_excluded", "not_applicable"}
+    return {
+        str(key): str(value)
+        for key, value in raw.items()
+        if isinstance(key, str) and value in allowed
+    }
+
+
 def _evidence_fingerprint(rows: list[Any]) -> str:
     parts = [
         {
@@ -190,6 +202,8 @@ async def get_project_snapshot(
     snapshot = ProjectSnapshot(
         generated_at=generated_at or datetime.now(UTC),
         content_fingerprint="pending",
+        context_version=(project.event_sequence or 0) + 1,
+        field_states=_context_field_states(project),
         identity=ProjectSnapshotIdentity(
             project_id=project.id,
             title=project.title,
