@@ -399,6 +399,7 @@ unless a migration rollback has been explicitly planned and tested — **do not*
 
 | Date | Commit | What shipped | Outcome |
 | --- | --- | --- | --- |
+| 2026-08-11 | `955256a1` | Cockpit Rules-of-Hooks fix + EOI citation-gate exclusion; preflight test/fixture sync | Live via SSH `compose up -d --build` after Dokploy checkout-only auto deploy. `/api/health` ok with GPT-5.6 models; API + core worker healthy; tender worker ready; web 200. Alembic already at `045_project_context_version`. Disk pruned to 72% after build peaked at 92%. |
 | 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Live. `/api/health` reports chat `gpt-5.6-luna`, Hermes/PMP `gpt-5.6-terra`, cost plan `gpt-5.6-luna`, and embedding `text-embedding-3-small`. |
 | 2026-08-02 | `5f597424` | Polar removed; Stripe is the only billing provider | Live. Required Stripe values are present in the running container; values were not printed or committed. |
 | 2026-08-02 | `219763b1` | Procurement Requests (RFP/EOI/RFT/RFQ) register | Live. Production Alembic revision confirmed as `038_procurement_requests (head)`. Optional follow-up: run `uv run python scripts/backfill_procurement_requests.py` in report mode, then explicitly use `--apply` if the report is correct. |
