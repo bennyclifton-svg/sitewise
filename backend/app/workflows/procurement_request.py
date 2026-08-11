@@ -340,6 +340,12 @@ async def draft_procurement_request(
         "|".join(seed_selection.applicable_paths) or "no-seed-guidance"
     )
     artefact_type = document.seed_artefact_type
+    # Contractor EOI renders "rft" but has no Citation key scaffold by design
+    # (it is unpriced and carries no source-cell narrative). The citation gate
+    # below exists to catch legacy pre-citation RFP/RFT shells, not EOI.
+    citation_gated = artefact_type in {"rfp", "rft"} and not is_contractor_eoi_document(
+        document
+    )
     baseline_provenance = (
         baseline.provenance_metadata
         if baseline is not None and isinstance(baseline.provenance_metadata, dict)
@@ -360,10 +366,7 @@ async def draft_procurement_request(
     skip_refresh = (
         baseline is not None
         and refresh_plan.skip
-        and not (
-            artefact_type in {"rfp", "rft"}
-            and _legacy_procurement_scaffold(baseline_markdown)
-        )
+        and not (citation_gated and _legacy_procurement_scaffold(baseline_markdown))
     )
     if skip_refresh:
         await publish_procurement_progress(on_progress, {"stage": "artefact_ready"})
@@ -513,7 +516,7 @@ async def draft_procurement_request(
         on_progress=progress_capture.publish,
     )
     markdown = await rendered if inspect.isawaitable(rendered) else rendered
-    if artefact_type in {"rfp", "rft"}:
+    if citation_gated:
         _assert_citation_ready_procurement_markdown(markdown)
     source_trace["consistency_ai_call_count"] = (
         progress_capture.consistency_ai_call_count
@@ -525,7 +528,7 @@ async def draft_procurement_request(
     )
     # Legacy RFP/RFT scaffolds (Profile chips, no Citation key) must be replaced
     # wholesale so incremental block reconcile cannot preserve the old shell.
-    force_full_replace = artefact_type in {"rfp", "rft"} and _legacy_procurement_scaffold(
+    force_full_replace = citation_gated and _legacy_procurement_scaffold(
         baseline_markdown
     )
     if baseline is not None and artefact_type in {"rfp", "rft"} and not force_full_replace:
@@ -1164,6 +1167,17 @@ async def sync_procurement_draft_workspace(
         draft=draft,
         markdown=markdown or draft.content_markdown,
     )
+
+
+def is_contractor_eoi_document(document: "ProcurementDocument") -> bool:
+    """True for the contractor EOI document, which has no citation scaffold.
+
+    Lazy import avoids a circular import: contractor_procurement imports from
+    this module.
+    """
+    from app.workflows.contractor_procurement import WORKFLOW_TYPE_PREFIX
+
+    return document.document_key == WORKFLOW_TYPE_PREFIX
 
 
 def _legacy_procurement_scaffold(markdown: str) -> bool:

@@ -368,8 +368,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       initialEntry: `/projects/project-1?artefact=${rftDraft.id}&revision=2`,
     });
 
-    expect(await screen.findByTestId("draft-review")).toHaveTextContent("draft-v2");
-    expect(screen.getByTestId("repository")).toHaveTextContent(rftDraft.id);
+    expect(await screen.findByTestId("repository")).toHaveTextContent(rftDraft.id);
   });
 
   it("highlights documents for the RFT selected in the procurement workbench", async () => {

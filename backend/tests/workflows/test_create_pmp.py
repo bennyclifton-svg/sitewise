@@ -49,6 +49,17 @@ def _no_locked_create_pmp_decisions(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def _no_consultant_fact_reconcile(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Tests pass bare AsyncMock sessions that don't model chained
+    # session.execute(...).scalars().all() calls; skip the reconcile side
+    # effect so those mocks don't have to.
+    monkeypatch.setattr(
+        "app.workflows.create_pmp._reconcile_consultant_facts_for_pmp",
+        AsyncMock(return_value=0),
+    )
+
+
 def _project(**overrides) -> Project:
     values = {
         "id": PROJECT_ID,

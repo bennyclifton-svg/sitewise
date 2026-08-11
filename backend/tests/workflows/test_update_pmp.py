@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.sitewise.gate import overlay_status
@@ -20,6 +22,17 @@ from tests.workflows.test_create_pmp import (
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 BASELINE_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+
+
+@pytest.fixture(autouse=True)
+def _no_consultant_fact_reconcile(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Tests pass bare AsyncMock sessions that don't model chained
+    # session.execute(...).scalars().all() calls; skip the reconcile side
+    # effect so those mocks don't have to.
+    monkeypatch.setattr(
+        "app.workflows.update_pmp._reconcile_consultant_facts_for_pmp",
+        AsyncMock(return_value=0),
+    )
 
 
 def _project(**overrides) -> Project:

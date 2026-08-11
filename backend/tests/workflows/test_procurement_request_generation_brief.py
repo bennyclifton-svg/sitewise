@@ -17,6 +17,11 @@ from app.workflows import procurement_request as workflow
 PROJECT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 USER_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 DRAFT_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+_RENDERED_MARKDOWN = (
+    "# Procurement request\n\n"
+    "## Background\n\nIssue the documented scope. [1]\n\n"
+    "## Citation key\n- [1] Project Profile\n"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,17 +162,9 @@ class _Document(workflow.ProcurementDocument):
                         "ai_call_count": call_count,
                     }
                 )
-            return (
-                "# Procurement request\n\n## Background\n\nIssue the documented scope."
-            )
+            return _RENDERED_MARKDOWN
 
-        return (
-            rendered()
-            if self.consistency_call_counts
-            else (
-                "# Procurement request\n\n## Background\n\nIssue the documented scope."
-            )
-        )
+        return rendered() if self.consistency_call_counts else _RENDERED_MARKDOWN
 
 
 @pytest.mark.parametrize("artefact_type", ["rfp", "rft"])

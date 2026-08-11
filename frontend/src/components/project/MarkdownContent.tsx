@@ -37,7 +37,6 @@ import {
   DropdownMenuTrigger,
   dropdownMenuItemClassName,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import {
   maskArtifactBlockMarkers,
   splitTraceQa,

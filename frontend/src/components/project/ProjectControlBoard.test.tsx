@@ -19,6 +19,7 @@ vi.mock("@/lib/api", () => ({
   api: {
     applyCostPlanOperations: vi.fn(),
     getCostPlanState: vi.fn(),
+    getInvoiceLedger: vi.fn(),
     getProject: vi.fn(),
     updateProject: vi.fn(),
     listProcurementRequests: vi.fn(),
@@ -84,6 +85,12 @@ describe("ProjectControlBoard project profile", () => {
         total_excluding_gst: "0.00",
         total_including_gst: "0.00",
       },
+    });
+    vi.mocked(api.getInvoiceLedger).mockResolvedValue({
+      cost_plan_version: 1,
+      workbook_path: "cost-plan.xlsx",
+      rows: [],
+      cost_items: [],
     });
     vi.mocked(useTaxonomy).mockReturnValue({
       data: catalog,
@@ -798,7 +805,7 @@ describe("ProjectControlBoard project profile", () => {
     expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Cost workbook" })).not.toBeInTheDocument();
     expect(
-      await screen.findByText("Create cost plan to generate the workbook."),
+      await screen.findByText("Create cost plan to open the editable Cost Plan grid."),
     ).toBeInTheDocument();
   });
 

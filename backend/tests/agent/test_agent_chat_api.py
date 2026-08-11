@@ -157,6 +157,7 @@ def _snapshot():
         confirmed_inputs={},
         open_profile_proposals=[],
         next_actions=[],
+        latest_artefacts=[],
     )
 
 

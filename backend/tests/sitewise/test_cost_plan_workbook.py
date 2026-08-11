@@ -236,9 +236,9 @@ def _greenbank_cost_items() -> list[tuple[str, str]]:
         ("Construction", "Kitchen, bathrooms and fittings"),
         ("Construction", "Building-services alterations and upgrades"),
         ("Construction", "Finishes, external works and making good"),
+        ("Contingency / allowances", "Owner-held contingency"),
         ("PC allowances", "Kitchen joinery PC"),
         ("PC allowances", "Wet area / sanitary PC"),
         ("PC allowances", "Floor coverings PC"),
         ("PC allowances", "Lighting fittings PC"),
-        ("Contingency / allowances", "Owner-held contingency"),
     ]

@@ -1128,6 +1128,15 @@ export function ProjectCockpitPage() {
     selectedRepositoryEvidence,
   } satisfies ProjectCockpitOutletContext);
 
+  useEffect(() => {
+    if (!projectId) return;
+    if (location.pathname !== `/projects/${projectId}`) return;
+    const fromUrl = readWorkbenchWorkflow(location.search);
+    if (!fromUrl || fromUrl === selectedWorkflowId) return;
+    setSelectedWorkflowId(fromUrl);
+    setActiveView("workbench");
+  }, [location.pathname, location.search, projectId, selectedWorkflowId]);
+
   if (!projectId) return null;
 
   if (loading) {
@@ -1202,15 +1211,6 @@ export function ProjectCockpitPage() {
     }
     showWorkbench(workflowId);
   }
-
-  useEffect(() => {
-    if (!projectId) return;
-    if (location.pathname !== `/projects/${projectId}`) return;
-    const fromUrl = readWorkbenchWorkflow(location.search);
-    if (!fromUrl || fromUrl === selectedWorkflowId) return;
-    setSelectedWorkflowId(fromUrl);
-    setActiveView("workbench");
-  }, [location.pathname, location.search, projectId, selectedWorkflowId]);
 
   const { chatCollapsed, chatFullScreen } = projectChatLayoutState({
     activeView,

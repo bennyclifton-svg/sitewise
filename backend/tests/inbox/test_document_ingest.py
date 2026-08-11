@@ -1,6 +1,7 @@
+import itertools
 import uuid
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.workflows.document_ingest import ingest_project_document
 from tests.conftest import run_async
@@ -21,10 +22,31 @@ def test_document_ingest_leaves_file_in_inbox_until_sort_is_explicit() -> None:
         ingest_error=None,
         source_document_id=None,
     )
-    source_document = SimpleNamespace(document_metadata={"revision": "P1"})
+    source_document = SimpleNamespace(
+        document_metadata={"revision": "P1"},
+        normalized_content="",
+        relative_path=workspace_path,
+        document_class=None,
+        filename="brief.md",
+    )
     session = AsyncMock()
-    session.get = AsyncMock(side_effect=[record, source_document])
-    project = SimpleNamespace(id=project_id, slug="demo", phase="procurement")
+    # The workspace-file record loads first; every subsequent session.get
+    # (source-document lookups for metadata merge and identity bootstrap)
+    # resolves to the same source document.
+    session.get = AsyncMock(
+        side_effect=itertools.chain([record], itertools.repeat(source_document))
+    )
+    # Auto-sort queries the inbox listing via session.execute(...).scalars().all();
+    # an empty inbox listing means nothing moves, so the file stays put.
+    execute_result = MagicMock()
+    execute_result.scalars.return_value.all.return_value = []
+    session.execute = AsyncMock(return_value=execute_result)
+    project = SimpleNamespace(
+        id=project_id,
+        slug="demo",
+        phase="procurement",
+        workspace_path="04-projects/demo",
+    )
 
     async def _run() -> None:
         with (

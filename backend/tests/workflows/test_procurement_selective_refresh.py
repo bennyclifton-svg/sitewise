@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.projects.generation_brief import ArtefactGenerationBrief
 from app.projects.generation_context import ProjectGenerationContext
 from app.projects.selective_refresh import compute_refresh_input_hash
 from app.workflows import procurement_request as workflow

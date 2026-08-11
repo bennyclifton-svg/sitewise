@@ -4,8 +4,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
 import { api } from "@/lib/api";
+import { calculateCostPlanTotals, type CostPlanItem } from "@/lib/cost-plan";
 import { ApiError } from "@/lib/http";
-import type { DraftArtifact, WorkbookPreview } from "@/lib/types/project";
+import type { DraftArtifact } from "@/lib/types/project";
+
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        index,
+        start: index * 26,
+        end: (index + 1) * 26,
+        size: 26,
+        key: index,
+      })),
+    getTotalSize: () => count * 26,
+  }),
+}));
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -19,6 +34,7 @@ vi.mock("@/lib/api", () => ({
     listDecisions: vi.fn(),
     applyDraftBlockOperations: vi.fn(),
     applyCostPlanOperations: vi.fn(),
+    getInvoiceLedger: vi.fn(),
   },
 }));
 
@@ -115,6 +131,12 @@ describe("DraftReviewPanel", () => {
         total_excluding_gst: "0.00",
         total_including_gst: "0.00",
       },
+    });
+    vi.mocked(api.getInvoiceLedger).mockResolvedValue({
+      cost_plan_version: 1,
+      workbook_path: "cost-plan.xlsx",
+      rows: [],
+      cost_items: [],
     });
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
@@ -496,7 +518,7 @@ Issued content. [1]
       content_markdown: "# Title\n\n## First\n\nAlpha\n",
     });
     vi.mocked(api.applyDraftBlockOperations).mockRejectedValue(
-      new ApiError("Draft revise failed", 500, {}),
+      new ApiError("Draft revise failed", { kind: "http", status: 500, body: {} }),
     );
 
     render(
@@ -1257,7 +1279,35 @@ Issued content. [1]
 
   it("shows only the three-tab cost workbook with all 25 Greenbank items", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.getWorkbookPreview).mockResolvedValue(greenbankWorkbookPreview());
+    const greenbankItems: CostPlanItem[] = GREENBANK_COST_ITEMS.map(
+      ([category, item], index) => ({
+        item_key: `item-${index + 1}`,
+        cost_code: String(index + 1),
+        category,
+        item,
+        display_order: index + 1,
+        budget: "0",
+        committed: "0",
+        forecast: "0",
+        paid: "0",
+        allowance_type:
+          category === "PC allowances"
+            ? "pc"
+            : category === "Contingency / allowances"
+              ? "contingency"
+              : "none",
+        basis: "TBC",
+        source_refs: [],
+        status: "manual",
+        locked: false,
+      }),
+    );
+    vi.mocked(api.getCostPlanState).mockResolvedValue({
+      version: 1,
+      items: greenbankItems,
+      totals: calculateCostPlanTotals(greenbankItems),
+      categories: [...new Set(greenbankItems.map((entry) => entry.category))],
+    });
 
     render(
       <DraftReviewPanel
@@ -1301,11 +1351,11 @@ Issued content. [1]
     expect(screen.queryByRole("heading", { name: "Cost workbook" })).not.toBeInTheDocument();
     expect(screen.queryByText("Cost_Plan_v01.draft.xlsx")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Download Excel" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Cost Plan" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Invoices" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Variations" })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Cost Plan v1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Invoices" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Variations" })).toBeInTheDocument();
     for (const [, item] of GREENBANK_COST_ITEMS) {
-      expect(screen.getByText(item)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(item)).toBeInTheDocument();
     }
 
     expect(screen.queryByText("Sections")).not.toBeInTheDocument();
@@ -1327,90 +1377,9 @@ Issued content. [1]
     expect(screen.getByText("Context refs")).toBeVisible();
     expect(screen.getByText("Cost plan workbook generated.")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Invoices" }));
-    expect(screen.getByText("INVOICES REGISTER")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Variations" }));
-    expect(screen.getByText("VARIATIONS REGISTER")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Invoices" }));
+    expect(await screen.findByText(/No invoices in the register yet/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Variations" }));
+    expect(screen.getByText(/Variation schedule coming soon/i)).toBeInTheDocument();
   });
 });
-
-function greenbankWorkbookPreview(): WorkbookPreview {
-  const blankStyle = { fill_color: null, bold: false };
-  const summaryRows = [
-    ["Project Cost Plan - Greenbank", ...Array.from({ length: 11 }, () => "")],
-    ["All figures exclude GST", ...Array.from({ length: 11 }, () => "")],
-    Array.from({ length: 12 }, () => ""),
-    [
-      "Cost Code",
-      "Category",
-      "Cost Items",
-      "Budget",
-      "Approved Contract",
-      "Forecast Variations",
-      "Approved Variations",
-      "Forecast Final Cost",
-      "Budget Variance",
-      "Claimed to Date",
-      "This Month",
-      "Remaining",
-    ],
-    ...GREENBANK_COST_ITEMS.map(([category, item], index) => [
-      String(index + 1),
-      category,
-      item,
-      ...Array.from({ length: 9 }, () => ""),
-    ]),
-  ];
-  const registerSheet = (name: "Invoices" | "Variations", title: string) => {
-    const headers =
-      name === "Invoices"
-        ? [
-            "Invoice Date",
-            "Company",
-            "PO Number",
-            "Invoice Number",
-            "Invoice Description",
-            "Cost Item",
-            "Amount",
-            "Billing Month",
-            "Paid?",
-          ]
-        : [
-            "Date Submitted",
-            "Cost Item",
-            "Variation To",
-            "Status",
-            "Amount",
-            "Date Approved",
-            "Approved Amount",
-          ];
-    const rows = [
-      [title, ...Array.from({ length: headers.length - 1 }, () => "")],
-      ["Greenbank", ...Array.from({ length: headers.length - 1 }, () => "")],
-      Array.from({ length: headers.length }, () => ""),
-      headers,
-    ];
-    return {
-      name,
-      column_count: headers.length,
-      rows,
-      styles: rows.map((row) => row.map(() => blankStyle)),
-    };
-  };
-
-  return {
-    filename: "Cost_Plan_v01.draft.xlsx",
-    workspace_path: "04-projects/greenbank/01-cost/Cost_Plan_v01.draft.xlsx",
-    warnings: [],
-    sheets: [
-      {
-        name: "Summary",
-        column_count: 12,
-        rows: summaryRows,
-        styles: summaryRows.map((row) => row.map(() => blankStyle)),
-      },
-      registerSheet("Invoices", "INVOICES REGISTER"),
-      registerSheet("Variations", "VARIATIONS REGISTER"),
-    ],
-  };
-}
