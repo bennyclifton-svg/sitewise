@@ -168,9 +168,13 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     assert "| Description |" in summary
     assert "Critical current position" not in summary
     assert "| Expected consultants |" not in markdown
+    assert "## FFE Schedule" in markdown
+    assert "Finishes, Fixtures and Equipment" in _section_body(markdown, "FFE Schedule")
     assert "## Consultants" in markdown
     assert "Fire Engineer" in _section_body(markdown, "Consultants")
     assert "| Expected consultants |" not in _section_body(markdown, "Brief")
+    assert headings.index("Brief") + 1 == headings.index("FFE Schedule")
+    assert headings.index("FFE Schedule") + 1 == headings.index("Consultants")
     assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
     assert "User provided" not in markdown
     assert "Assumption" in markdown

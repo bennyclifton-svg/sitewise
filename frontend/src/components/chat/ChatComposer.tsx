@@ -79,8 +79,10 @@ export function ChatComposer({
   const { models, defaultModel, effectiveValue, selectModel, loading } =
     useComposerModelTier();
 
-  valueRef.current = value;
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+  }, [value, onChange]);
 
   useEffect(() => {
     const textarea = textareaRef.current;

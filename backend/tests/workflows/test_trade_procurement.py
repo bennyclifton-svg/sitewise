@@ -24,6 +24,48 @@ from tests.workflows.test_consultant_procurement import (
 )
 
 
+def test_rft_render_publishes_scaffold_before_delayed_narrative(monkeypatch) -> None:
+    published: list[dict] = []
+    previews_at_narrative_time: list[int] = []
+
+    async def capture(progress: dict) -> None:
+        published.append(progress)
+
+    async def delayed_narrative(**kwargs):
+        previews_at_narrative_time.append(len(published))
+        return ProcurementNarrativeOutput(
+            background="Delayed trade background.",
+            requested_services=["Install electrical package."],
+            programme=["Mobilise after design freeze."],
+            evidence_refs=[],
+        )
+
+    monkeypatch.setattr(workflow, "run_validated_trade_narrative", delayed_narrative)
+    markdown = run_async(
+        workflow.TRADE_RFT_DOCUMENT.render(
+            project=_project(),
+            target=workflow.normalise_trade_target("electrical"),
+            project_evidence=[],
+            issued_documents=[],
+            platform_knowledge=[],
+            forecast={},
+            assumptions=[],
+            missing_inputs=[],
+            max_pages=3,
+            instructions=None,
+            artefact_context=None,
+            generation_brief=None,
+            on_progress=capture,
+        )
+    )
+
+    assert "Delayed trade background." in markdown
+    assert previews_at_narrative_time[0] > 0
+    scaffold = next(item for item in published if item.get("markdown"))
+    assert scaffold["stage"] == "scaffold_ready"
+    assert scaffold["markdown"].strip()
+
+
 def _rft_generation_brief():
     title = ContextField(
         key="title",
@@ -81,6 +123,11 @@ def _install(
     monkeypatch.setattr(engine, "DocumentRetriever", lambda session: retriever)
     monkeypatch.setattr(engine, "next_draft_version", AsyncMock(return_value=version))
     monkeypatch.setattr(engine, "load_sections", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        engine,
+        "get_latest_draft_artifact",
+        AsyncMock(return_value=None),
+    )
     monkeypatch.setattr(
         workflow,
         "load_trade_package_evidence",
@@ -398,18 +445,19 @@ def test_main_works_keeps_scope_at_head_contractor_level(monkeypatch) -> None:
         }
     )
     _install(monkeypatch, retriever=retriever)
-    monkeypatch.setattr(
-        workflow,
-        "run_procurement_narrative_model",
-        AsyncMock(
-            return_value=ProcurementNarrativeOutput(
-                background="The PPR defines the development. [1]",
-                requested_services=[
-                    "Test every energised electrical circuit and safety device. [1]"
-                ],
-            )
-        ),
-    )
+
+    async def _narrative(**kwargs):
+        token = kwargs["citation_index"].token_for(
+            "04-projects/mosaic-apartments/_inbox/Bankstown PPR.pdf"
+        )
+        return ProcurementNarrativeOutput(
+            background=f"The PPR defines the development. {token}",
+            requested_services=[
+                f"Test every energised electrical circuit and safety device. {token}"
+            ],
+        )
+
+    monkeypatch.setattr(workflow, "run_procurement_narrative_model", _narrative)
 
     result = run_async(
         workflow.draft_trade_procurement_artifact(
@@ -513,19 +561,20 @@ def test_trade_scope_strips_model_supplied_list_numbers(monkeypatch) -> None:
         }
     )
     _install(monkeypatch, retriever=retriever)
-    monkeypatch.setattr(
-        workflow,
-        "run_procurement_narrative_model",
-        AsyncMock(
-            return_value=ProcurementNarrativeOutput(
-                background="The brief defines the package. [1]",
-                requested_services=[
-                    "1. Supply and install the mechanical works. [1]",
-                    "2. Coordinate all trade interfaces. [1]",
-                ],
-            )
-        ),
-    )
+
+    async def _numbered_scope(**kwargs):
+        token = kwargs["citation_index"].token_for(
+            "04-projects/walsh-renovation/brief.pdf"
+        )
+        return ProcurementNarrativeOutput(
+            background=f"The brief defines the package. {token}",
+            requested_services=[
+                f"1. Supply and install the mechanical works. {token}",
+                f"2. Coordinate all trade interfaces. {token}",
+            ],
+        )
+
+    monkeypatch.setattr(workflow, "run_procurement_narrative_model", _numbered_scope)
 
     result = run_async(
         workflow.draft_trade_procurement_artifact(
@@ -539,9 +588,9 @@ def test_trade_scope_strips_model_supplied_list_numbers(monkeypatch) -> None:
 
     scope = result.draft.content_markdown.split("## Scope and interfaces", maxsplit=1)[
         1
-    ].split("## Project Documents", maxsplit=1)[0]
-    assert "1. Supply and install the mechanical works. [1]" in scope
-    assert "2. Coordinate all trade interfaces. [1]" in scope
+    ].split("## Transmittal", maxsplit=1)[0]
+    assert "1. Supply and install the mechanical works. [2]" in scope
+    assert "2. Coordinate all trade interfaces. [2]" in scope
     assert "1. 1." not in scope
     assert "2. 2." not in scope
 
@@ -572,13 +621,14 @@ def test_trade_narrative_retries_invalid_citation(monkeypatch) -> None:
     profile = workflow.normalise_trade_target("electrical")
     evidence = [{"relative_path": "docs/brief.pdf"}]
     citation_index = workflow.build_rfp_citation_index(evidence)
+    evidence_token = citation_index.token_for("docs/brief.pdf")
     invalid = ProcurementNarrativeOutput(
         background="The brief defines the package. [99]",
-        requested_services=["Provide the package scope. [1]"],
+        requested_services=[f"Provide the package scope. {evidence_token}"],
     )
     valid = ProcurementNarrativeOutput(
-        background="The brief defines the package. [1]",
-        requested_services=["Provide the package scope. [1]"],
+        background=f"The brief defines the package. {evidence_token}",
+        requested_services=[f"Provide the package scope. {evidence_token}"],
     )
     run_model = AsyncMock(side_effect=[invalid, valid])
     monkeypatch.setattr(workflow, "run_procurement_narrative_model", run_model)

@@ -10,20 +10,32 @@ import {
 } from "react";
 
 import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { MenuSelect } from "@/components/ui/menu-select";
+import { SuggestionField } from "@/components/ui/suggestion-field";
 import { api } from "@/lib/api";
+import {
+  DEFAULT_CONSULTANT_DISCIPLINES,
+  DEFAULT_TRADE_PACKAGES,
+  disciplinesFromPmpMarkdown,
+  kindShortLabel,
+  mergeDisciplineOptions,
+  requestOptionLabel,
+} from "@/lib/procurement-disciplines";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
+  EvidencePreview,
   ProcurementRequest,
   ProcurementRequestKind,
   ProjectDetail,
   WorkflowRun,
 } from "@/lib/types/project";
-import { workflowProgressStage, workflowProgressTitle } from "@/lib/workflow-progress";
+import {
+  workflowProgressStage,
+  workflowProgressTitle,
+  workflowRunPreview,
+} from "@/lib/workflow-progress";
 
 export type RunnableProcurementRequestKind =
   | "consultant_rfp"
@@ -35,11 +47,28 @@ const DraftReviewPanel = lazy(() =>
     default: module.DraftReviewPanel,
   })),
 );
+const WorkflowDraftPreview = lazy(() =>
+  import("@/components/project/WorkflowDraftPreview").then((module) => ({
+    default: module.WorkflowDraftPreview,
+  })),
+);
 
-const KIND_OPTIONS: Array<{ value: RunnableProcurementRequestKind; label: string }> = [
-  { value: "consultant_rfp", label: "Consultant RFP" },
-  { value: "trade_rft", label: "Trade or head contractor RFT" },
-  { value: "trade_rfq", label: "Trade or supplier RFQ" },
+const KIND_OPTIONS: Array<{
+  value: RunnableProcurementRequestKind;
+  label: string;
+}> = [
+  {
+    value: "consultant_rfp",
+    label: "Consultant",
+  },
+  {
+    value: "trade_rft",
+    label: "Trade package",
+  },
+  {
+    value: "trade_rfq",
+    label: "Supplier quote",
+  },
 ];
 
 export function ProcurementRequestPanel({
@@ -53,6 +82,9 @@ export function ProcurementRequestPanel({
   onCancel,
   onDraftSelected,
   onDraftUpdated,
+  repositoryEvidence = [],
+  onSelectEvidenceIds,
+  onTransmittalSessionChange,
 }: {
   project: ProjectDetail;
   activeRun: WorkflowRun | null;
@@ -64,9 +96,15 @@ export function ProcurementRequestPanel({
   onCancel?: () => void;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  repositoryEvidence?: EvidencePreview[];
+  onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
+  onTransmittalSessionChange?: (
+    session: { draftId: string; workflowType: string } | null,
+  ) => void;
 }) {
   const [kind, setKind] = useState<RunnableProcurementRequestKind>("consultant_rfp");
-  const [targetName, setTargetName] = useState("");
+  const [discipline, setDiscipline] = useState("");
+  const [pmpDisciplines, setPmpDisciplines] = useState<string[]>([]);
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -80,9 +118,7 @@ export function ProcurementRequestPanel({
         if (cancelled) return;
         setRequests(next);
         setSelectedRequestId((current) =>
-          current && next.some((request) => request.id === current)
-            ? current
-            : next[0]?.id ?? null,
+          current && next.some((request) => request.id === current) ? current : null,
         );
         setLoadError(null);
       })
@@ -94,23 +130,69 @@ export function ProcurementRequestPanel({
     };
   }, [project.id, refreshToken]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getLatestDraft(project.id, "create_pmp")
+      .then((draft) => {
+        if (cancelled) return;
+        setPmpDisciplines(
+          draft?.content_markdown
+            ? disciplinesFromPmpMarkdown(draft.content_markdown)
+            : [],
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPmpDisciplines([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id, refreshToken]);
+
   const selectedRequest = useMemo(
-    () => requests.find((request) => request.id === selectedRequestId) ?? requests[0] ?? null,
+    () => requests.find((request) => request.id === selectedRequestId) ?? null,
     [requests, selectedRequestId],
   );
+
   useEffect(() => {
     const draft = selectedRequest?.current_draft ?? null;
-    if (!draft || draft.id === reportedDraftId.current) return;
+    if (!draft) {
+      reportedDraftId.current = null;
+      return;
+    }
+    if (draft.id === reportedDraftId.current) return;
     reportedDraftId.current = draft.id;
     onDraftSelected?.(draft);
   }, [onDraftSelected, selectedRequest?.current_draft]);
+
   const capability =
     kind === "consultant_rfp"
       ? project.workflow_capabilities?.capabilities.consultant_procurement
       : project.workflow_capabilities?.capabilities.trade_procurement;
   const supported = !capability || capability.status === "supported";
+  const draftPreview = isRunning ? workflowRunPreview(activeRun?.progress) : null;
+
+  const disciplineOptions = useMemo(() => {
+    const existingForKind = requests
+      .filter((request) => request.kind === kind)
+      .map((request) => request.target_name);
+    if (kind === "consultant_rfp") {
+      return mergeDisciplineOptions(
+        pmpDisciplines,
+        DEFAULT_CONSULTANT_DISCIPLINES,
+        existingForKind,
+      );
+    }
+    return mergeDisciplineOptions(
+      existingForKind,
+      DEFAULT_TRADE_PACKAGES,
+      [],
+    );
+  }, [kind, pmpDisciplines, requests]);
+
   function submit() {
-    const target = targetName.trim();
+    const target = discipline.trim();
     if (!target || isRunning || !supported) return;
     onCreate(kind, target);
   }
@@ -143,94 +225,99 @@ export function ProcurementRequestPanel({
         />
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-end">
-        <div className="grid gap-1.5">
-          <Label htmlFor="procurement-kind">Engagement</Label>
-          <select
+      {draftPreview ? (
+        <Suspense fallback={<p className="text-sm text-muted-foreground">Building request…</p>}>
+          <WorkflowDraftPreview
+            preview={draftPreview}
+            title={workflowProgressTitle("procurement", "create")}
+          />
+        </Suspense>
+      ) : null}
+
+      <div>
+        <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center">
+          <MenuSelect
             id="procurement-kind"
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             value={kind}
-            onChange={(event) =>
-              setKind(event.target.value as RunnableProcurementRequestKind)
-            }
+            options={KIND_OPTIONS}
             disabled={isRunning}
-          >
-            {KIND_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="procurement-target">Target</Label>
-          <Input
-            id="procurement-target"
-            value={targetName}
-            onChange={(event) => setTargetName(event.target.value)}
+            aria-label="Request type"
+            onChange={(next) => {
+              setKind(next as RunnableProcurementRequestKind);
+              setDiscipline("");
+            }}
+          />
+          <SuggestionField
+            id="procurement-discipline"
+            value={discipline}
+            suggestions={disciplineOptions}
+            disabled={isRunning}
+            aria-label="Discipline"
             placeholder={
               kind === "consultant_rfp"
-                ? "Structural engineer"
+                ? "Architect"
                 : kind === "trade_rfq"
                   ? "Electrical supplier"
-                  : "Electrical services or main works"
+                  : "Electrical services"
             }
-            disabled={isRunning}
+            onChange={setDiscipline}
           />
+          <Button onClick={submit} disabled={!discipline.trim() || isRunning || !supported}>
+            {isRunning ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Play className="size-4" aria-hidden />
+            )}
+            Create {kindShortLabel(kind)}
+          </Button>
         </div>
-        <Button onClick={submit} disabled={!targetName.trim() || isRunning || !supported}>
-          {isRunning ? (
-            <LoaderCircle className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Play className="size-4" aria-hidden />
-          )}
-          Create {kindLabel(kind)}
-        </Button>
       </div>
 
       {requests.length ? (
-        <div className="flex flex-wrap gap-2" aria-label="Procurement requests">
-          {requests.map((request) => (
-            <Button
-              key={request.id}
-              variant={request.id === selectedRequest?.id ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setSelectedRequestId(request.id)}
-            >
-              {kindLabel(request.kind)}: {request.target_name}
-              <Badge variant="outline" className="ml-1.5 text-[0.65rem]">
-                {request.status}
-              </Badge>
-            </Button>
-          ))}
+        <div className="grid gap-1.5">
+          <MenuSelect
+            id="procurement-open"
+            value={selectedRequestId ?? ""}
+            aria-label="Open procurement request"
+            placeholder="Select a package to view or open"
+            options={[
+              { value: "", label: "Select a package to view or open" },
+              ...requests.map((request) => ({
+                value: request.id,
+                label: requestOptionLabel(request),
+              })),
+            ]}
+            onChange={(next) => setSelectedRequestId(next || null)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Latest version opens automatically — no draft acceptance step.
+          </p>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No procurement requests yet.</p>
+        <p className="text-sm text-muted-foreground">
+          No requests yet. Create the first one above.
+        </p>
       )}
 
       {selectedRequest?.current_draft ? (
-        <Suspense fallback={<p className="text-sm text-muted-foreground">Loading draft...</p>}>
+        <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
           <DraftReviewPanel
             projectId={project.id}
             draft={selectedRequest.current_draft}
             workflowType={selectedRequest.current_draft.workflow_type}
             projectTitle={project.title}
             embedded
+            repositoryEvidence={repositoryEvidence}
+            onSelectEvidenceIds={onSelectEvidenceIds}
+            onTransmittalSessionChange={onTransmittalSessionChange}
             onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
           />
         </Suspense>
       ) : selectedRequest ? (
         <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          The current draft will appear here when it is ready.
+          The current document will appear here when it is ready.
         </p>
       ) : null}
     </div>
   );
-}
-
-function kindLabel(kind: ProcurementRequestKind): string {
-  if (kind === "contractor_eoi") return "EOI";
-  if (kind === "consultant_rfp") return "RFP";
-  if (kind === "trade_rfq") return "RFQ";
-  return "RFT";
 }

@@ -30,9 +30,9 @@ the legacy role/archetype scaffold:
   document registers and overflow detail in companion records rather than the issued
   body. Do not truncate project-specific substance solely to hit a word count.
 - Use the universal `##` headings supplied in the prompt exactly (e.g. **Project
-  Summary**, **Brief**, **Consultants**, **Planning and Compliance**, **Programme**,
-  **Cost Planning**, **Procurement and Delivery**, **Risks and mitigations**,
-  **Actions and decisions**, **Citation key**).
+  Summary**, **Brief**, **FFE Schedule**, **Consultants**, **Planning and Compliance**,
+  **Programme**, **Cost Planning**, **Procurement and Delivery**, **Risks and
+  mitigations**, **Actions and decisions**, **Citation key**).
 - Open with **Project Summary** and one compact identity table only (no bridge paragraph
   under the table). Do not include a **Critical current position** heading, row, table, or
   preamble. The first rows must be exactly this order: **Project**, **Address**, **Owner**,
@@ -46,9 +46,13 @@ the legacy role/archetype scaffold:
   in table cells — source disagreement is signalled by citation colour in the UI. Put gates and
   unresolved decisions in their relevant control sections and the final **Trace & QA** section.
 - **Brief** is physical/client brief only (inclusions, exclusions, interfaces,
-  finishes/fixtures, acceptance criteria). Lead with the project scope itself. Do not
+  acceptance criteria). Lead with the project scope itself. Do not
   prefix it with `Draft owner project brief`, draft status, formal-sign-off commentary,
-  consultant rosters, or engagement/fee content.
+  consultant rosters, engagement/fee content, or the detailed FFE item schedule.
+- **FFE Schedule** follows Brief. It is the Finishes, Fixtures and Equipment register
+  (`| Item | Location | Qty | Finish | Status | Notes |`). Preserve user-added
+  shared `ffe_item` rows; keep unspecified fields as TBC. Do not bury FFE selections
+  inside Brief prose.
 - In evidence-grounded drafts, omit an empty work-scope taxonomy/fallback row. The
   fallback selector is for sparse projects only; do not ask the client to reconfirm
   scope already established by current documents.
@@ -57,10 +61,14 @@ the legacy role/archetype scaffold:
   design-development gap, and genuinely unverified exclusion. Never infer an exclusion
   from silence and never leave an evidenced exclusion uncited.
 - **Consultants** is the appointment register:
-  `| Discipline | Firm | Scope / services | Fee | Status | Citation |`.
+  `| Discipline | Firm | Fee | Status | Citation |`.
+  One discipline per row — never slash-join multiple disciplines into a single cell
+  (for example do not write `Structural / civil / geotech / facade / waterproof / fire`).
   Consultant status must distinguish appointed, proposed/required, report on file but
   appointment unverified, and not evidenced. A report on file does not by itself prove
-  a live appointment.
+  a live appointment. When the shared generation brief lists evidenced consultant firms
+  (title blocks, cover sheets, certificates), fill those Firm cells and cite the source;
+  keep status appointment-unverified unless engagement/fee-proposal evidence exists.
   Architect engagement is the first row when that role applies; expected
   disciplines without appointment evidence stay Assumption / Not evidenced in
   **Status** with `—` citation. Leave **Fee** blank until a fee proposal is on

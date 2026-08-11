@@ -141,6 +141,7 @@ async def _dispatch(
             chat_model=chat_model,
             snapshot=snapshot,
             generation_context=generation_context,
+            on_preview=on_preview,
         )
     elif run.workflow_type == "create_cost_plan":
         result = await run_create_cost_plan_workflow(
@@ -208,6 +209,15 @@ async def _dispatch(
                 raise RuntimeError(
                     "The current Cost Plan already reflects every reconciled received proposal."
                 )
+        if on_preview is not None:
+            await on_preview({"stage": "context_ready"})
+            await on_preview(
+                {
+                    "stage": "retrieval_complete",
+                    "proposed_item_count": len(proposed_items),
+                }
+            )
+            await on_preview({"stage": "validation_started"})
         result = await refresh_cost_plan(
             session,
             project=project,
@@ -227,6 +237,8 @@ async def _dispatch(
         draft = await session.get(DraftArtifact, result.state.artefact_revision_id)
         if draft is None:
             raise RuntimeError("refreshed Cost Plan artefact revision was not found")
+        if on_preview is not None:
+            await on_preview({"stage": "saving"})
         await sync_cost_plan_revision_artifacts(
             session,
             project=project,
@@ -234,6 +246,8 @@ async def _dispatch(
             typed_state=result.state,
         )
         refreshed_cost_plan_draft = draft
+        if on_preview is not None:
+            await on_preview({"stage": "artefact_ready"})
     elif run.workflow_type == "process_invoices":
         if run.frozen_artefact_version is None:
             raise RuntimeError("Process invoices requires a current Cost Plan version")

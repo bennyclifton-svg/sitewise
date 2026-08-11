@@ -524,6 +524,7 @@ def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> 
     assert payload["emphasis_profiles"]["sections"] == [
         "snapshot",
         "scope-client-requirements",
+        "ffe-schedule",
         "consultants",
         "compliance-approvals",
         "programme",

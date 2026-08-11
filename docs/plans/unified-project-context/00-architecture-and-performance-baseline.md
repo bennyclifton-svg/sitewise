@@ -84,21 +84,26 @@ critical-unknown count for PMP and Cost Plan. It flows into the existing
 
 ## Known instrumentation gaps
 
-The following need a browser/API benchmark harness before a number can be
-claimed honestly:
+F9 closed the producer and CI-guardrail gaps for interaction measurement:
 
-- paragraph edit round trip;
-- Markdown table-row insert/delete;
-- profiler field save;
-- Cost Plan amount/item edit perceived latency;
-- frontend render time and delta payload size;
-- database-call and LLM-call counts outside TCM;
-- TTFI, TTFC and TTFU at the browser boundary.
+| Measurement | Guardrail / producer | Evidence |
+| --- | --- | --- |
+| Paragraph edit | `measureLocalMutation("paragraph-edit")` + p95 budget 120 ms | `DraftReviewPanel`, `interaction-budgets.ts` |
+| Cost Plan amount/item edit | `measureLocalMutation("cost-plan")` + p95 budget 120–180 ms | `CostPlanGrid`, `interaction-budgets.ts` |
+| Block delta payload | delta ≤ 1/3 of full draft JSON | `test_block_delta_payload.py` |
+| TTFC / TTFU | `scaffold_ready` / `section_completed` marks | `performance.ts`, workflow progress strip |
+| Query shape (Cost Plan / latest draft) | single select + `selectinload` items | `test_query_budgets.py` |
+| Large Cost Plan render | virtualize at ≥ 40 rows | `COST_PLAN_VIRTUALIZE_THRESHOLD` |
 
-Stage 10/11 should add interaction measurements at the shared optimistic
-mutation boundary. Stage 8 should add TTFC/TTFU timestamps to real progress
-events. Until those producers exist, the elapsed-time frontend estimator is not
-accepted as a performance measurement.
+Recorded benchmark metadata: suite `unified-context-f9`, repeats 20,
+date 2026-08-11 (see `frontend/src/lib/interaction-budgets.ts`). Live browser
+p50/p95 timing still depends on a running app session; CI enforces the
+deterministic payload, query-shape and budget-constant guardrails above.
+
+Remaining open outside F9:
+
+- profiler field save wall-clock in a live browser session;
+- TCM-adjacent LLM-call counts (owned by tender telemetry).
 
 ## Stage 0 exit status
 
@@ -106,5 +111,26 @@ accepted as a performance measurement.
 - Duplicate context/retrieval/seed/version seams recorded: complete.
 - Representative regression fixtures: complete.
 - Backend context/workflow baseline: complete.
-- Live browser interaction baseline: explicitly open; requires the Stage 8/10
-  event and mutation seams rather than synthetic percentages.
+- Interaction producers and CI guardrails: complete in F9; live browser p50/p95
+  capture remains an operational measurement against a running environment.
+
+## F10 simplification closeout (2026-08-11)
+
+Verified mutation and helper consolidation after F1-F9:
+
+| Removed / restricted | Replacement | Evidence |
+| --- | --- | --- |
+| `PATCH /projects/{id}/drafts/{id}` + FE `patchDraft` | `POST .../drafts/{id}/blocks` / `apply_artefact_operations` | `test_project_draft_versioning.py`, `test_f10_simplification.py` |
+| MCP whole-document draft rewrite via `write_workspace_file` | Rejected; block/Cost Plan ops required | `test_workspace_tools.py` |
+| Unused `app.retrieval.profiles` | Deleted (no production importers) | `test_f10_simplification.py` |
+| Unused FE sync wrappers `runCreatePmp` / `runCreateCostPlan` / `runUpdatePmp` / `runSortFiles` | Cockpit already uses `startWorkflowRun` | FE `api.ts` search |
+
+Still retained on purpose (not F10 deletions):
+
+- Phase 8.5 legacy chat/orchestrator and its retrieval helpers;
+- hybrid/legacy PMP and Cost Plan compiler flags and sync HTTP safety endpoints;
+- seed-routing adapters and taxonomy helpers still called by renderers;
+- workbook flush-on-preview / coalesced rebuild (read path, not a mutation alias).
+
+Final suite counts and browser acceptance evidence are recorded in the F10
+completion section of `01-post-implementation-follow-up.md`.

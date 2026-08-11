@@ -39,6 +39,7 @@ class TitleBlockFields:
     document_number: str | None = None
     title: str | None = None
     revision: str | None = None
+    issuing_firm: str | None = None
 
 
 _LABELS: dict[str, tuple[str, ...]] = {
@@ -52,6 +53,21 @@ _LABELS: dict[str, tuple[str, ...]] = {
     ),
     "title": ("DRAWING TITLE", "SHEET TITLE", "DOCUMENT TITLE", "TITLE"),
     "revision": ("REV", "REVISION", "ISSUE", "AMENDMENT", "VERSION"),
+    "issuing_firm": (
+        "ARCHITECT",
+        "CONSULTANT",
+        "ELECTRICAL ENGINEER",
+        "HYDRAULIC ENGINEER",
+        "MECHANICAL ENGINEER",
+        "STRUCTURAL ENGINEER",
+        "FIRE ENGINEER",
+        "CIVIL ENGINEER",
+        "LANDSCAPE ARCHITECT",
+        "COMPANY",
+        "COMPANY NAME",
+        "PREPARED BY",
+        "DESIGNED BY",
+    ),
 }
 
 # Every label token we know, so a value candidate that is really a neighbouring
@@ -63,9 +79,8 @@ _ALL_LABELS: frozenset[str] = frozenset(
         "PROJECT", "PROJECT NUMBER", "PROJECT NO", "PROJECT TITLE",
         "PROJECT ADDRESS", "PLOT DATE", "DATE", "DESCRIPTION", "DRAWN",
         "CHECKED", "APPROVED", "DESIGNED", "SCALE", "SHEET SCALE", "SHEET SIZE",
-        "CLIENT", "STATUS", "STAGE", "NORTH", "BUILDER", "ARCHITECT",
-        "CONSULTANT", "CONTRACTOR", "ELECTRICAL ENGINEER", "REG NO",
-        "DP FULL NAME", "BODY CORPORATE REG NO", "CONSENT NO",
+        "CLIENT", "STATUS", "STAGE", "NORTH", "BUILDER", "CONTRACTOR",
+        "REG NO", "DP FULL NAME", "BODY CORPORATE REG NO", "CONSENT NO",
         "REGULATED DESIGN RECORD", "JOB NO", "REFERENCE NO",
     }
 )
@@ -229,6 +244,31 @@ def _resolve_document_number(candidates: Iterable[str]) -> str | None:
     return None
 
 
+_FIRM_TOKEN_RE = re.compile(
+    r"(?i)\b(?:pty\.?\s*ltd\.?|limited|architects?|consulting|engineers?)\b"
+)
+_FIRM_NOISE_RE = re.compile(
+    r"(?i)^(?:phone|tel|fax|email|www\.|http|mobile|abn|acn)\b|"
+    r"\b(?:phone|tel|fax)\s*:|"
+    r"\d{4}\s*\d{4}"
+)
+
+
+def _resolve_issuing_firm(candidates: Iterable[str]) -> str | None:
+    for candidate in candidates:
+        cleaned = _clean(candidate.splitlines()[0] if candidate else "")
+        if not cleaned or len(cleaned) < 4:
+            continue
+        if _normalize_label(cleaned) in _ALL_LABELS:
+            continue
+        if _FIRM_NOISE_RE.search(cleaned):
+            continue
+        # Require a firm-like token so title-block contact lines are not firms.
+        if _FIRM_TOKEN_RE.search(cleaned):
+            return cleaned
+    return None
+
+
 def extract_title_block_fields(spans: Sequence[TextSpan]) -> TitleBlockFields:
     """Pair title-block labels with their values positionally."""
 
@@ -272,6 +312,7 @@ def extract_title_block_fields(spans: Sequence[TextSpan]) -> TitleBlockFields:
         document_number=_resolve_document_number(ordered["document_number"]),
         title=_resolve_title(ordered["title"]),
         revision=_resolve_revision(ordered["revision"]),
+        issuing_firm=_resolve_issuing_firm(ordered["issuing_firm"]),
     )
 
 
@@ -289,6 +330,8 @@ def render_title_block_preview(fields: TitleBlockFields) -> str | None:
         lines.append(f"Drawing Title {fields.title}")
     if fields.revision:
         lines.append(f"Revision {fields.revision}")
+    if fields.issuing_firm:
+        lines.append(f"Consultant {fields.issuing_firm}")
     return "\n".join(lines) if lines else None
 
 

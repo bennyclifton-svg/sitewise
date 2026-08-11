@@ -137,6 +137,9 @@ export function DocumentRepositoryPanel({
   artefactDrafts = [],
   onOpenDraft,
   usageHighlightArtefactId = null,
+  showSaveTransmittal = false,
+  isSavingTransmittal = false,
+  onSaveTransmittal,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
@@ -159,6 +162,9 @@ export function DocumentRepositoryPanel({
   onOpenDraft?: (draft: DraftArtifactSummary) => void;
   /** When set, show source-doc dots only for this displayed artefact (e.g. open PMP). */
   usageHighlightArtefactId?: string | null;
+  showSaveTransmittal?: boolean;
+  isSavingTransmittal?: boolean;
+  onSaveTransmittal?: (evidenceIds: string[]) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
@@ -312,7 +318,10 @@ export function DocumentRepositoryPanel({
     event: MouseEvent<HTMLTableRowElement>,
     row: EvidencePreview,
   ) {
-    const additive = event.ctrlKey || event.metaKey;
+    // During Transmittal curation, plain clicks should add/remove without
+    // replacing the whole selection (Ctrl/Cmd still works the same way).
+    const additive =
+      event.ctrlKey || event.metaKey || showSaveTransmittal;
 
     if (event.shiftKey) {
       const anchorId =
@@ -742,21 +751,42 @@ export function DocumentRepositoryPanel({
             </button>
           )}
         </div>
-        {inboxCount && onRunSortFiles ? (
-          <Button
-            type="button"
-            size="sm"
-            className="h-7 shrink-0 border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] px-2 text-xs text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]"
-            disabled={!overlayReady || isRunningSortFiles}
-            onClick={onRunSortFiles}
-          >
-            {isRunningSortFiles ? (
-              <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Play className="size-3.5" aria-hidden />
-            )}
-            {isRunningSortFiles ? "Running" : "Sort"}
-          </Button>
+        {showSaveTransmittal || (inboxCount && onRunSortFiles) ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {showSaveTransmittal && onSaveTransmittal ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 px-2 text-xs"
+                disabled={isSavingTransmittal}
+                onClick={() =>
+                  onSaveTransmittal(selectedRows.map((row) => row.id))
+                }
+              >
+                {isSavingTransmittal ? (
+                  <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+                ) : null}
+                {isSavingTransmittal ? "Saving…" : "Save Transmittal"}
+              </Button>
+            ) : null}
+            {inboxCount && onRunSortFiles ? (
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 shrink-0 border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] px-2 text-xs text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]"
+                disabled={!overlayReady || isRunningSortFiles}
+                onClick={onRunSortFiles}
+              >
+                {isRunningSortFiles ? (
+                  <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Play className="size-3.5" aria-hidden />
+                )}
+                {isRunningSortFiles ? "Running" : "Sort"}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -878,7 +908,7 @@ export function DocumentRepositoryPanel({
               <col />
               <col className="w-[2.25rem]" />
               <col className="w-[4.75rem]" />
-              <col className="w-[3rem]" />
+              <col className="w-6" />
             </colgroup>
             <thead className="sticky top-0 z-[1] border-b bg-[var(--sw-panel)]">
               <tr className="text-muted-foreground">
@@ -915,7 +945,7 @@ export function DocumentRepositoryPanel({
                   className="px-1.5 py-2"
                   onSort={handleSortHeaderClick}
                 />
-                <th className="px-0.5 py-1 text-center" aria-label="Actions">
+                <th className="px-0 py-1 text-center" aria-label="Actions">
                   <button
                     type="button"
                     disabled={
@@ -923,7 +953,7 @@ export function DocumentRepositoryPanel({
                       isDeletingSelection ||
                       deleteEvidence.isPending
                     }
-                    className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
+                    className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
                     aria-label={
                       selectedRows.length
                         ? `Delete ${selectedRows.length} selected ${selectedRows.length === 1 ? "document" : "documents"}`
@@ -994,7 +1024,7 @@ export function DocumentRepositoryPanel({
                   <tr
                     key={row.id}
                     className={cn(
-                      "sw-table-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
+                      "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
                       highlighted && "sw-table-row--active",
                     )}
                     onClick={(event) => handleRowClick(event, row)}
@@ -1023,11 +1053,16 @@ export function DocumentRepositoryPanel({
                     <td className="truncate px-1.5 py-2">
                       {inInbox ? "Inbox" : displayValue(row.category)}
                     </td>
-                    <td className="px-0.5 py-1.5 text-center">
+                    <td className="px-0 py-1.5 text-center">
                       <button
                         type="button"
                         disabled={deletingRow}
-                        className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
+                        className={cn(
+                          "inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-opacity hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50",
+                          deletingRow
+                            ? "opacity-100"
+                            : "opacity-0 group-hover/repo-row:opacity-100 focus-visible:opacity-100",
+                        )}
                         aria-label={`Delete ${row.title}`}
                         title="Delete document"
                         onClick={(event) => {

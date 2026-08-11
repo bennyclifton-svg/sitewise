@@ -54,8 +54,19 @@ conventions, they are for software agents — ignore them.
      planning allowances across the existing rows and publish the next workbook
      revision. Construction plus PC rows reconcile to the adopted envelope;
      owner-side fees, consultants, and contingency sit outside it.
-   - get_cost_plan - read the current typed Cost Plan and version before a
-     row-level update.
+   - get_cost_plan - read the current typed Cost Plan version and item keys
+     before constructing apply_cost_plan_operations.
+   - get_artefact_blocks - read draft id, revision, and addressable block ids,
+     types, and content before constructing apply_artefact_operations. Omit
+     draft_id to resolve the latest Project Management Plan (create_pmp).
+   - apply_artefact_operations - apply ADD/UPDATE/DELETE/MOVE/DUPLICATE block
+     operations to a PMP, RFP, or RFT draft. Never rewrite whole-document Markdown.
+   - list_shared_project_knowledge / get_shared_project_knowledge /
+     upsert_shared_project_knowledge - read and write revisioned shared facts
+     such as ffe_item rows for the PMP FFE Schedule.
+   - apply_cost_plan_operations - apply up to 50 structured Cost Plan operations
+     in one revision; the workbook rebuild is queued separately and must never
+     be edited as text.
    - upsert_cost_item - create or update one typed Cost Plan row and publish
      its matching workbook revision.
    - process_invoices - book named or all ingested invoices into the existing
@@ -145,13 +156,30 @@ rebases stale dependencies and publishes a complete new workbook revision.
 Report the adopted construction envelope and total ex GST, and label all
 unconfirmed figures as planning allowances rather than quotations.
 
+For narrowly scoped artefact edits (add/update/delete/move a paragraph, list
+item, table row, or Cost Plan item), prefer structured operations:
+1. Read with get_artefact_blocks or get_cost_plan to obtain ids and revision.
+2. Call apply_artefact_operations or apply_cost_plan_operations with the exact
+   expected_base_version. Batch related Cost Plan changes into one tool call.
+Do not write workbook cells or replace whole Markdown documents for these edits.
+
+For FFE schedule adds or edits (Finishes, Fixtures and Equipment in the PMP
+section after Brief), do not hunt for a Management Plan filename. Use
+artefact.create_pmp from <project-snapshot> or get_artefact_blocks without a
+draft_id. Call list_shared_project_knowledge with kind ffe_item, then
+upsert_shared_project_knowledge with a stable slug id and fields such as item,
+location, quantity, finish, model, dimensions, supplier, status, package, and
+notes (TBC when unspecified). When a create_pmp draft exists, also
+apply_artefact_operations to ADD or UPDATE the matching FFE Schedule table row.
+
 When a request both adds a specific Cost Plan line and adopts a construction
-budget, call get_cost_plan, then upsert_cost_item using its current version,
-then wait for that workbook revision to succeed before calling
-apply_cost_plan_budget_forecast. Do not issue an item update and budget forecast
-in parallel. For a user-specified allowance that must remain exact, set the row
-to status `manual` and locked `true`; the forecast keeps it inside the adopted
-Construction plus PC envelope and allocates the remainder across other rows.
+budget, call get_cost_plan, then apply_cost_plan_operations or upsert_cost_item
+using its current version, then wait for that workbook revision to succeed
+before calling apply_cost_plan_budget_forecast. Do not issue an item update and
+budget forecast in parallel. For a user-specified allowance that must remain
+exact, set the row to status `manual` and locked `true`; the forecast keeps it
+inside the adopted Construction plus PC envelope and allocates the remainder
+across other rows.
 
 When asked to draft consultant procurement, draft a request for fee proposal,
 prepare an RFP for a consultant, get a fee proposal request, or prepare scope

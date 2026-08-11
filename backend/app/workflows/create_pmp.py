@@ -41,9 +41,15 @@ from app.projects.generation_brief import (
     build_generation_brief,
     format_generation_brief,
 )
-from app.projects.generation_audit import build_generation_manifest
+from app.projects.consultant_facts import reconcile_project_consultant_facts
+from app.projects.generation_audit import generation_audit_provenance
 from app.projects.artefact_blocks import materialize_block_identity
 from app.projects.workflow_capabilities import CREATE_PMP, capability_block_message
+from app.sitewise.consultant_register import (
+    apply_consultant_register_facts,
+    citation_numbers_from_markdown,
+    consultant_fact_constraints,
+)
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
 from app.logging import get_logger
@@ -153,6 +159,34 @@ CREATE_PMP_GENERATION_CONSTRAINTS = (
     "Use the deterministic scaffold as the document structure when supplied.",
     "Treat platform knowledge as guidance, never project evidence.",
 )
+
+
+async def _reconcile_consultant_facts_for_pmp(
+    session: AsyncSession,
+    *,
+    project: Project,
+) -> int:
+    documents = list(
+        (
+            await session.execute(
+                select(SourceDocument).where(SourceDocument.project_id == project.id)
+            )
+        ).scalars().all()
+    )
+    facts = await reconcile_project_consultant_facts(
+        session,
+        project=project,
+        documents=documents,
+    )
+    return len(facts)
+
+
+def _apply_consultant_facts_to_markdown(markdown: str, project: Project) -> str:
+    return apply_consultant_register_facts(
+        markdown,
+        project=project,
+        citation_numbers=citation_numbers_from_markdown(markdown),
+    )
 
 MOBILISATION_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
     "engagement-letter",
@@ -1208,6 +1242,17 @@ async def run_create_pmp_hybrid(
     # multi-minute narrative call. Show it now rather than after.
     await _publish_preview(on_preview, stage="scaffold_ready", markdown=scaffold)
 
+    async def publish_progressive_preview(
+        _key: str, _result: object, completed: dict[str, object]
+    ) -> None:
+        from app.workflows.progressive_preview import assemble_pmp_progressive_preview
+
+        await _publish_preview(
+            on_preview,
+            stage="section_completed",
+            markdown=assemble_pmp_progressive_preview(scaffold, completed),
+        )
+
     validation_feedback: str | None = None
     consistency_ai_call_count = 0
     run_date = date.today()
@@ -1228,6 +1273,7 @@ async def run_create_pmp_hybrid(
                         else None
                     )
                 ),
+                on_section_complete=publish_progressive_preview,
             )
         except WorkflowValidationError as exc:
             consistency_ai_call_count += exc.consistency_ai_call_count
@@ -1566,8 +1612,20 @@ async def run_create_pmp_workflow(
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
     context_started = time.perf_counter()
+    fact_count = await _reconcile_consultant_facts_for_pmp(session, project=project)
+    if fact_count:
+        trace.append(
+            _trace(
+                "consultant_facts",
+                "complete",
+                f"Reconciled {fact_count} evidence-derived consultant firm fact(s).",
+                fact_count=fact_count,
+            )
+        )
     canonical_context = generation_context or (
-        resolve_project_generation_context(snapshot) if snapshot is not None else None
+        resolve_project_generation_context(snapshot, project=project)
+        if snapshot is not None
+        else None
     )
     pmp_context = (
         build_pmp_context(canonical_context) if canonical_context is not None else None
@@ -1882,12 +1940,20 @@ async def run_create_pmp_workflow(
         if coverage_required_evidence_refs
         else None
     )
+    generation_constraints = tuple(
+        dict.fromkeys(
+            (
+                *CREATE_PMP_GENERATION_CONSTRAINTS,
+                *consultant_fact_constraints(project),
+            )
+        )
+    )
     generation_brief = (
         build_generation_brief(
             pmp_context,
             evidence_refs=required_evidence_refs,
             seed_refs=_context_refs_from_passages(passages),
-            constraints=CREATE_PMP_GENERATION_CONSTRAINTS,
+            constraints=generation_constraints,
         )
         if pmp_context is not None
         else None
@@ -1921,6 +1987,9 @@ async def run_create_pmp_workflow(
                 context_refs=_context_refs_from_passages(passages),
             )
             output.markdown = normalize_pmp_markdown(output.markdown)
+            output.markdown = _apply_consultant_facts_to_markdown(
+                output.markdown, project
+            )
             output = _apply_locked_decisions(output, locked_decisions)
             await _publish_preview(
                 on_preview,
@@ -2031,7 +2100,14 @@ async def run_create_pmp_workflow(
                     raise
     except WorkflowValidationError as exc:
         message = str(exc)
-        trace.append(_trace("validation", "failed", message))
+        trace.append(
+            _trace(
+                "validation",
+                "failed",
+                message,
+                consistency_ai_call_count=exc.consistency_ai_call_count,
+            )
+        )
         await _persist_trace_message(
             session,
             project_id=project.id,
@@ -2140,6 +2216,19 @@ async def run_create_pmp_workflow(
                 )
             )
 
+    patched_consultants = _apply_consultant_facts_to_markdown(
+        output.markdown, project
+    )
+    if patched_consultants != output.markdown:
+        output.markdown = patched_consultants
+        trace.append(
+            _trace(
+                "consultant_register",
+                "complete",
+                "Applied evidence-derived consultant firms to the Consultants register.",
+            )
+        )
+
     persistence_started = time.perf_counter()
     await _publish_progress(on_preview, {"stage": "saving"})
     output.markdown = prepare_issue_markdown(
@@ -2199,11 +2288,7 @@ async def run_create_pmp_workflow(
                 if generation_brief is not None
                 else None
             ),
-            "generation_manifest": (
-                build_generation_manifest(generation_brief).model_dump(mode="json")
-                if generation_brief is not None
-                else None
-            ),
+            **generation_audit_provenance(None, generation_brief),
             "blocks": block_identity.metadata,
             "word_count": pmp_word_count(output.markdown),
             "pmp_min_words": settings.pmp_min_words,

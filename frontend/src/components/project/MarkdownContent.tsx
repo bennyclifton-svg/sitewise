@@ -13,9 +13,7 @@ import {
 } from "react";
 import {
   ChevronRight,
-  Copy,
-  Plus,
-  Trash,
+  MoreHorizontal,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,11 +31,23 @@ import { InlineTableRowEditor } from "@/components/project/InlineTableRowEditor"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  dropdownMenuItemClassName,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import {
   maskArtifactBlockMarkers,
   splitTraceQa,
 } from "@/lib/artifact-markdown";
 import { sourceRangeForRenderedBlock } from "@/lib/inline-markdown";
 import type { ArtifactBlockTarget } from "@/lib/artifact-blocks";
+import {
+  displayTransmittalHeading,
+  isTransmittalHeading,
+} from "@/lib/transmittal-register";
 import {
   splitMarkdownSections,
   type MarkdownSectionSlice,
@@ -77,13 +87,16 @@ const EVIDENCE_STATUSES = [
 /** Column layout hints for markdown tables rendered in the draft sheet. */
 type PmpTableLayout = {
   blankFeeNotEvidenced: boolean;
+  /** Drop legacy Scope / services for existing 6-column Consultants tables. */
+  dropColumnIndex: number | null;
+  feeColumnIndex: number | null;
 };
 
 const PmpTableLayoutContext = createContext<PmpTableLayout>({
   blankFeeNotEvidenced: false,
+  dropColumnIndex: null,
+  feeColumnIndex: null,
 });
-
-const CONSULTANTS_FEE_COLUMN_INDEX = 3;
 
 /**
  * Offsets into the source markdown for one block element.
@@ -121,10 +134,17 @@ type InlineEditOptions = {
   editError?: string | null;
   blockComposer?: ArtifactBlockComposerState | null;
   isSavingBlockComposer?: boolean;
+  /** Survives ReactMarkdown remounts; keyed by block identity. */
+  openActionsKey?: string | null;
+  onOpenActionsKeyChange?: (key: string | null) => void;
   onActivateBlock?: (target: ArtifactBlockTarget) => void;
+  editingCaretPoint?: { x: number; y: number } | null;
   onEditSelection?: (
     range: MarkdownRange,
-    options?: { focusCellIndex?: number },
+    options?: {
+      focusCellIndex?: number;
+      caretPoint?: { x: number; y: number };
+    },
   ) => void;
   onEditWithAi?: (range: MarkdownRange, rect: DOMRect) => void;
   onCancelSelectionEdit?: () => void;
@@ -132,13 +152,28 @@ type InlineEditOptions = {
   onCancelBlockComposer?: () => void;
   onSaveBlockComposer?: (content: string) => void;
   onMutateBlock?: (
-    operation: "ADD" | "DELETE" | "DUPLICATE",
+    operation:
+      | "ADD"
+      | "DELETE"
+      | "DUPLICATE"
+      | "PROTECT"
+      | "UNPROTECT"
+      | "KEEP"
+      | "CONFIRM_DELETE",
     target: ArtifactBlockTarget,
     placement?: "before" | "after",
   ) => void;
+  protectedBlockIds?: Set<string>;
+  reviewBlockStatuses?: Map<string, "conflict" | "propose_delete">;
   informationRegisterOpen?: boolean;
   onToggleInformationRegister?: () => void;
+  onLoadTransmittal?: () => void;
+  canLoadTransmittal?: boolean;
 };
+
+function blockActionsKey(target: ArtifactBlockTarget): string {
+  return `${target.type}:${target.range.start}:${target.range.end}`;
+}
 
 /** Chrome-free insert: looks like a normal block, Escape/empty blur discards. */
 function ArtifactBlockComposer({
@@ -321,13 +356,15 @@ function composerForTarget(
   );
 }
 
-/** Four icon-xs (24px) buttons + three gap-1 (4px) gutters. */
+/** Narrow right slot for the ⋯ menu so citations/content keep max width. */
 const BLOCK_ACTIONS_SLOT_CLASS =
-  "flex h-6 w-[6.75rem] shrink-0 items-center justify-end gap-1 print:hidden";
+  "flex h-6 w-6 shrink-0 items-center justify-end print:hidden";
 
 /** Resting: muted grey icons, no black chip. Hover keeps outline beam treatment. */
 const BLOCK_ACTION_BUTTON_CLASS =
   "border-transparent bg-transparent text-muted-foreground shadow-none";
+
+const MENU_ITEM_CLASS = dropdownMenuItemClassName;
 
 function blockActionsAvailable(
   target: ArtifactBlockTarget | null | undefined,
@@ -340,8 +377,10 @@ function blockActionsAvailable(
 function blockActionsVisible(
   target: ArtifactBlockTarget | null | undefined,
   options?: InlineEditOptions,
+  forceVisible = false,
 ): boolean {
   if (!blockActionsAvailable(target, options)) return false;
+  if (forceVisible) return true;
   if (!options?.activeBlock) return false;
   if (!rangesEqual(options.activeBlock.range, target!.range)) return false;
   if (options.activeBlock.type !== target!.type) return false;
@@ -356,84 +395,150 @@ function BlockHoverActions({
   target: ArtifactBlockTarget;
   options?: InlineEditOptions;
 }) {
-  // Always reserve the icon strip so hover does not shift citation/paragraph text.
-  if (!blockActionsAvailable(target, options)) return null;
-  const visible = blockActionsVisible(target, options);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const actionsKey = blockActionsKey(target);
+  const menuOpen = options?.openActionsKey === actionsKey;
+  const available = blockActionsAvailable(target, options);
+  const visible = available && blockActionsVisible(target, options, menuOpen);
+  const blockId = target.id;
+  const reviewStatus = blockId
+    ? options?.reviewBlockStatuses?.get(blockId)
+    : undefined;
+  const isProtected = Boolean(
+    blockId && options?.protectedBlockIds?.has(blockId),
+  );
+  const label = blockLabel(target.type);
+
+  // Always reserve the icon slot so hover does not shift citation/paragraph text.
+  if (!available) return null;
+
   return (
     <div
       className={BLOCK_ACTIONS_SLOT_CLASS}
       data-instruction-ui={visible ? "" : undefined}
       data-block-actions
       aria-hidden={!visible}
-      onMouseDown={
-        visible ? (event) => event.preventDefault() : undefined
-      }
     >
       {visible ? (
-        <>
-          {options?.onMutateBlock ? (
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) =>
+            options?.onOpenActionsKeyChange?.(open ? actionsKey : null)
+          }
+        >
+          <DropdownMenuTrigger asChild>
             <Button
+              ref={triggerRef}
               type="button"
               size="icon-xs"
               variant="outline"
               className={BLOCK_ACTION_BUTTON_CLASS}
-              aria-label={`Add ${blockLabel(target.type)} below`}
-              title="Add below"
-              onClick={() => options.onMutateBlock?.("ADD", target, "after")}
+              aria-label={`${label} actions`}
+              title="Actions"
             >
-              <Plus aria-hidden />
+              <MoreHorizontal aria-hidden className="size-3.5" />
             </Button>
-          ) : null}
-          {options?.onEditWithAi ? (
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="outline"
-              className={BLOCK_ACTION_BUTTON_CLASS}
-              aria-label={`Edit ${blockLabel(target.type)} with AI`}
-              title="Edit with AI"
-              onClick={(event) =>
-                options.onEditWithAi?.(
-                  target.range,
-                  event.currentTarget.getBoundingClientRect(),
-                )
-              }
-            >
-              <img
-                src="/style-guide/logo/mark-solid.svg"
-                alt=""
-                aria-hidden
-                className="size-3.5 opacity-55 transition-opacity group-hover/button:opacity-100"
-              />
-            </Button>
-          ) : null}
-          {options?.onMutateBlock ? (
-            <>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="outline"
-                className={BLOCK_ACTION_BUTTON_CLASS}
-                aria-label={`Duplicate ${blockLabel(target.type)}`}
-                title="Duplicate"
-                onClick={() => options.onMutateBlock?.("DUPLICATE", target)}
-              >
-                <Copy aria-hidden />
-              </Button>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="outline"
-                className={BLOCK_ACTION_BUTTON_CLASS}
-                aria-label={`Delete ${blockLabel(target.type)}`}
-                title="Delete"
-                onClick={() => options.onMutateBlock?.("DELETE", target)}
-              >
-                <Trash aria-hidden />
-              </Button>
-            </>
-          ) : null}
-        </>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={4}
+            className="min-w-[9.5rem]"
+            data-instruction-ui=""
+          >
+              {options?.onEditWithAi ? (
+                <DropdownMenuItem
+                  className={MENU_ITEM_CLASS}
+                  onSelect={() => {
+                    const rect =
+                      triggerRef.current?.getBoundingClientRect() ??
+                      new DOMRect();
+                    options.onEditWithAi?.(target.range, rect);
+                  }}
+                >
+                  {`Edit ${label} with AI`}
+                </DropdownMenuItem>
+              ) : null}
+              {options?.onMutateBlock ? (
+                <>
+                  <DropdownMenuItem
+                    className={MENU_ITEM_CLASS}
+                    onSelect={() =>
+                      options.onMutateBlock?.("ADD", target, "before")
+                    }
+                  >
+                    {`Add ${label} above`}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={MENU_ITEM_CLASS}
+                    onSelect={() =>
+                      options.onMutateBlock?.("ADD", target, "after")
+                    }
+                  >
+                    {`Add ${label} below`}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+              {options?.onMutateBlock && blockId ? (
+                <DropdownMenuItem
+                  className={MENU_ITEM_CLASS}
+                  onSelect={() =>
+                    options.onMutateBlock?.(
+                      isProtected ? "UNPROTECT" : "PROTECT",
+                      target,
+                    )
+                  }
+                >
+                  {isProtected
+                    ? `Unprotect ${label}`
+                    : `Protect ${label}`}
+                </DropdownMenuItem>
+              ) : null}
+              {options?.onMutateBlock ? (
+                <>
+                  <DropdownMenuItem
+                    className={MENU_ITEM_CLASS}
+                    onSelect={() =>
+                      options.onMutateBlock?.("DUPLICATE", target)
+                    }
+                  >
+                    {`Duplicate ${label}`}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => options.onMutateBlock?.("DELETE", target)}
+                  >
+                    {`Delete ${label}`}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+              {options?.onMutateBlock && reviewStatus === "conflict" ? (
+                <DropdownMenuItem
+                  className={MENU_ITEM_CLASS}
+                  onSelect={() => options.onMutateBlock?.("KEEP", target)}
+                >
+                  {`Keep ${label} after refresh conflict`}
+                </DropdownMenuItem>
+              ) : null}
+              {options?.onMutateBlock && reviewStatus === "propose_delete" ? (
+                <>
+                  <DropdownMenuItem
+                    className={MENU_ITEM_CLASS}
+                    onSelect={() => options.onMutateBlock?.("KEEP", target)}
+                  >
+                    {`Keep ${label} proposed for deletion`}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() =>
+                      options.onMutateBlock?.("CONFIRM_DELETE", target)
+                    }
+                  >
+                    {`Confirm delete ${label}`}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </div>
   );
@@ -574,9 +679,14 @@ function baseComponents(
             (item) => item.start <= sourceRange.start && sourceRange.start < item.end,
           )
         : null;
+      const paragraphBlockId =
+        sourceRange && editOptions
+          ? blockIdNearRange(editOptions.sourceMarkdown, sourceRange)
+          : undefined;
       const paragraphTarget =
         sourceRange && section
           ? {
+              ...(paragraphBlockId ? { id: paragraphBlockId } : {}),
               range: sourceRange,
               sectionStart: section.start,
               type: "paragraph" as const,
@@ -585,29 +695,51 @@ function baseComponents(
       const canTargetParagraph =
         visibleText === text &&
         paragraphTarget !== null &&
-        Boolean(editOptions?.onEditSelection || editOptions?.onEditWithAi) &&
+        Boolean(
+          editOptions?.onEditSelection ||
+            editOptions?.onEditWithAi ||
+            editOptions?.onMutateBlock,
+        ) &&
         !editOptions?.blockComposer &&
         (!editOptions?.editingRange || isEditing);
 
       if (
         isEditing &&
         sourceRange &&
+        paragraphTarget &&
         editOptions?.onCancelSelectionEdit &&
         editOptions.onSaveSelectionEdit
       ) {
-        return (
-          <InlineMarkdownEditor
-            sectionStart={section?.start ?? sourceRange.start}
-            sourceStart={sourceRange.start}
-            sourceEnd={sourceRange.end}
-            isChanged={attributes?.["data-md-changed"] !== undefined}
-            isSaving={Boolean(editOptions.isSavingEdit)}
-            error={editOptions.editError}
-            onCancel={editOptions.onCancelSelectionEdit}
-            onSave={(markdown) => editOptions.onSaveSelectionEdit?.(sourceRange, markdown) ?? Promise.resolve()}
-          >
-            {children}
-          </InlineMarkdownEditor>
+        const reserveActions = blockActionsAvailable(
+          paragraphTarget,
+          editOptions,
+        );
+        return withAdjacentComposer(
+          paragraphTarget,
+          <div className="group relative my-3 flex items-start gap-2">
+            <InlineMarkdownEditor
+              sectionStart={section?.start ?? sourceRange.start}
+              sourceStart={sourceRange.start}
+              sourceEnd={sourceRange.end}
+              isChanged={attributes?.["data-md-changed"] !== undefined}
+              isSaving={Boolean(editOptions.isSavingEdit)}
+              error={editOptions.editError}
+              caretPoint={editOptions.editingCaretPoint}
+              className="min-w-0 flex-1"
+              onCancel={editOptions.onCancelSelectionEdit}
+              onSave={(markdown) =>
+                editOptions.onSaveSelectionEdit?.(sourceRange, markdown) ??
+                Promise.resolve()
+              }
+            >
+              {children}
+            </InlineMarkdownEditor>
+            {/* Keep the actions slot reserved so edit mode does not widen text. */}
+            {reserveActions ? (
+              <div className={BLOCK_ACTIONS_SLOT_CLASS} aria-hidden />
+            ) : null}
+          </div>,
+          editOptions,
         );
       }
 
@@ -622,10 +754,15 @@ function baseComponents(
             <p
               className="min-w-0 flex-1 leading-relaxed"
               {...attributes}
+              onMouseEnter={() =>
+                editOptions?.onActivateBlock?.(paragraphTarget)
+              }
               onDoubleClick={(event) => {
                 if (!editOptions?.onEditSelection) return;
                 event.preventDefault();
-                editOptions.onEditSelection(sourceRange);
+                editOptions.onEditSelection(sourceRange, {
+                  caretPoint: { x: event.clientX, y: event.clientY },
+                });
               }}
             >
               {children}
@@ -700,7 +837,11 @@ function baseComponents(
       }
       const canEdit =
         target !== null &&
-        Boolean(editOptions?.onEditSelection || editOptions?.onEditWithAi) &&
+        Boolean(
+          editOptions?.onEditSelection ||
+            editOptions?.onEditWithAi ||
+            editOptions?.onMutateBlock,
+        ) &&
         !editOptions?.editingRange &&
         !editOptions?.blockComposer;
       const form = composerForTarget(target, editOptions);
@@ -724,7 +865,9 @@ function baseComponents(
             canEdit && editOptions?.onEditSelection
               ? (event) => {
                   event.preventDefault();
-                  editOptions.onEditSelection?.(target.range);
+                  editOptions.onEditSelection?.(target.range, {
+                    caretPoint: { x: event.clientX, y: event.clientY },
+                  });
                 }
               : undefined
           }
@@ -760,12 +903,25 @@ function baseComponents(
     },
     table: ({ children }) => {
       const isInformationRegister = informationRegisterTable(children);
-      const isConsultants = consultantsAppointmentTable(children);
+      const consultantsLayout = consultantsTableLayout(children);
+      const isConsultants = consultantsLayout !== null;
       const collapsed =
         isInformationRegister && editOptions?.informationRegisterOpen === false;
       return (
         <PmpTableLayoutContext.Provider
-          value={{ blankFeeNotEvidenced: isConsultants }}
+          value={
+            isConsultants
+              ? {
+                  blankFeeNotEvidenced: true,
+                  dropColumnIndex: consultantsLayout.dropColumnIndex,
+                  feeColumnIndex: consultantsLayout.feeColumnIndex,
+                }
+              : {
+                  blankFeeNotEvidenced: false,
+                  dropColumnIndex: null,
+                  feeColumnIndex: null,
+                }
+          }
         >
           <div
             id={isInformationRegister ? "project-documents-register" : undefined}
@@ -778,7 +934,7 @@ function baseComponents(
               className={[
                 "w-full border-collapse text-left text-sm",
                 isConsultants
-                  ? "min-w-[40rem] table-fixed pmp-table-consultants"
+                  ? "min-w-[52rem] table-fixed pmp-table-consultants"
                   : "min-w-[32rem]",
               ].join(" ")}
             >
@@ -786,7 +942,6 @@ function baseComponents(
                 <colgroup>
                   <col className="pmp-col-discipline" />
                   <col className="pmp-col-firm" />
-                  <col className="pmp-col-scope" />
                   <col className="pmp-col-fee" />
                   <col className="pmp-col-status" />
                   <col className="pmp-col-citation" />
@@ -843,7 +998,9 @@ function MarkdownTableRow({
     type: ArtifactBlockTarget["type"],
   ) => ArtifactBlockTarget | null;
 }) {
-  const { blankFeeNotEvidenced } = useContext(PmpTableLayoutContext);
+  const { blankFeeNotEvidenced, dropColumnIndex, feeColumnIndex } = useContext(
+    PmpTableLayoutContext,
+  );
   const firstCell = Children.toArray(children)[0];
   const label = summaryLabel(firstCell);
   if (label === "critical current position" || label === "field") return null;
@@ -878,16 +1035,24 @@ function MarkdownTableRow({
   }
   const canEdit =
     target !== null &&
-    Boolean(editOptions?.onEditSelection || editOptions?.onEditWithAi) &&
+    Boolean(
+      editOptions?.onEditSelection ||
+        editOptions?.onEditWithAi ||
+        editOptions?.onMutateBlock,
+    ) &&
     !editOptions?.editingRange &&
     !editOptions?.blockComposer;
   const conflicted = rowHasConflict(children);
-  const cells = Children.toArray(children).map((cell, index) => {
+  const sourceCells = Children.toArray(children).filter((_, index) => {
+    return dropColumnIndex === null || index !== dropColumnIndex;
+  });
+  const cells = sourceCells.map((cell, index) => {
     if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
     const raw = cell.props.children;
     const blankFee =
       blankFeeNotEvidenced &&
-      index === CONSULTANTS_FEE_COLUMN_INDEX &&
+      feeColumnIndex !== null &&
+      index === feeColumnIndex &&
       /^not evidenced$/i.test(flattenText(raw).trim());
     return cloneElement(
       cell,
@@ -906,14 +1071,19 @@ function MarkdownTableRow({
       ? normalized.map((cell, index, all) => {
           if (index !== all.length - 1) return cell;
           if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
-          return cloneElement(
-            cell,
-            { key: cell.key ?? `cell-actions-${index}` },
-            <div className="flex items-start justify-end gap-2">
-              <div className="min-w-0">{cell.props.children}</div>
-              <BlockHoverActions target={target} options={editOptions} />
-            </div>,
-          );
+          return cloneElement(cell, {
+            key: cell.key ?? `cell-actions-${index}`,
+            children: (
+              <div className="flex items-start justify-end gap-2">
+                <div
+                  className={blankFeeNotEvidenced ? "shrink-0" : "min-w-0"}
+                >
+                  {cell.props.children}
+                </div>
+                <BlockHoverActions target={target} options={editOptions} />
+              </div>
+            ),
+          });
         })
       : normalized;
   const row = (
@@ -1000,7 +1170,7 @@ function markdownComponents(
                 <DecisionSchedule
                   projectId={options.projectId}
                   decisions={decisions}
-                  readOnly={options.readOnly}
+                  readOnly={options.readOnly || !options.decisionsById}
                   onDraftUpdated={options.onDraftUpdated}
                 />
               );
@@ -1027,7 +1197,7 @@ function markdownComponents(
                 key={`${decision.id}:${decision.revision ?? 0}:${decision.set_revision ?? 0}`}
                 projectId={options.projectId}
                 decision={decision}
-                readOnly={options.readOnly}
+                readOnly={options.readOnly || !options.decisionsById}
                 onDraftUpdated={options.onDraftUpdated}
               />
             );
@@ -1064,50 +1234,60 @@ function markdownComponents(
     },
     h2: ({ children, node }) => {
       const heading = flattenText(children);
-      const isInformationRegister = /^(?:Project Documents|Information to review)\b/i.test(
-        heading.trim(),
-      );
+      const isInformationRegister = isTransmittalHeading(heading);
       const attributes = position(node);
-      const renderedRange = attributes
-        ? {
-            start: attributes["data-md-start"],
-            end: attributes["data-md-end"],
-          }
-        : null;
-      const sourceRange =
-        renderedRange && options
-          ? sourceRangeForRenderedBlock(
-              options.sourceMarkdown,
-              options.renderedMarkdown,
-              renderedRange,
-            )
-          : null;
       if (isInformationRegister) {
         const open = options?.informationRegisterOpen ?? false;
+        const displayHeading = displayTransmittalHeading(heading);
         return (
           <div className="mt-8 border-b pb-2 first:mt-0 print:break-before-page">
-            <h2
-              id={sectionAnchor(heading)}
-              className="pmp-section-heading text-lg font-semibold"
-              {...attributes}
-            >
-              <button
-                type="button"
-                className="flex min-h-11 w-full items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring print:pointer-events-none"
-                aria-expanded={open}
-                aria-controls="project-documents-register"
-                onClick={options?.onToggleInformationRegister}
+            <div className="flex min-h-11 items-center gap-2">
+              <h2
+                id={sectionAnchor(heading)}
+                className="pmp-section-heading min-w-0 flex-1 text-lg font-semibold"
+                {...attributes}
               >
-                <ChevronRight
-                  className={[
-                    "size-4 shrink-0 transition-transform",
-                    open ? "rotate-90" : "",
-                  ].join(" ")}
-                  aria-hidden
-                />
-                <span>{children}</span>
-              </button>
-            </h2>
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring print:pointer-events-none"
+                  aria-expanded={open}
+                  aria-controls="project-documents-register"
+                  onMouseDown={(event) => {
+                    // Avoid focus-driven scroll jumps in the draft scrollport.
+                    event.preventDefault();
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    options?.onToggleInformationRegister?.();
+                  }}
+                >
+                  <ChevronRight
+                    className={[
+                      "size-4 shrink-0 transition-transform",
+                      open ? "rotate-90" : "",
+                    ].join(" ")}
+                    aria-hidden
+                  />
+                  <span>{displayHeading}</span>
+                </button>
+              </h2>
+              {options?.canLoadTransmittal && options.onLoadTransmittal ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="shrink-0 print:hidden"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    options.onLoadTransmittal?.();
+                  }}
+                >
+                  Load Transmittal
+                </Button>
+              ) : null}
+            </div>
           </div>
         );
       }
@@ -1154,16 +1334,29 @@ function informationRegisterTable(children: ReactNode): boolean {
   );
 }
 
-function consultantsAppointmentTable(children: ReactNode): boolean {
+function consultantsTableLayout(
+  children: ReactNode,
+): { dropColumnIndex: number | null; feeColumnIndex: number } | null {
   const text = flattenText(children).toLowerCase();
-  return (
-    text.includes("discipline") &&
-    text.includes("firm") &&
-    text.includes("scope / services") &&
-    text.includes("fee") &&
-    text.includes("status") &&
-    text.includes("citation")
-  );
+  if (
+    !(
+      text.includes("discipline") &&
+      text.includes("firm") &&
+      text.includes("fee") &&
+      text.includes("status") &&
+      text.includes("citation")
+    )
+  ) {
+    return null;
+  }
+  // Legacy appointment register kept Scope / services at column index 2.
+  const hasScope =
+    text.includes("scope / services") || text.includes("scope/services");
+  return {
+    dropColumnIndex: hasScope ? 2 : null,
+    // After dropping scope, Fee is always column index 2.
+    feeColumnIndex: 2,
+  };
 }
 
 function rangesEqual(
@@ -1549,13 +1742,16 @@ function blankProjectSummaryProse(markdown: string): string {
   let skippingCitationTable = false;
   for (const line of lines) {
     const trimmed = line.trim();
-    if (/^##\s+/.test(trimmed)) {
-      const heading = trimmed.replace(/^##\s+/, "").trim();
-      skippingCoverageRegister = /evidence coverage register/i.test(heading);
-      inSummary = /^project summary$/i.test(heading);
+    if (/^#{2,3}\s+/.test(trimmed)) {
+      const heading = trimmed.replace(/^#{2,3}\s+/, "").trim();
+      const isH2 = /^##\s+/.test(trimmed);
+      if (isH2) {
+        skippingCoverageRegister = /evidence coverage register/i.test(heading);
+        inSummary = /^project summary$/i.test(heading);
+      }
       inCitationKey = /^citation key$/i.test(heading);
       skippingCitationTable = false;
-      if (skippingCoverageRegister) {
+      if (isH2 && skippingCoverageRegister) {
         out.push(" ".repeat(line.length));
         continue;
       }
@@ -1585,6 +1781,14 @@ function blankProjectSummaryProse(markdown: string): string {
       }
       if (/^\*\*documents cited:\*\*$/i.test(trimmed) || /^documents cited:$/i.test(trimmed)) {
         out.push(" ".repeat(line.length));
+        continue;
+      }
+      // Bare "[n] doc — status" lines collapse into one paragraph in CommonMark;
+      // promote them to list items so each citation key sits on its own row.
+      const citationEntry = trimmed.match(/^(?:[-*+]\s+)?(\[\d+\]\s+.+)$/);
+      if (citationEntry && !/^[-*+]\s+/.test(trimmed)) {
+        const indent = line.match(/^\s*/)?.[0] ?? "";
+        out.push(`${indent}- ${citationEntry[1]}`);
         continue;
       }
     }
@@ -1662,6 +1866,7 @@ export function MarkdownContent({
   onDraftUpdated,
   editingRange,
   editingFocusCellIndex,
+  editingCaretPoint = null,
   isSavingEdit = false,
   editError,
   blockComposer = null,
@@ -1673,6 +1878,10 @@ export function MarkdownContent({
   onCancelBlockComposer,
   onSaveBlockComposer,
   onMutateBlock,
+  protectedBlockIds,
+  reviewBlockStatuses,
+  onLoadTransmittal,
+  canLoadTransmittal = false,
 }: {
   /**
    * Already normalized (see `normalizeDraftMarkdown`). Callers own the
@@ -1690,8 +1899,11 @@ export function MarkdownContent({
   showTraceQa?: boolean;
   containerRef?: React.Ref<HTMLDivElement>;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  onLoadTransmittal?: () => void;
+  canLoadTransmittal?: boolean;
   editingRange?: MarkdownRange | null;
   editingFocusCellIndex?: number;
+  editingCaretPoint?: { x: number; y: number } | null;
   isSavingEdit?: boolean;
   editError?: string | null;
   blockComposer?: ArtifactBlockComposerState | null;
@@ -1703,11 +1915,14 @@ export function MarkdownContent({
   onCancelBlockComposer?: () => void;
   onSaveBlockComposer?: (content: string) => void;
   onMutateBlock?: InlineEditOptions["onMutateBlock"];
+  protectedBlockIds?: Set<string>;
+  reviewBlockStatuses?: Map<string, "conflict" | "propose_delete">;
 }) {
   const [blockTarget, setBlockTarget] = useState<{
     sourceMarkdown: string;
     target: ArtifactBlockTarget;
   } | null>(null);
+  const [openActionsKey, setOpenActionsKey] = useState<string | null>(null);
   const [informationRegisterOpen, setInformationRegisterOpen] = useState(false);
   const traceQa = useMemo(() => splitTraceQa(markdown), [markdown]);
   const presentedPrimary = useMemo(
@@ -1788,10 +2003,13 @@ export function MarkdownContent({
               activeBlock,
               editingRange,
               editingFocusCellIndex,
+              editingCaretPoint,
               isSavingEdit,
               editError,
               blockComposer,
               isSavingBlockComposer,
+              openActionsKey,
+              onOpenActionsKeyChange: setOpenActionsKey,
               onActivateBlock: blockComposer
                 ? undefined
                 : (target) =>
@@ -1809,11 +2027,21 @@ export function MarkdownContent({
               onCancelBlockComposer,
               onSaveBlockComposer,
               onMutateBlock,
+              protectedBlockIds,
+              reviewBlockStatuses,
               informationRegisterOpen,
               onToggleInformationRegister: () =>
                 setInformationRegisterOpen((current) => !current),
+              onLoadTransmittal: onLoadTransmittal
+                ? () => {
+                    setInformationRegisterOpen(true);
+                    onLoadTransmittal();
+                  }
+                : undefined,
+              canLoadTransmittal,
             })}
           >
+
             {presentedPrimary}
           </ReactMarkdown>
           {showTraceQa && traceQa.qa ? (

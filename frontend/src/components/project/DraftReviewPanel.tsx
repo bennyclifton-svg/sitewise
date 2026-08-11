@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronRight,
   Eye,
@@ -22,9 +23,15 @@ import {
   insertBeforeBlock,
   operationForTarget,
   replaceBlock,
+  type ArtifactBlockOperationType,
   type ArtifactBlockTarget,
 } from "@/lib/artifact-blocks";
 import { api } from "@/lib/api";
+import {
+  applyArtefactBlockDelta,
+  type ArtefactBlockDelta,
+} from "@/lib/draft-block-delta";
+import { rebaseDraftBlockEdit } from "@/lib/draft-block-rebase";
 import { ApiError } from "@/lib/http";
 import {
   clearTray,
@@ -42,10 +49,16 @@ import {
   type MarkdownAnchor,
   type MarkdownRange,
 } from "@/lib/markdown-selection";
+import { measureLocalMutation } from "@/lib/performance";
 import { expandRangeWithTrailingMarker } from "@/lib/table-row-edit";
+import {
+  matchTransmittalEvidenceIds,
+  parseTransmittalRows,
+} from "@/lib/transmittal-register";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
+  EvidencePreview,
   ProjectDecision,
   WorkflowTraceEvent,
 } from "@/lib/types/project";
@@ -134,9 +147,14 @@ type GenerationManifestViewModel = {
   taxonomy: Record<string, unknown>;
   known_profile: Record<string, unknown>;
   unknown_relevant_fields: string[];
+  explicitly_excluded_fields: string[];
+  constraints: string[];
   evidence_used: string[];
   seed_knowledge: string[];
   input_fingerprint: string;
+  context_version: number | null;
+  source_version: string | null;
+  seed_version: string | null;
 };
 
 function generationManifestFrom(value: unknown): GenerationManifestViewModel | null {
@@ -153,9 +171,16 @@ function generationManifestFrom(value: unknown): GenerationManifestViewModel | n
         ? (raw.known_profile as Record<string, unknown>)
         : {},
     unknown_relevant_fields: metadataStringList(raw.unknown_relevant_fields),
+    explicitly_excluded_fields: metadataStringList(raw.explicitly_excluded_fields),
+    constraints: metadataStringList(raw.constraints),
     evidence_used: metadataStringList(raw.evidence_used),
     seed_knowledge: metadataStringList(raw.seed_knowledge),
     input_fingerprint: raw.input_fingerprint,
+    context_version:
+      typeof raw.context_version === "number" ? raw.context_version : null,
+    source_version:
+      typeof raw.source_version === "string" ? raw.source_version : null,
+    seed_version: typeof raw.seed_version === "string" ? raw.seed_version : null,
   };
 }
 
@@ -182,6 +207,30 @@ function GenerationManifestView({
         <MetaItem
           label="Unknown relevant fields"
           value={manifest.unknown_relevant_fields.join(", ") || "None"}
+        />
+        <MetaItem
+          label="Excluded fields"
+          value={manifest.explicitly_excluded_fields.join(", ") || "None"}
+        />
+        <MetaItem
+          label="Constraints"
+          value={manifest.constraints.join(", ") || "None"}
+        />
+        <MetaItem
+          label="Context version"
+          value={
+            manifest.context_version != null
+              ? String(manifest.context_version)
+              : "—"
+          }
+        />
+        <MetaItem
+          label="Source version"
+          value={manifest.source_version?.slice(0, 12) || "—"}
+        />
+        <MetaItem
+          label="Seed version"
+          value={manifest.seed_version?.slice(0, 12) || "—"}
         />
         <MetaItem
           label="Input fingerprint"
@@ -228,6 +277,9 @@ export function DraftReviewPanel({
   workflowType,
   embedded = false,
   projectTitle,
+  repositoryEvidence = [],
+  onSelectEvidenceIds,
+  onTransmittalSessionChange,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
@@ -236,6 +288,11 @@ export function DraftReviewPanel({
   projectTitle?: string;
   /** Compact layout when nested inside a workflow panel. */
   embedded?: boolean;
+  repositoryEvidence?: EvidencePreview[];
+  onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
+  onTransmittalSessionChange?: (
+    session: { draftId: string; workflowType: string } | null,
+  ) => void;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
@@ -246,6 +303,7 @@ export function DraftReviewPanel({
     version: number;
     range: MarkdownRange;
     focusCellIndex?: number;
+    caretPoint?: { x: number; y: number };
   } | null>(null);
   const [blockComposer, setBlockComposer] = useState<{
     operation: "ADD" | "UPDATE";
@@ -278,6 +336,7 @@ export function DraftReviewPanel({
         : [];
   const decisionLoadError =
     decisionState.key === decisionContextKey ? decisionState.error : null;
+  const instructionTrayHost = useInstructionTrayHost();
 
   useEffect(() => {
     let cancelled = false;
@@ -291,17 +350,37 @@ export function DraftReviewPanel({
       }
 
       if (isFullDraft(draft)) {
-        setLoadedDraft(draft);
+        // Parent props can briefly regress to an older revision (event refresh,
+        // summary bootstrap). Never clobber a newer local edit with older text.
+        setLoadedDraft((current) => preferNewerDraft(current, draft));
         setIsLoadingDraft(false);
         return;
       }
 
-      setLoadedDraft(null);
+      // Summary props have no markdown. Keep a matching/newer local full draft
+      // instead of blanking the panel and refetching a possibly stale id.
+      let shouldFetch = true;
+      setLoadedDraft((current) => {
+        if (
+          current &&
+          current.workflow_type === draft.workflow_type &&
+          current.version >= draft.version
+        ) {
+          shouldFetch = false;
+          return current;
+        }
+        return current;
+      });
+      if (!shouldFetch) {
+        setIsLoadingDraft(false);
+        return;
+      }
+
       setIsLoadingDraft(true);
       try {
         const data = await api.getProjectDraft(projectId, draft.id);
         if (!cancelled) {
-          setLoadedDraft(data);
+          setLoadedDraft((current) => preferNewerDraft(current, data));
         }
       } catch (error) {
         if (!cancelled) {
@@ -461,10 +540,15 @@ export function DraftReviewPanel({
   if (!draft) {
     if (isCostPlanWorkflow) {
       return (
-        <CostWorkbookSection
-          workbook={null}
-          emptyMessage="Create cost plan to generate the workbook."
-        />
+        <div
+          className={cn(
+            embedded
+              ? "rounded-md border border-dashed p-4 text-sm text-muted-foreground"
+              : "flex min-h-full items-center justify-center p-6",
+          )}
+        >
+          Create cost plan to open the editable Cost Plan grid.
+        </div>
       );
     }
     return (
@@ -501,10 +585,29 @@ export function DraftReviewPanel({
   const isAccepted = displayDraft.status === "accepted";
   const canEditDraft =
     !isAccepted && supportsAnchoredInstructions(displayDraft.workflow_type);
+  const canLoadTransmittal =
+    Boolean(loadedDraft) &&
+    !isAccepted &&
+    Boolean(onSelectEvidenceIds) &&
+    /(?:Transmittal|Project Documents|Information to review)\b/i.test(source);
+
+  function handleLoadTransmittal() {
+    if (!loadedDraft || !onSelectEvidenceIds) return;
+    const rows = parseTransmittalRows(source);
+    const matchedIds = matchTransmittalEvidenceIds(rows, repositoryEvidence);
+    onSelectEvidenceIds(new Set(matchedIds));
+    onTransmittalSessionChange?.({
+      draftId: loadedDraft.id,
+      workflowType: loadedDraft.workflow_type,
+    });
+  }
 
   function startSelectionEdit(
     range: MarkdownRange,
-    options?: { focusCellIndex?: number },
+    options?: {
+      focusCellIndex?: number;
+      caretPoint?: { x: number; y: number };
+    },
   ) {
     if (!loadedDraft) return;
     setBlockComposer(null);
@@ -515,6 +618,7 @@ export function DraftReviewPanel({
       ...(options?.focusCellIndex !== undefined
         ? { focusCellIndex: options.focusCellIndex }
         : {}),
+      ...(options?.caretPoint ? { caretPoint: options.caretPoint } : {}),
     });
     setAnchor(null);
     setActionError(null);
@@ -555,15 +659,11 @@ export function DraftReviewPanel({
     const expandedRange = expandRangeWithTrailingMarker(source, range);
     const target = blockTargetForRange(source, sections, expandedRange);
     const content = editableBlockContent(replacement);
-    // Inline edits always patch the full document. Block operations are reserved
-    // for structural ADD/DELETE/DUPLICATE — their start/end addressing is brittle
-    // when presentation transforms shift table-row offsets.
+    const canonical = { ...target, range: expandedRange };
     const nextMarkdown = replaceBlock(
       source,
-      { ...target, range: expandedRange },
-      target.type === "paragraph"
-        ? content
-        : contentWithPreservedMarker(source, { ...target, range: expandedRange }, content),
+      canonical,
+      contentWithPreservedMarker(source, canonical, content),
     );
     if (nextMarkdown === source) {
       setSelectionEdit(null);
@@ -571,29 +671,65 @@ export function DraftReviewPanel({
     }
 
     const snapshot = loadedDraft;
+    const startedAt = performance.now();
     setIsSaving(true);
     setActionError(null);
     setSelectionEdit(null);
+    let unresolvedConflict = false;
     try {
-      const updated = await runOptimisticMutation({
+      const response = await runOptimisticMutation({
         snapshot,
         optimistic: { ...snapshot, content_markdown: nextMarkdown },
         apply: setLoadedDraft,
-        commit: () =>
-          api.patchDraft(projectId, snapshot.id, nextMarkdown, snapshot.version),
-        confirmed: (value) => value,
-        onConflict: async () =>
+        commit: (base) =>
+          api.applyDraftBlockOperations(projectId, base.id, base.version, [
+            operationForTarget("UPDATE", canonical, { content }),
+          ]),
+        confirmed: (value) =>
+          applyArtefactBlockDelta(
+            snapshot,
+            value.delta,
+            nextMarkdown,
+          ),
+        reload: async () =>
           (await api.getLatestDraft(projectId, snapshot.workflow_type)) ?? snapshot,
+        rebase: ({ snapshot: base, pending, latest }) =>
+          rebaseDraftBlockEdit({
+            snapshot: base,
+            pending,
+            latest,
+            blockId: canonical.id,
+            editedContent: content,
+            blockType: canonical.type,
+          }),
+        onUnresolvedConflict: ({ pending }) => {
+          unresolvedConflict = true;
+          setLoadedDraft(pending);
+          setActionError(
+            "This draft changed elsewhere. Your edit was kept locally — resolve before saving again.",
+          );
+        },
       });
-      onDraftUpdated(updated);
+      measureLocalMutation("paragraph-edit", startedAt);
+      const confirmed = await resolveConfirmedDraft({
+        projectId,
+        workflowType: snapshot.workflow_type,
+        snapshot,
+        delta: response.delta,
+        optimisticMarkdown: nextMarkdown,
+        expectedSnippet: content,
+      });
+      setLoadedDraft(confirmed.draft);
+      if (confirmed.warning) setActionError(confirmed.warning);
+      onDraftUpdated(confirmed.draft);
     } catch (error) {
-      setActionError(
-        error instanceof ApiError && error.status === 409
-          ? rebaseMessage(error)
-          : error instanceof ApiError
-            ? error.message
-            : "Could not save selection.",
-      );
+      if (error instanceof ApiError && error.status === 409) {
+        if (!unresolvedConflict) setActionError(rebaseMessage(error));
+      } else {
+        setActionError(
+          error instanceof ApiError ? error.message : "Could not save selection.",
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -611,7 +747,14 @@ export function DraftReviewPanel({
   }
 
   function openBlockOperation(
-    operation: "ADD" | "DELETE" | "DUPLICATE",
+    operation:
+      | "ADD"
+      | "DELETE"
+      | "DUPLICATE"
+      | "PROTECT"
+      | "UNPROTECT"
+      | "KEEP"
+      | "CONFIRM_DELETE",
     target: ArtifactBlockTarget,
     placement?: "before" | "after",
   ) {
@@ -631,8 +774,86 @@ export function DraftReviewPanel({
     void mutateBlock(operation, canonical);
   }
 
+  function protectedBlockIds(): Set<string> {
+    const blocks = loadedDraft?.provenance_metadata?.blocks;
+    if (!blocks || typeof blocks !== "object") return new Set();
+    return new Set(
+      Object.entries(blocks as Record<string, unknown>)
+        .filter(([, value]) => {
+          return (
+            value !== null &&
+            typeof value === "object" &&
+            (value as { user_protected?: unknown }).user_protected === true
+          );
+        })
+        .map(([id]) => id),
+    );
+  }
+
+  function reviewBlockStatuses(): Map<string, "conflict" | "propose_delete"> {
+    const blocks = loadedDraft?.provenance_metadata?.blocks;
+    const statuses = new Map<string, "conflict" | "propose_delete">();
+    if (!blocks || typeof blocks !== "object") return statuses;
+    for (const [id, value] of Object.entries(blocks as Record<string, unknown>)) {
+      if (!value || typeof value !== "object") continue;
+      const status = (value as { status?: unknown }).status;
+      if (status === "conflict" || status === "propose_delete") {
+        statuses.set(id, status);
+      }
+    }
+    return statuses;
+  }
+
+  function optimisticProtectProvenance(
+    draft: DraftArtifact,
+    blockId: string | undefined,
+    protectedFlag: boolean,
+  ): DraftArtifact["provenance_metadata"] {
+    if (!blockId) return draft.provenance_metadata;
+    const existing =
+      draft.provenance_metadata && typeof draft.provenance_metadata === "object"
+        ? draft.provenance_metadata
+        : {};
+    const blocks =
+      existing.blocks && typeof existing.blocks === "object"
+        ? { ...(existing.blocks as Record<string, unknown>) }
+        : {};
+    const prior =
+      blocks[blockId] && typeof blocks[blockId] === "object"
+        ? (blocks[blockId] as Record<string, unknown>)
+        : { id: blockId };
+    blocks[blockId] = { ...prior, user_protected: protectedFlag };
+    return { ...existing, blocks };
+  }
+
+  function optimisticReviewProvenance(
+    draft: DraftArtifact,
+    blockId: string | undefined,
+    operation: "KEEP" | "CONFIRM_DELETE",
+  ): DraftArtifact["provenance_metadata"] {
+    if (!blockId) return draft.provenance_metadata;
+    const existing =
+      draft.provenance_metadata && typeof draft.provenance_metadata === "object"
+        ? draft.provenance_metadata
+        : {};
+    const blocks =
+      existing.blocks && typeof existing.blocks === "object"
+        ? { ...(existing.blocks as Record<string, unknown>) }
+        : {};
+    if (operation === "CONFIRM_DELETE") {
+      delete blocks[blockId];
+      return { ...existing, blocks };
+    }
+    const prior =
+      blocks[blockId] && typeof blocks[blockId] === "object"
+        ? (blocks[blockId] as Record<string, unknown>)
+        : { id: blockId };
+    blocks[blockId] = { ...prior, status: "active" };
+    return { ...existing, blocks };
+  }
+
   async function mutateBlock(
-    operation: "ADD" | "UPDATE" | "DELETE" | "DUPLICATE",
+    operation: ArtifactBlockOperationType,
     target: ArtifactBlockTarget,
     content?: string,
     placement?: "before" | "after",
@@ -653,32 +874,81 @@ export function DraftReviewPanel({
             ? insertAfterBlock(source, canonical, content ?? "")
             : operation === "DUPLICATE"
               ? duplicateBlock(source, canonical)
-              : deleteBlock(source, canonical);
+              : operation === "DELETE" || operation === "CONFIRM_DELETE"
+                ? deleteBlock(source, canonical)
+                : source;
+    const optimistic: DraftArtifact = {
+      ...snapshot,
+      content_markdown: nextMarkdown,
+      provenance_metadata:
+        operation === "PROTECT" || operation === "UNPROTECT"
+          ? optimisticProtectProvenance(
+              snapshot,
+              canonical.id,
+              operation === "PROTECT",
+            )
+          : operation === "KEEP" || operation === "CONFIRM_DELETE"
+            ? optimisticReviewProvenance(snapshot, canonical.id, operation)
+            : snapshot.provenance_metadata,
+    };
     setBlockComposer(null);
     setIsSaving(true);
     setActionError(null);
+    let unresolvedConflict = false;
     try {
       const response = await runOptimisticMutation({
         snapshot,
-        optimistic: { ...snapshot, content_markdown: nextMarkdown },
+        optimistic,
         apply: setLoadedDraft,
-        commit: () =>
-          api.applyDraftBlockOperations(projectId, snapshot.id, snapshot.version, [
+        commit: (base) =>
+          api.applyDraftBlockOperations(projectId, base.id, base.version, [
             operationForTarget(operation, canonical, { content, placement }),
           ]),
-        confirmed: (value) => value.draft,
-        onConflict: async () =>
+        confirmed: (value) =>
+          applyArtefactBlockDelta(
+            snapshot,
+            value.delta,
+            optimistic.content_markdown,
+          ),
+        reload: async () =>
           (await api.getLatestDraft(projectId, snapshot.workflow_type)) ?? snapshot,
+        rebase: ({ snapshot: base, pending, latest }) =>
+          rebaseDraftBlockEdit({
+            snapshot: base,
+            pending,
+            latest,
+            blockId: canonical.id,
+            editedContent:
+              operation === "UPDATE" ? editableBlockContent(content ?? "") : undefined,
+            blockType: canonical.type,
+          }),
+        onUnresolvedConflict: ({ pending }) => {
+          unresolvedConflict = true;
+          setLoadedDraft(pending);
+          setActionError(
+            "This draft changed elsewhere. Your edit was kept locally — resolve before saving again.",
+          );
+        },
       });
-      onDraftUpdated(response.draft);
+      const confirmed = await resolveConfirmedDraft({
+        projectId,
+        workflowType: snapshot.workflow_type,
+        snapshot,
+        delta: response.delta,
+        optimisticMarkdown: optimistic.content_markdown,
+        expectedSnippet: content,
+      });
+      setLoadedDraft(confirmed.draft);
+      if (confirmed.warning) setActionError(confirmed.warning);
+      onDraftUpdated(confirmed.draft);
     } catch (error) {
-      setActionError(
-        error instanceof ApiError && error.status === 409
-          ? rebaseMessage(error)
-          : error instanceof ApiError
-            ? error.message
-            : "Could not update this block.",
-      );
+      if (error instanceof ApiError && error.status === 409) {
+        if (!unresolvedConflict) setActionError(rebaseMessage(error));
+      } else {
+        setActionError(
+          error instanceof ApiError ? error.message : "Could not update this block.",
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -688,18 +958,11 @@ export function DraftReviewPanel({
     return (
       <article
         className={cn(
-          "flex w-full min-w-0 flex-col gap-4",
-          embedded ? "" : "p-4 lg:p-6",
+          "flex w-full min-w-0 flex-col gap-2",
+          embedded ? "" : "p-2 lg:p-3",
         )}
       >
-        <CostPlanGrid projectId={projectId} />
-        <CostWorkbookSection
-          workbook={workbook}
-          isLoading={isLoadingDraft}
-          error={actionError}
-          emptyMessage="Cost workbook is not available. Refresh cost plan to regenerate it."
-          projectId={projectId}
-        />
+        <CostPlanGrid projectId={projectId} revision={displayDraft.version} />
         {!isLoadingDraft && loadedDraft ? (
           <details
             ref={draftDetailsRef}
@@ -770,13 +1033,52 @@ export function DraftReviewPanel({
           </p>
         ) : (
           <div className="p-4">
+            {actionError ? (
+              <p
+                className="mb-3 border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                role="alert"
+              >
+                {actionError}
+              </p>
+            ) : null}
+            {(() => {
+              const reviews = reviewBlockStatuses();
+              if (reviews.size === 0) return null;
+              let conflicts = 0;
+              let proposedDeletes = 0;
+              for (const status of reviews.values()) {
+                if (status === "conflict") conflicts += 1;
+                if (status === "propose_delete") proposedDeletes += 1;
+              }
+              return (
+                <p
+                  className="mb-3 border border-amber-600/30 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-50"
+                  role="status"
+                >
+                  Refresh review needed:
+                  {conflicts
+                    ? ` ${conflicts} conflict${conflicts === 1 ? "" : "s"}`
+                    : ""}
+                  {conflicts && proposedDeletes ? "," : ""}
+                  {proposedDeletes
+                    ? ` ${proposedDeletes} proposed deletion${
+                        proposedDeletes === 1 ? "" : "s"
+                      }`
+                    : ""}
+                  . Keep or confirm delete on the highlighted blocks.
+                </p>
+              );
+            })()}
             <MarkdownContent
               markdown={source}
               version={displayDraft.version}
               projectId={projectId}
               decisions={projectDecisions ?? undefined}
               projectTitle={projectTitle}
-              readOnly={isAccepted || projectDecisions === null}
+              // Keep the document editable while PMP decisions load. Tying
+              // readOnly to `projectDecisions === null` remounted markdown when
+              // the fetch settled and closed open block-action menus mid-click.
+              readOnly={isAccepted}
               changedRanges={changedRanges}
               showChanges={showChanges}
               showTraceQa={false}
@@ -801,6 +1103,7 @@ export function DraftReviewPanel({
               }}
               editingRange={selectionEditRange}
               editingFocusCellIndex={selectionEdit?.focusCellIndex}
+              editingCaretPoint={selectionEdit?.caretPoint}
               isSavingEdit={isSaving}
               editError={selectionEditRange ? actionError : null}
               blockComposer={blockComposer}
@@ -827,6 +1130,14 @@ export function DraftReviewPanel({
                 );
               }}
               onMutateBlock={canEditDraft ? openBlockOperation : undefined}
+              protectedBlockIds={canEditDraft ? protectedBlockIds() : undefined}
+              reviewBlockStatuses={
+                canEditDraft ? reviewBlockStatuses() : undefined
+              }
+              canLoadTransmittal={canLoadTransmittal}
+              onLoadTransmittal={
+                canLoadTransmittal ? handleLoadTransmittal : undefined
+              }
             />
           </div>
         )}
@@ -844,26 +1155,29 @@ export function DraftReviewPanel({
         />
       ) : null}
 
-      {canInstruct ? (
-        <InstructionTray
-          items={trayItems}
-          isApplying={isApplying}
-          error={applyError}
-          onRemove={(id) => {
-            setApplyError(null);
-            writeTray(
-              loadedDraft!.id,
-              loadedDraft!.version,
-              trayItems.filter((item) => item.id !== id),
-            );
-          }}
-          onClearAll={() => {
-            setApplyError(null);
-            writeTray(loadedDraft!.id, loadedDraft!.version, []);
-          }}
-          onApply={() => void applyInstructions()}
-        />
-      ) : null}
+      {canInstruct
+        ? renderInstructionTray(
+            <InstructionTray
+              items={trayItems}
+              isApplying={isApplying}
+              error={applyError}
+              onRemove={(id) => {
+                setApplyError(null);
+                writeTray(
+                  loadedDraft!.id,
+                  loadedDraft!.version,
+                  trayItems.filter((item) => item.id !== id),
+                );
+              }}
+              onClearAll={() => {
+                setApplyError(null);
+                writeTray(loadedDraft!.id, loadedDraft!.version, []);
+              }}
+              onApply={() => void applyInstructions()}
+            />,
+            instructionTrayHost,
+          )
+        : null}
 
       {workbook ? (
         <section className="artifact-workbook border bg-background">
@@ -962,11 +1276,10 @@ export function DraftReviewPanel({
               value={draftModeLabel(loadedDraft?.provenance_metadata?.draft_mode)}
             />
           </dl>
-          {actionError ? (
-            <p className="mt-4 text-sm text-destructive">{actionError}</p>
-          ) : null}
           {decisionLoadError ? (
-            <p className="mt-3 text-sm text-destructive">{decisionLoadError}</p>
+            <p className="mt-3 text-sm text-destructive" role="alert">
+              {decisionLoadError}
+            </p>
           ) : null}
 
           <div id="draft-workflow-trace" className="mt-4">
@@ -982,36 +1295,6 @@ export function DraftReviewPanel({
         </div>
       </details>
     </article>
-  );
-}
-
-function CostWorkbookSection({
-  workbook,
-  projectId,
-  isLoading = false,
-  error = null,
-  emptyMessage,
-}: {
-  workbook: WorkbookMetadata | null;
-  projectId?: string;
-  isLoading?: boolean;
-  error?: string | null;
-  emptyMessage: string;
-}) {
-  return (
-    <section className="artifact-workbook overflow-hidden border bg-background">
-      {error ? (
-        <p className="p-4 text-sm text-destructive">{error}</p>
-      ) : isLoading ? (
-        <p className="p-4 text-sm text-muted-foreground" role="status">
-          Loading cost workbook...
-        </p>
-      ) : workbook && projectId ? (
-        <WorkbookGrid projectId={projectId} workbookPath={workbook.workspace_path} />
-      ) : (
-        <p className="p-4 text-sm text-muted-foreground">{emptyMessage}</p>
-      )}
-    </section>
   );
 }
 
@@ -1091,8 +1374,77 @@ function emptyDraftMessage(workflowType?: string): string {
   return "No draft saved yet.";
 }
 
+/** Right-panel mount from ProjectShell; absent in unit tests / non-cockpit embeds. */
+function useInstructionTrayHost(): HTMLElement | null {
+  // ProjectShell always mounts the host before the draft panel. Query once;
+  // a mount effect that setState here trips react-hooks/set-state-in-effect.
+  return useMemo(
+    () =>
+      typeof document === "undefined"
+        ? null
+        : document.querySelector<HTMLElement>("[data-instruction-tray-host]"),
+    [],
+  );
+}
+
+function renderInstructionTray(tray: ReactNode, host: HTMLElement | null): ReactNode {
+  return host ? createPortal(tray, host) : tray;
+}
+
 function isFullDraft(draft: DraftArtifact | DraftArtifactSummary): draft is DraftArtifact {
   return "content_markdown" in draft;
+}
+
+/**
+ * Prefer newer revisions. Same-version bodies are treated as immutable: if the
+ * parent/event poll races with a local confirm and returns divergent markdown,
+ * keep the local copy instead of silently discarding the user's edit.
+ */
+function preferNewerDraft(
+  current: DraftArtifact | null,
+  incoming: DraftArtifact,
+): DraftArtifact {
+  if (!current) return incoming;
+  if (current.workflow_type !== incoming.workflow_type) return incoming;
+  if (current.version > incoming.version) return current;
+  if (current.version < incoming.version) return incoming;
+  if (current.content_markdown !== incoming.content_markdown) {
+    return current;
+  }
+  return incoming;
+}
+
+/** After a lean delta confirm, adopt the persisted draft body when available. */
+async function resolveConfirmedDraft(args: {
+  projectId: string;
+  workflowType: string;
+  snapshot: DraftArtifact;
+  delta: ArtefactBlockDelta;
+  optimisticMarkdown: string;
+  expectedSnippet?: string;
+}): Promise<{ draft: DraftArtifact; warning: string | null }> {
+  const fallback = applyArtefactBlockDelta(
+    args.snapshot,
+    args.delta,
+    args.optimisticMarkdown,
+  );
+  try {
+    const latest = await api.getLatestDraft(args.projectId, args.workflowType);
+    if (!latest || latest.version !== args.delta.version) {
+      return { draft: fallback, warning: null };
+    }
+    const snippet = args.expectedSnippet?.trim();
+    if (snippet && !latest.content_markdown.includes(snippet)) {
+      return {
+        draft: fallback,
+        warning:
+          "The server draft is missing this change. Your edit was kept locally — retry save or refresh carefully.",
+      };
+    }
+    return { draft: latest, warning: null };
+  } catch {
+    return { draft: fallback, warning: null };
+  }
 }
 
 function draftModelLabel(draft: DraftArtifact | DraftArtifactSummary): string {

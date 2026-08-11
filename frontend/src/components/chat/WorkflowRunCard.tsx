@@ -8,6 +8,7 @@ import {
   isTerminalWorkflowRun,
   useWorkflowRun,
 } from "@/lib/queries/workflow-runs";
+import { workflowSectionProgress } from "@/lib/workflow-progress";
 
 type WorkflowRunCardProps = {
   runRef: WorkflowRunRef;
@@ -37,9 +38,10 @@ function titleForWorkflowType(workflowType: string | undefined): string {
   return workflowType.replaceAll("_", " ");
 }
 
-function progressPercent(progress: Record<string, unknown> | undefined): number | null {
-  const percent = progress?.percent;
-  return typeof percent === "number" ? Math.max(0, Math.min(100, percent)) : null;
+function progressLabel(progress: Record<string, unknown> | undefined): string | null {
+  const sections = workflowSectionProgress(progress);
+  if (!sections || sections.total <= 0) return null;
+  return `${sections.completed}/${sections.total} sections`;
 }
 
 export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
@@ -71,7 +73,7 @@ export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
   }
 
   if (!run || !isTerminalWorkflowRun(run)) {
-    const percent = progressPercent(run?.progress);
+    const sectionLabel = progressLabel(run?.progress);
     const stage =
       run?.state === "running"
         ? "Generating"
@@ -91,7 +93,7 @@ export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">
             {stage} {label}
-            {percent !== null ? ` (${Math.round(percent)}%)` : "…"}
+            {sectionLabel ? ` (${sectionLabel})` : "…"}
           </p>
           <p className="truncate text-xs text-muted-foreground">
             Draft will open here when ready.

@@ -103,7 +103,7 @@ export function buildLifecycleTiles({
     },
     {
       id: "procurement-requests",
-      label: "RFP / RFT",
+      label: "Procurement",
       folder: "05-procurement",
       icon: ClipboardList,
       status: procurementTileStatus.status,

@@ -32,6 +32,7 @@ from app.workflows.generation_consistency import (
 )
 from app.workflows.generation_consistency_agent import resolve_consistency_candidates
 from app.workflows.section_generation import (
+    SectionCompletePublisher,
     SectionGenerationJob,
     SectionProgressPublisher,
     run_section_generation,
@@ -202,6 +203,7 @@ async def run_rfp_narrative_model(
     citation_index: CitationIndex,
     validation_feedback: str | None = None,
     on_progress: SectionProgressPublisher | None = None,
+    on_section_complete: SectionCompletePublisher | None = None,
     run_date: date | None = None,
     consistency_resolver: ConsistencyResolver | None = None,
 ) -> RfpNarrativeOutput:
@@ -221,6 +223,7 @@ async def run_rfp_narrative_model(
         instructions=_load_instructions(),
         model=settings.pmp_model,
         on_progress=on_progress,
+        on_section_complete=on_section_complete,
         generation_brief=generation_brief,
         run_date=run_date,
         consistency_resolver=consistency_resolver,
@@ -241,6 +244,7 @@ async def run_procurement_narrative_model(
     instructions_path: Path,
     validation_feedback: str | None = None,
     on_progress: SectionProgressPublisher | None = None,
+    on_section_complete: SectionCompletePublisher | None = None,
     run_date: date | None = None,
     consistency_resolver: ConsistencyResolver | None = None,
 ) -> ProcurementNarrativeOutput:
@@ -262,6 +266,7 @@ async def run_procurement_narrative_model(
         instructions=instructions_path.read_text(encoding="utf-8"),
         model=settings.pmp_model,
         on_progress=on_progress,
+        on_section_complete=on_section_complete,
         generation_brief=generation_brief,
         run_date=run_date,
         consistency_resolver=consistency_resolver,
@@ -276,6 +281,7 @@ async def _run_narrative_sections(
     on_progress: SectionProgressPublisher | None,
     generation_brief: ArtefactGenerationBrief | None,
     consistency_resolver: ConsistencyResolver | None,
+    on_section_complete: SectionCompletePublisher | None = None,
     run_date: date | None = None,
 ) -> ProcurementNarrativeOutput:
     async def run_section(output_type: type[BaseModel], task: str):
@@ -320,6 +326,7 @@ async def _run_narrative_sections(
         ),
         max_concurrency=3,
         on_progress=on_progress,
+        on_section_complete=on_section_complete,
     )
     background = results["background"].output
     services = results["requested_services"].output

@@ -633,6 +633,178 @@ html.sw-atmosphere-dense {
       font-size: 1rem;
     }
   }
+
+  /* Compact Excel-like Cost Plan grid: shared cell borders, no inter-cell buffer. */
+  .cost-plan-grid-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+  }
+
+  .cost-plan-grid-table th,
+  .cost-plan-grid-table td {
+    border: 1px solid var(--sw-edge);
+    padding: 0;
+    vertical-align: middle;
+  }
+
+  .cost-plan-grid-table thead th {
+    background: color-mix(in oklch, var(--sw-panel) 88%, white);
+    font-weight: 500;
+    padding: 0.2rem 0.25rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.15;
+  }
+
+  .cost-plan-grid-table col.cost-plan-col-code {
+    width: 3.75rem;
+  }
+
+  .cost-plan-grid-table col.cost-plan-col-item {
+    width: 22%;
+  }
+
+  .cost-plan-grid-table col.cost-plan-col-category {
+    width: 9%;
+  }
+
+  .cost-plan-grid-table col.cost-plan-col-money {
+    width: 7%;
+  }
+
+  .cost-plan-grid-table col.cost-plan-col-actions {
+    width: 5.5rem;
+  }
+
+  .cost-plan-grid-cell {
+    padding: 0;
+  }
+
+  .cost-plan-grid-cell--money {
+    text-align: right;
+    font-feature-settings: "tnum" 1;
+    white-space: nowrap;
+    padding: 0.15rem 0.25rem;
+  }
+
+  .cost-plan-grid-cell--code {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    padding: 0.15rem 0.2rem;
+    white-space: nowrap;
+  }
+
+  .cost-plan-grid-cell--readonly {
+    background: color-mix(in oklch, var(--sw-panel) 94%, black);
+  }
+
+  .cost-plan-grid-cell--editable {
+    background: color-mix(in oklch, var(--sw-beam-hex) 6%, var(--sw-panel));
+  }
+
+  .cost-plan-grid-cell--summary {
+    background: color-mix(in oklch, var(--sw-panel) 82%, white);
+    font-weight: 500;
+    height: 1.5rem;
+    padding: 0.15rem 0.25rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .cost-plan-grid-table tbody tr {
+    height: 1.5rem;
+  }
+
+  .cost-plan-grid-table tr.cost-plan-grid-row--selected > td {
+    background: color-mix(in oklch, var(--sw-beam-hex) 14%, var(--sw-panel));
+  }
+
+  .cost-plan-grid-table tbody {
+    user-select: none;
+  }
+
+  .cost-plan-grid-table tbody input,
+  .cost-plan-grid-table tbody textarea {
+    user-select: text;
+  }
+
+  .cost-plan-grid-input {
+    display: block;
+    width: 100%;
+    height: 1.5rem;
+    margin: 0;
+    border: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+    padding: 0.15rem 0.25rem;
+    font: inherit;
+    line-height: 1.2;
+    color: inherit;
+  }
+
+  .cost-plan-grid-input:focus-visible {
+    background: color-mix(in oklch, var(--sw-beam-hex) 12%, transparent) !important;
+    box-shadow: inset 0 0 0 1px var(--sw-beam-hex) !important;
+  }
+
+  .cost-plan-grid-input--money {
+    text-align: right;
+    font-feature-settings: "tnum" 1;
+    padding-left: 0.15rem;
+    padding-right: 0.25rem;
+  }
+
+  .cost-plan-grid-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0;
+    padding: 0 0.1rem;
+  }
+
+  .cost-plan-grid-action {
+    display: inline-flex;
+    height: 1.35rem;
+    width: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.125rem;
+    color: color-mix(in oklch, var(--sw-text-secondary) 80%, transparent);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .cost-plan-grid-action--visible {
+    opacity: 1;
+  }
+
+  .cost-plan-grid-table tr:hover .cost-plan-grid-action,
+  .cost-plan-grid-table tr:focus-within .cost-plan-grid-action,
+  .cost-plan-grid-action[aria-expanded="true"],
+  .cost-plan-grid-row--selected .cost-plan-grid-action {
+    opacity: 1;
+  }
+
+  .cost-plan-grid-table thead .cost-plan-grid-action {
+    opacity: 1;
+  }
+
+  .cost-plan-grid-action:hover {
+    background: color-mix(in oklch, var(--sw-panel) 80%, white);
+    color: var(--sw-text-primary);
+  }
+
+  .cost-plan-grid-action--danger:hover {
+    background: color-mix(in oklch, var(--destructive) 12%, transparent);
+    color: var(--destructive);
+  }
 }
 
 .draft-markdown [data-md-changed] {
@@ -697,33 +869,46 @@ html.sw-atmosphere-dense {
   table-layout: fixed;
 }
 
+/* Prefer Fee/Status width; Citation only needs chip + ⋯ menu. */
 .draft-markdown table.pmp-table-consultants col.pmp-col-discipline {
-  width: 11%;
+  width: 15%;
 }
 
 .draft-markdown table.pmp-table-consultants col.pmp-col-firm {
-  width: 22%;
-}
-
-.draft-markdown table.pmp-table-consultants col.pmp-col-scope {
-  width: 37%;
+  width: 18%;
 }
 
 .draft-markdown table.pmp-table-consultants col.pmp-col-fee {
-  width: 8%;
+  width: 24%;
 }
 
 .draft-markdown table.pmp-table-consultants col.pmp-col-status {
-  width: 14%;
+  width: 33%;
 }
 
 .draft-markdown table.pmp-table-consultants col.pmp-col-citation {
-  width: 8%;
+  width: 10%;
 }
 
-.draft-markdown table.pmp-table-consultants th,
+.draft-markdown table.pmp-table-consultants th {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
+
 .draft-markdown table.pmp-table-consultants td {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+.draft-markdown table.pmp-table-consultants td:last-child {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.draft-markdown table.pmp-table-consultants td:last-child .evidence-status-chip {
+  white-space: nowrap;
 }
 
 @media print {

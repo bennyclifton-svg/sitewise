@@ -23,6 +23,7 @@ from app.database.workspace_files import (
 )
 from app.inbox.paths import build_storage_key
 from app.intake.classifier import classify_inbox_destination, is_intake_manifest
+from app.projects.consultant_facts import upsert_consultant_fact_from_document
 from app.storage.project_files import (
     delete_project_files,
     download_project_file,
@@ -585,6 +586,15 @@ async def sort_inbox_files(
             filename=destination_filename,
             preview_snippet=previews.for_identity,
         )
+        filed_doc_id = await asyncio.to_thread(
+            source_document_id_for_path,
+            destination_path,
+            project_id=project.id,
+        )
+        if filed_doc_id is not None:
+            filed_document = await session.get(SourceDocument, filed_doc_id)
+            if isinstance(filed_document, SourceDocument):
+                upsert_consultant_fact_from_document(project, filed_document)
         result.records.append(
             SortFileRecord(
                 source_path=record.workspace_path,

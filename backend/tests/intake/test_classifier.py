@@ -79,6 +79,36 @@ def test_classify_electrical_sheet_prefix() -> None:
     assert destination == "03-design/electrical"
 
 
+def test_classify_truncated_electrical_dos_filename() -> None:
+    """Windows short names like E01-EL~1.PDF must still file to electrical."""
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/E01-EL~1.PDF",
+        filename="E01-EL~1.PDF",
+        project_workspace_path=PROJECT,
+    )
+    assert destination == "03-design/electrical"
+
+
+def test_classify_hardscape_plan_to_landscape() -> None:
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/LPCC 23 - 226 - 1 - Hardscape Plan Rev D.pdf",
+        filename="LPCC 23 - 226 - 1 - Hardscape Plan Rev D.pdf",
+        project_workspace_path=PROJECT,
+    )
+    assert destination == "03-design/landscape-architect"
+
+
+def test_price_schedule_does_not_follow_embedded_trade_keyword() -> None:
+    """Regression: priced schedule preview mentioning Electrical must not file to design."""
+    destination = classify_inbox_destination(
+        workspace_path=f"{PROJECT}/_inbox/Price Schedule.pdf",
+        filename="Price Schedule.pdf",
+        project_workspace_path=PROJECT,
+        preview_snippet="PRICE SCHEDULE\nElectrical works\nBuilder margin 10%",
+    )
+    assert destination == "05-procurement/quotes"
+
+
 def test_classify_mechanical_sheet_prefix_before_embedded_trade_caption() -> None:
     filename = "M01 - Mechanical Design & Spec - 01 Electrical [C].pdf"
     destination = classify_inbox_destination(

@@ -30,6 +30,7 @@ describe("LlmModelSelector", () => {
   });
 
   it("uses Pi model options when the agent runtime is enabled", async () => {
+    const user = userEvent.setup();
     vi.mocked(api.getAgentModels).mockResolvedValue({
       agent_runtime_enabled: true,
       default_model: "openai:gpt-5.6-terra",
@@ -62,15 +63,15 @@ describe("LlmModelSelector", () => {
 
     const select = screen.getByLabelText(/model tier/i);
     await waitFor(() => {
-      expect(select).toHaveValue("openai:gpt-5.6-terra");
+      expect(select).toHaveTextContent("Balanced");
     });
-    expect(screen.getByRole("option", { name: "Balanced" })).toHaveValue(
-      "openai:gpt-5.6-terra",
-    );
-    expect(screen.getByRole("option", { name: "Fast" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Complex" })).toBeInTheDocument();
 
-    await userEvent.selectOptions(select, "openai:gpt-5.6-sol");
+    await user.click(select);
+    expect(screen.getByRole("menuitem", { name: "Balanced" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Fast" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Complex" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("menuitem", { name: "Complex" }));
 
     expect(getSelectedAgentModel()).toBe("openai:gpt-5.6-sol");
     await waitFor(() => expect(api.getAgentConfiguration).toHaveBeenCalledTimes(1));

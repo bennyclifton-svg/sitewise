@@ -180,7 +180,7 @@ describe("TaxonomyPicker", () => {
     expect(latest.subclasses).toEqual(["residential_retail", "retail_office"]);
   });
 
-  it("shows fallback work scope in the profile and stores selections", async () => {
+  it("shows scope expanded by default and stores selections", async () => {
     const user = userEvent.setup();
     let latest: TaxonomyPickerValue = {};
 
@@ -188,7 +188,8 @@ describe("TaxonomyPicker", () => {
 
     await user.click(screen.getByRole("button", { name: "Industrial" }));
     await user.click(screen.getByRole("button", { name: "Extension / addition" }));
-    await user.click(screen.getByText("Fallback scope inputs"));
+    expect(screen.getByText("Scope")).toBeInTheDocument();
+    expect(screen.getByLabelText("Structural Tie-In")).toBeVisible();
     await user.click(screen.getByLabelText("Structural Tie-In"));
 
     expect(latest.work_scope).toEqual(["structural_tie_in"]);

@@ -12,6 +12,7 @@ from ingest.db import get_sync_session_factory
 from ingest.extractors.base import ExtractedDocument
 from ingest.hashing import file_content_hash
 from ingest.ids import chunk_id, document_id
+from ingest.consultant_firm import extract_issuing_firm_from_text
 from ingest.document_metadata import parse_document_metadata
 from ingest.frontmatter import parse_frontmatter
 from ingest.metadata import infer_document_type
@@ -60,6 +61,12 @@ def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[s
         )
         return {}
 
+    issuing_firm = (parsed.issuing_firm or "").strip()
+    if not issuing_firm:
+        issuing_firm = (
+            extract_issuing_firm_from_text(extracted.normalized_content or "") or ""
+        ).strip()
+
     fields: dict[str, str] = {
         "document_number": parsed.document_number,
         "title": parsed.title,
@@ -70,6 +77,11 @@ def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[s
     }
     if parsed.document_number:
         fields["drawing_number"] = parsed.document_number
+    if issuing_firm:
+        fields["issuing_firm"] = issuing_firm
+        fields["issuing_firm_confidence"] = (
+            "high" if parsed.issuing_firm else "medium"
+        )
     return fields
 
 

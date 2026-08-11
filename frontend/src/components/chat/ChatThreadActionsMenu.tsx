@@ -1,6 +1,11 @@
 import { MoreHorizontal } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
 export function ChatThreadActionsMenu({
@@ -15,13 +20,13 @@ export function ChatThreadActionsMenu({
   onDelete: () => void;
 }) {
   return (
-    <DropdownMenu.Root
+    <DropdownMenu
       defaultOpen
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <DropdownMenu.Trigger asChild>
+      <DropdownMenuTrigger asChild>
         <Button
           type="button"
           size="icon-xs"
@@ -32,28 +37,13 @@ export function ChatThreadActionsMenu({
         >
           <MoreHorizontal className="size-3" aria-hidden />
         </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={4}
-          collisionPadding={8}
-          className="sw-surface sw-contact z-50 min-w-[6.5rem] p-1 outline-none hover:translate-y-0"
-        >
-          <DropdownMenu.Item
-            className="cursor-default rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
-            onSelect={onRename}
-          >
-            Rename
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="cursor-default rounded-sm px-2 py-1.5 text-sm text-destructive outline-none hover:bg-muted focus:bg-muted"
-            onSelect={onDelete}
-          >
-            Delete
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={4} className="min-w-[6.5rem]">
+        <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

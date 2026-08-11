@@ -15,6 +15,10 @@ import {
   isPmpWorkspaceFile,
 } from "@/components/project/workflow/workspaceRouting";
 import { buildLifecycleTiles } from "@/components/project/workflow/workflowTiles";
+import {
+  readWorkbenchWorkflow,
+  workbenchSearchFor,
+} from "@/components/project/workflow/workbenchRoute";
 import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { Button } from "@/components/ui/button";
@@ -157,7 +161,9 @@ export function ProjectCockpitPage() {
   });
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState("create-pmp");
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(
+    () => readWorkbenchWorkflow(window.location.search) ?? "create-pmp",
+  );
   const { data: evidence = EMPTY_EVIDENCE } = useProjectEvidence(
     projectId ?? "",
     { enabled: bootstrapLoaded && !!projectId },
@@ -193,6 +199,11 @@ export function ProjectCockpitPage() {
   const [selectedRepositoryEvidenceIds, setSelectedRepositoryEvidenceIds] = useState<
     Set<string>
   >(() => new Set<string>());
+  const [transmittalSession, setTransmittalSession] = useState<{
+    draftId: string;
+    workflowType: string;
+  } | null>(null);
+  const [isSavingTransmittal, setIsSavingTransmittal] = useState(false);
   const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
   const [selectedCitationId, setSelectedCitationId] = useState<string | null>(null);
   const [chatRevision, setChatRevision] = useState(0);
@@ -238,13 +249,22 @@ export function ProjectCockpitPage() {
       if (!tracked) return;
       void api.getLatestDraft(projectId, workflowType).then((draft) => {
         if (!draft) return;
-        setLatestDraftsMap((current) => ({
-          ...current,
-          [workflowType]: draft,
-        }));
-        if (workflowType === "create_cost_plan") setLatestCostPlanDraft(draft);
-        else if (workflowType === "create_pmp") setLatestDraft(draft);
-        else setProcurementRefreshToken((current) => current + 1);
+        setLatestDraftsMap((current) => {
+          const existing = current[workflowType];
+          const next = preferFreshDraft(existing ?? null, draft);
+          if (next === existing) return current;
+          return {
+            ...current,
+            [workflowType]: next,
+          };
+        });
+        if (workflowType === "create_cost_plan") {
+          setLatestCostPlanDraft((current) => preferFreshDraft(current, draft));
+        } else if (workflowType === "create_pmp") {
+          setLatestDraft((current) => preferFreshDraft(current, draft));
+        } else {
+          setProcurementRefreshToken((current) => current + 1);
+        }
       });
     },
     [projectId],
@@ -359,15 +379,25 @@ export function ProjectCockpitPage() {
       setReviewDraft(draft);
       setLatestDraftsMap((current) => ({ ...current, [draft.workflow_type]: draft }));
       setSelectedWorkspacePath(draft.workspace_path);
-      setSelectedWorkflowId(
+      const workflowId =
         draft.workflow_type === "create_cost_plan"
           ? "cost-plan"
           : isProcurementDraftWorkflow(draft.workflow_type)
             ? "procurement-requests"
-            : "create-pmp",
-      );
+            : "create-pmp";
+      setSelectedWorkflowId(workflowId);
       setChatPanelCollapsed(true);
-      setActiveView("draft");
+      // Cost Plan / PMP deep links open the inline workbench surface; other
+      // artefacts keep the dedicated draft review view.
+      if (
+        draft.workflow_type === "create_cost_plan" ||
+        draft.workflow_type === "create_pmp" ||
+        isProcurementDraftWorkflow(draft.workflow_type)
+      ) {
+        setActiveView("workbench");
+      } else {
+        setActiveView("draft");
+      }
     }).catch((error: unknown) => {
       if (!cancelled) {
         setProjectError(formatApiError(error, "Could not open that artefact revision."));
@@ -497,13 +527,9 @@ export function ProjectCockpitPage() {
       .then((draft) => {
         if (!draft) return;
         if (workflowType === "create_cost_plan") {
-          setLatestCostPlanDraft((current) =>
-            current && current.version > draft.version ? current : draft,
-          );
+          setLatestCostPlanDraft((current) => preferFreshDraft(current, draft));
         } else {
-          setLatestDraft((current) =>
-            current && current.version > draft.version ? current : draft,
-          );
+          setLatestDraft((current) => preferFreshDraft(current, draft));
         }
       })
       .catch(() => undefined);
@@ -519,22 +545,19 @@ export function ProjectCockpitPage() {
     setChatPanelCollapsed(true);
     if (draft.workflow_type === "create_cost_plan") {
       setLatestCostPlanDraft(draft);
-      setSelectedWorkflowId("cost-plan");
       // Cost plan drafts render inline on the Cost Plan workbench.
-      setActiveView("workbench");
+      showWorkbench("cost-plan");
       return;
     }
     if (draft.workflow_type === "create_pmp") {
       setLatestDraft(draft);
-      setSelectedWorkflowId("create-pmp");
       // PMP drafts render inline on the Project Plan workbench.
-      setActiveView("workbench");
+      showWorkbench("create-pmp");
       return;
     }
     if (isProcurementDraftWorkflow(draft.workflow_type)) {
-      setSelectedWorkflowId("procurement-requests");
       setProcurementRefreshToken((current) => current + 1);
-      setActiveView("workbench");
+      showWorkbench("procurement-requests");
       return;
     }
     setActiveView("draft");
@@ -568,6 +591,36 @@ export function ProjectCockpitPage() {
       }
     }
     await refreshWorkspaceTree();
+  }
+
+  async function handleSaveTransmittal(evidenceIds: string[]) {
+    if (!project || !transmittalSession || isSavingTransmittal) return;
+    setIsSavingTransmittal(true);
+    setProcurementError(null);
+    try {
+      const current = await api.getProjectDraft(
+        project.id,
+        transmittalSession.draftId,
+      );
+      const updated = await api.replaceDraftTransmittal(
+        project.id,
+        current.id,
+        current.version,
+        evidenceIds,
+      );
+      await handleDraftUpdated(updated);
+      setTransmittalSession(null);
+    } catch (error) {
+      setProcurementError(
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Could not save transmittal.",
+      );
+    } finally {
+      setIsSavingTransmittal(false);
+    }
   }
 
   function showCostPlanDraft(draft: DraftArtifactSummary) {
@@ -964,10 +1017,20 @@ export function ProjectCockpitPage() {
   // Nested tender routes render in the middle panel via <Outlet>. Any
   // interaction that switches the middle panel back to a state-driven view must
   // also leave the tender route so the outlet stops taking precedence.
-  function leaveTenderRoute() {
-    if (projectId && location.pathname !== `/projects/${projectId}`) {
-      navigate(`/projects/${projectId}`);
+  function leaveTenderRoute(workflowId = selectedWorkflowId) {
+    if (!projectId) return;
+    const pathname = `/projects/${projectId}`;
+    const search = workbenchSearchFor(workflowId, location.search);
+    if (location.pathname !== pathname || location.search !== search) {
+      navigate({ pathname, search }, { replace: true });
     }
+  }
+
+  function showWorkbench(workflowId: string) {
+    setSelectedWorkflowId(workflowId);
+    setChatPanelCollapsed(true);
+    setActiveView("workbench");
+    leaveTenderRoute(workflowId);
   }
 
   function isTenderRouteActive() {
@@ -981,38 +1044,35 @@ export function ProjectCockpitPage() {
       navigate(`/projects/${projectId}/tender`);
       return;
     }
-    leaveTenderRoute();
-    setSelectedWorkflowId(workflowId);
-    setChatPanelCollapsed(true);
-    setActiveView("workbench");
+    showWorkbench(workflowId);
   }
 
   function selectEvidenceFromRepository(evidenceId: string) {
     const keepTenderRoute = isTenderRouteActive();
-    if (!keepTenderRoute) {
+    // Keep the RFP/workbench surface while curating a Transmittal selection —
+    // schedule clicks should highlight docs, not replace the middle panel.
+    const keepProcurementWorkbench =
+      activeView === "workbench" && selectedWorkflowId === "procurement-requests";
+    if (!keepTenderRoute && !keepProcurementWorkbench) {
       leaveTenderRoute();
     }
     setSelectedEvidenceId(evidenceId);
     const item = evidence.find((candidate) => candidate.id === evidenceId);
     if (item) {
       setSelectedWorkspacePath(normalizeWorkspacePath(item.relative_path));
-      if (keepTenderRoute) {
+      if (keepTenderRoute || keepProcurementWorkbench) {
         return;
       }
       if (isPmpWorkspaceFile(item.relative_path)) {
-        setSelectedWorkflowId("create-pmp");
-        setChatPanelCollapsed(true);
-        setActiveView("workbench");
+        showWorkbench("create-pmp");
         return;
       }
       if (isCostPlanWorkspaceFile(item.relative_path)) {
-        setSelectedWorkflowId("cost-plan");
-        setChatPanelCollapsed(true);
-        setActiveView("workbench");
+        showWorkbench("cost-plan");
         return;
       }
     }
-    if (activeView === "draft") {
+    if (activeView === "draft" || keepProcurementWorkbench) {
       return;
     }
     setChatPanelCollapsed(true);
@@ -1140,16 +1200,25 @@ export function ProjectCockpitPage() {
       navigate(`/projects/${projectId}/tender`);
       return;
     }
-    leaveTenderRoute();
-    setSelectedWorkflowId(workflowId);
-    setChatPanelCollapsed(true);
-    setActiveView("workbench");
+    showWorkbench(workflowId);
   }
+
+  useEffect(() => {
+    if (!projectId) return;
+    if (location.pathname !== `/projects/${projectId}`) return;
+    const fromUrl = readWorkbenchWorkflow(location.search);
+    if (!fromUrl || fromUrl === selectedWorkflowId) return;
+    setSelectedWorkflowId(fromUrl);
+    setActiveView("workbench");
+  }, [location.pathname, location.search, projectId, selectedWorkflowId]);
 
   const { chatCollapsed, chatFullScreen } = projectChatLayoutState({
     activeView,
     chatPanelCollapsed,
     hasTenderOutlet: tenderOutlet != null,
+    // Cost Plan keeps the grid in the middle; expanded chat splits below it
+    // so agent turns remain visible without replacing the plan.
+    preferSplitChat: selectedWorkflowId === "cost-plan",
   });
 
   return (
@@ -1257,6 +1326,11 @@ export function ProjectCockpitPage() {
           )}
           onOpenDraft={openDraftReview}
           usageHighlightArtefactId={usageHighlightArtefactId}
+          showSaveTransmittal={transmittalSession !== null}
+          isSavingTransmittal={isSavingTransmittal}
+          onSaveTransmittal={(evidenceIds) => {
+            void handleSaveTransmittal(evidenceIds);
+          }}
         />
       }
     >
@@ -1318,6 +1392,9 @@ export function ProjectCockpitPage() {
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);
           }}
+          repositoryEvidence={evidence}
+          onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
+          onTransmittalSessionChange={setTransmittalSession}
           invoiceProcessResult={invoiceProcessResult}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
           inboxCount={inboxCount}
@@ -1372,6 +1449,9 @@ export function ProjectCockpitPage() {
           draft={activeDraft}
           projectTitle={project.title}
           workflowType={activeWorkflowType}
+          repositoryEvidence={evidence}
+          onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
+          onTransmittalSessionChange={setTransmittalSession}
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);
           }}
@@ -1409,4 +1489,30 @@ function findEvidenceByPath(
 
 function normalizeWorkspacePath(path: string): string {
   return path.replaceAll("\\", "/");
+}
+
+/** Keep newer drafts; never clobber same-version local markdown with a divergent poll. */
+function preferFreshDraft<T extends DraftArtifactSummary>(
+  current: T | null,
+  incoming: T,
+): T {
+  if (!current) return incoming;
+  if (current.version > incoming.version) return current;
+  if (current.version < incoming.version) return incoming;
+  const currentMarkdown =
+    "content_markdown" in current && typeof current.content_markdown === "string"
+      ? current.content_markdown
+      : null;
+  const incomingMarkdown =
+    "content_markdown" in incoming && typeof incoming.content_markdown === "string"
+      ? incoming.content_markdown
+      : null;
+  if (
+    currentMarkdown !== null &&
+    incomingMarkdown !== null &&
+    currentMarkdown !== incomingMarkdown
+  ) {
+    return current;
+  }
+  return incoming;
 }

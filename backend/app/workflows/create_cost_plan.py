@@ -35,7 +35,7 @@ from app.projects.generation_brief import (
     build_generation_brief,
     format_generation_brief,
 )
-from app.projects.generation_audit import build_generation_manifest
+from app.projects.generation_audit import generation_audit_provenance
 from app.projects.workflow_capabilities import (
     CREATE_COST_PLAN,
     capability_block_message,
@@ -1247,6 +1247,40 @@ async def run_create_cost_plan_hybrid(
         )
     )
     await _publish_preview(on_preview, stage="scaffold_ready", markdown=scaffold)
+    typed_items = _typed_cost_items(project, pack)
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "scaffold_ready",
+            "typed_cost_plan": {
+                "item_count": len(typed_items),
+                "items": [
+                    {
+                        "item_key": item.item_key,
+                        "cost_code": item.cost_code,
+                        "category": item.category,
+                        "item": item.item,
+                        "budget": None if item.budget is None else str(item.budget),
+                        "status": item.status,
+                    }
+                    for item in typed_items
+                ],
+            },
+        },
+    )
+
+    async def publish_progressive_preview(
+        _key: str, _result: object, completed: dict[str, object]
+    ) -> None:
+        from app.workflows.progressive_preview import (
+            assemble_cost_plan_progressive_preview,
+        )
+
+        await _publish_preview(
+            on_preview,
+            stage="section_completed",
+            markdown=assemble_cost_plan_progressive_preview(scaffold, completed),
+        )
 
     validation_feedback: str | None = None
     consistency_ai_call_count = 0
@@ -1268,6 +1302,7 @@ async def run_create_cost_plan_hybrid(
                         else None
                     )
                 ),
+                on_section_complete=publish_progressive_preview,
             )
         except WorkflowValidationError as exc:
             consistency_ai_call_count += exc.consistency_ai_call_count
@@ -1651,7 +1686,14 @@ async def run_create_cost_plan_workflow(
                     raise
     except WorkflowValidationError as exc:
         message = str(exc)
-        trace.append(_trace("validation", "failed", message))
+        trace.append(
+            _trace(
+                "validation",
+                "failed",
+                message,
+                consistency_ai_call_count=exc.consistency_ai_call_count,
+            )
+        )
         await _persist_trace_message(
             session,
             project_id=project.id,
@@ -1704,11 +1746,7 @@ async def run_create_cost_plan_workflow(
             if generation_brief is not None
             else None
         ),
-        "generation_manifest": (
-            build_generation_manifest(generation_brief).model_dump(mode="json")
-            if generation_brief is not None
-            else None
-        ),
+        **generation_audit_provenance(None, generation_brief),
         "trace": [event.model_dump() for event in trace],
         "retrieval": {
             "project_passages": project_count,

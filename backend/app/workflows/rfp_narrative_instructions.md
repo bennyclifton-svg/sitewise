@@ -6,10 +6,14 @@ appointment and response structure. The PPR and project brief define overarching
 project intent. Detailed design documents provide supporting facts only and must
 not pull the whole request down into one discipline's detail.
 
+- Citation numbers: `[1]` is reserved for Project Profile. Project documents
+  start at `[2]` (see the assigned evidence tokens). Do not invent citation
+  numbers. Citing only `[1]` does not satisfy project-evidence grounding when
+  documents are supplied.
 - `background`: write 2–4 concise sentences. Every sentence that refers to a
   specific project document or its contents must end with that document's exact
-  assigned `[n]` token. Do not invent citation numbers. If there is no evidence
-  for a claim, omit the claim rather than fabricating a citation.
+  assigned `[n]` token. If there is no evidence for a claim, omit the claim
+  rather than fabricating a citation.
 - `requested_services`: return 5–8 concise, one-line scope items. This is the
   highest-priority section. Tailor the baseline services to the evidenced
   building uses, rooms, systems, constraints and current design maturity.

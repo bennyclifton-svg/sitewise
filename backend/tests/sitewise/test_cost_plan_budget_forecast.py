@@ -2,8 +2,10 @@ from decimal import Decimal
 
 import pytest
 
+from app.cost_plan.schemas import CostItemInput
 from app.sitewise.cost_plan_budget_forecast import (
     AdoptedBudgetForecastError,
+    align_forecast_items_to_existing,
     build_adopted_budget_forecast,
 )
 
@@ -127,3 +129,32 @@ def test_adopted_budget_rejects_a_plan_without_cost_rows() -> None:
             construction_budget=Decimal("300000"),
             work_type="extend",
         )
+
+
+def test_align_forecast_items_reuses_scaffold_item_keys_by_cost_code() -> None:
+    forecast = build_adopted_budget_forecast(
+        GREENBANK_COST_PLAN,
+        construction_budget=Decimal("300000"),
+        work_type="extend",
+    )
+    existing = [
+        CostItemInput(
+            item_key=f"scaffold:{item.cost_code}",
+            cost_code=item.cost_code,
+            category=item.category,
+            item=item.item,
+            budget=Decimal("1.00"),
+            forecast=Decimal("1.00"),
+            basis="existing scaffold row",
+            status="confirmed",
+        )
+        for item in forecast.items
+    ]
+
+    aligned = align_forecast_items_to_existing(forecast.items, existing)
+
+    assert [item.item_key for item in aligned] == [
+        f"scaffold:{code}" for code in range(1, 26)
+    ]
+    assert [item.cost_code for item in aligned] == [str(code) for code in range(1, 26)]
+    assert len({item.cost_code for item in aligned}) == len(aligned)

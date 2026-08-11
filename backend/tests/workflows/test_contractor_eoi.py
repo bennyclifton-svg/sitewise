@@ -22,6 +22,11 @@ def _install(monkeypatch, *, retriever: _StubRetriever, version: int = 1) -> Non
         "next_draft_version",
         AsyncMock(return_value=version),
     )
+    monkeypatch.setattr(
+        engine,
+        "get_latest_draft_artifact",
+        AsyncMock(return_value=None),
+    )
 
     async def _create_draft(session, **kwargs):
         match = re.search(r"_v(\d+)\.draft\.md$", kwargs["workspace_path"])

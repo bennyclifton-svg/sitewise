@@ -1,7 +1,10 @@
 # SiteWise — Unified Project Context, Addressable Artefacts, Incremental Generation & High-Performance Editing
 ## Full Staged Implementation Plan
 
-**Status:** Follow-up remediation in progress (F0-F1 complete; F2-F10 pending)
+**Status:** Follow-up closeout complete for F0-F1 and F3-F10; F2 remains open
+(retrieval/brief/consistency convergence still marked ready, not formally
+closed). Final release-gate evidence lives in
+`docs/plans/unified-project-context/01-post-implementation-follow-up.md` Stage F10.
 **Primary objectives:** Improve artefact quality, responsiveness, consistency, flexibility, maintainability and user trust.
 
 ## Verified Implementation Status
@@ -12,31 +15,19 @@ blanket completion claim and its test counts were not supported by the available
 workspace. Closeout is governed by
 `docs/plans/unified-project-context/01-post-implementation-follow-up.md`.
 
-Follow-up Stage F0 is complete in the current, uncommitted workspace. It restored
-the green regression baseline, made block-marker stripping reversible, preserved
-valid addressable table rows through rendering and export, and documented the
-internal Markdown boundary. Verification at that checkpoint:
+Follow-up Stages F0-F1 and F3-F10 are complete in the current uncommitted
+workspace. Stage F2 (shared retrieval budgets, immutable briefs and consistency
+gate hardening) remains ready but not formally closed. Do not copy historical
+suite counts from earlier checkpoints; cite the F10 completion record and the
+commands that produced it.
 
-```text
-Backend default suite     1,814 passed, 0 failed, 7 skipped, 27 deselected
-Frontend suite            53 files, 326 tests passed
-Frontend production build passed enforced bundle budgets
-Backend Ruff              passed
-F0 frontend ESLint        passed
-Repository-wide ESLint    3 pre-existing errors and 2 warnings remain
-```
+Stage 25 simplification outcomes (via F10):
 
-Follow-up Stage F1 is also complete in the current, uncommitted workspace. It
-separates the canonical project-context revision from the audit-event cursor,
-advances it once per logical structured mutation, freezes it explicitly on
-durable workflow runs, and closes stale-snapshot and concurrent shared-object
-write races. Its final focused checks passed 92 tests; PostgreSQL concurrency
-checks passed 5 tests and migration round-trip/backfill checks passed 2 tests.
-The final post-review backend suite passed 1,826 tests with zero failures, and
-the frontend passed 53 files / 327 tests plus its production build.
-
-This checkpoint does not assert completion of follow-up Stages F2-F10 or of the
-corresponding partially implemented stages below.
+- whole-document draft `PATCH` removed; narrative edits use block operations;
+- MCP `write_workspace_file` rejects draft artefact whole-document rewrites;
+- unused `app.retrieval.profiles` and unused FE sync workflow wrappers removed;
+- external mutation vocabulary is `ADD/UPDATE/DELETE/MOVE/DUPLICATE` across UI,
+  HTTP and MCP (plus domain block review/protect ops).
 
 ---
 

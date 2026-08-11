@@ -110,6 +110,7 @@ vi.mock("@/components/project/ProjectShell", () => ({
       {leftNav}
       {chatPanel}
       {children}
+      <div data-instruction-tray-host />
       {repository}
     </div>
   ),

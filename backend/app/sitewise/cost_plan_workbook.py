@@ -54,11 +54,13 @@ VARIATION_HEADERS = (
     "Approved Amount",
 )
 CATEGORY_ORDER = (
+    "Fees and Charges",
     "Fees and charges",
     "Consultants",
     "Construction",
-    "PC allowances",
+    "Contingency",
     "Contingency / allowances",
+    "PC allowances",
 )
 SUMMARY_MONEY_COLUMNS = set(range(4, 13))
 INVOICE_MONEY_COLUMNS = {7}

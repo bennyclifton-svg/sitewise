@@ -70,7 +70,10 @@ export function formatErrorDetail(payload: unknown, status: number): string {
   if (typeof detail === "string") return detail;
 
   if (typeof detail === "object" && detail !== null) {
-    const structured = detail as StructuredErrorDetail;
+    const structured = detail as StructuredErrorDetail & { message?: unknown };
+    if (typeof structured.message === "string" && structured.message.trim()) {
+      return structured.message;
+    }
     const reasons = stringArray(structured.reasons);
     if (reasons.length) {
       const requiredFields = stringArray(structured.required_fields);

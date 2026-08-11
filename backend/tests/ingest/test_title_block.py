@@ -102,6 +102,50 @@ def test_returns_empty_fields_when_no_labels_are_present():
     assert fields.document_number is None
     assert fields.title is None
     assert fields.revision is None
+    assert fields.issuing_firm is None
+
+
+def test_reads_issuing_firm_from_architect_label_beside_value():
+    fields = extract_title_block_fields(
+        [
+            TextSpan(x0=40, y0=80, x1=100, y1=92, text="Architect:"),
+            TextSpan(x0=110, y0=80, x1=280, y1=92, text="Roda Architects Pty Ltd"),
+        ]
+    )
+    assert fields.issuing_firm == "Roda Architects Pty Ltd"
+
+
+def test_reads_issuing_firm_from_consultant_label_below_value():
+    fields = extract_title_block_fields(
+        [
+            TextSpan(x0=1800, y0=1400, x1=1880, y1=1412, text="CONSULTANT"),
+            TextSpan(
+                x0=1800,
+                y0=1420,
+                x1=2050,
+                y1=1434,
+                text="TDL Engineering Consulting Pty. Ltd.",
+            ),
+        ]
+    )
+    assert fields.issuing_firm == "TDL Engineering Consulting Pty. Ltd."
+
+
+def test_ignores_phone_contact_line_as_issuing_firm():
+    fields = extract_title_block_fields(
+        [
+            TextSpan(x0=1800, y0=1400, x1=1880, y1=1412, text="CONSULTANT"),
+            TextSpan(x0=1800, y0=1420, x1=1920, y1=1434, text="Phone: 9922 5312"),
+            TextSpan(
+                x0=1800,
+                y0=1440,
+                x1=2100,
+                y1=1454,
+                text="Sulphurcrest Enterprises Pty Ltd",
+            ),
+        ]
+    )
+    assert fields.issuing_firm == "Sulphurcrest Enterprises Pty Ltd"
 
 
 def test_ignores_identity_labels_inside_a_regulated_design_record_stamp():

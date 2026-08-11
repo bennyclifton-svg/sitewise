@@ -195,37 +195,31 @@ def test_read_workspace_file_returns_latest_draft_artifact(monkeypatch):
     assert result.data["content"] == "# Edited in app"
 
 
-def test_write_workspace_file_versions_existing_draft_artifact(monkeypatch):
+def test_write_workspace_file_rejects_existing_draft_artifact(monkeypatch):
     session = _Session(project=_project())
     server = _install(monkeypatch, session)
     existing = _draft(version=1, content="# Original")
-    updated = _draft(version=2, content="# Edited by agent")
     monkeypatch.setattr(
         server,
         "get_latest_draft_artifact_by_workspace_path",
         AsyncMock(return_value=existing),
     )
-    revise_artefact = AsyncMock(return_value=updated)
+    revise_artefact = AsyncMock()
     monkeypatch.setattr(server, "revise_workflow_artefact", revise_artefact)
 
-    result = _call(
-        server,
-        "write_workspace_file",
-        {
-            "project_id": str(PROJECT_ID),
-            "path": existing.workspace_path,
-            "content": "# Edited by agent",
-        },
-    )
+    with pytest.raises(ToolError, match="apply_artefact_operations"):
+        _call(
+            server,
+            "write_workspace_file",
+            {
+                "project_id": str(PROJECT_ID),
+                "path": existing.workspace_path,
+                "content": "# Edited by agent",
+            },
+        )
 
-    assert result.data["kind"] == "artefact"
-    assert result.data["draftId"] == str(updated.id)
-    assert result.data["version"] == 2
-    revise_artefact.assert_awaited_once()
-    assert revise_artefact.await_args.kwargs["draft"] is existing
-    assert revise_artefact.await_args.kwargs["expected_base_version"] == 1
-    assert revise_artefact.await_args.kwargs["content_markdown"] == "# Edited by agent"
-    session.commit.assert_awaited_once()
+    revise_artefact.assert_not_awaited()
+    session.commit.assert_not_awaited()
 
 
 def test_write_workspace_file_rejects_source_document_paths(monkeypatch):

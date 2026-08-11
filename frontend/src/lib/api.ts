@@ -3,6 +3,7 @@ import type { AgentConfigurationResponse, AgentModelsResponse } from "@/lib/agen
 import { workflowChatModelPayload, type ChatModelsResponse } from "@/lib/chat-model";
 import { env } from "@/lib/env";
 import type { ArtifactBlockOperation } from "@/lib/artifact-blocks";
+import type { ArtefactBlockDelta } from "@/lib/draft-block-delta";
 import type {
   CostPlanDelta,
   CostPlanOperation,
@@ -50,11 +51,8 @@ import type {
   TenderCellItemsResponse,
 } from "@/lib/types/tender";
 import type {
-  CreateCostPlanResponse,
   BatchDeleteEvidenceResponse,
-  CreatePmpResponse,
   DeleteProjectActivityResponse,
-  SortFilesResponse,
   ApplyDraftInstructionsResponse,
   CreateProjectInput,
   DraftArtifact,
@@ -731,66 +729,32 @@ export const api = {
       )}`,
     ),
 
-  runCreatePmp: async (
-    projectId: string,
-    threadId?: string,
-  ): Promise<CreatePmpResponse> =>
-    api.post<CreatePmpResponse>(
-      `/projects/${projectId}/workflows/create-pmp`,
-      {
-        ...workflowChatModelPayload(),
-        ...(threadId ? { thread_id: threadId } : {}),
-      },
-      { timeoutMs: WORKFLOW_TIMEOUT_MS },
-    ),
-
-  runCreateCostPlan: async (
-    projectId: string,
-    threadId?: string,
-  ): Promise<CreateCostPlanResponse> =>
-    api.post<CreateCostPlanResponse>(
-      `/projects/${projectId}/workflows/create-cost-plan`,
-      {
-        ...workflowChatModelPayload(),
-        ...(threadId ? { thread_id: threadId } : {}),
-      },
-      { timeoutMs: WORKFLOW_TIMEOUT_MS },
-    ),
-
-  runUpdatePmp: async (
-    projectId: string,
-    threadId?: string,
-  ): Promise<CreatePmpResponse> =>
-    api.post<CreatePmpResponse>(
-      `/projects/${projectId}/workflows/update-pmp`,
-      {
-        ...workflowChatModelPayload(),
-        ...(threadId ? { thread_id: threadId } : {}),
-      },
-      { timeoutMs: WORKFLOW_TIMEOUT_MS },
-    ),
-
-  patchDraft: async (
-    projectId: string,
-    draftId: string,
-    contentMarkdown: string,
-    expectedBaseVersion: number,
-  ): Promise<DraftArtifact> =>
-    api.patch<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`, {
-      content_markdown: contentMarkdown,
-      expected_base_version: expectedBaseVersion,
-    }),
-
   applyDraftBlockOperations: async (
     projectId: string,
     draftId: string,
     expectedBaseVersion: number,
     operations: ArtifactBlockOperation[],
-  ): Promise<{ draft: DraftArtifact; changed_block_ids: string[] }> =>
+  ): Promise<{ delta: ArtefactBlockDelta; changed_block_ids: string[] }> =>
     api.post(`/projects/${projectId}/drafts/${draftId}/blocks`, {
       expected_base_version: expectedBaseVersion,
       operations,
     }),
+
+  replaceDraftTransmittal: async (
+    projectId: string,
+    draftId: string,
+    expectedBaseVersion: number,
+    evidenceIds: string[],
+  ): Promise<DraftArtifact> => {
+    const response = await api.post<{ draft: DraftArtifact }>(
+      `/projects/${projectId}/drafts/${draftId}/transmittal`,
+      {
+        expected_base_version: expectedBaseVersion,
+        evidence_ids: evidenceIds,
+      },
+    );
+    return response.draft;
+  },
 
   getCostPlanState: async (projectId: string): Promise<CostPlanState> =>
     api.get(`/projects/${projectId}/cost-plan/state`),
@@ -896,19 +860,6 @@ export const api = {
     api.post<ProfileProposalResolution>(
       `/projects/${projectId}/profile-proposals/${proposalId}/reject`,
       { expected_profile_revision: expectedProfileRevision },
-    ),
-
-  runSortFiles: async (
-    projectId: string,
-    threadId?: string,
-  ): Promise<SortFilesResponse> =>
-    api.post<SortFilesResponse>(
-      `/projects/${projectId}/workflows/sort-files`,
-      {
-        ...workflowChatModelPayload(),
-        ...(threadId ? { thread_id: threadId } : {}),
-      },
-      { timeoutMs: WORKFLOW_TIMEOUT_MS },
     ),
 
   startWorkflowRun: async (

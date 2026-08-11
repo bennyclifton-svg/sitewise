@@ -13,6 +13,7 @@ def test_universal_skeleton_is_identical_across_classes() -> None:
     expected = (
         "Project Summary",
         "Brief",
+        "FFE Schedule",
         "Consultants",
         "Planning and Compliance",
         "Programme",
@@ -39,6 +40,7 @@ def test_advisory_label_variants_share_skeleton_slots() -> None:
     assert "Programme of services" in headings
     assert "Procurement and Delivery" not in headings
     assert "Programme" not in headings
+    assert "FFE Schedule" in headings
     assert "Consultants" in headings
     assert "Citation key" in headings
     assert document_title("advisory") == "Advisory Services Plan"

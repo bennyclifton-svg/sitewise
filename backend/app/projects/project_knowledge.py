@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.database.project import Project
-from app.projects.dependencies import DirtyCategory, mark_project_dirty
+from app.projects.dependencies import DirtyCategory, mark_project_dirty_from_change
 from app.projects.events import publish_project_event
 
 
@@ -56,6 +56,39 @@ _DIRTY_BY_KIND: dict[ProjectObjectKind, tuple[DirtyCategory, ...]] = {
 }
 
 
+def list_shared_project_objects(
+    project: Project,
+    *,
+    kind: ProjectObjectKind | None = None,
+) -> list[SharedProjectObject]:
+    knowledge = dict((project.project_metadata or {}).get("shared_knowledge") or {})
+    items: list[SharedProjectObject] = []
+    for key, raw in sorted(knowledge.items()):
+        if not isinstance(raw, dict):
+            continue
+        try:
+            item = SharedProjectObject.model_validate(raw)
+        except Exception:
+            continue
+        if kind is not None and item.kind != kind:
+            continue
+        items.append(item)
+    return items
+
+
+def get_shared_project_object(
+    project: Project,
+    *,
+    kind: ProjectObjectKind,
+    object_id: str,
+) -> SharedProjectObject | None:
+    knowledge = dict((project.project_metadata or {}).get("shared_knowledge") or {})
+    raw = knowledge.get(f"{kind}:{object_id}")
+    if not isinstance(raw, dict):
+        return None
+    return SharedProjectObject.model_validate(raw)
+
+
 def upsert_shared_project_object(
     project: Project,
     *,
@@ -83,6 +116,11 @@ def upsert_shared_project_object(
         and source != "user"
     ):
         raise SharedProjectObjectConflict(f"{key} is protected by the user")
+    previous_value = (
+        dict(existing["value"])
+        if isinstance(existing, dict) and isinstance(existing.get("value"), dict)
+        else None
+    )
     result = SharedProjectObject(
         id=object_id,
         kind=kind,
@@ -95,7 +133,15 @@ def upsert_shared_project_object(
     knowledge[key] = result.model_dump(mode="json")
     metadata["shared_knowledge"] = knowledge
     project.project_metadata = metadata
-    mark_project_dirty(project, _DIRTY_BY_KIND[kind])
+    mark_project_dirty_from_change(
+        project,
+        categories=_DIRTY_BY_KIND[kind],
+        source_kind=kind,
+        object_id=object_id,
+        revision=result.revision,
+        previous_value=previous_value,
+        new_value=update.value,
+    )
     return result
 
 

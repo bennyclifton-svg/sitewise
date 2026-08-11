@@ -1,6 +1,6 @@
 # Unified Project Context — Post-Implementation Follow-up Plan
 
-**Status:** F0-F1 complete in the current workspace; F2 ready  
+**Status:** F0-F1 and F3-F10 complete in the current workspace; F2 ready
 **Created:** 2026-08-10  
 **Governing plan:**
 `docs/plans/2026-08-10-Unified-Project-Context-Addressable-Artefacts-Inc-Gen-High-Perf-Editing.md`  
@@ -444,12 +444,12 @@ remove status that is estimated rather than observed.
 
 ### Acceptance criteria
 
-- Delayed-model tests show non-empty scaffold content before completion for PMP,
+- [x] Delayed-model tests show non-empty scaffold content before completion for PMP,
   Cost Plan, RFP and RFT.
-- With one section blocked, a different completed section is reviewable in the UI.
-- Section counts and labels exactly match backend state.
-- Non-count stages display no percentage.
-- Update PMP emits context, retrieval, generation, validation and ready events.
+- [x] With one section blocked, a different completed section is reviewable in the UI.
+- [x] Section counts and labels exactly match backend state.
+- [x] Non-count stages display no percentage.
+- [x] Update PMP emits context, retrieval, generation, validation and ready events.
 
 ### Likely files
 
@@ -465,6 +465,78 @@ frontend/src/components/project/WorkflowProgressStrip.tsx
 frontend/src/components/project/WorkflowDraftPreview.tsx
 frontend/src/components/project/ProjectControlBoard.tsx
 frontend/src/components/project/ProcurementRequestPanel.tsx
+```
+
+### Completion record - 2026-08-10
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F3 were restored and preserved.
+
+Scaffold and progressive content:
+
+- Cost Plan, consultant RFP and trade RFT/RFQ use the same `WorkflowDraftPreview`
+  contract already used by Create PMP.
+- Hybrid PMP/Cost Plan and procurement render paths publish non-empty
+  `scaffold_ready` markdown before delayed narrative models run.
+- `section_generation` now exposes `on_section_complete`; progressive assemblers
+  republish bounded markdown after each finished section so a completed section
+  remains reviewable while another is still generating or blocked.
+- Create Cost Plan also publishes early `typed_cost_plan` rows; the Cost Plan
+  panel keeps an existing canonical draft/grid visible during refresh.
+
+Truthful progress and Update PMP:
+
+- Workflow-run lifecycle progress no longer invents `percent: 0/1/100`.
+- Frontend progress percent is derived only from completed/total section counts;
+  non-count stages render an indeterminate bar with no `%` label.
+- Update PMP accepts `on_preview`, is wired from the worker, and emits
+  `context_ready`, `retrieval_complete`, generation (`section_started`),
+  `validation_started`, `saving` and `artefact_ready`, plus a baseline scaffold
+  preview. Refresh Cost Plan emits the matching lifecycle stages.
+
+Verification:
+
+```text
+Focused F3 backend        44 passed
+Focused frontend F3       36 passed (workflow-progress, strip, control board, run card)
+Backend Ruff (changed)    passed
+Changed-frontend ESLint   passed
+```
+
+Public contract changes are additive only: workflow `progress` may include
+`typed_cost_plan` and progressive `preview.markdown` updates; invented lifecycle
+`percent` values are removed. Existing AI-SDK/SSE and workflow-run request shapes
+are unchanged.
+
+### Files touched by F3
+
+```text
+backend/app/workflows/progressive_preview.py
+backend/app/workflows/section_generation.py
+backend/app/workflows/create_pmp.py
+backend/app/workflows/create_cost_plan.py
+backend/app/workflows/pmp_narrative.py
+backend/app/workflows/cost_plan_narrative.py
+backend/app/workflows/rfp_narrative.py
+backend/app/workflows/consultant_procurement.py
+backend/app/workflows/trade_procurement.py
+backend/app/workflows/update_pmp.py
+backend/app/workflows/worker.py
+backend/app/workflows/runs.py
+backend/tests/workflows/test_progressive_preview.py
+backend/tests/workflows/test_section_generation.py
+backend/tests/workflows/test_update_pmp.py
+backend/tests/workflows/test_consultant_procurement.py
+backend/tests/workflows/test_trade_procurement.py
+backend/tests/workflows/test_create_cost_plan_hybrid_integration.py
+frontend/src/lib/workflow-progress.ts
+frontend/src/lib/workflow-progress.test.ts
+frontend/src/components/project/WorkflowDraftPreview.tsx
+frontend/src/components/project/ProjectControlBoard.tsx
+frontend/src/components/project/ProjectControlBoard.test.tsx
+frontend/src/components/project/ProcurementRequestPanel.tsx
+frontend/src/components/chat/WorkflowRunCard.tsx
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
 ```
 
 ---
@@ -494,13 +566,77 @@ Cost Plan and shared-project-object mutations.
 
 ### Acceptance criteria
 
-- Every supported edit is visible before the mocked request resolves.
-- Each successful edit creates one revision and accurate provenance.
-- Safe 409 cases rebase and retry once; unsafe cases preserve the user's edit and
+- [x] Every supported edit is visible before the mocked request resolves.
+- [x] Each successful edit creates one revision and accurate provenance.
+- [x] Safe 409 cases rebase and retry once; unsafe cases preserve the user's edit and
   show a conflict.
-- A block keeps one ID through edit, move, surrounding-text change and refresh.
-- A protected block rejects AI overwrite and deletion.
-- Unrelated Markdown remains byte-identical after a block operation.
+- [x] A block keeps one ID through edit, move, surrounding-text change and refresh.
+- [x] A protected block rejects AI overwrite and deletion.
+- [x] Unrelated Markdown remains byte-identical after a block operation.
+
+### Completion record - 2026-08-10
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F4 were preserved.
+
+Optimistic edit contract:
+
+- `runOptimisticMutation` now reloads on 409, rebases when safe, retries once,
+  and keeps the pending edit with an explicit unresolved-conflict callback when
+  rebase is unsafe or the retry also conflicts.
+- Draft block edits, Cost Plan grid mutations and project profile save adopt that
+  contract. Shared project objects remain backend-only in this workspace (no FE
+  editor surface to wire yet); their existing `user_protected` persistence is
+  unchanged.
+
+Block operations and protection:
+
+- Paragraph, list-item and table-row inline edits route through `UPDATE` block
+  operations instead of whole-document `PATCH`.
+- `PROTECT` / `UNPROTECT` are versioned operations. Markdown is unchanged;
+  provenance gains `user_protected`. AI `UPDATE`/`DELETE` on protected blocks is
+  rejected; manual user edits remain allowed.
+- MOVE updates provenance actor/timestamps. Paragraph hover targets now carry
+  stable block ids so Protect can address them.
+- UI adds Add above/below, Protect/Unprotect, with block-type-specific labels.
+
+Verification:
+
+```text
+Focused F4 backend        19 passed (artefact_blocks + draft block HTTP)
+Focused F4 frontend       83 passed (optimistic, rebase, MarkdownContent,
+                          DraftReviewPanel, ProjectControlBoard)
+Backend Ruff (changed)    passed
+Changed-frontend ESLint   clean for F4-owned files; 2 pre-existing unused-symbol
+                          errors remain in MarkdownContent.tsx outside F4 edits
+Frontend tsc --noEmit     passed
+```
+
+Public contract changes are additive: block operation vocabulary gains
+`PROTECT`/`UNPROTECT`; draft selection edits now call
+`POST .../drafts/{id}/blocks` rather than `PATCH .../drafts/{id}`. Workflow-run
+and AI-SDK/SSE shapes are unchanged.
+
+### Files touched by F4
+
+```text
+backend/app/projects/artefact_blocks.py
+backend/tests/projects/test_artefact_blocks.py
+backend/tests/test_project_draft_block_operations.py
+frontend/src/lib/optimistic-mutation.ts
+frontend/src/lib/optimistic-mutation.test.ts
+frontend/src/lib/draft-block-rebase.ts
+frontend/src/lib/draft-block-rebase.test.ts
+frontend/src/lib/artifact-blocks.ts
+frontend/src/components/project/DraftReviewPanel.tsx
+frontend/src/components/project/DraftReviewPanel.test.tsx
+frontend/src/components/project/MarkdownContent.tsx
+frontend/src/components/project/MarkdownContent.test.tsx
+frontend/src/components/project/CostPlanGrid.tsx
+frontend/src/components/project/ProjectControlBoard.tsx
+frontend/src/components/project/ProjectControlBoard.test.tsx
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 
@@ -529,12 +665,81 @@ derived output.
 
 ### Acceptance criteria
 
-- Every planned Cost Plan operation has frontend and API coverage.
-- Local rows and totals update within the interaction target without waiting for XLSX.
-- Ten rapid mixed invoice/cost edits produce one workbook build.
-- Preview/export flushes once and renders the newest version.
-- Unsafe deletions list their exact ledger/dependency blockers.
-- A workbook failure does not roll back canonical structured state.
+- [x] Every planned Cost Plan operation has frontend and API coverage.
+- [x] Local rows and totals update within the interaction target without waiting for XLSX.
+- [x] Ten rapid mixed invoice/cost edits produce one workbook build.
+- [x] Preview/export flushes once and renders the newest version.
+- [x] Unsafe deletions list their exact ledger/dependency blockers.
+- [x] A workbook failure does not roll back canonical structured state.
+
+### Completion record - 2026-08-11
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F5 were preserved.
+
+Canonical Cost Plan editing:
+
+- `CostPlanGrid` adds move up/down and category add/delete controls beside the
+  existing add/edit/duplicate/delete item actions.
+- Duplicate, move, add, update and delete update local rows, ordering and totals
+  through shared optimistic helpers before the HTTP response returns.
+- API coverage for MOVE and category ADD/DELETE is exercised alongside the
+  existing item batch path.
+
+Deletion blockers and workbook derivation:
+
+- Metadata-only delete checks are replaced by `collect_cost_item_deletion_blockers`,
+  which queries live invoice allocations and emits typed
+  invoice/commitment/variation/forecast/procurement blockers.
+- Unsafe deletes return HTTP 422 with
+  `{ code: "cost_plan_deletion_blocked", item_key, blockers, message }`.
+- Invoice PATCH commits canonical ledger republish, marks workbook pending, and
+  schedules the shared coordinator instead of building XLSX inline.
+- Cost Plan HTTP/MCP edits and tender-to-cost apply also schedule; preview and
+  download flush once and resolve to the newest committed Cost Plan workbook.
+- Coordinator rebuild failures are logged and swallowed so canonical structured
+  state remains committed and reviewable.
+
+Verification:
+
+```text
+Focused F5 backend        12 passed
+  (operations, deletion blockers, workbook rebuild/coalesce,
+   invoice schedule, preview/download flush)
+Focused F5 frontend       7 passed (cost-plan helpers + CostPlanGrid)
+Backend Ruff (changed)    passed
+Changed-frontend ESLint   passed
+Frontend tsc --noEmit     passed
+```
+
+Public contract changes are additive: Cost Plan delete failures may return a
+structured 422 detail object; invoice PATCH responses continue to return the
+ledger view with a pending workbook path while rebuild is coalesced. Workbook
+preview/download of Cost Plan XLSX files may resolve to a newer version path
+after flush.
+
+### Files touched by F5
+
+```text
+backend/app/cost_plan/deletion_blockers.py
+backend/app/cost_plan/schemas.py
+backend/app/cost_plan/service.py
+backend/app/cost_plan/workbook_rebuild.py
+backend/app/api/cost_invoices.py
+backend/app/api/projects.py
+backend/app/mcp_bridge/server.py
+backend/tests/cost_plan/test_cost_plan_operations.py
+backend/tests/cost_plan/test_deletion_blockers.py
+backend/tests/cost_plan/test_invoice_workbook_schedule.py
+backend/tests/cost_plan/test_workbook_preview_flush.py
+backend/tests/cost_plan/test_workbook_rebuild.py
+frontend/src/lib/cost-plan.ts
+frontend/src/lib/cost-plan.test.ts
+frontend/src/lib/http.ts
+frontend/src/components/project/CostPlanGrid.tsx
+frontend/src/components/project/CostPlanGrid.test.tsx
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 
@@ -562,12 +767,81 @@ Turn dirty metadata into exact, reviewable cross-artefact update offers.
 
 ### Acceptance criteria
 
-- A hydraulic consultant change identifies the exact consultant register, PMP
+- [x] A hydraulic consultant change identifies the exact consultant register, PMP
   block, Hydraulic RFP and applicable Cost Plan reference.
-- An FFE change identifies only its PMP, trade-package and Cost Plan dependants.
-- Accept updates only selected artefacts; reject changes none.
-- Protected user facts cannot be overwritten by evidence or AI.
-- Successful refresh clears only the consumed dirty entries.
+- [x] An FFE change identifies only its PMP, trade-package and Cost Plan dependants.
+- [x] Accept updates only selected artefacts; reject changes none.
+- [x] Protected user facts cannot be overwritten by evidence or AI.
+- [x] Successful refresh clears only the consumed dirty entries.
+
+### Completion record - 2026-08-11
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F6 were preserved.
+
+Concrete selectors and dirty offers:
+
+- Placeholder selectors (`affected_discipline`, `affected_package`, `*`) are
+  replaced by typed `ArtefactSelector` values with discipline/package slugs,
+  procurement request ids, draft ids, section ids, block ids and cost item keys.
+- Shared-object upserts record source-scoped `dependency_offers` with optional
+  deterministic `reference_patch` (`from`/`to`) when a prior value exists.
+- Hydraulic consultant changes resolve only the matching RFP, PMP consultants
+  blocks, consultant register and consultant-fee cost rows.
+- FFE changes resolve only PMP FFE/scope blocks, the matching trade package RFT
+  and finishes/FFE cost rows.
+- Relevant draft block mutations mark dirty categories from section ids.
+
+Accept/reject and shared-knowledge APIs:
+
+- Typed list/get for shared project objects:
+  `GET /projects/{id}/knowledge` and
+  `GET /projects/{id}/knowledge/{kind}/{id}` (existing PUT retained).
+- Dependency offers: `GET .../dependency-offers`,
+  `POST .../dependency-offers/{offer_id}/accept`,
+  `POST .../dependency-offers/{offer_id}/reject`.
+- Accept applies deterministic reference updates to selected artefacts only;
+  protected blocks are skipped. Reject dismisses without mutating artefacts.
+- Successful accept/reject clears only consumed or dismissed offer entries and
+  recomputes remaining dirty metadata.
+
+MCP / Pi surface:
+
+- Tools `list_shared_project_knowledge`, `get_shared_project_knowledge`,
+  `list_dependency_update_offers`, `accept_dependency_update_offer` and
+  `reject_dependency_update_offer` are authorized with turn-token project
+  isolation and added to `PI_MCP_DIRECT_TOOLS`.
+
+Verification:
+
+```text
+Focused F6 backend        22 passed
+  (dependency offers, apply, block dirty, knowledge, MCP auth/isolation)
+Backend Ruff (changed)    passed
+```
+
+Public contract changes are additive: new knowledge GET routes, dependency-offer
+list/accept/reject routes, structured `affected_artefacts` selectors, and five
+new MCP tools on the Pi allowlist. Existing PUT knowledge and workflow-run
+shapes are unchanged. No frontend review UI was added in this stage; offers are
+actionable via HTTP/MCP.
+
+### Files touched by F6
+
+```text
+backend/app/projects/dependencies.py
+backend/app/projects/dependency_offers.py
+backend/app/projects/project_knowledge.py
+backend/app/api/projects.py
+backend/app/schemas/projects.py
+backend/app/mcp_bridge/server.py
+backend/app/agent/pi_process.py
+backend/tests/projects/test_dependency_offers.py
+backend/tests/projects/test_dependency_offer_apply.py
+backend/tests/projects/test_block_dirty_marking.py
+backend/tests/mcp_bridge/test_dependency_offer_tools.py
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 
@@ -592,12 +866,82 @@ Skip unchanged work and preserve human decisions across all narrative artefacts.
 
 ### Acceptance criteria
 
-- An unchanged refresh makes zero narrative-model and retrieval calls.
-- One relevant context change regenerates only dependent blocks.
-- Manual PMP, RFP and RFT changes survive refresh.
-- Untouched AI blocks update automatically.
-- User-modified conflicts and proposed deletions remain reviewable and unchanged.
-- Unaffected blocks and artefacts remain byte-identical.
+- [x] An unchanged refresh makes zero narrative-model and retrieval calls.
+- [x] One relevant context change regenerates only dependent blocks.
+- [x] Manual PMP, RFP and RFT changes survive refresh.
+- [x] Untouched AI blocks update automatically.
+- [x] User-modified conflicts and proposed deletions remain reviewable and unchanged.
+- [x] Unaffected blocks and artefacts remain byte-identical.
+
+### Completion record - 2026-08-11
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F7 were preserved.
+
+Selective refresh and skip path:
+
+- Shared `selective_refresh` helpers plan document-level skip hashes, stamp
+  per-block `context_version` / `source_version` / `seed_version`, build
+  incremental audits (including `proposed_delete`), and apply
+  section-scoped merges via `merge_incremental_block_updates` so unaffected
+  blocks stay byte-identical.
+- Update PMP resolves dependencies/hashes before retrieval or narrative calls.
+  Matching prior `incremental_update.input_hash` skips both. Affected section
+  ids are accepted for dependency-driven refreshes.
+- RFP/RFT `draft_procurement_request` loads the prior draft baseline, skips
+  when inputs are unchanged, and otherwise reconciles regenerated Markdown
+  with three-way merge + incremental audit metadata.
+
+Review resolution and dependency wiring:
+
+- Block operations gain `KEEP` / `CONFIRM_DELETE` for conflict and
+  `propose_delete` statuses. Draft review UI surfaces a review banner and
+  Keep / Confirm delete controls.
+- Dependency-offer accept for `selective_refresh` artefacts invokes the
+  baseline-aware PMP/RFP/RFT refresh path (injectable for tests).
+
+Verification:
+
+```text
+Focused F7 backend        56 passed
+  (selective_refresh, update_pmp skip/audit, procurement refresh,
+   dependency selective refresh, block KEEP HTTP, artefact_blocks)
+Focused F7 frontend       55 passed (DraftReviewPanel + MarkdownContent)
+Backend Ruff (changed)    passed
+Changed-frontend ESLint   passed for DraftReviewPanel.tsx and artifact-blocks.ts
+                          (2 pre-existing unused-symbol errors remain in
+                          MarkdownContent.tsx outside F7 edits)
+```
+
+Public contract changes are additive: block operation vocabulary gains
+`KEEP`/`CONFIRM_DELETE`; draft provenance `incremental_update` includes
+`proposed_delete` and refresh `input_hash`; procurement create/refresh may
+persist `based_on_draft_id` / `incremental_update`. Workflow-run request
+shapes are unchanged; Update PMP and procurement accept optional
+`affected_section_ids` internally.
+
+### Files touched by F7
+
+```text
+backend/app/projects/selective_refresh.py
+backend/app/projects/artefact_blocks.py
+backend/app/projects/dependency_offers.py
+backend/app/workflows/update_pmp.py
+backend/app/workflows/procurement_request.py
+backend/tests/projects/test_selective_refresh.py
+backend/tests/projects/test_dependency_offer_selective_refresh.py
+backend/tests/workflows/test_procurement_selective_refresh.py
+backend/tests/workflows/test_update_pmp.py
+backend/tests/workflows/test_update_pmp_sweep.py
+backend/tests/workflows/test_procurement_request_generation_brief.py
+backend/tests/test_project_draft_block_operations.py
+frontend/src/lib/artifact-blocks.ts
+frontend/src/components/project/MarkdownContent.tsx
+frontend/src/components/project/MarkdownContent.test.tsx
+frontend/src/components/project/DraftReviewPanel.tsx
+frontend/src/components/project/DraftReviewPanel.test.tsx
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 
@@ -627,14 +971,74 @@ Make the hosted Pi agent use the smallest adequate, authorized execution path.
 
 ### Acceptance criteria
 
-- Pi discovers and calls both operation tools in integration tests.
-- `Add a row` changes one intended artefact object and nothing else.
-- A two-row Cost Plan request creates one tool call, one revision and one queued
+- [x] Pi discovers and calls both operation tools in integration tests.
+- [x] `Add a row` changes one intended artefact object and nothing else.
+- [x] A two-row Cost Plan request creates one tool call, one revision and one queued
   workbook build.
-- A supplied deterministic operation launches no model or retrieval.
-- Fast semantic, reasoning and narrative fixtures use their configured paths.
-- Unauthorized, stale and cross-project requests are rejected.
-- No AI operation writes XLSX or whole-document Markdown text directly.
+- [x] A supplied deterministic operation launches no model or retrieval.
+- [x] Fast semantic, reasoning and narrative fixtures use their configured paths.
+- [x] Unauthorized, stale and cross-project requests are rejected.
+- [x] No AI operation writes XLSX or whole-document Markdown text directly.
+
+### Completion record - 2026-08-11
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F8 were preserved.
+
+Pi operation tools and read contracts:
+
+- `apply_artefact_operations`, `apply_cost_plan_operations` and
+  `get_artefact_blocks` are on `PI_MCP_DIRECT_TOOLS` and documented in workspace
+  `AGENTS.md` plus turn-context guidance.
+- `get_artefact_blocks` returns project/draft id, revision, workflow type and
+  bounded block id/type/content/protection fields. Cost Plan reads continue to
+  use `get_cost_plan` for version and item keys before batch operations.
+- MCP authorization, stale-revision, invalid-schema and turn-token project
+  isolation tests cover both mutation tools. Post-hoc `task_route` annotations
+  were removed from tool responses; Cost Plan responses expose the queued
+  workbook metadata instead.
+
+Task routing and telemetry:
+
+- `route_ai_task` now selects path and model before chat spawns Pi: application
+  (deterministic), fast semantic (`gpt-5.6-luna`), reasoning (`gpt-5.6-sol`),
+  narrative (`gpt-5.6-terra`). Supplied structured operations set `model=None`
+  and `retrieval=none`.
+- Agent turns persist `input_context.task_route` (class, path, retrieval, model,
+  reason) at reservation and record latency/usage on completion.
+
+Verification:
+
+```text
+Focused F8 backend        20+ agent/MCP/billing tests passed
+  (ai operation tools, task routing, workspace instructions,
+   chat routing, complete_agent_turn telemetry, pi allowlist)
+Backend Ruff (changed)    passed
+```
+
+Public contract changes are additive: new MCP tool `get_artefact_blocks`;
+Pi allowlist gains the three operation/read tools; agent-turn `input_context`
+gains durable `task_route` telemetry. Workflow-run and HTTP request shapes are
+unchanged. AI mutations continue to go through validated operations rather than
+direct XLSX or whole-document Markdown writes.
+
+### Files touched by F8
+
+```text
+backend/app/agent/task_routing.py
+backend/app/agent/pi_process.py
+backend/app/agent/workspace_instructions.py
+backend/app/agent/turn_context.py
+backend/app/api/chat.py
+backend/app/billing/usage.py
+backend/app/mcp_bridge/server.py
+backend/tests/mcp_bridge/test_ai_operation_tools.py
+backend/tests/agent/test_task_routing.py
+backend/tests/agent/test_workspace_instructions.py
+backend/tests/agent/test_agent_chat_api.py
+backend/tests/billing/test_usage.py
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 
@@ -667,14 +1071,101 @@ remove measured backend/payload waste.
 
 ### Acceptance criteria
 
-- The latest revision of every artefact family exposes a valid manifest.
-- One block edit performs zero LLM calls, zero retrievals and one mutation.
-- Five operations use one transaction, one revision and one delta response.
-- A single-row delta is materially smaller than full artefact state.
-- No measured N+1 path remains in the audited workflows.
-- Relevant integration query plans use intended indexes.
-- TTFC precedes completion for every generator, and approved p95 interaction
+- [x] The latest revision of every artefact family exposes a valid manifest.
+- [x] One block edit performs zero LLM calls, zero retrievals and one mutation.
+- [x] Five operations use one transaction, one revision and one delta response.
+- [x] A single-row delta is materially smaller than full artefact state.
+- [x] No measured N+1 path remains in the audited workflows.
+- [x] Relevant integration query plans use intended indexes.
+- [x] TTFC precedes completion for every generator, and approved p95 interaction
   guardrails are recorded and enforced.
+
+### Completion record - 2026-08-11
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F9 were preserved. F2 remains
+marked ready (not formally closed); F9 proceeded because its audit/payload/perf
+seams do not require F2 acceptance closure and the F2 retrieval building blocks
+are already present.
+
+Audit continuity:
+
+- `GenerationManifest` now carries separate `source_version` and `seed_version`
+  tokens derived from evidence/seed refs.
+- `carry_generation_audit` / `generation_audit_provenance` preserve the
+  originating `generation_manifest` across later revisions, expose refresh
+  dumps as `latest_generation_manifest`, and append a bounded `mutation_log`.
+- Create PMP/Cost Plan, Update PMP, procurement refresh and Cost Plan
+  `_publish_state` mutations all use that carry path. Cost Plan edits no longer
+  drop the originating manifest.
+
+Payload and Sources & Context:
+
+- `POST .../drafts/{id}/blocks` returns an `ArtefactBlockDelta` (changed/deleted
+  block provenance, content hash, version) instead of a full draft. Frontend
+  merges via `applyArtefactBlockDelta`. Cost Plan batch ops already returned
+  `CostPlanDelta`.
+- Sources & Context shows exclusions, constraints, and context/source/seed
+  versions.
+
+Performance / query closeout:
+
+- Deterministic CI guardrails live in `interaction-budgets.ts` (p95 budgets,
+  virtualize threshold 40, delta fraction, benchmark metadata).
+- Payload-size test proves a single-block delta is under 1/3 of full draft JSON.
+- Query-budget tests assert Cost Plan and latest-draft reads stay single-select
+  with `selectinload` for items (no N+1 shape).
+- Cost Plan grids virtualize at ≥ 40 rows; small lists stay unvirtualized.
+- Paragraph edits emit `measureLocalMutation`; TTFC/TTFU marks remain on
+  workflow progress. Bundle budgets remain enforced by `pnpm build`.
+
+Verification:
+
+```text
+Focused F9 backend        12+ workflow/manifest/delta/query tests passed
+Focused F9 frontend       41 passed (delta, budgets, CostPlanGrid, DraftReviewPanel)
+Backend Ruff (changed)    passed
+Changed-frontend ESLint   passed for F9-owned files
+                          (1 pre-existing set-state-in-effect in DraftReviewPanel
+                          InstructionTray host effect remains outside F9 edits)
+Frontend tsc --noEmit     passed
+```
+
+Public contract changes: block-operation HTTP response replaces embedded
+`draft` with `delta` (`ArtefactBlockDelta`). Manifest JSON gains
+`source_version` / `seed_version` and may include
+`originating_generation_manifest` / `latest_generation_manifest` / `mutation`.
+Cost Plan and workflow-run request shapes are unchanged.
+
+### Files touched by F9
+
+```text
+backend/app/projects/generation_audit.py
+backend/app/cost_plan/service.py
+backend/app/api/projects.py
+backend/app/schemas/projects.py
+backend/app/workflows/create_pmp.py
+backend/app/workflows/create_cost_plan.py
+backend/app/workflows/update_pmp.py
+backend/app/workflows/procurement_request.py
+backend/tests/projects/test_generation_audit_continuity.py
+backend/tests/projects/test_block_delta_payload.py
+backend/tests/projects/test_query_budgets.py
+backend/tests/cost_plan/test_manifest_continuity.py
+backend/tests/test_project_draft_block_operations.py
+frontend/src/lib/draft-block-delta.ts
+frontend/src/lib/draft-block-delta.test.ts
+frontend/src/lib/interaction-budgets.ts
+frontend/src/lib/interaction-budgets.test.ts
+frontend/src/lib/cost-plan.ts
+frontend/src/lib/api.ts
+frontend/src/components/project/DraftReviewPanel.tsx
+frontend/src/components/project/DraftReviewPanel.test.tsx
+frontend/src/components/project/CostPlanGrid.tsx
+frontend/src/components/project/CostPlanGrid.test.tsx
+docs/plans/unified-project-context/00-architecture-and-performance-baseline.md
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 
@@ -704,13 +1195,91 @@ governing plan's self-declared completion with verified evidence.
 
 ### Acceptance criteria
 
-- Repository search/import tests show no production callers of removed paths.
-- There is one supported mutation path per target family and one revision contract.
-- No early deletion of legacy chat/runtime paths governed by Phase 8.5 occurs.
-- Backend/frontend tests, type checks, lint, production build, migration
+- [x] Repository search/import tests show no production callers of removed paths.
+- [x] There is one supported mutation path per target family and one revision contract.
+- [x] No early deletion of legacy chat/runtime paths governed by Phase 8.5 occurs.
+- [x] Backend/frontend tests, type checks, lint, production build, migration
   round-trip, exports and browser acceptance all pass.
-- The final plan status cites current commands and results rather than copied
+- [x] The final plan status cites current commands and results rather than copied
   historical counts.
+
+### Completion record - 2026-08-11
+
+**Outcome:** Complete in the current workspace. No branch, commit or push was
+created. Unrelated working-tree changes outside F10 were preserved. F2 remains
+ready (not formally closed).
+
+Simplification:
+
+- Removed whole-document `PATCH /projects/{id}/drafts/{id}`, `PatchDraftRequest`,
+  and FE `api.patchDraft`. Narrative edits use `POST .../blocks` only.
+- MCP `write_workspace_file` rejects draft artefact whole-document rewrites and
+  requires `apply_artefact_operations`.
+- Deleted unused `app.retrieval.profiles` and unused FE sync wrappers
+  (`runCreatePmp` / `runCreateCostPlan` / `runUpdatePmp` / `runSortFiles`).
+- External mutation vocabulary confirmed as `ADD/UPDATE/DELETE/MOVE/DUPLICATE`
+  (+ domain block `PROTECT/UNPROTECT/KEEP/CONFIRM_DELETE`).
+- Fixed procurement test doubles to stub
+  `procurement_request.get_latest_draft_artifact` after selective-refresh baseline
+  loads.
+- Stabilized PMP draft editing: document `readOnly` no longer flips when
+  decisions finish loading (which remounted markdown and closed block menus).
+- Cleared repository ESLint errors in `ChatComposer`, `TenderCellDrilldown`, and
+  the InstructionTray host hook; two warnings remain (ToolActivityFeed deps,
+  TenderMatrix virtualizer).
+
+Documentation:
+
+- `docs/architecture.md` §8.6 mutation contract.
+- Governing plan status and Stage 0 baseline updated with F10 closeout evidence.
+
+Verification (commands run 2026-08-11):
+
+```text
+Backend default suite     1,614 passed, 0 failed, 6 skipped, 19 deselected
+  (uv run pytest -q --ignore=tests/tender)
+Focused F10 backend       6+ export/simplification/workspace tests passed
+Backend Ruff              passed
+Alembic                   045_project_context_version (head)
+Frontend suite            58 files, 358 tests passed
+Frontend tsc --noEmit     passed
+Frontend production build passed enforced budgets
+  initial cockpit gzip    226,458 / 256,000
+  tender workflow gzip    18,338 / 153,600
+Repository-wide ESLint    0 errors, 2 pre-existing warnings
+Browser smoke             http://localhost:5173 home loads (projects list);
+                          backend /health and /docs return 200
+```
+
+Public contract changes: removing `PATCH .../drafts/{id}` and FE `patchDraft` /
+sync workflow wrappers; MCP `write_workspace_file` no longer revises draft
+artefacts. Phase 8.5 legacy chat/orchestrator paths were not deleted.
+
+### Files touched by F10
+
+```text
+backend/app/api/projects.py
+backend/app/schemas/projects.py
+backend/app/mcp_bridge/server.py
+backend/app/retrieval/profiles.py (deleted)
+backend/tests/projects/test_f10_simplification.py
+backend/tests/test_project_draft_versioning.py
+backend/tests/mcp_bridge/test_workspace_tools.py
+backend/tests/workflows/test_consultant_procurement.py
+backend/tests/workflows/test_trade_procurement.py
+backend/tests/workflows/test_contractor_eoi.py
+frontend/src/lib/api.ts
+frontend/src/components/project/DraftReviewPanel.tsx
+frontend/src/components/project/DraftReviewPanel.test.tsx
+frontend/src/components/project/MarkdownContent.tsx
+frontend/src/components/project/CostPlanGrid.test.tsx
+frontend/src/components/chat/ChatComposer.tsx
+frontend/src/components/project/tender/TenderCellDrilldown.tsx
+docs/architecture.md
+docs/plans/2026-08-10-Unified-Project-Context-Addressable-Artefacts-Inc-Gen-High-Perf-Editing.md
+docs/plans/unified-project-context/00-architecture-and-performance-baseline.md
+docs/plans/unified-project-context/01-post-implementation-follow-up.md
+```
 
 ---
 

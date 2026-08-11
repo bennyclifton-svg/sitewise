@@ -9,6 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.cost_plan.calculations import calculate_totals, optional_budget
+from app.cost_plan.deletion_blockers import (
+    collect_cost_item_deletion_blockers,
+    raise_if_blocked,
+)
 from app.cost_plan.dependencies import stale_reasons
 from app.cost_plan.models import CostPlanItem, CostPlanVersion
 from app.cost_plan.renderer import render_cost_plan_markdown
@@ -22,6 +26,7 @@ from app.cost_plan.schemas import (
     DependencySnapshot,
     ExternalCostProposal,
 )
+from app.database.draft_artifacts import get_latest_draft_artifact
 from app.database.project import Project
 from app.inbox.paths import build_storage_key
 from app.projects.artefact_revisions import (
@@ -30,6 +35,7 @@ from app.projects.artefact_revisions import (
     ExportSpec,
     publish,
 )
+from app.projects.generation_audit import carry_generation_audit
 from app.schemas.project_snapshot import ProjectSnapshot
 
 
@@ -39,6 +45,45 @@ class CostPlanNotFound(LookupError):
 
 class CostPlanStaleError(ArtefactRevisionConflict):
     pass
+
+
+DEFAULT_COST_PLAN_CATEGORIES = (
+    "Fees and Charges",
+    "Consultants",
+    "Construction",
+    "Contingency",
+)
+
+_ITEM_VARIATION_FIELDS = ("forecast_variations", "approved_variations")
+
+
+def _apply_item_variations(
+    narrative: dict,
+    *,
+    item_key: str,
+    values: dict,
+) -> None:
+    """Persist editable variation columns on narrative until a variation register exists."""
+    updates = {
+        field: values.pop(field)
+        for field in _ITEM_VARIATION_FIELDS
+        if field in values
+    }
+    if not updates:
+        return
+    item_variations = dict(narrative.get("item_variations") or {})
+    current = dict(item_variations.get(item_key) or {})
+    for field, raw in updates.items():
+        amount = Decimal(str(raw or "0"))
+        current[field] = f"{amount.quantize(Decimal('0.01'))}"
+    item_variations[item_key] = current
+    narrative["item_variations"] = item_variations
+
+
+def _seed_default_categories(categories: list[str]) -> list[str]:
+    if categories:
+        return categories
+    return list(DEFAULT_COST_PLAN_CATEGORIES)
 
 
 async def complete_cost_plan_state(
@@ -191,6 +236,7 @@ async def _publish_state(
     actor_source: str,
     source_draft_id: uuid.UUID | None = None,
     external_idempotency_key: str | None = None,
+    mutation: dict | None = None,
 ) -> CostPlanState:
     if project.owner_user_id != author_user_id:
         raise ArtefactPolicyViolation("project is not owned by the user")
@@ -214,6 +260,30 @@ async def _publish_state(
     base = f"{project.workspace_path.rstrip('/')}/01-cost"
     markdown_path = f"{base}/cost_plan_v{version:02d}.md"
     workbook_path = f"{base}/Cost_Plan_v{version:02d}.draft.xlsx"
+    prior_draft = None
+    if expected_base_version >= 1:
+        prior_draft = await get_latest_draft_artifact(
+            session,
+            project_id=project.id,
+            workflow_type="create_cost_plan",
+        )
+    audit = carry_generation_audit(
+        prior_draft.provenance_metadata if prior_draft is not None else None,
+        mutation={
+            "kind": "cost_plan_edit",
+            "actor_source": actor_source,
+            "from_version": expected_base_version,
+            "to_version": version,
+            **(mutation or {}),
+        }
+        if mutation is not None or expected_base_version >= 1
+        else None,
+    )
+    provenance = {
+        "typed_cost_plan": True,
+        "dependency_snapshot": proposed.dependency_snapshot.model_dump(mode="json"),
+        **audit,
+    }
     result = await publish(
         session,
         project_id=project.id,
@@ -225,10 +295,7 @@ async def _publish_state(
         content_markdown=markdown,
         model=proposed.dependency_snapshot.model_version,
         runtime=proposed.dependency_snapshot.runtime_version,
-        provenance={
-            "typed_cost_plan": True,
-            "dependency_snapshot": proposed.dependency_snapshot.model_dump(mode="json"),
-        },
+        provenance=provenance,
         actor_source=actor_source,
         exports=(
             ExportSpec(
@@ -410,11 +477,13 @@ async def apply_cost_plan_operations(
     )
     items = [item.model_copy(deep=True) for item in base.items]
     narrative = dict(base.narrative)
-    categories = [
-        value
-        for value in narrative.get("categories", [])
-        if isinstance(value, str) and value.strip()
-    ]
+    categories = _seed_default_categories(
+        [
+            value
+            for value in narrative.get("categories", [])
+            if isinstance(value, str) and value.strip()
+        ]
+    )
     changed: list[str] = []
     deleted: list[str] = []
 
@@ -447,11 +516,23 @@ async def apply_cost_plan_operations(
             None,
         )
         if operation.operation == "ADD":
+            values = dict(operation.values)
+            variation_updates = {
+                field: values.pop(field)
+                for field in _ITEM_VARIATION_FIELDS
+                if field in values
+            }
             item = CostItemInput.model_validate(
-                {**operation.values, "status": operation.values.get("status", "manual")}
+                {**values, "status": values.get("status", "manual")}
             )
             if any(existing.item_key == item.item_key for existing in items):
                 raise ValueError(f"cost item {item.item_key!r} already exists")
+            if variation_updates:
+                _apply_item_variations(
+                    narrative,
+                    item_key=item.item_key,
+                    values=variation_updates,
+                )
             items.append(item)
             changed.append(item.item_key)
             continue
@@ -459,10 +540,16 @@ async def apply_cost_plan_operations(
             raise ValueError(f"cost item {operation.target_id!r} was not found")
         current = items[index]
         if operation.operation == "UPDATE":
+            values = dict(operation.values)
+            _apply_item_variations(
+                narrative,
+                item_key=current.item_key,
+                values=values,
+            )
             updated = CostItemInput.model_validate(
                 {
                     **current.model_dump(mode="python"),
-                    **operation.values,
+                    **values,
                     "item_key": current.item_key,
                     "status": "manual",
                 }
@@ -471,26 +558,30 @@ async def apply_cost_plan_operations(
             changed.append(updated.item_key)
             continue
         if operation.operation == "DELETE":
-            dependencies = _cost_item_dependencies(current)
-            if dependencies:
-                raise ArtefactPolicyViolation(
-                    f"Cannot delete {current.item_key!r}; referenced by "
-                    + ", ".join(dependencies)
-                )
+            raise_if_blocked(
+                item_key=current.item_key,
+                blockers=await collect_cost_item_deletion_blockers(
+                    session,
+                    project_id=project.id,
+                    item=current,
+                ),
+            )
             items.pop(index)
             deleted.append(current.item_key)
+            item_variations = dict(narrative.get("item_variations") or {})
+            item_variations.pop(current.item_key, None)
+            narrative["item_variations"] = item_variations
             continue
         if operation.operation == "DUPLICATE":
-            copy_key = str(
-                operation.values.get("item_key") or f"{current.item_key}-copy"
-            )
-            copy_code = str(
-                operation.values.get("cost_code") or f"{current.cost_code}-COPY"
-            )
+            values = dict(operation.values)
+            copy_key = str(values.get("item_key") or f"{current.item_key}-copy")
+            copy_code = str(values.get("cost_code") or f"{current.cost_code}-COPY")
+            values.pop("forecast_variations", None)
+            values.pop("approved_variations", None)
             duplicate = CostItemInput.model_validate(
                 {
                     **current.model_dump(mode="python"),
-                    **operation.values,
+                    **values,
                     "item_key": copy_key,
                     "cost_code": copy_code,
                     "status": "manual",
@@ -503,6 +594,13 @@ async def apply_cost_plan_operations(
             ):
                 raise ValueError("duplicate item_key and cost_code must be unique")
             items.insert(index + 1, duplicate)
+            source_variations = dict(
+                (narrative.get("item_variations") or {}).get(current.item_key) or {}
+            )
+            if source_variations:
+                item_variations = dict(narrative.get("item_variations") or {})
+                item_variations[copy_key] = source_variations
+                narrative["item_variations"] = item_variations
             changed.append(duplicate.item_key)
             continue
         reference_index = next(
@@ -528,9 +626,14 @@ async def apply_cost_plan_operations(
         changed.append(moving.item_key)
 
     ordered = [
-        item.model_copy(update={"display_order": index})
+        item.model_copy(update={"display_order": index, "cost_code": str(index)})
         for index, item in enumerate(items, start=1)
     ]
+    # Drop empty categories only after item deletes so "Add category" can persist
+    # until the user creates rows (or clears the last row in that category).
+    if deleted:
+        used_categories = {item.category for item in ordered}
+        categories = [category for category in categories if category in used_categories]
     state = await _publish_state(
         session,
         project=project,
@@ -543,6 +646,13 @@ async def apply_cost_plan_operations(
             }
         ),
         actor_source=actor_source,
+        mutation={
+            "operations": [
+                operation.model_dump(mode="json") for operation in operations
+            ],
+            "changed_item_keys": list(dict.fromkeys(changed)),
+            "deleted_item_keys": list(dict.fromkeys(deleted)),
+        },
     )
     changed_set = set(changed)
     return CostPlanBatchMutationResult(
@@ -557,28 +667,6 @@ async def apply_cost_plan_operations(
             workbook_status="pending",
         ),
     )
-
-
-def _cost_item_dependencies(item: CostItemInput) -> list[str]:
-    dependencies: list[str] = []
-    if item.paid:
-        dependencies.append("paid invoices")
-    if item.committed:
-        dependencies.append("commitments")
-    referenced_kinds = {
-        str(reference.get("kind") or "").casefold()
-        for reference in item.source_refs
-        if isinstance(reference, dict)
-    }
-    for kind, label in (
-        ("invoice", "invoices"),
-        ("variation", "variations"),
-        ("commitment", "commitments"),
-        ("procurement", "procurement references"),
-    ):
-        if any(kind in value for value in referenced_kinds):
-            dependencies.append(label)
-    return list(dict.fromkeys(dependencies))
 
 
 async def set_contingency(

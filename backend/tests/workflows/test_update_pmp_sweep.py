@@ -11,7 +11,7 @@ from app.config import settings
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.database.source_document import SourceDocument
-from app.projects.artefact_blocks import reconcile_regenerated_blocks
+from app.projects.selective_refresh import apply_document_refresh
 from app.projects.artefact_context import build_pmp_context
 from app.projects.generation_brief import build_generation_brief
 from app.projects.generation_context import ProjectGenerationContext
@@ -499,17 +499,13 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
             new=AsyncMock(return_value=2),
         ),
         patch(
-            "app.workflows.update_pmp.block_input_hash",
-            return_value="incremental-input-hash",
-        ) as input_hash_mock,
-        patch(
             "app.workflows.update_pmp.build_generation_brief",
             wraps=build_generation_brief,
         ) as build_brief_mock,
         patch(
-            "app.workflows.update_pmp.reconcile_regenerated_blocks",
-            wraps=reconcile_regenerated_blocks,
-        ) as reconcile_blocks_mock,
+            "app.workflows.update_pmp.apply_document_refresh",
+            wraps=apply_document_refresh,
+        ) as refresh_mock,
     ):
         response = run_async(
             run_update_pmp_workflow(
@@ -538,10 +534,11 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
     assert provenance["model_provider"] == "openai-api"
     assert provenance["model_execution_provider"] == "openai-responses"
     assert provenance["model_execution_id"] == "openai-responses:gpt-5.6-terra"
-    assert input_hash_mock.call_args.kwargs["context_version"] == 9
     assert "sections_changed" in provenance
     assert "evidence_changed" in provenance
     assert provenance["active_corpus_documents"] == 0
+    assert "proposed_delete" in provenance["incremental_update"]
+    assert provenance["incremental_update"]["input_hash"]
     build_brief_mock.assert_called_once()
     generation_brief = run_model_mock.await_args.kwargs["generation_brief"]
     assert provenance["generation_brief"] == generation_brief.model_dump(mode="json")
@@ -552,10 +549,8 @@ def test_update_pmp_taxonomy_uses_corpus_sweep_not_delta() -> None:
     assert provenance["generation_manifest"][
         "generation_brief"
     ] == generation_brief.model_dump(mode="json")
-    assert (
-        reconcile_blocks_mock.call_args.kwargs["generation_input_hash"]
-        == generation_brief.input_fingerprint
-    )
+    assert refresh_mock.call_args.kwargs["context_version"] == 9
+    assert refresh_mock.call_args.kwargs["artefact_type"] == "pmp"
 
 
 def test_update_pmp_prompt_orders_static_and_volatile_content() -> None:

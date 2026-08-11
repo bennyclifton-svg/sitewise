@@ -194,6 +194,53 @@ def test_mutation_authorization_requires_bound_scope_and_exact_values(monkeypatc
         )
 
 
+def test_complete_agent_turn_persists_task_route_latency_and_usage(monkeypatch) -> None:
+    turn = SimpleNamespace(
+        id=uuid.uuid4(),
+        state="active",
+        status="reserved",
+        completed_at=None,
+        input_tokens=None,
+        output_tokens=None,
+        input_context={
+            "task_route": {
+                "task_class": "FAST_SEMANTIC",
+                "path": "fast_semantic",
+                "retrieval": "none",
+                "model": "gpt-5.6-luna",
+                "reason": "mapping",
+                "latency_ms": None,
+                "usage": {"input_tokens": None, "output_tokens": None},
+            }
+        },
+    )
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.get = AsyncMock(return_value=turn)
+    session.flush = AsyncMock()
+
+    run_async(
+        usage.complete_agent_turn(
+            session,
+            turn.id,
+            status_value="completed",
+            latency_ms=123,
+            input_tokens=11,
+            output_tokens=5,
+        )
+    )
+
+    assert turn.status == "completed"
+    assert turn.state == "completed"
+    assert turn.input_tokens == 11
+    assert turn.output_tokens == 5
+    assert turn.input_context["task_route"]["latency_ms"] == 123
+    assert turn.input_context["task_route"]["usage"] == {
+        "input_tokens": 11,
+        "output_tokens": 5,
+    }
+
+
 def test_enrichment_authority_allows_evidence_backed_profile_patch(monkeypatch) -> None:
     turn = _active_turn()
     turn.mutation_intent = {

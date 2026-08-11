@@ -1111,6 +1111,7 @@ def render_project_summary_table(
     budget: str | None = None,
     budget_source: str | None = None,
     compact_sources: bool = False,
+    profile_citation: str = "",
 ) -> str:
     """Render the shared project-summary table used by PMP-derived artefacts."""
     context = pmp_taxonomy_context(project)
@@ -1138,24 +1139,28 @@ def render_project_summary_table(
                 f"| Procurement route | {procurement_value} | {_compact_summary_source(procurement_value)} |",
             ]
         )
+    profile_cell = _citation_cell(profile_citation)
     return _summary_table_markdown(
         [
             (
                 f"| Project | {_metadata_value(project_title or project.title)} | "
-                f"{_citation_cell(project_title_source)} |"
+                f"{_citation_cell(project_title_source) or profile_cell} |"
             ),
             (
                 f"| Site / address | "
                 f"{site_address or _metadata_value(fields.get('site_address'))} | "
-                f"{_citation_cell(site_address_citation)} |"
+                f"{_citation_cell(site_address_citation) or profile_cell} |"
             ),
             (
                 f"| Client | {client or _metadata_value(fields.get('client'))} | "
-                f"{_citation_cell(client_citation)} |"
+                f"{_citation_cell(client_citation) or profile_cell} |"
             ),
-            f"| State | {_metadata_value(project.state or 'NSW')} |  |",
-            f"| Taxonomy | {taxonomy_value} |  |",
-            f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} |  |",
+            f"| State | {_metadata_value(project.state or 'NSW')} | {profile_cell} |",
+            f"| Taxonomy | {taxonomy_value} | {profile_cell} |",
+            (
+                f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} | "
+                f"{profile_cell} |"
+            ),
             (
                 f"| Budget | {_metadata_value(budget or fields.get('budget'))} | "
                 f"{_citation_cell(budget_source or '')} |"
@@ -1364,57 +1369,126 @@ def _render_taxonomy_scope(project: Project) -> str:
     return "\n".join(lines)
 
 
+def _render_taxonomy_ffe_schedule(project: Project) -> str:
+    from app.sitewise.ffe_schedule import ffe_schedule_rows
+
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    rows = [
+        "| Item | Location | Qty | Finish | Status | Notes |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for item in ffe_schedule_rows(project):
+        rows.append(
+            "| {item} | {location} | {quantity} | {finish} | {status} | {notes} |".format(
+                item=item["item"],
+                location=item["location"],
+                quantity=item["quantity"],
+                finish=item["finish"],
+                status=item["status"],
+                notes=item["notes"],
+            )
+        )
+    if len(rows) == 2:
+        rows.append(
+            "| TBC — record finishes, fixtures and equipment selections | TBC | TBC | TBC | To be confirmed | — |"
+        )
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('ffe-schedule', work_type=context.work_type)}",
+            "",
+            "Finishes, Fixtures and Equipment (FFE) schedule. Capture selected and "
+            "outstanding items here — baths, tapware, joinery, appliances, flooring, "
+            "fixtures, and other owner or design selections that affect procurement "
+            "and cost. Missing selections stay TBC until confirmed.",
+            _emphasis_note(project, "ffe-schedule"),
+            "",
+            "\n".join(rows),
+        ]
+    )
+
+
 def _render_taxonomy_consultants(
     project: Project,
     pack: MobilisationEvidencePack | None = None,
     *,
     citation_index: CitationIndex | None = None,
 ) -> str:
+    from app.sitewise.consultant_register import consultant_appointment_rows
+
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     index = citation_index or build_citation_index([])
     pack = pack or MobilisationEvidencePack()
     rows = [
-        "| Discipline | Firm | Scope / services | Fee | Status | Citation |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Discipline | Firm | Fee | Status | Citation |",
+        "| --- | --- | --- | --- | --- |",
     ]
+    appointment_rows = {
+        row["discipline"].strip().lower(): row
+        for row in consultant_appointment_rows(project)
+    }
 
     engaged = has_engagement_evidence(pack)
     fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
+    architect_fact = appointment_rows.get("architect")
     if engaged:
         firm = pack.appointee or "Architect"
-        scope = (
-            "; ".join(pack.scope_bullets[:3])
-            if pack.scope_bullets
-            else "Per engagement letter"
-        )
         fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
         status = "Partial"
         citation = _engagement_citation_token(pack, index)
+    elif architect_fact:
+        firm = str(architect_fact["firm"])
+        fee = str(architect_fact.get("fee") or "")
+        status = str(architect_fact["status"])
+        citation = "—"
     else:
         firm = pack.appointee or "TBC"
-        scope = "Assumption — engagement scope TBC"
         fee = "TBC"
         status = "Assumption"
         citation = "—"
-    rows.append(f"| Architect | {firm} | {scope} | {fee} | {status} | {citation} |")
+    rows.append(f"| Architect | {firm} | {fee} | {status} | {citation} |")
 
-    seen: set[str] = set()
+    seen: set[str] = {"architect"}
     for item in work_scope_items_for(context.work_type, context.work_scope):
         for consultant in item.consultants:
             key = consultant.strip().lower()
             if not key or key in seen:
                 continue
             seen.add(key)
-            rows.append(
-                f"| {consultant} | TBC | Assumption — services not yet appointed | | "
-                f"Not evidenced | — |"
-            )
+            fact = appointment_rows.get(key)
+            if fact is None:
+                # Soft match Services Engineer (Hydraulic) etc.
+                fact = next(
+                    (
+                        row
+                        for label, row in appointment_rows.items()
+                        if label in key or key in label
+                    ),
+                    None,
+                )
+            if fact is not None:
+                rows.append(
+                    f"| {consultant} | {fact['firm']} | {fact.get('fee') or ''} | "
+                    f"{fact['status']} | — |"
+                )
+                seen.add(str(fact["discipline"]).strip().lower())
+            else:
+                rows.append(
+                    f"| {consultant} | TBC | | Not evidenced | — |"
+                )
+    for label, fact in appointment_rows.items():
+        if label in seen:
+            continue
+        rows.append(
+            f"| {fact['discipline']} | {fact['firm']} | {fact.get('fee') or ''} | "
+            f"{fact['status']} | — |"
+        )
     if len(rows) == 2:
         rows.append(
-            "| Discipline roster | TBC | Assumption — confirm required appointments | | "
-            "Not evidenced | — |"
+            "| Discipline roster | TBC | | Not evidenced | — |"
         )
 
     return "\n".join(
@@ -1423,6 +1497,8 @@ def _render_taxonomy_consultants(
             "",
             "Appointment register for Architect engagement and taxonomy-expected disciplines. "
             "The Architect row is the design lead; coordination duties sit under that appointment. "
+            "Record firm, fee, and appointment status only — engagement scope belongs in the brief "
+            "and filed engagement letters, not in this register. "
             "Missing appointment evidence stays Assumption / Not evidenced until engagement letters "
             "or fee proposals are filed.",
             _emphasis_note(project, "consultants"),
@@ -1445,7 +1521,7 @@ def _render_taxonomy_citation_key(
         raise ValueError("taxonomy scaffold requires building_class")
     index = citation_index or build_citation_index([])
     if index.documents:
-        doc_block = "\n".join(f"- {line}" for line in format_citation_key_lines(index))
+        doc_block = "\n".join(format_citation_key_lines(index))
     else:
         doc_block = (
             "- No project evidence documents are cited yet. Upload brief, engagement, "
@@ -1731,6 +1807,7 @@ def _render_taxonomy_platform_scaffold(
     sections = [
         _render_taxonomy_snapshot(project, citation_index=index),
         _render_taxonomy_scope(project),
+        _render_taxonomy_ffe_schedule(project),
         _render_taxonomy_consultants(project, pack, citation_index=index),
         _render_taxonomy_compliance(project, seed_section_refs),
         _render_taxonomy_programme(project),

@@ -6,7 +6,11 @@ export type ArtifactBlockOperationType =
   | "UPDATE"
   | "DELETE"
   | "MOVE"
-  | "DUPLICATE";
+  | "DUPLICATE"
+  | "PROTECT"
+  | "UNPROTECT"
+  | "KEEP"
+  | "CONFIRM_DELETE";
 
 export type ArtifactBlockTarget = {
   id?: string;

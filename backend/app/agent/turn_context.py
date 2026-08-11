@@ -34,6 +34,9 @@ search_documents finds semantic matches, and get_document reads longer ingested 
 For generated SiteWise artefacts such as cost plans, PMP drafts, and Excel workbooks,
 use list_project_files to find the stored file. Read generated markdown drafts with
 read_workspace_file, and read generated .xlsx workbooks with read_project_workbook.
+Do not hunt filenames for "Management Plan" or similar titles: the Project
+Management Plan draft id is artefact.create_pmp in <project-snapshot>, or call
+get_project_snapshot / get_artefact_blocks (draft_id optional for the latest PMP).
 When the user asks to select, add, remove, or clear files in the document register,
 call list_document_register first. Use its structured document_number, title,
 revision, category, filename, and path fields to apply the user's criteria. Its
@@ -42,6 +45,18 @@ query and query_field arguments support field-specific keyword searches such as
 comparisons. Then call select_document_register_files with only the exact returned
 ids. Never treat the current selected-document-register block as the full list of
 available files.
+For FFE schedule adds or edits (Finishes, Fixtures and Equipment, including
+items the user wants in the PMP FFE schedule), call
+list_shared_project_knowledge with kind ffe_item, then
+upsert_shared_project_knowledge with a stable object id slug and fields such as
+item, location, quantity, finish, model, dimensions, supplier, status, package,
+and notes (use TBC when unspecified). If a create_pmp artefact exists, also call
+get_artefact_blocks and apply_artefact_operations to ADD or UPDATE the matching
+row in the PMP FFE Schedule section (after Brief). Do not ask the user to select
+a Management Plan file.
+For narrowly scoped PMP/RFP/RFT or Cost Plan edits, read get_artefact_blocks or
+get_cost_plan, then call apply_artefact_operations or apply_cost_plan_operations
+with the current revision. Do not rewrite whole Markdown or edit workbook text.
 For missing consultant-fee estimates, call forecast_consultant_fees before
 answering. Only call apply_consultant_fee_forecast when the user asks to apply,
 write, update, or save the forecast into the cost plan.
@@ -130,7 +145,13 @@ Ground every answer in project evidence and platform knowledge:
   documents first: find_document_text, search_documents, get_document.
 - For generated SiteWise artefacts, use list_project_files, read_workspace_file,
   and read_project_workbook. Treat these as artefacts, not independent evidence,
-  unless they point to an ingested source_document_id.
+  unless they point to an ingested source_document_id. PMP draft ids come from
+  artefact.create_pmp in <project-snapshot> or get_artefact_blocks without a
+  draft_id; never ask the user for a file named Management Plan.
+- For FFE schedule changes, upsert_shared_project_knowledge with kind ffe_item,
+  then optionally patch the PMP FFE Schedule section (after Brief) via
+  get_artefact_blocks and apply_artefact_operations when a create_pmp artefact
+  exists.
 - For document-register selection requests, call list_document_register and
   apply the user's criteria to its structured metadata. Use query with
   query_field for keyword matches such as "Basement" in a title, and use
@@ -138,6 +159,9 @@ Ground every answer in project evidence and platform knowledge:
   select_document_register_files with the exact returned ids. The
   selected-document-register block is only the current selection, not the set
   of available project files.
+- For narrowly scoped artefact edits, use get_artefact_blocks / get_cost_plan
+  then apply_artefact_operations / apply_cost_plan_operations. Do not rewrite
+  whole Markdown or edit workbook text.
 - For missing consultant-fee estimates, use forecast_consultant_fees first.
   Use apply_consultant_fee_forecast only on an explicit apply/write/update/save
   request. Explain forecast values as Judgement allowances, not received fee
@@ -548,6 +572,13 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         )
         for action in snapshot.next_actions[:20]
     ]
+    artefact_lines = [
+        (
+            f"artefact.{artefact.workflow_type}=id:{artefact.artefact_id}; "
+            f"version:{artefact.version}; title:{artefact.title}"
+        )
+        for artefact in snapshot.latest_artefacts[:20]
+    ]
     lines = [
         '<project-snapshot schema-version="1">',
         f"content_fingerprint: {snapshot.content_fingerprint}",
@@ -562,6 +593,7 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         *identity_lines,
         *input_lines,
         *decision_lines,
+        *artefact_lines,
         *next_action_lines,
         "</project-snapshot>",
     ]

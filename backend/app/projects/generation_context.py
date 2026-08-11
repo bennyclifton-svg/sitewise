@@ -7,8 +7,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.database.project import Project
 from app.schemas.project_snapshot import ProjectSnapshot, SnapshotValue
 from app.schemas.projects import ProjectSubclassSelection
+from app.sitewise.consultant_register import consultant_appointment_rows
 from app.sitewise.taxonomy import (
     derive_risk_flags,
     complexity_dimensions_for,
@@ -81,10 +83,13 @@ def resolve_project_generation_context(
     snapshot: ProjectSnapshot,
     *,
     cache: GenerationContextCache | None = None,
+    project: Project | None = None,
 ) -> ProjectGenerationContext:
     """Resolve the canonical, profiler-aware context for one project revision."""
     key = (snapshot.identity.project_id, snapshot.context_version)
-    if cache is not None and key in cache:
+    # Skip cache when project-backed consultant facts are requested — those can
+    # change without a snapshot fingerprint bump in the same request.
+    if cache is not None and project is None and key in cache:
         return cache[key]
 
     profile = snapshot.profile
@@ -250,6 +255,7 @@ def resolve_project_generation_context(
         },
         key=str.casefold,
     )
+    appointments = consultant_appointment_rows(project) if project is not None else []
     stakeholders = {
         "client": identity["client"].model_copy(
             update={"key": "client", "label": "Client / owners"}
@@ -260,6 +266,13 @@ def resolve_project_generation_context(
             label="Required consultants",
             value=consultants,
             source="taxonomy" if consultants else None,
+        ),
+        "consultant_appointments": _field(
+            snapshot,
+            path="stakeholders.consultant_appointments",
+            label="Evidence-derived consultant firms",
+            value=appointments,
+            source="evidence" if appointments else None,
         ),
     }
     known_complexity = {
@@ -290,7 +303,7 @@ def resolve_project_generation_context(
         stakeholders=stakeholders,
         derived_risks=derived_risks,
     )
-    if cache is not None:
+    if cache is not None and project is None:
         cache[key] = context
     return context
 

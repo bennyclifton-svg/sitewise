@@ -1,3 +1,6 @@
+import uuid
+from datetime import UTC, datetime
+
 import pytest
 
 from app.agent.document_context import SelectedTurnDocument
@@ -9,8 +12,20 @@ from app.agent.turn_context import (
     turn_needs_profile_mutation_tools,
 )
 from app.config import settings
+from app.schemas.project_snapshot import (
+    ProjectSnapshot,
+    ProjectSnapshotArtefact,
+    ProjectSnapshotBudget,
+    ProjectSnapshotDecisions,
+    ProjectSnapshotEvidence,
+    ProjectSnapshotIdentity,
+    ProjectSnapshotTender,
+    SnapshotValue,
+)
+from app.schemas.projects import ProjectProfileView
 
 PROJECT_ID = "22222222-2222-2222-2222-222222222222"
+ARTEFACT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 
 
 def test_prompt_carries_overlays_and_history_before_user_text() -> None:
@@ -431,6 +446,71 @@ def test_ambiguous_profile_claim_prompts_for_confirmation_without_authority() ->
 
     assert "does not authorize a direct profile mutation" in prompt
     assert "ask the user to confirm" in prompt
+
+
+def test_snapshot_context_includes_latest_artefacts_and_ffe_guidance() -> None:
+    project_uuid = uuid.UUID(PROJECT_ID)
+    snapshot = ProjectSnapshot(
+        generated_at=datetime.now(UTC),
+        content_fingerprint="fp",
+        identity=ProjectSnapshotIdentity(
+            project_id=project_uuid,
+            title="Mosaic Apartments",
+            slug="mosaic",
+            workspace_path="04-projects/mosaic",
+            phase="brief-planning",
+            status="active",
+            site_address=SnapshotValue(status="needs_input"),
+            client=SnapshotValue(status="needs_input"),
+        ),
+        profile=ProjectProfileView(
+            project_id=project_uuid,
+            profile_revision=1,
+            building_class="residential",
+            work_type="new",
+            subclasses=["apartments"],
+            scale={},
+            state="NSW",
+        ),
+        decisions=ProjectSnapshotDecisions(set_revision=1, items=[]),
+        evidence=ProjectSnapshotEvidence(
+            fingerprint="evidence",
+            active_count=0,
+            fingerprint_complete=True,
+            ingest_failure_count=0,
+            ingest_failures=[],
+        ),
+        confirmed_inputs={},
+        open_profile_proposals=[],
+        latest_artefacts=[
+            ProjectSnapshotArtefact(
+                artefact_id=ARTEFACT_ID,
+                workflow_type="create_pmp",
+                title="Project Management Plan",
+                version=8,
+                status="draft",
+            )
+        ],
+        tender=ProjectSnapshotTender(),
+        budget=ProjectSnapshotBudget(),
+    )
+    prompt = build_agent_prompt(
+        "Add a freestanding bath to the FFE schedule",
+        project_id=PROJECT_ID,
+        title="Mosaic Apartments",
+        archetype=None,
+        state="NSW",
+        phase="brief-planning",
+        building_class="residential",
+        work_type="new",
+        history=[],
+        snapshot=snapshot,
+    )
+
+    assert f"artefact.create_pmp=id:{ARTEFACT_ID}; version:8" in prompt
+    assert "upsert_shared_project_knowledge" in prompt
+    assert "Management Plan" in prompt
+    assert "FFE Schedule" in prompt or "ffe_item" in prompt
 
 
 def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:

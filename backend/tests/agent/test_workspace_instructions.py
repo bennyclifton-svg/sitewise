@@ -24,6 +24,12 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "Search results are discovery candidates" in WORKSPACE_AGENTS_MD
     assert "external reference, not project evidence" in WORKSPACE_AGENTS_MD
     assert "Never call upsert_cost_item" in WORKSPACE_AGENTS_MD
+    assert "apply_artefact_operations" in WORKSPACE_AGENTS_MD
+    assert "apply_cost_plan_operations" in WORKSPACE_AGENTS_MD
+    assert "get_artefact_blocks" in WORKSPACE_AGENTS_MD
+    assert "upsert_shared_project_knowledge" in WORKSPACE_AGENTS_MD
+    assert "ffe_item" in WORKSPACE_AGENTS_MD
+    assert "FFE Schedule" in WORKSPACE_AGENTS_MD
     assert "Prefer headings and bullet lists for structure" in WORKSPACE_AGENTS_MD
     assert "**bold**" in WORKSPACE_AGENTS_MD
 

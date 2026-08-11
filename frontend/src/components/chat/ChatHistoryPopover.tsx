@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { ChatSessionList } from "@/components/chat/ChatSessionList";
 import { Button } from "@/components/ui/button";
+import { dropdownMenuContentClassName } from "@/components/ui/dropdown-menu";
 import type { ChatThread } from "@/lib/types/chat";
+import { cn } from "@/lib/utils";
 
 type ChatHistoryPopoverProps = {
   activeThreadId?: string;
@@ -62,7 +64,10 @@ export function ChatHistoryPopover({
 
       {open ? (
         <div
-          className="sw-surface sw-contact absolute top-full left-0 z-50 mt-1 w-[min(18rem,calc(100vw-2rem))] p-2 hover:translate-y-0"
+          className={cn(
+            dropdownMenuContentClassName,
+            "absolute top-full left-0 z-50 mt-1 w-[min(18rem,calc(100vw-2rem))] p-2",
+          )}
           role="dialog"
           aria-label="Chat history"
         >

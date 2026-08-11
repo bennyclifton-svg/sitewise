@@ -190,7 +190,13 @@ async def require_active_mutation_turn(
 
 
 async def complete_agent_turn(
-    session: AsyncSession, turn_id: uuid.UUID, *, status_value: str
+    session: AsyncSession,
+    turn_id: uuid.UUID,
+    *,
+    status_value: str,
+    latency_ms: int | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
 ) -> None:
     turn = await session.get(AgentTurn, turn_id, with_for_update=True)
     if turn is None or turn.state == "revoked":
@@ -198,4 +204,24 @@ async def complete_agent_turn(
     turn.state = "completed"
     turn.status = status_value
     turn.completed_at = datetime.now(UTC)
+    if input_tokens is not None:
+        turn.input_tokens = input_tokens
+    if output_tokens is not None:
+        turn.output_tokens = output_tokens
+    context = dict(turn.input_context or {})
+    route = context.get("task_route")
+    if isinstance(route, dict) and (
+        latency_ms is not None or input_tokens is not None or output_tokens is not None
+    ):
+        updated = dict(route)
+        if latency_ms is not None:
+            updated["latency_ms"] = latency_ms
+        usage = dict(updated.get("usage") or {})
+        if input_tokens is not None:
+            usage["input_tokens"] = input_tokens
+        if output_tokens is not None:
+            usage["output_tokens"] = output_tokens
+        updated["usage"] = usage
+        context["task_route"] = updated
+        turn.input_context = context
     await session.flush()

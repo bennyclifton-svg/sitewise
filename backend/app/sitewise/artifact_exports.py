@@ -13,8 +13,8 @@ from app.sitewise.artifact_presentation import issue_export_markdown
 ExportFormat = Literal["pdf", "docx"]
 EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v2"
 
-# Discipline narrow; Firm + Scope / services take the spare width.
-_CONSULTANTS_TABLE_WEIGHTS = (11, 22, 37, 8, 14, 8)
+# Citation column must fit [n] chips; Status gets the narrative width.
+_CONSULTANTS_TABLE_WEIGHTS = (14, 24, 8, 26, 28)
 
 _DECISION_FENCE_RE = re.compile(
     r"```pmp-decision\s*\n(?P<payload>\{.*?\})\s*\n```",
@@ -208,7 +208,8 @@ def _consultants_table_weights(rows: list, column_count: int) -> list[int] | Non
         "discipline" in labels
         and "firm" in labels
         and "fee" in labels
-        and any("scope" in label for label in labels)
+        and "status" in labels
+        and "citation" in labels
     ):
         return None
     return list(_CONSULTANTS_TABLE_WEIGHTS)

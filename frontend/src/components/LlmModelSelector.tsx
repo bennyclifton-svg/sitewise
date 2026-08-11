@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 
+import { MenuSelect } from "@/components/ui/menu-select";
 import {
   getSelectedAgentModel,
   setSelectedAgentModel,
@@ -71,24 +72,25 @@ export function LlmModelSelector({
   const label = "Model tier";
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-2", className)}>
+    <div className={cn("flex min-w-0 items-center gap-2", className)} title={title}>
       <label className="sr-only" htmlFor="clerk-llm-model">
         {label}
       </label>
-      <select
+      <MenuSelect
         id="clerk-llm-model"
-        className={cn(
-          compact
-            ? "h-7 w-auto max-w-[7rem] truncate border-0 bg-transparent px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70"
-            : "h-8 min-w-[9rem] max-w-[12rem] truncate rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait disabled:opacity-70",
-          className,
-        )}
         value={effectiveValue}
         disabled={loading || (mode === "agent" && models.length === 0)}
         aria-label={label}
-        title={title}
-        onChange={(event) => {
-          const next = event.target.value;
+        className={
+          compact
+            ? "h-7 w-auto max-w-[7rem] border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            : "h-8 min-w-[9rem] max-w-[12rem] px-2 text-xs"
+        }
+        options={models.map((model) => ({
+          value: model.id,
+          label: model.label,
+        }))}
+        onChange={(next) => {
           if (mode === "agent") {
             setSelectedAgentModel(next === defaultModel ? null : next);
             return;
@@ -99,13 +101,7 @@ export function LlmModelSelector({
           }
           setSelectedChatModel(next);
         }}
-      >
-        {models.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.label}
-          </option>
-        ))}
-      </select>
+      />
     </div>
   );
 }

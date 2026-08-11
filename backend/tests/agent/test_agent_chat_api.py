@@ -911,7 +911,9 @@ def test_agent_stream_uses_pi_for_profile_enrichment(
             created_at=NOW,
         )
 
-    async def fake_stream_pi_turn(*, prompt, mcp_url, turn_token, cwd):
+    async def fake_stream_pi_turn(
+        *, prompt, mcp_url, turn_token, cwd, provider=None, model=None
+    ):
         seen_runtimes.append("pi")
         assert "<profile-enrichment-request>" in prompt
         yield "Proposed evidence-backed profile updates."
@@ -1014,7 +1016,9 @@ def test_agent_stream_uses_pi_for_rfp_request(
             created_at=NOW,
         )
 
-    async def fake_stream_pi_turn(*, prompt, mcp_url, turn_token, cwd):
+    async def fake_stream_pi_turn(
+        *, prompt, mcp_url, turn_token, cwd, provider=None, model=None
+    ):
         seen_runtimes.append("pi")
         yield "Queued the Structural Engineer RFP."
 
@@ -1092,6 +1096,99 @@ def test_agent_stream_uses_pi_for_rfp_request(
             "runtime"
         ]
         == "pi"
+    )
+
+
+def test_agent_stream_routes_fast_semantic_to_configured_model(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    thread = _thread(title=None)
+    seen: dict[str, object] = {}
+    reserve = AsyncMock(
+        return_value=(
+            SimpleNamespace(id=uuid.uuid4()),
+            SimpleNamespace(used_turns=1, quota=100, percent=1, warning=False),
+            True,
+        )
+    )
+
+    async def fake_stream_pi_turn(
+        *, prompt, mcp_url, turn_token, cwd, provider=None, model=None
+    ):
+        seen["provider"] = provider
+        seen["model"] = model
+        yield "ok"
+
+    monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
+    monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(chat_api, "reserve_agent_turn", reserve)
+    monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "require_project_owner",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                title="Walsh Reno",
+                archetype=None,
+                user_role="architect-pm",
+                state="NSW",
+                phase="brief-planning",
+                building_class="residential",
+                work_type="refurb",
+                project_metadata={},
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    monkeypatch.setattr(chat_api, "update_thread", AsyncMock(return_value=thread))
+    monkeypatch.setattr(
+        chat_api,
+        "create_message",
+        AsyncMock(
+            return_value=ChatMessage(
+                id=uuid.uuid4(),
+                thread_id=THREAD_ID,
+                role="assistant",
+                content="ok",
+                message_data={},
+                created_at=NOW,
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="turn-token"))
+    monkeypatch.setattr(chat_api, "stream_pi_turn", fake_stream_pi_turn)
+    monkeypatch.setattr(
+        chat_api,
+        "get_session_factory",
+        lambda: _SessionFactory(AsyncMock()),
+    )
+
+    body = {
+        "threadId": str(THREAD_ID),
+        "messages": [
+            {
+                "role": "user",
+                "parts": [{"type": "text", "text": "Add a suitable kitchen mixer"}],
+            }
+        ],
+    }
+    with client.stream("POST", "/chat/agent/stream", json=body) as response:
+        "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert seen["provider"] == "openai"
+    assert seen["model"] == "gpt-5.6-luna"
+    assert reserve.await_args.kwargs["model"] == "gpt-5.6-luna"
+    assert reserve.await_args.kwargs["input_context"]["task_route"]["task_class"] == (
+        "FAST_SEMANTIC"
+    )
+    assert reserve.await_args.kwargs["input_context"]["task_route"]["path"] == (
+        "fast_semantic"
     )
 
 

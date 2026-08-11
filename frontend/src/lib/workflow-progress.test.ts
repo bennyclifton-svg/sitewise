@@ -74,8 +74,20 @@ describe("truthful progress", () => {
     expect(workflowRunPercent(sectionProgress)).toBe(33);
   });
 
-  it("uses explicit backend percentages and otherwise returns no percentage", () => {
-    expect(workflowRunPercent({ stage: "verifying_workbook", percent: 80 })).toBe(80);
+  it("prefers backend completed/total counts when they match the section list", () => {
+    expect(
+      workflowSectionProgress({
+        ...sectionProgress,
+        completed_sections: 1,
+        total_sections: 3,
+      }),
+    ).toMatchObject({ completed: 1, total: 3 });
+  });
+
+  it("ignores invented lifecycle percentages on non-count stages", () => {
+    expect(workflowRunPercent({ stage: "starting", percent: 1 })).toBeNull();
+    expect(workflowRunPercent({ stage: "queued", percent: 0 })).toBeNull();
+    expect(workflowRunPercent({ stage: "verifying_workbook", percent: 80 })).toBeNull();
     expect(workflowRunPercent({ stage: "retrieval_complete" })).toBeNull();
   });
 });

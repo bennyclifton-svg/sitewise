@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
-import { truncateQuote } from "@/lib/instruction-tray";
+import { dropdownMenuContentClassName } from "@/components/ui/dropdown-menu";
 import type { MarkdownAnchor } from "@/lib/markdown-selection";
+import { cn } from "@/lib/utils";
 
 const CARD_WIDTH = 340;
 const VIEWPORT_MARGIN = 12;
@@ -68,13 +69,13 @@ export function SelectionInstructionCard({
       data-instruction-ui
       role="dialog"
       aria-label="Add an instruction for the selected text"
-      className="sw-surface sw-contact fixed z-[100] w-[340px] p-3 text-popover-foreground hover:translate-y-0 print:hidden"
+      className={cn(
+        dropdownMenuContentClassName,
+        "fixed z-[100] w-[340px] p-3 print:hidden",
+      )}
       style={{ top, left }}
     >
       <p className="text-xs font-medium text-muted-foreground">{sectionHeading}</p>
-      <blockquote className="mt-2 border-l-2 pl-2 text-xs text-muted-foreground">
-        {truncateQuote(anchor.quotedText)}
-      </blockquote>
       <textarea
         ref={textareaRef}
         value={instruction}

@@ -57,6 +57,7 @@ _FILENAME_DESTINATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^F-", re.I), "03-design/fire"),
     (re.compile(r"^S\d{3}", re.I), "03-design/structural"),
     (re.compile(r"\bctmp\b", re.I), "03-design/civil"),
+    (re.compile(r"\bprice[-_ ]?schedule\b", re.I), "05-procurement/quotes"),
     (re.compile(r"\b(tender|submission|procurement|quote)\b", re.I), "05-procurement"),
     (re.compile(r"\b(invoice|claim|estimate|budget|cost)\b", re.I), "01-cost"),
     (re.compile(r"\b(minutes|meeting)\b", re.I), "08-meetings-reporting"),
@@ -153,6 +154,7 @@ _QUOTE_DESTINATION = "05-procurement/quotes"
 _PREVIEW_QUOTE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"^\s*#\s*price\s+estimate\b", re.I | re.M),
     re.compile(r"\bprice\s+estimate\b", re.I),
+    re.compile(r"\bprice\s+schedule\b", re.I),
     re.compile(r"\bbuilder'?s?\s+margin\b", re.I),
     re.compile(r"\bquotation\b", re.I),
     re.compile(r"\bschedule\s+of\s+rates\b", re.I),

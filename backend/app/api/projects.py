@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import mimetypes
 import re
 import time
@@ -76,13 +77,17 @@ from app.schemas.projects import (
     CreatePmpResponse,
     DeleteProjectActivityRequest,
     DeleteProjectActivityResponse,
-    PatchDraftRequest,
     AcceptDraftRequest,
     ApplyDraftInstructionsRequest,
     ApplyDraftInstructionsResponse,
     ApplyArtefactBlockOperationsRequest,
     ApplyArtefactBlockOperationsResponse,
+    ArtefactBlockDelta,
+    ReplaceDraftTransmittalRequest,
+    ReplaceDraftTransmittalResponse,
     ApplyCostPlanOperationsRequest,
+    DependencyOfferAcceptRequest,
+    DependencyOfferRejectRequest,
     FailedInstructionResponse,
     BatchDeleteEvidenceFailure,
     BatchDeleteEvidenceRequest,
@@ -174,6 +179,7 @@ from app.schemas.document_selections import (
     TenderQuoteSelection,
 )
 from app.projects.workflow_capabilities import capability_for, workflow_capabilities
+from app.cost_plan.deletion_blockers import CostPlanDeletionBlocked
 from app.cost_plan.invoice_candidates import is_invoice_document
 from app.cost_plan.models import CostInvoice
 from app.cost_plan.schemas import CostItemInput, CostPlanDelta, CostPlanState
@@ -189,14 +195,33 @@ from app.projects.artefact_adapters import (
     accept_workflow_artefact,
     revise_workflow_artefact,
 )
-from app.projects.artefact_blocks import apply_block_operations
+from app.projects.artefact_blocks import (
+    apply_block_operations,
+    markdown_blocks,
+    materialize_block_identity,
+)
+from app.projects.generation_audit import carry_generation_audit
 from app.sitewise.markdown_sections import normalize_draft_markdown
+from app.sitewise.rfp_renderer import replace_transmittal_section
 from app.projects.project_knowledge import (
     ProjectObjectKind,
     SharedProjectObject,
     SharedProjectObjectConflict,
     SharedProjectObjectUpdate,
+    get_shared_project_object,
+    list_shared_project_objects,
     write_shared_project_object,
+)
+from app.projects.dependencies import (
+    DependencyUpdateOffer,
+    dirty_categories_for_block_sections,
+    mark_project_dirty,
+)
+from app.projects.dependency_offers import (
+    DependencyOfferAcceptResult,
+    accept_dependency_offer,
+    enrich_dependency_offers,
+    reject_dependency_offer_entries,
 )
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
@@ -361,6 +386,29 @@ async def put_tender_quote_selection(
         ) from exc
 
 
+def _changed_block_section_ids(
+    markdown: str, changed_block_ids: list[str] | tuple[str, ...]
+) -> tuple[str, ...]:
+    from app.projects.artefact_blocks import markdown_blocks
+    from app.sitewise.section_contracts import section_id_for_heading
+
+    wanted = set(changed_block_ids)
+    if not wanted:
+        return ()
+    section_ids: list[str] = []
+    for block in markdown_blocks(markdown):
+        if block.id not in wanted:
+            continue
+        matches = list(re.finditer(r"(?m)^##\s+(.+?)\s*$", markdown[: block.start]))
+        if not matches:
+            continue
+        heading = matches[-1].group(1).strip()
+        section_id = section_id_for_heading(heading, work_type=None)
+        if section_id:
+            section_ids.append(section_id)
+    return tuple(dict.fromkeys(section_ids))
+
+
 def _require_project_owner(project, user_id: uuid.UUID):
     if project is None:
         raise HTTPException(
@@ -433,6 +481,39 @@ def _register_title_from_fields(
 
 def _is_xlsx_filename(filename: str) -> bool:
     return filename.lower().endswith(".xlsx")
+
+
+def _is_cost_plan_workbook_path(workspace_path: str) -> bool:
+    normalized = workspace_path.replace("\\", "/")
+    filename = normalized.rsplit("/", 1)[-1].lower()
+    return filename.startswith("cost_plan_v") and filename.endswith(".xlsx")
+
+
+async def _resolve_workspace_file_for_read(
+    session: AsyncSession,
+    *,
+    project,
+    workspace_path: str,
+):
+    """Flush pending Cost Plan workbook builds before preview/download."""
+    path = workspace_path
+    if _is_cost_plan_workbook_path(path):
+        flushed = await flush_cost_plan_workbook_rebuild(project.id)
+        if flushed:
+            try:
+                state = await read_canonical_cost_plan(
+                    session,
+                    project_id=project.id,
+                    owner_user_id=project.owner_user_id,
+                )
+                path = cost_plan_workbook_workspace_path(project, state.version)
+            except LookupError:
+                path = workspace_path
+    return await get_workspace_file_by_path(
+        session,
+        project_id=project.id,
+        workspace_path=path,
+    )
 
 
 def _download_headers(filename: str) -> dict[str, str]:
@@ -1677,9 +1758,9 @@ async def get_project_workspace_file_preview(
     session: AsyncSession = Depends(get_db),
 ) -> WorkbookPreviewResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    record = await get_workspace_file_by_path(
+    record = await _resolve_workspace_file_for_read(
         session,
-        project_id=project.id,
+        project=project,
         workspace_path=path,
     )
     if record is None:
@@ -1721,9 +1802,9 @@ async def download_project_workspace_file(
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     project = _require_project_owner(await get_project(session, project_id), user.id)
-    record = await get_workspace_file_by_path(
+    record = await _resolve_workspace_file_for_read(
         session,
-        project_id=project.id,
+        project=project,
         workspace_path=path,
     )
     if record is None:
@@ -2560,37 +2641,127 @@ async def put_project_decision(
     )
 
 
-@router.patch("/{project_id}/drafts/{draft_id}")
-async def patch_project_draft(
+@router.post("/{project_id}/drafts/{draft_id}/transmittal")
+async def replace_project_draft_transmittal(
     project_id: uuid.UUID,
     draft_id: uuid.UUID,
-    body: PatchDraftRequest,
+    body: ReplaceDraftTransmittalRequest,
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
-) -> DraftArtifactResponse:
+) -> ReplaceDraftTransmittalResponse:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
     draft = await get_draft_artifact(session, draft_id)
     if draft is None or draft.project_id != project.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Draft not found",
+        raise HTTPException(status_code=404, detail="Draft not found")
+    if body.evidence_ids:
+        await require_project_evidence_ids(
+            session,
+            project_id=project.id,
+            evidence_ids=list(body.evidence_ids),
         )
+    workspace_files = await list_workspace_files_for_project(
+        session, project_id=project.id
+    )
+    workspace_paths = {record.workspace_path for record in workspace_files}
+    previews = await _list_project_evidence_previews(
+        session,
+        project_id=project.id,
+        workspace_paths=workspace_paths,
+        workspace_files=workspace_files,
+    )
+    by_id = {preview.id: preview for preview in previews}
+    ordered = [by_id[evidence_id] for evidence_id in body.evidence_ids if evidence_id in by_id]
+    if len(ordered) != len(body.evidence_ids):
+        raise HTTPException(
+            status_code=404,
+            detail="One or more documents do not belong to this project",
+        )
+    evidence_rows = [
+        {
+            "relative_path": preview.relative_path,
+            "filename": preview.filename,
+            "document_metadata": {
+                "document_number": preview.document_number,
+                "title": preview.title,
+                "revision": preview.revision,
+                "discipline": preview.category,
+            },
+        }
+        for preview in ordered
+    ]
     try:
+        replaced = replace_transmittal_section(
+            normalize_draft_markdown(draft.content_markdown),
+            evidence_rows,
+        )
+        stamped = materialize_block_identity(replaced, actor_source="user")
         updated = await revise_workflow_artefact(
             session,
             project=project,
             draft=draft,
             expected_base_version=body.expected_base_version,
             author_user_id=user.id,
-            content_markdown=body.content_markdown,
-            actor_source="user",
+            content_markdown=stamped.markdown,
+            actor_source="user_transmittal",
         )
     except ArtefactRevisionConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ArtefactPolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return DraftArtifactResponse.model_validate(updated)
+
+    present_ids = {
+        block.id for block in markdown_blocks(stamped.markdown) if block.id
+    }
+    prior_blocks = (draft.provenance_metadata or {}).get("blocks")
+    retained_blocks = (
+        {
+            block_id: value
+            for block_id, value in prior_blocks.items()
+            if isinstance(block_id, str)
+            and isinstance(value, dict)
+            and block_id in present_ids
+        }
+        if isinstance(prior_blocks, dict)
+        else {}
+    )
+    retained_blocks.update(stamped.metadata)
+    deleted_block_ids = sorted(
+        (
+            set(prior_blocks.keys())
+            if isinstance(prior_blocks, dict)
+            else set()
+        )
+        - present_ids
+    )
+    audit = carry_generation_audit(
+        draft.provenance_metadata,
+        mutation={
+            "kind": "transmittal_replace",
+            "actor_source": "user_transmittal",
+            "from_version": draft.version,
+            "to_version": updated.version,
+            "evidence_ids": [str(evidence_id) for evidence_id in body.evidence_ids],
+            "changed_block_ids": list(stamped.changed_block_ids),
+            "deleted_block_ids": deleted_block_ids,
+        },
+    )
+    provenance = dict(updated.provenance_metadata or {})
+    provenance.update(audit)
+    provenance.update(
+        {
+            "blocks": retained_blocks,
+            "changed_block_ids": list(stamped.changed_block_ids),
+        }
+    )
+    updated.provenance_metadata = provenance
+    await session.flush()
+    await session.refresh(updated)
+    return ReplaceDraftTransmittalResponse(
+        draft=DraftArtifactResponse.model_validate(updated),
+    )
 
 
 @router.post("/{project_id}/drafts/{draft_id}/blocks")
@@ -2631,21 +2802,68 @@ async def apply_project_draft_block_operations(
     except ArtefactPolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    prior_blocks = (draft.provenance_metadata or {}).get("blocks")
+    prior_block_ids = (
+        set(prior_blocks.keys()) if isinstance(prior_blocks, dict) else set()
+    )
+    deleted_block_ids = sorted(prior_block_ids - set(mutation.metadata.keys()))
+    changed_ids = list(mutation.changed_block_ids)
+    changed_blocks = {
+        block_id: mutation.metadata[block_id]
+        for block_id in changed_ids
+        if block_id in mutation.metadata
+    }
+    audit = carry_generation_audit(
+        draft.provenance_metadata,
+        mutation={
+            "kind": "block_operations",
+            "actor_source": "user_block_operation",
+            "from_version": draft.version,
+            "to_version": updated.version,
+            "operations": [
+                operation.model_dump(mode="json") for operation in body.operations
+            ],
+            "changed_block_ids": changed_ids,
+            "deleted_block_ids": deleted_block_ids,
+        },
+    )
     provenance = dict(updated.provenance_metadata or {})
+    provenance.update(audit)
     provenance.update(
         {
             "blocks": mutation.metadata,
-            "changed_block_ids": list(mutation.changed_block_ids),
+            "changed_block_ids": changed_ids,
             "block_operations": [
                 operation.model_dump(mode="json") for operation in body.operations
             ],
         }
     )
     updated.provenance_metadata = provenance
+    section_ids = _changed_block_section_ids(
+        mutation.markdown, mutation.changed_block_ids
+    )
+    dirty = dirty_categories_for_block_sections(section_ids)
+    if dirty:
+        mark_project_dirty(project, dirty)
     await session.flush()
+    # provenance write bumps server-side updated_at; refresh before reading it.
+    # Async sessions cannot lazy-load expired columns (MissingGreenlet).
+    await session.refresh(updated)
+    content_sha256 = hashlib.sha256(mutation.markdown.encode("utf-8")).hexdigest()
     return ApplyArtefactBlockOperationsResponse(
-        draft=DraftArtifactResponse.model_validate(updated),
-        changed_block_ids=list(mutation.changed_block_ids),
+        delta=ArtefactBlockDelta(
+            draft_id=updated.id,
+            version=updated.version,
+            updated_at=updated.updated_at,
+            changed_block_ids=changed_ids,
+            deleted_block_ids=deleted_block_ids,
+            blocks=changed_blocks,
+            content_sha256=content_sha256,
+            generation_manifest_present=isinstance(
+                provenance.get("generation_manifest"), dict
+            ),
+        ),
+        changed_block_ids=changed_ids,
     )
 
 
@@ -2692,11 +2910,41 @@ async def apply_project_cost_plan_operations(
         schedule_cost_plan_workbook_rebuild(project.id, result.state.version)
     except ArtefactRevisionConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except CostPlanDeletionBlocked as exc:
+        raise HTTPException(status_code=422, detail=exc.detail()) from exc
     except ArtefactPolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return result.delta
+
+
+@router.get("/{project_id}/knowledge")
+async def get_shared_project_objects(
+    project_id: uuid.UUID,
+    kind: ProjectObjectKind | None = Query(default=None),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[SharedProjectObject]:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    return list_shared_project_objects(project, kind=kind)
+
+
+@router.get("/{project_id}/knowledge/{object_kind}/{object_id}")
+async def get_one_shared_project_object(
+    project_id: uuid.UUID,
+    object_kind: ProjectObjectKind,
+    object_id: str,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> SharedProjectObject:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    item = get_shared_project_object(
+        project, kind=object_kind, object_id=object_id
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Shared project object not found")
+    return item
 
 
 @router.put("/{project_id}/knowledge/{object_kind}/{object_id}")
@@ -2722,6 +2970,65 @@ async def put_shared_project_object(
     except SharedProjectObjectConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return result
+
+
+@router.get("/{project_id}/dependency-offers")
+async def get_dependency_offers(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[DependencyUpdateOffer]:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    return await enrich_dependency_offers(
+        session,
+        project=project,
+        owner_user_id=user.id,
+    )
+
+
+@router.post("/{project_id}/dependency-offers/{offer_id}/accept")
+async def post_accept_dependency_offer(
+    project_id: uuid.UUID,
+    offer_id: str,
+    body: DependencyOfferAcceptRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DependencyOfferAcceptResult:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        return await accept_dependency_offer(
+            session,
+            project=project,
+            offer_id=offer_id,
+            artefact_types=body.artefact_types,
+            author_user_id=user.id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/dependency-offers/{offer_id}/reject")
+async def post_reject_dependency_offer(
+    project_id: uuid.UUID,
+    offer_id: str,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    body: DependencyOfferRejectRequest | None = Body(default=None),
+) -> dict[str, str]:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        reject_dependency_offer_entries(
+            project,
+            offer_id=offer_id,
+            artefact_types=None if body is None else body.artefact_types,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"status": "rejected"}
 
 
 @router.post("/{project_id}/drafts/{draft_id}/apply-instructions")

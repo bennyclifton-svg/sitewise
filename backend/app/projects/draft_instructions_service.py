@@ -21,6 +21,7 @@ from app.database.project import Project
 from app.grounding.validator import normalize_match_text
 from app.logging import get_logger
 from app.projects.artefact_adapters import revise_workflow_artefact
+from app.projects.profile import read_profile
 from app.sitewise.markdown_sections import (
     MarkdownSection,
     normalize_draft_markdown,
@@ -205,6 +206,7 @@ async def apply_draft_instructions(
     # `revise_workflow_artefact` opens a fresh transaction for the writes.
     await session.commit()
 
+    project_profile = read_profile(project)
     positions = list(grouped)
     results = await asyncio.gather(
         *(
@@ -218,6 +220,7 @@ async def apply_draft_instructions(
                     for index in grouped[position]
                 ],
                 project_title=project.title,
+                project_profile=project_profile,
                 chat_model=chat_model,
             )
             for position in positions

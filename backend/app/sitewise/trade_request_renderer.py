@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from app.database.project import Project
-from app.sitewise.pmp_citations import CitationIndex
+from app.sitewise.pmp_citations import CitationIndex, format_citation_key_lines
 from app.sitewise.rfp_renderer import (
     BACKGROUND_PLACEHOLDER,
     PROGRAMME_PLACEHOLDER,
@@ -116,6 +116,9 @@ def render_trade_request_scaffold(
         _project_documents_heading(issued_documents),
         render_information_to_review_table(issued_documents),
         "",
+        "## Citation key",
+        *format_citation_key_lines(citation_index),
+        "",
         "## Trace & QA",
         _trace_qa_block(assumptions, missing_inputs),
     ]
@@ -129,7 +132,7 @@ def _project_documents_heading(evidence: list[dict[str, Any]]) -> str:
     }
     count = len(paths - {""})
     noun = "document" if count == 1 else "documents"
-    return f"## Project Documents ({count} {noun})"
+    return f"## Transmittal ({count} {noun})"
 
 
 def _price_schedule(target: TradeProfile) -> list[str]:

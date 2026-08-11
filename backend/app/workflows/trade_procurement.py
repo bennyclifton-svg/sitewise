@@ -399,6 +399,7 @@ async def run_validated_trade_narrative(
     platform_knowledge: list[dict[str, Any]],
     citation_index: Any,
     on_progress: ProgressPublisher | None = None,
+    on_section_complete=None,
 ) -> ProcurementNarrativeOutput:
     instructions_path = Path(__file__).with_name(
         "trade_rft_narrative_instructions.md"
@@ -423,6 +424,7 @@ async def run_validated_trade_narrative(
                 instructions_path=instructions_path,
                 validation_feedback=validation_feedback,
                 on_progress=on_progress,
+                on_section_complete=on_section_complete,
                 run_date=resolved_run_date,
             )
             consistency_ai_call_count += output.consistency_ai_call_count
@@ -694,8 +696,11 @@ class TradeProcurementDocument(ProcurementDocument):
         )
 
     def platform_guidance_paths(self, target: ProcurementTarget) -> tuple[str, ...]:
+        from app.workflows.procurement_request import CONTRACTOR_TENDERING_GUIDANCE_PATH
+
         return (
             *super().platform_guidance_paths(target),
+            CONTRACTOR_TENDERING_GUIDANCE_PATH,
             "seed/trade-interfaces-coordination-guide.md",
         )
 
@@ -811,6 +816,24 @@ class TradeProcurementDocument(ProcurementDocument):
             on_progress,
             {"stage": "scaffold_ready", "markdown": scaffold},
         )
+
+        async def publish_progressive_preview(
+            _key: str, _result: object, completed: dict[str, object]
+        ) -> None:
+            from app.workflows.progressive_preview import (
+                assemble_procurement_progressive_preview,
+            )
+
+            await publish_procurement_progress(
+                on_progress,
+                {
+                    "stage": "section_completed",
+                    "markdown": assemble_procurement_progressive_preview(
+                        scaffold, completed
+                    ),
+                },
+            )
+
         narrative = await run_validated_trade_narrative(
             project=project,
             target=profile,
@@ -821,6 +844,7 @@ class TradeProcurementDocument(ProcurementDocument):
             platform_knowledge=platform_knowledge,
             citation_index=citation_index,
             on_progress=on_progress,
+            on_section_complete=publish_progressive_preview,
         )
         scope_items = (
             list(profile.baseline_scope)

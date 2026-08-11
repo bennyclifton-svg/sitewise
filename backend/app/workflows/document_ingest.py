@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.source_document import SourceDocument
-from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from app.database.workspace_file import WorkspaceFile
+from app.intake.sort_service import sort_inbox_files
+from app.projects.consultant_facts import upsert_consultant_fact_from_document
+from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from app.schemas.projects import WorkflowTraceEvent
 from app.storage.project_files import download_project_file
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
@@ -110,12 +112,73 @@ async def ingest_project_document(
                     **document_metadata,
                 }
         record.ingest_status = "ingested" if ingested else "skipped"
+        auto_sort_destination: str | None = None
         if record.ingest_status == "ingested" and record.source_document_id is not None:
             await safe_bootstrap_identity_from_document(
                 session,
                 project=project,
                 source_document_id=record.source_document_id,
             )
+            document = await session.get(SourceDocument, record.source_document_id)
+            if document is not None:
+                upsert_consultant_fact_from_document(project, document)
+            inbox_prefix = f"{project.workspace_path.rstrip('/')}/_inbox/"
+            if record.workspace_path.startswith(inbox_prefix):
+                sort_result = await sort_inbox_files(
+                    session,
+                    project=project,
+                    workspace_paths={record.workspace_path},
+                )
+                moved = next(
+                    (
+                        item
+                        for item in sort_result.records
+                        if item.outcome == "moved" and item.destination_path
+                    ),
+                    None,
+                )
+                if moved is not None:
+                    auto_sort_destination = moved.destination_path
+                    trace.append(
+                        WorkflowTraceEvent(
+                            step="auto_sort",
+                            status="complete",
+                            message="Filed inbox document to a confident lifecycle folder.",
+                            metadata={
+                                "source_path": record.workspace_path,
+                                "destination_path": moved.destination_path,
+                            },
+                        )
+                    )
+                    filed_doc_id = await asyncio.to_thread(
+                        source_document_id_for_path,
+                        moved.destination_path,
+                        project_id=project.id,
+                    )
+                    if filed_doc_id is not None:
+                        filed_document = await session.get(SourceDocument, filed_doc_id)
+                        if filed_document is not None:
+                            upsert_consultant_fact_from_document(project, filed_document)
+                elif sort_result.counts.unresolved:
+                    trace.append(
+                        WorkflowTraceEvent(
+                            step="auto_sort",
+                            status="skipped",
+                            message="No confident lifecycle folder; left in inbox for Sort Files.",
+                            metadata={"workspace_path": record.workspace_path},
+                        )
+                    )
+        if ingested:
+            status_message = (
+                f"Ingestion complete. Auto-filed to {auto_sort_destination}."
+                if auto_sort_destination
+                else (
+                    "Ingestion complete. File remains in the inbox until Sort Files "
+                    "finds a confident destination."
+                )
+            )
+        else:
+            status_message = "Ingest skipped because the content is unchanged."
         await _record(
             session,
             project_id=project.id,
@@ -126,15 +189,12 @@ async def ingest_project_document(
                 WorkflowTraceEvent(
                     step="workspace_status",
                     status="complete" if ingested else "skipped",
-                    message=(
-                        "Ingestion complete. File remains in the inbox until Sort Files runs."
-                        if ingested
-                        else "Ingest skipped because the content is unchanged."
-                    ),
+                    message=status_message,
                     metadata={
                         "filename": record.filename,
                         "workspace_path": record.workspace_path,
                         "ingest_status": record.ingest_status,
+                        "auto_sort_destination": auto_sort_destination,
                     },
                 ),
             ],

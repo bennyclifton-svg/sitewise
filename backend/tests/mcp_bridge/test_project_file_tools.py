@@ -11,6 +11,7 @@ from fastmcp.exceptions import ToolError
 
 from app.config import settings
 from app.cost_plan.schemas import (
+    CostItemInput,
     CostPlanMutationResult,
     CostPlanState,
     DependencySnapshot,
@@ -638,12 +639,24 @@ def test_apply_cost_plan_budget_forecast_refreshes_all_rows_and_workbook(
         decision_set_revision=3,
         runtime_version="adopted-budget-test",
     )
+    scaffold_items = [
+        CostItemInput(
+            item_key="scaffold:1",
+            cost_code="1",
+            category="Fees and charges",
+            item="Architect-PM architect / PM fee",
+            budget=Decimal("96500"),
+            forecast=Decimal("96500"),
+            basis="Engagement letter",
+            status="confirmed",
+        )
+    ]
     base_state = CostPlanState(
         project_id=PROJECT_ID,
         artefact_revision_id=source.id,
         version=1,
         dependency_snapshot=dependencies,
-        items=[],
+        items=scaffold_items,
     )
 
     async def persist_refresh(_session, **kwargs):
@@ -703,7 +716,11 @@ def test_apply_cost_plan_budget_forecast_refreshes_all_rows_and_workbook(
     assert result.data["forecast"]["row_count"] == 25
     assert result.data["forecast"]["construction_envelope_total"] == "300000.00"
     assert result.data["forecast"]["total_excluding_gst"] == "399500.00"
-    assert len(persist.await_args.kwargs["proposed_items"]) == 25
+    proposed = persist.await_args.kwargs["proposed_items"]
+    assert len(proposed) == 25
+    assert proposed[0].item_key == "scaffold:1"
+    assert proposed[0].cost_code == "1"
+    assert [item.cost_code for item in proposed] == [str(index) for index in range(1, 26)]
     assert persist.await_args.kwargs["expected_base_version"] == 1
     assert persist.await_args.kwargs["contingency_percent"] == Decimal("0")
     sync_artifacts.assert_awaited_once()

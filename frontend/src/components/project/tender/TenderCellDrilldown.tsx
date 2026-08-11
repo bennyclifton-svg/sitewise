@@ -57,16 +57,16 @@ export function TenderCellDrilldown({
     target: TenderMappingChoiceTarget,
   ) => Promise<void>;
 }) {
+  const skipFetch = cellCode === NOT_ITEMISED_CODE;
   const [cellItems, setCellItems] = useState<TenderCellItemsResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const skipFetch = cellCode === NOT_ITEMISED_CODE;
+  const visibleItems = skipFetch ? null : cellItems;
+  const visibleError = skipFetch ? null : loadError;
+  const visibleLoading = skipFetch ? false : isLoading;
 
   useEffect(() => {
     if (skipFetch) {
-      setCellItems(null);
-      setLoadError(null);
-      setIsLoading(false);
       return;
     }
 
@@ -122,18 +122,18 @@ export function TenderCellDrilldown({
           </p>
         ) : null}
 
-        {isLoading ? (
+        {visibleLoading ? (
           <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" aria-hidden />
             Loading line items…
           </p>
         ) : null}
 
-        {loadError ? (
-          <p className="mt-2 text-sm text-destructive">{loadError}</p>
+        {visibleError ? (
+          <p className="mt-2 text-sm text-destructive">{visibleError}</p>
         ) : null}
 
-        {cellItems ? (
+        {visibleItems ? (
           <div className="mt-3">
             <table className="w-full text-left text-sm">
               <thead>
@@ -146,7 +146,7 @@ export function TenderCellDrilldown({
                 </tr>
               </thead>
               <tbody>
-                {cellItems.items.map((item) => (
+                {visibleItems.items.map((item) => (
                   <tr key={item.line_item_id} className="border-b border-border/60">
                     <td className="max-w-[20rem] truncate py-1.5 pr-2" title={item.description_raw}>
                       {item.description_raw}
@@ -178,12 +178,12 @@ export function TenderCellDrilldown({
                     Sum (ex GST)
                   </td>
                   <td className="pt-2 text-right font-mono text-sm font-semibold tabular-nums">
-                    {formatTenderMoney(cellItems.sum_ex_gst_cents)}
+                    {formatTenderMoney(visibleItems.sum_ex_gst_cents)}
                   </td>
                 </tr>
               </tfoot>
             </table>
-            {!cellItems.items.length ? (
+            {!visibleItems.items.length ? (
               <p className="mt-2 text-sm text-muted-foreground">No mapped line items.</p>
             ) : null}
           </div>

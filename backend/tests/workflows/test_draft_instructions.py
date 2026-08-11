@@ -1,16 +1,31 @@
+import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.schemas.projects import ProjectProfileView
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.draft_instructions import (
     DraftInstructionSliceOutput,
     SliceInstruction,
     build_slice_prompt,
+    format_project_profile,
     run_slice_revision,
     validate_slice_output,
 )
 from tests.conftest import run_async
+
+
+def _profile(**overrides: object) -> ProjectProfileView:
+    payload: dict[str, object] = {
+        "project_id": uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        "profile_revision": 1,
+        "state": "NSW",
+        "site_address": "82 Queen Street, Petersham NSW 2049",
+        "client": "Win Pty Ltd",
+    }
+    payload.update(overrides)
+    return ProjectProfileView.model_validate(payload)
 
 DECISION_FENCE = """\
 ```pmp-decision
@@ -95,7 +110,26 @@ def test_validator_rejects_invented_number() -> None:
     with pytest.raises(WorkflowValidationError) as exc:
         validate_slice_output(SECTION, revised, instructions=[_instruction("add a budget line")])
     assert "450,000" in str(exc.value)
-    assert "not present in the source or instructions" in str(exc.value)
+    assert "not present in the source, project profile, or instructions" in str(exc.value)
+
+
+def test_validator_allows_numbers_from_project_profile() -> None:
+    section = "## Project Summary\n\n| Field | Detail |\n| --- | --- |\n| Address | 82 Queen Street, Petersham |\n"
+    revised = section.replace(
+        "82 Queen Street, Petersham",
+        "82 Queen Street, Petersham NSW 2049",
+    )
+    validate_slice_output(
+        section,
+        revised,
+        instructions=[
+            _instruction(
+                "add state and postcode",
+                quoted="82 Queen Street, Petersham",
+            )
+        ],
+        project_profile=_profile(),
+    )
 
 
 def test_validator_allows_number_supplied_in_instruction() -> None:
@@ -138,14 +172,29 @@ def test_build_slice_prompt_includes_section_instructions_and_constraints() -> N
         section_markdown=SECTION,
         instructions=[_instruction("tighten this paragraph")],
         project_title="Chen Residence",
+        project_profile=_profile(),
     )
     assert "Project: Chen Residence" in prompt
     assert "--- SECTION START ---" in prompt
     assert "--- SECTION END ---" in prompt
+    assert "--- PROJECT PROFILE ---" in prompt
+    assert "site_address: 82 Queen Street, Petersham NSW 2049" in prompt
+    assert "client: Win Pty Ltd" in prompt
     assert "1. Regarding this passage:" in prompt
     assert "tighten this paragraph" in prompt
     assert "You are not the calculator." in prompt
     assert "REVISION REQUIRED" not in prompt
+
+
+def test_format_project_profile_skips_empty_fields() -> None:
+    rendered = format_project_profile(
+        _profile(site_address=None, client="", work_scope=[], scale={})
+    )
+    assert "state: NSW" in rendered
+    assert "site_address" not in rendered
+    assert "client" not in rendered
+    assert "work_scope" not in rendered
+    assert "scale" not in rendered
 
 
 def test_build_slice_prompt_appends_validation_feedback() -> None:

@@ -97,7 +97,7 @@ FILENAME_DISCIPLINE_KEYWORDS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bmechanical\b", re.I), "Mechanical"),
     (re.compile(r"\bstructural\b|^S\d{3}-", re.I), "Structural"),
     (re.compile(r"\barchitect", re.I), "Architectural"),
-    (re.compile(r"\blandscape\b", re.I), "Landscape Architectural"),
+    (re.compile(r"\b(?:landscape|hardscape)\b", re.I), "Landscape Architectural"),
     (re.compile(r"\bctmp\b|\bconstruction\s+traffic\s+management\b", re.I), "Traffic"),
     (re.compile(r"\bcivil\b|\bstorm\s*water\b|\bsewer\b", re.I), "Civil"),
     (re.compile(r"\bfire\b|\bfer\b|\bfas\d|\bfsp\d|\bfco\b|\bfyr", re.I), "Fire"),
@@ -124,6 +124,7 @@ class DocumentMetadata:
     discipline: str
     canonical_file_name: str
     confidence: Confidence
+    issuing_firm: str = ""
 
 
 @dataclass
@@ -132,6 +133,7 @@ class _ParsedFields:
     title: str
     revision: str
     confidence: Confidence
+    issuing_firm: str = ""
 
 
 def parse_document_metadata(
@@ -279,7 +281,14 @@ def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None
             ],
         )
 
-    if not resolved_document_number and not resolved_title and not revision:
+    issuing_firm = (line_fields.get("issuing_firm") or "").strip()
+
+    if (
+        not resolved_document_number
+        and not resolved_title
+        and not revision
+        and not issuing_firm
+    ):
         return None
 
     normalized_revision = "Current"
@@ -289,7 +298,7 @@ def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None
     confidence: Confidence
     if resolved_document_number and resolved_title:
         confidence = "high"
-    elif resolved_document_number or resolved_title:
+    elif resolved_document_number or resolved_title or issuing_firm:
         confidence = "medium"
     else:
         confidence = "low"
@@ -301,6 +310,7 @@ def parse_from_title_block_text(text: str) -> dict[str, str | Confidence] | None
         "title": resolved_title,
         "revision": normalized_revision,
         "confidence": confidence,
+        "issuing_firm": issuing_firm,
     }
 
 
@@ -398,6 +408,7 @@ def _build_metadata(
         discipline=discipline,
         canonical_file_name=canonical_file_name,
         confidence=fields.confidence,
+        issuing_firm=(fields.issuing_firm or "").strip(),
     )
 
 
@@ -494,12 +505,16 @@ def _merge_parsed_fields(
     ):
         confidence = "medium"
 
+    preview_firm = str(preview.get("issuing_firm") or "").strip()
+    issuing_firm = preview_firm or (file_name.issuing_firm or "").strip()
+
     return _normalize_parsed_fields(
         _ParsedFields(
             document_number=document_number,
             title=title,
             revision=revision,
             confidence=confidence,
+            issuing_firm=issuing_firm,
         )
     )
 
@@ -547,6 +562,7 @@ def _normalize_parsed_fields(fields: _ParsedFields) -> _ParsedFields:
         title=title,
         revision=revision,
         confidence=fields.confidence,
+        issuing_firm=(fields.issuing_firm or "").strip(),
     )
 
 
@@ -566,6 +582,9 @@ def _parse_from_preview(preview: str) -> dict[str, str | Confidence] | None:
     revision = (title_block or {}).get("revision") or (markdown or {}).get(
         "revision", "Current"
     )
+    issuing_firm = (title_block or {}).get("issuing_firm") or (markdown or {}).get(
+        "issuing_firm", ""
+    )
     md_conf = (markdown or {}).get("confidence")
     tb_conf = (title_block or {}).get("confidence")
     if md_conf == "high" or tb_conf == "high":
@@ -575,7 +594,7 @@ def _parse_from_preview(preview: str) -> dict[str, str | Confidence] | None:
     else:
         confidence = "low"
 
-    if not document_number and not title:
+    if not document_number and not title and not issuing_firm:
         return None
 
     return {
@@ -583,6 +602,7 @@ def _parse_from_preview(preview: str) -> dict[str, str | Confidence] | None:
         "title": str(title),
         "revision": str(revision),
         "confidence": confidence,
+        "issuing_firm": str(issuing_firm or ""),
     }
 
 
@@ -659,6 +679,16 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
                 re.compile(r"^version\b", re.I),
             ],
         ),
+        (
+            "issuing_firm",
+            [
+                re.compile(r"^consultant\b", re.I),
+                re.compile(r"^architect\b", re.I),
+                re.compile(r"^company(?:\s+name)?\b", re.I),
+                re.compile(r"^prepared\s+by\b", re.I),
+                re.compile(r"^designed\s+by\b", re.I),
+            ],
+        ),
     ]
 
     for index, line in enumerate(lines):
@@ -680,6 +710,8 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
                 continue
             if field_name == "revision" and fields.get("revision"):
                 continue
+            if field_name == "issuing_firm" and fields.get("issuing_firm"):
+                continue
 
             if field_name == "revision":
                 if _is_title_block_noise_value(value):
@@ -694,6 +726,10 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
                 ):
                     continue
                 fields["document_number"] = value
+            elif field_name == "issuing_firm":
+                if _is_title_block_noise_value(value):
+                    continue
+                fields["issuing_firm"] = value
             else:
                 if _is_title_block_noise_value(value):
                     continue
@@ -704,7 +740,7 @@ def _parse_title_block_lines(text: str) -> dict[str, str]:
 
 def _read_title_block_label_value(line: str, next_line: str | None = None) -> str:
     inline_label = re.match(
-        r"^(?:drawing\s*(?:no|number|#)|drawing\s*/\s*sketch\s*(?:no|number|#)|drg\s*no|document\s*(?:no|number|#)|reference\s*(?:no|number|#)|project\s*(?:no|number|ref)|report\s*(?:no|number|#)|job\s*(?:no|number|ref)|drawing\s*title|document\s*title|report\s*title|title|description|revision|rev|issue|version)\.?\s+(.+)$",
+        r"^(?:drawing\s*(?:no|number|#)|drawing\s*/\s*sketch\s*(?:no|number|#)|drg\s*no|document\s*(?:no|number|#)|reference\s*(?:no|number|#)|project\s*(?:no|number|ref)|report\s*(?:no|number|#)|job\s*(?:no|number|ref)|drawing\s*title|document\s*title|report\s*title|title|description|revision|rev|issue|version|consultant|architect|company(?:\s+name)?|prepared\s+by|designed\s+by)\.?\s+(.+)$",
         line,
         re.I,
     )

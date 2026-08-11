@@ -247,6 +247,10 @@ def _run_attempt(document: _Document):
         del session
         return str(kwargs["draft"].workspace_path)
 
+    async def no_baseline(session: Any, **kwargs: Any):
+        del session, kwargs
+        return None
+
     return asyncio.run(
         workflow.draft_procurement_request(
             SimpleNamespace(),
@@ -263,6 +267,7 @@ def _run_attempt(document: _Document):
             next_version=next_version,
             create_draft=create_draft,
             sync_workspace=sync_workspace,
+            get_baseline_draft=no_baseline,
         )
     )
 

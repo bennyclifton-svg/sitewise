@@ -19,8 +19,10 @@ vi.mock("@/lib/api", () => ({
   api: {
     applyCostPlanOperations: vi.fn(),
     getCostPlanState: vi.fn(),
+    getProject: vi.fn(),
     updateProject: vi.fn(),
     listProcurementRequests: vi.fn(),
+    getLatestDraft: vi.fn(),
   },
 }));
 
@@ -258,6 +260,7 @@ describe("ProjectControlBoard project profile", () => {
     const user = userEvent.setup();
     const onRunProcurement = vi.fn();
     vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
+    vi.mocked(api.getLatestDraft).mockResolvedValue(null);
 
     render(
       <ProjectControlBoard
@@ -285,10 +288,13 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    await screen.findByText("No procurement requests yet.");
-    await user.selectOptions(screen.getByLabelText("Engagement"), "trade_rft");
-    await user.type(screen.getByLabelText("Target"), "Electrical services");
-    await user.click(screen.getByRole("button", { name: "Create RFT" }));
+    await screen.findByText("No requests yet. Create the first one above.");
+    await user.click(screen.getByLabelText("Request type"));
+    await user.click(screen.getByRole("menuitem", { name: "Trade package" }));
+    await user.type(screen.getByLabelText("Discipline"), "Electrical services");
+    await user.click(
+      screen.getByRole("button", { name: "Create Trade package" }),
+    );
 
     expect(onRunProcurement).toHaveBeenCalledWith(
       "trade_rft",
@@ -299,12 +305,12 @@ describe("ProjectControlBoard project profile", () => {
   it("updates clean controls when a newer server revision arrives", () => {
     const view = render(profileBoard(project));
 
-    expect(screen.getByLabelText("State")).toHaveValue("NSW");
+    expect(screen.getByLabelText("State")).toHaveTextContent("NSW");
     view.rerender(
       profileBoard({ ...project, profile_revision: 2, state: "VIC" }),
     );
 
-    expect(screen.getByLabelText("State")).toHaveValue("VIC");
+    expect(screen.getByLabelText("State")).toHaveTextContent("VIC");
     expect(
       screen.queryByText("Project profile changed elsewhere."),
     ).not.toBeInTheDocument();
@@ -313,20 +319,21 @@ describe("ProjectControlBoard project profile", () => {
   it("preserves dirty controls until the user reloads the newer revision", async () => {
     const user = userEvent.setup();
     const view = render(profileBoard(project));
-    await user.selectOptions(screen.getByLabelText("State"), "QLD");
+    await user.click(screen.getByLabelText("State"));
+    await user.click(screen.getByRole("menuitem", { name: "QLD" }));
 
     view.rerender(
       profileBoard({ ...project, profile_revision: 2, state: "VIC" }),
     );
 
-    expect(screen.getByLabelText("State")).toHaveValue("QLD");
+    expect(screen.getByLabelText("State")).toHaveTextContent("QLD");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Revision 2 arrived while you had unsaved edits.",
     );
     expect(screen.getByRole("button", { name: "Save profile" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Reload latest" }));
-    expect(screen.getByLabelText("State")).toHaveValue("VIC");
+    expect(screen.getByLabelText("State")).toHaveTextContent("VIC");
     expect(
       screen.queryByText("Project profile changed elsewhere."),
     ).not.toBeInTheDocument();
@@ -336,7 +343,8 @@ describe("ProjectControlBoard project profile", () => {
     const user = userEvent.setup();
     const onProjectUpdated = vi.fn();
     const view = render(profileBoard(project, onProjectUpdated));
-    await user.selectOptions(screen.getByLabelText("State"), "QLD");
+    await user.click(screen.getByLabelText("State"));
+    await user.click(screen.getByRole("menuitem", { name: "QLD" }));
     const newerProject = {
       ...project,
       profile_revision: 2,
@@ -345,7 +353,7 @@ describe("ProjectControlBoard project profile", () => {
     view.rerender(profileBoard(newerProject, onProjectUpdated));
 
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(screen.getByLabelText("State")).toHaveValue("QLD");
+    expect(screen.getByLabelText("State")).toHaveTextContent("QLD");
 
     vi.mocked(api.updateProject).mockResolvedValue({
       profile: {
@@ -690,7 +698,7 @@ describe("ProjectControlBoard project profile", () => {
     }
   });
 
-  it("keeps narrative previews hidden while the cost workbook is generating", () => {
+  it("shows the cost plan scaffold through the shared draft preview contract", async () => {
     render(
       <ProjectControlBoard
         project={costPlanSupportedProject}
@@ -708,9 +716,12 @@ describe("ProjectControlBoard project profile", () => {
           ...runningWorkflowRun,
           workflow_type: "create_cost_plan",
           progress: {
-            stage: "executing",
-            percent: 50,
-            preview: { stage: "scaffold", markdown: "## 1. Cost Summary" },
+            stage: "scaffold_ready",
+            preview: { stage: "scaffold_ready", markdown: "## 1. Cost Summary" },
+            typed_cost_plan: {
+              item_count: 1,
+              items: [{ category: "Construction", item: "Main works", budget: null }],
+            },
           },
         }}
         selectedWorkflowId="cost-plan"
@@ -728,13 +739,13 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
-    expect(screen.getByTestId("cost-plan-running-placeholder")).toHaveTextContent(
-      "Preparing workbook",
-    );
+    const preview = await screen.findByTestId("workflow-draft-preview");
+    expect(preview).toHaveTextContent("1. Cost Summary");
+    expect(screen.getByTestId("cost-plan-typed-preview")).toHaveTextContent("Main works");
+    expect(screen.queryByTestId("cost-plan-running-placeholder")).not.toBeInTheDocument();
   });
 
-  it("replaces the prior Cost Plan while a new workbook is generating", async () => {
+  it("keeps canonical typed Cost Plan state visible while a refresh continues", async () => {
     render(
       <ProjectControlBoard
         project={costPlanSupportedProject}
@@ -750,12 +761,12 @@ describe("ProjectControlBoard project profile", () => {
         costPlanWorkflowError={null}
         isRunningWorkflow={false}
         isRunningCostPlan
-        costPlanRunMode="create"
+        costPlanRunMode="update"
         costPlanProgressKey="cost-session-2"
         activeCostPlanRun={{
           ...runningWorkflowRun,
-          workflow_type: "create_cost_plan",
-          progress: { stage: "executing", percent: 20 },
+          workflow_type: "refresh_cost_plan",
+          progress: { stage: "retrieval_complete" },
         }}
         selectedWorkflowId="cost-plan"
         onRunCreatePmp={vi.fn()}
@@ -772,10 +783,13 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    expect(screen.getByTestId("cost-plan-running-placeholder")).toHaveTextContent(
-      "Preparing workbook",
+    expect(screen.queryByTestId("cost-plan-running-placeholder")).not.toBeInTheDocument();
+    expect(screen.getByTestId("workflow-progress-strip")).toHaveTextContent(
+      "Project evidence and guidance ready.",
     );
-    expect(screen.queryByText("Prior Cost Plan")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(api.getCostPlanState).toHaveBeenCalledWith("project-1");
+    });
   });
 
   it("shows the cost workbook directly under Cost Plan actions", async () => {

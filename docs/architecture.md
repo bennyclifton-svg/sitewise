@@ -832,6 +832,32 @@ Marker stripping is reversible for supported Markdown, including original line
 endings and terminal-newline state. No issued document may contain a
 `clerk:block` marker.
 
+### 8.6 Artefact mutation contract
+
+Manual UI, HTTP APIs and Pi MCP tools share one external operation vocabulary:
+
+```text
+ADD | UPDATE | DELETE | MOVE | DUPLICATE
+```
+
+Targets are typed (`paragraph`, `list_item`, `table_row`, `cost_item`,
+`cost_category`). Domain-specific review and protection ops
+(`PROTECT` / `UNPROTECT` / `KEEP` / `CONFIRM_DELETE`) remain on the block
+surface only; they do not invent parallel synonym enums.
+
+Supported write paths:
+
+| Family | Mutation entry | Revision contract |
+| --- | --- | --- |
+| Narrative drafts (PMP/RFP/RFT) | `POST .../drafts/{id}/blocks` and MCP `apply_artefact_operations` | one draft revision per successful batch; response is an `ArtefactBlockDelta` |
+| Cost Plan | `POST .../cost-plan/operations` and MCP `apply_cost_plan_operations` | one typed Cost Plan revision; workbook rebuild is coalesced and derived |
+| Scratch workspace files | MCP `write_workspace_file` | scratch only — draft artefact whole-document Markdown writes are rejected |
+
+Whole-document `PATCH .../drafts/{id}` is removed. AI tools must not rewrite
+artefact Markdown as a single blob; they construct validated block or Cost Plan
+operations instead. Legacy PydanticAI chat/orchestrator paths remain until the
+Phase 8.5 cutover gate and are out of scope for this mutation simplification.
+
 ---
 
 ## 9. Tender Comparison Module

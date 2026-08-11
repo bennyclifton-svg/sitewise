@@ -23,12 +23,13 @@ from app.projects.artefact_context import (
     build_pmp_context,
     format_artefact_context,
 )
-from app.projects.artefact_blocks import (
-    block_input_hash,
-    reconcile_regenerated_blocks,
+from app.projects.selective_refresh import (
+    apply_document_refresh,
+    build_incremental_audit,
+    plan_selective_refresh,
 )
 from app.projects.decisions import locked_selections, sync_decisions_from_markdown
-from app.projects.generation_audit import build_generation_manifest
+from app.projects.generation_audit import generation_audit_provenance
 from app.projects.generation_brief import (
     ArtefactGenerationBrief,
     build_generation_brief,
@@ -53,6 +54,7 @@ from app.schemas.projects import (
 )
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
+from app.sitewise.seed_routing import select_seed_knowledge_for_project
 from app.sitewise.pmp_evidence_validation import (
     evidence_grounded_violations,
     markdown_is_evidence_grounded,
@@ -91,10 +93,13 @@ from app.sitewise.pmp_sweep import (
     compute_sections_changed,
     sweep_current_pmp_corpus,
 )
+from app.sitewise.consultant_register import consultant_fact_constraints
 from app.workflows.create_pmp import (
     WORKFLOW_TYPE,
     PmpDraftOutput,
+    PreviewPublisher,
     WorkflowValidationError,
+    _apply_consultant_facts_to_markdown,
     _apply_locked_decisions,
     _context_refs_from_passages,
     _format_mandatory_seeds,
@@ -104,6 +109,9 @@ from app.workflows.create_pmp import (
     _format_loaded_seed_sections,
     _is_platform_passage,
     _project_source_texts,
+    _publish_preview,
+    _publish_progress,
+    _reconcile_consultant_facts_for_pmp,
     _seed_section_refs_by_section,
     _source_ref,
     _trace,
@@ -457,15 +465,38 @@ async def run_update_pmp_workflow(
     chat_model: str | None = None,
     snapshot: ProjectSnapshot | None = None,
     generation_context: ProjectGenerationContext | None = None,
+    on_preview: PreviewPublisher | None = None,
+    affected_section_ids: tuple[str, ...] | list[str] | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
     context_started = time.perf_counter()
+    fact_count = await _reconcile_consultant_facts_for_pmp(session, project=project)
+    if fact_count:
+        trace.append(
+            _trace(
+                "consultant_facts",
+                "complete",
+                f"Reconciled {fact_count} evidence-derived consultant firm fact(s).",
+                fact_count=fact_count,
+            )
+        )
     canonical_context = generation_context or (
-        resolve_project_generation_context(snapshot) if snapshot is not None else None
+        resolve_project_generation_context(snapshot, project=project)
+        if snapshot is not None
+        else None
     )
     pmp_context = (
         build_pmp_context(canonical_context) if canonical_context is not None else None
+    )
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "context_ready",
+            "context_version": canonical_context.context_version
+            if canonical_context is not None
+            else None,
+        },
     )
     context_duration_ms = int((time.perf_counter() - context_started) * 1000)
     model_spec = resolve_pmp_model(chat_model)
@@ -581,6 +612,77 @@ async def run_update_pmp_workflow(
             baseline_status=baseline.status,
         )
     )
+    await _publish_preview(
+        on_preview,
+        stage="scaffold_ready",
+        markdown=baseline.content_markdown,
+    )
+
+    baseline_provenance = (
+        baseline.provenance_metadata
+        if isinstance(baseline.provenance_metadata, dict)
+        else {}
+    )
+    refresh_context_version = (
+        snapshot.context_version
+        if snapshot is not None
+        else project.project_context_version or 1
+    )
+    refresh_source_version = (
+        snapshot.content_fingerprint
+        if snapshot is not None
+        else "no-project-evidence"
+    )
+    try:
+        seed_selection = select_seed_knowledge_for_project("pmp", project)
+        refresh_seed_version = (
+            "|".join(seed_selection.applicable_paths) or "no-seed-guidance"
+        )
+    except ValueError:
+        # Gate/readiness already covers unsupported overlays; skip planning still
+        # needs a stable seed token when taxonomy is incomplete in tests.
+        refresh_seed_version = "no-seed-guidance"
+    section_ids = tuple(affected_section_ids or ())
+    refresh_plan = plan_selective_refresh(
+        baseline_provenance,
+        context_version=refresh_context_version,
+        source_version=refresh_source_version,
+        seed_version=refresh_seed_version,
+        artefact_type="pmp",
+        affected_section_ids=section_ids,
+    )
+    if refresh_plan.skip:
+        trace.append(
+            _trace(
+                "selective_refresh",
+                "skipped",
+                "Refresh inputs unchanged; skipped retrieval and narrative generation.",
+                input_hash=refresh_plan.refresh_input_hash,
+                affected_sections=list(section_ids),
+            )
+        )
+        content = (
+            f"Update PMP skipped; draft v{baseline.version} already matches "
+            "current project inputs."
+        )
+        await _persist_trace_message(
+            session,
+            project_id=project.id,
+            run_id=run_id,
+            thread_id=thread_id,
+            content=content,
+            trace=trace,
+            status="complete",
+            draft_id=baseline.id,
+        )
+        await _publish_progress(on_preview, {"stage": "artefact_ready"})
+        return CreatePmpResponse(
+            status="complete",
+            gate=gate,
+            trace=trace,
+            draft=DraftArtifactResponse.model_validate(baseline),
+            message=content,
+        )
 
     try:
         (
@@ -630,11 +732,6 @@ async def run_update_pmp_workflow(
             status="failed", gate=gate, trace=trace, message=message
         )
 
-    baseline_provenance = (
-        baseline.provenance_metadata
-        if isinstance(baseline.provenance_metadata, dict)
-        else {}
-    )
     previous_evidence_refs = [
         ref
         for ref in baseline_provenance.get("evidence_refs", [])
@@ -714,6 +811,14 @@ async def run_update_pmp_workflow(
     delta_passages = bounded_evidence.category("project_evidence")
     platform_passages = bounded_evidence.category("platform_guidance")
     has_delta = bool(delta_passages)
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "retrieval_complete",
+            "evidence_delta_documents": len(delta_passages),
+            "platform_passages": len(platform_passages),
+        },
+    )
 
     delta_source_texts = (
         [passage.content for passage in delta_passages if passage.content.strip()]
@@ -754,14 +859,13 @@ async def run_update_pmp_workflow(
                 ],
             )
         )
-    required_evidence_refs = (
+    selected_evidence_refs = [_source_ref(passage) for passage in delta_passages]
+    required_evidence_refs = list(selected_evidence_refs)
+    active_corpus_evidence_refs = (
         list(sweep_result.evidence_refs)
         if use_corpus_sweep and sweep_result is not None
-        else [_source_ref(passage) for passage in delta_passages]
-        if has_delta
-        else []
+        else None
     )
-    selected_evidence_refs = [_source_ref(passage) for passage in delta_passages]
     coverage_requirements = (
         format_corpus_coverage_requirements(
             delta_source_texts,
@@ -775,7 +879,14 @@ async def run_update_pmp_workflow(
             pmp_context,
             evidence_refs=selected_evidence_refs,
             seed_refs=_context_refs_from_passages(platform_passages),
-            constraints=("Preserve human-controlled blocks during refresh.",),
+            constraints=tuple(
+                dict.fromkeys(
+                    (
+                        "Preserve human-controlled blocks during refresh.",
+                        *consultant_fact_constraints(project),
+                    )
+                )
+            ),
         )
         if pmp_context is not None
         else None
@@ -786,6 +897,22 @@ async def run_update_pmp_workflow(
     )
     validation_feedback: str | None = None
     max_attempts = 3
+    await _publish_progress(
+        on_preview,
+        {
+            "stage": "section_started",
+            "active_section": "refresh",
+            "completed_sections": 0,
+            "total_sections": 1,
+            "sections": [
+                {
+                    "id": "refresh",
+                    "label": "Project plan refresh",
+                    "status": "generating",
+                }
+            ],
+        },
+    )
     try:
         for attempt in range(max_attempts):
             output = await run_update_pmp_model(
@@ -812,16 +939,12 @@ async def run_update_pmp_workflow(
                 downgraded_markdown, downgrade_meta = apply_sweep_downgrades(
                     output.markdown,
                     previous_evidence_refs=previous_evidence_refs,
-                    current_evidence_refs=list(sweep_result.evidence_refs),
+                    current_evidence_refs=active_corpus_evidence_refs or [],
                     current_source_texts=(
                         delta_source_texts if delta_source_texts is not None else []
                     ),
                 )
                 output = output.model_copy(update={"markdown": downgraded_markdown})
-                if sweep_result.evidence_refs:
-                    output = output.model_copy(
-                        update={"evidence_refs": list(sweep_result.evidence_refs)}
-                    )
                 sweep_result = sweep_result.__class__(
                     passages=sweep_result.passages,
                     merged_pack=sweep_result.merged_pack,
@@ -829,7 +952,7 @@ async def run_update_pmp_workflow(
                     listing=sweep_result.listing,
                     evidence_changed=compute_evidence_changed(
                         previous_refs=previous_evidence_refs,
-                        current_refs=list(output.evidence_refs),
+                        current_refs=active_corpus_evidence_refs or [],
                         downgraded_sections=downgrade_meta.get("downgraded"),
                         conflicted_sections=downgrade_meta.get("conflicted"),
                     ),
@@ -843,6 +966,27 @@ async def run_update_pmp_workflow(
                     **model_metadata,
                     attempt=attempt + 1,
                 )
+            )
+            await _publish_preview(
+                on_preview,
+                stage="section_completed",
+                markdown=output.markdown,
+            )
+            await _publish_progress(
+                on_preview,
+                {
+                    "stage": "validation_started",
+                    "active_section": "refresh",
+                    "completed_sections": 1,
+                    "total_sections": 1,
+                    "sections": [
+                        {
+                            "id": "refresh",
+                            "label": "Project plan refresh",
+                            "status": "complete",
+                        }
+                    ],
+                },
             )
             try:
                 validate_update_pmp_output(
@@ -961,26 +1105,26 @@ async def run_update_pmp_workflow(
         sync_pmp_draft_workspace,
     )
 
-    next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
-    incremental_input_hash = block_input_hash(
-        context_version=(
-            snapshot.context_version
-            if snapshot is not None
-            else project.project_context_version or 1
-        ),
-        source_version=(
-            snapshot.content_fingerprint
-            if snapshot is not None
-            else "|".join(output.evidence_refs) or "no-project-evidence"
-        ),
-        seed_version="|".join(output.seed_consulted) or "no-seed-guidance",
-        inputs={"artefact_type": "pmp"},
+    patched_consultants = _apply_consultant_facts_to_markdown(
+        output.markdown, project
     )
+    if patched_consultants != output.markdown:
+        output.markdown = patched_consultants
+        trace.append(
+            _trace(
+                "consultant_register",
+                "complete",
+                "Applied evidence-derived consultant firms to the Consultants register.",
+            )
+        )
+
+    await _publish_progress(on_preview, {"stage": "saving"})
+    next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     output.markdown = prepare_issue_markdown(
         output.markdown, project_title=project.title
     )
     output.markdown = sync_document_control_version(output.markdown, next_version)
-    incremental = reconcile_regenerated_blocks(
+    incremental = apply_document_refresh(
         baseline.content_markdown,
         (
             baseline_provenance["blocks"]
@@ -988,14 +1132,19 @@ async def run_update_pmp_workflow(
             else {}
         ),
         output.markdown,
-        generation_input_hash=(
-            generation_brief.input_fingerprint
-            if generation_brief is not None
-            else incremental_input_hash
-        ),
+        context_version=refresh_context_version,
+        source_version=refresh_source_version,
+        seed_version=refresh_seed_version,
+        artefact_type="pmp",
         generation_version=f"{UPDATE_RUNTIME_NAME}:{next_version}",
+        affected_section_ids=section_ids,
+        work_type=project.work_type,
     )
     output.markdown = incremental.markdown
+    incremental_audit = build_incremental_audit(
+        incremental,
+        refresh_input_hash=refresh_plan.refresh_input_hash,
+    )
     sections_changed = compute_sections_changed(
         baseline.content_markdown,
         output.markdown,
@@ -1039,6 +1188,7 @@ async def run_update_pmp_workflow(
                 if sweep_result is not None
                 else None
             ),
+            "active_corpus_evidence_refs": active_corpus_evidence_refs,
             "sections_changed": sections_changed,
             "evidence_changed": evidence_changed,
             "seed_section_refs": seed_section_refs,
@@ -1051,16 +1201,15 @@ async def run_update_pmp_workflow(
                 else None
             ),
             "blocks": incremental.metadata,
-            "incremental_update": {
-                "updated": list(incremental.updated),
-                "preserved": list(incremental.preserved),
-                "conflicts": list(incremental.conflicts),
-                "input_hash": incremental_input_hash,
-            },
-            "generation_manifest": (
-                build_generation_manifest(generation_brief).model_dump(mode="json")
-                if generation_brief is not None
-                else None
+            "incremental_update": incremental_audit,
+            **generation_audit_provenance(
+                baseline.provenance_metadata if baseline is not None else None,
+                generation_brief,
+                mutation={
+                    "kind": "selective_refresh",
+                    "actor_source": "update_pmp",
+                    "based_on_version": baseline.version if baseline is not None else None,
+                },
             ),
             "trace": [event.model_dump() for event in trace],
         },
@@ -1100,6 +1249,7 @@ async def run_update_pmp_workflow(
         status="complete",
         draft_id=draft.id,
     )
+    await _publish_progress(on_preview, {"stage": "artefact_ready"})
     return CreatePmpResponse(
         status="complete",
         gate=gate,

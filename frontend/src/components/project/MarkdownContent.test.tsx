@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -116,6 +116,51 @@ ${addressRow}`;
       },
       { focusCellIndex: 1 },
     );
+  });
+
+  it("keeps ⋯ row actions on stamped Project Summary rows when decision fences are grouped", () => {
+    const addressMarker =
+      "<!-- clerk:block id=blk_ade5ba1bfc81abd258442ace94e4a835 -->";
+    const ownerMarker =
+      "<!-- clerk:block id=blk_d43c2c86c0565308ec1d324c2420c5fb -->";
+    const markdown = `## Project Summary
+| Project | Petersham |  |
+| --- | --- | --- |
+| Address | 82 Queen Street, Petersham NSW 2049 | [1] |${addressMarker}
+| Owner | JOINS WIN PTY LTD | [1] |${ownerMarker}
+| Description | New mixed-use development | [1] |
+
+## Procurement and Delivery
+\`\`\`pmp-decision
+{"id":"procurement-route","section":"Procurement and Delivery","label":"Procurement route","options":[{"value":"design_construct","label":"Design & Construct"}],"selected":"design_construct","source":"agent","evidenced":true,"rationale":"D&C."}
+\`\`\`
+\`\`\`pmp-decision
+{"id":"contract-form","section":"Procurement and Delivery","label":"Contract form","options":[{"value":"bespoke","label":"Bespoke"}],"selected":"bespoke","source":"agent","evidenced":false,"rationale":"Placeholder."}
+\`\`\`
+`;
+    const { container } = render(
+      <MarkdownContent
+        markdown={markdown}
+        projectTitle="Petersham"
+        onEditSelection={vi.fn()}
+        onEditWithAi={vi.fn()}
+        onMutateBlock={vi.fn()}
+      />,
+    );
+
+    const summaryTable = container.querySelector("table");
+    expect(summaryTable).not.toBeNull();
+    const rows = Array.from(summaryTable!.querySelectorAll("tr")).map((row) => ({
+      label: row.querySelector("td,th")?.textContent?.trim(),
+      actions: Boolean(row.querySelector("[data-block-actions]")),
+    }));
+
+    expect(rows).toEqual([
+      { label: "Project", actions: true },
+      { label: "Address", actions: true },
+      { label: "Owner", actions: true },
+      { label: "Description", actions: true },
+    ]);
   });
 
   it("hides paragraph and list markers in primary and review content", () => {
@@ -297,7 +342,7 @@ Scope.`}
     expect(conflictCitation.className).toMatch(/sw-critical/);
   });
 
-  it("collapses the project document schedule behind a chevron", async () => {
+  it("collapses the transmittal schedule behind a chevron", async () => {
     const user = userEvent.setup();
     render(
       <MarkdownContent
@@ -319,7 +364,7 @@ Scope.`}
     );
 
     const toggle = screen.getByRole("button", {
-      name: "Project Documents (2 documents)",
+      name: "Transmittal (2 documents)",
     });
     const register = document.getElementById("project-documents-register");
 
@@ -330,13 +375,64 @@ Scope.`}
 
     expect(
       screen.getByRole("button", {
-        name: "Project Documents (2 documents)",
+        name: "Transmittal (2 documents)",
       }),
     ).toHaveAttribute("aria-expanded", "true");
     expect(document.getElementById("project-documents-register")).not.toHaveClass(
       "hidden",
     );
     expect(screen.getByText("General arrangement")).toBeVisible();
+  });
+
+  it("loads the transmittal into the document schedule selection", async () => {
+    const user = userEvent.setup();
+    const onLoadTransmittal = vi.fn();
+    render(
+      <MarkdownContent
+        markdown={[
+          "# Request for Proposal",
+          "",
+          "## Transmittal (1 document)",
+          "",
+          "| Document number | Title | Rev | Category |",
+          "| --- | --- | --- | --- |",
+          "| A001 | General arrangement | C | Architectural |",
+        ].join("\n")}
+        canLoadTransmittal
+        onLoadTransmittal={onLoadTransmittal}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Load Transmittal" }));
+    expect(onLoadTransmittal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders citation key entries as a list, one per row", () => {
+    const { container } = render(
+      <MarkdownContent
+        markdown={[
+          "# Request for Proposal - Architect",
+          "",
+          "## Citation key",
+          "",
+          "[1] Project Profile — current",
+          "[2] project-brief.pdf — on file",
+          "[3] engagement-letter.pdf — on file",
+        ].join("\n")}
+      />,
+    );
+
+    const citationList = container.querySelector(".draft-markdown ul");
+    expect(citationList).toBeTruthy();
+    const items = citationList?.querySelectorAll("li") ?? [];
+    expect([...items].map((item) => item.textContent?.trim())).toEqual([
+      "[1] Project Profile — current",
+      "[2] project-brief.pdf — on file",
+      "[3] engagement-letter.pdf — on file",
+    ]);
+    expect(
+      screen.queryByText(/\[1\] Project Profile — current \[2\] project-brief/i),
+    ).not.toBeInTheDocument();
   });
 
   it("marks grounded evidence chips with a positive status dot", () => {
@@ -348,7 +444,7 @@ Scope.`}
     expect(grounded.querySelector("[data-status-dot='positive']")).toBeTruthy();
   });
 
-  it("narrows consultant discipline and blanks Fee Not evidenced", () => {
+  it("drops consultant Scope / services and blanks Fee Not evidenced", () => {
     const { container } = render(
       <MarkdownContent
         markdown={[
@@ -362,15 +458,25 @@ Scope.`}
       />,
     );
 
-    expect(container.querySelector("table.pmp-table-consultants")).toBeTruthy();
+    const consultantsTable = container.querySelector(
+      "table.pmp-table-consultants",
+    );
+    expect(consultantsTable).toBeTruthy();
+    expect(consultantsTable?.className).toMatch(/min-w-\[52rem\]/);
     expect(container.querySelector("col.pmp-col-discipline")).toBeTruthy();
     expect(container.querySelector("col.pmp-col-firm")).toBeTruthy();
-    expect(container.querySelector("col.pmp-col-scope")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-fee")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-status")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-citation")).toBeTruthy();
+    expect(container.querySelector("col.pmp-col-scope")).toBeNull();
+    expect(screen.queryByText("Scope / services")).not.toBeInTheDocument();
+    expect(screen.queryByText(/services not yet appointed/i)).not.toBeInTheDocument();
 
     const rows = screen.getAllByRole("row");
     const structuralCells = rows[1]?.querySelectorAll("td") ?? [];
-    expect(structuralCells[3]?.textContent?.trim()).toBe("");
-    expect(structuralCells[4]?.textContent).toMatch(/Not evidenced/);
+    expect(structuralCells).toHaveLength(5);
+    expect(structuralCells[2]?.textContent?.trim()).toBe("");
+    expect(structuralCells[3]?.textContent).toMatch(/Not evidenced/);
     expect(screen.getByText("$4,200")).toBeInTheDocument();
   });
 
@@ -433,8 +539,12 @@ Scope.`}
 
     const editor = screen.getByRole("textbox", { name: "Edit selected text" });
     expect(editor.tagName).toBe("P");
-    expect(editor).toHaveClass("my-3", "leading-relaxed");
-    expect(editor.parentElement).not.toHaveClass("border", "p-3");
+    expect(editor).toHaveClass("leading-relaxed");
+    const host = editor.parentElement;
+    expect(host).toHaveAttribute("data-inline-markdown-host");
+    expect(host).toHaveClass("min-w-0", "flex-1");
+    expect(host?.parentElement).toHaveClass("my-3");
+    expect(host?.parentElement).not.toHaveClass("border", "p-3");
     expect(editor).toHaveTextContent("Alpha scope with guidance. [1]");
     expect(editor.querySelector("strong")).toHaveTextContent("scope");
     expect(editor.querySelector("a")).toHaveTextContent("guidance");
@@ -534,9 +644,15 @@ Scope.`}
     await user.hover(screen.getByText("Physical brief:"));
     await user.dblClick(screen.getByText("Physical brief:"));
 
-    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
-    expect(editor).toHaveTextContent("Physical brief: new residential house and garage. [4]");
-    expect(editor).toHaveFocus();
+    const editor = await screen.findByRole("textbox", {
+      name: "Edit selected text",
+    });
+    expect(editor).toHaveTextContent(
+      "Physical brief: new residential house and garage. [4]",
+    );
+    await waitFor(() => {
+      expect(editor).toHaveFocus();
+    });
     expect(range.start).toBe(markdown.indexOf("**Physical brief:**"));
   });
 
@@ -567,13 +683,22 @@ Editable after decisions.`;
     fireEvent.doubleClick(screen.getByText("Editable after decisions."));
 
     const start = markdown.indexOf("Editable after decisions.");
-    expect(onEditSelection).toHaveBeenCalledWith({
-      start,
-      end: start + "Editable after decisions.".length,
-    });
+    expect(onEditSelection).toHaveBeenCalledWith(
+      {
+        start,
+        end: start + "Editable after decisions.".length,
+      },
+      expect.objectContaining({
+        caretPoint: expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      }),
+    );
   });
 
-  it("places block actions beside the hovered paragraph without a pen or heading toolbar", () => {
+  it("places a ⋯ menu with add/edit actions on the hovered paragraph", async () => {
+    const user = userEvent.setup();
     const markdown = "## Brief\n\nFirst paragraph.\n\nSecond paragraph.\n\n## Risks\n\nRisk text.";
     const onEditSelection = vi.fn();
     const onEditWithAi = vi.fn();
@@ -593,7 +718,7 @@ Editable after decisions.`;
       "[data-block-actions]",
     );
     expect(reserved).not.toBeNull();
-    expect(reserved).toHaveClass("w-[6.75rem]");
+    expect(reserved).toHaveClass("w-6");
 
     fireEvent.mouseEnter(
       screen.getByText("First paragraph.").parentElement ??
@@ -601,25 +726,40 @@ Editable after decisions.`;
     );
 
     expect(screen.queryByRole("button", { name: "Edit paragraph manually" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Add paragraph above/i })).not.toBeInTheDocument();
     const firstParagraph = screen.getByText("First paragraph.");
     const row = firstParagraph.parentElement;
-    const ai = screen.getByRole("button", { name: "Edit paragraph with AI" });
-    const addBelow = screen.getByRole("button", { name: "Add paragraph below" });
-    const duplicate = screen.getByRole("button", { name: "Duplicate paragraph" });
-    const remove = screen.getByRole("button", { name: "Delete paragraph" });
-    expect(row).toContainElement(ai);
-    expect(row).toContainElement(addBelow);
-    expect(row).toContainElement(duplicate);
-    expect(row).toContainElement(remove);
-    expect(row?.querySelector("[data-block-actions]")).toHaveClass("w-[6.75rem]");
-    expect(
-      screen.getByRole("heading", { name: "Brief", level: 2 }).parentElement,
-    ).not.toContainElement(ai);
-    expect(ai.querySelector('img[src="/style-guide/logo/mark-solid.svg"]')).not.toBeNull();
-    expect(remove.querySelector("svg.lucide-trash")).not.toBeNull();
+    const menuTrigger = screen.getByRole("button", { name: "paragraph actions" });
+    expect(row).toContainElement(menuTrigger);
+    expect(row?.querySelector("[data-block-gutter]")).toBeNull();
+    expect(row?.querySelector("[data-block-actions]")).toHaveClass("w-6");
+    expect(screen.queryByRole("button", { name: "Add paragraph above" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit paragraph with AI" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duplicate paragraph" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete paragraph" })).not.toBeInTheDocument();
 
-    fireEvent.click(ai);
+    await user.click(menuTrigger);
+    expect(
+      await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Add paragraph above" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Add paragraph below" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Duplicate paragraph" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Delete paragraph" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Add paragraph above" }));
+    expect(onMutateBlock).toHaveBeenCalledWith(
+      "ADD",
+      expect.objectContaining({ type: "paragraph" }),
+      "before",
+    );
+
+    fireEvent.mouseEnter(
+      screen.getByText("First paragraph.").parentElement ??
+        screen.getByText("First paragraph."),
+    );
+    await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
+    );
     const firstStart = markdown.indexOf("First paragraph.");
     expect(onEditWithAi).toHaveBeenCalledWith(
       { start: firstStart, end: firstStart + "First paragraph.".length },
@@ -628,10 +768,18 @@ Editable after decisions.`;
 
     fireEvent.doubleClick(screen.getByText("Second paragraph."));
     const secondStart = markdown.indexOf("Second paragraph.");
-    expect(onEditSelection).toHaveBeenCalledWith({
-      start: secondStart,
-      end: secondStart + "Second paragraph.".length,
-    });
+    expect(onEditSelection).toHaveBeenCalledWith(
+      {
+        start: secondStart,
+        end: secondStart + "Second paragraph.".length,
+      },
+      expect.objectContaining({
+        caretPoint: expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      }),
+    );
   });
 
   it("renders a chrome-free add-paragraph editor below the target paragraph", () => {

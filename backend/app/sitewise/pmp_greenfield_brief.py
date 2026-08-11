@@ -621,13 +621,24 @@ def _contract_focus_line(
                 "and owner selections from seeds where loaded"
             )
         return focus
+    if section_id == "ffe-schedule":
+        return (
+            "cover the Finishes, Fixtures and Equipment schedule after Brief: "
+            "item, location, quantity, finish, status, and notes; preserve "
+            "user-added shared ffe_item rows; keep unspecified fields as TBC; "
+            "do not bury FFE selections inside the Brief prose"
+        )
     if section_id == "consultants":
         disciplines = _taxonomy_consultant_labels(work_type, work_scope)
         roster = ", ".join(disciplines) if disciplines else "taxonomy-expected disciplines"
         return (
             "cover the appointment register with Architect first, then "
-            f"{roster}; keep firm/fee/status/citation columns and mark missing "
-            "appointments as Assumption / Not evidenced"
+            f"{roster}; one discipline per table row — never slash-join multiple "
+            "disciplines into one cell; keep firm/fee/status/citation columns; when the shared "
+            "generation brief or stakeholders.consultant_appointments list evidenced "
+            "firms from title blocks/certificates, fill those Firm cells and cite them "
+            "with appointment-unverified status unless engagement evidence exists; "
+            "mark remaining missing appointments as Assumption / Not evidenced"
         )
     if section_id == "compliance-approvals":
         focus = (

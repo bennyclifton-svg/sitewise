@@ -78,7 +78,7 @@ def build_workflow_run_brief(
     snapshot: ProjectSnapshot,
 ) -> dict[str, Any]:
     """Freeze one canonical context alongside every durable workflow request."""
-    generation_context = resolve_project_generation_context(snapshot)
+    generation_context = resolve_project_generation_context(snapshot, project=project)
     return {
         "schema_version": 1,
         "snapshot": snapshot.model_dump(mode="json"),
@@ -184,7 +184,7 @@ async def start_workflow_run(
         frozen_artefact_version=request.expected_artefact_version,
         state="queued",
         max_attempts=max(1, max_attempts),
-        progress={"stage": "queued", "percent": 0},
+        progress={"stage": "queued"},
     )
     created = True
     try:
@@ -269,7 +269,7 @@ async def claim_next_run(
     run.heartbeat_at = now
     run.lease_expires_at = now + timedelta(seconds=max(1, lease_seconds))
     run.started_at = run.started_at or now
-    run.progress = {"stage": "starting", "percent": 1}
+    run.progress = {"stage": "starting"}
     await session.commit()
     return run
 
@@ -297,7 +297,7 @@ async def _finalize_one_expired_cancellation(session: AsyncSession) -> None:
         await session.rollback()
         return
     run.state = "cancelled"
-    run.progress = {"stage": "cancelled", "percent": 100}
+    run.progress = {"stage": "cancelled"}
     run.completed_at = datetime.now(UTC)
     run.lock_owner = None
     run.lease_expires_at = None
@@ -348,7 +348,7 @@ async def _fail_one_exhausted_lease(session: AsyncSession) -> None:
     run.state = "failed"
     run.error_class = "WorkerLeaseExpired"
     run.error_message = "Worker lease expired after the final permitted attempt"
-    run.progress = {"stage": "failed", "percent": 100}
+    run.progress = {"stage": "failed"}
     run.completed_at = now
     run.lock_owner = None
     run.lease_expires_at = None
@@ -430,7 +430,7 @@ async def complete_workflow_run(
     run.result = result
     run.result_artefact_id = artefact_id
     run.result_reference = _result_reference(run, result, artefact_id)
-    run.progress = {"stage": terminal_state, "percent": 100}
+    run.progress = {"stage": terminal_state}
     run.stage_durations_ms = {
         **run.stage_durations_ms,
         **_trace_durations(result),
@@ -484,17 +484,17 @@ async def fail_workflow_run(
     run.lease_expires_at = None
     if run.cancel_requested:
         run.state = "cancelled"
-        run.progress = {"stage": "cancelled", "percent": 100}
+        run.progress = {"stage": "cancelled"}
         run.completed_at = now
         action = "cancelled"
     elif run.attempt < run.max_attempts:
         run.state = "queued"
         run.run_after = now + timedelta(seconds=min(60, 2**run.attempt))
-        run.progress = {"stage": "retry_scheduled", "percent": 0}
+        run.progress = {"stage": "retry_scheduled"}
         action = "retry_scheduled"
     else:
         run.state = "failed"
-        run.progress = {"stage": "failed", "percent": 100}
+        run.progress = {"stage": "failed"}
         run.completed_at = now
         action = "failed"
     await publish_project_event(
@@ -531,12 +531,12 @@ async def cancel_workflow_run(
     if run.state == "queued":
         run.state = "cancelled"
         run.completed_at = datetime.now(UTC)
-        run.progress = {"stage": "cancelled", "percent": 100}
+        run.progress = {"stage": "cancelled"}
         action = "cancelled"
     else:
         run.progress = {
+            **(run.progress or {}),
             "stage": "cancelling",
-            "percent": run.progress.get("percent", 1),
         }
     # Commit the cooperative flag before taking the project-event cursor lock.
     # A workflow may already hold an FK key-share lock while preparing an
@@ -569,7 +569,7 @@ async def mark_cancelled_after_rollback(
         )
     run.state = "cancelled"
     run.cancel_requested = True
-    run.progress = {"stage": "cancelled", "percent": 100}
+    run.progress = {"stage": "cancelled"}
     run.completed_at = datetime.now(UTC)
     run.lock_owner = None
     run.lease_expires_at = None

@@ -456,3 +456,163 @@ def test_regeneration_restores_omitted_user_block_as_proposed_delete() -> None:
     assert "- User-added item" in merged.markdown
     assert merged.metadata[user_block_id]["status"] == "propose_delete"
     assert user_block_id in merged.preserved
+
+
+def test_protect_marks_provenance_without_changing_markdown() -> None:
+    generated = materialize_block_identity(
+        "Stable paragraph.", actor_source="ai", now=NOW
+    )
+    block = markdown_blocks(generated.markdown)[0]
+
+    protected = apply_block_operations(
+        generated.markdown,
+        [
+            ArtefactBlockOperation(
+                operation="PROTECT",
+                target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+            )
+        ],
+        existing_metadata=generated.metadata,
+        actor_source="user",
+        now=NOW,
+    )
+
+    assert protected.markdown == generated.markdown
+    assert protected.metadata[block.id]["user_protected"] is True
+    assert (
+        protected.metadata[block.id]["baseline_content_hash"]
+        == generated.metadata[block.id]["baseline_content_hash"]
+    )
+    assert protected.changed_block_ids == (block.id,)
+
+
+def test_protected_block_rejects_ai_update_and_delete() -> None:
+    generated = materialize_block_identity(
+        "Protected fact.", actor_source="ai", now=NOW
+    )
+    block = markdown_blocks(generated.markdown)[0]
+    protected = apply_block_operations(
+        generated.markdown,
+        [
+            ArtefactBlockOperation(
+                operation="PROTECT",
+                target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+            )
+        ],
+        existing_metadata=generated.metadata,
+        actor_source="user",
+        now=NOW,
+    )
+
+    try:
+        apply_block_operations(
+            protected.markdown,
+            [
+                ArtefactBlockOperation(
+                    operation="UPDATE",
+                    target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+                    content="AI overwrite.",
+                )
+            ],
+            existing_metadata=protected.metadata,
+            actor_source="ai",
+            now=NOW,
+        )
+        raise AssertionError("expected protected UPDATE rejection")
+    except ValueError as exc:
+        assert "protected" in str(exc).lower()
+
+    try:
+        apply_block_operations(
+            protected.markdown,
+            [
+                ArtefactBlockOperation(
+                    operation="DELETE",
+                    target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+                )
+            ],
+            existing_metadata=protected.metadata,
+            actor_source="ai",
+            now=NOW,
+        )
+        raise AssertionError("expected protected DELETE rejection")
+    except ValueError as exc:
+        assert "protected" in str(exc).lower()
+
+    updated = apply_block_operations(
+        protected.markdown,
+        [
+            ArtefactBlockOperation(
+                operation="UPDATE",
+                target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+                content="User revision.",
+            )
+        ],
+        existing_metadata=protected.metadata,
+        actor_source="user",
+        now=NOW,
+    )
+    assert "User revision." in updated.markdown
+    assert updated.metadata[block.id]["user_protected"] is True
+
+
+def test_unprotect_clears_protection_flag() -> None:
+    generated = materialize_block_identity("Fact.", actor_source="ai", now=NOW)
+    block = markdown_blocks(generated.markdown)[0]
+    protected = apply_block_operations(
+        generated.markdown,
+        [
+            ArtefactBlockOperation(
+                operation="PROTECT",
+                target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+            )
+        ],
+        existing_metadata=generated.metadata,
+        actor_source="user",
+        now=NOW,
+    )
+
+    cleared = apply_block_operations(
+        protected.markdown,
+        [
+            ArtefactBlockOperation(
+                operation="UNPROTECT",
+                target=ArtefactBlockTarget(id=block.id, type="paragraph"),
+            )
+        ],
+        existing_metadata=protected.metadata,
+        actor_source="user",
+        now=NOW,
+    )
+
+    assert cleared.markdown == protected.markdown
+    assert cleared.metadata[block.id]["user_protected"] is False
+
+
+def test_move_updates_provenance_timestamps() -> None:
+    generated = materialize_block_identity(
+        "First.\n\nSecond.", actor_source="ai", now=NOW
+    )
+    first, second = markdown_blocks(generated.markdown)
+    later = datetime(2026, 8, 11, tzinfo=UTC)
+
+    moved = apply_block_operations(
+        generated.markdown,
+        [
+            ArtefactBlockOperation(
+                operation="MOVE",
+                target=ArtefactBlockTarget(id=first.id, type="paragraph"),
+                reference_id=second.id,
+                placement="after",
+            )
+        ],
+        existing_metadata=generated.metadata,
+        actor_source="user",
+        now=later,
+    )
+
+    assert moved.metadata[first.id]["last_modified_by"] == "user"
+    assert moved.metadata[first.id]["updated_at"] == later.isoformat().replace(
+        "+00:00", "Z"
+    )
+    assert first.id in moved.changed_block_ids

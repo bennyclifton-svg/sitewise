@@ -20,10 +20,15 @@ from app.agent.document_context import (
     documents_from_turn_context,
     resolve_selected_turn_documents,
 )
-from app.agent.pi_models import PI_RUNTIME_ID, resolve_pi_model_override
+from app.agent.pi_models import (
+    PI_RUNTIME_ID,
+    PiModelOverride,
+    resolve_pi_model_override,
+)
 from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
+from app.agent.task_routing import route_ai_task, task_route_telemetry
 from app.agent.turn_context import (
     HistoryMessage,
     build_agent_prompt,
@@ -623,6 +628,7 @@ async def post_agent_stream(
         classify_mutation_intent(user_text),
         current_scale=_project_scale(project),
     )
+    task_route = route_ai_task(user_text)
     snapshot = await get_project_snapshot(
         session,
         project_id=project.id,
@@ -649,6 +655,11 @@ async def post_agent_stream(
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     agent_runtime = PI_RUNTIME_ID
     model_override = resolve_pi_model_override(body.agent_model)
+    if model_override is None and task_route.model:
+        model_override = PiModelOverride(
+            provider=settings.pi_model_provider,
+            model=task_route.model,
+        )
 
     proposed_turn_id = uuid.uuid4()
     last_message = body.messages[-1] if body.messages else {}
@@ -667,7 +678,8 @@ async def post_agent_stream(
         input_context={
             "selected_documents": [
                 document.model_dump(mode="json") for document in selected_documents
-            ]
+            ],
+            "task_route": task_route_telemetry(task_route),
         },
         runtime=agent_runtime,
         model=model_override.model if model_override else settings.pi_model,
@@ -917,7 +929,13 @@ async def post_agent_stream(
                         expected_title=fallback_title,
                         title=generated_title,
                     )
-                await complete_agent_turn(persist_session, turn_id, status_value="completed")
+                elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
+                await complete_agent_turn(
+                    persist_session,
+                    turn_id,
+                    status_value="completed",
+                    latency_ms=elapsed_ms,
+                )
                 await persist_session.commit()
             elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
             log.info(
@@ -934,6 +952,7 @@ async def post_agent_stream(
                     "first_text": first_text_ms,
                     "total": elapsed_ms,
                 },
+                task_route=task_route.model_dump(mode="json"),
             )
 
     return StreamingResponse(

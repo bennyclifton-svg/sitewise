@@ -120,7 +120,7 @@ describe("InstructionTray", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows each item with its section badge and instruction", () => {
+  it("shows each item with its section heading and instruction, not the quote", () => {
     render(
       <InstructionTray
         items={[item(), item({ id: "item-2", sectionHeading: "Programme", instruction: "add float" })]}
@@ -133,7 +133,8 @@ describe("InstructionTray", () => {
     expect(screen.getByRole("button", { name: /Apply 2 changes/ })).toBeInTheDocument();
     expect(screen.getByText("Procurement posture")).toBeInTheDocument();
     expect(screen.getByText("Programme")).toBeInTheDocument();
-    expect(screen.getByText("add float")).toBeInTheDocument();
+    expect(screen.getByText(/add float/)).toBeInTheDocument();
+    expect(screen.queryByText("single-stage invited tender")).not.toBeInTheDocument();
   });
 
   it("uses the singular label for one item", () => {
@@ -198,10 +199,10 @@ describe("InstructionTray", () => {
 
     const toggle = screen.getByRole("button", { name: /1 change queued/ });
     fireEvent.click(toggle);
-    expect(screen.queryByText("make it two-stage")).not.toBeInTheDocument();
+    expect(screen.queryByText(/make it two-stage/)).not.toBeInTheDocument();
 
     fireEvent.click(toggle);
-    expect(screen.getByText("make it two-stage")).toBeInTheDocument();
+    expect(screen.getByText(/make it two-stage/)).toBeInTheDocument();
   });
 
   it("disables its controls while a batch is applying", () => {
@@ -274,10 +275,7 @@ describe("InstructionTray", () => {
     expect(container.querySelector("[data-instruction-ui]")).not.toBeNull();
   });
 
-  it("uses the Sitewise floating surface, never bg-background", () => {
-    // `.project-main-panel` sets `--background: transparent` so nested in-flow
-    // sections show the panel surface. This tray floats over document text, so
-    // it must use an opaque raised surface (sw-surface), not bg-background.
+  it("renders as a compact side-panel list, not a floating overlay", () => {
     const { container } = render(
       <InstructionTray
         items={[item()]}
@@ -288,9 +286,10 @@ describe("InstructionTray", () => {
     );
 
     const tray = container.querySelector("[data-instruction-ui]")!;
-    expect(tray).toHaveClass("sw-surface");
-    expect(tray).toHaveClass("sw-contact");
-    expect(tray.className).not.toMatch(/\bbg-background\b/);
+    expect(tray).toHaveClass("border-b");
+    expect(tray).not.toHaveClass("sw-surface");
+    expect(tray).not.toHaveClass("sticky");
+    expect(tray.querySelector(".sw-table-row")).not.toBeNull();
   });
 });
 
@@ -373,7 +372,7 @@ describe("SelectionInstructionCard", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("shows the quoted snippet and marks itself as instruction UI", () => {
+  it("shows the section heading without the quoted snippet", () => {
     render(
       <SelectionInstructionCard
         anchor={anchor}
@@ -383,7 +382,8 @@ describe("SelectionInstructionCard", () => {
       />,
     );
 
-    expect(screen.getByText("single-stage invited tender")).toBeInTheDocument();
+    expect(screen.getByText("Procurement posture")).toBeInTheDocument();
+    expect(screen.queryByText("single-stage invited tender")).not.toBeInTheDocument();
     expect(
       screen.getByRole("dialog", { name: "Add an instruction for the selected text" }),
     ).toHaveAttribute("data-instruction-ui");

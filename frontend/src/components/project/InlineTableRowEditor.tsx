@@ -1,7 +1,6 @@
 import {
   useLayoutEffect,
   useRef,
-  useState,
   type FocusEvent,
   type KeyboardEvent,
 } from "react";
@@ -28,13 +27,18 @@ export function InlineTableRowEditor({
   onSave: (markdown: string) => Promise<void>;
 }) {
   const cells = editableTableCells(sourceRow);
+  const initialCellsRef = useRef(cells);
   const rowRef = useRef<HTMLTableRowElement>(null);
   const cellRefs = useRef<Array<HTMLTableCellElement | null>>([]);
-  const [isDirty, setIsDirty] = useState(false);
+  const dirtyRef = useRef(false);
   const savingRef = useRef(false);
+  const editCells = initialCellsRef.current;
 
   useLayoutEffect(() => {
-    const focusIndex = Math.min(Math.max(focusCellIndex, 0), Math.max(cells.length - 1, 0));
+    const focusIndex = Math.min(
+      Math.max(focusCellIndex, 0),
+      Math.max(editCells.length - 1, 0),
+    );
     const cell = cellRefs.current[focusIndex];
     if (!cell) return;
     cell.focus();
@@ -44,11 +48,11 @@ export function InlineTableRowEditor({
     range.collapse(false);
     selection?.removeAllRanges();
     selection?.addRange(range);
-  }, [cells.length, focusCellIndex]);
+  }, []);
 
   async function save() {
     const row = rowRef.current;
-    if (!row || !isDirty || isSaving || savingRef.current) return;
+    if (!row || !dirtyRef.current || isSaving || savingRef.current) return;
     savingRef.current = true;
     try {
       const nextCells = Array.from(
@@ -63,7 +67,7 @@ export function InlineTableRowEditor({
   function handleBlur(event: FocusEvent<HTMLTableRowElement>) {
     const next = event.relatedTarget;
     if (next instanceof Node && rowRef.current?.contains(next)) return;
-    if (!isDirty) {
+    if (!dirtyRef.current) {
       onCancel();
       return;
     }
@@ -94,7 +98,7 @@ export function InlineTableRowEditor({
         data-md-end={sourceEnd}
         onBlur={handleBlur}
       >
-        {cells.map((cell, index) => (
+        {editCells.map((cell, index) => (
           <td
             key={`edit-cell-${index}`}
             ref={(node) => {
@@ -109,18 +113,19 @@ export function InlineTableRowEditor({
             spellCheck
             data-table-cell-editor
             className="border-b px-3 py-2 align-top text-foreground caret-[var(--sw-beam-hex)] outline-none"
-            onInput={() => setIsDirty(true)}
+            dangerouslySetInnerHTML={{ __html: escapeText(cell) }}
+            onInput={() => {
+              dirtyRef.current = true;
+            }}
             onKeyDown={handleKeyDown}
-          >
-            {cell}
-          </td>
+          />
         ))}
       </tr>
       {error ? (
         <tr>
           <td
             className="px-3 py-2 text-sm text-destructive"
-            colSpan={Math.max(cells.length, 1)}
+            colSpan={Math.max(editCells.length, 1)}
             role="alert"
           >
             {error}
@@ -129,4 +134,12 @@ export function InlineTableRowEditor({
       ) : null}
     </>
   );
+}
+
+function escapeText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }

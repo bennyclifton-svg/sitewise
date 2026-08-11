@@ -380,8 +380,55 @@ def _clean_primary_section(
             project_title=project_title,
         )
         cleaned_section = _rebuild_summary_table_without_column_header(cleaned_section)
+    cleaned_section = _drop_consultants_scope_column(cleaned_section)
     cleaned_section = _blank_consultants_fee_not_evidenced(cleaned_section)
     return cleaned_section, internal, unresolved
+
+
+def _drop_consultants_scope_column(section: str) -> str:
+    """Drop legacy Scope / services from the Consultants appointment register."""
+
+    lines = section.splitlines()
+    out: list[str] = []
+    scope_index: int | None = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            scope_index = None
+            out.append(line)
+            continue
+        cells, marker = _split_table_row(stripped)
+        labels = [cell.casefold() for cell in cells]
+        if (
+            "discipline" in labels
+            and "firm" in labels
+            and "fee" in labels
+            and "status" in labels
+            and "citation" in labels
+        ):
+            scope_index = next(
+                (index for index, label in enumerate(labels) if "scope" in label),
+                None,
+            )
+            if scope_index is None:
+                out.append(line)
+                continue
+            cells = [cell for index, cell in enumerate(cells) if index != scope_index]
+            out.append(_join_table_row(cells, marker))
+            continue
+        if scope_index is None:
+            out.append(line)
+            continue
+        if cells and set(cells[0]) == {"-"}:
+            cells = [cell for index, cell in enumerate(cells) if index != scope_index]
+            out.append(_join_table_row(cells, marker))
+            continue
+        if len(cells) > scope_index:
+            cells = [cell for index, cell in enumerate(cells) if index != scope_index]
+            out.append(_join_table_row(cells, marker))
+            continue
+        out.append(line)
+    return "\n".join(out)
 
 
 def _blank_consultants_fee_not_evidenced(section: str) -> str:
@@ -403,11 +450,12 @@ def _blank_consultants_fee_not_evidenced(section: str) -> str:
         cells, marker = _split_table_row(stripped)
         labels = [cell.casefold() for cell in cells]
         if (
-            len(cells) >= 6
+            len(cells) >= 5
             and "discipline" in labels
             and "firm" in labels
             and "fee" in labels
-            and any("scope" in label for label in labels)
+            and "status" in labels
+            and "citation" in labels
         ):
             fee_index = labels.index("fee")
             out.append(line)

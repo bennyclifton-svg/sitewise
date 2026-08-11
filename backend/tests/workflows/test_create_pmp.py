@@ -641,6 +641,12 @@ def test_create_pmp_repairs_taxonomy_engagement_status_before_validation() -> No
 
 Commercial office refurbishment scope is being confirmed from setup inputs and current evidence.
 
+## FFE Schedule
+
+| Item | Location | Qty | Finish | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| TBC — record finishes, fixtures and equipment selections | TBC | TBC | TBC | To be confirmed | — |
+
 ## Consultants
 
 | Discipline | Firm | Scope / services | Fee | Status | Citation |

@@ -78,6 +78,7 @@ class DisciplineProfile:
     knowledge_paths: tuple[str, ...]
     knowledge_query_terms: tuple[str, ...]
     evidence_query_terms: tuple[str, ...]
+    fee_stages: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +107,7 @@ def _profile(
     knowledge_paths: tuple[str, ...] = (),
     knowledge_query_terms: tuple[str, ...] = (),
     evidence_query_terms: tuple[str, ...] = (),
+    fee_stages: tuple[tuple[str, str], ...] = (),
 ) -> DisciplineProfile:
     return DisciplineProfile(
         name=name,
@@ -116,6 +118,7 @@ def _profile(
         knowledge_paths=knowledge_paths,
         knowledge_query_terms=knowledge_query_terms,
         evidence_query_terms=evidence_query_terms,
+        fee_stages=fee_stages,
     )
 
 
@@ -136,6 +139,17 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     _normalise_key("structural engineer"): _profile(
         "Structural engineer",
         benchmark_terms=("structural",),
+        knowledge_paths=("seed/as-standards-reference.md",),
+        knowledge_query_terms=(
+            "structural engineer",
+            "structural design",
+            "footings",
+            "framing",
+            "retention",
+            "temporary works",
+            "AS 1170",
+            "AS 3600",
+        ),
         requested_services=(
             "Review the project brief, architectural drawings, survey, available geotechnical advice, existing-structure information, and site constraints; identify missing investigations or design inputs.",
             "Prepare the structural design basis and advise on framing, stability, footing, slab, retained-structure, demolition, temporary-support, and new-to-existing interface requirements applicable to the project.",
@@ -307,15 +321,69 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     _normalise_key("certifier"): _profile(
         "Certifier",
         benchmark_terms=("certifier", "principal certifier", "pca"),
+        knowledge_paths=("seed/setup-and-commission-guide.md",),
+        knowledge_query_terms=(
+            "principal certifier",
+            "PCA",
+            "certifying authority",
+            "construction certificate",
+            "occupation certificate",
+            "critical stage inspections",
+            "statutory notifications",
+            "consultant procurement",
+        ),
+        evidence_query_terms=(
+            "development consent DA CDC CC conditions of consent BASIX",
+            "fire safety schedule principal certifier appointment",
+            "critical stage inspection occupation certificate",
+        ),
         requested_services=(
-            "Review the planning/building approval pathway, design status, and statutory inspection needs.",
-            "Price certification advice, CC/CDC or approval support, inspection regime, and occupation certificate inputs.",
-            "Identify authority fees, excluded consultant certificates, and client-side obligations.",
+            "Confirm the applicable planning/building approval pathway, current approval status, and principal certifier appointment requirements; state pathway assumptions where records are incomplete.",
+            "Review design status, performance solutions and required certification evidence before construction approval.",
+            "Provide construction approval support, including document review, approval issue, statutory notices and authority liaison; separately identify statutory and authority fees.",
+            "Develop and administer the statutory inspection regime, including hold points, notices, records, non-conformance escalation and completion evidence.",
+            "Coordinate certification interfaces with the design team and contractor, and identify consultant certificates, producer statements and evidence excluded from the certifier appointment.",
+            "Provide occupation-stage certification services, including completion evidence review, inspection close-out, conditions-of-consent compliance and occupation certificate inputs.",
+            "State inclusions, exclusions, inspection allowances, disbursements, authority fees, client-side obligations, third-party certificate reliance, response times and variation rates.",
         ),
         deliverables=(
             "Certification fee proposal with statutory role, inspections, and approval deliverables.",
             "Schedule of required certificates, documents, and owner/consultant inputs.",
             "Exclusions, statutory fees, disbursements, and additional hourly rates.",
+        ),
+        fee_stages=(
+            (
+                "Information review and pathway confirmation",
+                "Inputs review, appointment advice and approval-pathway confirmation",
+            ),
+            (
+                "Construction approval support",
+                "CC/CDC or equivalent document review, approval issue and authority liaison",
+            ),
+            (
+                "Statutory notifications and appointment administration",
+                "Owner appointment notices, commencement notices and register administration",
+            ),
+            (
+                "Critical-stage inspection regime",
+                "Mandatory inspections, records and hold-point administration",
+            ),
+            (
+                "Re-inspection / non-conformance allowances",
+                "Separate allowance or rates for failed inspections and rework verification",
+            ),
+            (
+                "Occupation certificate / completion",
+                "Completion evidence review, OC inputs and close-out deliverables",
+            ),
+            (
+                "Optional / additional services",
+                "Separately identify scope, rates and trigger",
+            ),
+            (
+                "Hourly rates / disbursements / authority fees",
+                "Pass-through authority fees and estimated expenses identified separately",
+            ),
         ),
     ),
     _normalise_key("town planner"): _profile(
@@ -723,6 +791,7 @@ async def run_validated_rfp_narrative(
     platform_knowledge: list[dict[str, Any]],
     citation_index: CitationIndex,
     on_progress: ProgressPublisher | None = None,
+    on_section_complete=None,
 ) -> RfpNarrativeOutput:
     """Run and validate the bounded RFP narrative, retrying invalid output twice."""
     validation_feedback: str | None = None
@@ -740,6 +809,7 @@ async def run_validated_rfp_narrative(
                 citation_index=citation_index,
                 validation_feedback=validation_feedback,
                 on_progress=on_progress,
+                on_section_complete=on_section_complete,
                 run_date=resolved_run_date,
             )
             consistency_ai_call_count += output.consistency_ai_call_count
@@ -832,6 +902,8 @@ class ConsultantDocument(ProcurementDocument):
         knowledge: list[dict[str, Any]],
         target: ProcurementTarget,
     ) -> list[dict[str, Any]]:
+        from app.workflows.procurement_request import CONTRACTOR_TENDERING_GUIDANCE_PATH
+
         target_paths = set(getattr(target, "knowledge_paths", ()))
         discipline_paths = {
             path
@@ -841,8 +913,8 @@ class ConsultantDocument(ProcurementDocument):
         return [
             item
             for item in knowledge
-            if (path := str(item.get("path") or "")) not in discipline_paths
-            or path in target_paths
+            if (path := str(item.get("path") or "")) != CONTRACTOR_TENDERING_GUIDANCE_PATH
+            and (path not in discipline_paths or path in target_paths)
         ]
 
     async def forecast(
@@ -920,6 +992,24 @@ class ConsultantDocument(ProcurementDocument):
             on_progress,
             {"stage": "scaffold_ready", "markdown": scaffold},
         )
+
+        async def publish_progressive_preview(
+            _key: str, _result: object, completed: dict[str, object]
+        ) -> None:
+            from app.workflows.progressive_preview import (
+                assemble_procurement_progressive_preview,
+            )
+
+            await publish_procurement_progress(
+                on_progress,
+                {
+                    "stage": "section_completed",
+                    "markdown": assemble_procurement_progressive_preview(
+                        scaffold, completed
+                    ),
+                },
+            )
+
         narrative = await run_validated_rfp_narrative(
             project=project,
             target=target,
@@ -929,6 +1019,7 @@ class ConsultantDocument(ProcurementDocument):
             platform_knowledge=platform_knowledge,
             citation_index=citation_index,
             on_progress=on_progress,
+            on_section_complete=publish_progressive_preview,
         )
         requested_services = narrative.requested_services or list(
             target.requested_services
@@ -1033,37 +1124,86 @@ async def _forecast_for_discipline(
             "reason": "No benchmark rule for this discipline.",
         }
 
-    for row in forecast.rows:
-        label = _normalise_key(row.cost_item)
-        if not any(term in label for term in profile.benchmark_terms):
-            continue
-        if row.action != "forecasted" or row.forecast_budget is None:
-            return {
-                **budget_context,
-                "used": False,
-                "reason": "A matching consultant row exists, but it is already known or not forecasted.",
-            }
+    selected = _select_forecast_row(forecast.rows, profile.benchmark_terms)
+    if selected is None:
         return {
             **budget_context,
-            "used": True,
-            "tool": "forecast_consultant_fees",
-            "cost_item": row.cost_item,
-            "forecast_budget": row.forecast_budget,
-            "status": FORECAST_STATUS,
-            "basis": FORECAST_BASIS,
-            "construction_base": forecast.construction_base,
-            "warnings": list(forecast.warnings),
-            "label": (
-                f"{_money(row.forecast_budget)} ex GST judgement allowance "
-                "for internal budget checking only; not a received fee proposal."
-            ),
+            "used": False,
+            "reason": "No matching consultant benchmark row was found in the current cost plan.",
         }
-
+    row, bundled = selected
+    if row.action != "forecasted" or row.forecast_budget is None:
+        return {
+            **budget_context,
+            "used": False,
+            "reason": "A matching consultant row exists, but it is already known or not forecasted.",
+        }
+    warnings = list(forecast.warnings)
+    if bundled:
+        warnings.append(
+            f"Matched bundled cost-plan row '{row.cost_item}'; prefer a "
+            f"{profile.name.lower()}-only allowance when available."
+        )
+    bundled_prefix = "bundled " if bundled else ""
     return {
         **budget_context,
-        "used": False,
-        "reason": "No matching consultant benchmark row was found in the current cost plan.",
+        "used": True,
+        "tool": "forecast_consultant_fees",
+        "cost_item": row.cost_item,
+        "forecast_budget": row.forecast_budget,
+        "status": FORECAST_STATUS,
+        "basis": FORECAST_BASIS,
+        "bundled": bundled,
+        "construction_base": forecast.construction_base,
+        "warnings": warnings,
+        "label": (
+            f"{_money(row.forecast_budget)} ex GST {bundled_prefix}judgement "
+            "allowance for internal budget checking only; not a received fee proposal."
+        ),
     }
+
+
+_OTHER_DISCIPLINE_MARKERS = (
+    "fire engineer",
+    "structural",
+    "hydraulic",
+    "mechanical",
+    "electrical",
+    "architect",
+    "acoustic",
+    "geotechnical",
+    "surveyor",
+    "sustainability",
+    "access consultant",
+)
+
+
+def _select_forecast_row(
+    rows: list[Any] | tuple[Any, ...],
+    benchmark_terms: tuple[str, ...],
+) -> tuple[Any, bool] | None:
+    """Prefer discipline-specific cost-plan rows over bundled multi-discipline rows."""
+    ranked: list[tuple[int, Any, bool]] = []
+    for row in rows:
+        label = _normalise_key(getattr(row, "cost_item", ""))
+        matched_terms = [term for term in benchmark_terms if term in label]
+        if not matched_terms:
+            continue
+        specificity = max(len(term) for term in matched_terms)
+        foreign_markers = [
+            marker
+            for marker in _OTHER_DISCIPLINE_MARKERS
+            if marker in label
+            and not any(marker in term for term in benchmark_terms)
+        ]
+        bundled = bool(foreign_markers)
+        rank = specificity * 10 - (20 if bundled else 0)
+        ranked.append((rank, row, bundled))
+    if not ranked:
+        return None
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    _, row, bundled = ranked[0]
+    return row, bundled
 
 
 _ADOPTED_CONSTRUCTION_BUDGET_RE = re.compile(
@@ -1082,6 +1222,69 @@ def _adopted_construction_budget(markdown: str) -> int | None:
 
 def _evidence_queries(profile: DisciplineProfile) -> tuple[EvidenceQuery, ...]:
     name = profile.name
+    if profile.slug == "certifier":
+        queries = [
+            EvidenceQuery(
+                "planning_pathway",
+                "Planning pathway and approvals",
+                (
+                    "development consent DA CDC CC conditions of consent approval "
+                    "pathway council principal certifier PCA construction certificate"
+                ),
+            ),
+            EvidenceQuery(
+                "project_brief",
+                "PPR and project brief",
+                (
+                    "Principal's Project Requirements PPR project brief owner brief "
+                    "site address building class scale procurement route"
+                ),
+            ),
+            EvidenceQuery(
+                "discipline_requirements",
+                "Certifier / PCA requirements",
+                " ".join(
+                    profile.evidence_query_terms
+                    or (
+                        "principal certifier appointment critical stage inspections "
+                        "occupation certificate BASIX fire safety schedule"
+                    )
+                ),
+            ),
+            EvidenceQuery(
+                "design_docs",
+                "Approved / certification design documents",
+                (
+                    "approved drawings architectural documentation fire engineering "
+                    "performance solution BASIX certificate certification package"
+                ),
+            ),
+            EvidenceQuery(
+                "programme",
+                "Project programme",
+                (
+                    "programme milestones lodgement approval possession construction "
+                    "critical stage inspection occupation certificate response date"
+                ),
+            ),
+            EvidenceQuery(
+                "cost_plan_pmp",
+                "Cost plan / PMP",
+                f"cost plan PMP budget programme consultant fees {name}",
+            ),
+            EvidenceQuery(
+                "consultant_tracker",
+                "Consultant tracker",
+                f"consultant tracker consultant register appointments procurement {name}",
+            ),
+            EvidenceQuery(
+                "previous_correspondence",
+                "Previous consultant correspondence",
+                f"{name} consultant correspondence email request for fee proposal",
+            ),
+        ]
+        return tuple(queries)
+
     queries = [
         EvidenceQuery(
             "project_brief",
@@ -1179,6 +1382,14 @@ def _assumptions_and_missing_inputs(
             ]
         )
 
+    from app.sitewise.rfp_renderer import detect_rfp_identity_conflicts
+
+    identity_conflicts = detect_rfp_identity_conflicts(
+        project=project,
+        project_evidence=evidence,
+    )
+    missing.extend(identity_conflicts)
+
     assumptions = [
         "This is a client-issued Request for Proposal seeking a consultant fee response.",
         "The consultant must confirm scope, exclusions, programme, and fee basis before appointment.",
@@ -1189,6 +1400,10 @@ def _assumptions_and_missing_inputs(
         )
     if not forecast.get("used"):
         assumptions.append("No discipline-specific fee benchmark was applied.")
+    if identity_conflicts:
+        assumptions.append(
+            "Resolve profile versus evidence identity conflicts before issuing this RFP."
+        )
     return assumptions, missing
 
 

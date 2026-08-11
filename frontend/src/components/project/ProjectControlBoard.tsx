@@ -17,7 +17,6 @@ import {
   Table2,
   type LucideIcon,
 } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import {
@@ -27,8 +26,15 @@ import {
 } from "@/components/icons/OfficeFileIcons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MenuSelect } from "@/components/ui/menu-select";
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
 import {
   ProcurementRequestPanel,
@@ -49,6 +55,7 @@ import {
 import type {
   DraftArtifact,
   DraftArtifactSummary,
+  EvidencePreview,
   OverlayIssue,
   ProcessInvoicesResult,
   ProjectDetail,
@@ -60,6 +67,7 @@ import type {
 } from "@/lib/types/project";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { runOptimisticMutation } from "@/lib/optimistic-mutation";
 import { taxonomyValueFromProject } from "@/lib/project-taxonomy";
 import { projectStateOptions } from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
@@ -136,6 +144,9 @@ export function ProjectControlBoard({
   onProfileProposalsResolved,
   onDraftSelected,
   onDraftUpdated,
+  repositoryEvidence = [],
+  onSelectEvidenceIds,
+  onTransmittalSessionChange,
   invoiceProcessResult = null,
 }: {
   project: ProjectDetail;
@@ -185,6 +196,11 @@ export function ProjectControlBoard({
   onProfileProposalsResolved?: () => void;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  repositoryEvidence?: EvidencePreview[];
+  onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
+  onTransmittalSessionChange?: (
+    session: { draftId: string; workflowType: string } | null,
+  ) => void;
   invoiceProcessResult?: ProcessInvoicesResult | null;
 }) {
   const lifecycle = buildLifecycleTiles({
@@ -211,7 +227,12 @@ export function ProjectControlBoard({
     lifecycle[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6">
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-col gap-5 p-4 lg:p-6",
+        selectedTile?.id === "cost-plan" ? "max-w-none" : "max-w-6xl",
+      )}
+    >
       <ProfileProposalStrip
         projectId={project.id}
         proposals={profileProposals}
@@ -263,6 +284,9 @@ export function ProjectControlBoard({
           onProjectUpdated={onProjectUpdated}
           onDraftSelected={onDraftSelected}
           onDraftUpdated={onDraftUpdated}
+          repositoryEvidence={repositoryEvidence}
+          onSelectEvidenceIds={onSelectEvidenceIds}
+          onTransmittalSessionChange={onTransmittalSessionChange}
           invoiceProcessResult={invoiceProcessResult}
         />
       </section>
@@ -346,22 +370,98 @@ function ProjectProfilePanel({
   }
 
   async function saveProfile() {
-    if (saving || !onProjectUpdated) return;
+    if (saving || !onProjectUpdated || !draft || !baseForm) return;
     setSaving(true);
     setError(null);
     setSaved(false);
+    const snapshot = {
+      form: draft,
+      baseForm,
+      revision: editingRevision ?? serverRevision,
+    };
+    let unresolvedConflict = false;
     try {
-      const updated = await api.updateProject(project.id, {
-        expected_revision: editingRevision ?? serverRevision,
-        building_class: form.profile.building_class ?? null,
-        work_type: form.profile.work_type ?? null,
-        subclasses: form.profile.subclasses ?? [],
-        scale: form.profile.scale ?? {},
-        complexity: form.profile.complexity ?? {},
-        work_scope: form.profile.work_scope ?? [],
-        state: form.state || null,
-        site_address: form.siteAddress || null,
-        client: form.client || null,
+      const updated = await runOptimisticMutation({
+        snapshot,
+        optimistic: snapshot,
+        apply: (state) => {
+          setDraft(state.form);
+          setBaseForm(state.baseForm);
+          setEditingRevision(state.revision);
+        },
+        commit: (base) =>
+          api.updateProject(project.id, {
+            expected_revision: base.revision,
+            building_class: base.form.profile.building_class ?? null,
+            work_type: base.form.profile.work_type ?? null,
+            subclasses: base.form.profile.subclasses ?? [],
+            scale: base.form.profile.scale ?? {},
+            complexity: base.form.profile.complexity ?? {},
+            work_scope: base.form.profile.work_scope ?? [],
+            state: base.form.state || null,
+            site_address: base.form.siteAddress || null,
+            client: base.form.client || null,
+          }),
+        confirmed: (result) => {
+          const nextForm: ProfileFormValue = {
+            profile: {
+              building_class: result.profile.building_class,
+              work_type: result.profile.work_type,
+              subclasses: result.profile.subclasses,
+              scale: result.profile.scale,
+              complexity: result.profile.complexity,
+              work_scope: result.profile.work_scope,
+            },
+            state: result.profile.state ?? "",
+            siteAddress: result.profile.site_address ?? "",
+            client: result.profile.client ?? "",
+          };
+          return {
+            form: nextForm,
+            baseForm: nextForm,
+            revision: result.new_revision,
+          };
+        },
+        reload: async () => {
+          const latest = await api.getProject(project.id);
+          return {
+            form: profileFormFromProject(latest),
+            baseForm: profileFormFromProject(latest),
+            revision: latest.profile_revision ?? 1,
+          };
+        },
+        rebase: ({ pending, latest }) => {
+          const changedFields = changedProfileFormFields(
+            pending.form,
+            pending.baseForm,
+          );
+          const rebased = rebaseProfileForm(
+            latest.form,
+            pending.form,
+            changedFields,
+          );
+          if (changedProfileFormFields(rebased, latest.form).length === 0) {
+            return { status: "unsafe" };
+          }
+          return {
+            status: "safe",
+            state: {
+              form: rebased,
+              baseForm: latest.form,
+              revision: latest.revision,
+            },
+          };
+        },
+        onUnresolvedConflict: ({ pending, latest }) => {
+          unresolvedConflict = true;
+          setDraft(pending.form);
+          setBaseForm(pending.baseForm);
+          setEditingRevision(pending.revision);
+          setConflictRevision(latest.revision);
+          setError(
+            "Project profile changed elsewhere. Your edit was kept locally.",
+          );
+        },
       });
       onProjectUpdated({
         ...project,
@@ -390,18 +490,20 @@ function ProjectProfilePanel({
       setConflictRevision(null);
       setSaved(true);
     } catch (saveError) {
-      setError(
-        saveError instanceof ApiError
-          ? saveError.message
-          : "Project profile could not be saved.",
-      );
+      if (!(saveError instanceof ApiError && saveError.status === 409) || !unresolvedConflict) {
+        setError(
+          saveError instanceof ApiError
+            ? saveError.message
+            : "Project profile could not be saved.",
+        );
+      }
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       {conflictRevision !== null ? (
         <div
           className="border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] p-3 text-sm text-[var(--sw-caution)]"
@@ -644,20 +746,15 @@ function OverlaySelectField({
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <select
+      <MenuSelect
         id={id}
         value={value}
         disabled={disabled}
-        className="h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        placeholder={placeholder}
+        options={[{ value: "", label: placeholder }, ...options]}
+        onChange={onChange}
+        aria-label={label}
+      />
     </div>
   );
 }
@@ -704,6 +801,9 @@ function WorkflowDetail({
   onProjectUpdated,
   onDraftSelected,
   onDraftUpdated,
+  repositoryEvidence = [],
+  onSelectEvidenceIds,
+  onTransmittalSessionChange,
   invoiceProcessResult,
 }: {
   tile: WorkflowTile;
@@ -747,6 +847,11 @@ function WorkflowDetail({
   onProjectUpdated?: (project: ProjectDetail) => void;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  repositoryEvidence?: EvidencePreview[];
+  onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
+  onTransmittalSessionChange?: (
+    session: { draftId: string; workflowType: string } | null,
+  ) => void;
   invoiceProcessResult: ProcessInvoicesResult | null;
 }) {
   const isProjectProfile = tile.id === "project-profile";
@@ -760,6 +865,16 @@ function WorkflowDetail({
   const pmpPreview = isRunningWorkflow
     ? workflowRunPreview(activeWorkflowRun?.progress)
     : null;
+  const costPlanPreview = isRunningCostPlan
+    ? workflowRunPreview(activeCostPlanRun?.progress)
+    : null;
+  const typedCostPlanPreview =
+    isRunningCostPlan && activeCostPlanRun?.progress?.typed_cost_plan
+      ? (activeCostPlanRun.progress.typed_cost_plan as {
+          item_count?: number;
+          items?: Array<{ item?: string; category?: string; budget?: string | null }>;
+        })
+      : null;
   const costPlanCapability = project.workflow_capabilities?.capabilities.create_cost_plan;
   const costPlanSupported = !costPlanCapability || costPlanCapability.status === "supported";
   const activeTrace = isDocumentIntake
@@ -903,8 +1018,8 @@ function WorkflowDetail({
                     {draftExportError}
                   </span>
                 ) : null}
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
@@ -922,37 +1037,30 @@ function WorkflowDetail({
                         aria-hidden
                       />
                     </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.Content
-                      align="end"
-                      sideOffset={6}
-                      collisionPadding={8}
-                      className="sw-surface sw-contact z-50 min-w-[11rem] p-1 outline-none hover:translate-y-0"
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[11rem]">
+                    <DropdownMenuItem
+                      className="gap-2.5 py-2"
+                      disabled={draftExportAction !== null}
+                      onSelect={() => {
+                        void downloadDraftExport("docx");
+                      }}
                     >
-                      <DropdownMenu.Item
-                        className="flex cursor-default items-center gap-2.5 rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted focus:bg-muted"
-                        disabled={draftExportAction !== null}
-                        onSelect={() => {
-                          void downloadDraftExport("docx");
-                        }}
-                      >
-                        <WordFileIcon className="size-6" />
-                        <span>Word</span>
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Item
-                        className="flex cursor-default items-center gap-2.5 rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted focus:bg-muted"
-                        disabled={draftExportAction !== null}
-                        onSelect={() => {
-                          void downloadDraftExport("pdf");
-                        }}
-                      >
-                        <PdfFileIcon className="size-6" />
-                        <span>PDF</span>
-                      </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Root>
+                      <WordFileIcon className="size-6" />
+                      <span>Word</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gap-2.5 py-2"
+                      disabled={draftExportAction !== null}
+                      onSelect={() => {
+                        void downloadDraftExport("pdf");
+                      }}
+                    >
+                      <PdfFileIcon className="size-6" />
+                      <span>PDF</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Suspense fallback={null}>
                   <CopyContentButton
                     loadContent={async () => {
@@ -1091,8 +1199,8 @@ function WorkflowDetail({
                       {draftExportError}
                     </span>
                   ) : null}
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         type="button"
                         variant="ghost"
@@ -1110,27 +1218,20 @@ function WorkflowDetail({
                           aria-hidden
                         />
                       </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.Content
-                        align="end"
-                        sideOffset={6}
-                        collisionPadding={8}
-                        className="sw-surface sw-contact z-50 min-w-[11rem] p-1 outline-none hover:translate-y-0"
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[11rem]">
+                      <DropdownMenuItem
+                        className="gap-2.5 py-2"
+                        disabled={draftExportAction !== null}
+                        onSelect={() => {
+                          void downloadCostPlanExcel();
+                        }}
                       >
-                        <DropdownMenu.Item
-                          className="flex cursor-default items-center gap-2.5 rounded-sm px-2 py-2 text-sm outline-none hover:bg-muted focus:bg-muted"
-                          disabled={draftExportAction !== null}
-                          onSelect={() => {
-                            void downloadCostPlanExcel();
-                          }}
-                        >
-                          <ExcelFileIcon className="size-6" />
-                          <span>Excel</span>
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Root>
+                        <ExcelFileIcon className="size-6" />
+                        <span>Excel</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Suspense fallback={null}>
                     <CopyContentButton
                       loadContent={async () => {
@@ -1157,7 +1258,47 @@ function WorkflowDetail({
               </Suspense>
             ) : null}
 
-            {isRunningCostPlan ? (
+            {costPlanPreview ? (
+              <Suspense fallback={<DraftReviewFallback label="Building cost plan..." />}>
+                <WorkflowDraftPreview
+                  preview={costPlanPreview}
+                  title={workflowProgressTitle(
+                    "cost_plan",
+                    costPlanRunMode ?? "create",
+                  )}
+                />
+              </Suspense>
+            ) : null}
+            {typedCostPlanPreview?.items?.length ? (
+              <div
+                className="rounded-md border border-dashed border-primary/25 bg-primary/[0.03] px-3 py-2"
+                data-testid="cost-plan-typed-preview"
+                role="status"
+              >
+                <p className="text-xs text-muted-foreground">
+                  Canonical cost rows ready
+                  {typeof typedCostPlanPreview.item_count === "number"
+                    ? ` (${typedCostPlanPreview.item_count})`
+                    : ""}
+                  while narrative and workbook continue.
+                </p>
+                <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
+                  {typedCostPlanPreview.items.slice(0, 8).map((item, index) => (
+                    <li key={`${item.item ?? "row"}-${index}`} className="truncate">
+                      <span className="text-muted-foreground">
+                        {item.category ? `${item.category}: ` : ""}
+                      </span>
+                      {item.item ?? "Cost item"}
+                      {item.budget ? ` — ${item.budget}` : " — TBC"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {isRunningCostPlan &&
+            !costPlanPreview &&
+            !typedCostPlanPreview?.items?.length &&
+            !latestCostPlanDraft ? (
               <div
                 className="flex min-h-40 items-center justify-center rounded-md border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground"
                 data-testid="cost-plan-running-placeholder"
@@ -1167,9 +1308,10 @@ function WorkflowDetail({
                   className="mr-2 size-4 animate-spin motion-reduce:animate-none"
                   aria-hidden
                 />
-                Preparing workbook…
+                Preparing cost plan…
               </div>
-            ) : (
+            ) : null}
+            {!isRunningCostPlan || latestCostPlanDraft ? (
               <Suspense fallback={<DraftReviewFallback costWorkbook />}>
                 <DraftReviewPanel
                   projectId={project.id}
@@ -1181,7 +1323,7 @@ function WorkflowDetail({
                   }}
                 />
               </Suspense>
-            )}
+            ) : null}
           </>
         ) : isProcurementRequests ? (
           <ProcurementRequestPanel
@@ -1215,6 +1357,9 @@ function WorkflowDetail({
             onCancel={onCancelProcurement}
             onDraftSelected={onDraftSelected}
             onDraftUpdated={onDraftUpdated}
+            repositoryEvidence={repositoryEvidence}
+            onSelectEvidenceIds={onSelectEvidenceIds}
+            onTransmittalSessionChange={onTransmittalSessionChange}
           />
         ) : isDocumentIntake ? (
           <>

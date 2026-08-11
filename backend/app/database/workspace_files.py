@@ -1,8 +1,9 @@
 import uuid
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.workspace_file import WorkspaceFile
 
@@ -102,37 +103,38 @@ async def upsert_workspace_file(
     ingest_error: str | None = None,
     source_document_id: uuid.UUID | None = None,
 ) -> WorkspaceFile:
-    existing = await get_workspace_file_by_path(
-        session,
+    # Atomic upsert avoids races between workbook rebuild and other writers that
+    # target the same (project_id, workspace_path) unique key.
+    statement = insert(WorkspaceFile).values(
+        id=uuid.uuid4(),
         project_id=project_id,
         workspace_path=workspace_path,
+        filename=filename,
+        storage_bucket=storage_bucket,
+        storage_key=storage_key,
+        content_hash=content_hash,
+        size_bytes=size_bytes,
+        ingest_status=ingest_status,
+        ingest_error=ingest_error,
+        source_document_id=source_document_id,
     )
-    if existing is None:
-        record = WorkspaceFile(
-            project_id=project_id,
-            workspace_path=workspace_path,
-            filename=filename,
-            storage_bucket=storage_bucket,
-            storage_key=storage_key,
-            content_hash=content_hash,
-            size_bytes=size_bytes,
-            ingest_status=ingest_status,
-            ingest_error=ingest_error,
-            source_document_id=source_document_id,
-        )
-        session.add(record)
-        await session.flush()
-        await session.refresh(record)
-        return record
-
-    existing.filename = filename
-    existing.storage_bucket = storage_bucket
-    existing.storage_key = storage_key
-    existing.content_hash = content_hash
-    existing.size_bytes = size_bytes
-    existing.ingest_status = ingest_status
-    existing.ingest_error = ingest_error
-    existing.source_document_id = source_document_id
-    await session.flush()
-    await session.refresh(existing)
-    return existing
+    statement = statement.on_conflict_do_update(
+        constraint="uq_workspace_files_project_workspace_path",
+        set_={
+            "filename": filename,
+            "storage_bucket": storage_bucket,
+            "storage_key": storage_key,
+            "content_hash": content_hash,
+            "size_bytes": size_bytes,
+            "ingest_status": ingest_status,
+            "ingest_error": ingest_error,
+            "source_document_id": source_document_id,
+            "updated_at": func.now(),
+        },
+    ).returning(WorkspaceFile.id)
+    result = await session.execute(statement)
+    record_id = result.scalar_one()
+    record = await session.get(WorkspaceFile, record_id)
+    if record is None:
+        raise RuntimeError("workspace file upsert did not return a row")
+    return record

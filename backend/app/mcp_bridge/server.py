@@ -45,8 +45,21 @@ from app.projects.artefact_adapters import revise_workflow_artefact
 from app.projects.artefact_blocks import (
     ArtefactBlockOperation,
     apply_block_operations,
+    markdown_blocks,
 )
-from app.agent.task_routing import route_ai_task
+from app.projects.project_knowledge import (
+    ProjectObjectKind,
+    SharedProjectObjectConflict,
+    SharedProjectObjectUpdate,
+    get_shared_project_object,
+    list_shared_project_objects,
+    write_shared_project_object,
+)
+from app.projects.dependency_offers import (
+    accept_dependency_offer,
+    enrich_dependency_offers,
+    reject_dependency_offer_entries,
+)
 from app.projects.document_register import (
     DocumentRegisterRow,
     list_document_register_rows,
@@ -138,6 +151,7 @@ from app.sitewise.cost_plan_consultant_forecast import (
 )
 from app.sitewise.cost_plan_budget_forecast import (
     AdoptedBudgetForecastError,
+    align_forecast_items_to_existing,
     build_adopted_budget_forecast,
 )
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
@@ -1173,6 +1187,202 @@ async def get_workflow_capabilities(project_id: str) -> dict:
         return workflow_capabilities(snapshot).model_dump(mode="json")
 
 
+_SHARED_OBJECT_KINDS = frozenset(
+    {
+        "consultant",
+        "stakeholder",
+        "scope_item",
+        "ffe_item",
+        "cost_item",
+        "milestone",
+        "procurement_package",
+        "project_decision",
+    }
+)
+
+
+def _parse_shared_object_kind(kind: str) -> ProjectObjectKind:
+    if kind not in _SHARED_OBJECT_KINDS:
+        raise ToolError(f"invalid shared object kind: {kind}")
+    return kind  # type: ignore[return-value]
+
+
+@mcp.tool
+async def list_shared_project_knowledge(
+    project_id: str,
+    kind: str | None = None,
+) -> list[dict]:
+    """List revisioned shared project objects used across artefacts."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        typed_kind = _parse_shared_object_kind(kind) if kind is not None else None
+        return [
+            item.model_dump(mode="json")
+            for item in list_shared_project_objects(
+                authorization.project, kind=typed_kind
+            )
+        ]
+
+
+@mcp.tool
+async def get_shared_project_knowledge(
+    project_id: str,
+    kind: str,
+    object_id: str,
+) -> dict:
+    """Read one shared project object by kind and id."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        item = get_shared_project_object(
+            authorization.project,
+            kind=_parse_shared_object_kind(kind),
+            object_id=object_id,
+        )
+        if item is None:
+            raise ToolError("Shared project object not found")
+        return item.model_dump(mode="json")
+
+
+@mcp.tool
+async def upsert_shared_project_knowledge(
+    project_id: str,
+    kind: str,
+    object_id: str,
+    expected_revision: int,
+    value: dict,
+    user_protected: bool = False,
+) -> dict:
+    """Create or update one shared project object used across artefacts.
+
+    For FFE schedule rows use kind=ffe_item with a stable slug object_id and a
+    value dict (item, location, quantity, finish, model, dimensions, supplier,
+    status, package, notes). Missing fields may be "TBC".
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            result = await write_shared_project_object(
+                session,
+                project=authorization.project,
+                kind=_parse_shared_object_kind(kind),
+                object_id=object_id,
+                update=SharedProjectObjectUpdate(
+                    expected_revision=expected_revision,
+                    value=value,
+                    user_protected=user_protected,
+                ),
+                source="ai",
+            )
+            await session.commit()
+        except SharedProjectObjectConflict as exc:
+            raise ToolError(str(exc)) from exc
+        except (ToolAuthError, ValueError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+@mcp.tool
+async def list_dependency_update_offers(project_id: str) -> list[dict]:
+    """List pending cross-artefact dependency update offers for review."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        offers = await enrich_dependency_offers(
+            session,
+            project=authorization.project,
+            owner_user_id=authorization.project.owner_user_id,
+        )
+        return [item.model_dump(mode="json") for item in offers]
+
+
+@mcp.tool
+async def accept_dependency_update_offer(
+    project_id: str,
+    offer_id: str,
+    artefact_types: list[str],
+) -> dict:
+    """Accept selected dependency update offer artefacts; never overwrites protected facts."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            result = await accept_dependency_offer(
+                session,
+                project=authorization.project,
+                offer_id=offer_id,
+                artefact_types=artefact_types,
+                author_user_id=authorization.project.owner_user_id,
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except LookupError as exc:
+            raise ToolError(str(exc)) from exc
+        except ValueError as exc:
+            raise ToolError(str(exc)) from exc
+        return result.model_dump(mode="json")
+
+
+@mcp.tool
+async def reject_dependency_update_offer(
+    project_id: str,
+    offer_id: str,
+    artefact_types: list[str] | None = None,
+) -> dict:
+    """Reject/dismiss dependency update offer entries without changing artefacts."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            reject_dependency_offer_entries(
+                authorization.project,
+                offer_id=offer_id,
+                artefact_types=artefact_types,
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except LookupError as exc:
+            raise ToolError(str(exc)) from exc
+        return {"status": "rejected", "offer_id": offer_id}
+
+
 _MCP_WORKFLOW_CAPABILITIES = {
     "create_project_plan": "create_pmp",
     "refresh_project_plan": "update_pmp",
@@ -1546,6 +1756,64 @@ async def set_cost_plan_assumption(
 
 
 @mcp.tool
+async def get_artefact_blocks(
+    project_id: str,
+    draft_id: str | None = None,
+) -> dict:
+    """Bounded read of addressable blocks for apply_artefact_operations.
+
+    Returns project/draft ids, revision, and each block's id, type, content, and
+    protection flag. When draft_id is omitted, resolves the latest create_pmp
+    draft for the project. Use this instead of rewriting whole-document Markdown.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            if draft_id:
+                draft = await get_draft_artifact(session, uuid.UUID(draft_id))
+            else:
+                draft = await get_latest_draft_artifact(
+                    session,
+                    project_id=pid,
+                    workflow_type="create_pmp",
+                )
+            if draft is None or draft.project_id != authorization.project.id:
+                raise ToolError("Draft not found")
+            metadata = (draft.provenance_metadata or {}).get("blocks") or {}
+            blocks = []
+            for block in markdown_blocks(
+                normalize_draft_markdown(draft.content_markdown)
+            ):
+                if block.id is None:
+                    continue
+                provenance = metadata.get(block.id) or {}
+                blocks.append(
+                    {
+                        "id": block.id,
+                        "type": block.type,
+                        "content": block.content,
+                        "user_protected": bool(provenance.get("user_protected", False)),
+                    }
+                )
+        except ToolError:
+            raise
+        except (ToolAuthError, ValueError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return {
+        "project_id": str(pid),
+        "draft_id": str(draft.id),
+        "version": draft.version,
+        "workflow_type": draft.workflow_type,
+        "blocks": blocks,
+    }
+
+
+@mcp.tool
 async def apply_cost_plan_operations(
     project_id: str,
     expected_base_version: int,
@@ -1575,7 +1843,7 @@ async def apply_cost_plan_operations(
                 actor_source="ai_cost_plan_operation",
             )
             await session.commit()
-            schedule_cost_plan_workbook_rebuild(
+            workbook = schedule_cost_plan_workbook_rebuild(
                 authorization.project.id, result.state.version
             )
         except (
@@ -1585,15 +1853,13 @@ async def apply_cost_plan_operations(
             RuntimeError,
             LookupError,
             ArtefactPolicyViolation,
+            ArtefactRevisionConflict,
         ) as exc:
             raise ToolError(str(exc)) from exc
     return {
         "kind": "cost_plan_operations_applied",
         "delta": result.delta.model_dump(mode="json"),
-        "task_route": route_ai_task(
-            "apply structured cost plan operations",
-            has_structured_operation=True,
-        ).model_dump(mode="json"),
+        "workbook": workbook,
     }
 
 
@@ -1668,10 +1934,6 @@ async def apply_artefact_operations(
         "draft_id": str(updated.id),
         "version": updated.version,
         "changed_block_ids": list(mutation.changed_block_ids),
-        "task_route": route_ai_task(
-            "apply structured artefact operations",
-            has_structured_operation=True,
-        ).model_dump(mode="json"),
     }
 
 
@@ -1723,12 +1985,11 @@ async def apply_approved_tender_to_cost_plan(
                     runtime_version="clerk-tender-cost-handoff-v1",
                 ),
             )
-            workbook_metadata = await _sync_cost_plan_workbook(
-                session,
-                project=authorization.project,
-                state=state,
-            )
             await session.commit()
+            workbook_metadata = schedule_cost_plan_workbook_rebuild(
+                authorization.project.id,
+                state.version,
+            )
         except (
             ToolAuthError,
             TenderCostHandoffError,
@@ -3125,13 +3386,17 @@ async def apply_cost_plan_budget_forecast(
                     work_type=snapshot.profile.work_type,
                     source_ref=f"chat_turn:{authorization.claims.turn_id}",
                 )
+                proposed_items = align_forecast_items_to_existing(
+                    forecast.items,
+                    base_state.items,
+                )
                 result = await persist_cost_refresh(
                     session,
                     project=authorization.project,
                     author_user_id=authorization.claims.user_id,
                     expected_base_version=base_state.version,
                     current_snapshot=snapshot,
-                    proposed_items=list(forecast.items),
+                    proposed_items=proposed_items,
                     dependency_snapshot=cost_dependency_snapshot(
                         snapshot,
                         model_version=base_state.dependency_snapshot.model_version,
@@ -3648,7 +3913,11 @@ async def find_document_text(
 
 @mcp.tool
 async def write_workspace_file(project_id: str, path: str, content: str) -> dict:
-    """Write a UTF-8 scratch file or create a new version of an editable artefact."""
+    """Write a UTF-8 scratch file under the project workspace.
+
+    Editable draft artefacts must use ``apply_artefact_operations`` (or Cost Plan
+    batch operations). Whole-document Markdown rewrites are rejected.
+    """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
@@ -3671,27 +3940,10 @@ async def write_workspace_file(project_id: str, path: str, content: str) -> dict
                 workspace_path=workspace_path,
             )
             if draft is not None:
-                try:
-                    updated = await revise_workflow_artefact(
-                        session,
-                        project=authorization.project,
-                        draft=draft,
-                        expected_base_version=draft.version,
-                        author_user_id=authorization.claims.user_id,
-                        content_markdown=content,
-                        actor_source="agent",
-                    )
-                except (ArtefactRevisionConflict, ArtefactPolicyViolation) as exc:
-                    raise ToolError(str(exc)) from exc
-                await session.commit()
-                return {
-                    "kind": "artefact",
-                    "path": updated.workspace_path,
-                    "draftId": str(updated.id),
-                    "workflowType": updated.workflow_type,
-                    "version": updated.version,
-                    "bytes_written": len(content.encode("utf-8")),
-                }
+                raise ToolError(
+                    "draft artefacts require apply_artefact_operations; "
+                    "whole-document Markdown writes are not supported"
+                )
 
             source = await get_workspace_file_by_path(
                 session,

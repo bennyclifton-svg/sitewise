@@ -112,19 +112,34 @@ export function workflowSectionProgress(
     ];
   });
   if (!sections.length) return null;
-  const completed = sections.filter((section) => section.status === "complete").length;
-  return { completed, total: sections.length, sections };
+  const derivedCompleted = sections.filter(
+    (section) => section.status === "complete",
+  ).length;
+  const backendCompleted = progress.completed_sections;
+  const backendTotal = progress.total_sections;
+  const completed =
+    typeof backendCompleted === "number" &&
+    Number.isFinite(backendCompleted) &&
+    backendCompleted === derivedCompleted
+      ? backendCompleted
+      : derivedCompleted;
+  const total =
+    typeof backendTotal === "number" &&
+    Number.isFinite(backendTotal) &&
+    backendTotal === sections.length
+      ? backendTotal
+      : sections.length;
+  return { completed, total, sections };
 }
 
 export function workflowRunPercent(
   progress: Record<string, unknown> | null | undefined,
 ): number | null {
+  // Only completed/total section counts are truthful measurable progress.
+  // Lifecycle placeholders such as percent: 0/1/100 must not surface in the UI.
   const sections = workflowSectionProgress(progress);
-  if (sections) return Math.round((sections.completed / sections.total) * 100);
-  const percent = progress?.percent;
-  return typeof percent === "number" && Number.isFinite(percent)
-    ? Math.max(0, Math.min(100, Math.round(percent)))
-    : null;
+  if (!sections || sections.total <= 0) return null;
+  return Math.round((sections.completed / sections.total) * 100);
 }
 
 export function workflowRunPreview(

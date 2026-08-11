@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 
@@ -53,6 +54,29 @@ class AdoptedBudgetForecast:
             "assumptions": dict(self.assumptions),
             "warnings": list(self.warnings),
         }
+
+
+def align_forecast_items_to_existing(
+    forecast_items: Sequence[CostItemInput],
+    existing_items: Sequence[CostItemInput],
+) -> list[CostItemInput]:
+    """Reuse typed-state item keys so refresh updates rows instead of duplicating.
+
+    Adopted-budget forecasts key rows from markdown cost codes (``1``, ``2``, …),
+    while taxonomy-scaffolded Cost Plans often store the same codes under keys
+    like ``scaffold:1``. ``refresh_cost_plan`` merges by ``item_key`` only, so
+    mismatched keys would insert a second row and violate
+    ``uq_cost_plan_items_version_code``.
+    """
+    by_code = {item.cost_code: item for item in existing_items}
+    aligned: list[CostItemInput] = []
+    for proposal in forecast_items:
+        existing = by_code.get(proposal.cost_code)
+        if existing is None or existing.item_key == proposal.item_key:
+            aligned.append(proposal)
+            continue
+        aligned.append(proposal.model_copy(update={"item_key": existing.item_key}))
+    return aligned
 
 
 def build_adopted_budget_forecast(

@@ -10,7 +10,7 @@ from app.database.project import Project
 from app.projects.identity import classification_summary, resolve_project_identity
 from app.sitewise.pmp_citations import (
     CitationIndex,
-    build_citation_index,
+    format_citation_key_lines,
 )
 from app.sitewise.pmp_renderer import render_project_summary_table
 
@@ -21,14 +21,29 @@ if TYPE_CHECKING:
 BACKGROUND_PLACEHOLDER = "{{BACKGROUND}}"
 REQUESTED_SERVICES_PLACEHOLDER = "{{REQUESTED_SERVICES}}"
 PROGRAMME_PLACEHOLDER = "{{PROGRAMME}}"
+PROJECT_PROFILE_CITATION_LABEL = "Project Profile"
 
 
 def build_rfp_citation_index(project_evidence: list[dict[str, Any]]) -> CitationIndex:
-    """Build a stable citation index from the retrieved project documents."""
-    documents = [
-        (path, "on file") for item in project_evidence if (path := _evidence_path(item))
-    ]
-    return build_citation_index(documents)
+    """Build a citation index with Project Profile reserved as ``[1]``.
+
+    Project evidence documents are numbered from ``[2]`` in ascending path order.
+    """
+    seen: set[str] = set()
+    evidence_docs: list[tuple[str, str]] = []
+    for item in project_evidence:
+        path = _evidence_path(item)
+        if not path:
+            continue
+        normalised = path.replace("\\", "/")
+        if normalised in seen or normalised == PROJECT_PROFILE_CITATION_LABEL:
+            continue
+        seen.add(normalised)
+        evidence_docs.append((normalised, "on file"))
+    evidence_docs.sort(key=lambda item: item[0])
+    ordered = ((PROJECT_PROFILE_CITATION_LABEL, "current"), *evidence_docs)
+    numbers = {path: index for index, (path, _) in enumerate(ordered, start=1)}
+    return CitationIndex(documents=ordered, _numbers=numbers)
 
 
 def render_procurement_project_summary(
@@ -64,11 +79,20 @@ def render_procurement_project_summary(
         project_lines.append(f"- Project type: {classification}")
 
     try:
+        profile_token = citation_index.token_for(PROJECT_PROFILE_CITATION_LABEL)
+        if profile_token == "—":
+            profile_token = "[1]"
         project_title, project_title_source = _project_title(
             project,
             project_evidence,
             citation_index,
         )
+        if not project_title_source or project_title_source == "—":
+            project_title_source = profile_token
+        if site_citation == "—":
+            site_citation = profile_token
+        if client_citation == "—":
+            client_citation = profile_token
         budget, budget_source = _construction_budget_summary(forecast)
         return _omit_placeholder_rows(
             render_project_summary_table(
@@ -77,17 +101,12 @@ def render_procurement_project_summary(
                 project_title_source=project_title_source,
                 site_address=identity.get("site_address"),
                 client=identity.get("client"),
-                site_address_status=(
-                    "Profile" if site_citation != "—" else "Profile / Not evidenced"
-                ),
                 site_address_citation=site_citation,
-                client_status=(
-                    "Profile" if client_citation != "—" else "Profile / Not evidenced"
-                ),
                 client_citation=client_citation,
                 budget=budget,
                 budget_source=budget_source,
                 compact_sources=False,
+                profile_citation=profile_token,
             )
         )
     except ValueError:
@@ -144,7 +163,7 @@ def render_rfp_scaffold(
         REQUESTED_SERVICES_PLACEHOLDER,
         "",
         "**Required deliverables**",
-        *_bullets(target.deliverables),
+        *_numbered(target.deliverables),
         "",
         "## Programme and submission",
         PROGRAMME_PLACEHOLDER,
@@ -159,7 +178,7 @@ def render_rfp_scaffold(
             "to support like-for-like fee comparison."
         ),
         "",
-        *_fee_breakdown_table(),
+        *_fee_breakdown_table(getattr(target, "fee_stages", ()) or ()),
         "",
         "**Qualifications and commercial basis**",
         "",
@@ -175,6 +194,9 @@ def render_rfp_scaffold(
         "",
         _information_to_review_heading(register_documents),
         _information_to_review_table(register_documents),
+        "",
+        "## Citation key",
+        *format_citation_key_lines(citation_index),
         "",
         "## Trace & QA",
         _trace_qa_block(assumptions or [], missing_inputs or []),
@@ -240,24 +262,84 @@ _information_to_review_table = render_information_to_review_table
 def _information_to_review_heading(evidence: list[dict[str, Any]]) -> str:
     count = len({_evidence_path(item) for item in evidence if _evidence_path(item)})
     noun = "document" if count == 1 else "documents"
-    return f"## Project Documents ({count} {noun})"
+    return f"## Transmittal ({count} {noun})"
 
 
-def _fee_breakdown_table() -> list[str]:
-    return [
+_TRANSMITTAL_HEADING_RE = re.compile(
+    r"(?im)^##\s+(?:Transmittal|Project Documents|Information to review)\b[^\n]*$",
+)
+
+
+def replace_transmittal_section(
+    markdown: str, evidence: list[dict[str, Any]]
+) -> str:
+    """Rewrite the Transmittal / Project Documents register section in place."""
+    heading = _information_to_review_heading(evidence)
+    table = render_information_to_review_table(evidence)
+    replacement = f"{heading}\n{table}"
+    match = _TRANSMITTAL_HEADING_RE.search(markdown)
+    if match is None:
+        raise ValueError("Draft has no Transmittal / Project Documents section")
+    start = match.start()
+    rest = markdown[match.end() :]
+    next_heading = re.search(r"(?m)^##\s+", rest)
+    end = match.end() + next_heading.start() if next_heading else len(markdown)
+    suffix = markdown[end:].lstrip("\n")
+    if suffix:
+        return f"{markdown[:start]}{replacement}\n\n{suffix}"
+    return f"{markdown[:start]}{replacement}\n"
+
+
+def _fee_breakdown_table(
+    fee_stages: tuple[tuple[str, str], ...] | list[tuple[str, str]] = (),
+) -> list[str]:
+    stages = list(fee_stages) or [
+        (
+            "Information review, site visit and design basis",
+            "Inputs, investigations and initial advice",
+        ),
+        (
+            "Concept design",
+            "Options, design criteria and concept coordination",
+        ),
+        (
+            "Detailed design and documentation",
+            "Calculations, drawings, specifications and coordination",
+        ),
+        (
+            "Approval and tender support",
+            "Certification / authority inputs, tender queries and addenda",
+        ),
+        (
+            "Construction phase",
+            "RFIs, submittal reviews, inspections and site attendance allowances",
+        ),
+        (
+            "Completion and handover",
+            "Defects, completion statements and close-out deliverables",
+        ),
+        (
+            "Optional / additional services",
+            "Separately identify scope, rates and trigger",
+        ),
+        (
+            "Hourly rates",
+            "Identify rates by proposed personnel / role",
+        ),
+        (
+            "Disbursements",
+            "Separately identify estimated expenses",
+        ),
+    ]
+    lines = [
         "| Indicative fee stage | Scope / allowance to identify | Fee ex GST |",
         "| --- | --- | ---: |",
-        "| Information review, site visit and design basis | Inputs, investigations and initial advice | — |",
-        "| Concept design | Options, design criteria and concept coordination | — |",
-        "| Detailed design and documentation | Calculations, drawings, specifications and coordination | — |",
-        "| Approval and tender support | Certification / authority inputs, tender queries and addenda | — |",
-        "| Construction phase | RFIs, submittal reviews, inspections and site attendance allowances | — |",
-        "| Completion and handover | Defects, completion statements and close-out deliverables | — |",
-        "| Optional / additional services | Separately identify scope, rates and trigger | — |",
-        "| Hourly rates | Identify rates by proposed personnel / role | — |",
-        "| Disbursements | Separately identify estimated expenses | — |",
-        "| **Total lump sum** | Excluding GST | **—** |",
     ]
+    lines.extend(
+        f"| {stage} | {scope} | — |" for stage, scope in stages
+    )
+    lines.append("| **Total lump sum** | Excluding GST | **—** |")
+    return lines
 
 
 def _table_value(value: Any) -> str:
@@ -291,6 +373,49 @@ _IDENTITY_STOPWORDS = frozenset(
         "road",
         "the",
     }
+)
+
+
+def detect_rfp_identity_conflicts(
+    *,
+    project: Project,
+    project_evidence: list[dict[str, Any]],
+) -> list[str]:
+    """Flag profile vs evidence identity conflicts for Trace & QA."""
+    identity = resolve_project_identity(project, evidence=project_evidence)
+    notes: list[str] = []
+    site = identity.get("site_address")
+    if isinstance(site, str) and site.strip():
+        site_numbers = {
+            token
+            for token in _identity_tokens(site)
+            if any(char.isdigit() for char in token)
+        }
+        if site_numbers:
+            for item in project_evidence:
+                snippet = str(item.get("snippet") or item.get("content") or "")
+                if not snippet.strip() or not _STREET_MARKER_RE.search(snippet):
+                    continue
+                snippet_numbers = {
+                    token
+                    for token in _identity_tokens(snippet)
+                    if any(char.isdigit() for char in token)
+                }
+                if not snippet_numbers or site_numbers.intersection(snippet_numbers):
+                    continue
+                path = _evidence_path(item)
+                label = Path(path).name if path else "project evidence"
+                notes.append(
+                    f"Site address conflict: project profile has '{site.strip()}' but "
+                    f"{label} appears to reference a different address."
+                )
+                break
+    return notes
+
+
+_STREET_MARKER_RE = re.compile(
+    r"\b(?:street|st|road|rd|avenue|ave|drive|dr|parade|place|lane|way|highway|hwy)\b",
+    re.IGNORECASE,
 )
 
 
@@ -369,6 +494,10 @@ def _project_title(
 
 def _bullets(items: tuple[str, ...]) -> list[str]:
     return [f"- {item}" for item in items]
+
+
+def _numbered(items: tuple[str, ...]) -> list[str]:
+    return [f"{index}. {item}" for index, item in enumerate(items, start=1)]
 
 
 def _omit_placeholder_rows(markdown_table: str) -> str:

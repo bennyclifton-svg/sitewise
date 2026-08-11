@@ -1,4 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProcurementRequestPanel } from "@/components/project/ProcurementRequestPanel";
@@ -12,6 +13,7 @@ import type {
 vi.mock("@/lib/api", () => ({
   api: {
     listProcurementRequests: vi.fn(),
+    getLatestDraft: vi.fn(),
   },
 }));
 
@@ -58,9 +60,11 @@ describe("ProcurementRequestPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.listProcurementRequests).mockResolvedValue([request]);
+    vi.mocked(api.getLatestDraft).mockResolvedValue(null);
   });
 
-  it("reports the selected request draft for repository usage highlighting", async () => {
+  it("does not auto-select a request or report a draft until the user opens one", async () => {
+    const user = userEvent.setup();
     const onDraftSelected = vi.fn();
 
     render(
@@ -76,6 +80,61 @@ describe("ProcurementRequestPanel", () => {
       />,
     );
 
+    const open = await screen.findByLabelText("Open procurement request");
+    expect(open).toHaveTextContent("Select a package to view or open");
+    expect(onDraftSelected).not.toHaveBeenCalled();
+    expect(screen.queryByText(draft.title)).toBeNull();
+
+    await user.click(open);
+    await user.click(
+      screen.getByRole("menuitem", { name: "Main Works · Trade package · v2" }),
+    );
+
     await waitFor(() => expect(onDraftSelected).toHaveBeenCalledWith(draft));
+    expect(await screen.findByText(draft.title)).toBeTruthy();
+  });
+
+  it("puts create controls above the package list with no type or discipline labels", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ProcurementRequestPanel
+        project={{ id: "mosaic", title: "Mosaic Apartments" } as ProjectDetail}
+        activeRun={null}
+        isRunning={false}
+        error={null}
+        refreshToken={0}
+        renderGate={() => null}
+        onCreate={vi.fn()}
+      />,
+    );
+
+    const open = await screen.findByLabelText("Open procurement request");
+    await user.click(open);
+    expect(
+      screen.getByRole("menuitem", {
+        name: "Select a package to view or open",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("menuitem", {
+        name: "Main Works · Trade package · v2",
+      }),
+    ).toBeTruthy();
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByText(/^draft$/i)).toBeNull();
+    expect(screen.queryByText(/^Open$/)).toBeNull();
+    expect(screen.queryByText(/^Type$/)).toBeNull();
+    expect(screen.queryByText(/^Discipline$/)).toBeNull();
+    expect(screen.getByLabelText("Request type")).toBeTruthy();
+    expect(screen.getByLabelText("Discipline")).toHaveAttribute(
+      "placeholder",
+      "Architect",
+    );
+    expect(screen.getByRole("button", { name: /create consultant/i })).toBeTruthy();
+
+    const type = screen.getByLabelText("Request type");
+    expect(type.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

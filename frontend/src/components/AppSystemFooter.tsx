@@ -1,8 +1,13 @@
 import { CreditCard, Globe, LogOut, Settings, User } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -53,8 +58,8 @@ export function AppSystemFooter({ className }: { className?: string }) {
         className,
       )}
     >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
@@ -79,46 +84,31 @@ export function AppSystemFooter({ className }: { className?: string }) {
 
             <Settings className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
           </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            align="start"
-            side="top"
-            sideOffset={6}
-            collisionPadding={8}
-            className="sw-surface sw-contact z-50 min-w-[10rem] p-1 outline-none hover:translate-y-0"
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="top" className="min-w-[10rem]">
+          <DropdownMenuItem asChild>
+            <Link to="/billing">
+              <CreditCard className="size-3.5" aria-hidden />
+              Billing
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            {/* Static marketing page outside the SPA router — must be a full page load. */}
+            <a href="/landing.html">
+              <Globe className="size-3.5" aria-hidden />
+              Landing page
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              void signOut();
+            }}
           >
-            <DropdownMenu.Item asChild>
-              <Link
-                to="/billing"
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
-              >
-                <CreditCard className="size-3.5" aria-hidden />
-                Billing
-              </Link>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item asChild>
-              {/* Static marketing page outside the SPA router — must be a full page load. */}
-              <a
-                href="/landing.html"
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
-              >
-                <Globe className="size-3.5" aria-hidden />
-                Landing page
-              </a>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className="flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
-              onSelect={() => {
-                void signOut();
-              }}
-            >
-              <LogOut className="size-3.5" aria-hidden />
-              Sign out
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+            <LogOut className="size-3.5" aria-hidden />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

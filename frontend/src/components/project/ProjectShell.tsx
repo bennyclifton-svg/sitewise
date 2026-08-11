@@ -183,13 +183,14 @@ export function ProjectShell({
           </div>
         </main>
 
-        <aside className="project-side-panel relative min-w-0 overflow-hidden border-t lg:col-start-3 lg:row-start-2 lg:h-full lg:min-h-0 lg:border-t-0">
+        <aside className="project-side-panel relative flex min-h-0 min-w-0 flex-col overflow-hidden border-t lg:col-start-3 lg:row-start-2 lg:h-full lg:min-h-0 lg:border-t-0">
           <CockpitPanelResizeHandle
             ariaLabel="Resize documents panel"
             edge="start"
             onResize={resizeRepoPanel}
           />
-          {repository}
+          <div data-instruction-tray-host className="shrink-0 empty:hidden" />
+          <div className="relative min-h-0 flex-1 overflow-hidden">{repository}</div>
         </aside>
       </div>
     </div>

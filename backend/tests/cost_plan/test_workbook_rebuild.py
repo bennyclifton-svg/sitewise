@@ -34,3 +34,17 @@ def test_explicit_flush_rebuilds_immediately() -> None:
         return await coordinator.flush("project"), calls
 
     assert asyncio.run(scenario()) == (True, ["rebuilt"])
+
+
+def test_rebuild_failure_is_swallowed_so_canonical_state_remains() -> None:
+    async def scenario() -> str:
+        coordinator = WorkbookRebuildCoordinator(quiet_seconds=0.01)
+
+        async def rebuild() -> None:
+            raise RuntimeError("xlsx failed")
+
+        coordinator.schedule("project", rebuild)
+        await asyncio.sleep(0.03)
+        return "canonical-ok"
+
+    assert asyncio.run(scenario()) == "canonical-ok"

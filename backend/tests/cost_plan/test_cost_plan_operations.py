@@ -15,7 +15,6 @@ from app.cost_plan.schemas import (
 )
 from app.cost_plan.service import apply_cost_plan_operations
 from app.database.project import Project
-from app.projects.artefact_revisions import ArtefactPolicyViolation
 
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -48,6 +47,59 @@ def _state(items: list[CostItemInput], version: int = 1) -> CostPlanState:
         ),
         items=items,
     )
+
+
+def test_move_and_category_operations_publish_once() -> None:
+    base = _state([_item("joinery", "C-01"), _item("ffe", "C-02")])
+    base = base.model_copy(
+        update={"narrative": {"categories": ["Construction", "Consultants"]}}
+    )
+
+    async def publish(*args, state: CostPlanState, **kwargs) -> CostPlanState:
+        return state.model_copy(update={"version": 2, "totals": _totals(state)})
+
+    with (
+        patch(
+            "app.cost_plan.service._base_for_mutation", new=AsyncMock(return_value=base)
+        ),
+        patch(
+            "app.cost_plan.service._publish_state", new=AsyncMock(side_effect=publish)
+        ) as publish_mock,
+    ):
+        result = asyncio.run(
+            apply_cost_plan_operations(
+                AsyncMock(),
+                project=Project(id=PROJECT_ID, owner_user_id=USER_ID),
+                author_user_id=USER_ID,
+                expected_base_version=1,
+                operations=[
+                    CostPlanOperation(
+                        operation="MOVE",
+                        target_type="cost_item",
+                        target_id="ffe",
+                        reference_id="joinery",
+                        placement="before",
+                    ),
+                    CostPlanOperation(
+                        operation="ADD",
+                        target_type="cost_category",
+                        values={"category": "Provisional"},
+                    ),
+                    CostPlanOperation(
+                        operation="DELETE",
+                        target_type="cost_category",
+                        target_id="Consultants",
+                        values={"category": "Consultants"},
+                    ),
+                ],
+            )
+        )
+
+    publish_mock.assert_awaited_once()
+    assert [item.item_key for item in result.state.items] == ["ffe", "joinery"]
+    assert [item.cost_code for item in result.state.items] == ["1", "2"]
+    # Empty categories stay until an item delete prunes unused names.
+    assert result.state.narrative["categories"] == ["Construction", "Provisional"]
 
 
 def test_batch_operations_publish_once_and_return_a_delta() -> None:
@@ -96,13 +148,79 @@ def test_batch_operations_publish_once_and_return_a_delta() -> None:
     assert result.delta.workbook_status == "pending"
 
 
-def test_delete_blocks_items_with_invoice_or_commitment_dependencies() -> None:
-    base = _state([_item("paid", "C-01", paid="25")])
-    with patch(
-        "app.cost_plan.service._base_for_mutation",
-        new=AsyncMock(return_value=base),
+def test_update_persists_line_variations_on_narrative() -> None:
+    base = _state([_item("joinery", "C-01")])
+
+    async def publish(*args, state: CostPlanState, **kwargs) -> CostPlanState:
+        return state.model_copy(update={"version": 2, "totals": _totals(state)})
+
+    with (
+        patch(
+            "app.cost_plan.service._base_for_mutation", new=AsyncMock(return_value=base)
+        ),
+        patch(
+            "app.cost_plan.service._publish_state", new=AsyncMock(side_effect=publish)
+        ),
     ):
-        with pytest.raises(ArtefactPolicyViolation, match="paid invoices"):
+        result = asyncio.run(
+            apply_cost_plan_operations(
+                AsyncMock(),
+                project=Project(id=PROJECT_ID, owner_user_id=USER_ID),
+                author_user_id=USER_ID,
+                expected_base_version=1,
+                operations=[
+                    CostPlanOperation(
+                        operation="UPDATE",
+                        target_type="cost_item",
+                        target_id="joinery",
+                        values={
+                            "committed": "80",
+                            "forecast": "95",
+                            "forecast_variations": "10",
+                            "approved_variations": "5",
+                        },
+                    )
+                ],
+            )
+        )
+
+    assert result.state.items[0].committed == Decimal("80")
+    assert result.state.items[0].cost_code == "1"
+    assert result.state.narrative["item_variations"]["joinery"] == {
+        "forecast_variations": "10.00",
+        "approved_variations": "5.00",
+    }
+    assert result.state.narrative["categories"] == [
+        "Fees and Charges",
+        "Consultants",
+        "Construction",
+        "Contingency",
+    ]
+
+
+def test_delete_blocks_items_with_invoice_or_commitment_dependencies() -> None:
+    from app.cost_plan.deletion_blockers import CostPlanDeletionBlocked
+    from app.cost_plan.schemas import CostPlanDeletionBlocker
+
+    base = _state([_item("paid", "C-01", paid="25")])
+    blockers = [
+        CostPlanDeletionBlocker(
+            kind="invoice",
+            id=None,
+            label="paid ledger amount $25.00",
+        )
+    ]
+    with (
+        patch(
+            "app.cost_plan.service._base_for_mutation",
+            new=AsyncMock(return_value=base),
+        ),
+        patch(
+            "app.cost_plan.service.collect_cost_item_deletion_blockers",
+            new=AsyncMock(return_value=blockers),
+        ),
+    ):
+        with pytest.raises(CostPlanDeletionBlocked) as raised:
             asyncio.run(
                 apply_cost_plan_operations(
                     AsyncMock(),
@@ -118,6 +236,7 @@ def test_delete_blocks_items_with_invoice_or_commitment_dependencies() -> None:
                     ],
                 )
             )
+    assert raised.value.detail()["blockers"][0]["kind"] == "invoice"
 
 
 def _totals(state: CostPlanState):

@@ -349,10 +349,7 @@ def test_prepare_issue_markdown_blanks_consultants_fee_not_evidenced() -> None:
 
     prepared = prepare_issue_markdown(source)
 
-    assert (
-        "| Structural engineer | — | Assumption — services not yet appointed |  | "
-        "Not evidenced | — |"
-    ) in prepared
-    assert (
-        "| Surveyor | Acme Survey | Contour and detail survey | $4,200 | Partial | [1] |"
-    ) in prepared
+    assert "Scope / services" not in prepared
+    assert "services not yet appointed" not in prepared
+    assert "| Structural engineer | — |  | Not evidenced | — |" in prepared
+    assert "| Surveyor | Acme Survey | $4,200 | Partial | [1] |" in prepared

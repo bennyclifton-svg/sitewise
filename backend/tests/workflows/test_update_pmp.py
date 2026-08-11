@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from app.database.draft_artifact import DraftArtifact
@@ -140,6 +141,167 @@ def test_markdown_section_headings_extracts_custom_sections() -> None:
         "Project overview",
         "Custom client section",
     ]
+
+
+def test_update_pmp_emits_lifecycle_progress_events() -> None:
+    published: list[dict] = []
+    baseline = _baseline_draft()
+    baseline.content_markdown = _valid_evidence_grounded_pmp_markdown()
+
+    async def capture(progress: dict) -> None:
+        published.append(progress)
+
+    with (
+        patch(
+            "app.workflows.update_pmp.overlay_status",
+            return_value=overlay_status(
+                archetype="new-dwelling",
+                state="NSW",
+            ),
+        ),
+        patch(
+            "app.workflows.update_pmp.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.update_pmp.get_latest_draft_artifact",
+            new=AsyncMock(return_value=baseline),
+        ),
+        patch(
+            "app.workflows.update_pmp.retrieve_create_pmp_sources",
+            new=AsyncMock(return_value=([], 0, 0, "platform_seeded", [])),
+        ),
+        patch(
+            "app.workflows.update_pmp.retrieve_generation_evidence",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    category=lambda key: []  # noqa: ARG005
+                )
+            ),
+        ),
+        patch(
+            "app.workflows.update_pmp.project_has_taxonomy",
+            return_value=False,
+        ),
+        patch(
+            "app.workflows.create_pmp.retrieve_project_evidence_delta",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.workflows.update_pmp.run_update_pmp_model",
+            new=AsyncMock(
+                return_value=PmpDraftOutput(
+                    title="Project Management Plan",
+                    markdown=baseline.content_markdown,
+                    seed_consulted=_valid_seed_consulted(),
+                    evidence_refs=[],
+                    context_refs=[],
+                )
+            ),
+        ),
+        patch(
+            "app.workflows.update_pmp.validate_update_pmp_output",
+            return_value=None,
+        ),
+        patch(
+            "app.workflows.update_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=baseline),
+        ),
+        patch("app.workflows.update_pmp.sync_decisions_from_markdown", new=AsyncMock()),
+        patch("app.workflows.update_pmp._persist_trace_message", new=AsyncMock()),
+        patch(
+            "app.workflows.create_pmp._next_version_hint",
+            new=AsyncMock(return_value=2),
+        ),
+        patch(
+            "app.workflows.create_pmp.sync_pmp_draft_workspace",
+            new=AsyncMock(return_value="path"),
+        ),
+        patch(
+            "app.workflows.update_pmp.apply_document_refresh",
+            side_effect=lambda baseline_md, _meta, regenerated, **_kwargs: SimpleNamespace(
+                markdown=regenerated,
+                metadata={},
+                updated=(),
+                preserved=(),
+                conflicts=(),
+            ),
+        ),
+    ):
+        result = run_async(
+            run_update_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=_project(),
+                thread_id=None,
+                on_preview=capture,
+            )
+        )
+
+    assert result.status == "complete"
+    stages = [item.get("stage") for item in published]
+    assert "context_ready" in stages
+    assert "retrieval_complete" in stages
+    assert "section_started" in stages
+    assert "validation_started" in stages
+    assert "artefact_ready" in stages
+    scaffold = next(item for item in published if item.get("markdown"))
+    assert scaffold["markdown"].strip()
+
+
+def test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged() -> None:
+    from app.projects.selective_refresh import compute_refresh_input_hash
+    from app.sitewise.seed_routing import select_seed_knowledge_for_project
+
+    baseline = _baseline_draft()
+    seed_version = (
+        "|".join(select_seed_knowledge_for_project("pmp", _project()).applicable_paths)
+        or "no-seed-guidance"
+    )
+    refresh_hash = compute_refresh_input_hash(
+        context_version=1,
+        source_version="no-project-evidence",
+        seed_version=seed_version,
+        artefact_type="pmp",
+    )
+    baseline.provenance_metadata = {
+        "incremental_update": {"input_hash": refresh_hash},
+    }
+    retrieve = AsyncMock(side_effect=AssertionError("retrieval must be skipped"))
+    model = AsyncMock(side_effect=AssertionError("model must be skipped"))
+
+    with (
+        patch(
+            "app.workflows.update_pmp.overlay_status",
+            return_value=overlay_status(archetype="new-dwelling", state="NSW"),
+        ),
+        patch(
+            "app.workflows.update_pmp.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.update_pmp.get_latest_draft_artifact",
+            new=AsyncMock(return_value=baseline),
+        ),
+        patch("app.workflows.update_pmp.retrieve_create_pmp_sources", new=retrieve),
+        patch("app.workflows.update_pmp.run_update_pmp_model", new=model),
+        patch("app.workflows.update_pmp._persist_trace_message", new=AsyncMock()),
+    ):
+        result = run_async(
+            run_update_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=_project(project_context_version=1),
+                thread_id=None,
+            )
+        )
+
+    assert result.status == "complete"
+    assert result.draft is not None
+    assert result.draft.version == baseline.version
+    assert any(event.step == "selective_refresh" for event in result.trace)
+    retrieve.assert_not_awaited()
+    model.assert_not_awaited()
 
 
 def test_update_pmp_fails_without_baseline() -> None:

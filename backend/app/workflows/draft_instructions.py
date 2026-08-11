@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
@@ -11,6 +13,7 @@ from pydantic_ai import Agent
 from app.assistant.pmp_models import resolve_pmp_model
 from app.assistant.run_agent import run_agent_with_retry
 from app.config import settings
+from app.schemas.projects import ProjectProfileView
 from app.workflows.create_pmp import WorkflowValidationError
 
 _INSTRUCTIONS_PATH = Path(__file__).with_name("draft_instructions_instructions.md")
@@ -27,8 +30,13 @@ _HARD_CONSTRAINTS = (
     "Do NOT alter, move, or remove any ```pmp-decision fenced block. "
     "Reproduce each one byte-for-byte.",
     "Do NOT introduce any number, date, quantity, percentage or currency amount "
-    "that does not already appear in the section above or in the requested changes. "
+    "that does not already appear in the section above, the project profile, "
+    "or the requested changes. "
     "You are not the calculator.",
+    "When a requested change needs a project fact (address, client, state, "
+    "classification, scale, etc.), use the PROJECT PROFILE values below. "
+    "Do not invent placeholders such as 'to be confirmed' for facts the "
+    "profile already supplies.",
     "Do NOT add new ## headings.",
     "Change only what the requested changes ask for. "
     "Leave every other sentence byte-identical.",
@@ -56,26 +64,76 @@ draft_instruction_agent = Agent(
 )
 
 
+def format_project_profile(profile: ProjectProfileView | None) -> str:
+    """Render profile facts for the slice prompt. Empty when nothing is set."""
+    if profile is None:
+        return ""
+    payload = profile.model_dump(
+        mode="json",
+        exclude={"project_id", "profile_revision"},
+        exclude_none=True,
+    )
+    lines: list[str] = []
+    for key, value in payload.items():
+        rendered = _format_profile_value(value)
+        if rendered is None:
+            continue
+        lines.append(f"- {key}: {rendered}")
+    return "\n".join(lines)
+
+
+def _format_profile_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        items = [_format_profile_value(item) for item in value]
+        compact = [item for item in items if item]
+        return ", ".join(compact) if compact else None
+    if isinstance(value, dict):
+        if not value:
+            return None
+        return json.dumps(value, sort_keys=True, ensure_ascii=True)
+    text = str(value).strip()
+    return text or None
+
+
 def build_slice_prompt(
     *,
     section_markdown: str,
     instructions: list[SliceInstruction],
     project_title: str,
+    project_profile: ProjectProfileView | None = None,
     validation_feedback: str | None = None,
 ) -> str:
-    """Assemble the slice prompt. No doctrine, no seed, no retrieval — cheap and fast."""
+    """Assemble the slice prompt with project profile facts, no retrieval."""
     requested = "\n".join(
         f'{index}. Regarding this passage:\n   """{item.quoted_text}"""\n'
         f"   Requested change: {item.instruction}"
         for index, item in enumerate(instructions, start=1)
     )
+    profile_block = format_project_profile(project_profile)
     parts = [
         f"Project: {project_title}",
         "You are revising ONE section of an existing construction project document.",
         f"--- SECTION START ---\n{section_markdown}\n--- SECTION END ---",
-        f"Requested changes:\n{requested}",
-        "\n".join(_HARD_CONSTRAINTS),
     ]
+    if profile_block:
+        parts.append(f"--- PROJECT PROFILE ---\n{profile_block}\n--- END PROJECT PROFILE ---")
+    else:
+        parts.append(
+            "--- PROJECT PROFILE ---\n(no profile fields set)\n--- END PROJECT PROFILE ---"
+        )
+    parts.extend(
+        [
+            f"Requested changes:\n{requested}",
+            "\n".join(_HARD_CONSTRAINTS),
+        ]
+    )
     if validation_feedback:
         parts.append(
             "REVISION REQUIRED — your previous output failed validation:\n"
@@ -98,6 +156,7 @@ def validate_slice_output(
     revised: str,
     *,
     instructions: list[SliceInstruction],
+    project_profile: ProjectProfileView | None = None,
 ) -> None:
     """Raise WorkflowValidationError if the revision broke a document contract."""
     issues: list[str] = []
@@ -114,10 +173,16 @@ def validate_slice_output(
     instruction_text = " ".join(
         f"{item.quoted_text} {item.instruction}" for item in instructions
     )
-    allowed = _numeric_tokens(original) | _numeric_tokens(instruction_text)
+    profile_text = format_project_profile(project_profile)
+    allowed = (
+        _numeric_tokens(original)
+        | _numeric_tokens(instruction_text)
+        | _numeric_tokens(profile_text)
+    )
     for token in sorted(_numeric_tokens(revised) - allowed):
         issues.append(
-            f"revision introduced number {token!r} not present in the source or instructions"
+            f"revision introduced number {token!r} not present in the source, "
+            "project profile, or instructions"
         )
 
     if len(revised) < len(original) * _MIN_LENGTH_RATIO:
@@ -136,6 +201,7 @@ async def run_slice_revision(
     section_markdown: str,
     instructions: list[SliceInstruction],
     project_title: str,
+    project_profile: ProjectProfileView | None = None,
     chat_model: str | None = None,
     max_attempts: int = 3,
 ) -> str:
@@ -148,6 +214,7 @@ async def run_slice_revision(
             section_markdown=section_markdown,
             instructions=instructions,
             project_title=project_title,
+            project_profile=project_profile,
             validation_feedback=validation_feedback,
         )
         result = await run_agent_with_retry(
@@ -155,7 +222,12 @@ async def run_slice_revision(
         )
         revised = result.output.revised_markdown
         try:
-            validate_slice_output(section_markdown, revised, instructions=instructions)
+            validate_slice_output(
+                section_markdown,
+                revised,
+                instructions=instructions,
+                project_profile=project_profile,
+            )
         except WorkflowValidationError as exc:
             if attempt >= max_attempts - 1:
                 raise

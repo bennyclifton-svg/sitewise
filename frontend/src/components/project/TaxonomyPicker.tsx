@@ -164,7 +164,7 @@ export function TaxonomyPicker({
   const otherLabel = selectedOtherLabel(value.subclasses);
 
   return (
-    <div className="grid min-w-0 gap-4">
+    <div className="grid min-w-0 gap-3">
       <section className="grid gap-2" aria-label="Building class">
         <h3 className="text-sm font-medium">Class</h3>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -175,7 +175,7 @@ export function TaxonomyPicker({
               disabled={disabled}
               aria-pressed={value.building_class === buildingClass.value}
               className={cn(
-                "rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50",
+                "rounded-md border px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
                 value.building_class === buildingClass.value &&
                   "border-primary bg-primary/5 text-primary",
               )}
@@ -198,7 +198,7 @@ export function TaxonomyPicker({
                 disabled={disabled}
                 aria-pressed={value.work_type === workType.value}
                 className={cn(
-                  "rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/50",
+                  "rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50",
                   value.work_type === workType.value &&
                     "border-primary bg-primary/5 text-primary",
                 )}
@@ -212,15 +212,18 @@ export function TaxonomyPicker({
       ) : null}
 
       {selectedClass && value.work_type ? (
-        <section className="grid min-w-0 gap-3 lg:grid-cols-3" aria-label="Project profile">
-          <div className="grid min-w-0 content-start gap-3 rounded-md border p-3">
+        <section
+          className="grid min-w-0 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]"
+          aria-label="Project profile"
+        >
+          <div className="grid min-w-0 content-start gap-2 rounded-md border p-2.5">
             <h3 className="text-sm font-medium">Subclass</h3>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               {selectedClass.subclasses.map((subclass) => {
                 const checked = selectedSubclassValues.includes(subclass.value);
                 const inputId = `${idPrefix}-subclass-${subclass.value}`;
                 return (
-                  <div key={subclass.value} className="grid gap-2">
+                  <div key={subclass.value} className="grid gap-1.5">
                     <label
                       htmlFor={inputId}
                       className="flex items-center gap-2 text-sm"
@@ -256,10 +259,10 @@ export function TaxonomyPicker({
             </div>
           </div>
 
-          <div className="grid min-w-0 content-start gap-3 rounded-md border p-3">
+          <div className="grid min-w-0 content-start gap-2 rounded-md border p-2.5">
             <h3 className="text-sm font-medium">Scale</h3>
             {scaleFields.length ? (
-              <div className="grid gap-3">
+              <div className="grid gap-2">
                 {scaleFields.map((field) => {
                   const inputId = `${idPrefix}-scale-${field.key}`;
                   const fieldValue = value.scale?.[field.key];
@@ -282,7 +285,7 @@ export function TaxonomyPicker({
                     );
                   }
                   return (
-                    <div key={field.key} className="grid gap-1.5">
+                    <div key={field.key} className="grid gap-1">
                       <Label htmlFor={inputId}>{field.label}</Label>
                       <Input
                         id={inputId}
@@ -304,9 +307,9 @@ export function TaxonomyPicker({
             )}
           </div>
 
-          <div className="grid min-w-0 content-start gap-3 rounded-md border p-3">
+          <div className="grid min-w-0 content-start gap-2 rounded-md border p-2.5">
             <h3 className="text-sm font-medium">Complexity</h3>
-            <div className="grid min-w-0 gap-3">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-2">
               {dimensions.map((dimension) => {
                 const selectId = `${idPrefix}-complexity-${dimension.key}`;
                 const selectedValue =
@@ -314,13 +317,13 @@ export function TaxonomyPicker({
                   dimension.options[0]?.value ??
                   "";
                 return (
-                  <div key={dimension.key} className="grid min-w-0 gap-1.5">
+                  <div key={dimension.key} className="grid min-w-0 gap-1">
                     <Label htmlFor={selectId}>{dimension.label}</Label>
                     <select
                       id={selectId}
                       value={selectedValue}
                       disabled={disabled}
-                      className="h-9 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="h-8 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       onChange={(event) =>
                         updateComplexity(dimension.key, event.target.value)
                       }
@@ -351,18 +354,12 @@ export function TaxonomyPicker({
             onToggle={toggleWorkScope}
           />
         ) : (
-          <details
-            className="rounded-md border p-3"
-            open={selectedWorkScope.size > 0}
-          >
+          <details className="rounded-md border p-2.5" open>
             <summary className="cursor-pointer text-sm font-medium">
-              Fallback scope inputs
+              Scope
               {selectedWorkScope.size ? ` (${selectedWorkScope.size} selected)` : ""}
             </summary>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Used only where project documents do not establish the physical scope.
-            </p>
-            <div className="mt-3">
+            <div className="mt-2">
               <WorkScopeFields
                 categories={workScope.categories}
                 selected={selectedWorkScope}
@@ -396,23 +393,23 @@ function WorkScopeFields({
   onToggle: (itemValue: string, checked: boolean) => void;
 }) {
   return (
-    <section className="grid gap-3" aria-label={title ?? "Fallback scope inputs"}>
+    <section className="grid gap-2" aria-label={title ?? "Scope"}>
       {title ? <h3 className="text-sm font-medium">{title}</h3> : null}
       {description ? (
         <p className="text-xs text-muted-foreground">{description}</p>
       ) : null}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] gap-2">
         {categories.map((category) => (
-          <fieldset key={category.value} className="rounded-md border p-3">
+          <fieldset key={category.value} className="rounded-md border p-2">
             <legend className="px-1 text-xs font-medium">{category.label}</legend>
-            <div className="grid gap-2">
+            <div className="grid gap-1">
               {category.items.map((item) => {
                 const inputId = `${idPrefix}-work-scope-${item.value}`;
                 return (
                   <label
                     key={item.value}
                     htmlFor={inputId}
-                    className="flex items-start gap-2 text-sm"
+                    className="flex items-start gap-2 text-sm leading-snug"
                   >
                     <input
                       id={inputId}

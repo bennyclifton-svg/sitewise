@@ -62,3 +62,36 @@ def test_section_generation_rejects_duplicate_job_keys() -> None:
                 )
             )
         )
+
+
+def test_section_generation_publishes_completed_results_for_progressive_preview() -> None:
+    completions: list[tuple[str, object, dict[str, object]]] = []
+
+    async def on_section_complete(
+        key: str, result: object, completed: dict[str, object]
+    ) -> None:
+        completions.append((key, result, dict(completed)))
+
+    def job(key: str, delay: float):
+        async def run() -> str:
+            await asyncio.sleep(delay)
+            return f"body:{key}"
+
+        return run
+
+    results = asyncio.run(
+        run_section_generation(
+            [
+                SectionGenerationJob(key="fast", label="Fast", run=job("fast", 0)),
+                SectionGenerationJob(key="slow", label="Slow", run=job("slow", 0.01)),
+            ],
+            max_concurrency=2,
+            on_section_complete=on_section_complete,
+        )
+    )
+
+    assert results == {"fast": "body:fast", "slow": "body:slow"}
+    assert completions[0][0] == "fast"
+    assert completions[0][1] == "body:fast"
+    assert completions[0][2] == {"fast": "body:fast"}
+    assert completions[-1][2] == {"fast": "body:fast", "slow": "body:slow"}

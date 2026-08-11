@@ -181,7 +181,7 @@ def test_pdf_export_smoke_when_native_weasyprint_libraries_are_available() -> No
     assert "clerk:block" not in text
 
 
-def test_consultants_table_weights_favour_firm_and_scope() -> None:
+def test_consultants_table_weights_favour_status_and_citation() -> None:
     class _Cell:
         def __init__(self, text: str) -> None:
             self._text = text
@@ -202,19 +202,18 @@ def test_consultants_table_weights_favour_firm_and_scope() -> None:
                 [
                     "Discipline",
                     "Firm",
-                    "Scope / services",
                     "Fee",
                     "Status",
                     "Citation",
                 ]
             )
         ],
-        6,
+        5,
     )
 
-    assert weights == [11, 22, 37, 8, 14, 8]
-    assert weights[2] > weights[0]
-    assert weights[1] > weights[0]
+    assert weights == [14, 24, 8, 26, 28]
+    assert weights[3] > weights[0]
+    assert weights[4] > weights[2]
     assert _consultants_table_weights([_Row(["Item", "Status"])], 2) is None
 
 

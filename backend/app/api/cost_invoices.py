@@ -27,16 +27,14 @@ from app.cost_plan.service import (
     get_cost_plan,
     republish_cost_plan_for_ledger,
 )
+from app.cost_plan.workbook_rebuild import schedule_cost_plan_workbook_rebuild
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.database.projects import get_project
 from app.database.session import get_db
 from app.projects.artefact_revisions import ArtefactRevisionConflict
 from app.projects.snapshot import get_project_snapshot
-from app.workflows.create_cost_plan import (
-    sync_cost_plan_revision_artifacts,
-    workbook_workspace_path,
-)
+from app.workflows.create_cost_plan import workbook_workspace_path
 
 
 router = APIRouter(prefix="/projects", tags=["cost-invoices"])
@@ -108,21 +106,22 @@ async def _publish_edit(
     draft = await session.get(DraftArtifact, state.artefact_revision_id)
     if draft is None:
         raise RuntimeError("published Cost Plan artefact revision was not found")
-    await sync_cost_plan_revision_artifacts(
-        session,
-        project=project,
-        draft=draft,
-        typed_state=state,
-        provenance_updates={
-            "invoice_operator_edit": {
-                "edit_id": str(edit_id),
-                "kind": edit_kind,
-                "invoice_id": str(invoice_id),
-                "allocation_id": str(allocation_id) if allocation_id else None,
-                "details": details or {},
-            }
+    # Canonical ledger state is already published; workbook derivation is
+    # coalesced so rapid invoice/cost edits share one rebuild.
+    draft.provenance_metadata = {
+        **(draft.provenance_metadata or {}),
+        "invoice_operator_edit": {
+            "edit_id": str(edit_id),
+            "kind": edit_kind,
+            "invoice_id": str(invoice_id),
+            "allocation_id": str(allocation_id) if allocation_id else None,
+            "details": details or {},
         },
-    )
+        "workbook": {"status": "pending", "version": state.version},
+    }
+    await session.flush()
+    await session.commit()
+    schedule_cost_plan_workbook_rebuild(project.id, state.version)
     return await invoice_ledger_response(
         session,
         project_id=project.id,

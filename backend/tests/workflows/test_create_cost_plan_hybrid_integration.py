@@ -839,3 +839,5 @@ def test_hybrid_cost_plan_publishes_the_scaffold_before_the_narrative_model() ->
     scaffold = next(item for item in published if item.get("markdown"))
     assert scaffold["stage"] == "scaffold_ready"
     assert scaffold["markdown"].strip()
+    typed = next(item for item in published if item.get("typed_cost_plan"))
+    assert typed["typed_cost_plan"]["item_count"] > 0

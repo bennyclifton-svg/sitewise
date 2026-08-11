@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import re
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -12,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.draft_artifact import DraftArtifact
-from app.database.draft_artifacts import create_draft_artifact, next_draft_version
+from app.database.draft_artifacts import (
+    create_draft_artifact,
+    get_latest_draft_artifact,
+    next_draft_version,
+)
 from app.database.project import Project
 from app.database.workspace_files import upsert_workspace_file
 from app.inbox.paths import build_storage_key
@@ -21,9 +26,14 @@ from app.projects.generation_brief import (
     ArtefactGenerationBrief,
     build_generation_brief,
 )
-from app.projects.generation_audit import build_generation_manifest
+from app.projects.generation_audit import generation_audit_provenance
 from app.projects.artefact_blocks import materialize_block_identity
 from app.projects.generation_context import ProjectGenerationContext
+from app.projects.selective_refresh import (
+    apply_document_refresh,
+    build_incremental_audit,
+    plan_selective_refresh,
+)
 from app.retrieval.generation import (
     EvidencePoolStats,
     GenerationEvidenceInput,
@@ -50,10 +60,13 @@ from app.storage.project_files import upload_project_file
 from ingest.hashing import bytes_content_hash
 
 
+# Consultant RFPs use quoting/fee-proposal doctrine. Trade/head-contractor
+# paths that need commercial tendering add that guide in their overrides.
 CORE_PROCUREMENT_GUIDANCE_PATHS = (
-    "seed/procurement-tendering-guide.md",
+    "seed/procurement-quoting-guide.md",
     "seed/cost-management-principles.md",
 )
+CONTRACTOR_TENDERING_GUIDANCE_PATH = "seed/procurement-tendering-guide.md"
 PROCUREMENT_RETRIEVAL_BUDGET = RetrievalBudget(
     max_searches=12,
     max_chunks=24,
@@ -225,6 +238,7 @@ NextVersion = Callable[..., Awaitable[int]]
 CreateDraft = Callable[..., Awaitable[DraftArtifact]]
 SyncWorkspace = Callable[..., Awaitable[str]]
 ProgressPublisher = Callable[[dict[str, Any]], Awaitable[None]]
+GetBaselineDraft = Callable[..., Awaitable[DraftArtifact | None]]
 
 
 @dataclass(slots=True)
@@ -287,6 +301,8 @@ async def draft_procurement_request(
     create_draft: CreateDraft | None = None,
     sync_workspace: SyncWorkspace | None = None,
     on_progress: ProgressPublisher | None = None,
+    affected_section_ids: tuple[str, ...] | list[str] | None = None,
+    get_baseline_draft: GetBaselineDraft | None = None,
 ) -> ProcurementRequestResult:
     target = document.resolve_target(raw_target)
     artefact_context = (
@@ -298,13 +314,70 @@ async def draft_procurement_request(
     # A page target guides the bounded narrative prompt. It must not cause a
     # complete procurement document to fail or be truncated at an arbitrary cap.
     pages = max(1, max_pages)
-    retriever = (retriever_factory or DocumentRetriever)(session)
+    workflow_type = workflow_type_for(document, target)
+    section_ids = tuple(affected_section_ids or ())
+    get_baseline = get_baseline_draft or get_latest_draft_artifact
+    baseline = await get_baseline(
+        session,
+        project_id=project.id,
+        workflow_type=workflow_type,
+    )
     seed_selection = _select_procurement_seed_knowledge(
         document=document,
         project=project,
         target=target,
         generation_context=generation_context,
     )
+    refresh_context_version = (
+        generation_context.context_version
+        if generation_context is not None
+        else getattr(project, "project_context_version", None) or 1
+    )
+    refresh_source_version = (
+        f"instructions:{(instructions or '').strip()}|pages:{pages}|target:{target.slug}"
+    )
+    refresh_seed_version = (
+        "|".join(seed_selection.applicable_paths) or "no-seed-guidance"
+    )
+    artefact_type = document.seed_artefact_type
+    baseline_provenance = (
+        baseline.provenance_metadata
+        if baseline is not None and isinstance(baseline.provenance_metadata, dict)
+        else {}
+    )
+    refresh_plan = plan_selective_refresh(
+        baseline_provenance,
+        context_version=refresh_context_version,
+        source_version=refresh_source_version,
+        seed_version=refresh_seed_version,
+        artefact_type=artefact_type,
+        affected_section_ids=section_ids,
+    )
+    baseline_markdown = (
+        baseline.content_markdown if baseline is not None else ""
+    ) or ""
+    # Never short-circuit a regenerate that would leave a pre-citation RFP/RFT shell.
+    skip_refresh = (
+        baseline is not None
+        and refresh_plan.skip
+        and not (
+            artefact_type in {"rfp", "rft"}
+            and _legacy_procurement_scaffold(baseline_markdown)
+        )
+    )
+    if skip_refresh:
+        await publish_procurement_progress(on_progress, {"stage": "artefact_ready"})
+        return ProcurementRequestResult(
+            draft=baseline,
+            target_name=target.name,
+            source_trace={
+                "selective_refresh": "skipped",
+                "input_hash": refresh_plan.refresh_input_hash,
+                "affected_sections": list(section_ids),
+            },
+        )
+
+    retriever = (retriever_factory or DocumentRetriever)(session)
     evidence_queries = document.evidence_queries(target)
     evidence_pool, supplemental_evidence = await asyncio.gather(
         _retrieve_procurement_evidence_pool(
@@ -440,23 +513,65 @@ async def draft_procurement_request(
         on_progress=progress_capture.publish,
     )
     markdown = await rendered if inspect.isawaitable(rendered) else rendered
+    if artefact_type in {"rfp", "rft"}:
+        _assert_citation_ready_procurement_markdown(markdown)
     source_trace["consistency_ai_call_count"] = (
         progress_capture.consistency_ai_call_count
     )
-    block_identity = materialize_block_identity(
-        markdown,
-        actor_source="ai"
-        if document.seed_artefact_type in {"rfp", "rft"}
-        else "system",
-        generation_input_hash=(
-            generation_brief.input_fingerprint if generation_brief is not None else None
-        ),
-        generation_version=document.runtime_name,
+    generation_version = (
+        f"{document.runtime_name}:refresh"
+        if baseline is not None
+        else document.runtime_name
     )
-    markdown = block_identity.markdown
+    # Legacy RFP/RFT scaffolds (Profile chips, no Citation key) must be replaced
+    # wholesale so incremental block reconcile cannot preserve the old shell.
+    force_full_replace = artefact_type in {"rfp", "rft"} and _legacy_procurement_scaffold(
+        baseline_markdown
+    )
+    if baseline is not None and artefact_type in {"rfp", "rft"} and not force_full_replace:
+        incremental = apply_document_refresh(
+            baseline.content_markdown,
+            (
+                baseline_provenance["blocks"]
+                if isinstance(baseline_provenance.get("blocks"), dict)
+                else {}
+            ),
+            markdown,
+            context_version=refresh_context_version,
+            source_version=refresh_source_version,
+            seed_version=refresh_seed_version,
+            artefact_type=artefact_type,
+            generation_version=generation_version,
+            affected_section_ids=section_ids,
+        )
+        markdown = incremental.markdown
+        block_metadata = incremental.metadata
+        incremental_audit = build_incremental_audit(
+            incremental,
+            refresh_input_hash=refresh_plan.refresh_input_hash,
+        )
+    else:
+        block_identity = materialize_block_identity(
+            markdown,
+            actor_source="ai" if artefact_type in {"rfp", "rft"} else "system",
+            generation_input_hash=(
+                generation_brief.input_fingerprint
+                if generation_brief is not None
+                else None
+            ),
+            generation_version=generation_version,
+        )
+        markdown = block_identity.markdown
+        block_metadata = block_identity.metadata
+        incremental_audit = {
+            "updated": list(block_identity.changed_block_ids),
+            "preserved": [],
+            "conflicts": [],
+            "proposed_delete": [],
+            "input_hash": refresh_plan.refresh_input_hash,
+        }
 
     await publish_procurement_progress(on_progress, {"stage": "saving"})
-    workflow_type = workflow_type_for(document, target)
     version_hint = await (next_version or next_draft_version)(
         session,
         project_id=project.id,
@@ -497,15 +612,28 @@ async def draft_procurement_request(
                 if generation_brief is not None
                 else {}
             ),
-            "blocks": block_identity.metadata,
+            "blocks": block_metadata,
+            "incremental_update": incremental_audit,
             **(
                 {
-                    "generation_manifest": build_generation_manifest(
-                        generation_brief
-                    ).model_dump(mode="json")
+                    "based_on_draft_id": str(baseline.id),
+                    "based_on_version": baseline.version,
                 }
-                if generation_brief is not None
+                if baseline is not None
                 else {}
+            ),
+            **generation_audit_provenance(
+                baseline.provenance_metadata if baseline is not None else None,
+                generation_brief,
+                mutation={
+                    "kind": "selective_refresh" if baseline is not None else "generate",
+                    "actor_source": "procurement_request",
+                    "based_on_version": (
+                        baseline.version if baseline is not None else None
+                    ),
+                }
+                if generation_brief is not None or baseline is not None
+                else None,
             ),
             **document.provenance_metadata(target),
             **_provenance_references(project_evidence, platform_knowledge),
@@ -1036,6 +1164,42 @@ async def sync_procurement_draft_workspace(
         draft=draft,
         markdown=markdown or draft.content_markdown,
     )
+
+
+def _legacy_procurement_scaffold(markdown: str) -> bool:
+    """True when a prior RFP/RFT still uses the pre-citation scaffold shell."""
+    if not markdown.strip():
+        return False
+    has_profile_chip = any(
+        cell.strip() == "Profile"
+        for line in markdown.splitlines()
+        if line.startswith("|")
+        for cell in line.split("|")
+    )
+    missing_citation_key = "## Citation key" not in markdown
+    old_title = "Request for Fee Proposal" in markdown
+    old_table_header = "| Field | Project detail | Source |" in markdown
+    return (
+        missing_citation_key
+        or has_profile_chip
+        or old_title
+        or old_table_header
+    )
+
+
+def _assert_citation_ready_procurement_markdown(markdown: str) -> None:
+    """Fail closed if a new RFP/RFT still emits the pre-citation shell."""
+    from app.workflows.create_pmp import WorkflowValidationError
+
+    if _legacy_procurement_scaffold(markdown):
+        raise WorkflowValidationError(
+            "Procurement scaffold missing Citation key or still uses Profile "
+            "source chips / Request for Fee Proposal shell."
+        )
+    if not re.search(r"\[1\]\s+Project Profile", markdown):
+        raise WorkflowValidationError(
+            "Procurement scaffold must reserve citation [1] for Project Profile."
+        )
 
 
 def _platform_title(passage: Any, metadata: dict[str, Any]) -> str:

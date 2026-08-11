@@ -23,8 +23,8 @@ def test_citation_key_lines_are_short_and_numbered() -> None:
         [("docs/b.pdf", "on file"), ("docs/a.pdf", "2026-01-01")]
     )
     assert format_citation_key_lines(index) == [
-        "[1] a.pdf — 2026-01-01",
-        "[2] b.pdf — on file",
+        "- [1] a.pdf — 2026-01-01",
+        "- [2] b.pdf — on file",
     ]
 
 
@@ -45,8 +45,8 @@ def test_build_citation_index_keeps_first_duplicate_path() -> None:
     assert index.documents == (("docs/a.pdf", "2026-01-01"), ("docs/b.pdf", "on file"))
     assert index.number_for("docs/a.pdf") == 1
     assert format_citation_key_lines(index) == [
-        "[1] a.pdf — 2026-01-01",
-        "[2] b.pdf — on file",
+        "- [1] a.pdf — 2026-01-01",
+        "- [2] b.pdf — on file",
     ]
 
 
@@ -57,6 +57,6 @@ def test_build_citation_index_normalises_backslashes() -> None:
     assert index.documents == (("docs/a.pdf", "2026-01-01"), ("docs/b.pdf", "on file"))
     assert index.number_for("docs\\b.pdf") == 2
     assert format_citation_key_lines(index) == [
-        "[1] a.pdf — 2026-01-01",
-        "[2] b.pdf — on file",
+        "- [1] a.pdf — 2026-01-01",
+        "- [2] b.pdf — on file",
     ]

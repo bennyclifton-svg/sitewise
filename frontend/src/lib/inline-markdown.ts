@@ -53,6 +53,11 @@ function serializeNode(node: Node): string {
  * Renderer-only transforms can change offsets around decision controls. Map an
  * addressable rendered block back to the matching occurrence in canonical
  * Markdown before exposing it to a save operation.
+ *
+ * Provenance markers are masked to spaces in the rendered tree. When another
+ * renderer-only transform also changes document length (e.g. grouping decision
+ * fences), the equal-offset shortcut no longer applies — search the
+ * marker-masked source so stamped table rows still resolve.
  */
 export function sourceRangeForRenderedBlock(
   source: string,
@@ -89,10 +94,12 @@ export function sourceRangeForRenderedBlock(
     cursor = index + block.length;
   }
 
+  // Masking preserves length, so offsets in masked source match canonical source.
+  const searchableSource = maskArtifactBlockMarkers(source);
   let sourceStart = -1;
   cursor = 0;
   for (let index = 0; index <= occurrence; index += 1) {
-    sourceStart = source.indexOf(block, cursor);
+    sourceStart = searchableSource.indexOf(block, cursor);
     if (sourceStart < 0) return null;
     cursor = sourceStart + block.length;
   }

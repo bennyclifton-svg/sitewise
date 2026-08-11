@@ -17,7 +17,6 @@ vi.mock("@/lib/api", () => ({
     getProjectDraft: vi.fn(),
     getLatestDraft: vi.fn(),
     listDecisions: vi.fn(),
-    patchDraft: vi.fn(),
     applyDraftBlockOperations: vi.fn(),
     applyCostPlanOperations: vi.fn(),
   },
@@ -72,6 +71,24 @@ function draft(overrides: Partial<DraftArtifact> = {}): DraftArtifact {
   };
 }
 
+function blockOpsResponse(updated: DraftArtifact, changedBlockIds: string[] = []) {
+  return {
+    delta: {
+      draft_id: updated.id,
+      version: updated.version,
+      updated_at: updated.updated_at,
+      changed_block_ids: changedBlockIds,
+      deleted_block_ids: [] as string[],
+      blocks:
+        (updated.provenance_metadata?.blocks as Record<string, unknown> | undefined) ??
+        {},
+      content_sha256: "c".repeat(64),
+      generation_manifest_present: false,
+    },
+    changed_block_ids: changedBlockIds,
+  };
+}
+
 describe("DraftReviewPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,6 +100,9 @@ describe("DraftReviewPanel", () => {
       decisions: [],
       set_revision: 1,
     });
+    // Block saves re-fetch the authoritative draft; default to no body so
+    // mutation-only tests still exercise the lean delta fallback.
+    vi.mocked(api.getLatestDraft).mockResolvedValue(null);
     vi.mocked(api.getCostPlanState).mockResolvedValue({
       version: 1,
       items: [],
@@ -104,6 +124,56 @@ describe("DraftReviewPanel", () => {
       configurable: true,
       value: vi.fn(),
     });
+  });
+
+  /** PMP drafts fetch decisions before leaving read-only; wait so remounts settle. */
+  async function waitForPmpDecisions() {
+    await waitFor(() => expect(api.listDecisions).toHaveBeenCalled());
+    const pending = vi.mocked(api.listDecisions).mock.results.at(-1)?.value;
+    if (pending) await pending;
+    await waitFor(() => {
+      expect(vi.mocked(api.listDecisions).mock.settledResults.at(-1)?.type).toBe(
+        "fulfilled",
+      );
+    });
+  }
+
+  it("exposes exclusions, constraints and version tokens in Sources & Context", () => {
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          provenance_metadata: {
+            generation_manifest: {
+              input_fingerprint: "a".repeat(64),
+              context_version: 7,
+              source_version: "srcsrcsrcsrcsrcs",
+              seed_version: "seedseedseedseed",
+              taxonomy: { building_class: "commercial" },
+              known_profile: { "identity.title": "Demo" },
+              unknown_relevant_fields: ["scale.gfa"],
+              explicitly_excluded_fields: ["scope.ffe"],
+              constraints: ["Keep PC allowances separate"],
+              evidence_used: ["brief.pdf"],
+              seed_knowledge: ["seed/pmp.md"],
+            },
+          },
+        })}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    const panel = screen.getByLabelText("Sources and context");
+    expect(panel).toHaveTextContent("Excluded fields");
+    expect(panel).toHaveTextContent("scope.ffe");
+    expect(panel).toHaveTextContent("Constraints");
+    expect(panel).toHaveTextContent("Keep PC allowances separate");
+    expect(panel).toHaveTextContent("Context version");
+    expect(panel).toHaveTextContent("7");
+    expect(panel).toHaveTextContent("Source version");
+    expect(panel).toHaveTextContent("srcsrcsrcsrc");
+    expect(panel).toHaveTextContent("Seed version");
+    expect(panel).toHaveTextContent("seedseedseed");
   });
 
   it("uses the document title and keeps export actions out of the reviewer", () => {
@@ -238,7 +308,8 @@ Issued content. [1]
     ["create_pmp", "Project Management Plan"],
     ["consultant_procurement_structural_engineer", "Request for Tender - Structural Engineer"],
     ["trade_rft_electrical_services", "Request for Tender - Electrical Services"],
-  ])("offers AI and block actions without a pen icon for %s drafts", (workflowType, title) => {
+  ])("offers AI and block actions without a pen icon for %s drafts", async (workflowType, title) => {
+    const user = userEvent.setup();
     render(
       <DraftReviewPanel
         projectId={PROJECT_ID}
@@ -251,16 +322,32 @@ Issued content. [1]
       />,
     );
 
-    fireEvent.mouseEnter(screen.getByText("Current scope."));
+    if (workflowType === "create_pmp") {
+      await waitForPmpDecisions();
+    }
 
-    const headingRow = screen.getByRole("heading", { name: "Scope", level: 2 }).parentElement;
+    fireEvent.mouseEnter(
+      screen.getByText("Current scope.").parentElement ??
+        screen.getByText("Current scope."),
+    );
+
     expect(screen.queryByRole("button", { name: "Edit paragraph manually" })).not.toBeInTheDocument();
-    const aiAction = screen.getByRole("button", { name: "Edit paragraph with AI" });
-    expect(headingRow).toContainElement(aiAction);
+    const menuTrigger = screen.getByRole("button", { name: "paragraph actions" });
+    expect(
+      screen.getByText("Current scope.").parentElement,
+    ).toContainElement(menuTrigger);
+    expect(screen.queryByRole("button", { name: "Add paragraph above" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /edit source/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /edit markdown/i })).not.toBeInTheDocument();
 
-    fireEvent.click(aiAction);
+    await user.click(menuTrigger);
+    expect(
+      await screen.findByRole("menuitem", { name: "Add paragraph above" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Add paragraph below" })).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("menuitem", { name: "Edit paragraph with AI" }),
+    );
     expect(screen.getByLabelText("Instruction")).toBeInTheDocument();
   });
 
@@ -294,7 +381,7 @@ Issued content. [1]
     expect(api.getLatestDraft).not.toHaveBeenCalled();
   });
 
-  it("double-clicks into one formatted paragraph and leaves the other section unchanged", async () => {
+  it("keeps a newer inline edit when the parent later passes an older summary", async () => {
     const original = draft({
       content_markdown: "# Title\n\n## First\n\nAlpha\n\n## Second\n\nBeta\n",
     });
@@ -303,7 +390,147 @@ Issued content. [1]
       version: 2,
       content_markdown: "# Title\n\n## First\n\nGamma\n\n## Second\n\nBeta\n",
     });
-    vi.mocked(api.patchDraft).mockResolvedValue(updated);
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(updated, ["blk_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]),
+    );
+    vi.mocked(api.getLatestDraft).mockResolvedValue(updated);
+    // If the panel refetched the older summary id, it would restore Alpha.
+    vi.mocked(api.getProjectDraft).mockResolvedValue(original);
+
+    const view = render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Alpha"));
+    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
+    editor.textContent = "Gamma";
+    fireEvent.input(editor);
+    fireEvent.blur(editor);
+
+    await waitFor(() => {
+      expect(screen.getByText("Gamma")).toBeInTheDocument();
+    });
+
+    view.rerender(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={{
+          id: "draft-1",
+          project_id: PROJECT_ID,
+          workflow_type: "create_pmp",
+          version: 1,
+          status: "draft",
+          title: "Project Management Plan",
+          workspace_path: original.workspace_path,
+          author_user_id: "user-1",
+          model: "gpt-5.6-luna",
+          runtime: "clerk-sitewise-create-pmp",
+          created_at: "2026-07-04T12:00:00.000Z",
+          updated_at: "2026-07-04T12:00:00.000Z",
+        }}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Gamma")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+    expect(api.getProjectDraft).not.toHaveBeenCalled();
+  });
+
+  it("keeps a confirmed edit when a same-version poll returns older markdown", async () => {
+    const original = draft({
+      content_markdown: "# Title\n\n## Scope\n\nAlpha paragraph.\n",
+    });
+    const persisted = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: "# Title\n\n## Scope\n\nGamma paragraph.\n",
+    });
+    // Event-poll race: same revision identity, body missing the local edit.
+    const polledMissingEdit = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: "# Title\n\n## Scope\n\nAlpha paragraph.\n",
+    });
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(persisted, ["blk_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]),
+    );
+    vi.mocked(api.getLatestDraft).mockResolvedValue(persisted);
+
+    const view = render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Alpha paragraph."));
+    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
+    editor.textContent = "Gamma paragraph.";
+    fireEvent.input(editor);
+    fireEvent.blur(editor);
+
+    await waitFor(() => {
+      expect(screen.getByText("Gamma paragraph.")).toBeInTheDocument();
+    });
+
+    view.rerender(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={polledMissingEdit}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Gamma paragraph.")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha paragraph.")).not.toBeInTheDocument();
+  });
+
+  it("surfaces block-save failures above the draft, not inside Trace & QA", async () => {
+    const original = draft({
+      content_markdown: "# Title\n\n## First\n\nAlpha\n",
+    });
+    vi.mocked(api.applyDraftBlockOperations).mockRejectedValue(
+      new ApiError("Draft revise failed", 500, {}),
+    );
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Alpha"));
+    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
+    editor.textContent = "Gamma";
+    fireEvent.input(editor);
+    fireEvent.blur(editor);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/Draft revise failed|Could not save/i);
+    expect(alert.closest("details")).toBeNull();
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+  });
+
+  it("double-clicks into one formatted paragraph and persists via block UPDATE", async () => {
+    const original = draft({
+      content_markdown: "# Title\n\n## First\n\nAlpha\n\n## Second\n\nBeta\n",
+    });
+    const updated = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: "# Title\n\n## First\n\nGamma\n\n## Second\n\nBeta\n",
+    });
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(updated, ["blk_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]),
+    );
     const onDraftUpdated = vi.fn();
 
     render(
@@ -323,19 +550,23 @@ Issued content. [1]
     fireEvent.blur(editor);
 
     await waitFor(() => {
-      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+      expect(onDraftUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, version: updated.version, content_markdown: updated.content_markdown }));
     });
-    expect(api.patchDraft).toHaveBeenCalledWith(
+    expect(api.applyDraftBlockOperations).toHaveBeenCalledWith(
       PROJECT_ID,
       "draft-1",
-      expect.stringContaining("## Second\n\nBeta"),
       1,
+      [
+        expect.objectContaining({
+          operation: "UPDATE",
+          content: "Gamma",
+          target: expect.objectContaining({ type: "paragraph" }),
+        }),
+      ],
     );
-    expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).toContain("Gamma");
-    expect(vi.mocked(api.patchDraft).mock.calls[0]?.[2]).not.toContain("Alpha");
   });
 
-  it("double-clicks a table cell in place and persists via patchDraft", async () => {
+  it("double-clicks a table cell in place and persists via block UPDATE", async () => {
     const original = draft({
       content_markdown: `## Snapshot
 
@@ -354,7 +585,9 @@ Issued content. [1]
 | Budget | Partial |
 `,
     });
-    vi.mocked(api.patchDraft).mockResolvedValue(updated);
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(updated, ["blk_cccccccccccccccccccccccccccccccc"]),
+    );
     const onDraftUpdated = vi.fn();
 
     render(
@@ -374,15 +607,305 @@ Issued content. [1]
     fireEvent.blur(cells[1]);
 
     await waitFor(() => {
-      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+      expect(onDraftUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, version: updated.version, content_markdown: updated.content_markdown }));
     });
-    expect(api.patchDraft).toHaveBeenCalledWith(
+    expect(api.applyDraftBlockOperations).toHaveBeenCalledWith(
       PROJECT_ID,
       "draft-1",
-      expect.stringContaining("| Budget | Partial |"),
       1,
+      [
+        expect.objectContaining({
+          operation: "UPDATE",
+          content: expect.stringContaining("| Budget | Partial |"),
+          target: expect.objectContaining({ type: "table_row" }),
+        }),
+      ],
     );
-    expect(api.applyDraftBlockOperations).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["create_pmp", "Project Management Plan"],
+    ["consultant_procurement_structural_engineer", "Request for Tender - Structural Engineer"],
+    ["trade_rft_electrical_services", "Request for Tender - Electrical Services"],
+  ] as const)(
+    "duplicates and deletes a list item via block ops for %s",
+    async (workflowType, title) => {
+      const marker = "<!-- clerk:block id=blk_dddddddddddddddddddddddddddddddd -->";
+      const original = draft({
+        workflow_type: workflowType,
+        title,
+        content_markdown: `## Scope\n\n- First item ${marker}\n- Second item\n`,
+        provenance_metadata: {
+          blocks: {
+            blk_dddddddddddddddddddddddddddddddd: {
+              id: "blk_dddddddddddddddddddddddddddddddd",
+              type: "list_item",
+              user_protected: false,
+            },
+          },
+        },
+      });
+      const duplicated = draft({
+        id: "draft-2",
+        version: 2,
+        workflow_type: workflowType,
+        title,
+        content_markdown: `## Scope\n\n- First item ${marker}\n- First item\n- Second item\n`,
+      });
+      vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(duplicated, ["blk_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"]),
+    );
+      const onDraftUpdated = vi.fn();
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={original}
+          onDraftUpdated={onDraftUpdated}
+        />,
+      );
+
+      const user = userEvent.setup();
+      if (workflowType === "create_pmp") {
+        await waitForPmpDecisions();
+      }
+      fireEvent.mouseEnter(
+        screen.getByText(/First item/).closest("li") ?? screen.getByText(/First item/),
+      );
+      await user.click(screen.getByRole("button", { name: "list item actions" }));
+      expect(
+        await screen.findByRole("menuitem", { name: "Add list item above" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Add list item below" })).toBeInTheDocument();
+      await user.click(
+        screen.getByRole("menuitem", { name: "Duplicate list item" }),
+      );
+
+      await waitFor(() => {
+        expect(api.applyDraftBlockOperations).toHaveBeenCalledWith(
+          PROJECT_ID,
+          "draft-1",
+          1,
+          [
+            expect.objectContaining({
+              operation: "DUPLICATE",
+              target: expect.objectContaining({
+                id: "blk_dddddddddddddddddddddddddddddddd",
+                type: "list_item",
+              }),
+            }),
+          ],
+        );
+      });
+      expect(onDraftUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: duplicated.id, version: duplicated.version }));
+    },
+  );
+
+  it.each([
+    ["create_pmp", "Project Management Plan"],
+    ["consultant_procurement_structural_engineer", "Request for Tender - Structural Engineer"],
+    ["trade_rft_electrical_services", "Request for Tender - Electrical Services"],
+  ] as const)(
+    "deletes a list item via block ops for %s",
+    async (workflowType, title) => {
+      const marker = "<!-- clerk:block id=blk_dddddddddddddddddddddddddddddddd -->";
+      const original = draft({
+        workflow_type: workflowType,
+        title,
+        content_markdown: `## Scope\n\n- First item ${marker}\n- Second item\n`,
+      });
+      const deleted = draft({
+        id: "draft-2",
+        version: 2,
+        workflow_type: workflowType,
+        title,
+        content_markdown: "## Scope\n\n- Second item\n",
+      });
+      vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(deleted, ["blk_dddddddddddddddddddddddddddddddd"]),
+    );
+
+      render(
+        <DraftReviewPanel
+          projectId={PROJECT_ID}
+          draft={original}
+          onDraftUpdated={vi.fn()}
+        />,
+      );
+
+      const user = userEvent.setup();
+      if (workflowType === "create_pmp") {
+        await waitForPmpDecisions();
+      }
+      fireEvent.mouseEnter(
+        screen.getByText(/First item/).closest("li") ?? screen.getByText(/First item/),
+      );
+      await user.click(screen.getByRole("button", { name: "list item actions" }));
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Delete list item" }),
+      );
+      await waitFor(() => {
+        expect(api.applyDraftBlockOperations).toHaveBeenCalledWith(
+          PROJECT_ID,
+          "draft-1",
+          1,
+          [
+            expect.objectContaining({
+              operation: "DELETE",
+              target: expect.objectContaining({
+                id: "blk_dddddddddddddddddddddddddddddddd",
+                type: "list_item",
+              }),
+            }),
+          ],
+        );
+      });
+    },
+  );
+
+  it("keeps a conflicted block through a versioned KEEP operation", async () => {
+    const marker = "<!-- clerk:block id=blk_cccccccccccccccccccccccccccccccc -->";
+    const original = draft({
+      content_markdown: `## Facts\n\n${marker}\nUser wording survives.\n`,
+      provenance_metadata: {
+        blocks: {
+          blk_cccccccccccccccccccccccccccccccc: {
+            id: "blk_cccccccccccccccccccccccccccccccc",
+            type: "paragraph",
+            status: "conflict",
+          },
+        },
+        incremental_update: {
+          conflicts: ["blk_cccccccccccccccccccccccccccccccc"],
+          proposed_delete: [],
+        },
+      },
+    });
+    const updated = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: original.content_markdown,
+      provenance_metadata: {
+        blocks: {
+          blk_cccccccccccccccccccccccccccccccc: {
+            id: "blk_cccccccccccccccccccccccccccccccc",
+            type: "paragraph",
+            status: "active",
+          },
+        },
+      },
+    });
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(updated, ["blk_cccccccccccccccccccccccccccccccc"]),
+    );
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await waitForPmpDecisions();
+    expect(screen.getByRole("status")).toHaveTextContent("1 conflict");
+    fireEvent.mouseEnter(
+      screen.getByText("User wording survives.").parentElement ??
+        screen.getByText("User wording survives."),
+    );
+    await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Keep paragraph after refresh conflict",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(api.applyDraftBlockOperations).toHaveBeenCalledWith(
+        PROJECT_ID,
+        "draft-1",
+        1,
+        [
+          expect.objectContaining({
+            operation: "KEEP",
+            target: expect.objectContaining({
+              id: "blk_cccccccccccccccccccccccccccccccc",
+              type: "paragraph",
+            }),
+          }),
+        ],
+      );
+    });
+  });
+
+  it("protects a paragraph block through a versioned PROTECT operation", async () => {
+    const marker = "<!-- clerk:block id=blk_ffffffffffffffffffffffffffffffff -->";
+    const original = draft({
+      content_markdown: `## Facts\n\n${marker}\nProtected fact.\n`,
+      provenance_metadata: {
+        blocks: {
+          blk_ffffffffffffffffffffffffffffffff: {
+            id: "blk_ffffffffffffffffffffffffffffffff",
+            type: "paragraph",
+            user_protected: false,
+          },
+        },
+      },
+    });
+    const updated = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: original.content_markdown,
+      provenance_metadata: {
+        blocks: {
+          blk_ffffffffffffffffffffffffffffffff: {
+            id: "blk_ffffffffffffffffffffffffffffffff",
+            type: "paragraph",
+            user_protected: true,
+          },
+        },
+      },
+    });
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(
+      blockOpsResponse(updated, ["blk_ffffffffffffffffffffffffffffffff"]),
+    );
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await waitForPmpDecisions();
+    fireEvent.mouseEnter(
+      screen.getByText("Protected fact.").parentElement ??
+        screen.getByText("Protected fact."),
+    );
+    await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Protect paragraph" }),
+    );
+
+    await waitFor(() => {
+      expect(api.applyDraftBlockOperations).toHaveBeenCalledWith(
+        PROJECT_ID,
+        "draft-1",
+        1,
+        [
+          expect.objectContaining({
+            operation: "PROTECT",
+            target: expect.objectContaining({
+              id: "blk_ffffffffffffffffffffffffffffffff",
+              type: "paragraph",
+            }),
+          }),
+        ],
+      );
+    });
   });
 
   describe("anchored instructions", () => {
@@ -390,8 +913,12 @@ Issued content. [1]
       "# Title\n\n## First\n\nAlpha paragraph.\n\nSecond paragraph.\n\n## Second\n\nBeta\n";
 
     async function queueOneInstruction(user: ReturnType<typeof userEvent.setup>) {
+      await waitForPmpDecisions();
       fireEvent.mouseEnter(screen.getByText("Alpha paragraph."));
-      fireEvent.click(screen.getByRole("button", { name: "Edit paragraph with AI" }));
+      await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
+      );
       const instruction = await screen.findByLabelText("Instruction");
       await user.type(instruction, "tighten this");
       await user.click(screen.getByRole("button", { name: "Add to tray" }));
@@ -411,9 +938,37 @@ Issued content. [1]
       await queueOneInstruction(user);
 
       expect(screen.getByRole("button", { name: /Apply 1 change/ })).toBeInTheDocument();
-      expect(screen.getByText("tighten this")).toBeInTheDocument();
-      // The section badge comes from the anchor's offset, not the DOM.
+      expect(screen.getByText(/tighten this/)).toBeInTheDocument();
+      // The section label comes from the anchor's offset, not the DOM.
       expect(screen.getAllByText("First").length).toBeGreaterThan(0);
+      // Quoted source text stays off the card and tray; only the instruction shows.
+      expect(
+        screen.queryByRole("dialog", { name: "Add an instruction for the selected text" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("portals the tray into the cockpit right-panel host when present", async () => {
+      const user = userEvent.setup();
+      const host = document.createElement("div");
+      host.setAttribute("data-instruction-tray-host", "");
+      document.body.appendChild(host);
+
+      try {
+        render(
+          <DraftReviewPanel
+            projectId={PROJECT_ID}
+            draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+            onDraftUpdated={vi.fn()}
+          />,
+        );
+        await queueOneInstruction(user);
+
+        expect(host.querySelector("[data-instruction-ui]")).not.toBeNull();
+        expect(host).toHaveTextContent(/tighten this/);
+        expect(host).not.toHaveTextContent("Alpha paragraph.");
+      } finally {
+        host.remove();
+      }
     });
 
     it("applies with the exact source anchors and the current version", async () => {
@@ -447,7 +1002,7 @@ Issued content. [1]
           },
         ]);
       });
-      expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+      expect(onDraftUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, version: updated.version, content_markdown: updated.content_markdown }));
       // Everything applied, so nothing is left queued.
       expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
     });
@@ -550,7 +1105,7 @@ Issued content. [1]
       expect(message.closest("[data-instruction-ui]")).not.toBeNull();
       expect(screen.getByTestId("draft-supporting-details")).not.toContainElement(message);
       expect(screen.getByRole("button", { name: /Apply 1 change/ })).toBeInTheDocument();
-      expect(screen.getByText("tighten this")).toBeInTheDocument();
+      expect(screen.getByText(/tighten this/)).toBeInTheDocument();
     });
 
     it("surfaces a 422 all-failed reason in the tray", async () => {
@@ -679,8 +1234,12 @@ Issued content. [1]
         />,
       );
 
+      await waitForPmpDecisions();
       fireEvent.mouseEnter(screen.getByText("Follow up."));
-      fireEvent.click(screen.getByRole("button", { name: "Edit paragraph with AI" }));
+      await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
+      );
       const instruction = await screen.findByLabelText("Instruction");
       await user.type(instruction, "add a Ref column");
       await user.click(screen.getByRole("button", { name: "Add to tray" }));

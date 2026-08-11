@@ -35,6 +35,7 @@ from app.workflows.generation_consistency import (
 from app.workflows.generation_consistency_agent import resolve_consistency_candidates
 from app.workflows.pmp_narrative import RiskRow, format_risk_rows_table
 from app.workflows.section_generation import (
+    SectionCompletePublisher,
     SectionGenerationJob,
     SectionProgressPublisher,
     run_section_generation,
@@ -361,6 +362,7 @@ async def run_cost_plan_narrative_model(
     validation_feedback: str | None = None,
     chat_model: str | None = None,
     on_progress: SectionProgressPublisher | None = None,
+    on_section_complete: SectionCompletePublisher | None = None,
     consistency_resolver: ConsistencyResolver | None = None,
 ) -> CostPlanNarrativeOutput:
     prompt = build_cost_plan_narrative_prompt(
@@ -409,6 +411,7 @@ async def run_cost_plan_narrative_model(
         ),
         max_concurrency=3,
         on_progress=on_progress,
+        on_section_complete=on_section_complete,
     )
     assessment = results["assessment"].output
     actions = results["actions"].output
@@ -459,7 +462,11 @@ async def run_cost_plan_narrative_model(
         output = output.model_copy(
             update={"consistency_ai_call_count": report.ai_call_count}
         )
-    validate_cost_plan_narrative_output(output, pack, run_date=run_date)
+    try:
+        validate_cost_plan_narrative_output(output, pack, run_date=run_date)
+    except WorkflowValidationError as exc:
+        exc.consistency_ai_call_count += output.consistency_ai_call_count
+        raise
     return output
 
 

@@ -13,7 +13,17 @@ from pydantic import BaseModel, Field, model_validator
 
 
 BlockType = Literal["paragraph", "list_item", "table_row"]
-BlockOperationType = Literal["ADD", "UPDATE", "DELETE", "MOVE", "DUPLICATE"]
+BlockOperationType = Literal[
+    "ADD",
+    "UPDATE",
+    "DELETE",
+    "MOVE",
+    "DUPLICATE",
+    "PROTECT",
+    "UNPROTECT",
+    "KEEP",
+    "CONFIRM_DELETE",
+]
 BlockPlacement = Literal["before", "after"]
 BlockSource = Literal["user", "ai", "import", "system"]
 
@@ -65,6 +75,13 @@ class ArtefactBlockOperation(BaseModel):
             self.reference_id is None or self.placement is None
         ):
             raise ValueError("MOVE requires reference_id and placement")
+        if self.operation in {
+            "PROTECT",
+            "UNPROTECT",
+            "KEEP",
+            "CONFIRM_DELETE",
+        } and self.target.id is None:
+            raise ValueError(f"{self.operation} requires target.id")
         return self
 
 
@@ -81,6 +98,9 @@ class BlockProvenance(BaseModel):
     baseline_content_hash: str
     input_hash: str | None = None
     generation_version: str | None = None
+    context_version: int | None = None
+    source_version: str | None = None
+    seed_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +273,78 @@ def apply_block_operations(
         if target.type != operation.target.type:
             raise ValueError("target block type does not match the addressed Markdown")
 
+        if operation.operation in {"PROTECT", "UNPROTECT"}:
+            block_id = target.id
+            if block_id is None:
+                raise ValueError(f"{operation.operation} requires target.id")
+            existing = metadata.get(block_id)
+            provenance = _updated_provenance(
+                existing,
+                block_id=block_id,
+                block_type=target.type,
+                content=target.content,
+                actor_source=actor_source,
+                timestamp=timestamp,
+            )
+            # Protection is metadata-only: keep the existing baseline hash.
+            if existing and isinstance(existing.get("baseline_content_hash"), str):
+                provenance["baseline_content_hash"] = existing["baseline_content_hash"]
+            provenance["user_protected"] = operation.operation == "PROTECT"
+            metadata[block_id] = provenance
+            changed.append(block_id)
+            continue
+
+        if operation.operation == "KEEP":
+            block_id = target.id
+            if block_id is None:
+                raise ValueError("KEEP requires target.id")
+            existing = metadata.get(block_id)
+            provenance = _updated_provenance(
+                existing,
+                block_id=block_id,
+                block_type=target.type,
+                content=target.content,
+                actor_source=actor_source,
+                timestamp=timestamp,
+            )
+            provenance["status"] = "active"
+            provenance["baseline_content_hash"] = _content_hash(target.content)
+            if existing:
+                for key in (
+                    "input_hash",
+                    "generation_version",
+                    "context_version",
+                    "source_version",
+                    "seed_version",
+                    "user_protected",
+                ):
+                    if key in existing:
+                        provenance[key] = existing[key]
+            metadata[block_id] = provenance
+            changed.append(block_id)
+            continue
+
+        if operation.operation == "CONFIRM_DELETE":
+            block_id = target.id
+            if block_id is None:
+                raise ValueError("CONFIRM_DELETE requires target.id")
+            status = (metadata.get(block_id) or {}).get("status")
+            if status != "propose_delete":
+                raise ValueError("CONFIRM_DELETE requires a propose_delete block")
+            delete_start = _address_start(target)
+            current = _delete_with_spacing(current, delete_start, target.end)
+            metadata.pop(block_id, None)
+            changed.append(block_id)
+            continue
+
+        if (
+            operation.operation in {"UPDATE", "DELETE"}
+            and actor_source == "ai"
+            and target.id
+            and bool(metadata.get(target.id, {}).get("user_protected"))
+        ):
+            raise ValueError("protected block rejects AI overwrite and deletion")
+
         if operation.operation == "UPDATE":
             block_id = target.id or _new_block_id()
             replacement = _marked(
@@ -340,6 +432,23 @@ def apply_block_operations(
         )
         current = _replace(without, offset, offset, insertion)
         if target.id:
+            existing = metadata.get(target.id)
+            metadata[target.id] = _updated_provenance(
+                existing,
+                block_id=target.id,
+                block_type=target.type,
+                content=target.content,
+                actor_source=actor_source,
+                timestamp=timestamp,
+            )
+            if existing and isinstance(existing.get("baseline_content_hash"), str):
+                metadata[target.id]["baseline_content_hash"] = existing[
+                    "baseline_content_hash"
+                ]
+            if existing:
+                metadata[target.id]["user_protected"] = bool(
+                    existing.get("user_protected", False)
+                )
             changed.append(target.id)
 
     return BlockMutationResult(current, metadata, tuple(dict.fromkeys(changed)))
@@ -822,4 +931,7 @@ def _updated_provenance(
         baseline_content_hash=_content_hash(content),
         input_hash=existing.get("input_hash") if existing else None,
         generation_version=existing.get("generation_version") if existing else None,
+        context_version=existing.get("context_version") if existing else None,
+        source_version=existing.get("source_version") if existing else None,
+        seed_version=existing.get("seed_version") if existing else None,
     ).model_dump(mode="json")

@@ -185,6 +185,21 @@ class CostPlanBatchMutationResult(BaseModel):
     delta: CostPlanDelta
 
 
+class CostPlanDeletionBlocker(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal[
+        "invoice",
+        "commitment",
+        "variation",
+        "forecast",
+        "procurement",
+    ]
+    id: str | None = None
+    label: str = Field(min_length=1, max_length=512)
+    reference_id: str | None = None
+
+
 class InvoiceLineInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

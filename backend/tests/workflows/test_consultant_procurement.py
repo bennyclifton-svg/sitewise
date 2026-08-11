@@ -52,6 +52,49 @@ class _StubRetriever:
         return []
 
 
+def test_rfp_render_publishes_scaffold_before_delayed_narrative(monkeypatch) -> None:
+    published: list[dict[str, Any]] = []
+    previews_at_narrative_time: list[int] = []
+
+    async def capture(progress: dict[str, Any]) -> None:
+        published.append(progress)
+
+    async def delayed_narrative(**kwargs: Any) -> RfpNarrativeOutput:
+        previews_at_narrative_time.append(len(published))
+        return RfpNarrativeOutput(
+            background="Delayed background.",
+            requested_services=["Prepare structural drawings."],
+            programme=["Issue tender pack."],
+            evidence_refs=[],
+        )
+
+    target = normalise_discipline("Structural engineer")
+    monkeypatch.setattr(workflow, "run_validated_rfp_narrative", delayed_narrative)
+    markdown = run_async(
+        workflow.CONSULTANT_DOCUMENT.render(
+            project=_project(),
+            target=target,
+            project_evidence=[],
+            issued_documents=[],
+            platform_knowledge=[],
+            forecast={},
+            assumptions=[],
+            missing_inputs=[],
+            max_pages=3,
+            instructions=None,
+            artefact_context=None,
+            generation_brief=None,
+            on_progress=capture,
+        )
+    )
+
+    assert "Delayed background." in markdown
+    assert previews_at_narrative_time[0] > 0
+    scaffold = next(item for item in published if item.get("markdown"))
+    assert scaffold["stage"] == "scaffold_ready"
+    assert scaffold["markdown"].strip()
+
+
 def test_complete_procurement_context_skips_semantic_retrieval() -> None:
     retriever = _StubRetriever()
 
@@ -143,6 +186,11 @@ def _install(
     monkeypatch.setattr(
         procurement_request,
         "load_sections",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        procurement_request,
+        "get_latest_draft_artifact",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
@@ -296,13 +344,18 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     assert "| Document number | Title | Rev | Category |" in (
         result.draft.content_markdown
     )
-    assert "## Citation key" not in result.draft.content_markdown
+    assert "## Citation key" in result.draft.content_markdown
+    assert "- [1] Project Profile — current" in result.draft.content_markdown
     assert "[1]" in result.draft.content_markdown
     assert "| Site / address | TBC | Confirm |" not in result.draft.content_markdown
     assert "| Client | TBC | Confirm |" not in result.draft.content_markdown
     assert result.source_trace["project_documents"]
     assert result.source_trace["platform_knowledge"][0]["path"] == (
-        "seed/procurement-tendering-guide.md"
+        "seed/procurement-quoting-guide.md"
+    )
+    assert all(
+        item["path"] != "seed/procurement-tendering-guide.md"
+        for item in result.source_trace["platform_knowledge"]
     )
     assert any(
         item["path"] == "seed/consultant-procurement.md"
@@ -319,9 +372,9 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     assert "| Budget | $920,000 ex GST |  |" in (result.draft.content_markdown)
     assert create_draft.await_args.kwargs["runtime"] == "clerk-consultant-procurement"
     assert result.draft.provenance_metadata["seed_consulted"] == [
-        "seed/procurement-tendering-guide.md",
-        "seed/cost-management-principles.md",
         "seed/procurement-quoting-guide.md",
+        "seed/cost-management-principles.md",
+        "seed/as-standards-reference.md",
         "seed/consultant-procurement.md",
     ]
     assert result.draft.provenance_metadata["evidence_refs"] == [
@@ -330,9 +383,9 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
         "04-projects/walsh-renovation/03-design/markups.pdf",
     ]
     assert result.draft.provenance_metadata["context_refs"] == [
-        "seed/procurement-tendering-guide.md",
-        "seed/cost-management-principles.md",
         "seed/procurement-quoting-guide.md",
+        "seed/cost-management-principles.md",
+        "seed/as-standards-reference.md",
         "seed/consultant-procurement.md",
     ]
     sync_workspace.assert_awaited_once()
@@ -517,7 +570,7 @@ def test_mechanical_rfp_uses_evidence_tailored_requested_services(monkeypatch) -
         "## Services and deliverables", maxsplit=1
     )[1].split("## Programme and submission", maxsplit=1)[0]
     assert (
-        "Tailor the requested services to the evidenced project spaces and systems. [1]"
+        "Tailor the requested services to the evidenced project spaces and systems. [2]"
         in requested
     )
     assert "dwellings, common areas, car parking" not in requested
@@ -621,8 +674,8 @@ def test_commercial_fitout_filters_semantic_guidance_to_project_taxonomy(
         "skills/reference/nsw-industrial-warehouse-cost-breakdown-reference.md"
         not in paths
     )
-    assert "seed/procurement-quoting-guide.md" not in paths
-    assert "seed/procurement-tendering-guide.md" in paths
+    assert "seed/procurement-quoting-guide.md" in paths
+    assert "seed/procurement-tendering-guide.md" not in paths
     assert "seed/cost-management-principles.md" in paths
     assert "seed/mechanical-services-guide.md" not in paths
 
@@ -811,10 +864,13 @@ def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
     _install(monkeypatch, retriever=retriever, cost_plan=None)
 
     async def _programme_narrative(**kwargs: Any) -> RfpNarrativeOutput:
+        token = kwargs["citation_index"].token_for(
+            "04-projects/fitout/00-brief/engagement-letter.md"
+        )
         return RfpNarrativeOutput(
-            background="The current programme is evidenced. [1]",
-            requested_services=["Provide staged hydraulic services. [1]"],
-            programme=["Target possession is 1 November 2026. [1]"],
+            background=f"The current programme is evidenced. {token}",
+            requested_services=[f"Provide staged hydraulic services. {token}"],
+            programme=[f"Target possession is 1 November 2026. {token}"],
         )
 
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", _programme_narrative)
@@ -824,7 +880,7 @@ def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
         project=_project(building_class="commercial", work_type="refurb"),
     )
 
-    assert "- Target possession is 1 November 2026. [1]" in (
+    assert "- Target possession is 1 November 2026. [2]" in (
         result.draft.content_markdown
     )
 
@@ -1046,6 +1102,78 @@ def test_building_certifier_phrasings_alias_to_certifier(discipline: str) -> Non
     assert profile.benchmark_terms
 
 
+def test_select_forecast_row_prefers_certifier_only_over_bundled() -> None:
+    from types import SimpleNamespace
+
+    from app.workflows.consultant_procurement import _select_forecast_row
+
+    bundled = SimpleNamespace(
+        cost_item="Fire engineer and certifier",
+        action="forecasted",
+        forecast_budget=10_000,
+    )
+    specific = SimpleNamespace(
+        cost_item="Principal certifier",
+        action="forecasted",
+        forecast_budget=8_000,
+    )
+
+    selected, is_bundled = _select_forecast_row(
+        [bundled, specific],
+        ("certifier", "principal certifier", "pca"),
+    )
+
+    assert selected is specific
+    assert is_bundled is False
+
+
+def test_select_forecast_row_labels_bundled_when_only_option() -> None:
+    from types import SimpleNamespace
+
+    from app.workflows.consultant_procurement import _select_forecast_row
+
+    bundled = SimpleNamespace(
+        cost_item="Fire engineer and certifier",
+        action="forecasted",
+        forecast_budget=10_000,
+    )
+
+    selected, is_bundled = _select_forecast_row(
+        [bundled],
+        ("certifier", "principal certifier", "pca"),
+    )
+
+    assert selected is bundled
+    assert is_bundled is True
+
+
+def test_certifier_platform_guidance_uses_pca_and_quoting_not_contractor_tendering() -> (
+    None
+):
+    document = workflow.CONSULTANT_DOCUMENT
+    target = normalise_discipline("certifier")
+
+    paths = document.platform_guidance_paths(target)
+    assert "seed/procurement-quoting-guide.md" in paths
+    assert "seed/setup-and-commission-guide.md" in paths
+    assert "seed/procurement-tendering-guide.md" not in paths
+    assert "principal certifier" in " ".join(target.knowledge_query_terms).casefold()
+
+    filtered = document.filter_platform_knowledge(
+        [
+            {"path": "seed/procurement-tendering-guide.md"},
+            {"path": "seed/procurement-quoting-guide.md"},
+            {"path": "seed/setup-and-commission-guide.md"},
+            {"path": "seed/mechanical-services-guide.md"},
+        ],
+        target,
+    )
+    assert [item["path"] for item in filtered] == [
+        "seed/procurement-quoting-guide.md",
+        "seed/setup-and-commission-guide.md",
+    ]
+
+
 def _rfp_evidence() -> list[dict[str, str]]:
     return [
         {"relative_path": "docs/brief.pdf", "snippet": "Project brief."},
@@ -1057,13 +1185,18 @@ def _rfp_evidence() -> list[dict[str, str]]:
 def test_rfp_narrative_retries_after_invalid_citation(monkeypatch) -> None:
     evidence = _rfp_evidence()
     citation_index = build_rfp_citation_index(evidence)
+    evidence_token = citation_index.token_for(evidence[0]["relative_path"])
     invalid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [99]",
-        requested_services=["Provide project-specific planning services. [1]"],
+        requested_services=[
+            f"Provide project-specific planning services. {evidence_token}"
+        ],
     )
     valid = RfpNarrativeOutput(
-        background="The project brief identifies the scope. [1]",
-        requested_services=["Provide project-specific planning services. [1]"],
+        background=f"The project brief identifies the scope. {evidence_token}",
+        requested_services=[
+            f"Provide project-specific planning services. {evidence_token}"
+        ],
     )
     run_narrative = AsyncMock(side_effect=[invalid, valid])
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
@@ -1177,9 +1310,12 @@ def test_rfp_narrative_uses_one_run_date_across_retries(monkeypatch) -> None:
 def test_rfp_narrative_reraises_after_three_invalid_attempts(monkeypatch) -> None:
     evidence = _rfp_evidence()
     citation_index = build_rfp_citation_index(evidence)
+    evidence_token = citation_index.token_for(evidence[0]["relative_path"])
     invalid = RfpNarrativeOutput(
         background="The project brief identifies the scope. [99]",
-        requested_services=["Provide project-specific planning services. [1]"],
+        requested_services=[
+            f"Provide project-specific planning services. {evidence_token}"
+        ],
     )
     run_narrative = AsyncMock(return_value=invalid)
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
@@ -1211,13 +1347,21 @@ def test_rfp_draft_retries_invalid_narrative_before_persisting(monkeypatch) -> N
         }
     )
     _install(monkeypatch, retriever=retriever, cost_plan=None)
+    evidence_path = "04-projects/walsh-renovation/00-brief/project-brief.pdf"
+    evidence_token = build_rfp_citation_index(
+        [{"relative_path": evidence_path}]
+    ).token_for(evidence_path)
     invalid = RfpNarrativeOutput(
         background="The project brief defines the scope. [99]",
-        requested_services=["Provide project-specific planning services. [1]"],
+        requested_services=[
+            f"Provide project-specific planning services. {evidence_token}"
+        ],
     )
     valid = RfpNarrativeOutput(
-        background="The project brief defines the scope. [1]",
-        requested_services=["Provide project-specific planning services. [1]"],
+        background=f"The project brief defines the scope. {evidence_token}",
+        requested_services=[
+            f"Provide project-specific planning services. {evidence_token}"
+        ],
     )
     run_narrative = AsyncMock(side_effect=[invalid, valid])
     monkeypatch.setattr(workflow, "run_rfp_narrative_model", run_narrative)
@@ -1225,5 +1369,8 @@ def test_rfp_draft_retries_invalid_narrative_before_persisting(monkeypatch) -> N
     result = _run(session=_Session(), discipline="town planner")
 
     assert "[99]" not in result.draft.content_markdown
-    assert "The project brief defines the scope. [1]" in result.draft.content_markdown
+    assert (
+        f"The project brief defines the scope. {evidence_token}"
+        in result.draft.content_markdown
+    )
     assert run_narrative.await_count == 2

@@ -650,19 +650,44 @@ class UpdatePmpRequest(BaseModel):
         return _validate_optional_pmp_model(value)
 
 
-class PatchDraftRequest(BaseModel):
-    content_markdown: str = Field(min_length=1)
-    expected_base_version: int = Field(ge=1)
-
-
 class ApplyArtefactBlockOperationsRequest(BaseModel):
     expected_base_version: int = Field(ge=1)
     operations: list[ArtefactBlockOperation] = Field(min_length=1, max_length=50)
 
 
-class ApplyArtefactBlockOperationsResponse(BaseModel):
-    draft: "DraftArtifactResponse"
+class ArtefactBlockDelta(BaseModel):
+    """Lean mutation response for optimistic clients that already hold draft state."""
+
+    draft_id: uuid.UUID
+    version: int
+    updated_at: datetime
     changed_block_ids: list[str]
+    deleted_block_ids: list[str] = Field(default_factory=list)
+    blocks: dict[str, Any] = Field(default_factory=dict)
+    content_sha256: str = Field(min_length=64, max_length=64)
+    generation_manifest_present: bool = False
+
+
+class ApplyArtefactBlockOperationsResponse(BaseModel):
+    delta: ArtefactBlockDelta
+    changed_block_ids: list[str]
+
+
+class ReplaceDraftTransmittalRequest(BaseModel):
+    expected_base_version: int = Field(ge=1)
+    evidence_ids: list[uuid.UUID] = Field(default_factory=list, max_length=500)
+
+
+class ReplaceDraftTransmittalResponse(BaseModel):
+    draft: DraftArtifactResponse
+
+
+class DependencyOfferAcceptRequest(BaseModel):
+    artefact_types: list[str] = Field(min_length=1, max_length=20)
+
+
+class DependencyOfferRejectRequest(BaseModel):
+    artefact_types: list[str] | None = Field(default=None, max_length=20)
 
 
 class ApplyCostPlanOperationsRequest(BaseModel):
