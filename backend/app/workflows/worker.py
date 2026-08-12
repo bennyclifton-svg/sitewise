@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.database.models  # noqa: F401
+from app.build_version import build_version
 from app.config import settings
 from app.database.project import Project
 from app.database.draft_artifact import DraftArtifact
@@ -425,6 +426,8 @@ async def _stamp_result_dependencies(
         "model_version": draft.model,
         "prompt_version": metadata.get("prompt_version"),
         "runtime_version": draft.runtime,
+        "build_version": build_version(),
+        "queue_scope": run.queue_scope,
     }
     draft.provenance_metadata = metadata
     await session.flush()

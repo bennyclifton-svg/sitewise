@@ -216,6 +216,38 @@ different model family and changing it would invalidate every stored vector.
 Keep the local `deploy/env/sitewise-api.env` in sync so the file stays a truthful
 mirror of production.
 
+#### Workflow queue scope (required from `046_workflow_run_queue_scope`)
+
+The workflow worker runs **in-process inside the API**, and every environment
+pointed at this Supabase project polls the same `workflow_runs` table. Before
+the queue scope existed, a run queued from a laptop could be claimed and
+executed by this container — which is how two artefacts in the same test wave
+came out of two different code versions, and why a fixed seed-route bug appeared
+to still be live.
+
+```
+WORKFLOW_QUEUE_SCOPE=production
+```
+
+`production` is also the code default and the migration's backfill, so
+production keeps working if the key is absent. **Every other environment must
+set its own value** — local dev uses `dev` (see `backend/.env.example`). Two
+environments sharing a scope share a queue.
+
+#### Build identity
+
+The runtime image has no `.git`, so the SHA has to be passed at build time or
+every artefact this container generates records its build as `unknown`:
+
+```
+docker build --build-arg BUILD_SHA=$(git rev-parse --short=8 HEAD) ...
+```
+
+Dokploy builds from the compose file, so set `BUILD_SHA` in the stack's
+environment if the build args are not wired through. The value lands in each
+artefact's `provenance_metadata.dependency_snapshot.build_version`, alongside
+`queue_scope`, which is what makes a generated document attributable to a build.
+
 ### Step 2 — Migrate the production database
 
 The backend container's CMD is just `uvicorn` — there is no migrate-on-start.

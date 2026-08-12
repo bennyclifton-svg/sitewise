@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Iterable
 
+from app.build_version import build_version
 from app.cost_plan.schemas import DependencySnapshot
 from app.schemas.project_snapshot import ProjectSnapshot
 
@@ -68,6 +69,7 @@ def dependency_snapshot(
         model_version=model_version,
         prompt_version=prompt_version,
         runtime_version=runtime_version,
+        build_version=build_version(),
     )
 
 

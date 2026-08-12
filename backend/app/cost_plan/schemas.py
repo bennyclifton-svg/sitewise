@@ -103,6 +103,9 @@ class DependencySnapshot(BaseModel):
     model_version: str | None = None
     prompt_version: str | None = None
     runtime_version: str = Field(min_length=1)
+    # Which build produced this. Optional so rows written before the field
+    # existed still validate.
+    build_version: str | None = None
 
 
 class CostPlanState(BaseModel):

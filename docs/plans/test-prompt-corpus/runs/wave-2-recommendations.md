@@ -46,6 +46,70 @@ lost the cost-plan comparison, both because nothing in the record says which cod
 
 ---
 
+## Fix log — R0 and R0b (2026-08-12)
+
+**Both landed and are confirmed live.** Runs are now scoped to the environment
+that queued them, and every artefact records the build that made it.
+
+**R0 — queue scope.** `workflow_runs` gains a `queue_scope` column
+([`046_workflow_run_queue_scope`](../../../backend/alembic/versions/046_workflow_run_queue_scope.py),
+`NOT NULL DEFAULT 'production'`). `start_workflow_run` stamps
+`settings.workflow_queue_scope` at enqueue; `claim_next_run` filters on it in
+SQL — the predicate has to reach the database, because the claim locks one row
+with `FOR UPDATE SKIP LOCKED` and a Python-side filter would still let a
+foreign-scope row be locked and skipped by its rightful owner.
+
+**Both lease sweepers are scoped too**, which is the part that is easy to miss:
+`_finalize_one_expired_cancellation` and `_fail_one_exhausted_lease` run on
+every claim poll, so leaving them unscoped would let a quiet dev laptop reap
+production's expired runs — a worse failure than the one being fixed.
+
+The scope also leads the worker id, so `lock_owner` reads
+`dev:inproc-core:HOST:PID` and says which environment claimed a run without a
+join. The 526 existing rows backfilled to `production`; one `needs_input` run
+was the only non-terminal row and is not claimable, so nothing was stranded.
+
+Local dev sets `WORKFLOW_QUEUE_SCOPE=dev` in `backend/.env`. Production keeps
+the code default, so it cannot break by omission — but it is now documented in
+[`DEPLOYMENT.md`](../../../DEPLOYMENT.md) Step 1, because a second environment
+added later would silently share a queue.
+
+**R0b — build identity.** New [`app/build_version.py`](../../../backend/app/build_version.py):
+`BUILD_SHA` when injected (the container has no `.git`), else the working
+tree's short SHA with a `-dirty` suffix when uncommitted, else `unknown`.
+Resolved once per process — the code cannot change under a running interpreter.
+It lands in `provenance_metadata.dependency_snapshot.build_version` alongside
+`queue_scope`, for both the worker's central stamper and the cost-plan path.
+`BUILD_SHA` is wired through the Dockerfile as a build arg and through the
+compose env anchor.
+
+**Runtime verification.** A real `create_project_plan` run queued through the
+API against a throwaway user and project, sampling `lock_owner` for the whole
+run:
+
+| Check | Result |
+|---|---|
+| Run scoped to `dev` | ✅ |
+| Every observed `lock_owner` is a dev worker | ✅ `dev:inproc-core:DESKTOP-H82BB8Q:23196#0` |
+| Artefact records `build_version` | ✅ `192b95c5-dirty` |
+| Artefact records `queue_scope` | ✅ `dev` |
+| Run completed | ✅ |
+
+That is the R0 proof condition met in full: the run never left the dev worker,
+and the artefact it produced names the build that made it.
+
+**Deliberately not done: reconciling the two cost-plan compilers.** R0 makes
+the question answerable but does not answer it — that is R12, and it needs a
+fresh cost-plan run now that the queue is isolated.
+
+**Verification:** backend 2091 passed, 7 skipped, 0 failed. 12 new tests across
+[`test_build_version.py`](../../../backend/tests/test_build_version.py) and
+[`test_workflow_queue_scope.py`](../../../backend/tests/workflows/test_workflow_queue_scope.py),
+covering the enqueue stamp, the SQL predicate on both the claim and the two
+sweepers, the provenance fields, and every `build_version` fallback.
+
+---
+
 ## Stage 1 — Make the document respond to the project
 
 These three are the wave's structural finding. The band, weights and routes all resolve correctly today

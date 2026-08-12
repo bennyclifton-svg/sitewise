@@ -27,9 +27,14 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app/backend
 
+# The runtime image has no .git, so the SHA has to be handed in at build time.
+# Without it every artefact this container generates records build "unknown".
+ARG BUILD_SHA=""
+
 ENV PATH="/app/backend/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV BUILD_SHA=${BUILD_SHA}
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

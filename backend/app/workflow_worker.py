@@ -28,7 +28,17 @@ async def start_inprocess_workflow_worker(
     if not settings.workflow_worker_inproc_enabled:
         return None
     shutdown_event = asyncio.Event()
-    worker_id = f"inproc-core:{socket.gethostname()}:{os.getpid()}"
+    # The scope leads the worker id so `lock_owner` shows which environment
+    # claimed a run without joining back to the queue scope column.
+    worker_id = (
+        f"{settings.workflow_queue_scope}:inproc-core:"
+        f"{socket.gethostname()}:{os.getpid()}"
+    )
+    log.info(
+        "workflow_worker_inproc_started",
+        worker_id=worker_id,
+        queue_scope=settings.workflow_queue_scope,
+    )
     task = asyncio.create_task(
         run_pool(
             session_factory or get_session_factory(),

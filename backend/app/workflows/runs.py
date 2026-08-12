@@ -10,6 +10,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.project import Project
 from app.database.draft_artifact import DraftArtifact
 from app.database.workflow_run import WorkflowRun
@@ -172,6 +173,7 @@ async def start_workflow_run(
         ),
         idempotency_key=request.idempotency_key,
         schema_version=1,
+        queue_scope=settings.workflow_queue_scope,
         canonical_request_hash=request_hash,
         frozen_project_context_version=snapshot.context_version,
         frozen_profile_revision=snapshot.profile.profile_revision,
@@ -238,9 +240,11 @@ async def claim_next_run(
     *,
     worker_id: str,
     lease_seconds: int = 90,
+    queue_scope: str | None = None,
 ) -> WorkflowRun | None:
-    await _finalize_one_expired_cancellation(session)
-    await _fail_one_exhausted_lease(session)
+    scope = queue_scope or settings.workflow_queue_scope
+    await _finalize_one_expired_cancellation(session, queue_scope=scope)
+    await _fail_one_exhausted_lease(session, queue_scope=scope)
     now = datetime.now(UTC)
     claimable = or_(
         and_(WorkflowRun.state == "queued", WorkflowRun.run_after <= func.now()),
@@ -252,6 +256,7 @@ async def claim_next_run(
     result = await session.execute(
         select(WorkflowRun)
         .where(
+            WorkflowRun.queue_scope == scope,
             claimable,
             WorkflowRun.cancel_requested.is_(False),
             WorkflowRun.attempt < WorkflowRun.max_attempts,
@@ -274,10 +279,13 @@ async def claim_next_run(
     return run
 
 
-async def _finalize_one_expired_cancellation(session: AsyncSession) -> None:
+async def _finalize_one_expired_cancellation(
+    session: AsyncSession, *, queue_scope: str
+) -> None:
     candidate_result = await session.execute(
         select(WorkflowRun.id, WorkflowRun.project_id)
         .where(
+            WorkflowRun.queue_scope == queue_scope,
             WorkflowRun.state == "running",
             WorkflowRun.cancel_requested.is_(True),
             WorkflowRun.lease_expires_at < func.now(),
@@ -316,11 +324,14 @@ async def _finalize_one_expired_cancellation(session: AsyncSession) -> None:
     await session.commit()
 
 
-async def _fail_one_exhausted_lease(session: AsyncSession) -> None:
+async def _fail_one_exhausted_lease(
+    session: AsyncSession, *, queue_scope: str
+) -> None:
     now = datetime.now(UTC)
     candidate_result = await session.execute(
         select(WorkflowRun.id, WorkflowRun.project_id)
         .where(
+            WorkflowRun.queue_scope == queue_scope,
             WorkflowRun.state == "running",
             WorkflowRun.lease_expires_at < func.now(),
             WorkflowRun.attempt >= WorkflowRun.max_attempts,

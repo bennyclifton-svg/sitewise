@@ -48,6 +48,12 @@ x-sitewise-api-environment: &sitewise-api-environment
   WORKFLOW_WORKER_CONCURRENCY: ${WORKFLOW_WORKER_CONCURRENCY:-2}
   WORKFLOW_WORKER_LEASE_SECONDS: ${WORKFLOW_WORKER_LEASE_SECONDS:-90}
   WORKFLOW_WORKER_MAX_ATTEMPTS: ${WORKFLOW_WORKER_MAX_ATTEMPTS:-3}
+  # Only runs queued by this environment are claimed here. Every environment
+  # sharing this Supabase project needs its own value, or they share a queue.
+  WORKFLOW_QUEUE_SCOPE: ${WORKFLOW_QUEUE_SCOPE:-production}
+  # Stamped onto every generated artefact so a document is attributable to a
+  # build. Passed as a build arg too, since the runtime image has no .git.
+  BUILD_SHA: ${BUILD_SHA:-}
 
 services:
   sitewise-api:
@@ -55,6 +61,10 @@ services:
     build:
       context: ..
       dockerfile: deploy/docker/backend.Dockerfile
+      args:
+        # No .git in the runtime image; without this every artefact this
+        # container generates records its build as "unknown".
+        BUILD_SHA: ${BUILD_SHA:-}
     pull_policy: never
     environment:
       <<: *sitewise-api-environment

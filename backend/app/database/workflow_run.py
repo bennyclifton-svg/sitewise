@@ -41,6 +41,12 @@ class WorkflowRun(Base):
         UUID(as_uuid=True), ForeignKey("agent_turns.id", ondelete="SET NULL")
     )
     workflow_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    # The environment that enqueued this run. Only a worker with the same scope
+    # may claim it — every deployment sharing a Supabase project polls this
+    # table, and a dev-queued run executed by production is unattributable.
+    queue_scope: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="production"
+    )
     run_brief: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     schema_version: Mapped[int] = mapped_column(
@@ -106,7 +112,13 @@ class WorkflowRun(Base):
             name="ck_workflow_runs_frozen_project_context_version",
         ),
         CheckConstraint("attempt >= 0 AND max_attempts > 0", name="ck_workflow_runs_attempts"),
-        Index("ix_workflow_runs_claim", "state", "run_after", "lease_expires_at"),
+        Index(
+            "ix_workflow_runs_claim",
+            "queue_scope",
+            "state",
+            "run_after",
+            "lease_expires_at",
+        ),
         Index("ix_workflow_runs_project_created", "project_id", "created_at"),
         Index("ix_workflow_runs_requested_by_user", "requested_by_user_id"),
     )
