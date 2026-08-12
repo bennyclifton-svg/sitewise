@@ -49,6 +49,7 @@ def test_read_profile_normalizes_columns_and_taxonomy_metadata() -> None:
         "complexity": {"operational_constraints": "live_environment"},
         "work_scope": ["fire_services"],
         "assets": [],
+        "scope_narrative": [],
         "budget": None,
         "user_role": "architect-pm",
         "state": "NSW",

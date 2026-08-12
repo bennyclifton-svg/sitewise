@@ -43,11 +43,18 @@ PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
     "complexity",
     "work_scope",
     "assets",
+    "scope_narrative",
     "budget",
     "state",
     "site_address",
     "client",
 )
+
+
+# A scope list, not a brief: enough for the items a PM would bullet, short
+# enough that each one still reads as a scope line in the rendered document.
+MAX_SCOPE_NARRATIVE_ITEMS = 12
+MAX_SCOPE_NARRATIVE_ITEM_CHARS = 200
 
 
 class ProfileValidationError(ValueError):
@@ -190,6 +197,7 @@ def validate_profile_patch(
     errors.extend(_validate_complexity(after))
     errors.extend(_validate_work_scope(after))
     errors.extend(_validate_assets(after))
+    errors.extend(_validate_scope_narrative(after))
     errors.extend(_validate_budget(after))
     if after.state is not None and after.state not in SUPPORTED_STATES:
         errors.append(f"Unknown state: {after.state!r}")
@@ -230,6 +238,11 @@ def read_profile(project: Project) -> ProjectProfileView:
             if isinstance(item, str)
         ],
         assets=_asset_values(taxonomy.get("assets")),
+        scope_narrative=[
+            item
+            for item in _list_value(taxonomy.get("scope_narrative"))
+            if isinstance(item, str)
+        ],
         budget=_optional_text(taxonomy.get("budget")),
         user_role=getattr(project, "user_role", None),
         state=getattr(project, "state", None),
@@ -265,6 +278,23 @@ def project_assets(project: Project) -> list[ProjectAsset]:
     if not isinstance(taxonomy, dict):
         return []
     return _asset_values(taxonomy.get("assets"))
+
+
+def project_scope_narrative(project: Project) -> list[str]:
+    """Read the user's own scope wording straight off the project.
+
+    Same shape as project_assets: renderers want the value without building a
+    full ProjectProfileView, which needs a real project id.
+    """
+    metadata = getattr(project, "project_metadata", None) or {}
+    taxonomy = metadata.get("taxonomy") if isinstance(metadata, dict) else None
+    if not isinstance(taxonomy, dict):
+        return []
+    return [
+        item
+        for item in _list_value(taxonomy.get("scope_narrative"))
+        if isinstance(item, str) and item.strip()
+    ]
 
 
 def _asset_values(value: Any) -> list[ProjectAsset]:
@@ -379,6 +409,29 @@ def _validate_assets(profile: ProjectProfileView) -> list[str]:
     return errors
 
 
+def _validate_scope_narrative(profile: ProjectProfileView) -> list[str]:
+    """Keep the narrative a scope list, not a second brief.
+
+    It exists because `work_scope` is an enum and cannot hold "concrete cancer
+    in the basement carpark". That makes it the obvious place for an agent to
+    dump the whole prompt, which would push the same undifferentiated prose into
+    every document the enum was meant to structure.
+    """
+    errors: list[str] = []
+    if len(profile.scope_narrative) > MAX_SCOPE_NARRATIVE_ITEMS:
+        errors.append(
+            f"scope_narrative accepts at most {MAX_SCOPE_NARRATIVE_ITEMS} items; "
+            f"got {len(profile.scope_narrative)}"
+        )
+    for index, item in enumerate(profile.scope_narrative):
+        if len(item) > MAX_SCOPE_NARRATIVE_ITEM_CHARS:
+            errors.append(
+                f"scope_narrative item {index + 1} is {len(item)} characters; "
+                f"keep each under {MAX_SCOPE_NARRATIVE_ITEM_CHARS}"
+            )
+    return errors
+
+
 def _validate_work_scope(profile: ProjectProfileView) -> list[str]:
     valid = {
         item.value
@@ -435,7 +488,7 @@ def _dependent_conflicts(
 def _empty_profile_value(
     field: ProjectProfileField,
 ) -> None | list[Any] | dict[str, Any]:
-    if field in {"subclasses", "work_scope"}:
+    if field in {"subclasses", "work_scope", "assets", "scope_narrative"}:
         return []
     if field in {"scale", "complexity"}:
         return {}
@@ -495,6 +548,7 @@ def _write_profile(project: Project, profile: ProjectProfileView) -> None:
                 "complexity",
                 "work_scope",
                 "assets",
+                "scope_narrative",
                 "budget",
                 "site_address",
                 "client",
@@ -511,6 +565,7 @@ def _write_profile(project: Project, profile: ProjectProfileView) -> None:
         "complexity": dict(profile.complexity),
         "work_scope": list(profile.work_scope),
         "assets": [asset.model_dump(exclude_none=True) for asset in profile.assets],
+        "scope_narrative": list(profile.scope_narrative),
     }
     if profile.budget:
         taxonomy["budget"] = profile.budget

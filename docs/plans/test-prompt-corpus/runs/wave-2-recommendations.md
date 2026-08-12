@@ -102,6 +102,35 @@ and the artefact it produced names the build that made it.
 the question answerable but does not answer it — that is R12, and it needs a
 fresh cost-plan run now that the queue is isolated.
 
+### R0 is one-sided until production is redeployed — found during R1
+
+The scope predicate lives in `claim_next_run`, so **it only binds a worker that
+has the new code.** Local dev now refuses production's runs. Production, still
+on deploy `955256a1`, has no predicate at all and goes on claiming
+**dev-scoped** runs.
+
+This is not theoretical either. During the R1 re-run, three prompts were queued
+from local dev seconds apart and split:
+
+| Prompt | `build_version` on the artefact | Claimed by |
+|---|---|---|
+| 6 | `bd65695c-dirty`, `queue_scope: dev` | the dev worker |
+| 14 | **null** | a worker with no R0b code — production |
+| 61 | **null** | production |
+
+The two production-claimed runs produced documents without the R1 change; the
+dev-claimed one produced the document R1 was built for. **R0b is what made this
+a one-query diagnosis** instead of another day of inference — a missing build
+stamp is a positive identification of a foreign worker.
+
+**Required to finish R0 — an ops action, not a code change.** Either redeploy
+production so its worker gains the predicate, or set
+`WORKFLOW_WORKER_INPROC_ENABLED=false` on the hosted stack for the duration of
+corpus testing. **Until one of those happens, roughly two runs in three are
+still executed by production and no wave result is attributable.** The migration
+is already applied to the shared database, so a redeploy needs no further DB
+work.
+
 **Verification:** backend 2091 passed, 7 skipped, 0 failed. 12 new tests across
 [`test_build_version.py`](../../../backend/tests/test_build_version.py) and
 [`test_workflow_queue_scope.py`](../../../backend/tests/workflows/test_workflow_queue_scope.py),
@@ -133,6 +162,79 @@ and a switchboard are all assets with a location, a condition and an action. Pro
 
 **Proof:** re-run prompts 6, 14 and 61 and measure fact retention ≥ 6/9, ≥ 6/10, ≥ 5/7. Retention is the
 metric; the field is only the mechanism.
+
+#### Fix log — R1 (2026-08-13)
+
+**Landed. Proven on the one run that reached the dev worker; the other two were
+claimed by production and are still unmeasured** — see the R0 note above.
+
+**New `scope_narrative` profile field.** A short list of the user's own scope
+wording, alongside `work_scope` rather than replacing it: the enum keeps routing
+consultants and doctrine, the narrative keeps the words. Wired exactly as
+`budget` and `assets` were — `PROFILE_FIELDS`, the patch/view/create/update
+schemas, `read_profile`, the write-back, `SETUP_PROPOSAL_FIELDS` so the
+auto-apply path captures it without a confirmation round-trip, and the agent
+instructions. Capped at 12 items of 200 characters: it exists *because* the enum
+cannot hold prose, which makes it the obvious place for an agent to paste the
+whole prompt, and that would push the same undifferentiated text into every
+document the enum was meant to structure.
+
+**It renders in two places.** The Brief's **Inclusions** list appends the
+narrative under the enum labels, and the Description now *leads* with the
+narrative — a reader recognises "concrete cancer in the basement carpark" and
+does not recognise "Facade/Cladding Rectification", which is a routing key that
+happens to be printable. The Description's "Site, asset, and scope details
+remain not stated" clause is suppressed when scope is in fact stated; it was
+printing on three Wave 2 documents whose prompts had supplied all three.
+
+**An asset is not only plant.** The asset-register instruction was written around
+mechanical plant and the agent read it literally, so a facade and a basement slab
+went unrecorded. It now says so explicitly: a facade, a slab, a roof, a lift, a
+switchboard, a footbridge and a canopy are assets with a location, a condition
+and an action. Concrete cancer is a reinforced concrete structure at that
+location with action `remediate`.
+
+**Prompt 6, measured end to end on the dev worker:**
+
+| | Wave 2 | After R1 |
+|---|---|---|
+| Fact retention | **2/9** | **7/9** — concrete cancer, spalling, basement carpark, eastern facade, 6 levels, engineer's report, $1.2m |
+| Still absent | — | `1970s`, `strata` (the latter is in `complexity`, never rendered as prose) |
+| Description | "Site, asset, and scope details remain not stated" | "Remediation works for apartments; 6 storeys. Scope includes Remediate concrete cancer in the basement carpark; Remediate spalling on the eastern facade" |
+| Asset schedule | *(nothing to show)* | two rows — reinforced concrete structure / basement carpark / remediate, and building facade / eastern facade / remediate |
+| Workflow | **hard-failed** on the apartments seed route | **completes** |
+
+Target was ≥ 6/9. The deterministic scaffold was also rendered directly from the
+stored rows for all three projects, and every narrative item appears — so the
+code is confirmed for 14 and 61 even though their documents were produced
+elsewhere:
+
+```
+61 → - Temporary Works | … | - New lifts | - Footbridge | - Accessible platforms
+     | - Canopies | - Rail line remains operational | - Works undertaken in possessions
+14 → - Second storey addition to a semi-detached house | - Rear extension
+     | - Add two bedrooms and a bathroom at upper level | - Heritage conservation area
+```
+
+**What R1 does not fix, now visible rather than inferred:**
+
+- **`work_scope` is often left empty once the narrative exists.** Prompts 6 and 14
+  both came back `work_scope: []`. The instruction says to set both; the agent,
+  given somewhere expressive to write, stops filling the enum. That keeps W2-3
+  alive — prompt 6 still loaded no remediation doctrine — and R9 has to account
+  for it rather than assume a populated enum.
+- **Prompt 61 was misclassified `new`** on this run (a station *upgrade*), with
+  `work_scope` filled as `substructure`/`superstructure`/`temporary_works`.
+  W2-7's classification problem is untouched by R1.
+- `strata` and `1970s` still never reach the document: one lives in `complexity`
+  and is never rendered as prose, the other has no field at all.
+
+**Verification:** backend 2107 passed, 7 skipped, 0 failed. 16 new tests across
+[`test_profile_scope_narrative.py`](../../../backend/tests/projects/test_profile_scope_narrative.py)
+and [`test_scope_narrative_rendering.py`](../../../backend/tests/sitewise/test_scope_narrative_rendering.py),
+covering the field wiring, the caps, independence from `work_scope`, both render
+sites, and the suppressed "not stated" claim. One existing profile-contract
+expectation grew a `scope_narrative` key.
 
 ### R2 — Make the scale band change the document · `SCALE` W2-4 · **Size M**
 

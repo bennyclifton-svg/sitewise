@@ -150,6 +150,7 @@ class ProjectProfilePatch(BaseModel):
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
     assets: list[ProjectAsset] | None = None
+    scope_narrative: list[str] | None = None
     budget: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, max_length=16)
     site_address: str | None = Field(default=None, max_length=256)
@@ -189,7 +190,7 @@ class ProjectProfilePatch(BaseModel):
                 stripped.append(item)
         return stripped or None
 
-    @field_validator("work_scope")
+    @field_validator("work_scope", "scope_narrative")
     @classmethod
     def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
         if value is None:
@@ -206,6 +207,7 @@ ProjectProfileField = Literal[
     "complexity",
     "work_scope",
     "assets",
+    "scope_narrative",
     "budget",
     "state",
     "site_address",
@@ -223,6 +225,7 @@ class ProjectProfileView(BaseModel):
     complexity: dict[str, Any] = Field(default_factory=dict)
     work_scope: list[str] = Field(default_factory=list)
     assets: list[ProjectAsset] = Field(default_factory=list)
+    scope_narrative: list[str] = Field(default_factory=list)
     budget: str | None = None
     user_role: str | None = None
     state: str | None = None
@@ -346,6 +349,7 @@ class CreateProjectRequest(BaseModel):
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
     assets: list[ProjectAsset] | None = None
+    scope_narrative: list[str] | None = None
     budget: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, max_length=16)
     phase: str = Field(default="brief-planning", min_length=1, max_length=64)
@@ -390,7 +394,7 @@ class CreateProjectRequest(BaseModel):
                 stripped.append(item)
         return stripped or None
 
-    @field_validator("work_scope")
+    @field_validator("work_scope", "scope_narrative")
     @classmethod
     def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
         if value is None:
@@ -407,6 +411,7 @@ class PatchProjectRequest(BaseModel):
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
     assets: list[ProjectAsset] | None = None
+    scope_narrative: list[str] | None = None
     budget: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, max_length=16)
 
@@ -426,7 +431,7 @@ class PatchProjectRequest(BaseModel):
     ) -> list[str | ProjectSubclassSelection] | None:
         return CreateProjectRequest.strip_optional_subclasses(value)
 
-    @field_validator("work_scope")
+    @field_validator("work_scope", "scope_narrative")
     @classmethod
     def strip_optional_string_lists(cls, value: list[str] | None) -> list[str] | None:
         return CreateProjectRequest.strip_optional_string_lists(value)

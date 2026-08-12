@@ -1101,6 +1101,8 @@ def _project_taxonomy_metadata(
         complexity=body.complexity,
         work_scope=body.work_scope,
         assets=body.assets,
+        scope_narrative=body.scope_narrative,
+        budget=body.budget,
     )
 
 
@@ -1111,6 +1113,8 @@ def _taxonomy_metadata_from_values(
     complexity: dict[str, Any] | None,
     work_scope: list[str] | None,
     assets: list[ProjectAsset] | None = None,
+    scope_narrative: list[str] | None = None,
+    budget: str | None = None,
 ) -> dict | None:
     taxonomy = {
         "subclasses": _subclass_metadata_payload(subclasses),
@@ -1122,6 +1126,8 @@ def _taxonomy_metadata_from_values(
             if assets
             else None
         ),
+        "scope_narrative": scope_narrative,
+        "budget": budget,
     }
     compact = {key: value for key, value in taxonomy.items() if value is not None}
     return compact or None

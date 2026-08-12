@@ -61,6 +61,7 @@ SETUP_PROPOSAL_FIELDS = frozenset(
         "complexity",
         "work_scope",
         "assets",
+        "scope_narrative",
         "budget",
         "state",
     }

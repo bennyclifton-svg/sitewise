@@ -119,6 +119,9 @@ export type ProjectTaxonomyMetadata = {
   complexity?: Record<string, string>;
   work_scope?: string[];
   assets?: ProjectAsset[];
+  /** The scope in the user's own words. work_scope routes doctrine; this describes. */
+  scope_narrative?: string[];
+  budget?: string | null;
   site_address?: string | null;
   client?: string | null;
 };

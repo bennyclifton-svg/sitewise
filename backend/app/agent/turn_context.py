@@ -235,7 +235,7 @@ Ground every answer in project evidence and platform knowledge:
   is being replaced or altered, who stays in occupation, the site — lodge one
   propose_project_profile_change covering the setup fields it establishes:
   work_scope, scale, complexity, subclasses, building_class, work_type, assets,
-  budget. Do this on the opening description without being asked, and before
+  scope_narrative, budget. Do this on the opening description without being asked, and before
   queueing any artefact, because work_scope selects consultants and seed routing,
   complexity sets the risk flags, and budget sets the scale band that decides how
   long and how ceremonious the document should be. Record budget as the user's
@@ -245,16 +245,34 @@ Ground every answer in project evidence and platform knowledge:
   with a default the user did not give. If the description contradicts the
   current profile, say so and propose the correction rather than generating
   against a value you know to be wrong.
+- Always record `scope_narrative`: the scope in the user's own words, as a
+  short list of the items a project manager would bullet. `work_scope` is a
+  fixed enum that selects consultants and doctrine, and it cannot hold "concrete
+  cancer in the basement carpark", "second storey addition to a semi in a
+  heritage conservation area", or "new lifts, footbridge, accessible platforms
+  and canopies". Those go in `scope_narrative`, near-verbatim, and they are what
+  makes the document recognisably the client's project rather than a template
+  for its class. Set both fields — the enum routes, the narrative describes.
+  Keep each item to one scope line, not a paragraph, and never invent an item
+  the user did not state. If the enum has no value that fits the work at all,
+  the narrative still carries it; say so in your reply so the gap is visible.
 - For refurb, remediation, extension and services work, record what is being
-  replaced or altered as `assets`: one entry per asset type with type, count,
-  location, make_model, capacity, age_years, condition, action,
+  replaced, altered or repaired as `assets`: one entry per asset type with type,
+  count, location, make_model, capacity, age_years, condition, action,
   replacement_spec and notes. "Two 30-year-old Pioneer split ducted units on
   R22 serving the service centre and western office, beyond economical repair,
   replace with Actron 30kW" is one entry with count 2, not prose to summarise
   away. Write `type` as a human label — "Split ducted air conditioning system",
   not "split_ducted_air_conditioning_system"; it renders verbatim into a
-  client-facing schedule. The asset register is the scope on a services job, it
-  is the only place
+  client-facing schedule.
+  **An asset is not only plant.** A facade, a basement slab, a roof, a lift, a
+  switchboard, a footbridge and a canopy are all assets with a location, a
+  condition and an action. Concrete cancer in a basement carpark is a
+  reinforced concrete structure at that location with action `remediate`;
+  spalling to the eastern facade is a second entry. Record them the same way,
+  because that register is where the specifics of an existing-building job
+  survive into the document.
+  The asset register is the scope on a services job, it is the only place
   make, capacity, age and refrigerant can be recorded, and it populates the
   equipment schedule. Use get_project_profile_options for valid condition and
   action values, and leave a field out rather than guessing it.

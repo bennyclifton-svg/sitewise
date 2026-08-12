@@ -1246,8 +1246,12 @@ def _taxonomy_project_description(project: Project) -> str:
         if isinstance(value, str) and value.strip():
             return value.strip()
     scope_items = work_scope_items_for(context.work_type, context.work_scope)
-    if scope_items:
-        scope = "; ".join(item.label for item in scope_items)
+    narrative = _scope_narrative(project)
+    if scope_items or narrative:
+        # The user's own wording leads. A reader recognises "concrete cancer in
+        # the basement carpark"; they do not recognise "Facade/Cladding
+        # Rectification", which is a routing key that happens to be printable.
+        scope = "; ".join(narrative or [item.label for item in scope_items])
         work_type = (context.work_type or "project").replace("_", " ")
         asset = _compact_taxonomy_scale_summary(project)
         return (
@@ -1307,14 +1311,25 @@ def _render_taxonomy_snapshot(
     )
 
 
+def _scope_narrative(project: Project) -> list[str]:
+    from app.projects.profile import project_scope_narrative
+
+    return project_scope_narrative(project)
+
+
 def _render_taxonomy_scope(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     scope_items = work_scope_items_for(context.work_type, context.work_scope)
-    inclusions = [f"- {item.label}" for item in scope_items] or [
-        "- Scope selection pending — confirm inclusions with the client."
-    ]
+    # The enum labels say which disciplines and doctrine apply; the narrative
+    # says what the job actually is. "Building Services Upgrade" and "two 30-year-old
+    # R22 units in the service centre and western office" are both needed, and only
+    # the second is what the client recognises as their project.
+    inclusions = [f"- {item.label}" for item in scope_items]
+    inclusions.extend(f"- {item}" for item in _scope_narrative(project))
+    if not inclusions:
+        inclusions = ["- Scope selection pending — confirm inclusions with the client."]
     brief_is_emphasis = _top_weighted_section_id(project) == "scope-client-requirements"
 
     if context.building_class == "residential" and context.work_type == "new":
