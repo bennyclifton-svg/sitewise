@@ -136,7 +136,7 @@ in normal document flow. Reduced-motion mode also removes document and token
 travel.
 
 For this surface, graphite, bone and Blueprint Azure are the complete palette,
-and Chillax Light with Hanken Grotesk replaces the older SITEFORM
+and Satoshi Light with Hanken Grotesk replaces the older SITEFORM
 Oxanium/Space Mono pairing. Public source previews must link to attributable
 originals; never fabricate a project document for visual credibility. The
 surface-specific brief at

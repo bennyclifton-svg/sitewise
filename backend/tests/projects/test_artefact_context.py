@@ -144,7 +144,7 @@ def _snapshot() -> ProjectSnapshot:
                 },
                 "work_scope": [
                     "live_environment_fitout",
-                    "services_upgrade",
+                    "mechanical_hvac",
                 ],
                 "user_role": "architect-pm",
                 "state": "NSW",

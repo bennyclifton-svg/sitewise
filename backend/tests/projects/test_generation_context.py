@@ -23,7 +23,7 @@ PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
         ("residential", "new", "house", ["site_drainage"]),
         ("residential", "refurb", "house", ["stripout"]),
         ("commercial", "refurb", "office", ["live_environment_fitout"]),
-        ("commercial", "refurb", "retail_standalone", ["services_upgrade"]),
+        ("commercial", "refurb", "retail_standalone", ["mechanical_hvac"]),
         ("residential", "new", "apartments", ["vertical_transport"]),
         ("industrial", "new", "warehouse", ["steel_frame"]),
         ("commercial", "remediation", "office", ["facade_cladding"]),
@@ -31,7 +31,7 @@ PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
             "institution",
             "refurb",
             "healthcare_hospital",
-            ["live_environment_fitout", "services_upgrade"],
+            ["live_environment_fitout", "mechanical_hvac"],
         ),
     ],
 )
@@ -145,7 +145,7 @@ def test_context_resolution_stays_below_the_stage_zero_budget() -> None:
         building_class="commercial",
         work_type="refurb",
         subclass="office",
-        work_scope=["live_environment_fitout", "services_upgrade"],
+        work_scope=["live_environment_fitout", "mechanical_hvac"],
     )
     resolve_project_generation_context(snapshot)
 

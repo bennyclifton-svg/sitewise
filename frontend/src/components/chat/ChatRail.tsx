@@ -1,4 +1,7 @@
-import { ChatPanel } from "@/components/chat/ChatPanel";
+import {
+  ChatPanel,
+  type PendingChatInstruction,
+} from "@/components/chat/ChatPanel";
 import { Button } from "@/components/ui/button";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
@@ -17,6 +20,8 @@ type ChatRailProps = {
   onResourceEvent?: (event: ResourceEvent) => void;
   onDocumentSelectionEvent?: (event: DocumentSelectionEvent) => void;
   onUserSubmit?: () => void;
+  pendingInstruction?: PendingChatInstruction | null;
+  onPendingInstructionConsumed?: (id: number) => void;
   selectedDocumentIds?: string[];
   onSelectCitation: (citation: Citation | null) => void;
   layout?: "rail" | "main";
@@ -36,6 +41,8 @@ export function ChatRail({
   onResourceEvent,
   onDocumentSelectionEvent,
   onUserSubmit,
+  pendingInstruction = null,
+  onPendingInstructionConsumed,
   selectedDocumentIds,
   onSelectCitation,
   layout = "rail",
@@ -47,9 +54,10 @@ export function ChatRail({
       <div
         className={cn(
           layout === "main"
-            ? collapsed
-              ? "flex shrink-0 flex-col px-6 py-2"
-              : "flex min-h-0 flex-1 flex-col px-6 py-3"
+            ? // Match ProjectControlBoard workbench gutters: full panel + p-4/lg:p-6.
+              collapsed
+              ? "flex w-full min-w-0 shrink-0 flex-col px-4 py-2 lg:px-6"
+              : "flex w-full min-w-0 min-h-0 flex-1 flex-col px-4 py-3 lg:px-6"
             : collapsed
               ? "flex shrink-0 flex-col px-3 py-2"
               : "flex min-h-0 flex-1 flex-col px-3 py-3",
@@ -81,6 +89,8 @@ export function ChatRail({
             onResourceEvent={onResourceEvent}
             onDocumentSelectionEvent={onDocumentSelectionEvent}
             onUserSubmit={onUserSubmit}
+            pendingInstruction={pendingInstruction}
+            onPendingInstructionConsumed={onPendingInstructionConsumed}
             layout={layout === "main" ? "main" : "rail"}
             collapsed={collapsed}
             collapsible={layout === "main"}

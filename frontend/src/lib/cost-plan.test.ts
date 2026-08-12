@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addCostItemOptimistically,
+  amount,
   applyCostPlanDelta,
   buildCostPlanViewRows,
   calculateCostPlanTotals,
@@ -11,6 +13,7 @@ import {
   formatCostPlanMoney,
   lineRollup,
   moveCostItemOptimistically,
+  parseCostPlanMoneyInput,
   renumberCostPlanItems,
   type CostPlanItem,
   type CostPlanState,
@@ -85,6 +88,21 @@ describe("cost-plan optimistic helpers", () => {
     const moved = moveCostItemOptimistically(base, "c", "a", "before");
     expect(moved.items.map((row) => row.item_key)).toEqual(["c", "a", "b"]);
     expect(moved.items.map((row) => row.display_order)).toEqual([1, 2, 3]);
+  });
+
+  it("adds a row after a reference and reorders locally", () => {
+    const next = addCostItemOptimistically(
+      state([item("joinery", { display_order: 1 }), item("ffe", { display_order: 2 })]),
+      item("extra", { display_order: 99, budget: "0", forecast: "0" }),
+      "joinery",
+      "after",
+    );
+    expect(next.items.map((row) => row.item_key)).toEqual([
+      "joinery",
+      "extra",
+      "ffe",
+    ]);
+    expect(next.items.map((row) => row.display_order)).toEqual([1, 2, 3]);
   });
 
   it("tracks categories and keeps totals helpers stable", () => {
@@ -166,6 +184,14 @@ describe("cost-plan optimistic helpers", () => {
   it("formats money with Australian thousands separators and no dollar sign", () => {
     expect(formatCostPlanMoney(30000)).toBe("30,000.00");
     expect(formatCostPlanMoney(100)).toBe("100.00");
+  });
+
+  it("parses money input with or without thousands separators", () => {
+    expect(parseCostPlanMoneyInput("100,000.00")).toBe("100000");
+    expect(parseCostPlanMoneyInput("100000.50")).toBe("100000.5");
+    expect(parseCostPlanMoneyInput("")).toBe("0");
+    expect(parseCostPlanMoneyInput("abc")).toBeNull();
+    expect(amount("100,000.00")).toBe(100000);
   });
 
   it("renumbers cost codes sequentially from display order", () => {

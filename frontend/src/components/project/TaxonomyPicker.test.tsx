@@ -101,7 +101,7 @@ const catalog: TaxonomyCatalog = {
 };
 
 describe("TaxonomyPicker", () => {
-  it("walks class to work type to subclass, scale, and default complexity", async () => {
+  it("walks class to work type to subclass and scale, leaving complexity unstated", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     let latest: TaxonomyPickerValue = {};
@@ -133,19 +133,61 @@ describe("TaxonomyPicker", () => {
       "placeholder",
       "1,000-80,000+ sqm NLA",
     );
+    // An unanswered dimension must stay unanswered. Defaulting to the first
+    // option asserted "vacant" on sites the user had not described yet.
     await waitFor(() =>
-      expect(screen.getByLabelText("Operational constraints")).toHaveValue("vacant"),
+      expect(screen.getByLabelText("Operational constraints")).toHaveValue(""),
     );
     expect(latest).toMatchObject({
       building_class: "commercial",
       work_type: "new",
       subclasses: ["office"],
       scale: { nla_sqm: 1200 },
-      complexity: {
-        operational_constraints: "vacant",
-      },
+      complexity: {},
     });
     expect(onChange).toHaveBeenCalled();
+  });
+
+  it("records a complexity dimension only once the user picks one", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Commercial" }));
+    await user.click(screen.getByRole("button", { name: "New build" }));
+
+    expect(latest.complexity).toEqual({});
+
+    await user.selectOptions(
+      screen.getByLabelText("Operational constraints"),
+      "live_environment",
+    );
+
+    expect(latest.complexity).toEqual({
+      operational_constraints: "live_environment",
+    });
+  });
+
+  it("clears a complexity dimension when returned to Not stated", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Commercial" }));
+    await user.click(screen.getByRole("button", { name: "New build" }));
+    await user.selectOptions(
+      screen.getByLabelText("Operational constraints"),
+      "live_environment",
+    );
+    expect(latest.complexity).toEqual({
+      operational_constraints: "live_environment",
+    });
+
+    await user.selectOptions(screen.getByLabelText("Operational constraints"), "");
+
+    expect(latest.complexity).toEqual({});
   });
 
   it("stores Other subclass free text as a labelled selection", async () => {

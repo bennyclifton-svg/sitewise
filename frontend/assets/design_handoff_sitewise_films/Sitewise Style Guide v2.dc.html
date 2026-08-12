@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@property --sweep { syntax: '<percentage>'; inherits: false; initial-value: -30%; }
+html { scroll-behavior: smooth; --lx:42vw; --ly:30vh; }
+body { margin:0; background:#060608; overflow-x:hidden; }
+a { color:#7FB0E4; text-decoration:none; }
+a:hover { color:#B3D2F2; }
+::selection { background:#2F72C4; color:#fff; }
+@keyframes rise { from { opacity:0; transform:translateY(26px); filter:blur(6px); } to { opacity:1; transform:none; filter:blur(0); } }
+@keyframes wipe { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0 0 0 0); } }
+@keyframes sun { 0% { transform:translate3d(-22vw,0,0) rotate(14deg); opacity:.30; } 50% { transform:translate3d(34vw,0,0) rotate(14deg); opacity:.62; } 100% { transform:translate3d(-22vw,0,0) rotate(14deg); opacity:.30; } }
+@keyframes sheen { 0%,72% { --sweep:-35%; } 100% { --sweep:135%; } }
+@keyframes breathe { 0%,100% { opacity:.35; } 50% { opacity:.8; } }
+@keyframes orbit { to { offset-distance:100%; } }
+@media (max-width:1180px) {
+  [data-rail] { display:none !important; }
+  [data-col] { padding-left:36px !important; padding-right:36px !important; }
+  section[id^="s0"] { grid-template-columns:minmax(0,1fr) !important; gap:22px !important; padding-top:84px !important; padding-bottom:84px !important; }
+  section[id^="s0"] > div:first-child { position:static !important; transform:none !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; } }
+</style>
+<script>
+(function () {
+  var S = window.__swLight;
+  if (S) { cancelAnimationFrame(S.raf); removeEventListener('pointermove', S.h); removeEventListener('mousemove', S.h); }
+  else { S = window.__swLight = { tx: innerWidth * 0.42, ty: innerHeight * 0.3, cx: innerWidth * 0.42, cy: innerHeight * 0.3 }; }
+  S.h = function (e) { S.tx = e.clientX; S.ty = e.clientY; };
+  addEventListener('pointermove', S.h, { passive: true });
+  addEventListener('mousemove', S.h, { passive: true });
+  var r = document.documentElement;
+  (function tick() {
+    S.cx += (S.tx - S.cx) * 0.055; S.cy += (S.ty - S.cy) * 0.055;
+    r.style.setProperty('--lx', S.cx.toFixed(1) + 'px');
+    r.style.setProperty('--ly', S.cy.toFixed(1) + 'px');
+    S.raf = requestAnimationFrame(tick);
+  })();
+})();
+</script>
+</helmet>
+<div style="position:relative;background:#060608;color:#E8E8E4;font-family:'Hanken Grotesk',Helvetica,sans-serif;font-weight:300;min-height:100vh;isolation:isolate">
+
+  <div style="position:fixed;inset:-20% -20% auto -20%;height:150vh;pointer-events:none;z-index:0;background:linear-gradient(101deg,transparent 40%,rgba(150,190,235,.16) 47%,rgba(190,215,240,.24) 50%,rgba(150,190,235,.13) 53%,transparent 60%);filter:blur(46px);animation:sun 54s cubic-bezier(.45,0,.55,1) infinite;mix-blend-mode:plus-lighter"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(680px circle at var(--lx) var(--ly),rgba(126,168,220,.13),rgba(126,168,220,.05) 42%,transparent 68%);mix-blend-mode:plus-lighter;transition:opacity .6s"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:2;background:radial-gradient(120% 90% at 50% 0%,transparent 30%,rgba(0,0,0,.72) 100%)"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.05;mix-blend-mode:overlay;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
+
+  <div style="position:relative;z-index:10;display:flex;justify-content:center;align-items:flex-start">
+  <div data-rail style="flex:0 0 200px;position:relative;align-self:stretch">
+  <nav style="position:sticky;top:50vh;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;gap:22px;padding:0 20px 0 44px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase">
+    <a href="#s01" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Logo</a>
+    <a href="#s02" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Misuse</a>
+    <a href="#s03" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Colour</a>
+    <a href="#s04" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Type</a>
+    <a href="#s05" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Light</a>
+    <a href="#s06" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Motion</a>
+    <a href="#s07" style="display:flex;align-items:center;gap:10px;color:#5C5F66" style-hover="color:#E8E8E4"><span style="width:14px;flex:0 0 14px;height:1px;background:currentColor;display:block"></span>Surfaces</a>
+  </nav>
+  </div>
+
+  <div style="position:fixed;top:0;left:0;height:2px;width:100%;transform-origin:0 50%;z-index:50;background:linear-gradient(90deg,#2F72C4,#9DC3EA);animation:wipe linear both;animation-timeline:scroll(root block);opacity:.9"></div>
+
+  <div data-col style="flex:1 1 auto;min-width:0;max-width:1120px;padding:0 64px 180px">
+
+    <header style="min-height:96vh;display:flex;flex-direction:column;justify-content:center;gap:44px;padding:120px 0 80px">
+      <div style="display:flex;align-items:center;gap:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7FB0E4;animation:rise .9s cubic-bezier(.22,1,.36,1) both">
+        <span style="width:7px;height:7px;background:#2F72C4;display:block;animation:breathe 4s ease-in-out infinite"></span>Brand system — Revision 02 — 2026
+      </div>
+      <h1 style="font-size:clamp(52px,8.2vw,116px);line-height:.94;font-weight:200;letter-spacing:-.045em;margin:0;max-width:13ch;animation:rise 1.1s cubic-bezier(.22,1,.36,1) .08s both;background:linear-gradient(178deg,#FFFFFF 8%,#D6D9DE 46%,#8E939C 100%);-webkit-background-clip:text;background-clip:text;color:transparent">Sitewise, in light</h1>
+      <p style="font-size:20px;line-height:1.55;color:#8F939B;max-width:52ch;margin:0;text-wrap:pretty;animation:rise 1.1s cubic-bezier(.22,1,.36,1) .16s both">The identity is built for dark, low-glare interfaces. Every surface in this system is described by how it receives light — not by the colour it is painted.</p>
+      <div style="display:flex;gap:36px;padding-top:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;animation:rise 1.1s cubic-bezier(.22,1,.36,1) .24s both">
+        <span>One key light</span><span>One accent</span><span>Zero drop shadows</span>
+      </div>
+    </header>
+
+    <section id="s01" style="padding:110px 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">01<br>Logo</div>
+      <div style="display:flex;flex-direction:column;gap:36px">
+        <p style="font-size:19px;line-height:1.6;color:#B6B9BF;max-width:50ch;margin:0;text-wrap:pretty">The lockup pairs the isometric cube with the lowercase wordmark. The cube's three facets are the origin of the whole palette: shadow, mid, and lit face.</p>
+        <div style="position:relative;background:linear-gradient(168deg,#141519,#0A0A0C 60%);border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.14);padding:84px 64px;display:flex;align-items:center;justify-content:center;box-shadow:0 60px 90px -60px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.05)">
+          <img src="uploads/pasted-1785935378628-0.png" alt="Sitewise primary lockup" style="width:100%;max-width:640px;display:block;filter:drop-shadow(0 24px 40px rgba(0,0,0,.6))">
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent var(--sweep),rgba(255,255,255,.07) calc(var(--sweep) + 7%),transparent calc(var(--sweep) + 15%));animation:sheen 11s linear infinite"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:28px">
+          <div style="display:flex;flex-direction:column;gap:9px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FB0E4">Clear space</div>
+            <p style="font-size:15px;line-height:1.55;color:#8F939B;margin:0">Free space on all sides equal to the cube's height. Nothing crosses it.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FB0E4">Minimum size</div>
+            <p style="font-size:15px;line-height:1.55;color:#8F939B;margin:0">120px on screen, 32mm in print. Below that, the cube stands alone.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FB0E4">Placement</div>
+            <p style="font-size:15px;line-height:1.55;color:#8F939B;margin:0">Always in the lit half of a composition. Never in a falloff gradient.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="s02" style="padding:110px 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">02<br>Misuse</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="aspect-ratio:4/3;background:#0D0E11;border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+            <img src="uploads/pasted-1785935378628-0.png" alt="" style="width:150%;max-width:none;transform:rotate(-9deg);opacity:.55">
+            <div style="position:absolute;inset:0;background:linear-gradient(135deg,transparent 46%,rgba(210,70,60,.5) 47%,rgba(210,70,60,.5) 48%,transparent 49%)"></div>
+          </div>
+          <div style="font-size:15px;color:#8F939B">Never rotate or tilt the lockup.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="aspect-ratio:4/3;background:#0D0E11;border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+            <img src="uploads/pasted-1785935378628-0.png" alt="" style="width:118%;max-width:none;filter:hue-rotate(115deg) saturate(2.4);opacity:.55">
+            <div style="position:absolute;inset:0;background:linear-gradient(135deg,transparent 46%,rgba(210,70,60,.5) 47%,rgba(210,70,60,.5) 48%,transparent 49%)"></div>
+          </div>
+          <div style="font-size:15px;color:#8F939B">Never recolour the mark.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="aspect-ratio:4/3;background:#0D0E11;border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+            <img src="uploads/pasted-1785935378628-0.png" alt="" style="width:165%;max-width:none;transform:scaleX(.52);opacity:.55">
+            <div style="position:absolute;inset:0;background:linear-gradient(135deg,transparent 46%,rgba(210,70,60,.5) 47%,rgba(210,70,60,.5) 48%,transparent 49%)"></div>
+          </div>
+          <div style="font-size:15px;color:#8F939B">Never stretch or condense.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="s03" style="padding:110px 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">03<br>Colour</div>
+      <div style="display:flex;flex-direction:column;gap:40px">
+        <p style="font-size:19px;line-height:1.6;color:#B6B9BF;max-width:50ch;margin:0;text-wrap:pretty">Values are authored in OKLCH so lightness steps stay perceptually even under any tint. Blue is the only accent; everything else is a lighting state.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="position:relative;height:150px;background:oklch(12% .006 265);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+              <div style="position:absolute;inset:0;background:linear-gradient(102deg,transparent var(--sweep),rgba(255,255,255,.12) calc(var(--sweep) + 6%),transparent calc(var(--sweep) + 14%));animation:sheen 9s linear infinite"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:400">Void</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5C5F66">oklch(12% .006 265) · #060608</div><div style="font-size:14px;color:#8F939B">Ground plane</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="position:relative;height:150px;background:oklch(18% .008 265);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+              <div style="position:absolute;inset:0;background:linear-gradient(102deg,transparent var(--sweep),rgba(255,255,255,.12) calc(var(--sweep) + 6%),transparent calc(var(--sweep) + 14%));animation:sheen 9s linear .9s infinite"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:400">Panel</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5C5F66">oklch(18% .008 265) · #131418</div><div style="font-size:14px;color:#8F939B">Lit surface</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="position:relative;height:150px;background:oklch(26% .01 265);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+              <div style="position:absolute;inset:0;background:linear-gradient(102deg,transparent var(--sweep),rgba(255,255,255,.12) calc(var(--sweep) + 6%),transparent calc(var(--sweep) + 14%));animation:sheen 9s linear 1.8s infinite"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:400">Edge</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5C5F66">oklch(26% .01 265) · #24262B</div><div style="font-size:14px;color:#8F939B">Rules, dividers</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="position:relative;height:150px;background:oklch(52% .13 258);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+              <div style="position:absolute;inset:0;background:linear-gradient(102deg,transparent var(--sweep),rgba(255,255,255,.20) calc(var(--sweep) + 6%),transparent calc(var(--sweep) + 14%));animation:sheen 9s linear 2.7s infinite"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:400">Facet Blue</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5C5F66">oklch(52% .13 258) · #2F72C4</div><div style="font-size:14px;color:#8F939B">Primary action</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="position:relative;height:150px;background:oklch(72% .09 254);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+              <div style="position:absolute;inset:0;background:linear-gradient(102deg,transparent var(--sweep),rgba(255,255,255,.20) calc(var(--sweep) + 6%),transparent calc(var(--sweep) + 14%));animation:sheen 9s linear 3.6s infinite"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:400">Beam</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5C5F66">oklch(72% .09 254) · #7FB0E4</div><div style="font-size:14px;color:#8F939B">Links, highlights</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="position:relative;height:150px;background:oklch(92% .004 90);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+              <div style="position:absolute;inset:0;background:linear-gradient(102deg,transparent var(--sweep),rgba(255,255,255,.35) calc(var(--sweep) + 6%),transparent calc(var(--sweep) + 14%));animation:sheen 9s linear 4.5s infinite"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:400">Bone</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5C5F66">oklch(92% .004 90) · #E8E8E4</div><div style="font-size:14px;color:#8F939B">Type, inverse panels</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="s04" style="padding:110px 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">04<br>Type</div>
+      <div style="display:flex;flex-direction:column;gap:52px">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FB0E4">Primary — Hanken Grotesk</div>
+          <div style="font-size:clamp(56px,9vw,112px);line-height:.95;font-weight:200;letter-spacing:-.04em;background:linear-gradient(172deg,#FFFFFF,#7C818A);-webkit-background-clip:text;background-clip:text;color:transparent">Aa Bb Cc</div>
+          <div style="font-size:18px;line-height:1.6;color:#8F939B;letter-spacing:.02em">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz 0123456789</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:36px 44px">
+          <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-size:42px;font-weight:200;letter-spacing:-.04em;line-height:1.05">Display</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66;margin-top:10px">ExtraLight 200 · −4% · 0.95</div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-size:25px;font-weight:400;letter-spacing:-.015em">Heading</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66;margin-top:10px">Regular 400 · −1.5% · 1.2</div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-size:17px;font-weight:300;line-height:1.6;color:#B6B9BF">Body sits at 300 for long reading. Measure capped at 52 characters, line height 1.6.</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66;margin-top:10px">Light 300 · 1.6 · 52ch</div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7FB0E4">Label — IBM Plex Mono</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66;margin-top:10px">Regular 400 · +16% · uppercase</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="s05" style="padding:110px 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">05<br>Light</div>
+      <div style="display:flex;flex-direction:column;gap:40px">
+        <p style="font-size:19px;line-height:1.6;color:#B6B9BF;max-width:50ch;margin:0;text-wrap:pretty">One key light, positioned above and to the left, roughly 20° off the surface normal. Elevation is expressed as luminance, never as a drop shadow. Move your cursor — the key follows.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+          <div style="position:relative;aspect-ratio:16/10;background:#0B0C0F;border:1px solid rgba(255,255,255,.06);overflow:hidden;padding:26px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+            <div style="position:absolute;top:-40%;left:-10%;width:70%;height:180%;background:radial-gradient(closest-side,rgba(160,196,238,.5),transparent);filter:blur(30px)"></div>
+            <div style="position:relative;font-size:16px;font-weight:400">Falloff</div>
+            <div style="position:relative;font-size:14px;line-height:1.5;color:#8F939B;max-width:34ch">Intensity decays smoothly across a surface. No hard terminator, no banding — always blur ≥ 30px.</div>
+          </div>
+          <div style="position:relative;aspect-ratio:16/10;background:#0B0C0F;border:1px solid rgba(255,255,255,.06);overflow:hidden;padding:26px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+            <div style="position:absolute;top:18%;left:20%;width:220px;height:120px;background:#16181D;border-top:1px solid rgba(255,255,255,.16);box-shadow:0 34px 46px -28px rgba(0,0,0,1)"></div>
+            <div style="position:relative;font-size:16px;font-weight:400">Contact</div>
+            <div style="position:relative;font-size:14px;line-height:1.5;color:#8F939B;max-width:34ch">Surfaces darken where they meet. A tight, opaque occlusion — not a soft glow offset downward.</div>
+          </div>
+          <div style="position:relative;aspect-ratio:16/10;background:#0B0C0F;border:1px solid rgba(255,255,255,.06);overflow:hidden;padding:26px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+            <div style="position:absolute;top:14%;left:50%;transform:translateX(-50%);width:150px;height:90px;background:#2F72C4"></div>
+            <div style="position:absolute;top:calc(14% + 90px);left:50%;transform:translateX(-50%);width:230px;height:70px;background:radial-gradient(closest-side,rgba(47,114,196,.4),transparent);filter:blur(18px)"></div>
+            <div style="position:relative;font-size:16px;font-weight:400">Bounce</div>
+            <div style="position:relative;font-size:14px;line-height:1.5;color:#8F939B;max-width:34ch">Saturated surfaces bleed their hue onto neighbours at ≤ 8% opacity. Blue bounces; grey does not.</div>
+          </div>
+          <div style="position:relative;aspect-ratio:16/10;background:#0B0C0F;border:1px solid rgba(255,255,255,.06);overflow:hidden;padding:26px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+            <div style="position:absolute;top:16%;left:18%;width:64%;height:34%;background:#111318;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.09);border-right:1px solid rgba(255,255,255,.03);border-bottom:1px solid rgba(0,0,0,.6)"></div>
+            <div style="position:relative;font-size:16px;font-weight:400">Specular edge</div>
+            <div style="position:relative;font-size:14px;line-height:1.5;color:#8F939B;max-width:34ch">Only the edge facing the key catches highlight. Top border bright, bottom border black.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="s06" style="padding:110px 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">06<br>Motion</div>
+      <div style="display:flex;flex-direction:column;gap:40px">
+        <p style="font-size:19px;line-height:1.6;color:#B6B9BF;max-width:50ch;margin:0;text-wrap:pretty">Motion is decelerative. Things arrive; they never bounce. Three curves cover the whole system.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px">
+          <div style="background:#0B0C0F;border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.13);padding:24px;display:flex;flex-direction:column;gap:16px">
+            <svg viewBox="0 0 120 80" style="width:100%;height:auto;overflow:visible">
+              <path d="M0 80 C 26 0, 60 0, 120 0" fill="none" stroke="#2F72C4" stroke-width="1.5"></path>
+              <circle r="3.5" fill="#9DC3EA" style="offset-path:path('M0 80 C 26 0, 60 0, 120 0');animation:orbit 2.6s cubic-bezier(.22,1,.36,1) infinite"></circle>
+            </svg>
+            <div style="display:flex;flex-direction:column;gap:5px"><div style="font-size:16px;font-weight:400">Enter — 420ms</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66">cubic-bezier(.22,1,.36,1)</div><div style="font-size:14px;color:#8F939B;line-height:1.5">Reveals, panels, page transitions.</div></div>
+          </div>
+          <div style="background:#0B0C0F;border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.13);padding:24px;display:flex;flex-direction:column;gap:16px">
+            <svg viewBox="0 0 120 80" style="width:100%;height:auto;overflow:visible">
+              <path d="M0 80 C 48 44, 72 36, 120 0" fill="none" stroke="#2F72C4" stroke-width="1.5"></path>
+              <circle r="3.5" fill="#9DC3EA" style="offset-path:path('M0 80 C 48 44, 72 36, 120 0');animation:orbit 2.6s cubic-bezier(.4,0,.2,1) infinite"></circle>
+            </svg>
+            <div style="display:flex;flex-direction:column;gap:5px"><div style="font-size:16px;font-weight:400">State — 180ms</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66">cubic-bezier(.4,0,.2,1)</div><div style="font-size:14px;color:#8F939B;line-height:1.5">Hover, focus, colour and border shifts.</div></div>
+          </div>
+          <div style="background:#0B0C0F;border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.13);padding:24px;display:flex;flex-direction:column;gap:16px">
+            <svg viewBox="0 0 120 80" style="width:100%;height:auto;overflow:visible">
+              <path d="M0 80 C 54 80, 66 0, 120 0" fill="none" stroke="#2F72C4" stroke-width="1.5"></path>
+              <circle r="3.5" fill="#9DC3EA" style="offset-path:path('M0 80 C 54 80, 66 0, 120 0');animation:orbit 5.2s cubic-bezier(.45,0,.55,1) infinite"></circle>
+            </svg>
+            <div style="display:flex;flex-direction:column;gap:5px"><div style="font-size:16px;font-weight:400">Ambient — 9s+</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C5F66">cubic-bezier(.45,0,.55,1)</div><div style="font-size:14px;color:#8F939B;line-height:1.5">Light drift, sheen, breathing indicators.</div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:36px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5C5F66;border-top:1px solid rgba(255,255,255,.08);padding-top:20px">
+          <span>Opacity + transform only</span><span>Stagger 60ms</span><span>Honours reduced-motion</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="s07" style="padding:110px 0 0;border-top:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:190px minmax(0,1fr);gap:56px;animation:rise linear both;animation-timeline:view();animation-range:entry 8% cover 26%">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5C5F66;position:sticky;top:64px;height:max-content">07<br>Surfaces</div>
+      <div style="display:flex;flex-direction:column;gap:36px">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+          <div style="background:#2F72C4;color:#fff;padding:15px 30px;font-size:16px;font-weight:400;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 18px 30px -20px rgba(47,114,196,.9)" style-hover="background:#3E85DA;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 22px 40px -18px rgba(47,114,196,1);transform:translateY(-1px)">Primary action</div>
+          <div style="border:1px solid rgba(255,255,255,.14);border-top-color:rgba(255,255,255,.24);color:#E8E8E4;padding:14px 29px;font-size:16px;font-weight:400;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1)" style-hover="border-color:#7FB0E4;color:#7FB0E4;background:rgba(127,176,228,.06)">Secondary</div>
+          <div style="color:#7FB0E4;padding:15px 6px;font-size:16px;font-weight:400;cursor:pointer;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#C6DDF5">Text link →</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px">
+          <div style="background:linear-gradient(168deg,#131418,#0B0C0F);border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.13);padding:26px;display:flex;flex-direction:column;gap:11px;box-shadow:0 40px 60px -50px #000;transition:all .18s cubic-bezier(.4,0,.2,1)" style-hover="border-top-color:rgba(255,255,255,.26);transform:translateY(-2px)">
+            <div style="width:18px;height:18px;background:#2F72C4;box-shadow:0 0 24px rgba(47,114,196,.7)"></div>
+            <div style="font-size:16px;font-weight:400">Elevation</div>
+            <div style="font-size:14px;line-height:1.55;color:#8F939B">Two levels only. Raised surfaces get a brighter top edge, never a larger shadow.</div>
+          </div>
+          <div style="background:linear-gradient(168deg,#131418,#0B0C0F);border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.13);padding:26px;display:flex;flex-direction:column;gap:11px;box-shadow:0 40px 60px -50px #000;transition:all .18s cubic-bezier(.4,0,.2,1)" style-hover="border-top-color:rgba(255,255,255,.26);transform:translateY(-2px)">
+            <div style="width:18px;height:18px;background:#7FB0E4;box-shadow:0 0 24px rgba(127,176,228,.6)"></div>
+            <div style="font-size:16px;font-weight:400">Corners</div>
+            <div style="font-size:14px;line-height:1.55;color:#8F939B">Square, matching the cube's facets. Radius is reserved for avatars and status dots.</div>
+          </div>
+          <div style="background:linear-gradient(168deg,#131418,#0B0C0F);border:1px solid rgba(255,255,255,.06);border-top-color:rgba(255,255,255,.13);padding:26px;display:flex;flex-direction:column;gap:11px;box-shadow:0 40px 60px -50px #000;transition:all .18s cubic-bezier(.4,0,.2,1)" style-hover="border-top-color:rgba(255,255,255,.26);transform:translateY(-2px)">
+            <div style="width:18px;height:18px;background:#E8E8E4;box-shadow:0 0 24px rgba(232,232,228,.45)"></div>
+            <div style="font-size:16px;font-weight:400">Spacing</div>
+            <div style="font-size:14px;line-height:1.55;color:#8F939B">8px base: 8, 16, 26, 40, 56, 110. Section rhythm holds at 110.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

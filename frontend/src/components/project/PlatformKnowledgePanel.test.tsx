@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { PlatformKnowledgePanel } from "@/components/project/PlatformKnowledgePanel";
 import type { PlatformKnowledgeStatus } from "@/lib/types/project";
@@ -44,5 +44,23 @@ describe("PlatformKnowledgePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /expand doctrine/i }));
 
     expect(screen.getByText("clerk-brief.md")).toBeInTheDocument();
+  });
+
+  it("notifies when a seed document is selected", () => {
+    const onSelectDocument = vi.fn();
+    render(
+      <PlatformKnowledgePanel
+        platformStatus={platformStatus}
+        mode="knowledge"
+        onSelectDocument={onSelectDocument}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "new-dwelling-guide.md" }));
+
+    expect(onSelectDocument).toHaveBeenCalledWith({
+      filename: "new-dwelling-guide.md",
+      relative_path: "seed/new-dwelling-guide.md",
+    });
   });
 });

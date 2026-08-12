@@ -139,14 +139,23 @@ Do not substitute apply_consultant_fee_forecast: benchmark allowances must give
 way to received proposal values. If multiple main-works proposals are present,
 the workflow refuses to choose a builder and reports the conflict.
 
-When the user asks to process, book, record, add, or update invoices, call
+When the user asks to process, book, record, or update uploaded invoices, call
 process_invoices with the current snapshot and Cost Plan version. For a named
-invoice, locate its source_document_id with the project evidence tools and pass
-only that id. To process all uploaded invoices, omit source_document_ids. The
-workflow appends canonical ledger allocations to the existing Invoices
-register and republishes the Summary roll-ups. Never call upsert_cost_item for
-an invoice: invoices do not alter Original Budget or Approved Contract. Never
-infer Paid from upload or booking; it defaults to No.
+or selected invoice, pass source_document_id from the selected-document-register
+or evidence tools — not workspace_file_id alone. To process all uploaded
+invoices, omit source_document_ids. The workflow appends canonical ledger
+allocations to the existing Invoices register and republishes the Summary
+roll-ups. Never call upsert_cost_item for an invoice: invoices do not alter
+Original Budget or Approved Contract. Never infer Paid from upload or booking;
+it defaults to No.
+process_invoices only books ingested invoice evidence. If the user asks to
+create, invent, or enter invoices from described amounts, suppliers, or months
+without uploaded invoice files, do not call process_invoices and do not claim
+booking. Tell them to upload the invoice files first, then process. After a
+run completes, report only booked_invoice_count, pending_ingest_count, and
+other fields from the workflow result — never invent invoice numbers, amounts,
+months, or allocations. If booked_invoice_count is 0, say the register was not
+updated.
 
 When the user supplies or adopts a construction budget and asks to update,
 populate, fill, estimate, or allocate the Cost Plan, call

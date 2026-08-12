@@ -330,12 +330,13 @@ Only viable if specified at the design stage — cannot be retrofitted to a stan
 
 ## Decision catalog (HITL)
 
-Curated brief/finishes decisions for sparse residential briefs. Runtime loads these via
-`decision-catalog` fences; the agent pre-selects and the user may override.
+Curated finishes decisions for sparse residential briefs. Runtime loads these via
+`decision-catalog` fences; the agent pre-selects under **FFE Schedule** and the
+user may override via Finish-column dropdowns.
 
 ```decision-catalog
 - id: flooring-finish
-  section: Brief and scope
+  section: FFE Schedule
   label: Primary flooring finish
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
@@ -349,7 +350,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: polished_concrete, label: Polished concrete }
   default_hint: engineered
 - id: external-cladding
-  section: Brief and scope
+  section: FFE Schedule
   label: Primary external cladding
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
@@ -362,7 +363,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: mixed, label: Mixed cladding }
   default_hint: brick_veneer
 - id: roofing-system
-  section: Brief and scope
+  section: FFE Schedule
   label: Roofing system
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
@@ -374,7 +375,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: membrane_flat, label: Flat / low-pitch membrane }
   default_hint: metal_sheet
 - id: kitchen-benchtop
-  section: Brief and scope
+  section: FFE Schedule
   label: Kitchen benchtop
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling]
@@ -387,7 +388,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: timber, label: Timber }
   default_hint: engineered_stone
 - id: kitchen-joinery-grade
-  section: Brief and scope
+  section: FFE Schedule
   label: Kitchen joinery grade
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling]
@@ -398,7 +399,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: custom_pu, label: Custom polyurethane / veneer }
   default_hint: semi_custom
 - id: wet-area-finish
-  section: Brief and scope
+  section: FFE Schedule
   label: Wet-area floor and wall finish
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling]
@@ -409,7 +410,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: vinyl_sheet, label: Sheet vinyl }
   default_hint: ceramic_tile
 - id: window-frame
-  section: Brief and scope
+  section: FFE Schedule
   label: Window and external door frames
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]
@@ -421,7 +422,7 @@ Curated brief/finishes decisions for sparse residential briefs. Runtime loads th
     - { value: uPVC, label: uPVC }
   default_hint: aluminium_standard
 - id: glazing-type
-  section: Brief and scope
+  section: FFE Schedule
   label: Glazing performance
   applies_to:
     archetypes: [new-dwelling, renovation, multi-dwelling, ancillary]

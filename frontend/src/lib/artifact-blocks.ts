@@ -90,7 +90,16 @@ export function insertAfterBlock(
 }
 
 export function deleteBlock(source: string, target: ArtifactBlockTarget): string {
-  return replaceRange(source, target.range, "").replace(/\n{3,}/g, "\n\n");
+  let { start, end } = target.range;
+  // Block ranges end at content (not the line terminator). Consume one
+  // trailing newline so table/list deletes do not leave a blank line that
+  // splits a GFM table or CommonMark list.
+  if (end < source.length && source[end] === "\n") {
+    end += 1;
+  } else if (start > 0 && source[start - 1] === "\n") {
+    start -= 1;
+  }
+  return replaceRange(source, { start, end }, "").replace(/\n{3,}/g, "\n\n");
 }
 
 export function duplicateBlock(source: string, target: ArtifactBlockTarget): string {

@@ -18,7 +18,14 @@ type InvoiceEdit =
       changes: { paid?: boolean; billing_month?: string };
     };
 
-export function CostInvoiceRegister({ projectId }: { projectId: string }) {
+export function CostInvoiceRegister({
+  projectId,
+  revision = null,
+}: {
+  projectId: string;
+  /** When the published Cost Plan revision changes, reload the register. */
+  revision?: number | null;
+}) {
   const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -39,6 +46,7 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
     confirmedLedgerRef.current = null;
     setPendingCount(0);
     setSaveMessage(null);
+    setLedger(null);
 
     void api.getInvoiceLedger(projectId).then(
       (data) => {
@@ -61,7 +69,7 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, revision]);
 
   function enqueue(edit: InvoiceEdit) {
     const confirmed = confirmedLedgerRef.current;
@@ -146,7 +154,7 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="cost-invoice-register flex flex-col">
       {error ? (
         <p className="border-b px-3 py-2 text-xs text-destructive" role="alert">
           {error}
@@ -165,8 +173,8 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
         </p>
       ) : null}
       <div className="max-h-[32rem] overflow-auto">
-        <table className="w-full min-w-[64rem] text-sm">
-          <thead className="sticky top-0 z-10 bg-muted/50 text-left">
+        <table className="cost-invoice-table w-full min-w-[64rem] text-sm">
+          <thead className="sticky top-0 z-10 text-left">
             <tr>
               <th className="px-3 py-2">Invoice Date</th>
               <th className="px-3 py-2">Company</th>
@@ -186,22 +194,23 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
                   colSpan={9}
                   className="px-3 py-8 text-center text-muted-foreground"
                 >
-                  No invoices in the register yet. Process invoices to populate this list.
+                  No invoices in the register yet. Upload invoice files, then
+                  Process invoices to populate this list.
                 </td>
               </tr>
             ) : (
               ledger.rows.map((row) => (
-                <tr key={row.allocation_id} className="border-t even:bg-muted/20">
+                <tr key={row.allocation_id}>
                   <td className="px-3 py-2 whitespace-nowrap">{row.invoice_date}</td>
                   <td className="px-3 py-2">{row.company}</td>
                   <td className="px-3 py-2">{row.po_number ?? ""}</td>
                   <td className="px-3 py-2">{row.invoice_number}</td>
                   <td className="px-3 py-2">{row.description}</td>
-                  <td className="px-3 py-1.5">
+                  <td className="cost-invoice-cell--editable px-3 py-1.5">
                     <select
                       className={cn(
-                        "h-8 w-full min-w-40 border bg-background px-2 text-xs",
-                        row.review_status === "needs_review" && "border-amber-500",
+                        "cost-plan-field h-8 w-full min-w-40 px-2 text-xs",
+                        row.review_status === "needs_review" && "cost-plan-field--attention",
                       )}
                       value={row.cost_item_key ?? ""}
                       aria-label={`Cost item for invoice ${row.invoice_number}: ${row.description}`}
@@ -233,10 +242,10 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
                   <td className="px-3 py-2 text-right tabular-nums">
                     ${Number(row.amount_ex_gst).toLocaleString()}
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="cost-invoice-cell--editable px-3 py-1.5">
                     <input
                       type="month"
-                      className="h-8 border bg-background px-2 text-xs"
+                      className="cost-plan-field h-8 px-2 text-xs"
                       value={row.billing_month.slice(0, 7)}
                       aria-label={`Billing month for invoice ${row.invoice_number}`}
                       onChange={(event) => {
@@ -256,8 +265,8 @@ export function CostInvoiceRegister({ projectId }: { projectId: string }) {
                     <button
                       type="button"
                       className={cn(
-                        "inline-flex h-8 min-w-14 items-center justify-center gap-1 border px-2 text-xs",
-                        row.paid && "bg-emerald-50 text-emerald-800",
+                        "cost-invoice-paid-toggle inline-flex h-8 min-w-14 items-center justify-center gap-1 px-2 text-xs",
+                        row.paid && "cost-invoice-paid-toggle--paid",
                       )}
                       aria-pressed={row.paid}
                       aria-label={`Mark invoice ${row.invoice_number} ${

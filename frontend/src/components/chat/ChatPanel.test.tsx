@@ -201,6 +201,37 @@ describe("ChatPanel submit promotion", () => {
     expect(onUserSubmit).toHaveBeenCalledOnce();
     expect(sendMessage).toHaveBeenCalledWith({ text: "What next?" });
   });
+
+  it("sends a pending workbench instruction as a chat message", async () => {
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    const onUserSubmit = vi.fn();
+    const onPendingInstructionConsumed = vi.fn();
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage,
+      status: "ready",
+      error: null,
+      stop: stopMock,
+    });
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        onUserSubmit={onUserSubmit}
+        pendingInstruction={{ id: 42, text: "Create PMP" }}
+        onPendingInstructionConsumed={onPendingInstructionConsumed}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ text: "Create PMP" });
+    });
+    expect(onUserSubmit).toHaveBeenCalledOnce();
+    expect(onPendingInstructionConsumed).toHaveBeenCalledWith(42);
+  });
 });
 
 describe("ChatPanel document selection events", () => {

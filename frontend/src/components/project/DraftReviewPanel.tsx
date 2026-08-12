@@ -958,8 +958,8 @@ export function DraftReviewPanel({
     return (
       <article
         className={cn(
-          "flex w-full min-w-0 flex-col gap-2",
-          embedded ? "" : "p-2 lg:p-3",
+          "flex w-full min-w-0 flex-col gap-4",
+          embedded ? "" : "p-4 lg:p-6",
         )}
       >
         <CostPlanGrid projectId={projectId} revision={displayDraft.version} />

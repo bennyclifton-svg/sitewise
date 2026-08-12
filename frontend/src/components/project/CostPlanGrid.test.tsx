@@ -122,6 +122,32 @@ describe("CostPlanGrid", () => {
     rerender(<CostPlanGrid projectId="project-1" revision={14} />);
     expect(await screen.findByText("Cost Plan v14")).toBeInTheDocument();
     expect(api.getCostPlanState).toHaveBeenCalledTimes(2);
+    expect(await screen.findByLabelText("joinery budget")).toHaveValue("999,000.00");
+  });
+
+  it("shows budget values with thousands separators", async () => {
+    vi.mocked(api.getCostPlanState).mockResolvedValue({
+      version: 1,
+      items: [
+        item("joinery", {
+          display_order: 1,
+          cost_code: "1",
+          budget: "100000",
+          forecast: "100000",
+        }),
+      ],
+      totals: calculateCostPlanTotals([
+        item("joinery", { budget: "100000", forecast: "100000" }),
+      ]),
+      categories: ["Construction"],
+    });
+
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByLabelText("joinery budget")).toHaveValue("100,000.00");
+    expect(screen.getByLabelText("Canonical Cost Plan")).toHaveClass(
+      "artifact-workbook",
+      "cost-plan-surface",
+    );
   });
 
   it("duplicates a row from the row menu and renumbers codes", async () => {
@@ -138,7 +164,7 @@ describe("CostPlanGrid", () => {
     expect(await screen.findByLabelText("joinery name")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "More actions for joinery" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Duplicate" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy" }));
 
     expect(screen.getByText("Construction subtotal")).toBeInTheDocument();
     expect(screen.getAllByText("250.00").length).toBeGreaterThan(0);
@@ -217,7 +243,81 @@ describe("CostPlanGrid", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Variations" }));
     expect(screen.getByText(/Variation schedule coming soon/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Invoices" }));
-    expect(await screen.findByText(/No invoices in the register yet/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Upload invoice files, then/i),
+    ).toBeInTheDocument();
+  });
+
+  it("refetches the invoice register when Cost Plan version changes", async () => {
+    const emptyLedger = {
+      cost_plan_version: 1,
+      workbook_path: "cost-plan.xlsx",
+      rows: [],
+      cost_items: [],
+    };
+    const bookedLedger = {
+      cost_plan_version: 2,
+      workbook_path: "cost-plan.xlsx",
+      rows: [
+        {
+          allocation_id: "alloc-1",
+          invoice_id: "inv-1",
+          invoice_revision: 1,
+          invoice_date: "2026-05-01",
+          company: "Architect Co",
+          po_number: null,
+          invoice_number: "A-1",
+          description: "May fee",
+          cost_item_key: "architect",
+          cost_item_label: "Architect",
+          amount_ex_gst: "5000",
+          billing_month: "2026-05-01",
+          paid: false,
+          review_status: "mapped" as const,
+          mapping_method: "exact" as const,
+        },
+      ],
+      cost_items: [
+        {
+          item_key: "architect",
+          cost_code: "1",
+          category: "Consultants",
+          item: "Architect",
+          budget: "15000",
+        },
+      ],
+    };
+    vi.mocked(api.getCostPlanState)
+      .mockResolvedValueOnce({
+        version: 1,
+        items: baseItems,
+        totals: calculateCostPlanTotals(baseItems),
+        categories: ["Construction"],
+      })
+      .mockResolvedValueOnce({
+        version: 2,
+        items: baseItems,
+        totals: calculateCostPlanTotals(baseItems),
+        categories: ["Construction"],
+      });
+    vi.mocked(api.getInvoiceLedger).mockImplementation(async () => {
+      const version = vi.mocked(api.getCostPlanState).mock.calls.length >= 2 ? 2 : 1;
+      return version === 2 ? bookedLedger : emptyLedger;
+    });
+
+    const { rerender } = render(<CostPlanGrid projectId="project-1" revision={1} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Invoices" }));
+    expect(
+      await screen.findByText(/Upload invoice files, then/i),
+    ).toBeInTheDocument();
+    const callsAfterOpen = vi.mocked(api.getInvoiceLedger).mock.calls.length;
+
+    rerender(<CostPlanGrid projectId="project-1" revision={2} />);
+    expect(await screen.findByRole("tab", { name: "Cost Plan v2" })).toBeInTheDocument();
+    expect(await screen.findByText("Architect Co")).toBeInTheDocument();
+    expect(vi.mocked(api.getInvoiceLedger).mock.calls.length).toBeGreaterThan(
+      callsAfterOpen,
+    );
   });
 
   it("shows automated codes and formats money without dollar signs", async () => {
@@ -247,11 +347,38 @@ describe("CostPlanGrid", () => {
     expect(await screen.findByLabelText("joinery name")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "More actions for joinery" }));
-    expect(await screen.findByRole("menuitem", { name: "Duplicate" })).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Copy" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Add row below" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await waitFor(() =>
-      expect(screen.queryByRole("menuitem", { name: "Duplicate" })).not.toBeInTheDocument(),
+      expect(screen.queryByRole("menuitem", { name: "Copy" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("adds a blank row below from the row menu", async () => {
+    const user = userEvent.setup();
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByLabelText("joinery name")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "More actions for joinery" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Add row below" }));
+
+    expect(await screen.findByLabelText("New item name")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.applyCostPlanOperations).toHaveBeenCalledWith(
+        "project-1",
+        1,
+        [
+          expect.objectContaining({ operation: "ADD", target_type: "cost_item" }),
+          expect.objectContaining({
+            operation: "MOVE",
+            target_type: "cost_item",
+            reference_id: "joinery",
+            placement: "after",
+          }),
+        ],
+      ),
     );
   });
 

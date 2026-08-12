@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Sitewise">
+  <title>Sitewise favicon</title>
+  <rect width="64" height="64" fill="#060608"></rect>
+  <g transform="translate(32 32) scale(0.2087) translate(-120 -120)">
+    <path d="M120 13.86 L211.92 66.93 L120 120 L28.08 66.93 Z" fill="#2C3037"></path>
+    <path d="M120 120 L28.08 173.07 L120 226.14 Z" fill="#D6D6D0"></path>
+    <path d="M120 120 L211.92 66.93 L211.92 173.07 L120 226.14 Z" fill="#2F72C4"></path>
+  </g>
+</svg>

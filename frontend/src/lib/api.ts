@@ -52,6 +52,7 @@ import type {
 } from "@/lib/types/tender";
 import type {
   BatchDeleteEvidenceResponse,
+  DeleteDraftResponse,
   DeleteProjectActivityResponse,
   ApplyDraftInstructionsResponse,
   CreateProjectInput,
@@ -63,6 +64,7 @@ import type {
   InboxUploadResult,
   InvoiceLedger,
   PdfAnalyzeResult,
+  PlatformKnowledgeContent,
   PlatformKnowledgeStatus,
   ProcurementRequest,
   ProcurementRequestKind,
@@ -500,6 +502,12 @@ export const api = {
   ): Promise<DraftArtifact> =>
     api.get<DraftArtifact>(`/projects/${projectId}/drafts/${draftId}`),
 
+  deleteProjectDraft: async (
+    projectId: string,
+    draftId: string,
+  ): Promise<DeleteDraftResponse> =>
+    api.delete<DeleteDraftResponse>(`/projects/${projectId}/drafts/${draftId}`),
+
   getProjectDraftByWorkspacePath: async (
     projectId: string,
     workspacePath: string,
@@ -691,6 +699,13 @@ export const api = {
 
   getPlatformKnowledgeStatus: async (): Promise<PlatformKnowledgeStatus> =>
     api.get<PlatformKnowledgeStatus>("/sitewise/platform-knowledge"),
+
+  getPlatformKnowledgeDocument: async (
+    path: string,
+  ): Promise<PlatformKnowledgeContent> =>
+    api.get<PlatformKnowledgeContent>(
+      `/sitewise/platform-knowledge/document?path=${encodeURIComponent(path)}`,
+    ),
 
   getLlmModels: async (): Promise<ChatModelsResponse> =>
     api.get<ChatModelsResponse>("/config/llm/models"),

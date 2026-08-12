@@ -118,7 +118,7 @@ def _context() -> ProjectGenerationContext:
             "procurement_route": _field("procurement_route", "traditional"),
             "access_constraints": _field("access_constraints", "urban_constrained"),
         },
-        scope={"services_upgrade": _field("services_upgrade", True)},
+        scope={"mechanical_hvac": _field("mechanical_hvac", True)},
         commercial={
             "budget": _field("budget", "$5,000,000"),
             "procurement_route": _field("procurement_route", "traditional"),

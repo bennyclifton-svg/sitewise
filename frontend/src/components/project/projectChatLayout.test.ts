@@ -42,31 +42,17 @@ describe("projectChatLayoutState", () => {
     });
   });
 
-  it("splits chat under cost plan content instead of taking the middle panel", () => {
+  it("lets chat take the middle panel on tender routes when expanded", () => {
     expect(
       projectChatLayoutState({
-        activeView: "workbench",
+        activeView: "draft",
         chatPanelCollapsed: false,
-        preferSplitChat: true,
+        hasTenderOutlet: true,
       }),
     ).toEqual({
       contentTakesPrecedence: false,
       chatCollapsed: false,
-      chatFullScreen: false,
-    });
-  });
-
-  it("keeps cost plan chat collapsed until the user expands or submits", () => {
-    expect(
-      projectChatLayoutState({
-        activeView: "workbench",
-        chatPanelCollapsed: true,
-        preferSplitChat: true,
-      }),
-    ).toEqual({
-      contentTakesPrecedence: false,
-      chatCollapsed: true,
-      chatFullScreen: false,
+      chatFullScreen: true,
     });
   });
 });

@@ -12,7 +12,7 @@ import type { WorkflowTile } from "@/components/project/workflow/workflowTiles";
 import type { ChatThread } from "@/lib/types/chat";
 import type { ProjectDetail, ProjectSummary } from "@/lib/types/project";
 
-export type ProjectNavView = "workbench" | "file" | "draft" | "folder";
+export type ProjectNavView = "workbench" | "file" | "draft" | "folder" | "knowledge";
 
 type ChatHistoryConfig = {
   projectId: string;

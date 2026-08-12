@@ -656,6 +656,58 @@ Scope.`}
     expect(range.start).toBe(markdown.indexOf("**Physical brief:**"));
   });
 
+  it("folds FFE Schedule decision fences into Finish-column dropdowns", () => {
+    const markdown = `## FFE Schedule
+
+| Item | Location | Qty | Finish | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Filtered tap | Kitchen | 1 | Chrome | Confirmed | — |
+
+\`\`\`pmp-decision
+{"id":"flooring-finish","section":"FFE Schedule","label":"Primary flooring finish","options":[{"value":"engineered","label":"Engineered timber"},{"value":"tile","label":"Ceramic / porcelain tile"}],"selected":"tile","source":"agent"}
+\`\`\`
+`;
+    render(
+      <MarkdownContent
+        markdown={markdown}
+        projectId="project-1"
+        decisions={[
+          {
+            id: "row-1",
+            project_id: "project-1",
+            decision_id: "flooring-finish",
+            section: "FFE Schedule",
+            label: "Primary flooring finish",
+            options: [
+              { value: "engineered", label: "Engineered timber" },
+              { value: "tile", label: "Ceramic / porcelain tile" },
+            ],
+            selected: "tile",
+            source: "agent",
+            workflow_type: "create_pmp",
+            revision: 1,
+            set_revision: 1,
+            locked: false,
+            evidence_conflict: false,
+            agent_suggestion: null,
+            provenance: {},
+            created_at: "2026-07-05T00:00:00.000Z",
+            updated_at: "2026-07-05T00:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByTestId("decision-schedule")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("decision-control")).not.toBeInTheDocument();
+    expect(screen.getByText("Filtered tap")).toBeInTheDocument();
+    expect(screen.getByText("Primary flooring finish")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Primary flooring finish" }),
+    ).toHaveTextContent("Ceramic / porcelain tile");
+    expect(screen.getByText("[AI]")).toBeInTheDocument();
+  });
+
   it("maps an editable paragraph back to canonical offsets after decision grouping", () => {
     const markdown = `## Decisions
 

@@ -5,6 +5,7 @@
       "key": "planning",
       "label": "Planning",
       "options": [
+        {"value": "exempt", "label": "Exempt"},
         {"value": "cdc", "label": "CDC"},
         {"value": "da", "label": "DA"},
         {"value": "ssd", "label": "State Significant Development (SSD)"}

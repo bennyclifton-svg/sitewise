@@ -258,28 +258,16 @@ export function ChatComposer({
           title={collapsed ? "Expand chat" : "Collapse chat"}
           onClick={() => onCollapsedChange?.(!collapsed)}
         >
-          <i />
-          <svg
-            width="11"
-            height="7"
-            viewBox="0 0 11 7"
-            fill="none"
-            aria-hidden="true"
-            className={cn(collapsed && "rotate-180")}
-          >
-            <path
-              d="M1 1L5.5 5.5L10 1"
-              stroke="currentColor"
-              strokeWidth="1.3"
-            />
-          </svg>
-          <i />
+          <CollapseChevron collapsed={collapsed} />
+          <span className="sw-collapse-grip" aria-hidden="true" />
+          <CollapseChevron collapsed={collapsed} />
         </button>
       ) : null}
 
       <div className="sw-body">
         <div className="sw-main">
           <label className="sw-field">
+            {showCaret ? <span className="sw-caret" aria-hidden="true" /> : null}
             <textarea
               ref={textareaRef}
               value={value}
@@ -292,7 +280,6 @@ export function ChatComposer({
               aria-label="Message"
               rows={MIN_TEXTAREA_ROWS}
             />
-            {showCaret ? <span className="sw-caret" aria-hidden="true" /> : null}
           </label>
 
           <div className="sw-controls">
@@ -348,57 +335,36 @@ export function ChatComposer({
             ) : null}
 
             <div className="sw-spacer" />
-
-            <div className={cn("sw-voice", listening && "is-listening")}>
-              {listening ? (
-                <div
-                  className="sw-voice-meter"
-                  data-testid="voice-cube-meter"
-                  aria-hidden="true"
-                >
-                  <span className="sw-voice-bar" />
-                  <span className="sw-voice-bar" />
-                  <span className="sw-voice-bar" />
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className={cn("sw-icon", "sw-mic", listening && "is-listening")}
-                disabled={micDisabled}
-                aria-label={micLabel}
-                aria-pressed={listening}
-                title={micLabel}
-                onClick={handleMicClick}
-                onPointerDown={handleMicPointerDown}
-                onPointerUp={handleMicPointerUp}
-                onPointerCancel={handleMicPointerUp}
-                onPointerLeave={handleMicPointerLeave}
-              >
-                <svg
-                  width="17"
-                  height="17"
-                  viewBox="0 0 17 17"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <rect
-                    x="6"
-                    y="1.5"
-                    width="5"
-                    height="8.5"
-                    rx="2.5"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                  />
-                  <path
-                    d="M3.5 8.2a5 5 0 0010 0M8.5 13.2v2.3"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                  />
-                </svg>
-              </button>
-            </div>
           </div>
+        </div>
+
+        <div className={cn("sw-voice", listening && "is-listening")}>
+          {listening ? (
+            <div
+              className="sw-voice-meter"
+              data-testid="voice-cube-meter"
+              aria-hidden="true"
+            >
+              <span className="sw-voice-bar" />
+              <span className="sw-voice-bar" />
+              <span className="sw-voice-bar" />
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className={cn("sw-icon", "sw-mic", listening && "is-listening")}
+            disabled={micDisabled}
+            aria-label={micLabel}
+            aria-pressed={listening}
+            title={micLabel}
+            onClick={handleMicClick}
+            onPointerDown={handleMicPointerDown}
+            onPointerUp={handleMicPointerUp}
+            onPointerCancel={handleMicPointerUp}
+            onPointerLeave={handleMicPointerLeave}
+          >
+            <SolidMicIcon />
+          </button>
         </div>
 
         {isBusy ? (
@@ -471,6 +437,42 @@ function useComposerModelTier() {
   };
 }
 
+function CollapseChevron({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="8"
+      viewBox="0 0 12 8"
+      fill="none"
+      aria-hidden="true"
+      className={cn("sw-collapse-chevron", collapsed && "rotate-180")}
+    >
+      <path
+        d="M1.2 1.4L6 6.2L10.8 1.4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SolidMicIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 14a3.5 3.5 0 0 0 3.5-3.5v-5a3.5 3.5 0 1 0-7 0v5A3.5 3.5 0 0 0 12 14Z"
+      />
+      <path
+        fill="currentColor"
+        d="M6.25 10.5a.75.75 0 0 0-1.5 0 7.25 7.25 0 0 0 6.5 7.21V20.5h-2a.75.75 0 0 0 0 1.5h5.5a.75.75 0 0 0 0-1.5h-2v-2.79a7.25 7.25 0 0 0 6.5-7.21.75.75 0 0 0-1.5 0 5.75 5.75 0 0 1-11.5 0Z"
+      />
+    </svg>
+  );
+}
+
 function DepthIcon({
   label,
   active,
@@ -480,7 +482,7 @@ function DepthIcon({
 }) {
   if (label === "Fast") {
     return (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true">
         <path
           d="M7.5 3.6L12.2 6.3L7.5 9L2.8 6.3Z"
           fill="currentColor"
@@ -491,7 +493,7 @@ function DepthIcon({
   }
   if (label === "Balanced") {
     return (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true">
         <path
           d="M7.5 1.9L12.2 4.6L7.5 7.3L2.8 4.6Z"
           fill={active ? "#7FB0E4" : "currentColor"}
@@ -506,7 +508,7 @@ function DepthIcon({
     );
   }
   return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+    <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true">
       <path
         d="M7.5 0.9L12.2 3.6L7.5 6.3L2.8 3.6Z"
         fill="currentColor"

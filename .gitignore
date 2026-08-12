@@ -75,3 +75,6 @@ logs/
 
 # Git worktrees for isolated feature work
 /.worktrees/
+
+# Ad-hoc debugging scratch dropped in the backend during investigations
+/backend/_tmp_*

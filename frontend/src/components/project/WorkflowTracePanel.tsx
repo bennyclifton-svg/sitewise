@@ -53,52 +53,55 @@ export function WorkflowTracePanel({
       </header>
 
       <ol className={embedded ? "flex flex-col gap-0" : "flex flex-col gap-1.5"}>
-        {trace.map((event, index) => (
-          <li
-            key={`${event.step}-${index}`}
-            className={
-              embedded
-                ? "grid min-h-[22px] grid-cols-[0.75rem_auto_minmax(0,1fr)] items-start gap-x-2 px-1 py-0.5 text-xs leading-tight"
-                : "flex items-start gap-2 text-xs"
-            }
-            title={
-              embedded && Object.keys(event.metadata).length
-                ? formatMetadataSummary(event.metadata)
-                : undefined
-            }
-          >
-            <TraceRowIcon status={event.status} />
-            <code
+        {trace.map((event, index) => {
+          const metadataSummary = Object.keys(event.metadata).length
+            ? formatMetadataSummary(event.metadata)
+            : "";
+          return (
+            <li
+              key={`${event.step}-${index}`}
               className={
                 embedded
-                  ? "shrink-0 font-mono text-[0.65rem] text-[var(--wf-info-text)]"
-                  : "cockpit-trace-tool shrink-0"
+                  ? "grid min-h-[22px] grid-cols-[0.75rem_auto_minmax(0,1fr)] items-start gap-x-2 px-1 py-0.5 text-xs leading-tight"
+                  : metadataSummary
+                    ? "grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-2 text-xs"
+                    : "grid grid-cols-[auto_auto_minmax(0,1fr)] items-start gap-2 text-xs"
               }
+              title={metadataSummary || undefined}
             >
-              {event.step}
-            </code>
-            <span
-              className={
-                embedded
-                  ? "min-w-0 whitespace-normal break-words text-muted-foreground"
-                  : "min-w-0 text-muted-foreground"
-              }
-            >
-              {event.message}
-            </span>
-            {Object.keys(event.metadata).length ? (
+              <TraceRowIcon status={event.status} />
+              <code
+                className={
+                  embedded
+                    ? "shrink-0 font-mono text-[0.65rem] text-[var(--wf-info-text)]"
+                    : "cockpit-trace-tool shrink-0"
+                }
+              >
+                {event.step}
+              </code>
               <span
                 className={
                   embedded
-                    ? "hidden"
-                    : "ml-auto hidden shrink-0 text-[0.65rem] text-muted-foreground sm:inline"
+                    ? "min-w-0 whitespace-normal break-words text-muted-foreground"
+                    : "min-w-0 break-words text-muted-foreground"
                 }
               >
-                {formatMetadataSummary(event.metadata)}
+                {event.message}
               </span>
-            ) : null}
-          </li>
-        ))}
+              {metadataSummary ? (
+                <span
+                  className={
+                    embedded
+                      ? "hidden"
+                      : "hidden max-w-[14rem] truncate text-right text-[0.65rem] text-muted-foreground sm:block"
+                  }
+                >
+                  {metadataSummary}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
         {isRunning ? (
           <li
             className={
@@ -155,14 +158,26 @@ function isSuccessStatus(event: WorkflowTraceEvent): boolean {
   );
 }
 
-function formatMetadataSummary(metadata: Record<string, unknown>): string {
-  const entries = Object.entries(metadata).slice(0, 2);
-  return entries.map(([key, value]) => `${key}: ${formatValue(value)}`).join(" · ");
+/** Compact inline summary — arrays become counts so chunk refs never blow the row. */
+export function formatMetadataSummary(metadata: Record<string, unknown>): string {
+  const entries = Object.entries(metadata);
+  const scalars = entries.filter(([, value]) => isScalarMetadata(value));
+  const rest = entries.filter(([, value]) => !isScalarMetadata(value));
+  return [...scalars, ...rest]
+    .slice(0, 2)
+    .map(([key, value]) => `${key}: ${formatValue(value)}`)
+    .join(" · ");
+}
+
+function isScalarMetadata(value: unknown): boolean {
+  return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
 
 function formatValue(value: unknown): string {
-  if (Array.isArray(value)) return value.join(", ");
+  if (Array.isArray(value)) return String(value.length);
   if (value === null) return "null";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  if (typeof value === "object") return "object";
+  const text = String(value);
+  if (text.length > 48) return `${text.slice(0, 45)}…`;
+  return text;
 }

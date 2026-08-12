@@ -203,6 +203,119 @@ def test_archetype_fallback_selected_paths_validate_base_routes() -> None:
     assert "seed/cost-management-principles.md#cost-planning-fundamentals" in refs
 
 
+def test_apartments_remediation_resolves_without_route_error() -> None:
+    """Regression: apartments + remediation hard-failed the PMP workflow.
+
+    The section map required seed/multi-residential-apartments-guide.md for any
+    residential/apartments project, but that guide's frontmatter declares
+    applies_to_work_types [new, refurb, extend]. On remediation the catalog
+    therefore never selected the file and route validation raised, killing the
+    run before generation.
+    """
+    refs = _refs(
+        selected_paths=_selected(
+            "residential",
+            "remediation",
+            subclasses=("apartments",),
+            work_scopes=("facade_cladding",),
+        ),
+        building_class="residential",
+        work_type="remediation",
+        subclasses=("apartments",),
+        work_scope=("facade_cladding",),
+    )
+
+    assert refs
+    assert not any("multi-residential-apartments-guide.md" in ref for ref in refs)
+
+
+def test_advisory_guide_routes_for_every_building_class() -> None:
+    """The advisory overlay is cross-class; institution/mixed/infrastructure
+    advisory projects previously hard-failed because its frontmatter listed
+    only residential, commercial and industrial."""
+    for building_class, subclass in (
+        ("institution", "healthcare_medical_centre"),
+        ("mixed", "retail_office"),
+        ("infrastructure", "rail_metro"),
+    ):
+        refs = _refs(
+            selected_paths=_selected(
+                building_class,
+                "advisory",
+                subclasses=(subclass,),
+                work_scopes=("technical_dd",),
+            ),
+            building_class=building_class,
+            work_type="advisory",
+            subclasses=(subclass,),
+            work_scope=("technical_dd",),
+        )
+        assert (
+            "seed/advisory-services-guide.md#define-the-decision-before-the-scope"
+            in refs
+        ), building_class
+
+
+def test_residential_advisory_skips_commercial_procurement_guide() -> None:
+    """procurement-tendering-guide is authored commercial-and-up; a residential
+    advisory project must not have it routed as required."""
+    refs = _refs(
+        selected_paths=_selected(
+            "residential",
+            "advisory",
+            subclasses=("house",),
+            work_scopes=("technical_dd",),
+        ),
+        building_class="residential",
+        work_type="advisory",
+        subclasses=("house",),
+        work_scope=("technical_dd",),
+    )
+
+    assert refs
+    assert not any("procurement-tendering-guide.md" in ref for ref in refs)
+
+
+def test_every_taxonomy_combination_resolves_seed_routes() -> None:
+    """No class/subclass/work-type combination may raise during route resolution.
+
+    Seed frontmatter and the section-seed map evolve independently; a
+    disagreement between them must degrade to a dropped route, never to a
+    workflow failure.
+    """
+    import json
+
+    from app.sitewise.knowledge_catalog import REPO_ROOT
+
+    taxonomy = json.loads(
+        (REPO_ROOT / "data" / "taxonomy" / "building-classes.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    work_types = tuple(item["value"] for item in taxonomy["work_types"])
+
+    failures: list[str] = []
+    for entry in taxonomy["building_classes"]:
+        building_class = entry["value"]
+        for subclass in entry.get("subclasses", []):
+            for work_type in work_types:
+                try:
+                    select_seed_knowledge_for_taxonomy(
+                        "pmp",
+                        archetype="",
+                        building_class=building_class,
+                        work_type=work_type,
+                        subclasses=(subclass["value"],),
+                        work_scopes=(),
+                    )
+                except Exception as exc:  # noqa: BLE001 - reporting all failures
+                    failures.append(
+                        f"{building_class}/{subclass['value']}/{work_type}: {exc}"
+                    )
+
+    assert not failures, "\n".join(failures)
+
+
 def _passage(path: str, section_id: str) -> SourcePassage:
     return SourcePassage(
         chunk_id=uuid.uuid4(),

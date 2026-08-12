@@ -487,8 +487,10 @@ def _resolve_section_routes(
                 context=context,
             )
         )
-    _validate_section_routes(routes, selected_paths=selected_paths, index=index)
-    return tuple(routes)
+    usable = _validate_section_routes(
+        routes, selected_paths=selected_paths, index=index
+    )
+    return tuple(usable)
 
 
 def _section_route_items(
@@ -546,8 +548,20 @@ def _validate_section_routes(
     *,
     selected_paths: set[str],
     index: _SeedRoutingIndex,
-) -> None:
+) -> list[SeedSectionRoute]:
+    """Drop routes the catalog cannot supply; raise only on authoring errors.
+
+    Unknown files and unknown section ids are authoring mistakes in the section
+    map and stay fatal — tests catch them before deploy. A *required* route
+    whose file the catalog did not select is different: the section map and the
+    seed frontmatter are separate files that evolve independently, and their
+    disagreement is evaluated at runtime against live project taxonomy. Raising
+    there kills the workflow for a project whose only fault is an unusual
+    class/work-type pairing, so the route is dropped instead and generation
+    continues with the seeds that are genuinely available.
+    """
     errors: list[str] = []
+    usable: list[SeedSectionRoute] = []
     for route in routes:
         entry = index.entries_by_path.get(route.path)
         if entry is None:
@@ -555,14 +569,17 @@ def _validate_section_routes(
             continue
         if route.section_id not in entry.sections:
             errors.append(f"unknown section {route.ref}")
+            continue
         if (
             route.required
             and route.path not in selected_paths
             and not _is_cross_cutting(entry)
         ):
-            errors.append(f"required route file is not selected: {route.path}")
+            continue
+        usable.append(route)
     if errors:
         raise SeedRoutingError("; ".join(errors))
+    return usable
 
 
 def _validate_paths(paths: Sequence[str], *, index: _SeedRoutingIndex) -> None:

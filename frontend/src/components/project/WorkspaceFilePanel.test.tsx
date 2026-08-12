@@ -46,6 +46,40 @@ describe("WorkspaceFilePanel", () => {
     expect(screen.getByRole("cell", { name: "$1,000" })).toBeInTheDocument();
   });
 
+  it("shows the document name with metadata collapsed by default", async () => {
+    const user = userEvent.setup();
+    render(
+      <WorkspaceFilePanel
+        projectId={PROJECT_ID}
+        evidence={evidence({
+          title: "DSP ISSUE03 15-02-20",
+          document_number: "150214",
+          relative_path: "04-projects/mosaic-apartments/_inbox/DSP.pdf",
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "DSP ISSUE03 15-02-20" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Document content")).not.toBeInTheDocument();
+    expect(screen.queryByText("Doc No")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("04-projects/mosaic-apartments/_inbox/DSP.pdf"),
+    ).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", { name: /show document details/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Doc No")).toBeInTheDocument();
+    expect(screen.getByText("150214")).toBeInTheDocument();
+    expect(
+      screen.getByText("04-projects/mosaic-apartments/_inbox/DSP.pdf"),
+    ).toBeInTheDocument();
+  });
+
   it("switches between rendered HTML, highlighted YAML, and raw views", async () => {
     const user = userEvent.setup();
     const { container } = render(

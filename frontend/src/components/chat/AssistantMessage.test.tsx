@@ -283,4 +283,61 @@ describe("AssistantMessage", () => {
 
     expect(screen.queryByLabelText("Internet source")).not.toBeInTheDocument();
   });
+
+  it("hides answer-trace pills and tool ticker while live", () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          messageData={{
+            agent: {
+              runtime: "pi",
+              sourceTrace: {
+                context: { used: true },
+                model: { used: true },
+              },
+            },
+          }}
+          toolEvents={[
+            {
+              kind: "tool",
+              tool: "search_documents",
+              state: "running",
+              message: "Searching · plant.pdf",
+            },
+          ]}
+          agentMode
+          live
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByLabelText("Answer trace")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Tool activity")).not.toBeInTheDocument();
+    expect(screen.getByText("Tender review complete.")).toBeInTheDocument();
+  });
+
+  it("does not render project-context pills on an empty agent bubble", () => {
+    const emptyMessage: UIMessage = {
+      id: "message-empty",
+      role: "assistant",
+      parts: [],
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={emptyMessage}
+          agentMode
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByLabelText("Answer trace")).not.toBeInTheDocument();
+  });
 });

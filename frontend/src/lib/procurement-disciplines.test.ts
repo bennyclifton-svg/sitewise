@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  compareProcurementRequests,
   disciplinesFromPmpMarkdown,
   mergeDisciplineOptions,
   requestOptionLabel,
@@ -44,7 +45,30 @@ describe("procurement-disciplines", () => {
       current_draft: { version: 3 },
     } as ProcurementRequest;
     expect(requestOptionLabel(request)).toBe(
-      "Structural engineer · Consultant · v3",
+      "Consultant · Structural engineer · v3",
     );
+  });
+
+  it("orders open-document options by kind then discipline", () => {
+    const requests = [
+      { kind: "trade_rft", target_name: "Main works" },
+      { kind: "consultant_rfp", target_name: "Certifier" },
+      { kind: "trade_rfq", target_name: "Windows" },
+      { kind: "consultant_rfp", target_name: "Architect" },
+    ] as ProcurementRequest[];
+    expect(
+      [...requests].sort(compareProcurementRequests).map((request) =>
+        requestOptionLabel({
+          ...request,
+          revision: 1,
+          current_draft: null,
+        } as ProcurementRequest),
+      ),
+    ).toEqual([
+      "Consultant · Architect · v1",
+      "Consultant · Certifier · v1",
+      "Supplier quote · Windows · v1",
+      "Trade package · Main works · v1",
+    ]);
   });
 });

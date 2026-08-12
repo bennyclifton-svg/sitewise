@@ -3,10 +3,10 @@ import {
   ChevronDown,
   ChevronUp,
   FolderTree,
+  Folders,
   Inbox,
   Loader2,
   LoaderCircle,
-  Play,
   TableProperties,
   Trash,
   Upload,
@@ -37,13 +37,19 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { IngestBatchEstimator, type IngestBatchSnapshot } from "@/lib/ingest-progress";
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
-import { useBatchDeleteEvidence, useDeleteEvidence } from "@/lib/queries/project-data";
+import {
+  useBatchDeleteEvidence,
+  useDeleteDraft,
+  useDeleteEvidence,
+} from "@/lib/queries/project-data";
 import type {
+  DeleteDraftResponse,
   DocumentUsageMark,
   DraftArtifactSummary,
   EvidencePreview,
   InboxUploadResult,
   PdfAnalyzeResult,
+  PlatformKnowledgeDocument,
   PlatformKnowledgeStatus,
   WorkspaceTreeNode,
 } from "@/lib/types/project";
@@ -57,6 +63,12 @@ const SUPPORTED_INBOX_EXTENSIONS = new Set([
   ...MARKDOWN_EXTENSIONS,
 ]);
 const ACCEPT_ATTRIBUTE = Array.from(SUPPORTED_INBOX_EXTENSIONS).join(",");
+
+/** Ghost Button merges className before twMerge, so hover needs ! to win. */
+const toolbarIconButtonClass =
+  "text-[var(--cockpit-workflow-icon)] hover:!bg-[color-mix(in_oklch,var(--sw-beam)_12%,transparent)] hover:!text-[var(--cockpit-workflow-icon)]";
+const toolbarIconButtonActiveClass =
+  "bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)]";
 
 type SplitProposal = {
   sourceFile: File;
@@ -88,8 +100,8 @@ type IngestQueueItem =
   | { kind: "staged"; uid: string; stagingId: string; filename: string };
 
 type ScheduleRow =
-  | { kind: "artefact"; draft: DraftArtifactSummary }
-  | { kind: "source"; evidence: EvidencePreview };
+  | { kind: "artefact"; id: string; draft: DraftArtifactSummary; title: string }
+  | { kind: "source"; id: string; evidence: EvidencePreview; title: string };
 
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
@@ -134,8 +146,11 @@ export function DocumentRepositoryPanel({
   isRunningSortFiles = false,
   overlayReady = true,
   platformStatus = null,
+  selectedPlatformKnowledgePath = null,
+  onSelectPlatformKnowledge,
   artefactDrafts = [],
   onOpenDraft,
+  onArtefactDeleted,
   usageHighlightArtefactId = null,
   showSaveTransmittal = false,
   isSavingTransmittal = false,
@@ -158,8 +173,11 @@ export function DocumentRepositoryPanel({
   isRunningSortFiles?: boolean;
   overlayReady?: boolean;
   platformStatus?: PlatformKnowledgeStatus | null;
+  selectedPlatformKnowledgePath?: string | null;
+  onSelectPlatformKnowledge?: (document: PlatformKnowledgeDocument) => void;
   artefactDrafts?: DraftArtifactSummary[];
   onOpenDraft?: (draft: DraftArtifactSummary) => void;
+  onArtefactDeleted?: (result: DeleteDraftResponse) => void;
   /** When set, show source-doc dots only for this displayed artefact (e.g. open PMP). */
   usageHighlightArtefactId?: string | null;
   showSaveTransmittal?: boolean;
@@ -169,6 +187,7 @@ export function DocumentRepositoryPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
   const batchDeleteEvidence = useBatchDeleteEvidence(projectId);
+  const deleteDraft = useDeleteDraft(projectId);
   const [activePanelView, setActivePanelView] =
     useState<RepositoryPanelView>("schedule");
   const [openTreeSections, setOpenTreeSections] = useState<Set<RepositoryTreeSectionId>>(
@@ -200,24 +219,27 @@ export function DocumentRepositoryPanel({
         [
           ...artefactDrafts
             .filter((draft) => draft.workflow_type !== "sort_files")
-            .map((draft) => ({ kind: "artefact" as const, draft })),
-          ...evidence.map((item) => ({ kind: "source" as const, evidence: item })),
+            .map((draft) => ({
+              kind: "artefact" as const,
+              id: draft.id,
+              draft,
+              title: abbreviateArtefactTitle(draft.title),
+            })),
+          ...evidence.map((item) => ({
+            kind: "source" as const,
+            id: item.id,
+            evidence: item,
+            title: item.title,
+          })),
         ],
         sortKey,
         sortDirection,
       ),
     [artefactDrafts, evidence, sortDirection, sortKey],
   );
-  const registerRows = useMemo(
-    () =>
-      scheduleRows.flatMap((row) =>
-        row.kind === "source" ? [row.evidence] : [],
-      ),
+  const scheduleRowIds = useMemo(
+    () => new Set(scheduleRows.map((row) => row.id)),
     [scheduleRows],
-  );
-  const registerRowIds = useMemo(
-    () => new Set(registerRows.map((row) => row.id)),
-    [registerRows],
   );
 
   function handleSortHeaderClick(key: ScheduleSortKey) {
@@ -229,9 +251,16 @@ export function DocumentRepositoryPanel({
     setSortDirection("asc");
   }
   const selectedIds = selectedEvidenceIds ?? internalSelectedIds;
-  const selectedRows = useMemo(
-    () => registerRows.filter((row) => selectedIds.has(row.id)),
-    [registerRows, selectedIds],
+  const selectedScheduleRows = useMemo(
+    () => scheduleRows.filter((row) => selectedIds.has(row.id)),
+    [scheduleRows, selectedIds],
+  );
+  const selectedEvidenceRows = useMemo(
+    () =>
+      selectedScheduleRows.flatMap((row) =>
+        row.kind === "source" ? [row.evidence] : [],
+      ),
+    [selectedScheduleRows],
   );
   const inboxCount = useMemo(
     () => evidence.filter((item) => isInboxEvidence(item)).length,
@@ -269,12 +298,20 @@ export function DocumentRepositoryPanel({
   function setSelectedIds(updater: SelectionUpdater) {
     const current = new Set(selectedIds);
     const updated = typeof updater === "function" ? updater(current) : updater;
-    const next = new Set([...updated].filter((id) => registerRowIds.has(id)));
+    const next = new Set([...updated].filter((id) => scheduleRowIds.has(id)));
     if (onSelectedEvidenceIdsChange) {
       onSelectedEvidenceIdsChange(next);
     } else {
       setInternalSelectedIds(next);
     }
+  }
+
+  function activateScheduleRow(row: ScheduleRow) {
+    if (row.kind === "artefact") {
+      onOpenDraft?.(row.draft);
+      return;
+    }
+    onSelectEvidence(row.id);
   }
 
   function handleDragEnter(event: DragEvent<HTMLDivElement>) {
@@ -316,7 +353,7 @@ export function DocumentRepositoryPanel({
 
   function handleRowClick(
     event: MouseEvent<HTMLTableRowElement>,
-    row: EvidencePreview,
+    row: ScheduleRow,
   ) {
     // During Transmittal curation, plain clicks should add/remove without
     // replacing the whole selection (Ctrl/Cmd still works the same way).
@@ -325,32 +362,32 @@ export function DocumentRepositoryPanel({
 
     if (event.shiftKey) {
       const anchorId =
-        selectionAnchorId && registerRowIds.has(selectionAnchorId)
+        selectionAnchorId && scheduleRowIds.has(selectionAnchorId)
           ? selectionAnchorId
-          : selectedEvidenceId && registerRowIds.has(selectedEvidenceId)
+          : selectedEvidenceId && scheduleRowIds.has(selectedEvidenceId)
             ? selectedEvidenceId
             : row.id;
-      const anchorIndex = registerRows.findIndex((item) => item.id === anchorId);
-      const rowIndex = registerRows.findIndex((item) => item.id === row.id);
+      const anchorIndex = scheduleRows.findIndex((item) => item.id === anchorId);
+      const rowIndex = scheduleRows.findIndex((item) => item.id === row.id);
       if (anchorIndex >= 0 && rowIndex >= 0) {
         const start = Math.min(anchorIndex, rowIndex);
         const end = Math.max(anchorIndex, rowIndex);
-        const rangeIds = registerRows.slice(start, end + 1).map((item) => item.id);
+        const rangeIds = scheduleRows.slice(start, end + 1).map((item) => item.id);
         setSelectedIds((current) => {
           const next = additive
-            ? new Set([...current].filter((id) => registerRowIds.has(id)))
+            ? new Set([...current].filter((id) => scheduleRowIds.has(id)))
             : new Set<string>();
           for (const id of rangeIds) next.add(id);
           return next;
         });
-        onSelectEvidence(row.id);
+        activateScheduleRow(row);
         return;
       }
     }
 
     if (additive) {
       setSelectedIds((current) => {
-        const next = new Set([...current].filter((id) => registerRowIds.has(id)));
+        const next = new Set([...current].filter((id) => scheduleRowIds.has(id)));
         if (next.has(row.id)) {
           next.delete(row.id);
         } else {
@@ -362,10 +399,10 @@ export function DocumentRepositoryPanel({
       setSelectedIds(new Set([row.id]));
     }
     setSelectionAnchorId(row.id);
-    onSelectEvidence(row.id);
+    activateScheduleRow(row);
   }
 
-  async function handleDelete(row: EvidencePreview) {
+  async function handleDeleteEvidence(row: EvidencePreview) {
     const confirmed = window.confirm(
       `Delete "${row.title}"? This removes it from the document repository and cannot be undone.`,
     );
@@ -390,43 +427,102 @@ export function DocumentRepositoryPanel({
     }
   }
 
-  async function handleDeleteSelected() {
-    if (!selectedRows.length) return;
+  async function handleDeleteArtefact(draft: DraftArtifactSummary) {
+    const title = abbreviateArtefactTitle(draft.title);
+    const confirmed = window.confirm(
+      `Delete "${title}"? This removes it from the document repository and cannot be undone.`,
+    );
+    if (!confirmed) return;
 
-    const count = selectedRows.length;
+    setUploadError(null);
+    setBulkDeletingIds((current) => new Set(current).add(draft.id));
+    try {
+      const result = await deleteDraft.mutateAsync(draft.id);
+      onArtefactDeleted?.(result);
+      setSelectedIds((current) => {
+        if (!current.has(draft.id)) return current;
+        const next = new Set(current);
+        next.delete(draft.id);
+        return next;
+      });
+      setSelectionAnchorId((current) => (current === draft.id ? null : current));
+    } catch (error) {
+      const detail =
+        error instanceof ApiError ? error.message : "Please try again.";
+      setUploadError(`Could not delete "${title}": ${detail}`);
+    } finally {
+      setBulkDeletingIds((current) => {
+        const next = new Set(current);
+        next.delete(draft.id);
+        return next;
+      });
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (!selectedScheduleRows.length) return;
+
+    const count = selectedScheduleRows.length;
     const confirmed = window.confirm(
       `Delete ${count} selected ${count === 1 ? "document" : "documents"}? This removes ${count === 1 ? "it" : "them"} from the document repository and cannot be undone.`,
     );
     if (!confirmed) return;
 
     setUploadError(null);
-    setBulkDeletingIds(new Set(selectedRows.map((row) => row.id)));
+    setBulkDeletingIds(new Set(selectedScheduleRows.map((row) => row.id)));
 
     const failedIds = new Set<string>();
-    try {
-      const result = await batchDeleteEvidence.mutateAsync(
-        selectedRows.map((row) => row.id),
-      );
-      for (const failure of result.failed) {
-        failedIds.add(failure.evidence_id);
-      }
-      if (result.failed.length) {
-        const titles = new Map(selectedRows.map((row) => [row.id, row.title]));
-        setUploadError(
-          result.failed
-            .map((failure) => `${titles.get(failure.evidence_id) ?? "Document"}: ${failure.detail}`)
-            .join("; "),
+    const errors: string[] = [];
+    const selectedEvidence = selectedScheduleRows.flatMap((row) =>
+      row.kind === "source" ? [row.evidence] : [],
+    );
+    const selectedArtefacts = selectedScheduleRows.flatMap((row) =>
+      row.kind === "artefact" ? [row.draft] : [],
+    );
+
+    if (selectedEvidence.length) {
+      try {
+        const result = await batchDeleteEvidence.mutateAsync(
+          selectedEvidence.map((row) => row.id),
+        );
+        for (const failure of result.failed) {
+          failedIds.add(failure.evidence_id);
+        }
+        if (result.failed.length) {
+          const titles = new Map(selectedEvidence.map((row) => [row.id, row.title]));
+          errors.push(
+            ...result.failed.map(
+              (failure) =>
+                `${titles.get(failure.evidence_id) ?? "Document"}: ${failure.detail}`,
+            ),
+          );
+        }
+      } catch (error) {
+        selectedEvidence.forEach((row) => failedIds.add(row.id));
+        errors.push(
+          error instanceof ApiError
+            ? error.message
+            : "Could not delete the selected documents.",
         );
       }
-    } catch (error) {
-      selectedRows.forEach((row) => failedIds.add(row.id));
-      setUploadError(
-        error instanceof ApiError ? error.message : "Could not delete the selected documents.",
-      );
-    } finally {
-      setBulkDeletingIds(new Set<string>());
     }
 
+    for (const draft of selectedArtefacts) {
+      try {
+        const result = await deleteDraft.mutateAsync(draft.id);
+        onArtefactDeleted?.(result);
+      } catch (error) {
+        failedIds.add(draft.id);
+        const detail =
+          error instanceof ApiError ? error.message : "Please try again.";
+        errors.push(`${abbreviateArtefactTitle(draft.title)}: ${detail}`);
+      }
+    }
+
+    setBulkDeletingIds(new Set<string>());
+    if (errors.length) {
+      setUploadError(errors.join("; "));
+    }
     setSelectedIds(failedIds);
     setSelectionAnchorId(failedIds.values().next().value ?? null);
   }
@@ -661,7 +757,7 @@ export function DocumentRepositoryPanel({
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-0 flex-col transition-colors",
+        "relative flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden transition-colors",
         isDragging && "bg-primary/5",
       )}
       onDragEnter={handleDragEnter}
@@ -693,19 +789,18 @@ export function DocumentRepositoryPanel({
       <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
-            className="flex shrink-0 items-center rounded-none border border-[color-mix(in_oklch,var(--sw-beam)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] p-0.5"
+            className="flex shrink-0 items-center gap-0.5"
             role="group"
-            aria-label="Right panel view"
+            aria-label="Document repository actions"
           >
             <Button
               type="button"
               variant="ghost"
               size="icon-xs"
-              className={
-                activePanelView === "schedule"
-                  ? "text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_18%,transparent)] hover:text-[var(--sw-beam)]"
-                  : "text-[color-mix(in_oklch,var(--sw-beam)_55%,transparent)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] hover:text-[var(--sw-beam)]"
-              }
+              className={cn(
+                toolbarIconButtonClass,
+                activePanelView === "schedule" && toolbarIconButtonActiveClass,
+              )}
               aria-label="Document schedule"
               aria-pressed={activePanelView === "schedule"}
               title="Document schedule"
@@ -717,11 +812,10 @@ export function DocumentRepositoryPanel({
               type="button"
               variant="ghost"
               size="icon-xs"
-              className={
-                activePanelView === "tree"
-                  ? "text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_18%,transparent)] hover:text-[var(--sw-beam)]"
-                  : "text-[color-mix(in_oklch,var(--sw-beam)_55%,transparent)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] hover:text-[var(--sw-beam)]"
-              }
+              className={cn(
+                toolbarIconButtonClass,
+                activePanelView === "tree" && toolbarIconButtonActiveClass,
+              )}
               aria-label="Tree view"
               aria-pressed={activePanelView === "tree"}
               title="Tree view"
@@ -729,64 +823,64 @@ export function DocumentRepositoryPanel({
             >
               <FolderTree className="size-3.5" aria-hidden />
             </Button>
-          </div>
-          {activePanelView === "schedule" && selectedRows.length ? (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {selectedRows.length} selected
-            </span>
-          ) : null}
-          {isUploading ? (
-            <span className="truncate text-xs text-muted-foreground">
-              processing files…
-            </span>
-          ) : (
-            <button
+            <Button
               type="button"
-              className="inline-flex shrink-0 items-center text-primary"
+              variant="ghost"
+              size="icon-xs"
+              className={toolbarIconButtonClass}
               aria-label="Upload files"
               title="Upload files"
+              disabled={isUploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="size-3.5 shrink-0" aria-hidden />
-            </button>
-          )}
-        </div>
-        {showSaveTransmittal || (inboxCount && onRunSortFiles) ? (
-          <div className="flex shrink-0 items-center gap-2">
-            {showSaveTransmittal && onSaveTransmittal ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 shrink-0 px-2 text-xs"
-                disabled={isSavingTransmittal}
-                onClick={() =>
-                  onSaveTransmittal(selectedRows.map((row) => row.id))
-                }
-              >
-                {isSavingTransmittal ? (
-                  <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
-                ) : null}
-                {isSavingTransmittal ? "Saving…" : "Save Transmittal"}
-              </Button>
-            ) : null}
+              <Upload className="size-3.5" aria-hidden />
+            </Button>
             {inboxCount && onRunSortFiles ? (
               <Button
                 type="button"
-                size="sm"
-                className="h-7 shrink-0 border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] px-2 text-xs text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]"
+                variant="ghost"
+                size="icon-xs"
+                className={toolbarIconButtonClass}
+                aria-label="Sort files"
+                title="Sort files"
                 disabled={!overlayReady || isRunningSortFiles}
                 onClick={onRunSortFiles}
               >
                 {isRunningSortFiles ? (
                   <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
                 ) : (
-                  <Play className="size-3.5" aria-hidden />
+                  <Folders className="size-3.5" aria-hidden />
                 )}
-                {isRunningSortFiles ? "Running" : "Sort"}
               </Button>
             ) : null}
           </div>
+          {activePanelView === "schedule" && selectedScheduleRows.length ? (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {selectedScheduleRows.length} selected
+            </span>
+          ) : null}
+          {isUploading ? (
+            <span className="truncate text-xs text-muted-foreground">
+              processing files…
+            </span>
+          ) : null}
+        </div>
+        {showSaveTransmittal && onSaveTransmittal ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 shrink-0 px-2 text-xs"
+            disabled={isSavingTransmittal}
+            onClick={() =>
+              onSaveTransmittal(selectedEvidenceRows.map((row) => row.id))
+            }
+          >
+            {isSavingTransmittal ? (
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+            ) : null}
+            {isSavingTransmittal ? "Saving…" : "Save Transmittal"}
+          </Button>
         ) : null}
       </div>
 
@@ -859,7 +953,7 @@ export function DocumentRepositoryPanel({
         );
       })}
 
-      <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="cockpit-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         {activePanelView === "tree" ? (
           <div className="px-3 py-3">
             <WorkspaceExplorer
@@ -883,14 +977,24 @@ export function DocumentRepositoryPanel({
                 isOpen={openTreeSections.has("skills")}
                 onToggle={() => toggleTreeSection("skills")}
               >
-                <PlatformKnowledgePanel platformStatus={platformStatus} mode="skills" />
+                <PlatformKnowledgePanel
+                  platformStatus={platformStatus}
+                  mode="skills"
+                  selectedPath={selectedPlatformKnowledgePath}
+                  onSelectDocument={onSelectPlatformKnowledge}
+                />
               </NavAccordionSection>
               <NavAccordionSection
                 label="Knowledge"
                 isOpen={openTreeSections.has("knowledge")}
                 onToggle={() => toggleTreeSection("knowledge")}
               >
-                <PlatformKnowledgePanel platformStatus={platformStatus} mode="knowledge" />
+                <PlatformKnowledgePanel
+                  platformStatus={platformStatus}
+                  mode="knowledge"
+                  selectedPath={selectedPlatformKnowledgePath}
+                  onSelectDocument={onSelectPlatformKnowledge}
+                />
               </NavAccordionSection>
               <NavAccordionSection
                 label="Admin"
@@ -902,12 +1006,12 @@ export function DocumentRepositoryPanel({
             </div>
           </div>
         ) : scheduleRows.length || pendingUploads.length ? (
-          <table className="w-full table-fixed border-collapse text-left text-[0.7rem]">
+          <table className="w-full min-w-0 table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
-              <col className="w-[3.75rem]" />
+              <col className="w-[3.25rem]" />
               <col />
-              <col className="w-[2.25rem]" />
-              <col className="w-[4.75rem]" />
+              <col className="w-[2rem]" />
+              <col className="w-[3.5rem]" />
               <col className="w-6" />
             </colgroup>
             <thead className="sticky top-0 z-[1] border-b bg-[var(--sw-panel)]">
@@ -926,7 +1030,7 @@ export function DocumentRepositoryPanel({
                   columnKey="title"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-2 py-2"
+                  className="min-w-0 px-2 py-2"
                   onSort={handleSortHeaderClick}
                 />
                 <SortableScheduleHeader
@@ -938,30 +1042,32 @@ export function DocumentRepositoryPanel({
                   onSort={handleSortHeaderClick}
                 />
                 <SortableScheduleHeader
-                  label="Category"
+                  label="Cat"
+                  accessibleLabel="Category"
                   columnKey="category"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-1.5 py-2"
+                  className="px-1 py-2"
                   onSort={handleSortHeaderClick}
                 />
-                <th className="px-0 py-1 text-center" aria-label="Actions">
+                <th className="w-6 px-0 py-1 text-center" aria-label="Actions">
                   <button
                     type="button"
                     disabled={
-                      !selectedRows.length ||
+                      !selectedScheduleRows.length ||
                       isDeletingSelection ||
-                      deleteEvidence.isPending
+                      deleteEvidence.isPending ||
+                      deleteDraft.isPending
                     }
                     className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
                     aria-label={
-                      selectedRows.length
-                        ? `Delete ${selectedRows.length} selected ${selectedRows.length === 1 ? "document" : "documents"}`
+                      selectedScheduleRows.length
+                        ? `Delete ${selectedScheduleRows.length} selected ${selectedScheduleRows.length === 1 ? "document" : "documents"}`
                         : "Delete selected documents"
                     }
                     title={
-                      selectedRows.length
-                        ? `Delete ${selectedRows.length} selected`
+                      selectedScheduleRows.length
+                        ? `Delete ${selectedScheduleRows.length} selected`
                         : "Select documents to delete"
                     }
                     onClick={() => void handleDeleteSelected()}
@@ -978,34 +1084,50 @@ export function DocumentRepositoryPanel({
             <tbody>
               {scheduleRows.map((scheduleRow) => {
                 if (scheduleRow.kind === "artefact") {
-                  const { draft } = scheduleRow;
+                  const { draft, title } = scheduleRow;
+                  const selected = selectedIds.has(draft.id);
+                  const deletingRow = bulkDeletingIds.has(draft.id);
                   return (
                     <tr
                       key={draft.id}
-                      className="sw-table-row sw-table-row--accent cursor-pointer border-b text-muted-foreground hover:text-foreground"
-                      onClick={() => onOpenDraft?.(draft)}
+                      className={cn(
+                        "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
+                        selected && "sw-table-row--active",
+                      )}
+                      onClick={(event) => handleRowClick(event, scheduleRow)}
                     >
                       <td className="truncate px-1 py-2 tabular-nums">-</td>
-                      <td className="max-w-0 px-2 py-2 font-medium">
-                        <span className="truncate" title={draft.title}>
-                          {draft.title}
+                      <td className="max-w-0 min-w-0 px-2 py-2 font-medium">
+                        <span className="block truncate" title={title}>
+                          {title}
                         </span>
                       </td>
                       <td className="truncate px-1 py-2">v{draft.version}</td>
-                      <td className="truncate px-1.5 py-2">
+                      <td className="truncate px-1 py-2" title={artefactScheduleLabel(draft.workflow_type)}>
                         {artefactScheduleLabel(draft.workflow_type)}
                       </td>
-                      <td className="px-0.5 py-1.5 text-center">
+                      <td className="px-0 py-1.5 text-center">
                         <button
                           type="button"
-                          className="rounded-sm px-1.5 py-1 text-[0.65rem] font-medium text-primary hover:bg-primary/10"
-                          aria-label={`Open ${draft.title}`}
+                          disabled={deletingRow}
+                          className={cn(
+                            "inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-opacity hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50",
+                            deletingRow
+                              ? "opacity-100"
+                              : "opacity-0 group-hover/repo-row:opacity-100 focus-visible:opacity-100",
+                          )}
+                          aria-label={`Delete ${title}`}
+                          title="Delete document"
                           onClick={(event) => {
                             event.stopPropagation();
-                            onOpenDraft?.(draft);
+                            void handleDeleteArtefact(draft);
                           }}
                         >
-                          Open
+                          {deletingRow ? (
+                            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Trash className="size-3.5" aria-hidden />
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -1027,7 +1149,7 @@ export function DocumentRepositoryPanel({
                       "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
                       highlighted && "sw-table-row--active",
                     )}
-                    onClick={(event) => handleRowClick(event, row)}
+                    onClick={(event) => handleRowClick(event, scheduleRow)}
                   >
                     <td
                       className="truncate px-1 py-2 tabular-nums"
@@ -1035,9 +1157,9 @@ export function DocumentRepositoryPanel({
                     >
                       {displayValue(row.document_number)}
                     </td>
-                    <td className="max-w-0 px-2 py-2 font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate" title={row.title}>
+                    <td className="max-w-0 min-w-0 px-2 py-2 font-medium">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 flex-1 truncate" title={row.title}>
                           {row.title}
                         </span>
                         <InvoiceStatusMark status={row.invoice_status} />
@@ -1050,7 +1172,10 @@ export function DocumentRepositoryPanel({
                     <td className="truncate px-1 py-2">
                       {displayValue(row.revision)}
                     </td>
-                    <td className="truncate px-1.5 py-2">
+                    <td
+                      className="truncate px-1 py-2"
+                      title={inInbox ? "Inbox" : row.category?.trim() || undefined}
+                    >
                       {inInbox ? "Inbox" : displayValue(row.category)}
                     </td>
                     <td className="px-0 py-1.5 text-center">
@@ -1067,7 +1192,7 @@ export function DocumentRepositoryPanel({
                         title="Delete document"
                         onClick={(event) => {
                           event.stopPropagation();
-                          void handleDelete(row);
+                          void handleDeleteEvidence(row);
                         }}
                       >
                         {deletingRow ? (
@@ -1089,7 +1214,7 @@ export function DocumentRepositoryPanel({
                     <span className="cockpit-skeleton block h-2.5 w-7" aria-hidden />
                   </td>
                   <td
-                    className="max-w-0 truncate px-2 py-2 font-medium"
+                    className="max-w-0 min-w-0 truncate px-2 py-2 font-medium"
                     title={pending.filename}
                   >
                     {pending.filename}
@@ -1097,10 +1222,10 @@ export function DocumentRepositoryPanel({
                   <td className="px-1 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-4" aria-hidden />
                   </td>
-                  <td className="truncate px-1.5 py-2">
+                  <td className="truncate px-1 py-2">
                     {pendingStageLabel(pending)}
                   </td>
-                  <td className="px-0.5 py-1.5 text-center">
+                  <td className="px-0 py-1.5 text-center">
                     <Loader2
                       className="mx-auto size-3.5 animate-spin text-muted-foreground/40 motion-reduce:animate-none"
                       aria-hidden
@@ -1138,13 +1263,22 @@ export function DocumentRepositoryPanel({
 }
 
 function artefactScheduleLabel(workflowType: string): string {
-  if (workflowType === "create_pmp") return "Project Plan";
-  if (workflowType === "create_cost_plan") return "Cost Plan";
+  if (workflowType === "create_pmp") return "PMP";
+  if (workflowType === "create_cost_plan") return "Cost";
   if (workflowType.startsWith("consultant_procurement_")) return "RFP";
   if (workflowType.startsWith("contractor_eoi_")) return "EOI";
   if (workflowType.startsWith("trade_rft_")) return "RFT";
   if (workflowType.startsWith("trade_rfq_")) return "RFQ";
-  return "Generated";
+  return "Gen";
+}
+
+/** Shorten long generated titles so the schedule stays scannable in a narrow rail. */
+function abbreviateArtefactTitle(title: string): string {
+  return title
+    .replace(/^Request for Fee Proposal\b/i, "RFP")
+    .replace(/^Request for Proposal\b/i, "RFP")
+    .replace(/^Request for Tender\b/i, "RFT")
+    .replace(/^Request for Quotation\b/i, "RFQ");
 }
 
 function displayValue(value: string | null | undefined): string {
@@ -1334,7 +1468,7 @@ function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
       case "document_number":
         return "";
       case "title":
-        return row.draft.title;
+        return row.title;
       case "revision":
         return String(row.draft.version);
       case "category":
@@ -1346,7 +1480,7 @@ function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
     case "document_number":
       return row.evidence.document_number?.trim() ?? "";
     case "title":
-      return row.evidence.title;
+      return row.title;
     case "revision":
       return row.evidence.revision?.trim() ?? "";
     case "category":

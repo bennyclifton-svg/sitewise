@@ -15,9 +15,13 @@ const KNOWLEDGE_KINDS = new Set(["doctrine", "seed", "template"]);
 export function PlatformKnowledgePanel({
   platformStatus,
   mode,
+  selectedPath = null,
+  onSelectDocument,
 }: {
   platformStatus: PlatformKnowledgeStatus | null;
   mode: "skills" | "knowledge";
+  selectedPath?: string | null;
+  onSelectDocument?: (document: PlatformKnowledgeDocument) => void;
 }) {
   const buckets = platformStatus?.buckets ?? [];
   const allowed = mode === "skills" ? SKILLS_KINDS : KNOWLEDGE_KINDS;
@@ -50,7 +54,9 @@ export function PlatformKnowledgePanel({
           key={bucket.kind}
           bucket={bucket}
           expanded={expandedKinds.has(bucket.kind)}
+          selectedPath={selectedPath}
           onToggle={() => toggleKind(bucket.kind)}
+          onSelectDocument={onSelectDocument}
         />
       ))}
     </ul>
@@ -60,11 +66,15 @@ export function PlatformKnowledgePanel({
 function KnowledgeBucketRow({
   bucket,
   expanded,
+  selectedPath,
   onToggle,
+  onSelectDocument,
 }: {
   bucket: PlatformKnowledgeBucket;
   expanded: boolean;
+  selectedPath?: string | null;
   onToggle: () => void;
+  onSelectDocument?: (document: PlatformKnowledgeDocument) => void;
 }) {
   const documents = bucket.documents ?? [];
   const hasDocuments = documents.length > 0;
@@ -99,15 +109,39 @@ function KnowledgeBucketRow({
       )}
       {hasDocuments && expanded ? (
         <ul className="pb-0.5">
-          {documents.map((document) => (
-            <li
-              key={document.relative_path}
-              className="flex h-[22px] items-center truncate pl-7 pr-1.5 text-xs text-muted-foreground"
-              title={document.relative_path}
-            >
-              {documentLabel(document, bucket.kind)}
-            </li>
-          ))}
+          {documents.map((document) => {
+            const label = documentLabel(document, bucket.kind);
+            const selected = selectedPath === document.relative_path;
+            if (!onSelectDocument) {
+              return (
+                <li
+                  key={document.relative_path}
+                  className="flex h-[22px] items-center truncate pl-7 pr-1.5 text-xs text-muted-foreground"
+                  title={document.relative_path}
+                >
+                  {label}
+                </li>
+              );
+            }
+            return (
+              <li key={document.relative_path}>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-[22px] w-full items-center truncate rounded-sm pl-7 pr-1.5 text-left text-xs transition-colors",
+                    selected
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                  )}
+                  title={document.relative_path}
+                  aria-current={selected ? "true" : undefined}
+                  onClick={() => onSelectDocument(document)}
+                >
+                  {label}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </li>

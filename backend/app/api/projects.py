@@ -92,6 +92,7 @@ from app.schemas.projects import (
     BatchDeleteEvidenceFailure,
     BatchDeleteEvidenceRequest,
     BatchDeleteEvidenceResponse,
+    DeleteDraftResponse,
     PatchProjectRequest,
     ProjectProfileChange,
     ProjectProfilePatch,
@@ -116,6 +117,7 @@ from app.schemas.projects import (
     PdfAnalyzeResponse,
     PdfSheetProposal,
     PlatformKnowledgeBucket,
+    PlatformKnowledgeContent,
     PlatformKnowledgeDocument,
     PlatformKnowledgeStatus,
     ProcurementRequestCreateRequest,
@@ -126,6 +128,7 @@ from app.schemas.projects import (
     ProjectActivityReferences,
     ProjectActivityResponse,
     ProjectActivityRun,
+    ProjectAsset,
     ProjectCockpitBootstrapResponse,
     ProjectDetail,
     ProjectListResponse,
@@ -252,6 +255,7 @@ from app.schemas.workflow_runs import (
     WorkflowRunView,
 )
 from app.evidence.service import delete_project_evidence, require_project_evidence_ids
+from app.projects.draft_delete import delete_project_draft
 from app.storage.project_files import (
     delete_project_files,
     download_project_file,
@@ -1096,6 +1100,7 @@ def _project_taxonomy_metadata(
         scale=body.scale,
         complexity=body.complexity,
         work_scope=body.work_scope,
+        assets=body.assets,
     )
 
 
@@ -1105,12 +1110,18 @@ def _taxonomy_metadata_from_values(
     scale: dict[str, Any] | None,
     complexity: dict[str, Any] | None,
     work_scope: list[str] | None,
+    assets: list[ProjectAsset] | None = None,
 ) -> dict | None:
     taxonomy = {
         "subclasses": _subclass_metadata_payload(subclasses),
         "scale": scale,
         "complexity": complexity,
         "work_scope": work_scope,
+        "assets": (
+            [asset.model_dump(exclude_none=True) for asset in assets]
+            if assets
+            else None
+        ),
     }
     compact = {key: value for key, value in taxonomy.items() if value is not None}
     return compact or None
@@ -1235,7 +1246,9 @@ async def get_project_taxonomy(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    response.headers["Cache-Control"] = "private, max-age=3600"
+    # Keep short: taxonomy JSON can change without a frontend rebuild, and the
+    # SPA query cache already soft-caches for a minute.
+    response.headers["Cache-Control"] = "private, max-age=60"
     return taxonomy_options_payload()
 
 
@@ -2227,6 +2240,36 @@ async def get_project_draft(
             detail="Draft not found",
         )
     return DraftArtifactResponse.model_validate(draft)
+
+
+@router.delete("/{project_id}/drafts/{draft_id}")
+async def delete_project_draft_document(
+    project_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> DeleteDraftResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    draft = await get_draft_artifact(session, draft_id)
+    if draft is None or draft.project_id != project.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+    workflow_type = draft.workflow_type
+    storage_keys, latest = await delete_project_draft(
+        session, project=project, draft_id=draft_id
+    )
+    if storage_keys:
+        background_tasks.add_task(delete_project_files, storage_keys=storage_keys)
+    return DeleteDraftResponse(
+        deleted_id=draft_id,
+        workflow_type=workflow_type,
+        latest_draft=(
+            DraftArtifactSummary.model_validate(latest) if latest is not None else None
+        ),
+    )
 
 
 @router.get("/{project_id}/drafts/{draft_id}/export")
@@ -3588,3 +3631,54 @@ async def get_platform_knowledge_status(
 ) -> PlatformKnowledgeStatus:
     await ensure_user_exists(session, user)
     return await _platform_knowledge_status(session)
+
+
+def _normalize_platform_knowledge_path(path: str) -> str:
+    normalized = path.replace("\\", "/").strip().lstrip("/")
+    if not normalized or normalized in {".", ".."}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid platform knowledge path",
+        )
+    parts = PurePosixPath(normalized).parts
+    if any(part in {"", ".", ".."} for part in parts):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid platform knowledge path",
+        )
+    return "/".join(parts)
+
+
+@sitewise_router.get("/platform-knowledge/document")
+async def get_platform_knowledge_document(
+    path: str = Query(..., min_length=1),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> PlatformKnowledgeContent:
+    await ensure_user_exists(session, user)
+    relative_path = _normalize_platform_knowledge_path(path)
+    result = await session.execute(
+        select(SourceDocument).where(
+            SourceDocument.project_id.is_(None),
+            SourceDocument.document_metadata["knowledge_scope"].astext == "platform",
+            SourceDocument.relative_path == relative_path,
+        )
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Platform knowledge document not found",
+        )
+    metadata = (
+        document.document_metadata
+        if isinstance(document.document_metadata, dict)
+        else {}
+    )
+    kind = metadata.get("sitewise_knowledge_kind")
+    return PlatformKnowledgeContent(
+        filename=document.filename,
+        relative_path=document.relative_path,
+        kind=kind if isinstance(kind, str) else None,
+        content=document.normalized_content or "",
+    )

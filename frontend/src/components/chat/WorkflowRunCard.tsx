@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { LoaderCircle } from "lucide-react";
 
 import { ArtefactCard } from "@/components/chat/ArtefactCard";
 import { api } from "@/lib/api";
@@ -8,7 +7,6 @@ import {
   isTerminalWorkflowRun,
   useWorkflowRun,
 } from "@/lib/queries/workflow-runs";
-import { workflowSectionProgress } from "@/lib/workflow-progress";
 
 type WorkflowRunCardProps = {
   runRef: WorkflowRunRef;
@@ -36,12 +34,6 @@ function titleForWorkflowType(workflowType: string | undefined): string {
     return "File sort";
   }
   return workflowType.replaceAll("_", " ");
-}
-
-function progressLabel(progress: Record<string, unknown> | undefined): string | null {
-  const sections = workflowSectionProgress(progress);
-  if (!sections || sections.total <= 0) return null;
-  return `${sections.completed}/${sections.total} sections`;
 }
 
 export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
@@ -72,35 +64,9 @@ export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
     );
   }
 
+  // In-flight progress is owned by ActivityStream (one cube, one status stack).
   if (!run || !isTerminalWorkflowRun(run)) {
-    const sectionLabel = progressLabel(run?.progress);
-    const stage =
-      run?.state === "running"
-        ? "Generating"
-        : run?.state === "queued"
-          ? "Queued"
-          : "Preparing";
-    return (
-      <div
-        className="mt-3 flex items-center gap-3 rounded-md border bg-muted/30 p-3"
-        role="status"
-        aria-live="polite"
-      >
-        <LoaderCircle
-          className="size-4 shrink-0 animate-spin text-muted-foreground"
-          aria-hidden
-        />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">
-            {stage} {label}
-            {sectionLabel ? ` (${sectionLabel})` : "…"}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            Draft will open here when ready.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (run.state === "failed" || run.state === "cancelled") {

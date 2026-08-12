@@ -1,0 +1,64 @@
+/* Sitewise motion — v1.0
+   Requires tokens.css. Opacity and transform only; nothing else animates. */
+
+/* Scroll-driven reveal. No JS, no IntersectionObserver, no jank.
+   Falls back to the settled state where view() timelines are unsupported. */
+@keyframes sw-rise {
+  from { opacity: 0; transform: translateY(26px); filter: blur(6px); }
+  to   { opacity: 1; transform: none;             filter: blur(0);  }
+}
+
+.sw-reveal {
+  animation: sw-rise linear both;
+  animation-timeline: view();
+  animation-range: entry 8% cover 26%;
+}
+
+/* Entry on load, for anything above the fold. Stagger with
+   --sw-stagger multiples via an inline animation-delay. */
+.sw-enter {
+  animation: sw-rise var(--sw-dur-enter) var(--sw-ease-enter) both;
+}
+
+/* Scroll progress bar. */
+@keyframes sw-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+.sw-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  z-index: 50;
+  background: linear-gradient(90deg, var(--sw-facet-blue), var(--sw-beam));
+  animation: sw-wipe linear both;
+  animation-timeline: scroll(root block);
+}
+
+/* Breathing indicator — live status only, never decoration. */
+@keyframes sw-breathe {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.80; }
+}
+
+.sw-live {
+  animation: sw-breathe 4s var(--sw-ease-ambient) infinite;
+}
+
+/* State transitions. Apply to anything with a hover or focus response. */
+.sw-transition {
+  transition-duration: var(--sw-dur-state);
+  transition-timing-function: var(--sw-ease-state);
+  transition-property: color, background-color, border-color, opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

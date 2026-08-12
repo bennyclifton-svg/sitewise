@@ -46,6 +46,66 @@ class ProfileProposalRevisionConflict(RuntimeError):
 
 IDENTITY_PROPOSAL_FIELDS = frozenset({"client", "site_address"})
 
+# Setup fields a descriptive opening prompt establishes. They may be auto-applied
+# on the same terms identity fields already are: only into a field that is still
+# empty, never over a value the user has already settled. Writing them matters
+# beyond the profile panel — work_scope drives consultant selection and seed
+# routing, complexity drives risk flags, and leaving them unset is what made
+# every small-works PMP render as an empty scaffold.
+SETUP_PROPOSAL_FIELDS = frozenset(
+    {
+        "building_class",
+        "work_type",
+        "subclasses",
+        "scale",
+        "complexity",
+        "work_scope",
+        "assets",
+        "budget",
+        "state",
+    }
+)
+AUTO_APPLY_PROPOSAL_FIELDS = IDENTITY_PROPOSAL_FIELDS | SETUP_PROPOSAL_FIELDS
+
+
+def _is_unset(value: Any) -> bool:
+    """Empty containers count as unset: scale={} and work_scope=[] are not answers."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, tuple, set, dict)):
+        return not value
+    return False
+
+
+def should_auto_apply_proposal(
+    proposal: ProjectProfileProposal,
+    project: Project,
+    *,
+    evidence_derived: bool | None = None,
+) -> bool:
+    """True when a proposal only fills blanks, so approving it destroys nothing.
+
+    Identity proposals keep their existing behaviour (they resolve conflicts by
+    rejecting). Setup proposals auto-apply only when strictly additive; anything
+    that would overwrite a settled value stays pending for explicit approval.
+    """
+    fields = set(proposal.proposed_values) - {"clear_incompatible"}
+    if not fields or not fields <= AUTO_APPLY_PROPOSAL_FIELDS:
+        return False
+    if fields <= IDENTITY_PROPOSAL_FIELDS:
+        return True
+    # Setup values only pass straight through when the user stated them. A value
+    # read out of a document is a reading rather than an instruction, and keeps
+    # its review step however empty the field is.
+    if evidence_derived is None:
+        evidence_derived = bool(getattr(proposal, "evidence_references", None))
+    if evidence_derived:
+        return False
+    current = read_profile(project)
+    return all(_is_unset(getattr(current, field, None)) for field in fields)
+
 
 async def propose_project_profile_change(
     session,
@@ -146,8 +206,8 @@ async def accept_profile_proposal(
     await session.refresh(project, with_for_update=True)
     proposal = await _locked_proposal(session, project.id, proposal_id)
     _require_pending(proposal)
-    if _is_identity_proposal(proposal):
-        return await _accept_identity_proposal(
+    if _is_identity_proposal(proposal) or should_auto_apply_proposal(proposal, project):
+        return await _accept_additive_proposal(
             session,
             project=project,
             proposal=proposal,
@@ -184,20 +244,20 @@ async def accept_profile_proposal(
     )
 
 
-async def _accept_identity_proposal(
+async def _accept_additive_proposal(
     session,
     *,
     project: Project,
     proposal: ProjectProfileProposal,
     actor_source: str,
 ) -> ProfileProposalResolution:
-    """Apply document identity to empty fields, even if another profile edit advanced it."""
+    """Apply proposed values to empty fields, even if another edit advanced the revision."""
     current = read_profile(project)
     values: dict[str, Any] = {}
     conflicts = False
     for field, value in proposal.proposed_values.items():
-        existing = getattr(current, field)
-        if existing is None:
+        existing = getattr(current, field, None)
+        if _is_unset(existing):
             values[field] = value
         elif _identity_values_match(existing, value):
             continue

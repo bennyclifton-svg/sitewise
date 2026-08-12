@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; height:100%; background:#060608; }
+  a { color:#7FB0E4; text-decoration:none; }
+  a:hover { color:#B3D2F2; }
+</style>
+<script>window.OM_SCENES = '[{"name":"Reveal","dur":8,"desc":"The logo reveal: one light finds the cube, it settles to lock, its six sectors sweep away and back, and the camera moves down onto the roof."},{"name":"Invoice","dur":32,"desc":"The assistant appears on the roof and the workspace on the glazing: a question is typed into the composer, sent by clicking the mark, and answered while the repository, invoice register and cost plan swipe through underneath. The faces clear and the camera lifts back to the roof."},{"name":"Profile","dur":29.6,"desc":"From the roof frame the camera moves square to the glazing, where the profile sheet is already half built: with no documents at all, a cursor configures a house from scratch. The camera then hands the roof frame back."},{"name":"Transmittal","dur":36.4,"desc":"Picked up on that same roof frame: the composer is typed and clicked, the register slides in on the glazing and searches itself, nineteen basement drawings select as they pass, a cursor opens the draft transmittal, and the film closes back to the opening frame."}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+<script type="module" src="style-guide/3d/film-stage.js?v=5"></script>
+<script type="module" src="style-guide/3d/transmittal-stage.js?v=34"></script>
+</helmet>
+<div style="min-height:100vh;background:#060608;display:grid;place-items:center">
+  <x-import component-from-global-scope="SitewiseFullFilm" from="./animations-v3.jsx ./sitewise-full.jsx" hint-size="100%,100%" style="width:100%"></x-import>
+</div>
+
+</x-dc>
+</body>
+</html>

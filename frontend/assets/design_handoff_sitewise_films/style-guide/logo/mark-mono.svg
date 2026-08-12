@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Sitewise">
+  <title>Sitewise mark — one colour</title>
+  <desc>Single-colour reproduction. Inherits currentColor, so it must be inlined in the DOM — an external img cannot pick up the colour. The internal plane edges are cut as hairline slots so the structure still reads in one ink. Use for embossing, engraving, single-ink print.</desc>
+  <path fill="currentColor" fill-rule="evenodd" d="&#xA;    M120 13.86 L211.92 66.93 L211.92 173.07 L120 226.14 L28.08 173.07 L120 120 L28.08 66.93 Z&#xA;    M120.8 121.39 L212.72 174.46 L211.12 171.68 L119.2 118.61 Z&#xA;    M120.8 118.61 L212.72 65.54 L211.12 68.32 L119.2 121.39 Z&#xA;    M121.6 120 L121.6 226.14 L118.4 226.14 L118.4 120 Z&#xA;  "></path>
+</svg>

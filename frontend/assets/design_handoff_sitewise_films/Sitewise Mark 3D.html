@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sitewise — mark, modelled</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  three-d-stage:not(:defined) { visibility: hidden; }
+  html, body { margin:0; height:100%; background:#060608; }
+  body { color:#E8E8E4; font-family:'Hanken Grotesk',Helvetica,sans-serif; font-weight:300; display:flex; flex-direction:column; overflow:hidden; }
+  a { color:#7FB0E4; text-decoration:none; }
+  a:hover { color:#B3D2F2; }
+  .mono { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; padding:26px 34px 22px; border-bottom:1px solid rgba(255,255,255,.08); flex:none; }
+  .presets { display:flex; gap:8px; flex:none; }
+  .presets button { white-space:nowrap; font:inherit; font-size:13px; font-weight:400; color:#9AA0A8; background:transparent; border:1px solid rgba(255,255,255,.13); border-top-color:rgba(255,255,255,.22); padding:8px 15px; cursor:pointer; transition:all .18s cubic-bezier(.4,0,.2,1); }
+  .presets button:hover { color:#E8E8E4; border-color:#7FB0E4; background:rgba(127,176,228,.07); }
+  .presets button[aria-pressed="true"] { color:#fff; background:#2F72C4; border-color:#2F72C4; }
+  main { position:relative; flex:1 1 auto; min-height:0; }
+  three-d-stage { position:absolute; inset:0; width:100%; height:100%; }
+  .legend { position:absolute; top:22px; right:26px; z-index:5; display:flex; flex-direction:column; gap:9px; pointer-events:none; }
+  .legend div { display:flex; align-items:center; gap:10px; }
+  .legend i { width:13px; height:13px; display:block; flex:0 0 13px; }
+  .legend span { font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; color:#8F939B; white-space:nowrap; }
+</style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div class="mono" style="color:#7FB0E4">Asset 01 — Primary mark</div>
+      <h1 style="margin:0;font-size:30px;font-weight:200;letter-spacing:-.03em">Sitewise cube, modelled</h1>
+      <p style="margin:0;font-size:14.5px;line-height:1.5;color:#8F939B;max-width:56ch">Two adjacent faces open, giving a corner the eye and the air pass through. One face is glazed, so the blue reads as two tones: the glass itself, and what stands behind it.</p>
+    </div>
+    <div class="presets">
+      <button type="button" data-view="logo" aria-pressed="true">Logo lock</button>
+      <button type="button" data-view="three">Three-quarter</button>
+      <button type="button" data-view="edge">Edge</button>
+      <button type="button" data-view="plan">Plan</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="legend">
+      <div><i style="background:#2C3037"></i><span>Graphite · roof</span></div>
+      <div><i style="background:#191C21"></i><span>Carbon · wall</span></div>
+      <div><i style="background:#D6D6D0"></i><span>Bone · floor</span></div>
+      <div><i style="background:#2F72C4"></i><span>Glazing</span></div>
+    </div>
+    <three-d-stage name="sitewise-cube" background="#060608"></three-d-stage>
+  </main>
+
+  <script src="three-d-stage.js"></script>
+  <script type="module">
+    const stage = document.querySelector('three-d-stage');
+    const { THREE } = await stage.ready;
+
+    // The stage chrome is styled for its default paper background; this page is dark.
+    const chrome = document.createElement('style');
+    chrome.textContent = '.note{color:rgba(232,232,228,.6)!important}' +
+      '.toolbar button{background:rgba(20,22,26,.9)!important;color:#E8E8E4!important;' +
+      'border-color:rgba(255,255,255,.16)!important}';
+    stage.shadowRoot.appendChild(chrome);
+
+    /* ---- studio environment: a soft key softbox, cool rim, floor bounce ---- */
+    function studioEnv() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 512;
+      const x = c.getContext('2d');
+      const bg = x.createLinearGradient(0, 0, 0, 512);
+      bg.addColorStop(0, '#1a1e26');
+      bg.addColorStop(0.48, '#0b0d11');
+      bg.addColorStop(0.52, '#15171c');
+      bg.addColorStop(1, '#2a2d33');
+      x.fillStyle = bg; x.fillRect(0, 0, 1024, 512);
+      const blob = (cx, cy, rx, ry, col, a) => {
+        const g = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+        g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+        x.save(); x.globalAlpha = a; x.translate(cx, cy); x.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
+        x.translate(-cx, -cy); x.fillStyle = g; x.fillRect(0, 0, 1024, 512); x.restore();
+      };
+      blob(300, 110, 300, 190, '#ffffff', 1);      // key softbox, upper left
+      blob(760, 170, 190, 150, '#9fc4ee', 0.55);   // cool rim, right
+      blob(520, 470, 460, 130, '#c9d4e2', 0.28);   // floor bounce
+      const t = new THREE.CanvasTexture(c);
+      t.mapping = THREE.EquirectangularReflectionMapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      const pmrem = new THREE.PMREMGenerator(stage._renderer);
+      const env = pmrem.fromEquirectangular(t).texture;
+      pmrem.dispose(); t.dispose();
+      return env;
+    }
+    stage._scene.environment = studioEnv();
+    // A physically-lit scene clips without it: the bone floor was flat white at
+    // 255. ACES rolls the highlights off so the floor keeps its gradient.
+    stage._renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    stage._renderer.toneMappingExposure = 1.25;
+    stage._ground.material.color.set('#08090b');
+    stage._ground.material.roughness = 0.95;
+    stage._ground.visible = false;
+    // Directional and hemisphere light both deliver constant irradiance across a
+    // flat face, so no amount of either can stop a plane reading as one tone.
+    // They are demoted to fill here; the key becomes a point source.
+    stage._key.intensity = 0.34;
+    stage._key.shadow.normalBias = 0.025;
+    stage._scene.traverse((o) => {
+      if (o.isHemisphereLight) o.intensity = 0.10;
+      if (o.isDirectionalLight && o !== stage._key) o.intensity = 0.16;
+    });
+
+    const rim = new THREE.DirectionalLight(0x9fc4ee, 0.22);
+    rim.position.set(-3, 1.4, -3.2);
+    stage._scene.add(rim);
+
+    const raking = new THREE.DirectionalLight(0xdfe8f5, 0.28);
+    raking.position.set(4.5, 3.2, 1.2);
+    raking.castShadow = true;
+    raking.shadow.mapSize.set(2048, 2048);
+    raking.shadow.bias = -0.0004;
+    raking.shadow.normalBias = 0.02;
+    raking.shadow.camera.left = -2; raking.shadow.camera.right = 2;
+    raking.shadow.camera.top = 2; raking.shadow.camera.bottom = -2;
+    raking.shadow.camera.updateProjectionMatrix();
+    stage._scene.add(raking);
+
+    // The key: a point source just outside the open corner, close enough that its
+    // inverse-square falloff varies measurably across every plane — light enters
+    // the enclosure the way it would through a real opening.
+    const aperture = new THREE.PointLight(0xf2f6fb, 17, 7, 2);
+    aperture.position.set(-0.8, 1.15, 0.9);
+    stage._scene.add(aperture);
+
+    // A dimmer one deep inside picks out the wall and floor interiors.
+    const interior = new THREE.PointLight(0xdce6f2, 1.6, 2.6, 2);
+    interior.position.set(0.05, 0, -0.05);
+    stage._scene.add(interior);
+
+    /* ---- materials: one per facet family, shared across the six faces ---- */
+    const M = (name, color, roughness, metalness, env) => {
+      const m = new THREE.MeshStandardMaterial({ color, roughness, metalness, side: THREE.DoubleSide });
+      m.envMapIntensity = env;
+      m.name = name;
+      return m;
+    };
+    const mat = {
+      graphite: M('facet_graphite', '#2C3037', 0.52, 0.16, 0.88),
+      carbon:   M('facet_carbon',   '#191C21', 0.44, 0.20, 0.85),
+      bone:     M('facet_bone',     '#D6D6D0', 0.78, 0.02, 0.55)
+    };
+    // Single glazed plane: one sheet, read as two tones by what stands behind it.
+    mat.glass = new THREE.MeshPhysicalMaterial({
+      color: '#2F72C4', roughness: 0.05, metalness: 0,
+      transmission: 0.92, thickness: 0.22, ior: 1.46,
+      attenuationColor: new THREE.Color('#1D5FAE'), attenuationDistance: 0.7,
+      specularIntensity: 1, transparent: true, side: THREE.DoubleSide
+    });
+    mat.glass.envMapIntensity = 2.1;
+    mat.glass.name = 'glazing_blue';
+
+    /* ---- geometry: a shelter, not a solid. The frame is complete; two opposite
+           faces are left open as a route through, one face is glazed. ---- */
+    const h = 0.5;
+    const group = new THREE.Group();
+    group.name = 'sitewise_cube';
+
+    function tri(name, a, b, c, material) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute([...a, ...b, ...c], 3));
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, material);
+      m.name = name;
+      return m;
+    }
+
+    /* Baked corner occlusion. The enclosure is deepest along the edge where the
+       glazing meets the wall (x=+h, z=−h) and most open at the missing corner
+       (x=−h, z=+h); each vertex is darkened by how enclosed it is, so a flat
+       plane carries a gradient instead of one uniform tone. */
+    function occlusion(quad, dark, light) {
+      const out = [];
+      for (const [x, , z] of quad) {
+        const openness = (((h - x) / (2 * h)) + ((z + h) / (2 * h))) / 2;
+        const v = dark + (light - dark) * openness;
+        out.push(v, v, v);
+      }
+      return out;
+    }
+
+    function panel(name, quad, material, dark, light) {
+      const [v0, v1, v2, v3] = quad;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute([...v0, ...v1, ...v2, ...v3], 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(occlusion(quad, dark, light), 3));
+      g.setIndex([0, 1, 2, 0, 2, 3]);
+      g.computeVertexNormals();
+      material.vertexColors = true;
+      const m = new THREE.Mesh(g, material);
+      m.name = name;
+      group.add(m);
+      return m;
+    }
+
+    // One material per solid plane; +Z and −X absent — an open corner the eye passes through.
+    panel('roof',  [[h,h,-h], [-h,h,-h], [-h,h,h], [h,h,h]],     mat.graphite, 0.68, 1.15);
+    panel('wall',  [[h,-h,-h], [-h,-h,-h], [-h,h,-h], [h,h,-h]], mat.carbon,   0.32, 1.10);
+    panel('floor', [[h,-h,h], [-h,-h,h], [-h,-h,-h], [h,-h,-h]], mat.bone,     0.34, 1.05);
+    const glazing = panel('glazing', [[h,-h,h], [h,-h,-h], [h,h,-h], [h,h,h]], mat.glass, 0.62, 1.10);
+
+    stage.setObject(group);
+    glazing.castShadow = false;
+    // The stage rests its ground plane on the model's lowest point — which here
+    // is the floor panel itself. Drop it clear so the two don't z-fight.
+    stage._ground.position.y -= 0.006;
+
+    /* ---- approved camera positions ---- */
+    const views = {
+      logo:  { dir: [1, 1, 1],         fov: 9,  dist: 22 },
+      three: { dir: [1.6, 0.9, 2.1],   fov: 30, dist: 4.4 },
+      edge:  { dir: [1, 0.14, 1],      fov: 26, dist: 5.2 },
+      plan:  { dir: [0.001, 1, 0.001], fov: 12, dist: 16 }
+    };
+    const cam = stage._camera, ctl = stage._controls;
+    const btns = [...document.querySelectorAll('.presets button')];
+    let anim = null;
+    function goTo(key) {
+      const v = views[key];
+      const dir = new THREE.Vector3(...v.dir).normalize();
+      const to = dir.multiplyScalar(v.dist);
+      const from = cam.position.clone();
+      const fov0 = cam.fov, t0 = performance.now();
+      ctl.autoRotate = false;
+      if (anim) cancelAnimationFrame(anim);
+      (function step(now) {
+        const p = Math.min(1, ((now || t0) - t0) / 900);
+        const e = 1 - Math.pow(1 - p, 3);
+        cam.position.lerpVectors(from, to, e);
+        cam.fov = fov0 + (v.fov - fov0) * e;
+        cam.updateProjectionMatrix();
+        ctl.target.set(0, 0, 0);
+        ctl.update();
+        if (p < 1) anim = requestAnimationFrame(step);
+      })(t0);
+      btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === key)));
+    }
+    btns.forEach(b => b.addEventListener('click', () => goTo(b.dataset.view)));
+    goTo('logo');
+  </script>
+</body>
+</html>

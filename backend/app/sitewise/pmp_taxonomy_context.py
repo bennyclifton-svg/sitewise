@@ -10,6 +10,8 @@ from app.sitewise.taxonomy import (
     RiskFlag,
     derive_risk_flags,
     risk_flag_definitions,
+    applicable_sections,
+    scale_band_for,
     section_weights_for,
 )
 
@@ -25,6 +27,8 @@ class PmpTaxonomyContext:
     risk_flags: tuple[RiskFlag, ...]
     section_weights: dict[str, float]
     user_provided_fields: dict[str, Any]
+    scale_band: str | None = None
+    sections: tuple[str, ...] = ()
 
     @property
     def risk_flag_values(self) -> tuple[str, ...]:
@@ -56,13 +60,23 @@ def pmp_taxonomy_context(project: object) -> PmpTaxonomyContext | None:
     manual_risk_flags = _string_tuple(taxonomy_metadata.get("risk_flags"))
     derived_flags = derive_risk_flags(complexity, list(work_scope))
     risk_flags = _merge_risk_flags(derived_flags, manual_risk_flags)
+    scale_band = scale_band_for(taxonomy_metadata.get("budget"))
+    sections = applicable_sections(
+        work_type=taxonomy.work_type,
+        work_scope=work_scope,
+        has_assets=bool(taxonomy_metadata.get("assets")),
+    )
     weights = section_weights_for(
         building_class=taxonomy.building_class,
         work_type=taxonomy.work_type,
         work_scope=list(work_scope),
         risk_flags=[flag.value for flag in risk_flags],
+        scale_band=scale_band,
+        sections=sections,
     )
     return PmpTaxonomyContext(
+        scale_band=scale_band,
+        sections=sections,
         building_class=taxonomy.building_class,
         work_type=taxonomy.work_type,
         subclasses=taxonomy.subclasses,

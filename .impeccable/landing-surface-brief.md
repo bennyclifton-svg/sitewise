@@ -7,7 +7,7 @@
 - Proof on the page: real supported input types, the governed runtime boundary, and the requested artefact set. No invented metrics, customers, or testimonials.
 - Direction: artefact-forward production line in the existing dark SiteWise lighting system. Approved comp: `.impeccable/mocks/landing-production-line-c.png` (explicitly selected by the user).
 - Memorable moment: blue source dots in the real document-register language resolve into five selected fact fragments and a composed PMP whose sections retain their source references.
-- Constraints: preserve the existing SiteWise mark, blue-only accent, square faceted surfaces, Chillax Light for display/brand with Hanken Grotesk / IBM Plex Mono for body and labels, `/login` actions, reduced-motion support, and the standalone static landing route.
+- Constraints: preserve the existing SiteWise mark, blue-only accent, square faceted surfaces, Satoshi Light for display/brand with Hanken Grotesk / IBM Plex Mono for body and labels, `/login` actions, reduced-motion support, and the standalone static landing route.
 
 ## Composition and medium inventory
 

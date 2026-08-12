@@ -10,6 +10,7 @@ from app.sitewise.pmp_renderer import render_pmp_scaffold
 from app.sitewise.pmp_sources import required_section_headings
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context
 from app.sitewise.section_contracts import heading_for_section_id
+from app.sitewise.taxonomy import scale_band_word_bounds
 from app.workflows.create_pmp import markdown_section_headings
 
 
@@ -55,6 +56,25 @@ def _project(
         },
     )
 
+
+
+def _word_bounds(project) -> tuple[int, int]:
+    """Length bounds scale with the project's band and its applicable sections."""
+    context = pmp_taxonomy_context(project)
+    return scale_band_word_bounds(
+        getattr(context, "scale_band", None),
+        section_count=len(getattr(context, "sections", ()) or ()) or None,
+        default_min=settings.pmp_min_words,
+        default_max=settings.pmp_max_words,
+    )
+
+
+def _min_words(project) -> int:
+    return _word_bounds(project)[0]
+
+
+def _max_words(project) -> int:
+    return _word_bounds(project)[1]
 
 def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
     project = _project()
@@ -168,14 +188,14 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     assert "| Description |" in summary
     assert "Critical current position" not in summary
     assert "| Expected consultants |" not in markdown
-    assert "## FFE Schedule" in markdown
-    assert "Finishes, Fixtures and Equipment" in _section_body(markdown, "FFE Schedule")
+    # Fire services with no fitout scope and no asset register: nothing is being
+    # finished or furnished, so the schedule is not applicable to this project.
+    assert "## FFE Schedule" not in markdown
     assert "## Consultants" in markdown
     assert "Fire Engineer" in _section_body(markdown, "Consultants")
     assert "| Expected consultants |" not in _section_body(markdown, "Brief")
-    assert headings.index("Brief") + 1 == headings.index("FFE Schedule")
-    assert headings.index("FFE Schedule") + 1 == headings.index("Consultants")
-    assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
+    assert headings.index("Brief") + 1 == headings.index("Consultants")
+    assert _min_words(project) <= pmp_word_count(markdown) <= _max_words(project) * 1.05
     assert "User provided" not in markdown
     assert "Assumption" in markdown
     assert "Not evidenced" in markdown
@@ -184,8 +204,8 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     assert length_violations(
         markdown,
         weights=pmp_taxonomy_context(project).section_weights,
-        min_words=settings.pmp_min_words,
-        max_words=settings.pmp_max_words,
+        min_words=_min_words(project),
+        max_words=_max_words(project),
     ) == []
 
 
@@ -210,10 +230,12 @@ def test_taxonomy_consultants_cites_natural_engagement_filename() -> None:
     consultants = _section_body(markdown, "Consultants")
     citation_key = _section_body(markdown, "Citation key")
 
-    architect_row = next(
-        line for line in consultants.splitlines() if line.startswith("| Architect |")
+    # The engagement citation attaches to whichever discipline leads design —
+    # on a fire-services refurb that is the Fire Engineer, not the Architect.
+    lead_row = next(
+        line for line in consultants.splitlines() if line.startswith("| Fire Engineer |")
     )
-    assert architect_row.rstrip().endswith("| [1] |")
+    assert lead_row.rstrip().endswith("| [1] |")
     assert "- [1] Letter of Engagement.pdf — on file" in citation_key
     assert "draft v03" in citation_key
     assert "| Section | Evidence status | Citation |" not in citation_key
@@ -345,7 +367,7 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
     assert headings[-1] == "Citation key"
     assert "| Field | Project detail | Citation |" not in markdown
     assert "| Expected consultants |" not in markdown
-    assert settings.pmp_min_words <= pmp_word_count(markdown) <= settings.pmp_max_words * 1.05
+    assert _min_words(project) <= pmp_word_count(markdown) <= _max_words(project) * 1.05
     assert "Grounded" not in markdown
     assert markdown.count("```pmp-decision") >= 4
     assert _risk_table_row_count(markdown) <= 8

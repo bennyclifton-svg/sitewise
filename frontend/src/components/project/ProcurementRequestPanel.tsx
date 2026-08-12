@@ -1,4 +1,4 @@
-import { LoaderCircle, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import {
   lazy,
   Suspense,
@@ -9,12 +9,12 @@ import {
   type ReactNode,
 } from "react";
 
-import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
 import { Button } from "@/components/ui/button";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { SuggestionField } from "@/components/ui/suggestion-field";
 import { api } from "@/lib/api";
 import {
+  compareProcurementRequests,
   DEFAULT_CONSULTANT_DISCIPLINES,
   DEFAULT_TRADE_PACKAGES,
   disciplinesFromPmpMarkdown,
@@ -31,11 +31,6 @@ import type {
   ProjectDetail,
   WorkflowRun,
 } from "@/lib/types/project";
-import {
-  workflowProgressStage,
-  workflowProgressTitle,
-  workflowRunPreview,
-} from "@/lib/workflow-progress";
 
 export type RunnableProcurementRequestKind =
   | "consultant_rfp"
@@ -45,11 +40,6 @@ export type RunnableProcurementRequestKind =
 const DraftReviewPanel = lazy(() =>
   import("@/components/project/DraftReviewPanel").then((module) => ({
     default: module.DraftReviewPanel,
-  })),
-);
-const WorkflowDraftPreview = lazy(() =>
-  import("@/components/project/WorkflowDraftPreview").then((module) => ({
-    default: module.WorkflowDraftPreview,
   })),
 );
 
@@ -73,13 +63,10 @@ const KIND_OPTIONS: Array<{
 
 export function ProcurementRequestPanel({
   project,
-  activeRun,
-  isRunning,
   error,
   refreshToken,
   renderGate,
   onCreate,
-  onCancel,
   onDraftSelected,
   onDraftUpdated,
   repositoryEvidence = [],
@@ -87,8 +74,10 @@ export function ProcurementRequestPanel({
   onTransmittalSessionChange,
 }: {
   project: ProjectDetail;
-  activeRun: WorkflowRun | null;
-  isRunning: boolean;
+  /** @deprecated Progress now lives in chat; retained for call-site compatibility. */
+  activeRun?: WorkflowRun | null;
+  /** @deprecated Progress now lives in chat; retained for call-site compatibility. */
+  isRunning?: boolean;
   error: string | null;
   refreshToken: number;
   renderGate: (kind: ProcurementRequestKind) => ReactNode;
@@ -171,7 +160,6 @@ export function ProcurementRequestPanel({
       ? project.workflow_capabilities?.capabilities.consultant_procurement
       : project.workflow_capabilities?.capabilities.trade_procurement;
   const supported = !capability || capability.status === "supported";
-  const draftPreview = isRunning ? workflowRunPreview(activeRun?.progress) : null;
 
   const disciplineOptions = useMemo(() => {
     const existingForKind = requests
@@ -193,7 +181,7 @@ export function ProcurementRequestPanel({
 
   function submit() {
     const target = discipline.trim();
-    if (!target || isRunning || !supported) return;
+    if (!target || !supported) return;
     onCreate(kind, target);
   }
 
@@ -213,34 +201,12 @@ export function ProcurementRequestPanel({
         </p>
       ) : null}
 
-      {isRunning ? (
-        <WorkflowProgressStrip
-          title={workflowProgressTitle("procurement", "create")}
-          kind="procurement"
-          runId={activeRun?.id ?? "pending-procurement-request"}
-          runState={activeRun?.state ?? "queued"}
-          progressStage={workflowProgressStage(activeRun?.progress) ?? "queued"}
-          progress={activeRun?.progress}
-          onCancel={activeRun ? onCancel : undefined}
-        />
-      ) : null}
-
-      {draftPreview ? (
-        <Suspense fallback={<p className="text-sm text-muted-foreground">Building request…</p>}>
-          <WorkflowDraftPreview
-            preview={draftPreview}
-            title={workflowProgressTitle("procurement", "create")}
-          />
-        </Suspense>
-      ) : null}
-
       <div>
         <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center">
           <MenuSelect
             id="procurement-kind"
             value={kind}
             options={KIND_OPTIONS}
-            disabled={isRunning}
             aria-label="Request type"
             onChange={(next) => {
               setKind(next as RunnableProcurementRequestKind);
@@ -251,7 +217,6 @@ export function ProcurementRequestPanel({
             id="procurement-discipline"
             value={discipline}
             suggestions={disciplineOptions}
-            disabled={isRunning}
             aria-label="Discipline"
             placeholder={
               kind === "consultant_rfp"
@@ -262,12 +227,8 @@ export function ProcurementRequestPanel({
             }
             onChange={setDiscipline}
           />
-          <Button onClick={submit} disabled={!discipline.trim() || isRunning || !supported}>
-            {isRunning ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Play className="size-4" aria-hidden />
-            )}
+          <Button onClick={submit} disabled={!discipline.trim() || !supported}>
+            <Play className="size-4" aria-hidden />
             Create {kindShortLabel(kind)}
           </Button>
         </div>
@@ -282,10 +243,12 @@ export function ProcurementRequestPanel({
             placeholder="Select a package to view or open"
             options={[
               { value: "", label: "Select a package to view or open" },
-              ...requests.map((request) => ({
-                value: request.id,
-                label: requestOptionLabel(request),
-              })),
+              ...[...requests]
+                .sort(compareProcurementRequests)
+                .map((request) => ({
+                  value: request.id,
+                  label: requestOptionLabel(request),
+                })),
             ]}
             onChange={(next) => setSelectedRequestId(next || null)}
           />

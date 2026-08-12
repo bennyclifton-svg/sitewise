@@ -481,7 +481,44 @@ describe("ProjectControlBoard project profile", () => {
     expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
   });
 
-  it("shows one progress strip while Project Plan runs and hides Pi is working copy", async () => {
+  it("keeps Project Plan and Cost Plan on the same workbench frame gutters", () => {
+    const { unmount } = render(
+      <ProjectControlBoard
+        project={project}
+        latestDraft={draftSummary}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan={false}
+        selectedWorkflowId="create-pmp"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+    const projectPlanFrame = screen.getByTestId("workbench-frame");
+    expect(projectPlanFrame).toHaveClass("w-full", "min-w-0", "p-4", "lg:p-6");
+    expect(projectPlanFrame).not.toHaveClass("max-w-6xl");
+    const projectPlanClasses = projectPlanFrame.className;
+    unmount();
+
+    render(costPlanBoard(project));
+    const costPlanFrame = screen.getByTestId("workbench-frame");
+    expect(costPlanFrame.className).toBe(projectPlanClasses);
+    expect(costPlanFrame).not.toHaveClass("max-w-none");
+  });
+
+  it("keeps Create/Update PMP enabled without a top-of-panel progress strip", async () => {
     render(
       <ProjectControlBoard
         project={project}
@@ -511,26 +548,14 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    expect(screen.getByTestId("workflow-progress-strip")).toHaveTextContent(
-      "Updating Project Plan",
-    );
-    expect(screen.queryByText("Pi is working…")).not.toBeInTheDocument();
-    expect(screen.queryByText("working…")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /create pmp/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /update pmp/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /create pmp/i })).toHaveTextContent(
-      "Create PMP",
-    );
-    expect(screen.getByRole("button", { name: /create pmp/i })).not.toHaveTextContent(
-      "Running",
-    );
-    expect(screen.queryByRole("button", { name: /review draft/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workflow-progress-strip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create pmp/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /update pmp/i })).toBeEnabled();
     expect(await screen.findByText("Trace & QA")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /accept pmp/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
-  function runningPmpBoard(run: WorkflowRun) {
+  function pmpBoard() {
     return (
       <ProjectControlBoard
         project={project}
@@ -540,17 +565,13 @@ describe("ProjectControlBoard project profile", () => {
         costPlanTrace={[]}
         workflowError={null}
         costPlanWorkflowError={null}
-        isRunningWorkflow
+        isRunningWorkflow={false}
         isRunningCostPlan={false}
-        pmpRunMode="create"
-        pmpProgressKey="pmp-session-1"
-        activeWorkflowRun={run}
         selectedWorkflowId="create-pmp"
         onRunCreatePmp={vi.fn()}
         onRunUpdatePmp={vi.fn()}
         onRunCreateCostPlan={vi.fn()}
         onRunSortFiles={vi.fn()}
-        onCancelWorkflow={vi.fn()}
         onOpenTenderComparison={vi.fn()}
         inboxCount={0}
         sortFilesResult={null}
@@ -560,48 +581,6 @@ describe("ProjectControlBoard project profile", () => {
       />
     );
   }
-
-  it("shows the document taking shape once the run publishes a scaffold", async () => {
-    render(
-      runningPmpBoard({
-        ...runningWorkflowRun,
-        progress: {
-          stage: "executing",
-          percent: 50,
-          preview: {
-            stage: "scaffold",
-            markdown: "## 1. Project Summary\n\nScaffolded content.",
-          },
-        },
-      }),
-    );
-
-    const preview = await screen.findByTestId("workflow-draft-preview");
-    expect(preview).toHaveTextContent("1. Project Summary");
-    expect(preview).toHaveTextContent("Drafting");
-  });
-
-  it("keeps the progress strip alongside the building draft", () => {
-    render(
-      runningPmpBoard({
-        ...runningWorkflowRun,
-        progress: {
-          stage: "executing",
-          percent: 50,
-          preview: { stage: "scaffold", markdown: "## 1. Project Summary" },
-        },
-      }),
-    );
-
-    expect(screen.getByTestId("workflow-progress-strip")).toBeInTheDocument();
-  });
-
-  it("shows the existing draft until the run publishes its first preview", async () => {
-    render(runningPmpBoard(runningWorkflowRun));
-
-    expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
-    expect(await screen.findByText("Trace & QA")).toBeInTheDocument();
-  });
 
   it("copies the complete PMP from the top control without workflow metadata", async () => {
     const user = userEvent.setup();
@@ -629,7 +608,7 @@ describe("ProjectControlBoard project profile", () => {
     Object.assign(api, { getProjectDraft });
 
     try {
-      render(runningPmpBoard(runningWorkflowRun));
+      render(pmpBoard());
 
       await user.click(
         screen.getByRole("button", { name: "Copy project management plan" }),
@@ -660,7 +639,7 @@ describe("ProjectControlBoard project profile", () => {
     });
 
     try {
-      render(runningPmpBoard(runningWorkflowRun));
+      render(pmpBoard());
 
       expect(screen.queryByRole("button", { name: "Copy for Word" })).not.toBeInTheDocument();
       expect(
@@ -705,54 +684,7 @@ describe("ProjectControlBoard project profile", () => {
     }
   });
 
-  it("shows the cost plan scaffold through the shared draft preview contract", async () => {
-    render(
-      <ProjectControlBoard
-        project={costPlanSupportedProject}
-        latestDraft={null}
-        latestCostPlanDraft={null}
-        trace={[]}
-        costPlanTrace={[]}
-        workflowError={null}
-        costPlanWorkflowError={null}
-        isRunningWorkflow={false}
-        isRunningCostPlan
-        costPlanRunMode="create"
-        costPlanProgressKey="cost-session-1"
-        activeCostPlanRun={{
-          ...runningWorkflowRun,
-          workflow_type: "create_cost_plan",
-          progress: {
-            stage: "scaffold_ready",
-            preview: { stage: "scaffold_ready", markdown: "## 1. Cost Summary" },
-            typed_cost_plan: {
-              item_count: 1,
-              items: [{ category: "Construction", item: "Main works", budget: null }],
-            },
-          },
-        }}
-        selectedWorkflowId="cost-plan"
-        onRunCreatePmp={vi.fn()}
-        onRunUpdatePmp={vi.fn()}
-        onRunCreateCostPlan={vi.fn()}
-        onRunRefreshCostPlan={vi.fn()}
-        onRunSortFiles={vi.fn()}
-        onOpenTenderComparison={vi.fn()}
-        inboxCount={0}
-        sortFilesResult={null}
-        sortFilesDraft={null}
-        sortFilesError={null}
-        isRunningSortFiles={false}
-      />,
-    );
-
-    const preview = await screen.findByTestId("workflow-draft-preview");
-    expect(preview).toHaveTextContent("1. Cost Summary");
-    expect(screen.getByTestId("cost-plan-typed-preview")).toHaveTextContent("Main works");
-    expect(screen.queryByTestId("cost-plan-running-placeholder")).not.toBeInTheDocument();
-  });
-
-  it("keeps canonical typed Cost Plan state visible while a refresh continues", async () => {
+  it("keeps Cost Plan actions available without a top-of-panel progress strip", () => {
     render(
       <ProjectControlBoard
         project={costPlanSupportedProject}
@@ -790,13 +722,11 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
+    expect(screen.queryByTestId("workflow-progress-strip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workflow-draft-preview")).not.toBeInTheDocument();
     expect(screen.queryByTestId("cost-plan-running-placeholder")).not.toBeInTheDocument();
-    expect(screen.getByTestId("workflow-progress-strip")).toHaveTextContent(
-      "Project evidence and guidance ready.",
-    );
-    await waitFor(() => {
-      expect(api.getCostPlanState).toHaveBeenCalledWith("project-1");
-    });
+    expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /refresh cost plan/i })).toBeEnabled();
   });
 
   it("shows the cost workbook directly under Cost Plan actions", async () => {
@@ -866,41 +796,6 @@ describe("ProjectControlBoard project profile", () => {
     }
   });
 
-  it("surfaces invoice conflicts, review items, and extraction errors", async () => {
-    render(
-      costPlanBoard(costPlanSupportedProject, {
-        latestCostPlanDraft: {
-          ...draftSummary,
-          workflow_type: "create_cost_plan",
-          title: "Cost Plan",
-        },
-        invoiceProcessResult: {
-          candidate_count: 4,
-          pending_ingest_count: 1,
-          booked_invoice_count: 1,
-          register_row_count: 1,
-          duplicate_count: 0,
-          conflict_count: 1,
-          review_count: 1,
-          extraction_error_count: 1,
-          conflicts: ["conflict"],
-          review_items: ["review"],
-          extraction_errors: ["extraction"],
-          cost_plan_version: 6,
-          workbook_path: null,
-          draft_id: null,
-        },
-      }),
-    );
-
-    const status = await screen.findByRole("status");
-    expect(status).toHaveTextContent("1 conflict requires review");
-    expect(status).toHaveTextContent("1 allocation needs review");
-    expect(status).toHaveTextContent("1 invoice could not be extracted");
-    expect(status).toHaveTextContent(
-      "1 invoice upload is still ingesting; run Process invoices again when ready",
-    );
-  });
 });
 
 const project: ProjectDetail = {

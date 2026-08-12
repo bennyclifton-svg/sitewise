@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html { scroll-snap-type: y proximity; }
+  html, body { margin:0; background:#060608; }
+  body { -webkit-font-smoothing:antialiased; }
+  a { color:#E8E8E4; text-decoration:none; }
+  a:hover { color:#B3D2F2; }
+</style>
+<script type="module" src="style-guide/3d/film-stage.js?v=5"></script>
+<script type="module" src="style-guide/3d/transmittal-stage.js?v=34"></script>
+</helmet>
+
+<div style="background:#060608;color:#E8E8E4;font-family:'Hanken Grotesk',Helvetica,sans-serif">
+
+  <nav data-sw-nav style="position:fixed;top:0;left:0;right:0;z-index:80;display:flex;align-items:center;justify-content:space-between;padding:var(--navpad,26px) 44px;background:rgba(6,6,8,var(--navbg,0));backdrop-filter:blur(var(--navblur,0px));-webkit-backdrop-filter:blur(var(--navblur,0px));border-bottom:1px solid rgba(255,255,255,var(--navline,0))">
+    <div style="display:flex;align-items:center;gap:38px;transform:scale(var(--navs,1));transform-origin:left center">
+      <a href="#top" style="display:flex;align-items:center;gap:12px">
+        <img src="style-guide/logo/mark.svg" alt="" width="26" height="26" style="display:block">
+        <span style="font-size:20px;font-weight:400;letter-spacing:-0.01em">SiteWise</span>
+      </a>
+      <div style="position:relative" style-hover="--mo:1;--mp:auto">
+        <a href="#product" style="font-size:15px;font-weight:300;color:#A8AEB7;cursor:pointer;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#E8E8E4">Product</a>
+        <div style="position:absolute;top:38px;left:-4px;max-width:calc(100vw - 32px);opacity:var(--mo,0);transform:translateY(calc(6px - 6px*var(--mo,0)));pointer-events:var(--mp,none);transition:opacity .18s cubic-bezier(.4,0,.2,1),transform .18s cubic-bezier(.4,0,.2,1);background:#0B0C0F;border:1px solid rgba(255,255,255,.08);border-top-color:rgba(255,255,255,.14);z-index:90;overflow:auto">
+          <div style="display:flex;gap:20px;padding:28px">
+
+            <div style="display:flex;flex-direction:column;gap:14px;width:180px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#7FB0E4">Ingestion &amp; Categorisation</div>
+              <div style="display:flex;flex-direction:column;gap:13px">
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Correspndance</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Reports</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Drawings</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Legislation</a>
+              </div>
+            </div>
+
+            <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+
+            <div style="display:flex;flex-direction:column;gap:14px;width:190px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#7FB0E4">Generarion</div>
+              <div style="display:flex;flex-direction:column;gap:13px">
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Project Profiles</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Project Plans</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Cost Plans</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Consultant Services</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Trade Scope &amp; Tender</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Head Contractor &amp; Tender</a>
+              </div>
+            </div>
+
+            <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+
+            <div style="display:flex;flex-direction:column;gap:14px;width:180px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#7FB0E4">Conversation &amp; Analysis</div>
+              <div style="display:flex;flex-direction:column;gap:13px">
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Conversation Interface (chat(</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Tender Comparision</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Invoice Prcessing</a>
+                <a href="#" style="font-size:15px;font-weight:300;color:#E8E8E4;transition:color .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#7FB0E4">Cost Planning</a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <a href="#pricing" style="font-size:15px;font-weight:300;color:#A8AEB7">Pricing</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:28px;transform:scale(var(--navs,1));transform-origin:right center">
+      <a href="#demo" style="font-size:15px;font-weight:300;color:#A8AEB7">Get a Demo</a>
+      <a href="#login" style="font-size:15px;font-weight:300;color:#A8AEB7">Log In</a>
+      <a href="#signup" style="font-size:15px;font-weight:400;color:#060608;background:#E8E8E4;border-radius:999px;padding:9px 20px">Sign Up</a>
+    </div>
+  </nav>
+
+  <div data-sw-track style="position:relative;height:500vh">
+
+    <div style="position:sticky;top:0;height:100vh;overflow:hidden;z-index:2">
+
+      <div data-sw-stage style="position:absolute;inset:0"></div>
+
+      <div style="position:absolute;left:0;top:0;bottom:0;width:62%;background:linear-gradient(90deg,#060608 52%,rgba(6,6,8,0) 100%);pointer-events:none;z-index:10"></div>
+
+      <div style="position:absolute;left:0;top:0;bottom:0;width:min(56%,760px);z-index:20;display:flex;align-items:center;padding-left:clamp(32px,6vw,132px);pointer-events:none">
+        <div style="position:relative;width:100%">
+
+          <div data-sw-beat="0" style="position:absolute;left:0;top:50%;width:100%;opacity:var(--o,0);transform:translate3d(0,calc(-50% + var(--y,0px)),0) scale(var(--s,1));transform-origin:0% 50%;will-change:opacity,transform">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4;margin-bottom:26px">SiteWise</div>
+            <div style="font-size:clamp(38px,4.4vw,80px);font-weight:200;letter-spacing:-0.028em;line-height:1.1;text-wrap:pretty">You do the judgement. SiteWise does the assembly.</div>
+          </div>
+
+          <div data-sw-beat="1" data-sw-phase="0" data-sw-switch="22" style="position:absolute;left:0;top:50%;width:100%;opacity:var(--o,0);transform:translate3d(0,calc(-50% + var(--y,0px)),0) scale(var(--s,1));transform-origin:0% 50%;will-change:opacity,transform">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4;margin-bottom:26px">01 — Invoice</div>
+            <div style="font-size:clamp(32px,3.6vw,64px);font-weight:200;letter-spacing:-0.026em;line-height:1.14;text-wrap:pretty">Correct it once, invoice mapping's instant from then on.</div>
+          </div>
+
+          <div data-sw-beat="1" data-sw-phase="1" data-sw-switch="22" style="position:absolute;left:0;top:50%;width:100%;opacity:var(--o,0);transform:translate3d(0,calc(-50% + var(--y,0px)),0) scale(var(--s,1));transform-origin:0% 50%;will-change:opacity,transform">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4;margin-bottom:26px">01 — Invoice</div>
+            <div style="font-size:clamp(32px,3.6vw,64px);font-weight:200;letter-spacing:-0.026em;line-height:1.14;text-wrap:pretty">Your cost plan sits in a normal, auditable database, not a black box.</div>
+          </div>
+
+          <div data-sw-beat="2" style="position:absolute;left:0;top:50%;width:100%;opacity:var(--o,0);transform:translate3d(0,calc(-50% + var(--y,0px)),0) scale(var(--s,1));transform-origin:0% 50%;will-change:opacity,transform">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4;margin-bottom:26px">02 — Project profile</div>
+            <div style="font-size:clamp(32px,3.6vw,64px);font-weight:200;letter-spacing:-0.026em;line-height:1.14;text-wrap:pretty">You don’t fill in the profile. You correct it.</div>
+          </div>
+
+          <div data-sw-beat="3" style="position:absolute;left:0;top:50%;width:100%;opacity:var(--o,0);transform:translate3d(0,calc(-50% + var(--y,0px)),0) scale(var(--s,1));transform-origin:0% 50%;will-change:opacity,transform">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4;margin-bottom:26px">02 — Project profile</div>
+            <div style="font-size:clamp(32px,3.6vw,64px);font-weight:200;letter-spacing:-0.026em;line-height:1.14;text-wrap:pretty">Class, scale, complexity, scope — drafted in seconds.</div>
+          </div>
+
+          <div data-sw-beat="4" style="position:absolute;left:0;top:50%;width:100%;opacity:var(--o,0);transform:translate3d(0,calc(-50% + var(--y,0px)),0) scale(var(--s,1));transform-origin:0% 50%;will-change:opacity,transform">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4;margin-bottom:26px">03 — Basement transmittal</div>
+            <div style="font-size:clamp(32px,3.6vw,64px);font-weight:200;letter-spacing:-0.026em;line-height:1.14;text-wrap:pretty">One instruction. Nineteen drawings, found and drafted.</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div data-sw-curtain style="position:absolute;left:0;top:100%;width:100%;height:100%;background:#060608;opacity:var(--ca,1);z-index:60;pointer-events:none"></div>
+
+      <div data-sw-hint style="position:absolute;left:clamp(32px,6vw,132px);bottom:52px;z-index:70;display:flex;align-items:center;gap:12px;opacity:var(--ho,0);transition:opacity .5s ease">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#8F939B">Scroll</div>
+        <div style="width:34px;height:1px;background:rgba(255,255,255,0.28)"></div>
+      </div>
+
+      <div style="position:absolute;right:clamp(32px,6vw,132px);top:50%;transform:translateY(-50%);z-index:70;display:flex;flex-direction:column;gap:12px">
+        <div data-sw-dot="0" style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,var(--d,0.18))"></div>
+        <div data-sw-dot="1" style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,var(--d,0.18))"></div>
+        <div data-sw-dot="2" style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,var(--d,0.18))"></div>
+        <div data-sw-dot="3" style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,var(--d,0.18))"></div>
+        <div data-sw-dot="4" style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,var(--d,0.18))"></div>
+      </div>
+
+      <div style="position:absolute;left:0;right:0;bottom:0;height:1px;background:rgba(255,255,255,0.07);z-index:70"></div>
+      <div data-sw-progress style="position:absolute;left:0;bottom:0;height:1px;width:var(--p,0%);background:linear-gradient(90deg,#1F5DAB,#7FB0E4);z-index:70"></div>
+
+    </div>
+
+    <div style="position:absolute;left:0;top:0;width:1px;height:100%;z-index:1">
+      <div style="height:100vh;scroll-snap-align:start"></div>
+      <div style="height:100vh;scroll-snap-align:start"></div>
+      <div style="height:100vh;scroll-snap-align:start"></div>
+      <div style="height:100vh;scroll-snap-align:start"></div>
+      <div style="height:100vh;scroll-snap-align:start"></div>
+    </div>
+
+  </div>
+
+  <section id="demo" style="min-height:82vh;display:flex;flex-direction:column;justify-content:center;gap:40px;padding:0 clamp(32px,6vw,132px);border-top:1px solid rgba(255,255,255,0.07);scroll-snap-align:start">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;color:#7FB0E4">Get started</div>
+    <div style="font-size:clamp(34px,4vw,68px);font-weight:200;letter-spacing:-0.028em;line-height:1.1;max-width:16ch;text-wrap:pretty">Every detail considered, to shape your next move.</div>
+    <div style="display:flex;align-items:center;gap:18px">
+      <a href="#signup" style="font-size:16px;font-weight:400;color:#060608;background:#E8E8E4;border-radius:999px;padding:14px 30px">Get a Demo</a>
+      <a href="#pricing" style="font-size:16px;font-weight:300;color:#A8AEB7;border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:14px 30px">See pricing</a>
+    </div>
+  </section>
+
+  <footer style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:34px clamp(32px,6vw,132px);border-top:1px solid rgba(255,255,255,0.07)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="style-guide/logo/mark.svg" alt="" width="20" height="20" style="display:block">
+      <span style="font-size:15px;font-weight:300;color:#A8AEB7">SiteWise</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:26px;font-size:14px;font-weight:300;color:#8F939B">
+      <a href="#product" style="color:#8F939B">Product</a>
+      <a href="#pricing" style="color:#8F939B">Pricing</a>
+      <a href="#login" style="color:#8F939B">Log In</a>
+    </div>
+  </footer>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;curtain&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;viewport&quot;,&quot;soft&quot;,&quot;off&quot;],&quot;default&quot;:&quot;viewport&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Chapter transition&quot;},&quot;exitScale&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0.8,&quot;max&quot;:1,&quot;step&quot;:0.01,&quot;default&quot;:0.9,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Chapter transition&quot;},&quot;exitLift&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0,&quot;max&quot;:200,&quot;step&quot;:5,&quot;default&quot;:100,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Chapter transition&quot;}}">
+/* Scroll is a TRIGGER, not a transport. The film is cut into chapters; scrolling
+   selects a chapter and that chapter then plays on its own clock, at the rate it
+   was authored at, and holds on its last frame until the next scroll. Scrubbing
+   film time off scroll position destroys the pacing — the conversation beats need
+   real seconds to be read. */
+class Component extends DCLogic {
+  componentDidMount() {
+    /* the film's own cue sheet, mirrored */
+    this.X = 40;            // film stage → transmittal stage
+    this.S = 69.6;          // profile pass → transmittal pass
+    this.TOTAL = 106;
+    this.CA = { promise: 0 };
+    this.CB1 = { reveal: this.X - 65.6, total: this.S + 0.1, enterAt: this.X, closeTo: 'roof' };
+    this.CB2 = { reveal: this.S - 7.6, total: this.TOTAL, act: 'transmittal' };
+
+    /* One chapter per scroll. [start, end] in film seconds, each cut where the
+       film already comes to rest. A third entry is a HOLD LOOP: film time
+       ping-pongs across that window instead of freezing, so an indicator meant to
+       keep pulsing keeps pulsing. Nothing else in the window may move, or the
+       hold will visibly rock. */
+    this.CH = [
+      [0, 13.9, [13.1, 13.9]],  // light finds the mark, sectors sweep, camera to the
+                                // roof, the question is typed and sent — holds on
+                                // "Working …", before the move down to the face
+      [13.9, 39.4],    // the answer, then repository, invoice register and cost plan
+                       // run right through, and the camera lifts back to the roof
+      [39.4, 48.9, [48.1, 48.9]],  // round to the glazing; the new project is typed,
+                                   // clicked into the agent and comes back as the
+                                   // user's own line — holds on "Working …" so the
+                                   // instruction can be read before the sheet arrives
+      [48.9, 69.6],    // the profile fills itself, then hands the roof frame back
+      [69.6, 106]      // the transmittal instruction, the register searches, nineteen
+                       // drawings selected, the draft opened and closed — one chapter
+    ];
+
+    this.idx = 0; this.prev = -1;
+    /* The chapter clock accumulates frame deltas rather than reading wall time:
+       rAF is suspended while the tab is hidden, so elapsed-time arithmetic would
+       spend chapters the visitor never saw. */
+    this.T = 0; this.u = 0; this.last = performance.now();
+    this.held = false; this.hd = 1;
+    this.q();
+    /* The suspended-tab gap is discarded explicitly on return, so the per-frame
+       clamp only has to sit above a legitimately heavy frame — the profile scene
+       runs 200ms+ frames, and clamping to those would throttle playback. */
+    this.onVis = () => { if (!document.hidden) this.last = performance.now(); };
+    document.addEventListener('visibilitychange', this.onVis);
+    this.loop = this.loop.bind(this);
+    this.raf = requestAnimationFrame(this.loop);
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.raf);
+    document.removeEventListener('visibilitychange', this.onVis);
+  }
+
+  q() {
+    this.track = document.querySelector('[data-sw-track]');
+    this.stage = document.querySelector('[data-sw-stage]');
+    this.nav = document.querySelector('[data-sw-nav]');
+    this.curtain = document.querySelector('[data-sw-curtain]');
+    this.prog = document.querySelector('[data-sw-progress]');
+    this.hint = document.querySelector('[data-sw-hint]');
+    this.beats = [].slice.call(document.querySelectorAll('[data-sw-beat]'));
+    this.dots = [].slice.call(document.querySelectorAll('[data-sw-dot]'));
+  }
+
+  mountCubes() {
+    const kA = window.SitewiseFilmCube, kB = window.SitewiseTransmittalCube;
+    if (!kA || !kB || !this.stage) return false;
+    if (!this.hosts) {
+      // a remount must not leave the previous pair of canvases stacked behind
+      while (this.stage.firstChild) this.stage.removeChild(this.stage.firstChild);
+      const mk = (k) => {
+        const d = document.createElement('div');
+        d.style.cssText = 'position:absolute;inset:0';
+        k.canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+        d.appendChild(k.canvas);
+        this.stage.appendChild(d);
+        return d;
+      };
+      this.hosts = [mk(kA), mk(kB)];
+    }
+    this.kA = kA; this.kB = kB;
+    return true;
+  }
+
+  loop() {
+    this.raf = requestAnimationFrame(this.loop);
+    if (!this.track) this.q();
+    if (!this.track) return;
+
+    const now = performance.now();
+    const dt = Math.min((now - this.last) / 1000, 0.3);
+    this.last = now;
+    const r = this.track.getBoundingClientRect();
+    const vh = window.innerHeight;
+
+    /* which chapter the page is parked on */
+    const n = this.CH.length;
+    const want = clamp(Math.round(-r.top / vh), 0, n - 1);
+    if (want !== this.idx) {
+      this.prev = this.idx;
+      this.idx = want;
+      this.u = 0;
+      this.T = this.CH[want][0];
+      this.held = false; this.hd = 1;
+    }
+
+    const ch = this.CH[this.idx];
+    this.u += dt;
+    const u = this.u;                                   // seconds inside this chapter
+    if (!this.held) {
+      this.T = Math.min(this.T + dt, ch[1]);            // plays
+      if (this.T >= ch[1] - 1e-6) this.held = true;
+    } else if (ch[2]) {                                 // then holds — live or frozen
+      let v = this.T + dt * this.hd;
+      if (v >= ch[2][1]) { v = ch[2][1]; this.hd = -1; }
+      if (v <= ch[2][0]) { v = ch[2][0]; this.hd = 1; }
+      this.T = v;
+    }
+
+    if (this.mountCubes()) {
+      const T = this.T;
+      const x = clamp((T - (this.X - 0.45)) / 0.9, 0, 1);
+      /* A held end-frame must not keep re-rendering two WebGL scenes and the
+         profile canvas for as long as the visitor sits on it. */
+      if (T !== this.drawnT || (x > 0 && x < 1)) {
+        if (x < 1) this.kA.drawAt(T, this.CA);
+        if (x > 0) this.kB.drawAt(T, T >= this.S ? this.CB2 : this.CB1);
+        this.hosts[0].style.opacity = x < 1 ? 1 : 0;
+        this.hosts[1].style.opacity = x;
+        this.drawnT = T;
+      }
+    }
+
+    this.drawBeats(u);
+    this.drawCurtain(u);
+    this.drawNav();
+    this.drawChrome();
+  }
+
+  /* Entry is plain; the exit is the signature — the outgoing plane drifts up,
+     shrinks and fades under the curtain. */
+  drawBeats(u) {
+    const lift = this.props.exitLift ?? 100;
+    const shrink = this.props.exitScale ?? 0.9;
+    const inP = easeOutQuart(seg(u, 0.45, 1.45));
+    const outP = easeInOutQuart(seg(u, 0, 1.2));
+    for (let i = 0; i < this.beats.length; i++) {
+      const el = this.beats[i];
+      const beatIdx = parseInt(el.dataset.swBeat, 10);
+      const phase = parseInt(el.dataset.swPhase || '0', 10);
+      const switchAt = parseFloat(el.dataset.swSwitch || '0');
+      let o = 0, y = 0, s = 1;
+      if (beatIdx === this.idx) {
+        o = inP; y = 26 * (1 - inP);
+        if (switchAt > 0) {
+          const eased = easeInOutQuart(seg(u, switchAt, switchAt + 0.6));
+          if (phase === 0) { o *= (1 - eased); y += -20 * eased; }
+          else { o *= eased; y += 20 * (1 - eased); }
+        }
+      } else if (beatIdx === this.prev && outP < 1 && !(switchAt > 0 && phase === 0)) {
+        o = 1 - outP; y = -lift * outP; s = 1 - (1 - shrink) * outP;
+      }
+      el.style.setProperty('--o', o.toFixed(3));
+      el.style.setProperty('--y', y.toFixed(1) + 'px');
+      el.style.setProperty('--s', s.toFixed(4));
+    }
+  }
+
+  /* Sweeps up over the leaving chapter and off the top as the next one starts. */
+  drawCurtain(u) {
+    if (!this.curtain) return;
+    const mode = this.props.curtain ?? 'viewport';
+    if (mode === 'off' || this.prev < 0 || u > 1.7) { this.curtain.style.top = '100%'; return; }
+    const k = easeInOutQuart(clamp(u / 1.7, 0, 1));
+    this.curtain.style.top = ((1 - 2 * k) * 100).toFixed(2) + '%';
+    this.curtain.style.setProperty('--ca', mode === 'soft' ? '0.86' : '1');
+  }
+
+  drawNav() {
+    if (!this.nav) return;
+    const k = easeInOutQuart(clamp(window.scrollY / 320, 0, 1));
+    const s = this.nav.style;
+    s.setProperty('--navpad', (26 - 12 * k).toFixed(1) + 'px');
+    s.setProperty('--navbg', (0.82 * k).toFixed(3));
+    s.setProperty('--navblur', (16 * k).toFixed(1) + 'px');
+    s.setProperty('--navline', (0.08 * k).toFixed(3));
+    s.setProperty('--navs', (1 - 0.09 * k).toFixed(3));
+  }
+
+  /* The hint only appears once the chapter has finished playing — it is the
+     page saying "this one is done, take the next when you're ready". */
+  drawChrome() {
+    const last = this.idx >= this.CH.length - 1;
+    if (this.hint) this.hint.style.setProperty('--ho', this.held && !last ? '1' : '0');
+    for (let i = 0; i < this.dots.length; i++) {
+      this.dots[i].style.setProperty('--d', i === this.idx ? '0.9' : '0.18');
+    }
+    if (this.prog) this.prog.style.setProperty('--p', (clamp(this.T / this.TOTAL, 0, 1) * 100).toFixed(2) + '%');
+  }
+
+  renderVals() { return {}; }
+}
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const easeInOutQuart = (p) => (p < 0.5 ? 8 * p * p * p * p : 1 - Math.pow(-2 * p + 2, 4) / 2);
+const easeOutQuart = (p) => 1 - Math.pow(1 - p, 4);
+
+</script>
+</body>
+</html>

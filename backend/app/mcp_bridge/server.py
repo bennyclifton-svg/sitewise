@@ -99,6 +99,7 @@ from app.projects.profile_proposals import (
     accept_profile_proposal,
     propose_project_profile_change as persist_profile_proposal,
     reject_profile_proposal,
+    should_auto_apply_proposal,
 )
 from app.projects.decisions import (
     DecisionLockedConflict,
@@ -1427,6 +1428,7 @@ async def _start_mcp_workflow(
     parameters: dict | None = None,
 ) -> dict:
     pid = uuid.UUID(project_id)
+    snapshot_refreshed = False
     async with get_session_factory()() as session:
         try:
             authorization = await authorize_project_mutation_with_claims(
@@ -1442,24 +1444,54 @@ async def _start_mcp_workflow(
                 message = capability_block_message(snapshot, capability_name)
                 if message:
                     raise WorkflowRunCapabilityConflict(message)
-            request = WorkflowRunStartRequest(
-                idempotency_key=idempotency_key,
-                expected_snapshot_fingerprint=expected_snapshot_fingerprint,
-                expected_profile_revision=expected_profile_revision,
-                expected_decision_set_revision=expected_decision_set_revision,
-                expected_artefact_version=expected_artefact_version,
-                turn_id=authorization.claims.turn_id,
-                chat_model=chat_model,
-                parameters=parameters or {},
-            )
-            run, _created = await persist_workflow_run(
-                session,
-                project=authorization.project,
-                user_id=authorization.claims.user_id,
-                workflow_type=workflow_type,
-                request=request,
-                snapshot=snapshot,
-            )
+
+            async def _persist(current_snapshot, *, fingerprint, profile, decisions):
+                request = WorkflowRunStartRequest(
+                    idempotency_key=idempotency_key,
+                    expected_snapshot_fingerprint=fingerprint,
+                    expected_profile_revision=profile,
+                    expected_decision_set_revision=decisions,
+                    expected_artefact_version=expected_artefact_version,
+                    turn_id=authorization.claims.turn_id,
+                    chat_model=chat_model,
+                    parameters=parameters or {},
+                )
+                return await persist_workflow_run(
+                    session,
+                    project=authorization.project,
+                    user_id=authorization.claims.user_id,
+                    workflow_type=workflow_type,
+                    request=request,
+                    snapshot=current_snapshot,
+                )
+
+            try:
+                run, _created = await _persist(
+                    snapshot,
+                    fingerprint=expected_snapshot_fingerprint,
+                    profile=expected_profile_revision,
+                    decisions=expected_decision_set_revision,
+                )
+            except WorkflowRunCapabilityConflict:
+                # The agent froze its expectations when the turn began. A turn
+                # that mutates the profile — accepting a proposal, then queueing
+                # the artefact the user just asked for — invalidates its own
+                # expectations before it gets to launch. Re-read once and retry
+                # rather than dead-ending the user's request; a second conflict
+                # means something outside this turn is writing, which the user
+                # does need to hear about.
+                snapshot = await read_project_snapshot(
+                    session,
+                    project_id=pid,
+                    owner_user_id=authorization.project.owner_user_id,
+                )
+                snapshot_refreshed = True
+                run, _created = await _persist(
+                    snapshot,
+                    fingerprint=snapshot.content_fingerprint,
+                    profile=snapshot.profile.profile_revision,
+                    decisions=snapshot.decisions.set_revision,
+                )
             await session.commit()
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
@@ -1479,7 +1511,9 @@ async def _start_mcp_workflow(
         action="queued",
         workflowType=workflow_type,
     )
-    return WorkflowRunView.model_validate(run).model_dump(mode="json")
+    payload = WorkflowRunView.model_validate(run).model_dump(mode="json")
+    payload["snapshot_refreshed"] = snapshot_refreshed
+    return payload
 
 
 @mcp.tool
@@ -2552,7 +2586,11 @@ async def propose_project_profile_change(
                 proposer="agent",
             )
             resolution = None
-            if set(proposal.proposed_values) <= {"client", "site_address"}:
+            if should_auto_apply_proposal(
+                proposal,
+                authorization.project,
+                evidence_derived=bool(references),
+            ):
                 resolution = await accept_profile_proposal(
                     session=session,
                     project=authorization.project,

@@ -511,6 +511,7 @@ def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> 
         "complexity_dimensions",
         "risk_flags",
         "work_scopes",
+        "asset_register",
         "emphasis_profiles",
     }
     assert [item["value"] for item in payload["building_classes"]] == [

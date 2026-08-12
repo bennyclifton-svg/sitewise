@@ -1314,38 +1314,29 @@ staged progress rather than an indeterminate spinner.
 | --- | --- |
 | Coding rules, stack lock, dependency policy | `AGENTS.md` (plus `backend/AGENTS.md`, `frontend/AGENTS.md`) |
 | Deployment and recovery | `DEPLOYMENT.md` |
-| Agent runtime decision | `docs/plans/2026-08-04-pi-only-agent-runtime.md` |
-| Product flow and migration sequence | July foundation plans, except where superseded by the Pi-only decision |
+| Agent runtime | `docs/plans/2026-08-04-pi-only-agent-runtime.md` |
 | Tender Comparison internals | `docs/plans/2026-06-11-tender-comparison-module-prd.md` |
 | System shape (this document) | `docs/architecture.md` |
 
-Where the July plans prescribe Hermes runtime or deployment behaviour, the
-Pi-only runtime decision wins.
+Pi is the sole agent runtime. July Hermes foundation plans under
+`docs/plans/hermes-foundation/` are historical implementation records only.
 
-### Phase ladder
+### Status
 
-```mermaid
-flowchart LR
-    p2["<b>2</b> MCP bridge<br/>+ turn tokens"] --> p3["<b>3</b> Agent runtime<br/>SSE relay · cancellation"]
-    p3 --> p4["<b>4</b> Chat UI<br/>tool chips · artefact cards"]
-    p4 --> p5["<b>5</b> NL Tender<br/>Comparison end to end"]
-    p5 --> p6["<b>6</b> Workspace +<br/>artefact editing"]
-    p6 --> p7["<b>7</b> Stripe<br/>entitlements + quotas"]
-    p7 --> p8["<b>8</b> sitewise.au<br/>production acceptance"]
-    p8 --> p85["<b>8.5</b> Legacy cutover"]
+In place: MCP bridge and turn tokens, Pi runtime and SSE relay, chat UI,
+Tender Comparison MCP path, workspace/artefact editing, Stripe entitlements.
 
-    style p8 fill:#f0fdf4,stroke:#16a34a
-    style p85 fill:#fff4e6,stroke:#d97706
-```
+Open gates: live `sitewise.au` production acceptance, then legacy grounded-RAG
+cutover.
 
 ### Deletion rules
 
 The legacy grounded-RAG path is a deliberate safety valve, not dead code. Do not
-delete before the Phase 8.5 cutover gate passes:
+delete before live production acceptance and the legacy cutover gate pass:
 
 - `backend/app/chat/orchestrator.py`
 - `backend/app/assistant/*`
 - Cockpit pages and routes still serving as fallbacks
 
-After the Phase 8 production acceptance gate passes, remove them in small,
-revertable commits with backend and frontend checks green.
+After production acceptance passes, remove them in small, revertable commits
+with backend and frontend checks green.

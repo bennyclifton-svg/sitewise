@@ -25,12 +25,21 @@ WORK_TYPE_HEADING_VARIANTS: dict[str, dict[str, str]] = {
     },
 }
 
-def pmp_section_headings(*, work_type: str | None) -> tuple[str, ...]:
-    """Return the universal section headings in emphasis-profile order."""
+def pmp_section_headings(
+    *, work_type: str | None, sections: tuple[str, ...] | None = None
+) -> tuple[str, ...]:
+    """Return the section headings in emphasis-profile order.
+
+    `sections` narrows the universal list to the ones this project needs; omit
+    it to get every section, which is what callers without a resolved taxonomy
+    context still expect.
+    """
     variants = WORK_TYPE_HEADING_VARIANTS.get(work_type or "", {})
+    section_ids = PMP_CORE_SECTIONS if sections is None else sections
     return tuple(
         variants.get(section_id, PMP_SECTION_HEADINGS[section_id])
-        for section_id in PMP_CORE_SECTIONS
+        for section_id in section_ids
+        if section_id in PMP_SECTION_HEADINGS
     )
 
 

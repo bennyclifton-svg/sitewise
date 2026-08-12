@@ -32,4 +32,24 @@ describe("ChatRail failure boundary", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry chat" }));
     expect(retry).toHaveBeenCalledOnce();
   });
+
+  it("matches workbench gutters in the main layout", () => {
+    const { container } = render(
+      <ChatRail
+        layout="main"
+        thread={null}
+        messages={[]}
+        chatRevision={0}
+        chatLoading={false}
+        chatError="Could not open project chat."
+        selectedCitationId={null}
+        onConversationUpdate={vi.fn()}
+        onSelectCitation={vi.fn()}
+      />,
+    );
+
+    const frame = container.querySelector(".px-4.lg\\:px-6");
+    expect(frame).toHaveClass("w-full", "min-w-0", "px-4", "lg:px-6");
+    expect(frame).not.toHaveClass("max-w-6xl");
+  });
 });

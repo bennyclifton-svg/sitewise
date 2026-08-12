@@ -8,6 +8,7 @@ risk flags, and calculate section emphasis weights without LLM involvement.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -82,32 +83,73 @@ class WorkScopeItem:
 
 
 def _read_json(filename: str) -> dict[str, Any]:
-    return json.loads((TAXONOMY_ROOT / filename).read_text(encoding="utf-8"))
+    """Load a taxonomy JSON file, re-reading when the file mtime changes.
+
+    Uvicorn --reload only watches ``backend/``, so edits under ``data/taxonomy/``
+    would otherwise stick in process memory until a full restart.
+    """
+    path = TAXONOMY_ROOT / filename
+    return _cached_json_file(str(path.resolve()), path.stat().st_mtime_ns)
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=32)
+def _cached_json_file(path: str, mtime_ns: int) -> dict[str, Any]:
+    del mtime_ns  # cache key only; content is read from path
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
 def _building_config() -> dict[str, Any]:
     return _read_json("building-classes.json")
 
 
-@lru_cache(maxsize=1)
 def _complexity_config() -> dict[str, Any]:
     return _read_json("complexity-dimensions.json")
 
 
-@lru_cache(maxsize=1)
 def _risk_config() -> dict[str, Any]:
     return _read_json("risk-flags.json")
 
 
-@lru_cache(maxsize=1)
 def _work_scope_config() -> dict[str, Any]:
     return _read_json("work-scopes.json")
 
 
-@lru_cache(maxsize=1)
 def _emphasis_config() -> dict[str, Any]:
     return _read_json("emphasis-profiles.json")
+
+
+def _asset_register_config() -> dict[str, Any]:
+    return _read_json("asset-register.json")
+
+
+def asset_option_values(group: str) -> tuple[ComplexityOption, ...]:
+    """Return the allowed options for an asset register field group."""
+    return tuple(
+        ComplexityOption(value=str(item["value"]), label=str(item["label"]))
+        for item in _asset_register_config().get(group, [])
+    )
+
+
+def asset_register_fields() -> tuple[dict[str, Any], ...]:
+    """Return the asset register field schema for the profile UI."""
+    return tuple(dict(field) for field in _asset_register_config().get("fields", []))
+
+
+def asset_register_applies_to(work_type: str | None) -> bool:
+    """Assets describe what already exists, so a new build has none to register."""
+    if not work_type:
+        return False
+    applies = _asset_register_config().get("applies_to_work_types", [])
+    return work_type in {str(value) for value in applies}
+
+
+def asset_option_label(group: str, value: str | None) -> str | None:
+    if not value:
+        return None
+    for option in asset_option_values(group):
+        if option.value == value:
+            return option.label
+    return value
 
 
 def _scale_field(raw: dict[str, Any]) -> ScaleField:
@@ -220,6 +262,26 @@ def derive_risk_flags(complexity: dict[str, str], work_scope: list[str]) -> list
             seen.add(flag)
             derived.append(definitions[flag])
     return derived
+
+
+def design_lead_discipline(
+    work_type: str | None,
+    work_scope: list[str] | tuple[str, ...],
+) -> str:
+    """Return the discipline that leads design for the dominant scope.
+
+    Each work-scope item lists its consultants most-relevant-first, so the first
+    consultant of the first selected scope is the discipline that actually leads
+    the work. Architect remains the answer for architectural scope and the
+    fallback when no scope is selected — but naming an Architect as design lead
+    on a mechanical plant replacement or a fire-services upgrade was wrong.
+    """
+    for item in work_scope_items_for(work_type, work_scope):
+        for consultant in item.consultants:
+            name = consultant.strip()
+            if name:
+                return name
+    return "Architect"
 
 
 def work_scope_items_for(
@@ -370,12 +432,152 @@ def _building_class_by_value() -> dict[str, BuildingClass]:
 PMP_CORE_SECTIONS: tuple[str, ...] = tuple(_emphasis_config()["sections"])
 
 
+_BUDGET_PATTERN = re.compile(
+    r"(\d[\d,]*(?:\.\d+)?)\s*(k|m|bn|b|million|billion|thousand)?",
+    re.IGNORECASE,
+)
+_BUDGET_MULTIPLIERS = {
+    "k": 1_000,
+    "thousand": 1_000,
+    "m": 1_000_000,
+    "million": 1_000_000,
+    "b": 1_000_000_000,
+    "bn": 1_000_000_000,
+    "billion": 1_000_000_000,
+}
+
+
+def parse_budget_amount(raw: object) -> float | None:
+    """Read a dollar figure out of the loose text a PM actually types.
+
+    Handles "$180k", "around $1.4m", "approximately $850,000", "$28m".
+    Returns None rather than guessing when nothing parses.
+    """
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(raw) if raw > 0 else None
+    if not isinstance(raw, str):
+        return None
+    match = _BUDGET_PATTERN.search(raw.replace("$", " "))
+    if match is None:
+        return None
+    try:
+        amount = float(match.group(1).replace(",", ""))
+    except ValueError:
+        return None
+    suffix = (match.group(2) or "").lower()
+    amount *= _BUDGET_MULTIPLIERS.get(suffix, 1)
+    return amount if amount > 0 else None
+
+
+def scale_band_for(budget: object) -> str | None:
+    """Resolve the scale band from a budget, or None when no budget is known.
+
+    Without this an $80k plant swap and a $200m tower resolved to the same
+    profile and produced documents of the same weight.
+    """
+    amount = parse_budget_amount(budget)
+    if amount is None:
+        return None
+    for band in _emphasis_config().get("scale_bands", []):
+        ceiling = band.get("max_budget")
+        if ceiling is None or amount < float(ceiling):
+            return str(band["band"])
+    return None
+
+
+def scale_band_word_target(band: str | None) -> int | None:
+    """Return the word target for a band; None when the band is unknown."""
+    if not band:
+        return None
+    for item in _emphasis_config().get("scale_bands", []):
+        if str(item["band"]) == band and item.get("word_target") is not None:
+            return int(item["word_target"])
+    return None
+
+
+def scale_band_word_bounds(
+    band: str | None,
+    *,
+    section_count: int | None = None,
+    default_min: int,
+    default_max: int,
+) -> tuple[int, int]:
+    """Scale the acceptable length to the project's size and section count.
+
+    A flat 800-word floor made no sense once small projects legitimately render
+    fewer sections and carry a lower word target: the document would be correct
+    and still fail validation for being short.
+    """
+    target = scale_band_word_target(band)
+    if target is not None:
+        minimum, maximum = int(target * 0.7), int(target * 1.45)
+    else:
+        minimum, maximum = default_min, default_max
+    if section_count is not None and PMP_CORE_SECTIONS:
+        ratio = max(section_count, 1) / len(PMP_CORE_SECTIONS)
+        minimum = int(minimum * ratio)
+    return max(minimum, 1), max(maximum, minimum + 1)
+
+
+def applicable_sections(
+    *,
+    work_type: str | None,
+    work_scope: list[str] | tuple[str, ...] = (),
+    has_assets: bool = False,
+) -> tuple[str, ...]:
+    """Return the sections this project actually needs.
+
+    Previously every project rendered all eleven, so a plant replacement carried
+    an empty FFE schedule and an advisory engagement carried a procurement and
+    delivery section it had no use for.
+    """
+    rules = _emphasis_config().get("applicability", {})
+    scope = {str(value) for value in work_scope}
+    sections: list[str] = []
+    for section in PMP_CORE_SECTIONS:
+        rule = rules.get(section)
+        if rule is None:
+            sections.append(section)
+            continue
+        if _applicability_matches(
+            rule.get("exclude_when"), work_type, scope, has_assets
+        ):
+            continue
+        include = rule.get("include_when")
+        if include is not None and not _applicability_matches(
+            include, work_type, scope, has_assets
+        ):
+            continue
+        sections.append(section)
+    return tuple(sections)
+
+
+def _applicability_matches(
+    condition: dict[str, Any] | None,
+    work_type: str | None,
+    scope: set[str],
+    has_assets: bool,
+) -> bool:
+    """Any listed trigger firing is enough; an absent condition never matches."""
+    if not condition:
+        return False
+    work_types = {str(value) for value in condition.get("work_type_any", [])}
+    if work_types and work_type in work_types:
+        return True
+    scopes = {str(value) for value in condition.get("work_scope_any", [])}
+    if scopes and scopes.intersection(scope):
+        return True
+    return bool(condition.get("has_assets")) and has_assets
+
+
 def section_weights_for(
     *,
     building_class: str | None,
     work_type: str | None,
     work_scope: list[str],
     risk_flags: list[str],
+    scale_band: str | None = None,
+    sections: tuple[str, ...] | None = None,
 ) -> dict[str, float]:
     config = _emphasis_config()
     key = f"{building_class}|{work_type}"
@@ -389,10 +591,17 @@ def section_weights_for(
             work_type=work_type,
             work_scope=work_scope,
             risk_flags=risk_flags,
+            scale_band=scale_band,
         ):
             for section, boost in modifier.get("boost", {}).items():
                 if section in weights:
                     weights[section] += float(boost)
+    if sections is not None:
+        allowed = set(sections)
+        weights = {
+            section: value if section in allowed else 0.0
+            for section, value in weights.items()
+        }
     return _normalise_weights(weights)
 
 
@@ -403,10 +612,13 @@ def _modifier_matches(
     work_type: str | None,
     work_scope: list[str],
     risk_flags: list[str],
+    scale_band: str | None = None,
 ) -> bool:
     if "building_class" in when and when["building_class"] != building_class:
         return False
     if "work_type" in when and when["work_type"] != work_type:
+        return False
+    if "scale_band" in when and when["scale_band"] != scale_band:
         return False
     if "risk_flag" in when and when["risk_flag"] not in set(risk_flags):
         return False
@@ -437,6 +649,14 @@ def taxonomy_options_payload() -> dict[str, Any]:
             key: asdict(flag) for key, flag in risk_flag_definitions().items()
         },
         "work_scopes": _work_scope_config()["work_types"],
+        "asset_register": {
+            "applies_to_work_types": list(
+                _asset_register_config().get("applies_to_work_types", [])
+            ),
+            "fields": [dict(field) for field in asset_register_fields()],
+            "condition": [asdict(option) for option in asset_option_values("condition")],
+            "action": [asdict(option) for option in asset_option_values("action")],
+        },
         "emphasis_profiles": {
             "sections": list(PMP_CORE_SECTIONS),
             "base_weights": _emphasis_config()["base_weights"],

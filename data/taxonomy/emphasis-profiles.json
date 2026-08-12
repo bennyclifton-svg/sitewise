@@ -34,7 +34,37 @@
     "infrastructure|advisory": {"snapshot": 0.10, "scope-client-requirements": 0.09, "ffe-schedule": 0.02, "consultants": 0.09, "compliance-approvals": 0.17, "programme": 0.09, "cost-budget": 0.10, "procurement-delivery": 0.10, "risks": 0.10, "actions-decisions": 0.10, "citation-key": 0.04},
     "default": {"snapshot": 0.10, "scope-client-requirements": 0.09, "ffe-schedule": 0.03, "consultants": 0.08, "compliance-approvals": 0.15, "programme": 0.12, "cost-budget": 0.12, "procurement-delivery": 0.12, "risks": 0.13, "actions-decisions": 0.02, "citation-key": 0.04}
   },
+  "scale_bands": [
+    {"band": "xs", "label": "XS", "max_budget": 250000, "word_target": 700},
+    {"band": "s", "label": "S", "max_budget": 2000000, "word_target": 1100},
+    {"band": "m", "label": "M", "max_budget": 20000000, "word_target": 1500},
+    {"band": "l", "label": "L", "max_budget": null, "word_target": 1900}
+  ],
+  "applicability": {
+    "ffe-schedule": {
+      "include_when": {
+        "work_scope_any": [
+          "fitout",
+          "internal_fitout",
+          "live_environment_fitout",
+          "finishes",
+          "joinery",
+          "wet_areas",
+          "kitchen_joinery",
+          "ffe_procurement"
+        ],
+        "has_assets": true,
+        "work_type_any": ["new", "extend"]
+      }
+    },
+    "procurement-delivery": {
+      "exclude_when": {"work_type_any": ["advisory"]}
+    }
+  },
   "modifiers": [
+    {"when": {"scale_band": "xs"}, "boost": {"snapshot": 0.04, "scope-client-requirements": 0.04, "procurement-delivery": -0.05, "consultants": -0.03}},
+    {"when": {"scale_band": "s"}, "boost": {"scope-client-requirements": 0.02, "procurement-delivery": -0.02}},
+    {"when": {"scale_band": "l"}, "boost": {"procurement-delivery": 0.03, "risks": 0.02, "consultants": 0.02}},
     {"when": {"work_scope_any": ["fire_services"]}, "boost": {"compliance-approvals": 0.10}},
     {"when": {"risk_flag": "live_operations"}, "boost": {"risks": 0.05}},
     {"when": {"risk_flag": "heritage_adaptive_reuse"}, "boost": {"compliance-approvals": 0.05}},

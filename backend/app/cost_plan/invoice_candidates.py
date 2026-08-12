@@ -40,6 +40,68 @@ def is_invoice_document(*, filename: str, content: str) -> bool:
     )
 
 
+async def resolve_invoice_source_document_ids(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    document_ids: list[uuid.UUID],
+) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
+    """Map UI/tool ids to SourceDocument ids.
+
+    Accepts either ``source_document_id`` or ``workspace_file_id`` values. Returns
+    ``(resolved_source_document_ids, unresolved_ids)`` in stable first-seen order.
+    """
+    if not document_ids:
+        return [], []
+
+    workspace_rows = (
+        await session.execute(
+            select(WorkspaceFile.id, WorkspaceFile.source_document_id).where(
+                WorkspaceFile.project_id == project_id,
+                WorkspaceFile.id.in_(document_ids),
+                WorkspaceFile.source_document_id.is_not(None),
+            )
+        )
+    ).all()
+    workspace_to_source = {
+        workspace_id: source_id
+        for workspace_id, source_id in workspace_rows
+        if source_id is not None
+    }
+
+    existing_sources = set(
+        (
+            await session.execute(
+                select(SourceDocument.id).where(
+                    SourceDocument.project_id == project_id,
+                    SourceDocument.id.in_(document_ids),
+                    SourceDocument.source_type == "project_evidence",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    resolved: list[uuid.UUID] = []
+    unresolved: list[uuid.UUID] = []
+    seen: set[uuid.UUID] = set()
+    for document_id in document_ids:
+        source_id = (
+            document_id
+            if document_id in existing_sources
+            else workspace_to_source.get(document_id)
+        )
+        if source_id is None:
+            unresolved.append(document_id)
+            continue
+        if source_id in seen:
+            continue
+        seen.add(source_id)
+        resolved.append(source_id)
+    return resolved, unresolved
+
+
 async def discover_invoice_candidates(
     session: AsyncSession,
     *,
@@ -62,7 +124,14 @@ async def discover_invoice_candidates(
     if source_document_ids is not None:
         if not source_document_ids:
             return []
-        statement = statement.where(SourceDocument.id.in_(source_document_ids))
+        resolved_ids, _unresolved = await resolve_invoice_source_document_ids(
+            session,
+            project_id=project_id,
+            document_ids=source_document_ids,
+        )
+        if not resolved_ids:
+            return []
+        statement = statement.where(SourceDocument.id.in_(resolved_ids))
 
     rows = (await session.execute(statement)).all()
     candidates: list[InvoiceCandidate] = []

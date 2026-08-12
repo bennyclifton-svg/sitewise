@@ -1,0 +1,51 @@
+{
+  "title": "Landing film scope",
+  "question": "The handoff includes a full scroll-chapter landing. How much of that film experience should replace the current page in the first ship?",
+  "options": [
+    {
+      "id": "full-chapters",
+      "label": "Full five chapters",
+      "kicker": "RECOMMENDED",
+      "thesis": "Port Sitewise Landing.dc.html as designed: five scroll chapters over the full 106s film, then CTA and footer.",
+      "materials": [
+        "Reveal",
+        "Invoice",
+        "Profile",
+        "Transmittal",
+        "scroll-as-trigger"
+      ],
+      "viewport": "Sticky film stage left-copy overlays; one chapter per scroll snap; Get started close.",
+      "risk": "Largest port: two WebGL cube stages, canvas screen content, chapter clock, reduced-motion plan.",
+      "case": "Matches the authored landing shell exactly; nothing from the old facet story survives."
+    },
+    {
+      "id": "landing-cut",
+      "label": "Landing cut only",
+      "thesis": "Ship Reveal + Invoice from Sitewise Landing Film first; add Profile and Transmittal in a follow-up.",
+      "materials": [
+        "Reveal",
+        "Invoice",
+        "shorter track"
+      ],
+      "viewport": "Same dark nav and sticky stage, but only two scroll chapters before the CTA.",
+      "risk": "Faster to land, but the page feels unfinished if visitors expect the full product story.",
+      "case": "Useful if you want a working page sooner and will finish the later acts next."
+    },
+    {
+      "id": "shell-plus-still",
+      "label": "Shell first, film later",
+      "thesis": "Replace nav, copy, CTA, and tokens now; keep a still or short loop of the mark until the chapter engine is ready.",
+      "materials": [
+        "static shell",
+        "tokens",
+        "placeholder stage"
+      ],
+      "viewport": "Handoff layout and type with a non-interactive cube or poster frame.",
+      "risk": "Loses the memorable moment that makes this handoff worth shipping.",
+      "case": "Only if motion is blocked; otherwise underdelivers the brief."
+    }
+  ],
+  "reroll": false,
+  "canon": false,
+  "steer": true
+}

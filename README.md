@@ -6,20 +6,19 @@ the Tender Comparison workflow end to end.
 
 ## Product Direction
 
-The current build direction is Pi-only agent execution:
+Pi is the sole agent runtime. Governing docs:
 
 - [Pi-only Agent Runtime](docs/plans/2026-08-04-pi-only-agent-runtime.md)
-- [Historical Hermes Foundation Phases 0-2](docs/plans/2026-07-02-hermes-foundation-phases-0-2.md)
-- [Historical Hermes Foundation Phases 3-8](docs/plans/2026-07-03-hermes-foundation-phases-3-8.md)
+- [System architecture](docs/architecture.md)
+- [Tender Comparison Module PRD](docs/plans/2026-06-11-tender-comparison-module-prd.md)
 
-After Phase 2 lands, the Pi runtime provides AI-SDK-compatible
-streaming, chat tool chips, Tender Comparison from natural language, workspace
-and artefact editing, Stripe billing, and the final `sitewise.au` deployment.
+MCP, AI-SDK-compatible streaming, chat tool chips, Tender Comparison from
+natural language, workspace and artefact editing, and Stripe billing are in
+place. Remaining open work is live `sitewise.au` production acceptance, then
+legacy PydanticAI chat cutover.
 
-Tender Comparison internals are governed by the
-[Tender Comparison Module PRD](docs/plans/2026-06-11-tender-comparison-module-prd.md).
-The Pi-only runtime decision supersedes the July plans where agent runtime or
-deployment behaviour differs.
+July Hermes foundation plans under `docs/plans/hermes-foundation/` are
+historical only. Do not use them as current direction.
 
 ## Stack
 
@@ -63,9 +62,10 @@ clerk/
 | pnpm | latest | Frontend package manager |
 | Supabase | hosted project | Auth, Postgres, object storage |
 | OpenAI | API key / platform key | Current LLM and embedding calls |
+| Pi CLI | pinned in the backend image | Headless agent turns |
 
-Pi execution and ODL-in-Docker checks are validated on Linux/WSL2, then on
-the VPS during Phase 8.
+Pi execution and ODL-in-Docker checks are validated on Linux/WSL2 and on the
+VPS during production acceptance.
 
 ## Running Locally
 
@@ -128,6 +128,6 @@ See [data/README.md](data/README.md).
 
 ## Legacy Modules
 
-The existing PydanticAI grounded-RAG chat and cockpit pages are still live until
-the planned Phase 8.5 cutover. Do not delete them early; the Pi-only plan keeps
-them as a safety valve until the production demo passes.
+The existing PydanticAI grounded-RAG chat and cockpit pages remain until live
+production acceptance and the legacy cutover gate pass. Do not delete them
+early; they are a deliberate safety valve.

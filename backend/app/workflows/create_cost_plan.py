@@ -25,7 +25,6 @@ from app.projects.artefact_context import (
     format_artefact_context,
     known_context_values,
 )
-from app.projects.decisions import locked_selections, sync_decisions_from_markdown
 from app.projects.generation_context import (
     ProjectGenerationContext,
     resolve_project_generation_context,
@@ -71,21 +70,15 @@ from app.schemas.projects import (
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.cost_plan_brief import (
     build_greenfield_brief,
-    greenfield_markers_missing,
     greenfield_quality_markers,
-    greenfield_structure_violations,
 )
 from app.sitewise.pmp_decisions import (
     format_decision_option_sets,
     format_locked_decisions,
-    restamp_decisions,
-)
-from app.sitewise.cost_plan_evidence_validation import (
-    cost_plan_evidence_grounded_violations,
-    ensure_evidence_grounded_cost_plan_scaffold,
 )
 from app.sitewise.cost_plan_workbook import (
     build_cost_plan_workbook_for_export,
+    build_typed_cost_plan_workbook,
 )
 from app.sitewise.cost_plan_sources import (
     document_title,
@@ -103,17 +96,16 @@ from app.workflows.create_pmp import (
     WorkflowValidationError,
     _is_platform_passage,
     _is_project_passage,
-    _publish_preview,
     _publish_progress,
     _source_ref,
-    normalize_pmp_markdown,
 )
 from ingest.hashing import bytes_content_hash
 
 WORKFLOW_TYPE = "create_cost_plan"
 RUNTIME_NAME = "clerk-sitewise-create-cost-plan"
-RUNTIME_HYBRID_NAME = "clerk-sitewise-create-cost-plan-hybrid"
-HYBRID_NARRATIVE_MAX_ATTEMPTS = 3
+RUNTIME_TYPED_NAME = "clerk-sitewise-create-cost-plan-typed"
+# Back-compat alias for imports that still name the prior hybrid runtime.
+RUNTIME_HYBRID_NAME = RUNTIME_TYPED_NAME
 CREATE_COST_PLAN_PROJECT_QUERY = (
     "cost plan pricing schedule budget contingency claims variations fee "
     "proposals tender contract sum schedule of values invoices progress payment"
@@ -134,7 +126,17 @@ CREATE_COST_PLAN_RETRIEVAL_BUDGET = RetrievalBudget(
 CREATE_COST_PLAN_GENERATION_CONSTRAINTS = (
     "All arithmetic and totals are deterministic.",
     "Use deterministic typed cost rows and calculations.",
-    "Narrative may interpret evidence but must not overwrite canonical typed cost items.",
+    "Canonical cost plan artefact is the typed table, not report prose.",
+)
+TYPED_COST_PLAN_CATEGORY_BATCH_ORDER: tuple[str, ...] = (
+    "Fees and charges",
+    "Fees and Charges",
+    "Consultants",
+    "Construction",
+    "PC allowances",
+    "Client-direct and landlord works",
+    "Contingency / allowances",
+    "Contingency",
 )
 
 _PLATFORM_CORPUS_INGEST_HINT = (
@@ -282,7 +284,7 @@ DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
 class CostPlanDraftOutput(BaseModel):
     title: str = Field(min_length=1, max_length=512)
-    markdown: str = Field(min_length=200)
+    markdown: str = Field(min_length=1)
     seed_consulted: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     context_refs: list[str] = Field(default_factory=list)
@@ -345,15 +347,6 @@ def _format_mandatory_seeds(paths: list[str]) -> str:
         for path in paths
         if path.startswith("seed/") or path.startswith("skills/")
     )
-
-
-def _markdown_has_section(markdown: str, heading: str) -> bool:
-    target = heading.strip().lower()
-    for line in markdown.splitlines():
-        stripped = line.strip().lower()
-        if stripped.startswith("## ") and stripped[3:].strip() == target:
-            return True
-    return False
 
 
 def _source_document_passage(doc: SourceDocument) -> SourcePassage:
@@ -838,12 +831,69 @@ def _money_variants(value: str | None) -> set[str]:
     return {str(amount), f"{amount:,}", f"${amount:,}"}
 
 
-def _contains_money(markdown: str, value: str | None) -> bool:
-    return any(variant in markdown for variant in _money_variants(value))
+def _format_typed_budget(value: Decimal | None) -> str:
+    if value is None:
+        return "TBC"
+    if value == value.to_integral_value():
+        return f"{int(value):,}"
+    return f"{value:,.2f}"
 
 
-def _required_evidence_fact_issues(
-    markdown: str,
+def render_typed_cost_plan_markdown(
+    title: str,
+    items: list[CostItemInput],
+) -> str:
+    """Thin markdown table for draft/workspace/copy — not the legacy report."""
+    lines = [
+        f"# {title}",
+        "",
+        "| Cost Code | Category | Cost Items | Budget | Status | Basis |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for item in items:
+        basis = (item.basis or "").replace("|", "/")
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    item.cost_code,
+                    item.category,
+                    item.item.replace("|", "/"),
+                    _format_typed_budget(item.budget),
+                    item.status,
+                    basis,
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _typed_item_preview_payload(item: CostItemInput) -> dict[str, str | None]:
+    return {
+        "item_key": item.item_key,
+        "cost_code": item.cost_code,
+        "category": item.category,
+        "item": item.item,
+        "budget": None if item.budget is None else str(item.budget),
+        "forecast": str(item.forecast),
+        "status": item.status,
+        "basis": item.basis,
+    }
+
+
+def _typed_budget_variants(items: list[CostItemInput]) -> set[str]:
+    variants: set[str] = set()
+    for item in items:
+        if item.budget is None:
+            continue
+        variants |= _money_variants(_format_typed_budget(item.budget))
+        variants |= _money_variants(str(item.budget))
+    return variants
+
+
+def _required_typed_evidence_fact_issues(
+    items: list[CostItemInput],
     *,
     source_texts: list[str] | None,
     evidence_refs: list[str],
@@ -854,37 +904,38 @@ def _required_evidence_fact_issues(
     from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
 
     pack = extract_cost_plan_evidence_pack(source_texts, evidence_refs)
+    variants = _typed_budget_variants(items)
     issues: list[str] = []
-    if pack.construction_budget_ceiling and not _contains_money(
-        markdown,
-        pack.construction_budget_ceiling,
+    if pack.fee_total_ex_gst and not any(
+        variant in variants for variant in _money_variants(pack.fee_total_ex_gst)
     ):
         issues.append(
-            "evidenced construction budget is missing from cost plan "
-            f"({_money_variants(pack.construction_budget_ceiling)})"
-        )
-    if pack.fee_total_ex_gst and not _contains_money(markdown, pack.fee_total_ex_gst):
-        issues.append(
-            "evidenced architect/PM fee is missing from cost plan "
+            "evidenced architect/PM fee is missing from typed cost rows "
             f"({_money_variants(pack.fee_total_ex_gst)})"
         )
-    if pack.contingency_amount and not _contains_money(
-        markdown, pack.contingency_amount
+    if pack.contingency_amount and not any(
+        variant in variants for variant in _money_variants(pack.contingency_amount)
     ):
         issues.append(
-            "evidenced owner contingency is missing from cost plan "
+            "evidenced owner contingency is missing from typed cost rows "
             f"({_money_variants(pack.contingency_amount)})"
         )
-
-    lower = markdown.lower()
-    if pack.mobilisation.builder_rom:
-        if "not a tender" not in lower:
-            issues.append("builder ROM must be labelled as not a tender")
-        for amount in ("880,000", "980,000"):
-            if amount in pack.mobilisation.builder_rom and amount not in markdown:
-                issues.append(f"builder ROM amount {amount} is missing from cost plan")
-    if pack.mobilisation.heritage_advice and "heritage" not in lower:
-        issues.append("heritage advice is missing from cost plan")
+    if pack.construction_budget_ceiling and not any(
+        variant in variants
+        for variant in _money_variants(pack.construction_budget_ceiling)
+    ):
+        construction = [
+            item for item in items if item.category.lower() == "construction"
+        ]
+        priced_construction = [item for item in construction if item.budget is not None]
+        # Structure-only families keep construction as TBC pending tender; the
+        # ceiling is a control figure, not a row amount.
+        structure_only_scaffold = bool(construction) and not priced_construction
+        if len(priced_construction) < 2 and not structure_only_scaffold:
+            issues.append(
+                "evidenced construction budget is missing from typed cost rows "
+                f"({_money_variants(pack.construction_budget_ceiling)})"
+            )
     return issues
 
 
@@ -908,9 +959,13 @@ def validate_cost_plan_output(
         raise WorkflowValidationError(
             "Create Cost Plan output did not identify evidence references."
         )
-    if "# " not in output.markdown and "## " not in output.markdown:
+    if not output._cost_items:
         raise WorkflowValidationError(
-            "Create Cost Plan output is not structured as Markdown."
+            "Create Cost Plan output did not produce typed cost rows."
+        )
+    if "| Cost Code |" not in output.markdown and "| cost code |" not in output.markdown.lower():
+        raise WorkflowValidationError(
+            "Create Cost Plan output is missing the typed cost table markdown."
         )
 
     missing_seeds = seed_consulted_includes_required(
@@ -924,39 +979,9 @@ def validate_cost_plan_output(
             f"Create Cost Plan output did not record mandatory seeds in seed_consulted: {joined}"
         )
 
-    missing_sections = [
-        heading
-        for heading in required_section_headings()
-        if not _markdown_has_section(output.markdown, heading)
-    ]
-    if missing_sections:
-        joined = ", ".join(missing_sections)
-        raise WorkflowValidationError(
-            f"Create Cost Plan output is missing required sections: {joined}"
-        )
-
-    if draft_mode == "platform_seeded":
-        missing_markers = greenfield_markers_missing(
-            output.markdown,
-            archetype=archetype,
-        )
-        if missing_markers:
-            joined = ", ".join(missing_markers)
-            raise WorkflowValidationError(
-                "Create Cost Plan greenfield draft lacks required depth markers: "
-                f"{joined}"
-            )
-
-    structure_issues = greenfield_structure_violations(output.markdown)
-    if structure_issues:
-        joined = "; ".join(structure_issues)
-        raise WorkflowValidationError(
-            f"Create Cost Plan draft structural issues: {joined}"
-        )
-
     if draft_mode == "evidence_grounded":
-        required_fact_issues = _required_evidence_fact_issues(
-            output.markdown,
+        required_fact_issues = _required_typed_evidence_fact_issues(
+            output._cost_items,
             source_texts=source_texts,
             evidence_refs=output.evidence_refs,
         )
@@ -964,17 +989,6 @@ def validate_cost_plan_output(
             joined = "; ".join(required_fact_issues)
             raise WorkflowValidationError(
                 f"Create Cost Plan evidence_grounded required evidence issues: {joined}"
-            )
-
-        evidence_issues = cost_plan_evidence_grounded_violations(
-            output.markdown,
-            output.evidence_refs,
-            source_texts=source_texts,
-        )
-        if evidence_issues:
-            joined = "; ".join(evidence_issues)
-            raise WorkflowValidationError(
-                f"Create Cost Plan evidence_grounded fidelity issues: {joined}"
             )
 
 
@@ -1099,14 +1113,22 @@ async def save_cost_plan_workbook_artifact(
         project_id=project.id,
         through_cost_plan_version=draft.version,
     )
-    workbook = build_cost_plan_workbook_for_export(
-        project_title=project.title,
-        markdown=markdown,
-        version=draft.version,
-        typed_state=typed_state,
-        invoice_rows=invoice_rows,
-        generated_at=generated_at,
-    )
+    if typed_state is not None and typed_state.items:
+        workbook = build_typed_cost_plan_workbook(
+            project_title=project.title,
+            state=typed_state,
+            invoice_rows=invoice_rows,
+            generated_at=generated_at,
+        )
+    else:
+        workbook = build_cost_plan_workbook_for_export(
+            project_title=project.title,
+            markdown=markdown,
+            version=draft.version,
+            typed_state=typed_state,
+            invoice_rows=invoice_rows,
+            generated_at=generated_at,
+        )
     workspace_path = workbook_workspace_path(project, draft.version)
     storage_key = build_storage_key(str(project.id), workspace_path)
     content_hash = bytes_content_hash(workbook.content)
@@ -1179,11 +1201,44 @@ def _seed_consulted_from_passages(passages: list[SourcePassage]) -> list[str]:
     return list(dict.fromkeys(seeds))
 
 
-def _should_use_hybrid_compiler(project: Project, draft_mode: DraftMode) -> bool:
-    return settings.cost_plan_hybrid_compiler and draft_mode == "evidence_grounded"
+async def _publish_typed_cost_plan_batches(
+    on_preview: PreviewPublisher | None,
+    items: list[CostItemInput],
+) -> None:
+    """Stream typed rows by category so the UI can grow the table live."""
+    if not items:
+        return
+    preferred = {name.lower(): index for index, name in enumerate(TYPED_COST_PLAN_CATEGORY_BATCH_ORDER)}
+    categories: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        key = item.category.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        categories.append(item.category)
+    categories.sort(key=lambda name: preferred.get(name.lower(), 1000))
+
+    published: list[CostItemInput] = []
+    for category in categories:
+        batch = [item for item in items if item.category == category]
+        published.extend(batch)
+        await _publish_progress(
+            on_preview,
+            {
+                "stage": "typed_rows_ready",
+                "typed_cost_plan": {
+                    "item_count": len(published),
+                    "category": category,
+                    "complete": len(published) >= len(items),
+                    "items": [_typed_item_preview_payload(item) for item in published],
+                },
+            },
+        )
+        await asyncio.sleep(0)
 
 
-async def run_create_cost_plan_hybrid(
+async def run_create_cost_plan_typed(
     *,
     project: Project,
     passages: list[SourcePassage],
@@ -1195,11 +1250,10 @@ async def run_create_cost_plan_hybrid(
     generation_brief: ArtefactGenerationBrief | None = None,
     on_preview: PreviewPublisher | None = None,
 ) -> CostPlanDraftOutput:
-    """Hybrid compiler path: extract → render → narrate → assemble."""
-    from app.sitewise.cost_plan_assembler import assemble_cost_plan_markdown
+    """Typed compiler: extract evidence → build canonical rows → thin table markdown."""
     from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
-    from app.sitewise.cost_plan_renderer import render_cost_plan_scaffold
-    from app.workflows.cost_plan_narrative import run_cost_plan_narrative_model
+
+    del chat_model, cost_plan_context, generation_brief  # reserved for future hooks
 
     evidence_refs = _evidence_refs_from_passages(passages, project.id)
     pack = extract_cost_plan_evidence_pack(project_source_texts, evidence_refs)
@@ -1238,150 +1292,40 @@ async def run_create_cost_plan_hybrid(
         )
     )
 
-    scaffold = render_cost_plan_scaffold(project, pack, draft_mode)
+    typed_items = _typed_cost_items(project, pack)
+    await _publish_typed_cost_plan_batches(on_preview, typed_items)
     trace.append(
         _trace(
-            "scaffold",
+            "typed_rows",
             "complete",
-            "Rendered deterministic cost plan scaffold.",
+            "Built deterministic typed cost plan rows.",
+            item_count=len(typed_items),
         )
     )
-    await _publish_preview(on_preview, stage="scaffold_ready", markdown=scaffold)
-    typed_items = _typed_cost_items(project, pack)
-    await _publish_progress(
-        on_preview,
-        {
-            "stage": "scaffold_ready",
-            "typed_cost_plan": {
-                "item_count": len(typed_items),
-                "items": [
-                    {
-                        "item_key": item.item_key,
-                        "cost_code": item.cost_code,
-                        "category": item.category,
-                        "item": item.item,
-                        "budget": None if item.budget is None else str(item.budget),
-                        "status": item.status,
-                    }
-                    for item in typed_items
-                ],
-            },
-        },
+
+    await _publish_progress(on_preview, {"stage": "validation_started"})
+    title = document_title()
+    markdown = render_typed_cost_plan_markdown(title, typed_items)
+    output = CostPlanDraftOutput(
+        title=title,
+        markdown=markdown,
+        seed_consulted=_seed_consulted_from_passages(passages),
+        evidence_refs=evidence_refs if draft_mode == "evidence_grounded" else [],
+        context_refs=_context_refs_from_passages(passages),
     )
+    output._cost_items = typed_items
+    validate_cost_plan_output(
+        output,
+        draft_mode,
+        archetype=project.archetype or "",
+        project=project,
+        source_texts=project_source_texts,
+    )
+    return output
 
-    async def publish_progressive_preview(
-        _key: str, _result: object, completed: dict[str, object]
-    ) -> None:
-        from app.workflows.progressive_preview import (
-            assemble_cost_plan_progressive_preview,
-        )
 
-        await _publish_preview(
-            on_preview,
-            stage="section_completed",
-            markdown=assemble_cost_plan_progressive_preview(scaffold, completed),
-        )
-
-    validation_feedback: str | None = None
-    consistency_ai_call_count = 0
-    run_date = date.today()
-    for attempt in range(HYBRID_NARRATIVE_MAX_ATTEMPTS):
-        try:
-            narrative = await run_cost_plan_narrative_model(
-                project=project,
-                pack=pack,
-                cost_plan_context=cost_plan_context,
-                generation_brief=generation_brief,
-                run_date=run_date,
-                validation_feedback=validation_feedback,
-                chat_model=chat_model,
-                on_progress=(
-                    lambda progress: (
-                        _publish_progress(on_preview, progress)
-                        if on_preview is not None
-                        else None
-                    )
-                ),
-                on_section_complete=publish_progressive_preview,
-            )
-        except WorkflowValidationError as exc:
-            consistency_ai_call_count += exc.consistency_ai_call_count
-            if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
-                validation_feedback = str(exc)
-                trace.append(
-                    _trace(
-                        "validation",
-                        "retry",
-                        f"Cost plan narrative validation failed — retrying: {validation_feedback}",
-                        attempt=attempt + 1,
-                        consistency_ai_call_count=consistency_ai_call_count,
-                    )
-                )
-                continue
-            exc.consistency_ai_call_count = consistency_ai_call_count
-            raise
-        consistency_ai_call_count += narrative.consistency_ai_call_count
-        trace.append(
-            _trace(
-                "narrative",
-                "complete",
-                "Cost plan narrative model returned structured output.",
-                attempt=attempt + 1,
-                consistency_ai_call_count=consistency_ai_call_count,
-            )
-        )
-
-        await _publish_progress(on_preview, {"stage": "validation_started"})
-        markdown = assemble_cost_plan_markdown(
-            scaffold,
-            narrative,
-            provenance={"compiler": "hybrid", "draft_mode": draft_mode},
-        )
-        trace.append(
-            _trace(
-                "assemble",
-                "complete",
-                "Assembled hybrid cost plan markdown.",
-                attempt=attempt + 1,
-            )
-        )
-
-        output = CostPlanDraftOutput(
-            title=document_title(),
-            markdown=markdown,
-            seed_consulted=_seed_consulted_from_passages(passages),
-            evidence_refs=evidence_refs,
-            context_refs=_context_refs_from_passages(passages),
-        )
-        output._cost_items = _typed_cost_items(project, pack)
-        try:
-            validate_cost_plan_output(
-                output,
-                draft_mode,
-                archetype=project.archetype or "",
-                project=project,
-                source_texts=project_source_texts,
-            )
-            return output
-        except WorkflowValidationError as exc:
-            consistency_ai_call_count += exc.consistency_ai_call_count
-            if attempt < HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
-                validation_feedback = str(exc)
-                trace.append(
-                    _trace(
-                        "validation",
-                        "retry",
-                        f"Hybrid cost plan validation failed — retrying narrative: {validation_feedback}",
-                        attempt=attempt + 1,
-                        consistency_ai_call_count=consistency_ai_call_count,
-                    )
-                )
-                continue
-            exc.consistency_ai_call_count = consistency_ai_call_count
-            raise
-
-    msg = "Hybrid cost plan compiler exhausted narrative retries"
-    raise WorkflowValidationError(msg)
+# Back-compat name used by older tests/imports.
+run_create_cost_plan_hybrid = run_create_cost_plan_typed
 
 
 async def run_create_cost_plan_workflow(
@@ -1613,77 +1557,20 @@ async def run_create_cost_plan_workflow(
         if cost_plan_context is not None
         else None
     )
-    use_hybrid = _should_use_hybrid_compiler(project, draft_mode)
-    runtime_name = RUNTIME_HYBRID_NAME if use_hybrid else RUNTIME_NAME
-    locked_decisions = await locked_selections(session, project_id=project.id)
+    runtime_name = RUNTIME_TYPED_NAME
     generation_started = time.perf_counter()
     try:
-        if use_hybrid:
-            output = await run_create_cost_plan_hybrid(
-                project=project,
-                passages=passages,
-                draft_mode=draft_mode,
-                chat_model=resolved_model,
-                project_source_texts=project_source_texts,
-                trace=trace,
-                cost_plan_context=cost_plan_context,
-                generation_brief=generation_brief,
-                on_preview=on_preview,
-            )
-            output.markdown = normalize_pmp_markdown(output.markdown)
-            output.markdown = restamp_decisions(output.markdown, locked_decisions)
-        else:
-            validation_feedback: str | None = None
-            max_attempts = 3
-            for attempt in range(max_attempts):
-                output = await run_create_cost_plan_model(
-                    project=project,
-                    passages=passages,
-                    draft_mode=draft_mode,
-                    validation_feedback=validation_feedback,
-                    chat_model=resolved_model,
-                    locked_decisions=locked_decisions,
-                    cost_plan_context=cost_plan_context,
-                    generation_brief=generation_brief,
-                )
-                output.markdown = normalize_pmp_markdown(output.markdown)
-                output.markdown = restamp_decisions(output.markdown, locked_decisions)
-                if draft_mode == "evidence_grounded":
-                    output.markdown = ensure_evidence_grounded_cost_plan_scaffold(
-                        output.markdown,
-                        output.evidence_refs,
-                    )
-                trace.append(
-                    _trace(
-                        "model",
-                        "complete",
-                        "Create Cost Plan model run returned a typed draft output.",
-                        model=resolved_model,
-                        draft_mode=draft_mode,
-                        attempt=attempt + 1,
-                    )
-                )
-                try:
-                    validate_cost_plan_output(
-                        output,
-                        draft_mode,
-                        archetype=project.archetype or "",
-                        project=project,
-                        source_texts=project_source_texts,
-                    )
-                    break
-                except WorkflowValidationError as exc:
-                    if attempt < max_attempts - 1:
-                        validation_feedback = str(exc)
-                        trace.append(
-                            _trace(
-                                "validation",
-                                "retry",
-                                f"Cost plan draft validation failed — retrying model: {validation_feedback}",
-                            )
-                        )
-                        continue
-                    raise
+        output = await run_create_cost_plan_typed(
+            project=project,
+            passages=passages,
+            draft_mode=draft_mode,
+            chat_model=resolved_model,
+            project_source_texts=project_source_texts,
+            trace=trace,
+            cost_plan_context=cost_plan_context,
+            generation_brief=generation_brief,
+            on_preview=on_preview,
+        )
     except WorkflowValidationError as exc:
         message = str(exc)
         trace.append(
@@ -1711,8 +1598,8 @@ async def run_create_cost_plan_workflow(
         _trace(
             "generation",
             "complete",
-            "Generated and normalized the Cost Plan draft.",
-            compiler="hybrid" if use_hybrid else "legacy",
+            "Generated the typed Cost Plan.",
+            compiler="typed",
             duration_ms=int((time.perf_counter() - generation_started) * 1000),
         )
     )
@@ -1728,7 +1615,7 @@ async def run_create_cost_plan_workflow(
 
     provenance_metadata = {
         "draft_mode": draft_mode,
-        "compiler": "hybrid" if use_hybrid else "legacy",
+        "compiler": "typed",
         "project_snapshot": (
             {
                 "schema_version": snapshot.schema_version,
@@ -1770,7 +1657,7 @@ async def run_create_cost_plan_workflow(
                 else (project.decision_set_revision or 1)
             ),
             model_version=resolved_model,
-            prompt_version="create_cost_plan_instructions.md",
+            prompt_version="typed_cost_plan",
             runtime_version=runtime_name,
         ).model_dump(mode="json"),
     }
@@ -1797,7 +1684,7 @@ async def run_create_cost_plan_workflow(
         draft=draft,
         apply=True,
         require_accepted=False,
-        source_items=output._cost_items if use_hybrid else None,
+        source_items=output._cost_items,
     )
     typed_state = CostPlanState(
         id=typed_import.typed_version_id,
@@ -1812,12 +1699,6 @@ async def run_create_cost_plan_workflow(
             "gst": "Exclusive until explicitly changed",
         },
         items=list(typed_import.items),
-    )
-    await sync_decisions_from_markdown(
-        session,
-        project_id=project.id,
-        markdown=output.markdown,
-        workflow_type=WORKFLOW_TYPE,
     )
     trace.append(
         _trace(

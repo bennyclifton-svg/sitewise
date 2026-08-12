@@ -1,6 +1,9 @@
 # Hermes Foundation (Phases 3–8) Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan phase-by-phase, task-by-task. Commit after every task. This is the continuation of [2026-07-02-hermes-foundation-phases-0-2.md](./2026-07-02-hermes-foundation-phases-0-2.md); do not start Phase 3 until Phases 0–2 have landed and their gates pass.
+> **Historical only — do not execute.** Superseded by
+> [`2026-08-04-pi-only-agent-runtime.md`](./2026-08-04-pi-only-agent-runtime.md).
+> Pi is the sole agent runtime. Kept as implementation archaeology.
+> Continuation of [2026-07-02-hermes-foundation-phases-0-2.md](./2026-07-02-hermes-foundation-phases-0-2.md).
 
 **Goal:** Turn the MCP tool bridge (Phase 2) into a working agent-first product — Hermes reasons behind Clerk's chat, drives the flagship tender-comparison workflow end-to-end, users edit agent artefacts and files in-app, subscribe via Stripe, and the whole thing ships to the `sitewise.au` VPS with the legacy cockpit retired.
 

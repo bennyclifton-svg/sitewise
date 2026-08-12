@@ -57,7 +57,7 @@ export function TaxonomyPicker({
     if (!catalog || !selectedClassValue || !value.work_type) return;
     const nextDimensions = catalog.complexity_dimensions[selectedClassValue] ?? [];
     if (nextDimensions.length === 0) return;
-    const nextComplexity = defaultComplexity(value.complexity, nextDimensions);
+    const nextComplexity = sanitiseComplexity(value.complexity, nextDimensions);
     if (!recordsEqual(value.complexity ?? {}, nextComplexity)) {
       onChange({ ...value, complexity: nextComplexity });
     }
@@ -86,7 +86,7 @@ export function TaxonomyPicker({
     onChange({
       ...value,
       work_type: workType,
-      complexity: defaultComplexity({}, catalog?.complexity_dimensions[value.building_class ?? ""] ?? []),
+      complexity: {},
       work_scope: [],
     });
   }
@@ -141,13 +141,13 @@ export function TaxonomyPicker({
   }
 
   function updateComplexity(key: string, optionValue: string) {
-    onChange({
-      ...value,
-      complexity: {
-        ...(value.complexity ?? {}),
-        [key]: optionValue,
-      },
-    });
+    const next = { ...(value.complexity ?? {}) };
+    if (optionValue === "") {
+      delete next[key];
+    } else {
+      next[key] = optionValue;
+    }
+    onChange({ ...value, complexity: next });
   }
 
   function toggleWorkScope(itemValue: string, checked: boolean) {
@@ -312,10 +312,7 @@ export function TaxonomyPicker({
             <div className="grid min-w-0 gap-2 sm:grid-cols-2">
               {dimensions.map((dimension) => {
                 const selectId = `${idPrefix}-complexity-${dimension.key}`;
-                const selectedValue =
-                  value.complexity?.[dimension.key] ??
-                  dimension.options[0]?.value ??
-                  "";
+                const selectedValue = value.complexity?.[dimension.key] ?? "";
                 return (
                   <div key={dimension.key} className="grid min-w-0 gap-1">
                     <Label htmlFor={selectId}>{dimension.label}</Label>
@@ -328,6 +325,7 @@ export function TaxonomyPicker({
                         updateComplexity(dimension.key, event.target.value)
                       }
                     >
+                      <option value="">Not stated</option>
                       {dimension.options.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -480,7 +478,18 @@ function scaleValue(field: ScaleField, rawValue: string | boolean): TaxonomyScal
   return rawValue;
 }
 
-function defaultComplexity(
+/**
+ * Keep the dimensions the user actually answered and drop the rest.
+ *
+ * This deliberately does not fall back to `options[0]`. Every dimension's first
+ * option is its benign one — vacant, unrestricted, nil contamination, exempt —
+ * so defaulting silently asserted that an occupied, restricted, contaminated
+ * site was none of those things, before the user had typed anything. Downstream
+ * that is indistinguishable from a deliberate answer: risk flags never fire,
+ * and the agent cannot correct it, because a stated value is not the agent's to
+ * overwrite. An absent key is honest and stays correctable.
+ */
+function sanitiseComplexity(
   current: Record<string, string> | undefined,
   dimensions: ComplexityDimension[],
 ): Record<string, string> {
@@ -488,10 +497,9 @@ function defaultComplexity(
   for (const dimension of dimensions) {
     const currentValue = current?.[dimension.key];
     const validValues = new Set(dimension.options.map((option) => option.value));
-    next[dimension.key] =
-      currentValue && validValues.has(currentValue)
-        ? currentValue
-        : (dimension.options[0]?.value ?? "");
+    if (currentValue && validValues.has(currentValue)) {
+      next[dimension.key] = currentValue;
+    }
   }
   return next;
 }

@@ -27,6 +27,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import {
+  addCostItemOptimistically,
+  amount,
   applyCostPlanDelta,
   buildCostPlanViewRows,
   claimedAmountsByItem,
@@ -39,6 +41,7 @@ import {
   formatCostPlanMoney,
   itemVariations,
   nextCostPlanSort,
+  parseCostPlanMoneyInput,
   renumberCostPlanItems,
   withItemVariations,
   withOptimisticTotals,
@@ -72,7 +75,6 @@ export function CostPlanGrid({
   const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [adding, setAdding] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [tab, setTab] = useState<CostPlanTab>("cost-plan");
   const [sort, setSort] = useState<CostPlanSort | null>(null);
@@ -205,7 +207,7 @@ export function CostPlanGrid({
 
   if (!state) {
     return (
-      <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
+      <div className="artifact-workbook cost-plan-surface flex min-h-32 items-center justify-center border text-sm text-muted-foreground">
         {error ?? "Loading Cost Plan…"}
       </div>
     );
@@ -214,7 +216,10 @@ export function CostPlanGrid({
   const categories = costPlanCategories(state);
 
   return (
-    <section className="w-full min-w-0 border bg-background" aria-label="Canonical Cost Plan">
+    <section
+      className="artifact-workbook cost-plan-surface w-full min-w-0 border"
+      aria-label="Canonical Cost Plan"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Cost plan sections">
           {(
@@ -240,7 +245,7 @@ export function CostPlanGrid({
           <div className="flex flex-wrap items-center gap-2">
             <Input
               type="month"
-              className="h-8 w-36"
+              className="cost-plan-field h-8 w-36"
               value={selectedMonth}
               aria-label="Selected billing month"
               onChange={(event) => {
@@ -250,14 +255,13 @@ export function CostPlanGrid({
             <Button size="sm" variant="outline" onClick={() => setAddingCategory(true)}>
               <Plus aria-hidden /> Add category
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-              <Plus aria-hidden /> Add item
-            </Button>
           </div>
         ) : null}
       </div>
 
-      {tab === "invoices" ? <CostInvoiceRegister projectId={projectId} /> : null}
+      {tab === "invoices" ? (
+        <CostInvoiceRegister projectId={projectId} revision={state.version} />
+      ) : null}
       {tab === "variations" ? (
         <div className="px-3 py-8 text-sm text-muted-foreground">
           Variation schedule coming soon. Forecast and approved variation amounts can be
@@ -297,7 +301,7 @@ export function CostPlanGrid({
                 <label className="mb-1 block text-xs text-muted-foreground" htmlFor="new-category">
                   New category
                 </label>
-                <Input id="new-category" name="category" required />
+                <Input id="new-category" name="category" required className="cost-plan-field" />
               </div>
               <Button type="button" size="sm" variant="outline" onClick={() => setAddingCategory(false)}>
                 Cancel
@@ -307,25 +311,12 @@ export function CostPlanGrid({
               </Button>
             </form>
           ) : null}
-          {adding ? (
-            <AddCostItemForm
-              categories={categories}
-              onCancel={() => setAdding(false)}
-              onAdd={(item) => {
-                setAdding(false);
-                const nextItems = renumberCostPlanItems([...state.items, item]);
-                void mutate(
-                  { operation: "ADD", target_type: "cost_item", values: item },
-                  withOptimisticTotals({
-                    ...state,
-                    items: nextItems,
-                    categories: Array.from(new Set([...categories, item.category])),
-                  }),
-                );
-              }}
-            />
-          ) : null}
           {error ? <p className="border-b p-3 text-xs text-destructive">{error}</p> : null}
+          <datalist id="cost-plan-categories">
+            {categories.map((category) => (
+              <option key={category} value={category} />
+            ))}
+          </datalist>
           <CostPlanItemsTable
             state={state}
             saving={saving}
@@ -643,7 +634,9 @@ function SummaryRow({ row }: { row: Extract<CostPlanViewRow, { kind: "subtotal" 
     row.kind === "grandtotal" ? "Grand total" : `${row.category} subtotal`;
   return (
     <tr>
-      <td className="cost-plan-grid-cell--summary" colSpan={3}>
+      {/* Keep Code blank so the label lines up under Category. */}
+      <td className="cost-plan-grid-cell--summary" />
+      <td className="cost-plan-grid-cell--summary" colSpan={2}>
         {label}
       </td>
       <MoneyCell value={row.rollup.budget} summary />
@@ -682,16 +675,25 @@ function MoneyInput({
   ariaLabel: string;
   onCommit: (next: string) => void;
 }) {
+  const display = formatCostPlanMoney(amount(value));
   return (
     <input
+      key={value}
       className="cost-plan-grid-input cost-plan-grid-input--money"
-      defaultValue={value}
+      defaultValue={display}
       aria-label={ariaLabel}
       onClick={(event) => event.stopPropagation()}
       onBlur={(event) => {
-        const next = event.target.value.trim();
-        if (next === value) return;
-        onCommit(next === "" ? "0" : next);
+        const parsed = parseCostPlanMoneyInput(event.target.value);
+        if (parsed === null) {
+          event.target.value = display;
+          return;
+        }
+        if (amount(parsed) === amount(value)) {
+          event.target.value = display;
+          return;
+        }
+        onCommit(parsed);
       }}
     />
   );
@@ -780,10 +782,7 @@ function ItemRow({
 
   return (
     <tr
-      className={cn(
-        "select-none even:bg-muted/10",
-        selected && "cost-plan-grid-row--selected",
-      )}
+      className={cn("select-none", selected && "cost-plan-grid-row--selected")}
       onClick={(event) => onRowClick(event, item.item_key)}
     >
       <td className="cost-plan-grid-cell cost-plan-grid-cell--code cost-plan-grid-cell--readonly">
@@ -868,10 +867,14 @@ function ItemRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
+              className="min-w-0 w-auto"
               onClick={(event) => event.stopPropagation()}
             >
               <DropdownMenuItem
                 disabled={saving}
+                aria-label="Copy"
+                title="Copy"
+                className="justify-center px-2 py-2"
                 onSelect={() => {
                   const values = {
                     item_key: `${item.item_key}-copy`,
@@ -897,7 +900,59 @@ function ItemRow({
                 }}
               >
                 <Copy className="size-3.5" aria-hidden />
-                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={saving}
+                aria-label="Add row below"
+                title="Add row below"
+                className="justify-center px-2 py-2"
+                onSelect={() => {
+                  const stamp = Date.now();
+                  const newItem: CostPlanItem = {
+                    item_key: `item-${stamp}`,
+                    cost_code: String(stamp),
+                    category: item.category,
+                    item: "New item",
+                    display_order: item.display_order + 1,
+                    budget: "0",
+                    committed: "0",
+                    forecast: "0",
+                    paid: "0",
+                    allowance_type: "none",
+                    basis: "User-added allowance",
+                    source_refs: [{ kind: "user" }],
+                    status: "manual",
+                    locked: false,
+                  };
+                  const added = addCostItemOptimistically(
+                    state,
+                    newItem,
+                    item.item_key,
+                    "after",
+                  );
+                  void onMutate(
+                    [
+                      {
+                        operation: "ADD",
+                        target_type: "cost_item",
+                        values: newItem,
+                      },
+                      {
+                        operation: "MOVE",
+                        target_type: "cost_item",
+                        target_id: newItem.item_key,
+                        reference_id: item.item_key,
+                        placement: "after",
+                      },
+                    ],
+                    withOptimisticTotals({
+                      ...added,
+                      items: renumberCostPlanItems(added.items),
+                    }),
+                  );
+                }}
+              >
+                <Plus className="size-3.5" aria-hidden />
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -916,65 +971,5 @@ function ItemRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-function AddCostItemForm({
-  categories,
-  onAdd,
-  onCancel,
-}: {
-  categories: string[];
-  onAdd: (item: CostPlanItem) => void;
-  onCancel: () => void;
-}) {
-  return (
-    <form
-      className="grid gap-2 border-b p-3 sm:grid-cols-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const data = new FormData(event.currentTarget);
-        const label = String(data.get("item") ?? "").trim();
-        const category = String(data.get("category") ?? "").trim();
-        const budget = String(data.get("budget") ?? "0").trim();
-        if (!label || !category) return;
-        const stamp = Date.now();
-        onAdd({
-          item_key: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${stamp}`,
-          cost_code: String(stamp),
-          category,
-          item: label,
-          display_order: 999999,
-          budget,
-          committed: "0",
-          forecast: budget,
-          paid: "0",
-          allowance_type: "none",
-          basis: "User-added allowance",
-          source_refs: [{ kind: "user" }],
-          status: "manual",
-          locked: false,
-        });
-      }}
-    >
-      <Input name="item" placeholder="Item" required className="sm:col-span-2" />
-      <Input
-        name="category"
-        placeholder="Category"
-        list="cost-plan-categories"
-        defaultValue={categories[0] ?? ""}
-        required
-      />
-      <datalist id="cost-plan-categories">
-        {categories.map((category) => (
-          <option key={category} value={category} />
-        ))}
-      </datalist>
-      <Input name="budget" inputMode="decimal" placeholder="Budget" required />
-      <div className="flex gap-2 sm:col-span-4 sm:justify-end">
-        <Button type="button" size="sm" variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" size="sm">Add</Button>
-      </div>
-    </form>
   );
 }

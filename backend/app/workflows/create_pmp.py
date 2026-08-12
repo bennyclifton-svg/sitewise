@@ -123,7 +123,11 @@ from app.sitewise.pmp_taxonomy_context import (
     pmp_taxonomy_context,
     project_has_taxonomy,
 )
-from app.sitewise.taxonomy import risk_flag_definitions
+from app.sitewise.taxonomy import (
+    risk_flag_definitions,
+    scale_band_word_bounds,
+    scale_band_word_target,
+)
 from ingest.hashing import bytes_content_hash
 
 log = get_logger(__name__)
@@ -408,7 +412,17 @@ def _seed_section_refs_by_section(
     return {section: tuple(values) for section, values in refs.items()}
 
 
-def _target_words() -> int:
+def _target_words(context: object | None = None) -> int:
+    """Scale the word target to the project's size.
+
+    A $160k re-roofing and a $200m tower previously got the same target, which
+    is why every document came out at the same weight regardless of what it was
+    describing. Projects with no stated budget keep the midpoint default.
+    """
+    band = getattr(context, "scale_band", None)
+    banded = scale_band_word_target(band)
+    if banded is not None:
+        return banded
     return (settings.pmp_min_words + settings.pmp_max_words) // 2
 
 
@@ -440,18 +454,18 @@ def _format_section_budgets(
     *,
     pmp_context: PmpContext | None = None,
 ) -> str:
+    taxonomy_context = pmp_taxonomy_context(project)
     if pmp_context is not None:
         weights = pmp_context.section_weights
     else:
-        context = pmp_taxonomy_context(project)
-        if context is None:
+        if taxonomy_context is None:
             return "Per-section word budgets: not applicable to legacy archetype draft."
-        weights = context.section_weights
+        weights = taxonomy_context.section_weights
     return "\n".join(
         [
             "Per-section word budgets:",
             *[
-                f"- {section_id}: ~{int(weight * _target_words())} words"
+                f"- {section_id}: ~{int(weight * _target_words(taxonomy_context))} words"
                 for section_id, weight in weights.items()
             ],
         ]
@@ -502,7 +516,7 @@ def _build_contextual_greenfield_brief(
             section_weights=pmp_context.section_weights,
             seed_section_refs=seed_section_refs,
             user_provided_fields=pmp_context.user_provided_fields,
-            target_words=_target_words(),
+            target_words=_target_words(taxonomy_context),
         )
     if taxonomy_context is not None:
         return build_greenfield_brief(
@@ -519,7 +533,7 @@ def _build_contextual_greenfield_brief(
             section_weights=taxonomy_context.section_weights,
             seed_section_refs=seed_section_refs,
             user_provided_fields=taxonomy_context.user_provided_fields,
-            target_words=_target_words(),
+            target_words=_target_words(taxonomy_context),
         )
     return build_greenfield_brief(
         archetype=archetype,
@@ -2199,11 +2213,17 @@ async def run_create_pmp_workflow(
             )
 
     if taxonomy_context is not None:
+        min_words, max_words = scale_band_word_bounds(
+            taxonomy_context.scale_band,
+            section_count=len(taxonomy_context.sections) or None,
+            default_min=settings.pmp_min_words,
+            default_max=settings.pmp_max_words,
+        )
         length_advisories = length_violations(
             output.markdown,
             weights=taxonomy_context.section_weights,
-            min_words=settings.pmp_min_words,
-            max_words=settings.pmp_max_words,
+            min_words=min_words,
+            max_words=max_words,
         )
         if length_advisories:
             trace.append(
@@ -2212,7 +2232,7 @@ async def run_create_pmp_workflow(
                     "advisory",
                     "Length advisory (not enforced): " + "; ".join(length_advisories),
                     word_count=pmp_word_count(output.markdown),
-                    max_words=settings.pmp_max_words,
+                    max_words=max_words,
                 )
             )
 

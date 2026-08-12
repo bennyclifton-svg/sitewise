@@ -12,14 +12,21 @@ import {
   type ReactNode,
 } from "react";
 import {
+  BetweenVerticalEnd,
+  BetweenVerticalStart,
   ChevronRight,
+  Copy,
   MoreHorizontal,
+  Shield,
+  ShieldOff,
+  Trash,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import {
   DecisionControl,
+  DecisionFinishSelect,
   DecisionSchedule,
   groupConsecutiveDecisionFences,
   parseEmbeddedDecision,
@@ -28,6 +35,7 @@ import {
 import { InlineListItemEditor } from "@/components/project/InlineListItemEditor";
 import { InlineMarkdownEditor } from "@/components/project/InlineMarkdownEditor";
 import { InlineTableRowEditor } from "@/components/project/InlineTableRowEditor";
+import { SitewiseMark } from "@/components/SitewiseMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +49,10 @@ import {
   maskArtifactBlockMarkers,
   splitTraceQa,
 } from "@/lib/artifact-markdown";
+import {
+  foldFfeScheduleDecisions,
+  parseFfeDecisionMarker,
+} from "@/lib/ffe-schedule-display";
 import { sourceRangeForRenderedBlock } from "@/lib/inline-markdown";
 import type { ArtifactBlockTarget } from "@/lib/artifact-blocks";
 import {
@@ -57,6 +69,7 @@ import type {
   DraftArtifact,
   ProjectDecision,
 } from "@/lib/types/project";
+import { cn } from "@/lib/utils";
 
 const BLOCK_ID_RE = /<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->/i;
 
@@ -96,6 +109,18 @@ const PmpTableLayoutContext = createContext<PmpTableLayout>({
   dropColumnIndex: null,
   feeColumnIndex: null,
 });
+
+type FfeDecisionRenderContextValue = {
+  projectId?: string;
+  decisionsById?: ReadonlyMap<string, ProjectDecision>;
+  foldedDecisionsById?: ReadonlyMap<string, EmbeddedDecision>;
+  readOnly?: boolean;
+  onDraftUpdated?: (draft: DraftArtifact) => void;
+};
+
+const FfeDecisionRenderContext = createContext<FfeDecisionRenderContextValue>(
+  {},
+);
 
 /**
  * Offsets into the source markdown for one block element.
@@ -363,7 +388,35 @@ const BLOCK_ACTIONS_SLOT_CLASS =
 const BLOCK_ACTION_BUTTON_CLASS =
   "border-transparent bg-transparent text-muted-foreground shadow-none";
 
-const MENU_ITEM_CLASS = dropdownMenuItemClassName;
+const ICON_MENU_ITEM_CLASS = cn(
+  dropdownMenuItemClassName,
+  "justify-center px-2 py-2",
+);
+const MENU_ICON_CLASS = "size-3.5 shrink-0";
+
+function IconMenuItem({
+  label,
+  onSelect,
+  variant = "default",
+  children,
+}: {
+  label: string;
+  onSelect: () => void;
+  variant?: "default" | "destructive";
+  children: ReactNode;
+}) {
+  return (
+    <DropdownMenuItem
+      aria-label={label}
+      title={label}
+      variant={variant}
+      className={ICON_MENU_ITEM_CLASS}
+      onSelect={onSelect}
+    >
+      {children}
+    </DropdownMenuItem>
+  );
+}
 
 function blockActionsAvailable(
   target: ArtifactBlockTarget | null | undefined,
@@ -441,12 +494,12 @@ function BlockHoverActions({
           <DropdownMenuContent
             align="end"
             sideOffset={4}
-            className="min-w-[9.5rem]"
+            className="min-w-0 w-auto"
             data-instruction-ui=""
           >
               {options?.onEditWithAi ? (
-                <DropdownMenuItem
-                  className={MENU_ITEM_CLASS}
+                <IconMenuItem
+                  label={`Edit ${label} with AI`}
                   onSelect={() => {
                     const rect =
                       triggerRef.current?.getBoundingClientRect() ??
@@ -454,32 +507,45 @@ function BlockHoverActions({
                     options.onEditWithAi?.(target.range, rect);
                   }}
                 >
-                  {`Edit ${label} with AI`}
-                </DropdownMenuItem>
+                  <SitewiseMark
+                    size={14}
+                    variant="solid"
+                    className="p-0"
+                    title=""
+                  />
+                </IconMenuItem>
               ) : null}
               {options?.onMutateBlock ? (
                 <>
-                  <DropdownMenuItem
-                    className={MENU_ITEM_CLASS}
+                  <IconMenuItem
+                    label={`Add ${label} above`}
                     onSelect={() =>
                       options.onMutateBlock?.("ADD", target, "before")
                     }
                   >
-                    {`Add ${label} above`}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={MENU_ITEM_CLASS}
+                    <BetweenVerticalStart
+                      className={MENU_ICON_CLASS}
+                      aria-hidden
+                    />
+                  </IconMenuItem>
+                  <IconMenuItem
+                    label={`Add ${label} below`}
                     onSelect={() =>
                       options.onMutateBlock?.("ADD", target, "after")
                     }
                   >
-                    {`Add ${label} below`}
-                  </DropdownMenuItem>
+                    <BetweenVerticalEnd
+                      className={MENU_ICON_CLASS}
+                      aria-hidden
+                    />
+                  </IconMenuItem>
                 </>
               ) : null}
               {options?.onMutateBlock && blockId ? (
-                <DropdownMenuItem
-                  className={MENU_ITEM_CLASS}
+                <IconMenuItem
+                  label={
+                    isProtected ? `Unprotect ${label}` : `Protect ${label}`
+                  }
                   onSelect={() =>
                     options.onMutateBlock?.(
                       isProtected ? "UNPROTECT" : "PROTECT",
@@ -487,53 +553,57 @@ function BlockHoverActions({
                     )
                   }
                 >
-                  {isProtected
-                    ? `Unprotect ${label}`
-                    : `Protect ${label}`}
-                </DropdownMenuItem>
+                  {isProtected ? (
+                    <ShieldOff className={MENU_ICON_CLASS} aria-hidden />
+                  ) : (
+                    <Shield className={MENU_ICON_CLASS} aria-hidden />
+                  )}
+                </IconMenuItem>
               ) : null}
               {options?.onMutateBlock ? (
                 <>
-                  <DropdownMenuItem
-                    className={MENU_ITEM_CLASS}
+                  <IconMenuItem
+                    label={`Duplicate ${label}`}
                     onSelect={() =>
                       options.onMutateBlock?.("DUPLICATE", target)
                     }
                   >
-                    {`Duplicate ${label}`}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
+                    <Copy className={MENU_ICON_CLASS} aria-hidden />
+                  </IconMenuItem>
+                  <IconMenuItem
+                    label={`Delete ${label}`}
                     variant="destructive"
                     onSelect={() => options.onMutateBlock?.("DELETE", target)}
                   >
-                    {`Delete ${label}`}
-                  </DropdownMenuItem>
+                    <Trash className={MENU_ICON_CLASS} aria-hidden />
+                  </IconMenuItem>
                 </>
               ) : null}
               {options?.onMutateBlock && reviewStatus === "conflict" ? (
-                <DropdownMenuItem
-                  className={MENU_ITEM_CLASS}
+                <IconMenuItem
+                  label={`Keep ${label} after refresh conflict`}
                   onSelect={() => options.onMutateBlock?.("KEEP", target)}
                 >
-                  {`Keep ${label} after refresh conflict`}
-                </DropdownMenuItem>
+                  <Shield className={MENU_ICON_CLASS} aria-hidden />
+                </IconMenuItem>
               ) : null}
               {options?.onMutateBlock && reviewStatus === "propose_delete" ? (
                 <>
-                  <DropdownMenuItem
-                    className={MENU_ITEM_CLASS}
+                  <IconMenuItem
+                    label={`Keep ${label} proposed for deletion`}
                     onSelect={() => options.onMutateBlock?.("KEEP", target)}
                   >
-                    {`Keep ${label} proposed for deletion`}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
+                    <Shield className={MENU_ICON_CLASS} aria-hidden />
+                  </IconMenuItem>
+                  <IconMenuItem
+                    label={`Confirm delete ${label}`}
                     variant="destructive"
                     onSelect={() =>
                       options.onMutateBlock?.("CONFIRM_DELETE", target)
                     }
                   >
-                    {`Confirm delete ${label}`}
-                  </DropdownMenuItem>
+                    <Trash className={MENU_ICON_CLASS} aria-hidden />
+                  </IconMenuItem>
                 </>
               ) : null}
           </DropdownMenuContent>
@@ -1000,12 +1070,24 @@ function MarkdownTableRow({
   const { blankFeeNotEvidenced, dropColumnIndex, feeColumnIndex } = useContext(
     PmpTableLayoutContext,
   );
+  const {
+    projectId,
+    decisionsById,
+    foldedDecisionsById,
+    readOnly = false,
+    onDraftUpdated,
+  } = useContext(FfeDecisionRenderContext);
   const firstCell = Children.toArray(children)[0];
   const label = summaryLabel(firstCell);
   if (label === "critical current position" || label === "field") return null;
   const isHeader =
     isValidElement(firstCell) && String(firstCell.type).toLowerCase() === "th";
-  const target = isHeader ? null : blockTarget(node, "table_row");
+  const hasFfeDecision = Children.toArray(children).some((cell) => {
+    if (!isValidElement<{ children?: ReactNode }>(cell)) return false;
+    return Boolean(parseFfeDecisionMarker(flattenText(cell.props.children)));
+  });
+  const target =
+    isHeader || hasFfeDecision ? null : blockTarget(node, "table_row");
   const isEditing = rangesEqual(editOptions?.editingRange, target?.range);
   if (
     isEditing &&
@@ -1048,6 +1130,37 @@ function MarkdownTableRow({
   const cells = sourceCells.map((cell, index) => {
     if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
     const raw = cell.props.children;
+    const decisionId = parseFfeDecisionMarker(flattenText(raw));
+    if (decisionId && projectId) {
+      const folded = foldedDecisionsById?.get(decisionId);
+      const decision = folded
+        ? hydrateEmbeddedDecision(folded, decisionsById?.get(decisionId))
+        : decisionsById?.get(decisionId)
+          ? hydrateEmbeddedDecision(
+              {
+                id: decisionId,
+                label: decisionId,
+                options: decisionsById.get(decisionId)!.options,
+                selected: decisionsById.get(decisionId)!.selected,
+                source: decisionsById.get(decisionId)!.source,
+              },
+              decisionsById.get(decisionId),
+            )
+          : null;
+      if (decision) {
+        return cloneElement(
+          cell,
+          { key: `cell-${index}` },
+          <DecisionFinishSelect
+            key={`${decision.id}:${decision.revision ?? 0}:${decision.set_revision ?? 0}`}
+            projectId={projectId}
+            decision={decision}
+            readOnly={readOnly || !decisionsById}
+            onDraftUpdated={onDraftUpdated}
+          />,
+        );
+      }
+    }
     const blankFee =
       blankFeeNotEvidenced &&
       feeColumnIndex !== null &&
@@ -1135,6 +1248,7 @@ function markdownComponents(
   options?: {
     projectId?: string;
     decisionsById?: ReadonlyMap<string, ProjectDecision>;
+    foldedDecisionsById?: ReadonlyMap<string, EmbeddedDecision>;
     readOnly?: boolean;
     changedRanges?: readonly MarkdownRange[];
     onDraftUpdated?: (draft: DraftArtifact) => void;
@@ -1924,13 +2038,14 @@ export function MarkdownContent({
   const [openActionsKey, setOpenActionsKey] = useState<string | null>(null);
   const [informationRegisterOpen, setInformationRegisterOpen] = useState(false);
   const traceQa = useMemo(() => splitTraceQa(markdown), [markdown]);
-  const presentedPrimary = useMemo(
-    () =>
-      groupConsecutiveDecisionFences(
-        blankProjectSummaryProse(maskArtifactBlockMarkers(traceQa.primary)),
-      ),
-    [traceQa.primary],
-  );
+  const presented = useMemo(() => {
+    const grouped = groupConsecutiveDecisionFences(
+      blankProjectSummaryProse(maskArtifactBlockMarkers(traceQa.primary)),
+    );
+    return foldFfeScheduleDecisions(grouped);
+  }, [traceQa.primary]);
+  const presentedPrimary = presented.markdown;
+  const foldedDecisionsById = presented.foldedById;
   const sections = useMemo(
     () => splitMarkdownSections(presentedPrimary),
     [presentedPrimary],
@@ -1987,11 +2102,21 @@ export function MarkdownContent({
           </nav>
         ) : null}
         <div className="min-w-0 flex-1">
+          <FfeDecisionRenderContext.Provider
+            value={{
+              projectId,
+              decisionsById,
+              foldedDecisionsById,
+              readOnly,
+              onDraftUpdated,
+            }}
+          >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents(version, {
               projectId,
               decisionsById,
+              foldedDecisionsById,
               readOnly,
               changedRanges: activeRanges,
               onDraftUpdated,
@@ -2043,6 +2168,7 @@ export function MarkdownContent({
 
             {presentedPrimary}
           </ReactMarkdown>
+          </FfeDecisionRenderContext.Provider>
           {showTraceQa && traceQa.qa ? (
             <details className="trace-qa mt-10 border-t border-[var(--sw-edge)] pt-4 print:hidden">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

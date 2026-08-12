@@ -455,7 +455,11 @@ def format_decision_option_sets(
         )
         hint = spec.get("default_hint")
         suffix = f"; default_hint={hint}" if hint else ""
-        lines.append(f"- {decision_id} ({spec['label']}): {options}{suffix}")
+        section = spec.get("section")
+        section_bit = f" section={section};" if section else ""
+        lines.append(
+            f"- {decision_id} ({spec['label']}):{section_bit} {options}{suffix}"
+        )
     required = required_decision_ids_for_project(
         project, include_cost_only=include_cost_only
     )
@@ -469,7 +473,8 @@ def format_decision_option_sets(
             "For each block set evidenced=true when Sources ground the selection; "
             "evidenced=false only for silent Sources / default_hint placeholders. "
             "Map named products to the closest option (Caesarstone/reconstituted stone "
-            "→ engineered_stone)."
+            "→ engineered_stone). Place each block in the listed section "
+            "(finishes catalog ids under FFE Schedule)."
         )
     return "\n".join(lines)
 

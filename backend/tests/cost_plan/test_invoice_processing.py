@@ -12,7 +12,11 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.dialects import postgresql
 
-from app.cost_plan.invoice_candidates import InvoiceCandidate, is_invoice_document
+from app.cost_plan.invoice_candidates import (
+    InvoiceCandidate,
+    is_invoice_document,
+    resolve_invoice_source_document_ids,
+)
 from app.cost_plan.invoice_extraction import InvoiceExtractionError, extract_invoice
 from app.cost_plan.invoice_mapping import map_invoice_allocations
 from app.cost_plan.invoice_service import update_invoice_allocation, update_invoice_fields
@@ -76,6 +80,31 @@ def _state(items: list[CostItemInput]) -> CostPlanState:
         ),
         items=items,
     )
+
+
+def test_resolve_invoice_source_document_ids_accepts_workspace_file_ids() -> None:
+    project_id = uuid.uuid4()
+    source_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    unknown_id = uuid.uuid4()
+
+    workspace_result = MagicMock()
+    workspace_result.all.return_value = [(workspace_id, source_id)]
+    source_result = MagicMock()
+    source_result.scalars.return_value.all.return_value = []
+    session = AsyncMock()
+    session.execute.side_effect = [workspace_result, source_result]
+
+    resolved, unresolved = run_async(
+        resolve_invoice_source_document_ids(
+            session,
+            project_id=project_id,
+            document_ids=[workspace_id, unknown_id],
+        )
+    )
+
+    assert resolved == [source_id]
+    assert unresolved == [unknown_id]
 
 
 def test_quoin_invoice_extracts_reconciled_source_facts() -> None:

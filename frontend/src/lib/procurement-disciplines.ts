@@ -36,10 +36,32 @@ export function kindShortLabel(kind: ProcurementRequestKind): string {
   return "Trade package";
 }
 
+/** Kind order for the open-document combobox so like packages group together. */
+const REQUEST_KIND_SORT_ORDER: Record<ProcurementRequestKind, number> = {
+  consultant_rfp: 0,
+  trade_rfq: 1,
+  trade_rft: 2,
+  contractor_eoi: 3,
+};
+
 /** Fast-scan label for the open-document combobox. Always the current/latest draft. */
 export function requestOptionLabel(request: ProcurementRequest): string {
   const version = request.current_draft?.version ?? request.revision;
-  return `${request.target_name} · ${kindShortLabel(request.kind)} · v${version}`;
+  return `${kindShortLabel(request.kind)} · ${request.target_name} · v${version}`;
+}
+
+/** Stable open-list order: Consultant → Supplier quote → Trade package → EOI. */
+export function compareProcurementRequests(
+  left: ProcurementRequest,
+  right: ProcurementRequest,
+): number {
+  const kindDelta =
+    (REQUEST_KIND_SORT_ORDER[left.kind] ?? 99) -
+    (REQUEST_KIND_SORT_ORDER[right.kind] ?? 99);
+  if (kindDelta !== 0) return kindDelta;
+  return left.target_name.localeCompare(right.target_name, undefined, {
+    sensitivity: "base",
+  });
 }
 
 /**

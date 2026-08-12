@@ -31,6 +31,7 @@ const STAGE_MESSAGES: Record<string, string> = {
   retrieval_complete: "Project evidence and guidance ready.",
   scaffold: "Document structure ready.",
   scaffold_ready: "Document structure ready.",
+  typed_rows_ready: "Building cost plan rows…",
   section_started: "Writing document sections…",
   section_completed: "Writing document sections…",
   section_failed: "A document section failed.",

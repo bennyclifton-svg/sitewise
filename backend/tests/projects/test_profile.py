@@ -48,6 +48,8 @@ def test_read_profile_normalizes_columns_and_taxonomy_metadata() -> None:
         "scale": {"nla_sqm": 1200},
         "complexity": {"operational_constraints": "live_environment"},
         "work_scope": ["fire_services"],
+        "assets": [],
+        "budget": None,
         "user_role": "architect-pm",
         "state": "NSW",
         "site_address": None,

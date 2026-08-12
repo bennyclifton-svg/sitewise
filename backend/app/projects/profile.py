@@ -6,7 +6,10 @@ import uuid
 
 from app.database.activity_event import ActivityEvent
 from app.database.project import Project
+from pydantic import ValidationError
+
 from app.schemas.projects import (
+    ProjectAsset,
     ProjectProfileChange,
     ProjectProfileField,
     ProjectProfilePatch,
@@ -20,7 +23,9 @@ from app.sitewise.gate import (
 )
 from app.sitewise.taxonomy import (
     ScaleField,
+    asset_option_values,
     complexity_dimensions_for,
+    parse_budget_amount,
     derive_risk_flags,
     scale_fields_for,
     subclasses_for,
@@ -37,6 +42,8 @@ PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
     "scale",
     "complexity",
     "work_scope",
+    "assets",
+    "budget",
     "state",
     "site_address",
     "client",
@@ -182,6 +189,8 @@ def validate_profile_patch(
     errors.extend(_validate_scale(after))
     errors.extend(_validate_complexity(after))
     errors.extend(_validate_work_scope(after))
+    errors.extend(_validate_assets(after))
+    errors.extend(_validate_budget(after))
     if after.state is not None and after.state not in SUPPORTED_STATES:
         errors.append(f"Unknown state: {after.state!r}")
     if errors:
@@ -220,6 +229,8 @@ def read_profile(project: Project) -> ProjectProfileView:
             for item in _list_value(taxonomy.get("work_scope"))
             if isinstance(item, str)
         ],
+        assets=_asset_values(taxonomy.get("assets")),
+        budget=_optional_text(taxonomy.get("budget")),
         user_role=getattr(project, "user_role", None),
         state=getattr(project, "state", None),
         site_address=_optional_text(
@@ -241,6 +252,37 @@ def read_profile(project: Project) -> ProjectProfileView:
 
 def _dict_value(value: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
+
+
+def project_assets(project: Project) -> list[ProjectAsset]:
+    """Read the asset register straight off the project, without the full view.
+
+    Renderers only need the assets, and building a ProjectProfileView requires a
+    real project id that scaffold fixtures do not always carry.
+    """
+    metadata = getattr(project, "project_metadata", None) or {}
+    taxonomy = metadata.get("taxonomy") if isinstance(metadata, dict) else None
+    if not isinstance(taxonomy, dict):
+        return []
+    return _asset_values(taxonomy.get("assets"))
+
+
+def _asset_values(value: Any) -> list[ProjectAsset]:
+    """Read stored assets, skipping any row that no longer parses."""
+    if not isinstance(value, list):
+        return []
+    assets: list[ProjectAsset] = []
+    for item in value:
+        if isinstance(item, ProjectAsset):
+            assets.append(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        try:
+            assets.append(ProjectAsset.model_validate(item))
+        except ValidationError:
+            continue
+    return assets
 
 
 def _list_value(value: Any) -> list[Any]:
@@ -305,6 +347,35 @@ def _validate_complexity(profile: ProjectProfileView) -> list[str]:
         valid_options = {option.value for option in dimension.options}
         if value not in valid_options:
             errors.append(f"Unknown option for complexity {key!r}: {value!r}")
+    return errors
+
+
+def _validate_budget(profile: ProjectProfileView) -> list[str]:
+    """Budget is stored as the user's own words; it only has to contain a figure.
+
+    Keeping the raw text ("around $180k") preserves what was actually said, while
+    parse_budget_amount derives the scale band from it.
+    """
+    if profile.budget is None:
+        return []
+    if parse_budget_amount(profile.budget) is None:
+        return [f"Budget must contain an amount: {profile.budget!r}"]
+    return []
+
+
+def _validate_assets(profile: ProjectProfileView) -> list[str]:
+    conditions = {option.value for option in asset_option_values("condition")}
+    actions = {option.value for option in asset_option_values("action")}
+    errors: list[str] = []
+    for index, asset in enumerate(profile.assets):
+        if asset.condition is not None and asset.condition not in conditions:
+            errors.append(
+                f"Unknown asset condition at position {index + 1}: {asset.condition!r}"
+            )
+        if asset.action is not None and asset.action not in actions:
+            errors.append(
+                f"Unknown asset action at position {index + 1}: {asset.action!r}"
+            )
     return errors
 
 
@@ -423,6 +494,8 @@ def _write_profile(project: Project, profile: ProjectProfileView) -> None:
                 "scale",
                 "complexity",
                 "work_scope",
+                "assets",
+                "budget",
                 "site_address",
                 "client",
             }:
@@ -437,7 +510,10 @@ def _write_profile(project: Project, profile: ProjectProfileView) -> None:
         "scale": dict(profile.scale),
         "complexity": dict(profile.complexity),
         "work_scope": list(profile.work_scope),
+        "assets": [asset.model_dump(exclude_none=True) for asset in profile.assets],
     }
+    if profile.budget:
+        taxonomy["budget"] = profile.budget
     if profile.site_address:
         taxonomy["site_address"] = profile.site_address
     if profile.client:

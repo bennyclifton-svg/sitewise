@@ -87,7 +87,7 @@ describe("ProcurementRequestPanel", () => {
 
     await user.click(open);
     await user.click(
-      screen.getByRole("menuitem", { name: "Main Works · Trade package · v2" }),
+      screen.getByRole("menuitem", { name: "Trade package · Main Works · v2" }),
     );
 
     await waitFor(() => expect(onDraftSelected).toHaveBeenCalledWith(draft));
@@ -118,7 +118,7 @@ describe("ProcurementRequestPanel", () => {
     ).toBeTruthy();
     expect(
       screen.getByRole("menuitem", {
-        name: "Main Works · Trade package · v2",
+        name: "Trade package · Main Works · v2",
       }),
     ).toBeTruthy();
     await user.keyboard("{Escape}");

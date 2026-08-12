@@ -41,6 +41,35 @@ describe("artifact block operations", () => {
     expect(duplicated.split("First paragraph.")).toHaveLength(3);
   });
 
+  it("deletes a table row without leaving a blank line that splits the GFM table", () => {
+    const marker = "<!-- clerk:block id=blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->";
+    const source = [
+      "## Project Summary",
+      "",
+      "| Field | Detail | Citation |",
+      "| --- | --- | --- |",
+      "| Project | Walsh2 |  |",
+      `| Address | 42 Hargrave Street | [1] |${marker}`,
+      "| Owner | David and Emma Walsh | [1] |",
+      "| Description | Terrace renovation | [1] |",
+      "",
+    ].join("\n");
+    const row = `| Address | 42 Hargrave Street | [1] |${marker}`;
+    const start = source.indexOf(row);
+    const target: ArtifactBlockTarget = {
+      type: "table_row",
+      range: { start, end: start + row.length },
+      sectionStart: 0,
+    };
+
+    const deleted = deleteBlock(source, target);
+    expect(deleted).not.toContain("Address");
+    expect(deleted).toContain(
+      "| Project | Walsh2 |  |\n| Owner | David and Emma Walsh | [1] |",
+    );
+    expect(deleted).not.toContain("\n\n| Owner |");
+  });
+
   it("strips block markers from optimistic duplicates", () => {
     const marker = "<!-- clerk:block id=blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->";
     const source = `${marker}\nFirst paragraph.`;

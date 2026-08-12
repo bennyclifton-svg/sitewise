@@ -1,0 +1,11 @@
+/* Satoshi Light — display face (Fontshare / Indian Type Foundry, FFL).
+   Self-hosted under /style-guide/fonts/satoshi/. */
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("./fonts/satoshi/Satoshi-Light.woff2") format("woff2"),
+    url("./fonts/satoshi/Satoshi-Light.woff") format("woff");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}

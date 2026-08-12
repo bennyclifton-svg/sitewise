@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; height:100%; background:#060608; }
+  a { color:#7FB0E4; text-decoration:none; }
+  a:hover { color:#B3D2F2; }
+  @keyframes sw-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 -2% 0 0); } }
+  @keyframes sw-rule { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes sw-rise { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+  @keyframes sw-spec { 0% { transform: translateX(-120%); opacity:0; }
+                       12% { opacity:1; } 88% { opacity:1; }
+                       100% { transform: translateX(120%); opacity:0; } }
+</style>
+<script type="module" src="style-guide/3d/reveal.js"></script>
+</helmet>
+<div style="position:relative;min-height:100vh;background:#060608;color:#E8E8E4;font-family:'Hanken Grotesk',Helvetica,sans-serif;font-weight:300;display:grid;grid-template-rows:1fr auto;overflow:hidden">
+
+  <div ref="{{ stageRef }}" style="position:relative;display:grid;place-items:center;padding:clamp(24px,5vh,64px) 24px 0;min-height:0">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:clamp(18px,3.2vh,40px);width:100%">
+
+      <x-import component-from-global-scope="sitewise-reveal" duration="{{ duration }}" key-color="{{ keyColor }}" idle="{{ idle }}" hint-size="min(52vh, 480px),min(52vh, 480px)" style="width:min(52vh,480px);height:min(52vh,480px);flex:none"></x-import>
+
+      <div ref="{{ typeRef }}" style="display:flex;flex-direction:column;align-items:center;gap:clamp(10px,1.6vh,18px);width:100%">
+        <div style="position:relative;overflow:hidden;animation:sw-wipe 1.15s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--rd,1) * 3.5s)">
+          <div style="font-size:clamp(30px,6.2vw,74px);font-weight:200;letter-spacing:.26em;text-indent:.26em;line-height:1;color:#E8E8E4;white-space:nowrap">SITEWISE</div>
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,rgba(255,255,255,0) 0%,rgba(214,214,208,.55) 45%,rgba(127,176,228,.7) 55%,rgba(255,255,255,0) 100%);mix-blend-mode:screen;animation:sw-spec 1.5s cubic-bezier(.4,0,.2,1) both;animation-delay:calc(var(--rd,1) * 3.65s)"></div>
+        </div>
+
+        <div style="width:min(52vh,480px);height:1px;background:linear-gradient(90deg,rgba(47,114,196,0),#2F72C4 22%,#7FB0E4 50%,#2F72C4 78%,rgba(47,114,196,0));transform-origin:50% 50%;animation:sw-rule .9s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--rd,1) * 4.05s)"></div>
+
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#8F939B;animation:sw-rise .8s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--rd,1) * 4.35s)">Building intelligence</div>
+      </div>
+    </div>
+  </div>
+
+  <footer style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px clamp(20px,4vw,40px) 24px;border-top:1px solid rgba(255,255,255,.07)">
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#7FB0E4">Asset 04 — Logo reveal</div>
+      <div style="font-size:13.5px;line-height:1.5;color:#8F939B;max-width:64ch;text-wrap:pretty">A single point source travels around the open corner. Each plane takes its turn, the glazing throws blue onto the bone floor, and the form only resolves into the lock-up once the camera reaches the isometric.</div>
+    </div>
+    <button type="button" onClick="{{ replay }}" style="flex:none;font:inherit;font-size:13px;font-weight:400;color:#9AA0A8;background:transparent;border:1px solid rgba(255,255,255,.13);border-top-color:rgba(255,255,255,.22);padding:9px 18px;cursor:pointer;transition:all .18s cubic-bezier(.4,0,.2,1)" style-hover="color:#E8E8E4;border-color:#7FB0E4;background:rgba(127,176,228,.07)">Replay</button>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;duration&quot;: { &quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 5.4, &quot;min&quot;: 3.5, &quot;max&quot;: 9, &quot;step&quot;: 0.1, &quot;unit&quot;: &quot;s&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Timing&quot; },
+  &quot;loop&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Timing&quot; },
+  &quot;idleDrift&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Timing&quot; },
+  &quot;keyColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#F2F6FB&quot;, &quot;options&quot;: [&quot;#F2F6FB&quot;, &quot;#FFE9C8&quot;, &quot;#DCE6F2&quot;, &quot;#7FB0E4&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Light&quot; }
+}">
+class Component extends DCLogic {
+  componentDidMount() { this.sync(); }
+  componentDidUpdate() { this.sync(); }
+
+  // Timeline is authored at 5.4s; --rd scales the CSS-side delays with it.
+  sync() {
+    const d = this.props.duration ?? 5.4;
+    const el = this.stage && this.stage.querySelector('sitewise-reveal');
+    if (el) {
+      if (this.props.loop ?? false) el.setAttribute('loop', '');
+      else el.removeAttribute('loop');
+      if (el.aperture) el.aperture.color.set(this.props.keyColor ?? '#F2F6FB');
+    }
+    if (this.type) this.type.style.setProperty('--rd', String(d / 5.4));
+  }
+
+  replay = () => {
+    const el = this.stage && this.stage.querySelector('sitewise-reveal');
+    if (el && el.play) el.play();
+    if (this.type) {
+      this.type.querySelectorAll('*').forEach((n) => {
+        n.getAnimations().forEach((a) => { a.cancel(); a.play(); });
+      });
+    }
+  };
+
+  renderVals() {
+    return {
+      duration: this.props.duration ?? 5.4,
+      keyColor: this.props.keyColor ?? '#F2F6FB',
+      idle: (this.props.idleDrift ?? true) ? 'drift' : 'off',
+      replay: this.replay,
+      stageRef: (n) => { this.stage = n; },
+      typeRef: (n) => { this.type = n; }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

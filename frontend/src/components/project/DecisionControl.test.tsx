@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   DecisionControl,
+  DecisionFinishSelect,
   DecisionSchedule,
   groupConsecutiveDecisionFences,
   selectionIsEvidenced,
@@ -123,6 +124,87 @@ describe("DecisionControl", () => {
     );
     expect(screen.getByText("[User]")).toBeInTheDocument();
     expect(screen.queryByText("Your selection")).not.toBeInTheDocument();
+  });
+});
+
+describe("DecisionFinishSelect", () => {
+  it("shows the selected finish in a combobox and commits overrides", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.putDecision).mockResolvedValue({
+      decision: {
+        id: "row-1",
+        project_id: "project-1",
+        decision_id: "flooring-finish",
+        section: "FFE Schedule",
+        label: "Primary flooring finish",
+        options: [
+          { value: "engineered", label: "Engineered timber" },
+          { value: "tile", label: "Ceramic / porcelain tile" },
+        ],
+        selected: "engineered",
+        source: "user",
+        workflow_type: "create_pmp",
+        revision: 2,
+        set_revision: 3,
+        locked: true,
+        evidence_conflict: false,
+        agent_suggestion: null,
+        provenance: { interface: "http" },
+        created_at: "2026-07-05T00:00:00.000Z",
+        updated_at: "2026-07-05T00:00:00.000Z",
+      },
+      draft: {
+        id: "draft-1",
+        project_id: "project-1",
+        workflow_type: "create_pmp",
+        version: 1,
+        status: "draft",
+        title: "PMP",
+        workspace_path: "path",
+        author_user_id: "user-1",
+        content_markdown: "updated",
+        model: null,
+        runtime: "test",
+        provenance_metadata: null,
+        created_at: "2026-07-05T00:00:00.000Z",
+        updated_at: "2026-07-05T00:00:00.000Z",
+      },
+    });
+
+    render(
+      <DecisionFinishSelect
+        projectId="project-1"
+        decision={{
+          id: "flooring-finish",
+          label: "Primary flooring finish",
+          options: [
+            { value: "engineered", label: "Engineered timber" },
+            { value: "tile", label: "Ceramic / porcelain tile" },
+            { value: "carpet", label: "Carpet" },
+          ],
+          selected: "tile",
+          source: "agent",
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Carpet" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Primary flooring finish" })).toHaveTextContent(
+      "Ceramic / porcelain tile",
+    );
+    expect(screen.getByText("[AI]")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Primary flooring finish" }));
+    await user.click(screen.getByRole("menuitem", { name: "Engineered timber" }));
+
+    expect(api.putDecision).toHaveBeenCalledWith(
+      "project-1",
+      "flooring-finish",
+      "engineered",
+      1,
+      1,
+    );
+    expect(screen.getByText("[User]")).toBeInTheDocument();
   });
 });
 

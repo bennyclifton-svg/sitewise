@@ -71,9 +71,11 @@ export function CockpitPanelResizeHandle({
       tabIndex={-1}
       onPointerDown={onPointerDown}
       className={cn(
-        "absolute top-0 z-10 hidden h-full w-2 -translate-x-1/2 cursor-col-resize touch-none lg:block",
+        "absolute top-0 z-10 hidden h-full w-2 cursor-col-resize touch-none lg:block",
+        // Sit flush on the panel border (not straddling into the neighbour).
         edge === "start" ? "left-0" : "right-0",
-        "before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-transparent",
+        "before:absolute before:inset-y-0 before:w-px before:bg-transparent",
+        edge === "start" ? "before:left-0" : "before:right-0",
         "hover:before:bg-brand/60 active:before:bg-brand",
         className,
       )}

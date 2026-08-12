@@ -2,7 +2,7 @@
 tier: overlay
 seed_type: work-type-guide
 loaded_by: "work_type: advisory"
-applies_to_classes: [residential, commercial, industrial]
+applies_to_classes: [residential, commercial, industrial, institution, mixed, infrastructure]
 applies_to_work_types: [advisory]
 state_default: NSW
 topics: [advisory, due-diligence, feasibility, condition-assessment, capex, design-review, procurement-support, evidence, consultant-procurement]

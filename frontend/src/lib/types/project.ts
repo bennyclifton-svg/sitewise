@@ -95,11 +95,30 @@ export type ProjectSubclassSelection = string | {
   label?: string;
 };
 
+/**
+ * An existing asset a refurb, remediation or services project acts on. Scale
+ * fields describe the building; this describes the plant being replaced, and on
+ * a services job it is the scope.
+ */
+export type ProjectAsset = {
+  type: string;
+  count?: number | null;
+  location?: string | null;
+  make_model?: string | null;
+  capacity?: string | null;
+  age_years?: number | null;
+  condition?: string | null;
+  action?: string | null;
+  replacement_spec?: string | null;
+  notes?: string | null;
+};
+
 export type ProjectTaxonomyMetadata = {
   subclasses?: ProjectSubclassSelection[];
   scale?: Record<string, TaxonomyScalar>;
   complexity?: Record<string, string>;
   work_scope?: string[];
+  assets?: ProjectAsset[];
   site_address?: string | null;
   client?: string | null;
 };
@@ -519,6 +538,13 @@ export type PlatformKnowledgeStatus = {
   buckets: PlatformKnowledgeBucket[];
 };
 
+export type PlatformKnowledgeContent = {
+  filename: string;
+  relative_path: string;
+  kind?: string | null;
+  content: string;
+};
+
 export type ProjectDecisionOption = {
   value: string;
   label: string;
@@ -646,6 +672,12 @@ export type ProjectChatBootstrap = {
 export type BatchDeleteEvidenceResponse = {
   deleted: string[];
   failed: { evidence_id: string; detail: string }[];
+};
+
+export type DeleteDraftResponse = {
+  deleted_id: string;
+  workflow_type: string;
+  latest_draft: DraftArtifactSummary | null;
 };
 
 export type WorkflowTraceEvent = {

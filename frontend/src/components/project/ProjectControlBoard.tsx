@@ -45,7 +45,6 @@ import {
   TaxonomyPicker,
   type TaxonomyPickerValue,
 } from "@/components/project/TaxonomyPicker";
-import { WorkflowProgressStrip } from "@/components/project/WorkflowProgressStrip";
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { type WorkflowStatus } from "@/components/project/workflow/workflowStatus";
 import {
@@ -72,12 +71,7 @@ import { taxonomyValueFromProject } from "@/lib/project-taxonomy";
 import { projectStateOptions } from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
-import {
-  workflowProgressStage,
-  workflowProgressTitle,
-  workflowRunPreview,
-  type WorkflowProgressMode,
-} from "@/lib/workflow-progress";
+import { type WorkflowProgressMode } from "@/lib/workflow-progress";
 
 const DraftReviewPanel = lazy(() =>
   import("@/components/project/DraftReviewPanel").then((module) => ({
@@ -87,16 +81,6 @@ const DraftReviewPanel = lazy(() =>
 const CopyContentButton = lazy(() =>
   import("@/components/project/CopyContentButton").then((module) => ({
     default: module.CopyContentButton,
-  })),
-);
-const WorkflowDraftPreview = lazy(() =>
-  import("@/components/project/WorkflowDraftPreview").then((module) => ({
-    default: module.WorkflowDraftPreview,
-  })),
-);
-const InvoiceProcessStatus = lazy(() =>
-  import("@/components/project/InvoiceProcessStatus").then((module) => ({
-    default: module.InvoiceProcessStatus,
   })),
 );
 
@@ -228,10 +212,8 @@ export function ProjectControlBoard({
 
   return (
     <div
-      className={cn(
-        "mx-auto flex w-full flex-col gap-5 p-4 lg:p-6",
-        selectedTile?.id === "cost-plan" ? "max-w-none" : "max-w-6xl",
-      )}
+      data-testid="workbench-frame"
+      className="flex w-full min-w-0 flex-col gap-5 p-4 lg:p-6"
     >
       <ProfileProposalStrip
         projectId={project.id}
@@ -241,7 +223,7 @@ export function ProjectControlBoard({
         }}
       />
 
-      <section className="cockpit-signature-card cockpit-signature-card--bracketed min-w-0">
+      <section className="min-w-0">
         <WorkflowDetail
           tile={selectedTile}
           project={project}
@@ -768,17 +750,7 @@ function WorkflowDetail({
   costPlanTrace,
   workflowError,
   costPlanWorkflowError,
-  isRunningWorkflow,
-  isRunningCostPlan,
-  pmpRunMode,
-  costPlanRunMode,
-  pmpProgressKey,
-  costPlanProgressKey,
-  activeWorkflowRun,
-  activeCostPlanRun,
-  activeProcurementRun,
   procurementError,
-  isRunningProcurement,
   procurementRefreshToken,
   onSelectWorkflow,
   onRunCreatePmp,
@@ -787,9 +759,6 @@ function WorkflowDetail({
   onRunRefreshCostPlan,
   onRunProcessInvoices,
   onRunSortFiles,
-  onCancelWorkflow,
-  onCancelCostPlan,
-  onCancelProcurement,
   onRunProcurement,
   onCancelSortFiles,
   onOpenTenderComparison,
@@ -804,7 +773,6 @@ function WorkflowDetail({
   repositoryEvidence = [],
   onSelectEvidenceIds,
   onTransmittalSessionChange,
-  invoiceProcessResult,
 }: {
   tile: WorkflowTile;
   project: ProjectDetail;
@@ -860,21 +828,6 @@ function WorkflowDetail({
   const isDocumentIntake = tile.id === "document-intake";
   const isProcurementRequests = tile.id === "procurement-requests";
   const isProcurement = tile.id === "procurement";
-  // Only while the run owns the panel: a completed run clears its preview, so
-  // the accepted draft takes the space back.
-  const pmpPreview = isRunningWorkflow
-    ? workflowRunPreview(activeWorkflowRun?.progress)
-    : null;
-  const costPlanPreview = isRunningCostPlan
-    ? workflowRunPreview(activeCostPlanRun?.progress)
-    : null;
-  const typedCostPlanPreview =
-    isRunningCostPlan && activeCostPlanRun?.progress?.typed_cost_plan
-      ? (activeCostPlanRun.progress.typed_cost_plan as {
-          item_count?: number;
-          items?: Array<{ item?: string; category?: string; budget?: string | null }>;
-        })
-      : null;
   const costPlanCapability = project.workflow_capabilities?.capabilities.create_cost_plan;
   const costPlanSupported = !costPlanCapability || costPlanCapability.status === "supported";
   const activeTrace = isDocumentIntake
@@ -882,11 +835,7 @@ function WorkflowDetail({
     : isCostPlan
       ? costPlanTrace
       : trace;
-  const activeRunning = isDocumentIntake
-    ? isRunningSortFiles
-    : isCostPlan
-      ? isRunningCostPlan
-      : isRunningWorkflow;
+  const activeRunning = isDocumentIntake ? isRunningSortFiles : false;
   const activeError = isCostPlan ? costPlanWorkflowError : workflowError;
   const activeDraft = isCostPlan ? latestCostPlanDraft : latestDraft;
   const [draftExportAction, setDraftExportAction] = useState<
@@ -948,7 +897,7 @@ function WorkflowDetail({
 
   return (
     <div className="min-w-0">
-      <div className="space-y-4 p-4">
+      <div className="space-y-4">
         {isProjectProfile ? (
           <ProjectProfilePanel
             key={project.id}
@@ -978,25 +927,11 @@ function WorkflowDetail({
               />
             ) : null}
 
-            {isRunningWorkflow ? (
-              <WorkflowProgressStrip
-                title={workflowProgressTitle("project_plan", pmpRunMode ?? "create")}
-                kind="project_plan"
-                runId={pmpProgressKey ?? activeWorkflowRun?.id ?? "pending-project-plan"}
-                runState={activeWorkflowRun?.state ?? "queued"}
-                progressStage={
-                  workflowProgressStage(activeWorkflowRun?.progress) ?? "queued"
-                }
-                progress={activeWorkflowRun?.progress}
-                onCancel={activeWorkflowRun ? onCancelWorkflow : undefined}
-              />
-            ) : null}
-
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={onRunCreatePmp}
-                  disabled={isRunningWorkflow || !project.overlay_status.ready}
+                  disabled={!project.overlay_status.ready}
                 >
                   <Play className="size-4" aria-hidden />
                   Create PMP
@@ -1004,9 +939,7 @@ function WorkflowDetail({
                 <Button
                   variant="outline"
                   onClick={onRunUpdatePmp}
-                  disabled={
-                    isRunningWorkflow || !project.overlay_status.ready || !latestDraft
-                  }
+                  disabled={!project.overlay_status.ready || !latestDraft}
                 >
                   <RefreshCw className="size-4" aria-hidden />
                   Update PMP
@@ -1080,29 +1013,20 @@ function WorkflowDetail({
               </div>
             </div>
 
-            {pmpPreview ? (
-              <Suspense fallback={<DraftReviewFallback label="Building project plan..." />}>
-                <WorkflowDraftPreview
-                  preview={pmpPreview}
-                  title={workflowProgressTitle("project_plan", pmpRunMode ?? "create")}
-                />
-              </Suspense>
-            ) : (
-              <Suspense
-                fallback={<DraftReviewFallback label="Loading project plan..." />}
-              >
-                <DraftReviewPanel
-                  projectId={project.id}
-                  draft={latestDraft}
-                  projectTitle={project.title}
-                  workflowType="create_pmp"
-                  embedded
-                  onDraftUpdated={(draft) => {
-                    onDraftUpdated?.(draft);
-                  }}
-                />
-              </Suspense>
-            )}
+            <Suspense
+              fallback={<DraftReviewFallback label="Loading project plan..." />}
+            >
+              <DraftReviewPanel
+                projectId={project.id}
+                draft={latestDraft}
+                projectTitle={project.title}
+                workflowType="create_pmp"
+                embedded
+                onDraftUpdated={(draft) => {
+                  onDraftUpdated?.(draft);
+                }}
+              />
+            </Suspense>
 
           </>
         ) : isCostPlan ? (
@@ -1132,204 +1056,117 @@ function WorkflowDetail({
               <CapabilityGateNotice workflow="Cost Plan" capability={costPlanCapability} />
             ) : null}
 
-            {isRunningCostPlan ? (
-              <WorkflowProgressStrip
-                title={workflowProgressTitle("cost_plan", costPlanRunMode ?? "create")}
-                kind="cost_plan"
-                runId={
-                  costPlanProgressKey ??
-                  activeCostPlanRun?.id ??
-                  "pending-cost-plan"
-                }
-                runState={activeCostPlanRun?.state ?? "queued"}
-                progressStage={
-                  workflowProgressStage(activeCostPlanRun?.progress) ?? "queued"
-                }
-                progress={activeCostPlanRun?.progress}
-                onCancel={activeCostPlanRun ? onCancelCostPlan : undefined}
-              />
-            ) : null}
-
-            <div className="sw-bounce-blue -m-2 p-2">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    onClick={onRunCreateCostPlan}
-                    disabled={
-                      isRunningCostPlan ||
-                      !project.overlay_status.ready ||
-                      !costPlanSupported
-                    }
-                  >
-                    <Play className="size-4" aria-hidden />
-                    Create cost plan
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={onRunRefreshCostPlan}
-                    disabled={
-                      !onRunRefreshCostPlan ||
-                      isRunningCostPlan ||
-                      !project.overlay_status.ready ||
-                      !costPlanSupported ||
-                      !activeDraft
-                    }
-                  >
-                    <RefreshCw className="size-4" aria-hidden />
-                    Refresh cost plan
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={onRunProcessInvoices}
-                    disabled={
-                      !onRunProcessInvoices ||
-                      isRunningCostPlan ||
-                      !project.overlay_status.ready ||
-                      !costPlanSupported ||
-                      !activeDraft
-                    }
-                  >
-                    <ReceiptText className="size-4" aria-hidden />
-                    Process invoices
-                  </Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {draftExportError ? (
-                    <span className="self-center text-xs text-destructive" role="alert">
-                      {draftExportError}
-                    </span>
-                  ) : null}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-10 text-muted-foreground hover:text-foreground"
-                        disabled={!activeDraft || draftExportAction !== null}
-                        aria-label="Download cost plan"
-                        title="Download"
-                      >
-                        <Download
-                          className={cn(
-                            "size-5",
-                            draftExportAction === "xlsx" && "animate-pulse",
-                          )}
-                          aria-hidden
-                        />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[11rem]">
-                      <DropdownMenuItem
-                        className="gap-2.5 py-2"
-                        disabled={draftExportAction !== null}
-                        onSelect={() => {
-                          void downloadCostPlanExcel();
-                        }}
-                      >
-                        <ExcelFileIcon className="size-6" />
-                        <span>Excel</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Suspense fallback={null}>
-                    <CopyContentButton
-                      loadContent={async () => {
-                        if (!latestCostPlanDraft) return "";
-                        const fullDraft = await api.getProjectDraft(
-                          project.id,
-                          latestCostPlanDraft.id,
-                        );
-                        return fullDraft.content_markdown;
-                      }}
-                      label="Copy cost plan"
-                      disabled={!activeDraft}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={onRunCreateCostPlan}
+                  disabled={!project.overlay_status.ready || !costPlanSupported}
+                >
+                  <Play className="size-4" aria-hidden />
+                  Create cost plan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onRunRefreshCostPlan}
+                  disabled={
+                    !onRunRefreshCostPlan ||
+                    !project.overlay_status.ready ||
+                    !costPlanSupported ||
+                    !activeDraft
+                  }
+                >
+                  <RefreshCw className="size-4" aria-hidden />
+                  Refresh cost plan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onRunProcessInvoices}
+                  disabled={
+                    !onRunProcessInvoices ||
+                    !project.overlay_status.ready ||
+                    !costPlanSupported ||
+                    !activeDraft
+                  }
+                >
+                  <ReceiptText className="size-4" aria-hidden />
+                  Process invoices
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {draftExportError ? (
+                  <span className="self-center text-xs text-destructive" role="alert">
+                    {draftExportError}
+                  </span>
+                ) : null}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
                       size="icon"
-                      className="size-10"
-                    />
-                  </Suspense>
-                </div>
+                      className="size-10 text-muted-foreground hover:text-foreground"
+                      disabled={!activeDraft || draftExportAction !== null}
+                      aria-label="Download cost plan"
+                      title="Download"
+                    >
+                      <Download
+                        className={cn(
+                          "size-5",
+                          draftExportAction === "xlsx" && "animate-pulse",
+                        )}
+                        aria-hidden
+                      />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[11rem]">
+                    <DropdownMenuItem
+                      className="gap-2.5 py-2"
+                      disabled={draftExportAction !== null}
+                      onSelect={() => {
+                        void downloadCostPlanExcel();
+                      }}
+                    >
+                      <ExcelFileIcon className="size-6" />
+                      <span>Excel</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Suspense fallback={null}>
+                  <CopyContentButton
+                    loadContent={async () => {
+                      if (!latestCostPlanDraft) return "";
+                      const fullDraft = await api.getProjectDraft(
+                        project.id,
+                        latestCostPlanDraft.id,
+                      );
+                      return fullDraft.content_markdown;
+                    }}
+                    label="Copy cost plan"
+                    disabled={!activeDraft}
+                    size="icon"
+                    className="size-10"
+                  />
+                </Suspense>
               </div>
             </div>
 
-            {invoiceProcessResult ? (
-              <Suspense fallback={null}>
-                <InvoiceProcessStatus result={invoiceProcessResult} />
-              </Suspense>
-            ) : null}
-
-            {costPlanPreview ? (
-              <Suspense fallback={<DraftReviewFallback label="Building cost plan..." />}>
-                <WorkflowDraftPreview
-                  preview={costPlanPreview}
-                  title={workflowProgressTitle(
-                    "cost_plan",
-                    costPlanRunMode ?? "create",
-                  )}
-                />
-              </Suspense>
-            ) : null}
-            {typedCostPlanPreview?.items?.length ? (
-              <div
-                className="rounded-md border border-dashed border-primary/25 bg-primary/[0.03] px-3 py-2"
-                data-testid="cost-plan-typed-preview"
-                role="status"
-              >
-                <p className="text-xs text-muted-foreground">
-                  Canonical cost rows ready
-                  {typeof typedCostPlanPreview.item_count === "number"
-                    ? ` (${typedCostPlanPreview.item_count})`
-                    : ""}
-                  while narrative and workbook continue.
-                </p>
-                <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
-                  {typedCostPlanPreview.items.slice(0, 8).map((item, index) => (
-                    <li key={`${item.item ?? "row"}-${index}`} className="truncate">
-                      <span className="text-muted-foreground">
-                        {item.category ? `${item.category}: ` : ""}
-                      </span>
-                      {item.item ?? "Cost item"}
-                      {item.budget ? ` — ${item.budget}` : " — TBC"}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {isRunningCostPlan &&
-            !costPlanPreview &&
-            !typedCostPlanPreview?.items?.length &&
-            !latestCostPlanDraft ? (
-              <div
-                className="flex min-h-40 items-center justify-center rounded-md border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground"
-                data-testid="cost-plan-running-placeholder"
-                role="status"
-              >
-                <LoaderCircle
-                  className="mr-2 size-4 animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-                Preparing cost plan…
-              </div>
-            ) : null}
-            {!isRunningCostPlan || latestCostPlanDraft ? (
-              <Suspense fallback={<DraftReviewFallback costWorkbook />}>
-                <DraftReviewPanel
-                  projectId={project.id}
-                  draft={latestCostPlanDraft}
-                  workflowType="create_cost_plan"
-                  embedded
-                  onDraftUpdated={(draft) => {
-                    onDraftUpdated?.(draft);
-                  }}
-                />
-              </Suspense>
-            ) : null}
+            <Suspense fallback={<DraftReviewFallback costWorkbook />}>
+              <DraftReviewPanel
+                projectId={project.id}
+                draft={latestCostPlanDraft}
+                workflowType="create_cost_plan"
+                embedded
+                onDraftUpdated={(draft) => {
+                  onDraftUpdated?.(draft);
+                }}
+              />
+            </Suspense>
           </>
         ) : isProcurementRequests ? (
           <ProcurementRequestPanel
             project={project}
-            activeRun={activeProcurementRun}
-            isRunning={isRunningProcurement}
+            activeRun={null}
+            isRunning={false}
             error={procurementError}
             refreshToken={procurementRefreshToken}
             renderGate={(kind) => {
@@ -1354,7 +1191,6 @@ function WorkflowDetail({
               return null;
             }}
             onCreate={(kind, targetName) => onRunProcurement?.(kind, targetName)}
-            onCancel={onCancelProcurement}
             onDraftSelected={onDraftSelected}
             onDraftUpdated={onDraftUpdated}
             repositoryEvidence={repositoryEvidence}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
 from app.projects.artefact_blocks import (
@@ -30,6 +31,52 @@ Existing paragraph.
 | Tap | Proposed |
 """
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
+
+
+def test_delete_table_row_does_not_leave_blank_line_inside_table() -> None:
+    """GFM ends a table at a blank line; delete must not insert one mid-table."""
+    markdown = """## Project Summary
+
+| Field | Detail | Citation |
+| --- | --- | --- |
+| Project | Walsh2 |  |
+| Address | 42 Hargrave Street | [1] |<!-- clerk:block id=blk_c5b155667c74837540ac88af34a7d358 -->
+| Owner | David and Emma Walsh | [1] |<!-- clerk:block id=blk_9a7b77fe4970e4836f3c148540452ecf -->
+| Description | Terrace renovation | [1] |<!-- clerk:block id=blk_ade5ba1bfc81abd258442ace94e4a835 -->
+"""
+    owner = next(
+        block
+        for block in markdown_blocks(markdown)
+        if block.type == "table_row" and "Owner" in block.content
+    )
+    # Parser addresses the visible line only (no trailing newline).
+    assert markdown[owner.end : owner.end + 1] == "\n"
+
+    deleted = apply_block_operations(
+        markdown,
+        [
+            ArtefactBlockOperation(
+                operation="DELETE",
+                target=ArtefactBlockTarget(id=owner.id, type="table_row"),
+            )
+        ],
+        existing_metadata={
+            owner.id: {
+                "id": owner.id,
+                "type": "table_row",
+                "user_protected": False,
+            }
+        },
+        actor_source="user",
+        now=NOW,
+    )
+
+    assert "| Owner | David and Emma Walsh |" not in deleted.markdown
+    assert re.search(
+        r"\| Address \| 42 Hargrave Street \| \[1\] \|(?:<!--.*?-->)?\n\| Description \| Terrace renovation \| \[1\] \|",
+        deleted.markdown,
+    ), deleted.markdown
+    assert "\n\n| Description |" not in deleted.markdown
 
 
 def test_add_after_table_row_accepts_range_excluding_trailing_marker() -> None:

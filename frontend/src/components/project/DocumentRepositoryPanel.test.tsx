@@ -19,6 +19,8 @@ vi.mock("@/lib/api", () => ({
   },
 }));
 
+const deleteDraftMutateAsync = vi.fn();
+
 vi.mock("@/lib/queries/project-data", () => ({
   useDeleteEvidence: () => ({
     mutateAsync: vi.fn(),
@@ -27,6 +29,11 @@ vi.mock("@/lib/queries/project-data", () => ({
   }),
   useBatchDeleteEvidence: () => ({
     mutateAsync: vi.fn(),
+    isPending: false,
+    variables: undefined,
+  }),
+  useDeleteDraft: () => ({
+    mutateAsync: deleteDraftMutateAsync,
     isPending: false,
     variables: undefined,
   }),
@@ -350,9 +357,15 @@ describe("DocumentRepositoryPanel invoice status", () => {
 });
 
 describe("DocumentRepositoryPanel generated artefacts", () => {
-  it("opens an RFT artefact without selecting or exposing source-document actions", () => {
+  beforeEach(() => {
+    deleteDraftMutateAsync.mockReset();
+    vi.stubGlobal("confirm", vi.fn(() => true));
+  });
+
+  it("selects and opens an RFT artefact like a normal schedule row", () => {
     const onSelectEvidence = vi.fn();
     const onOpenDraft = vi.fn();
+    const onSelectedEvidenceIdsChange = vi.fn();
     const draft = artefactDraft();
     render(
       <DocumentRepositoryPanel
@@ -362,6 +375,7 @@ describe("DocumentRepositoryPanel generated artefacts", () => {
         workspaceTree={[]}
         selectedWorkspacePath={null}
         onSelectEvidence={onSelectEvidence}
+        onSelectedEvidenceIdsChange={onSelectedEvidenceIdsChange}
         onSelectWorkspacePath={vi.fn()}
         onOpenWorkflow={vi.fn()}
         onViewWorkbench={vi.fn()}
@@ -373,11 +387,61 @@ describe("DocumentRepositoryPanel generated artefacts", () => {
     );
 
     expect(screen.getByText("RFT")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: `Open ${draft.title}` }));
+    expect(screen.getByText("RFT - Electrical services")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("RFT - Electrical services"));
 
     expect(onOpenDraft).toHaveBeenCalledWith(draft);
     expect(onSelectEvidence).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: `Delete ${draft.title}` })).toBeNull();
+    expect(onSelectedEvidenceIdsChange).toHaveBeenCalledWith(new Set([draft.id]));
+    expect(
+      screen.getByRole("button", { name: "Delete RFT - Electrical services" }),
+    ).toBeInTheDocument();
+  });
+
+  it("deletes a generated artefact from the bin action", async () => {
+    const onArtefactDeleted = vi.fn();
+    const draft = artefactDraft({
+      title: "Request for Fee Proposal - Quantity surveyor",
+      workflow_type: "consultant_procurement_quantity_surveyor",
+    });
+    deleteDraftMutateAsync.mockResolvedValue({
+      deleted_id: draft.id,
+      workflow_type: draft.workflow_type,
+      latest_draft: null,
+    });
+
+    render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[]}
+        selectedEvidenceId={null}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        artefactDrafts={[draft]}
+        onOpenDraft={vi.fn()}
+        onArtefactDeleted={onArtefactDeleted}
+      />,
+    );
+
+    expect(screen.getByText("RFP - Quantity surveyor")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete RFP - Quantity surveyor" }),
+    );
+
+    await waitFor(() => {
+      expect(deleteDraftMutateAsync).toHaveBeenCalledWith(draft.id);
+      expect(onArtefactDeleted).toHaveBeenCalledWith({
+        deleted_id: draft.id,
+        workflow_type: draft.workflow_type,
+        latest_draft: null,
+      });
+    });
   });
 });
 
@@ -418,7 +482,7 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
     );
     expect(documentNumberHeader).toHaveTextContent("#");
     expect(documentNumberHeader.closest("table")?.querySelector("col")).toHaveClass(
-      "w-[3.75rem]",
+      "w-[3.25rem]",
     );
     expect(screen.getByText("A-100").closest("td")).toHaveAttribute(
       "title",

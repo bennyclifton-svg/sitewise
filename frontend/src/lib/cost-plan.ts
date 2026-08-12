@@ -126,7 +126,7 @@ function money(value: number): string {
 
 export function amount(value: string | null | undefined): number {
   if (value == null || value === "") return 0;
-  const parsed = Number(value);
+  const parsed = Number(String(value).replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -135,6 +135,15 @@ export function formatCostPlanMoney(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** Strip thousands separators and normalise a money field for storage. */
+export function parseCostPlanMoneyInput(value: string): string | null {
+  const cleaned = value.trim().replace(/,/g, "");
+  if (cleaned === "") return "0";
+  const parsed = Number(cleaned);
+  if (!Number.isFinite(parsed)) return null;
+  return String(parsed);
 }
 
 /** Assign sequential cost codes 1..N from current display order. */
@@ -571,6 +580,26 @@ export function duplicateCostItemOptimistically(
   });
   const sourceVariations = itemVariations(state, targetId);
   return withItemVariations(withItems, values.item_key, sourceVariations);
+}
+
+export function addCostItemOptimistically(
+  state: CostPlanState,
+  item: CostPlanItem,
+  referenceId?: string,
+  placement: "before" | "after" = "after",
+): CostPlanState {
+  const items = [...state.items];
+  if (!referenceId) {
+    items.push(item);
+  } else {
+    const referenceIndex = items.findIndex((row) => row.item_key === referenceId);
+    if (referenceIndex < 0) return state;
+    items.splice(referenceIndex + (placement === "after" ? 1 : 0), 0, item);
+  }
+  return withOptimisticTotals({
+    ...state,
+    items: reorder(items),
+  });
 }
 
 export function moveCostItemOptimistically(

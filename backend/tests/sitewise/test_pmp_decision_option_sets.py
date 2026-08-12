@@ -21,6 +21,7 @@ def test_new_dwelling_merges_seed_catalogs_into_option_sets() -> None:
     assert "kitchen-benchtop" in sets
     assert "dwelling-storeys" in sets
     assert sets["flooring-finish"]["default_hint"] == "engineered"
+    assert sets["flooring-finish"]["section"] == "FFE Schedule"
 
 
 def test_required_decision_ids_stay_within_sparse_band() -> None:

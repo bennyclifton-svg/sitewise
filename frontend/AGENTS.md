@@ -5,11 +5,10 @@ and code rules live there. This file adds frontend-specific conventions.
 
 ## Current Direction
 
-The frontend is extended, not replaced. Clerk already uses the Vercel AI SDK
-chat primitives and `DefaultChatTransport`; Phase 4 builds on that path with
-tool-call chips, a stop button, session list, artefact cards, and vitest render
-tests. Do not vendor Omnigent's store or add Zustand. Use Omnigent only as a
-visual reference where the July plans say so.
+The frontend is extended, not replaced. Chat uses the Vercel AI SDK primitives
+and `DefaultChatTransport`, with tool-call chips, a stop button, session list,
+artefact cards, and vitest render tests. Do not vendor Omnigent's store or add
+Zustand.
 
 ## Stack
 
@@ -20,7 +19,7 @@ visual reference where the July plans say so.
 - TanStack Query where server state benefits from caching/invalidation
 - `@supabase/supabase-js` for browser auth
 - Vercel AI SDK (`@ai-sdk/react` + `ai`) for chat streaming
-- Vitest/testing-library from Phase 4 onward
+- Vitest / testing-library for chat and tooling UI
 
 No Next.js, SSR, server components, or frontend route handlers.
 
@@ -102,16 +101,15 @@ Env vars exposed to the browser must use the `VITE_` prefix.
 
 ## Testing
 
-Before Phase 4, use manual browser verification plus:
+Always:
 
 ```bash
 pnpm tsc --noEmit
 pnpm lint
 ```
 
-Phase 4 introduces vitest, testing-library, jsdom, and focused render tests for
-chat/tooling UI. After that point, frontend changes that touch tested surfaces
-should add or update vitest coverage.
+Frontend changes that touch tested surfaces should add or update vitest
+coverage for chat and tooling UI.
 
 ## Anti-Patterns
 

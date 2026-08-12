@@ -34,7 +34,7 @@ from app.sitewise.pmp_greenfield_brief import (
 from app.sitewise.pmp_sources import document_title, required_section_headings
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
 from app.sitewise.section_contracts import heading_for_section_id, pmp_section_headings
-from app.sitewise.taxonomy import work_scope_items_for
+from app.sitewise.taxonomy import design_lead_discipline, work_scope_items_for
 
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
@@ -117,6 +117,7 @@ def _taxonomy_risk_rows(
     if context is None:
         return ()
 
+    lead = design_lead_discipline(context.work_type, context.work_scope)
     if pack is not None:
         if project.archetype == "renovation":
             base = _renovation_risk_rows(pack)
@@ -133,14 +134,14 @@ def _taxonomy_risk_rows(
             ),
             (
                 "Current corpus evidence not uploaded",
-                "Architect",
+                lead,
                 "Not evidenced",
                 "Upload brief, authority, cost, programme, and consultant records",
                 "TBC",
             ),
             (
                 "Consultant and approval pathway unresolved",
-                "Architect",
+                lead,
                 "Assumption",
                 "Confirm discipline roster and approval certifier/authority path",
                 "TBC",
@@ -153,7 +154,7 @@ def _taxonomy_risk_rows(
     rows.extend(
         (
             flag.title,
-            "Architect",
+            lead,
             "Assumption",
             flag.description,
             "TBC",
@@ -1369,6 +1370,45 @@ def _render_taxonomy_scope(project: Project) -> str:
     return "\n".join(lines)
 
 
+def _asset_schedule_rows(project: Project) -> list[str]:
+    """Render the profile's asset register into the FFE table.
+
+    A services or plant-replacement job has no finishes to schedule, so the
+    section used to render an empty stub. The equipment being replaced is the
+    schedule that project actually needs, and it is the one place the specifics
+    the PM supplied — make, capacity, age, refrigerant — can appear.
+    """
+    from app.projects.profile import project_assets
+    from app.sitewise.taxonomy import asset_option_label
+
+    rows: list[str] = []
+    for asset in project_assets(project):
+        condition = asset_option_label("condition", asset.condition)
+        action = asset_option_label("action", asset.action)
+        notes = "; ".join(
+            part
+            for part in (
+                f"{asset.age_years} years old" if asset.age_years is not None else None,
+                f"Replace with {asset.replacement_spec}"
+                if asset.replacement_spec
+                else None,
+                asset.notes,
+            )
+            if part
+        )
+        rows.append(
+            "| {item} | {location} | {qty} | {spec} | {status} | {notes} |".format(
+                item=asset.type,
+                location=asset.location or "—",
+                qty=asset.count if asset.count is not None else "—",
+                spec=asset.capacity or asset.make_model or "—",
+                status=action or condition or "User provided",
+                notes=notes or "—",
+            )
+        )
+    return rows
+
+
 def _render_taxonomy_ffe_schedule(project: Project) -> str:
     from app.sitewise.ffe_schedule import ffe_schedule_rows
 
@@ -1379,7 +1419,13 @@ def _render_taxonomy_ffe_schedule(project: Project) -> str:
         "| Item | Location | Qty | Finish | Status | Notes |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
-    for item in ffe_schedule_rows(project):
+    explicit_items = ffe_schedule_rows(project)
+    asset_rows = [] if explicit_items else _asset_schedule_rows(project)
+    if asset_rows:
+        # An equipment schedule has no finishes: the fourth column carries make
+        # and capacity, so label it for what it holds.
+        rows[0] = "| Item | Location | Qty | Make / capacity | Action | Notes |"
+    for item in explicit_items:
         rows.append(
             "| {item} | {location} | {quantity} | {finish} | {status} | {notes} |".format(
                 item=item["item"],
@@ -1390,6 +1436,7 @@ def _render_taxonomy_ffe_schedule(project: Project) -> str:
                 notes=item["notes"],
             )
         )
+    rows.extend(asset_rows)
     if len(rows) == 2:
         rows.append(
             "| TBC — record finishes, fixtures and equipment selections | TBC | TBC | TBC | To be confirmed | — |"
@@ -1398,10 +1445,18 @@ def _render_taxonomy_ffe_schedule(project: Project) -> str:
         [
             f"## {heading_for_section_id('ffe-schedule', work_type=context.work_type)}",
             "",
-            "Finishes, Fixtures and Equipment (FFE) schedule. Capture selected and "
-            "outstanding items here — baths, tapware, joinery, appliances, flooring, "
-            "fixtures, and other owner or design selections that affect procurement "
-            "and cost. Missing selections stay TBC until confirmed.",
+            (
+                "Equipment schedule derived from the project asset register — the "
+                "plant being replaced, upgraded or remediated, with the make, "
+                "capacity and condition recorded against each item. Missing "
+                "detail stays TBC until confirmed."
+                if asset_rows
+                else "Finishes, Fixtures and Equipment (FFE) schedule. Capture "
+                "selected and outstanding items here — baths, tapware, joinery, "
+                "appliances, flooring, fixtures, and other owner or design "
+                "selections that affect procurement and cost. Missing selections "
+                "stay TBC until confirmed."
+            ),
             _emphasis_note(project, "ffe-schedule"),
             "",
             "\n".join(rows),
@@ -1431,27 +1486,28 @@ def _render_taxonomy_consultants(
         for row in consultant_appointment_rows(project)
     }
 
+    lead = design_lead_discipline(context.work_type, context.work_scope)
     engaged = has_engagement_evidence(pack)
     fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
-    architect_fact = appointment_rows.get("architect")
+    lead_fact = appointment_rows.get(lead.strip().lower())
     if engaged:
-        firm = pack.appointee or "Architect"
+        firm = pack.appointee or lead
         fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
         status = "Partial"
         citation = _engagement_citation_token(pack, index)
-    elif architect_fact:
-        firm = str(architect_fact["firm"])
-        fee = str(architect_fact.get("fee") or "")
-        status = str(architect_fact["status"])
+    elif lead_fact:
+        firm = str(lead_fact["firm"])
+        fee = str(lead_fact.get("fee") or "")
+        status = str(lead_fact["status"])
         citation = "—"
     else:
         firm = pack.appointee or "TBC"
         fee = "TBC"
         status = "Assumption"
         citation = "—"
-    rows.append(f"| Architect | {firm} | {fee} | {status} | {citation} |")
+    rows.append(f"| {lead} | {firm} | {fee} | {status} | {citation} |")
 
-    seen: set[str] = {"architect"}
+    seen: set[str] = {lead.strip().lower()}
     for item in work_scope_items_for(context.work_type, context.work_scope):
         for consultant in item.consultants:
             key = consultant.strip().lower()
@@ -1495,8 +1551,8 @@ def _render_taxonomy_consultants(
         [
             f"## {heading_for_section_id('consultants', work_type=context.work_type)}",
             "",
-            "Appointment register for Architect engagement and taxonomy-expected disciplines. "
-            "The Architect row is the design lead; coordination duties sit under that appointment. "
+            f"Appointment register for {lead} engagement and taxonomy-expected disciplines. "
+            f"The {lead} row is the design lead; coordination duties sit under that appointment. "
             "Record firm, fee, and appointment status only — engagement scope belongs in the brief "
             "and filed engagement letters, not in this register. "
             "Missing appointment evidence stays Assumption / Not evidenced until engagement letters "
@@ -1737,13 +1793,14 @@ def _render_taxonomy_actions(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
+    lead = design_lead_discipline(context.work_type, context.work_scope)
     actions = [
         "| Item | Owner | Status | Next |",
         "| --- | --- | --- | --- |",
         "| Scope boundary | Owner | Assumption | Lock brief |",
-        "| Approval pathway | Architect | Assumption | Certifier |",
+        f"| Approval pathway | {lead} | Assumption | Certifier |",
         "| Budget basis | Owner | Assumption | Cost evidence |",
-        "| Consultant roster | Architect | Assumption | Appoint |",
+        f"| Consultant roster | {lead} | Assumption | Appoint |",
     ]
     emphasis = _emphasis_note(project, "actions-decisions")
     depth = ""
@@ -1804,20 +1861,31 @@ def _render_taxonomy_platform_scaffold(
         raise ValueError("taxonomy scaffold requires building_class")
     pack = pack or MobilisationEvidencePack()
     index = citation_index or _citation_index_from_pack(pack)
-    sections = [
-        _render_taxonomy_snapshot(project, citation_index=index),
-        _render_taxonomy_scope(project),
-        _render_taxonomy_ffe_schedule(project),
-        _render_taxonomy_consultants(project, pack, citation_index=index),
-        _render_taxonomy_compliance(project, seed_section_refs),
-        _render_taxonomy_programme(project),
-        _render_taxonomy_cost(project),
-        _render_taxonomy_procurement(project),
-        _render_taxonomy_risks(project),
-        _render_taxonomy_actions(project),
-        _render_taxonomy_citation_key(
+    # Only render what this project needs. A plant replacement with no finishes
+    # to schedule and an advisory engagement with nothing to procure used to
+    # carry those sections as empty stubs.
+    renderers = {
+        "snapshot": lambda: _render_taxonomy_snapshot(project, citation_index=index),
+        "scope-client-requirements": lambda: _render_taxonomy_scope(project),
+        "ffe-schedule": lambda: _render_taxonomy_ffe_schedule(project),
+        "consultants": lambda: _render_taxonomy_consultants(
+            project, pack, citation_index=index
+        ),
+        "compliance-approvals": lambda: _render_taxonomy_compliance(
+            project, seed_section_refs
+        ),
+        "programme": lambda: _render_taxonomy_programme(project),
+        "cost-budget": lambda: _render_taxonomy_cost(project),
+        "procurement-delivery": lambda: _render_taxonomy_procurement(project),
+        "risks": lambda: _render_taxonomy_risks(project),
+        "actions-decisions": lambda: _render_taxonomy_actions(project),
+        "citation-key": lambda: _render_taxonomy_citation_key(
             project, pack, version=version, citation_index=index
         ),
+    }
+    applicable = context.sections or tuple(renderers)
+    sections = [
+        renderers[section_id]() for section_id in applicable if section_id in renderers
     ]
     rendered_headings = {
         line.strip()[3:].strip().lower()
@@ -1827,7 +1895,9 @@ def _render_taxonomy_platform_scaffold(
     }
     missing = [
         heading
-        for heading in pmp_section_headings(work_type=context.work_type)
+        for heading in pmp_section_headings(
+            work_type=context.work_type, sections=applicable
+        )
         if heading.lower() not in rendered_headings
     ]
     if missing:

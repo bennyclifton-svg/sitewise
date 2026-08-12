@@ -10,6 +10,7 @@ from app.sitewise.taxonomy import (
     scale_fields_for,
     subclasses_for,
     validate_project_taxonomy,
+    work_scope_options_for,
     work_types,
 )
 
@@ -73,11 +74,26 @@ def test_risk_flag_definitions_include_derivable_flags() -> None:
     assert {"remote_site", "live_operations", "flood_overlay"} <= set(flags)
 
 
-def test_planning_dimension_offers_cdc_da_ssd() -> None:
+def test_refurb_services_scope_is_discipline_grained() -> None:
+    values = {item.value for item in work_scope_options_for("refurb")}
+    assert {
+        "mechanical_hvac",
+        "electrical_power",
+        "lighting",
+        "hydraulic_plumbing",
+        "fire_services",
+        "accessibility_upgrade",
+    } <= values
+    assert "services_upgrade" not in values
+    assert "lighting" in {item.value for item in work_scope_options_for("new")}
+
+
+def test_planning_dimension_offers_exempt_cdc_da_ssd() -> None:
     for cls in building_classes():
         planning = next(d for d in complexity_dimensions_for(cls.value) if d.key == "planning")
         assert planning.label == "Planning"
         assert [(option.value, option.label) for option in planning.options] == [
+            ("exempt", "Exempt"),
             ("cdc", "CDC"),
             ("da", "DA"),
             ("ssd", "State Significant Development (SSD)"),

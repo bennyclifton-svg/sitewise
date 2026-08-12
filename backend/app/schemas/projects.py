@@ -95,6 +95,50 @@ class ProjectSubclassSelection(BaseModel):
         return stripped or None
 
 
+class ProjectAsset(BaseModel):
+    """One existing asset a refurb, remediation or services project acts on.
+
+    Scale fields describe the building; this describes the plant being replaced.
+    For services-dominant work the asset register is the scope.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: str = Field(min_length=1, max_length=200)
+    count: int | None = Field(default=None, ge=0, le=100000)
+    location: str | None = Field(default=None, max_length=200)
+    make_model: str | None = Field(default=None, max_length=200)
+    capacity: str | None = Field(default=None, max_length=120)
+    age_years: int | None = Field(default=None, ge=0, le=300)
+    condition: str | None = Field(default=None, max_length=64)
+    action: str | None = Field(default=None, max_length=64)
+    replacement_spec: str | None = Field(default=None, max_length=300)
+    notes: str | None = Field(default=None, max_length=600)
+
+    @field_validator(
+        "type",
+        "location",
+        "make_model",
+        "capacity",
+        "condition",
+        "action",
+        "replacement_spec",
+        "notes",
+    )
+    @classmethod
+    def strip_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = " ".join(value.split())
+        return stripped or None
+
+    @model_validator(mode="after")
+    def require_type(self) -> Self:
+        if not self.type:
+            raise ValueError("asset type must not be blank")
+        return self
+
+
 class ProjectProfilePatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -105,6 +149,8 @@ class ProjectProfilePatch(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
+    assets: list[ProjectAsset] | None = None
+    budget: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, max_length=16)
     site_address: str | None = Field(default=None, max_length=256)
     client: str | None = Field(default=None, max_length=128)
@@ -116,6 +162,7 @@ class ProjectProfilePatch(BaseModel):
         "state",
         "site_address",
         "client",
+        "budget",
     )
     @classmethod
     def strip_optional_strings(cls, value: str | None) -> str | None:
@@ -158,6 +205,8 @@ ProjectProfileField = Literal[
     "scale",
     "complexity",
     "work_scope",
+    "assets",
+    "budget",
     "state",
     "site_address",
     "client",
@@ -173,6 +222,8 @@ class ProjectProfileView(BaseModel):
     scale: dict[str, Any] = Field(default_factory=dict)
     complexity: dict[str, Any] = Field(default_factory=dict)
     work_scope: list[str] = Field(default_factory=list)
+    assets: list[ProjectAsset] = Field(default_factory=list)
+    budget: str | None = None
     user_role: str | None = None
     state: str | None = None
     site_address: str | None = None
@@ -294,6 +345,8 @@ class CreateProjectRequest(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
+    assets: list[ProjectAsset] | None = None
+    budget: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, max_length=16)
     phase: str = Field(default="brief-planning", min_length=1, max_length=64)
 
@@ -353,6 +406,8 @@ class PatchProjectRequest(BaseModel):
     scale: dict[str, Any] | None = None
     complexity: dict[str, Any] | None = None
     work_scope: list[str] | None = None
+    assets: list[ProjectAsset] | None = None
+    budget: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, max_length=16)
 
     @field_validator("building_class", "work_type", "state")
@@ -471,6 +526,13 @@ class PlatformKnowledgeStatus(BaseModel):
     buckets: list[PlatformKnowledgeBucket]
 
 
+class PlatformKnowledgeContent(BaseModel):
+    filename: str
+    relative_path: str
+    kind: str | None = None
+    content: str
+
+
 class DraftArtifactResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -575,6 +637,12 @@ class BatchDeleteEvidenceFailure(BaseModel):
 class BatchDeleteEvidenceResponse(BaseModel):
     deleted: list[uuid.UUID] = Field(default_factory=list)
     failed: list[BatchDeleteEvidenceFailure] = Field(default_factory=list)
+
+
+class DeleteDraftResponse(BaseModel):
+    deleted_id: uuid.UUID
+    workflow_type: str
+    latest_draft: DraftArtifactSummary | None = None
 
 
 class WorkflowTraceEvent(BaseModel):

@@ -171,10 +171,7 @@ export function ProjectShell({
                 className={cn(
                   "flex min-h-0 flex-col",
                   chatFullScreen && "flex-1",
-                  chatCollapsed && "shrink-0 border-t border-border",
-                  !chatFullScreen &&
-                    !chatCollapsed &&
-                    "flex-[1.35] border-t border-border",
+                  chatCollapsed && "shrink-0",
                 )}
               >
                 {chatPanel}

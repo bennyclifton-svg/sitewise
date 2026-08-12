@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MenuSelect } from "@/components/ui/menu-select";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import type { DraftArtifact, ProjectDecisionOption } from "@/lib/types/project";
@@ -171,6 +172,82 @@ export function DecisionControl({
         readOnly={readOnly}
         onDraftUpdated={onDraftUpdated}
       />
+    </div>
+  );
+}
+
+/** Compact Finish-column control for FFE Schedule table rows. */
+export function DecisionFinishSelect({
+  projectId,
+  decision,
+  readOnly = false,
+  onDraftUpdated,
+}: {
+  projectId: string;
+  decision: EmbeddedDecision;
+  readOnly?: boolean;
+  onDraftUpdated?: (draft: DraftArtifact) => void;
+}) {
+  const [selected, setSelected] = useState(decision.selected);
+  const [source, setSource] = useState(decision.source ?? "agent");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const evidenced = selectionIsEvidenced(decision, source);
+  const selectedLabel = labelForValue(decision.options, selected);
+
+  async function commit(nextValue: string) {
+    if (readOnly || nextValue === selected) return;
+    setIsSaving(true);
+    setError(null);
+    const previous = selected;
+    setSelected(nextValue);
+    setSource("user");
+    try {
+      const result = await api.putDecision(
+        projectId,
+        decision.id,
+        nextValue,
+        decision.revision ?? 1,
+        decision.set_revision ?? 1,
+      );
+      setSelected(result.decision.selected);
+      setSource(result.decision.source);
+      onDraftUpdated?.(result.draft);
+    } catch (err) {
+      setSelected(previous);
+      setError(
+        err instanceof ApiError && err.status === 409
+          ? "This decision changed elsewhere. Reload the PMP and try again."
+          : err instanceof ApiError
+            ? err.message
+            : "Could not save decision.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="flex min-w-[12rem] flex-col gap-1 print:hidden"
+      data-decision-id={decision.id}
+      data-evidenced={evidenced ? "true" : "false"}
+      data-selected-label={selectedLabel}
+    >
+      <div className="flex items-start gap-2">
+        <MenuSelect
+          value={selected}
+          options={decision.options}
+          disabled={readOnly || isSaving}
+          aria-label={decision.label}
+          className="h-8 min-w-0 flex-1 text-xs"
+          onChange={(value) => void commit(value)}
+        />
+        <ProvenanceChip source={source} />
+      </div>
+      <p className="decision-export-value hidden text-sm print:block">{selectedLabel}</p>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

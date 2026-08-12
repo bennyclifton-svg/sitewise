@@ -29,6 +29,8 @@ type AssistantMessageProps = {
   workflowRuns?: WorkflowRunRef[];
   agentMode?: boolean;
   projectId?: string | null;
+  /** When true, live ActivityStream owns thinking UI — hide pills and tool ticker. */
+  live?: boolean;
   selectedCitationId: string | null;
   onSelectCitation: (citation: Citation) => void;
 };
@@ -62,6 +64,7 @@ export function AssistantMessage({
   workflowRuns = [],
   agentMode = false,
   projectId,
+  live = false,
   selectedCitationId,
   onSelectCitation,
 }: AssistantMessageProps) {
@@ -71,13 +74,25 @@ export function AssistantMessage({
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("");
+  const hasText = Boolean(text.trim());
+  // Trace pills are a post-answer audit affordance — never during live work,
+  // and never on an empty bubble (agentMode alone would otherwise show
+  // "Project context" / "LLM reasoning" with no answer yet).
+  const showTrace = !live && hasText;
+  const showToolFeed = !live && toolEvents.length > 0;
+
+  // Avoid empty bubbles: live/in-flight work belongs to ActivityStream, and
+  // agentMode must not paint orphan trace pills before any answer text exists.
+  if (!hasText && artefacts.length === 0 && !showToolFeed) {
+    return null;
+  }
 
   return (
     <article
       aria-label="Assistant message"
       className="group relative mr-8 max-w-[92%] self-start rounded-lg border border-white/6 bg-black/20 px-3 py-2 text-sm"
     >
-      {text.trim() ? (
+      {hasText ? (
         <div className="absolute top-1.5 right-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <CopyContentButton
             content={text}
@@ -93,16 +108,20 @@ export function AssistantMessage({
         </div>
       ) : null}
 
-      <div className="space-y-2 whitespace-pre-wrap leading-relaxed pr-8">{text}</div>
+      {hasText ? (
+        <div className="space-y-2 whitespace-pre-wrap leading-relaxed pr-8">{text}</div>
+      ) : null}
 
-      <AnswerTrace
-        agentMode={agentMode}
-        messageData={messageData}
-        toolEvents={toolEvents}
-        citations={citations}
-      />
+      {showTrace ? (
+        <AnswerTrace
+          agentMode={agentMode}
+          messageData={messageData}
+          toolEvents={toolEvents}
+          citations={citations}
+        />
+      ) : null}
 
-      {toolEvents.length > 0 ? <ToolActivityFeed events={toolEvents} /> : null}
+      {showToolFeed ? <ToolActivityFeed events={toolEvents} /> : null}
 
       {artefacts.map((artefact, index) => (
         <ArtefactCard

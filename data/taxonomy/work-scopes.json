@@ -55,6 +55,7 @@
           "items": [
             {"value": "mechanical_hvac", "label": "Mechanical/HVAC", "consultants": ["Services Engineer (Mechanical)"]},
             {"value": "electrical_power", "label": "Electrical/Power", "consultants": ["Services Engineer (Electrical)"]},
+            {"value": "lighting", "label": "Lighting", "consultants": ["Lighting Designer", "Services Engineer (Electrical)"]},
             {"value": "hydraulic_plumbing", "label": "Hydraulic/Plumbing", "consultants": ["Services Engineer (Hydraulic)"]},
             {"value": "fire_services", "label": "Fire Services", "consultants": ["Fire Engineer"]},
             {"value": "vertical_transport", "label": "Vertical Transport", "consultants": ["Vertical Transport Consultant"]},
@@ -101,7 +102,7 @@
         },
         {
           "value": "commercial_fitout",
-          "label": "Commercial Fit-Out",
+          "label": "Internal Fit-Out",
           "items": [
             {"value": "partitions_walls", "label": "Partitions/Internal Walls", "consultants": ["Architect", "Interior Designer", "Acoustic Consultant"]},
             {"value": "ceilings", "label": "Ceilings and Acoustic Treatments", "consultants": ["Architect", "Interior Designer", "Acoustic Consultant"]},
@@ -119,9 +120,12 @@
           "value": "services_compliance",
           "label": "Services and Compliance Upgrade",
           "items": [
+            {"value": "mechanical_hvac", "label": "Mechanical/HVAC", "consultants": ["Services Engineer (Mechanical)"]},
+            {"value": "electrical_power", "label": "Electrical/Power", "consultants": ["Services Engineer (Electrical)"]},
+            {"value": "lighting", "label": "Lighting", "consultants": ["Lighting Designer", "Services Engineer (Electrical)"]},
+            {"value": "hydraulic_plumbing", "label": "Hydraulic/Plumbing", "consultants": ["Services Engineer (Hydraulic)"]},
             {"value": "fire_services", "label": "Fire Services Upgrade", "consultants": ["Fire Engineer"]},
-            {"value": "accessibility_upgrade", "label": "Accessibility Upgrade", "consultants": ["Access Consultant", "Building Certifier"]},
-            {"value": "services_upgrade", "label": "Building Services Upgrade", "consultants": ["Services Engineer"]}
+            {"value": "accessibility_upgrade", "label": "Accessibility Upgrade", "consultants": ["Access Consultant", "Building Certifier"]}
           ]
         }
       ]

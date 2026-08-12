@@ -626,7 +626,9 @@ def _contract_focus_line(
             "cover the Finishes, Fixtures and Equipment schedule after Brief: "
             "item, location, quantity, finish, status, and notes; preserve "
             "user-added shared ffe_item rows; keep unspecified fields as TBC; "
-            "do not bury FFE selections inside the Brief prose"
+            "do not bury FFE selections inside the Brief prose; place finishes "
+            "catalog pmp-decision blocks after the schedule table in this section "
+            "(UI folds them into Finish-column dropdowns)"
         )
     if section_id == "consultants":
         disciplines = _taxonomy_consultant_labels(work_type, work_scope)

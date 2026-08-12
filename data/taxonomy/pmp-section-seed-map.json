@@ -42,6 +42,7 @@
           ],
           "when": {
             "building_class": "residential",
+            "work_type": ["new", "refurb", "extend"],
             "subclasses": [
               "apartments",
               "btr",
@@ -231,7 +232,16 @@
             "1-procurement-methods-and-strategies",
             "4-tender-documentation-and-deliverables"
           ],
-          "when": {"work_type": "advisory"}
+          "when": {
+            "work_type": "advisory",
+            "building_class": [
+              "commercial",
+              "industrial",
+              "institution",
+              "mixed",
+              "infrastructure"
+            ]
+          }
         },
         {
           "path": "seed/contract-administration-guide.md",

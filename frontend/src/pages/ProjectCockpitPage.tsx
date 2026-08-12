@@ -3,10 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
+import type { PendingChatInstruction } from "@/components/chat/ChatPanel";
+import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
-import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import {
   findDraftByWorkspacePath,
@@ -37,17 +38,16 @@ import {
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
-import { useWorkflowRun, waitForWorkflowRun } from "@/lib/queries/workflow-runs";
+import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
-  CreatePmpResponse,
   DraftArtifact,
   DraftArtifactSummary,
   EvidencePreview,
   InboxUploadResult,
+  PlatformKnowledgeDocument,
   PlatformKnowledgeStatus,
-  ProcessInvoicesResult,
   ProjectDetail,
   ProjectEvent,
   ProjectSummary,
@@ -56,7 +56,10 @@ import type {
   WorkspaceTreeNode,
   WorkflowRunStartInput,
 } from "@/lib/types/project";
-import type { WorkflowProgressMode } from "@/lib/workflow-progress";
+import {
+  procurementChatCommand,
+  workflowChatCommand,
+} from "@/lib/workflow-chat-commands";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -94,6 +97,11 @@ const WorkspaceFilePanel = lazy(() =>
 const WorkspaceFolderPanel = lazy(() =>
   import("@/components/project/WorkspaceFolderPanel").then((module) => ({
     default: module.WorkspaceFolderPanel,
+  })),
+);
+const PlatformKnowledgeViewer = lazy(() =>
+  import("@/components/project/PlatformKnowledgeViewer").then((module) => ({
+    default: module.PlatformKnowledgeViewer,
   })),
 );
 const ChatRail = lazy(() =>
@@ -174,6 +182,8 @@ export function ProjectCockpitPage() {
   );
   const [platformStatus, setPlatformStatus] =
     useState<PlatformKnowledgeStatus | null>(null);
+  const [selectedPlatformKnowledge, setSelectedPlatformKnowledge] =
+    useState<PlatformKnowledgeDocument | null>(null);
   const [snapshot, setSnapshot] = useState<ProjectSnapshot | null>(null);
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -184,12 +194,6 @@ export function ProjectCockpitPage() {
     Record<string, DraftArtifactSummary | null>
   >({});
   const [reviewDraft, setReviewDraft] = useState<DraftArtifactSummary | null>(null);
-  const [workflowResult, setWorkflowResult] = useState<CreatePmpResponse | null>(null);
-  const [costPlanWorkflowResult, setCostPlanWorkflowResult] = useState<CreatePmpResponse | null>(
-    null,
-  );
-  const [invoiceProcessResult, setInvoiceProcessResult] =
-    useState<ProcessInvoicesResult | null>(null);
   const [sortFilesResult, setSortFilesResult] = useState<SortFilesResponse | null>(null);
   const [sortFilesDraft, setSortFilesDraft] = useState<DraftArtifactSummary | null>(null);
   const [sortFilesError, setSortFilesError] = useState<string | null>(null);
@@ -212,27 +216,11 @@ export function ProjectCockpitPage() {
   const [projectError, setProjectError] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatReloadToken, setChatReloadToken] = useState(0);
-  const [workflowError, setWorkflowError] = useState<string | null>(null);
-  const [costPlanWorkflowError, setCostPlanWorkflowError] = useState<string | null>(null);
   const [procurementError, setProcurementError] = useState<string | null>(null);
-  const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
-  const [isRunningCostPlan, setIsRunningCostPlan] = useState(false);
-  const [isRunningProcurement, setIsRunningProcurement] = useState(false);
-  const [pmpRunMode, setPmpRunMode] = useState<WorkflowProgressMode | null>(null);
-  const [costPlanRunMode, setCostPlanRunMode] = useState<WorkflowProgressMode | null>(
-    null,
-  );
-  /** Stable strip session keys so the bar does not reset when the server run id arrives. */
-  const [pmpProgressKey, setPmpProgressKey] = useState<string | null>(null);
-  const [costPlanProgressKey, setCostPlanProgressKey] = useState<string | null>(null);
-  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
-  const [costPlanRunId, setCostPlanRunId] = useState<string | null>(null);
-  const [procurementRunId, setProcurementRunId] = useState<string | null>(null);
   const [procurementRefreshToken, setProcurementRefreshToken] = useState(0);
   const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
-  const activeWorkflowRunQuery = useWorkflowRun(projectId ?? "", workflowRunId);
-  const activeCostPlanRunQuery = useWorkflowRun(projectId ?? "", costPlanRunId);
-  const activeProcurementRunQuery = useWorkflowRun(projectId ?? "", procurementRunId);
+  const [pendingChatInstruction, setPendingChatInstruction] =
+    useState<PendingChatInstruction | null>(null);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
   const reconcileArtefactEvent = useCallback(
     (event: ProjectEvent) => {
@@ -272,11 +260,7 @@ export function ProjectCockpitPage() {
   const projectEvents = useProjectEventCursor({
     projectId: projectId ?? "",
     enabled: bootstrapLoaded && !!projectId,
-    active:
-      isRunningWorkflow ||
-      isRunningCostPlan ||
-      isRunningProcurement ||
-      isRunningSortFiles,
+    active: isRunningSortFiles || pendingChatInstruction !== null,
     onEvent: reconcileArtefactEvent,
   });
 
@@ -451,11 +435,6 @@ export function ProjectCockpitPage() {
     await reloadProjectWorkspaceTree(queryClient, projectId);
   }
 
-  async function refreshLatestDraft(workflowType: "create_pmp" | "create_cost_plan") {
-    if (!projectId) return null;
-    return await api.getLatestDraft(projectId, workflowType);
-  }
-
   async function refreshActivity() {
     if (!projectId) return;
     await queryClient.invalidateQueries({
@@ -520,22 +499,8 @@ export function ProjectCockpitPage() {
     return workflowRunInput(fresh, thread?.id, expectedArtefactVersion);
   }
 
-  function refreshLatestDraftInBackground(
-    workflowType: "create_pmp" | "create_cost_plan",
-  ) {
-    void refreshLatestDraft(workflowType)
-      .then((draft) => {
-        if (!draft) return;
-        if (workflowType === "create_cost_plan") {
-          setLatestCostPlanDraft((current) => preferFreshDraft(current, draft));
-        } else {
-          setLatestDraft((current) => preferFreshDraft(current, draft));
-        }
-      })
-      .catch(() => undefined);
-  }
-
   function openDraftReview(draft: DraftArtifactSummary) {
+    setSelectedPlatformKnowledge(null);
     setReviewDraft(draft);
     setLatestDraftsMap((current) => ({
       ...current,
@@ -561,10 +526,6 @@ export function ProjectCockpitPage() {
       return;
     }
     setActiveView("draft");
-  }
-
-  function showPmpDraft(draft: DraftArtifactSummary) {
-    openDraftReview(draft);
   }
 
   async function handleDraftUpdated(draft: DraftArtifact) {
@@ -621,10 +582,6 @@ export function ProjectCockpitPage() {
     } finally {
       setIsSavingTransmittal(false);
     }
-  }
-
-  function showCostPlanDraft(draft: DraftArtifactSummary) {
-    openDraftReview(draft);
   }
 
   async function handleSelectThread(threadId: string) {
@@ -731,287 +688,11 @@ export function ProjectCockpitPage() {
     }
   }
 
-  async function runCreatePmp() {
-    if (!project) return;
-    setPmpRunMode("create");
-    setPmpProgressKey(`pmp-${Date.now()}`);
-    setIsRunningWorkflow(true);
-    setWorkflowError(null);
-    try {
-      const queued = await api.startWorkflowRun(
-        project.id,
-        "project-plan",
-        await freshWorkflowRunInput(),
-      );
-      setWorkflowRunId(queued.id);
-      const run = await waitForWorkflowRun(queryClient, project.id, queued);
-      if (run.state === "failed" || run.state === "cancelled") {
-        throw new WorkflowRunError(
-          run.error_message ?? `Create Project Plan ${run.state}.`,
-        );
-      }
-      const response = await api.getWorkflowResult(project.id, run.id);
-      const result = workflowPayload<CreatePmpResponse>(
-        response.result,
-        "Create Project Plan completed without a result.",
-      );
-      setWorkflowResult(result);
-      if (result.status === "failed" || result.status === "blocked") {
-        setWorkflowError(result.message ?? "Create PMP did not complete.");
-      }
-      if (result.draft) {
-        showPmpDraft(result.draft);
-      }
-      refreshLatestDraftInBackground("create_pmp");
-      refreshWorkflowSurfaces();
-    } catch (runError) {
-      setWorkflowError(formatApiError(runError, "Create PMP could not run."));
-    } finally {
-      setWorkflowRunId(null);
-      setPmpRunMode(null);
-      setPmpProgressKey(null);
-      setIsRunningWorkflow(false);
-    }
-  }
-
-  async function runCreateCostPlan() {
-    if (!project) return;
-    setCostPlanRunMode("create");
-    setCostPlanProgressKey(`cost-${Date.now()}`);
-    setIsRunningCostPlan(true);
-    setCostPlanWorkflowError(null);
-    setInvoiceProcessResult(null);
-    try {
-      const queued = await api.startWorkflowRun(
-        project.id,
-        "cost-plan",
-        await freshWorkflowRunInput(),
-      );
-      setCostPlanRunId(queued.id);
-      const run = await waitForWorkflowRun(queryClient, project.id, queued);
-      if (run.state === "failed" || run.state === "cancelled") {
-        throw new WorkflowRunError(
-          run.error_message ?? `Create Cost Plan ${run.state}.`,
-        );
-      }
-      const response = await api.getWorkflowResult(project.id, run.id);
-      const result = workflowPayload<CreatePmpResponse>(
-        response.result,
-        "Create Cost Plan completed without a result.",
-      );
-      setCostPlanWorkflowResult(result);
-      if (result.status === "failed" || result.status === "blocked") {
-        setCostPlanWorkflowError(result.message ?? "Create Cost Plan did not complete.");
-      }
-      if (result.draft) {
-        showCostPlanDraft(result.draft);
-      }
-      refreshLatestDraftInBackground("create_cost_plan");
-      refreshWorkflowSurfaces();
-    } catch (runError) {
-      setCostPlanWorkflowError(formatApiError(runError, "Create Cost Plan could not run."));
-    } finally {
-      setCostPlanRunId(null);
-      setCostPlanRunMode(null);
-      setCostPlanProgressKey(null);
-      setIsRunningCostPlan(false);
-    }
-  }
-
-  async function runRefreshCostPlan() {
-    if (!project) return;
-    setCostPlanRunMode("update");
-    setCostPlanProgressKey(`cost-${Date.now()}`);
-    setIsRunningCostPlan(true);
-    setCostPlanWorkflowError(null);
-    setInvoiceProcessResult(null);
-    try {
-      if (!latestCostPlanDraft) {
-        throw new WorkflowRunError("Create a Cost Plan before refreshing it.");
-      }
-      const queued = await api.startWorkflowRun(
-        project.id,
-        "cost-plan/refresh",
-        {
-          ...(await freshWorkflowRunInput(latestCostPlanDraft.version)),
-          parameters: { proposed_items: [] },
-        },
-      );
-      setCostPlanRunId(queued.id);
-      const run = await waitForWorkflowRun(queryClient, project.id, queued);
-      if (run.state === "failed" || run.state === "cancelled") {
-        throw new WorkflowRunError(
-          run.error_message ?? `Refresh Cost Plan ${run.state}.`,
-        );
-      }
-      const response = await api.getWorkflowResult(project.id, run.id);
-      const result = workflowPayload<CreatePmpResponse>(
-        response.result,
-        "Refresh Cost Plan completed without a result.",
-      );
-      setCostPlanWorkflowResult(result);
-      if (result.status === "failed" || result.status === "blocked") {
-        setCostPlanWorkflowError(result.message ?? "Refresh Cost Plan did not complete.");
-      }
-      if (result.draft) {
-        showCostPlanDraft(result.draft);
-      }
-      refreshLatestDraftInBackground("create_cost_plan");
-      refreshWorkflowSurfaces();
-    } catch (runError) {
-      setCostPlanWorkflowError(
-        formatApiError(runError, "Refresh Cost Plan could not run."),
-      );
-    } finally {
-      setCostPlanRunId(null);
-      setCostPlanRunMode(null);
-      setCostPlanProgressKey(null);
-      setIsRunningCostPlan(false);
-    }
-  }
-
-  async function runProcessInvoices() {
-    if (!project) return;
-    setCostPlanRunMode("invoices");
-    setCostPlanProgressKey(`cost-invoices-${Date.now()}`);
-    setIsRunningCostPlan(true);
-    setCostPlanWorkflowError(null);
-    setInvoiceProcessResult(null);
-    try {
-      if (!latestCostPlanDraft) {
-        throw new WorkflowRunError("Create a Cost Plan before processing invoices.");
-      }
-      const queued = await api.startWorkflowRun(
-        project.id,
-        "cost-plan/invoices",
-        {
-          ...(await freshWorkflowRunInput(latestCostPlanDraft.version)),
-          parameters: { source_document_ids: null },
-        },
-      );
-      setCostPlanRunId(queued.id);
-      const run = await waitForWorkflowRun(queryClient, project.id, queued);
-      if (run.state === "failed" || run.state === "cancelled") {
-        throw new WorkflowRunError(
-          run.error_message ?? `Process invoices ${run.state}.`,
-        );
-      }
-      const response = await api.getWorkflowResult(project.id, run.id);
-      const result = workflowPayload<ProcessInvoicesResult>(
-        response.result,
-        "Process invoices completed without a result.",
-      );
-      setInvoiceProcessResult(result);
-      if (result.draft) {
-        showCostPlanDraft(result.draft);
-      }
-      refreshLatestDraftInBackground("create_cost_plan");
-      refreshWorkflowSurfaces();
-    } catch (runError) {
-      setCostPlanWorkflowError(
-        formatApiError(runError, "Invoices could not be processed."),
-      );
-    } finally {
-      setCostPlanRunId(null);
-      setCostPlanRunMode(null);
-      setCostPlanProgressKey(null);
-      setIsRunningCostPlan(false);
-    }
-  }
-
-  async function runUpdatePmp() {
-    if (!project) return;
-    setPmpRunMode("update");
-    setPmpProgressKey(`pmp-${Date.now()}`);
-    setIsRunningWorkflow(true);
-    setWorkflowError(null);
-    try {
-      if (!latestDraft) {
-        throw new WorkflowRunError(
-          "Create a Project Plan before refreshing it.",
-        );
-      }
-      const queued = await api.startWorkflowRun(
-        project.id,
-        "project-plan/refresh",
-        await freshWorkflowRunInput(latestDraft.version),
-      );
-      setWorkflowRunId(queued.id);
-      const run = await waitForWorkflowRun(queryClient, project.id, queued);
-      if (run.state === "failed" || run.state === "cancelled") {
-        throw new WorkflowRunError(
-          run.error_message ?? `Refresh Project Plan ${run.state}.`,
-        );
-      }
-      const response = await api.getWorkflowResult(project.id, run.id);
-      const result = workflowPayload<CreatePmpResponse>(
-        response.result,
-        "Refresh Project Plan completed without a result.",
-      );
-      setWorkflowResult(result);
-      if (result.status === "failed" || result.status === "blocked") {
-        setWorkflowError(result.message ?? "Update PMP did not complete.");
-      }
-      if (result.draft) {
-        showPmpDraft(result.draft);
-      }
-      refreshLatestDraftInBackground("create_pmp");
-      refreshWorkflowSurfaces();
-    } catch (runError) {
-      setWorkflowError(formatApiError(runError, "Update PMP could not run."));
-    } finally {
-      setWorkflowRunId(null);
-      setPmpRunMode(null);
-      setPmpProgressKey(null);
-      setIsRunningWorkflow(false);
-    }
-  }
-
-  async function runProcurementRequest(
-    kind: RunnableProcurementRequestKind,
-    targetName: string,
-  ) {
-    if (!project) return;
-    setIsRunningProcurement(true);
-    setProcurementError(null);
-    try {
-      const parameters =
-        kind === "consultant_rfp"
-          ? {
-              discipline: targetName,
-              max_pages: 3,
-            }
-          : {
-              package: targetName,
-              kind: kind === "trade_rfq" ? "rfq" : "rft",
-              max_pages: 3,
-            };
-      const queued = await api.startWorkflowRun(
-        project.id,
-        kind === "consultant_rfp" ? "consultant-procurement" : "trade-procurement",
-        {
-          ...(await freshWorkflowRunInput()),
-          parameters,
-        },
-      );
-      setProcurementRunId(queued.id);
-      const run = await waitForWorkflowRun(queryClient, project.id, queued);
-      if (run.state === "failed" || run.state === "cancelled") {
-        throw new WorkflowRunError(
-          run.error_message ?? `Procurement request ${run.state}.`,
-        );
-      }
-      await api.getWorkflowResult(project.id, run.id);
-      setProcurementRefreshToken((current) => current + 1);
-      refreshWorkflowSurfaces();
-    } catch (runError) {
-      setProcurementError(
-        formatApiError(runError, "Procurement request could not be created."),
-      );
-    } finally {
-      setProcurementRunId(null);
-      setIsRunningProcurement(false);
-    }
+  function submitChatInstruction(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    promoteChatFromComposer();
+    setPendingChatInstruction({ id: Date.now(), text: trimmed });
   }
 
   // Nested tender routes render in the middle panel via <Outlet>. Any
@@ -1028,9 +709,20 @@ export function ProjectCockpitPage() {
 
   function showWorkbench(workflowId: string) {
     setSelectedWorkflowId(workflowId);
+    setSelectedPlatformKnowledge(null);
     setChatPanelCollapsed(true);
     setActiveView("workbench");
     leaveTenderRoute(workflowId);
+  }
+
+  function selectPlatformKnowledge(document: PlatformKnowledgeDocument) {
+    leaveTenderRoute();
+    setSelectedPlatformKnowledge(document);
+    setSelectedEvidenceId(null);
+    setSelectedWorkspacePath(null);
+    setReviewDraft(null);
+    setChatPanelCollapsed(true);
+    setActiveView("knowledge");
   }
 
   function isTenderRouteActive() {
@@ -1056,6 +748,7 @@ export function ProjectCockpitPage() {
     if (!keepTenderRoute && !keepProcurementWorkbench) {
       leaveTenderRoute();
     }
+    setSelectedPlatformKnowledge(null);
     setSelectedEvidenceId(evidenceId);
     const item = evidence.find((candidate) => candidate.id === evidenceId);
     if (item) {
@@ -1084,6 +777,7 @@ export function ProjectCockpitPage() {
     if (!keepTenderRoute) {
       leaveTenderRoute();
     }
+    setSelectedPlatformKnowledge(null);
     setSelectedWorkspacePath(path);
     const selectedNode = findWorkspaceNode(workspaceTree, path);
     if (selectedNode?.kind === "file") {
@@ -1164,8 +858,6 @@ export function ProjectCockpitPage() {
     );
   }
 
-  const trace = workflowResult?.trace ?? [];
-  const costPlanTrace = costPlanWorkflowResult?.trace ?? [];
   const activeDraft =
     activeView === "draft"
       ? reviewDraft
@@ -1194,12 +886,12 @@ export function ProjectCockpitPage() {
     project,
     latestDraft,
     latestCostPlanDraft,
-    workflowError,
-    costPlanWorkflowError,
-    isRunningWorkflow,
-    isRunningCostPlan,
+    workflowError: null,
+    costPlanWorkflowError: null,
+    isRunningWorkflow: false,
+    isRunningCostPlan: false,
     procurementError,
-    isRunningProcurement,
+    isRunningProcurement: false,
   });
 
   function selectWorkflow(workflowId: string) {
@@ -1216,9 +908,6 @@ export function ProjectCockpitPage() {
     activeView,
     chatPanelCollapsed,
     hasTenderOutlet: tenderOutlet != null,
-    // Cost Plan keeps the grid in the middle; expanded chat splits below it
-    // so agent turns remain visible without replacing the plan.
-    preferSplitChat: selectedWorkflowId === "cost-plan",
   });
 
   return (
@@ -1275,6 +964,12 @@ export function ProjectCockpitPage() {
               );
             }}
             onUserSubmit={promoteChatFromComposer}
+            pendingInstruction={pendingChatInstruction}
+            onPendingInstructionConsumed={(id) => {
+              setPendingChatInstruction((current) =>
+                current?.id === id ? null : current,
+              );
+            }}
             selectedDocumentIds={selectedRepositoryDocumentIds}
             onSelectCitation={handleSelectCitation}
           />
@@ -1294,11 +989,13 @@ export function ProjectCockpitPage() {
           onOpenWorkflow={openWorkflowFromExplorer}
           onViewWorkbench={() => {
             leaveTenderRoute();
+            setSelectedPlatformKnowledge(null);
             setChatPanelCollapsed(true);
             setActiveView("workbench");
           }}
           onViewFolder={() => {
             leaveTenderRoute();
+            setSelectedPlatformKnowledge(null);
             setChatPanelCollapsed(true);
             setActiveView("folder");
           }}
@@ -1321,10 +1018,31 @@ export function ProjectCockpitPage() {
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
           platformStatus={platformStatus}
+          selectedPlatformKnowledgePath={selectedPlatformKnowledge?.relative_path ?? null}
+          onSelectPlatformKnowledge={selectPlatformKnowledge}
           artefactDrafts={Object.values(latestDraftsMap).filter(
             (draft): draft is DraftArtifactSummary => draft !== null,
           )}
           onOpenDraft={openDraftReview}
+          onArtefactDeleted={(result) => {
+            setLatestDraftsMap((current) => ({
+              ...current,
+              [result.workflow_type]: result.latest_draft,
+            }));
+            if (result.workflow_type === "create_pmp") {
+              setLatestDraft(result.latest_draft);
+            }
+            if (result.workflow_type === "create_cost_plan") {
+              setLatestCostPlanDraft(result.latest_draft);
+            }
+            setReviewDraft((current) =>
+              current?.id === result.deleted_id ? result.latest_draft : current,
+            );
+            if (isProcurementDraftWorkflow(result.workflow_type)) {
+              setProcurementRefreshToken((current) => current + 1);
+            }
+            void refreshWorkspaceTree();
+          }}
           usageHighlightArtefactId={usageHighlightArtefactId}
           showSaveTransmittal={transmittalSession !== null}
           isSavingTransmittal={isSavingTransmittal}
@@ -1342,41 +1060,31 @@ export function ProjectCockpitPage() {
           profileProposals={snapshot?.open_profile_proposals ?? []}
           latestDraft={latestDraft}
           latestCostPlanDraft={latestCostPlanDraft}
-          trace={trace}
-          costPlanTrace={costPlanTrace}
-          workflowError={workflowError}
-          costPlanWorkflowError={costPlanWorkflowError}
-          isRunningWorkflow={isRunningWorkflow}
-          isRunningCostPlan={isRunningCostPlan}
-          pmpRunMode={pmpRunMode}
-          costPlanRunMode={costPlanRunMode}
-          pmpProgressKey={pmpProgressKey}
-          costPlanProgressKey={costPlanProgressKey}
-          activeWorkflowRun={activeWorkflowRunQuery.data ?? null}
-          activeCostPlanRun={activeCostPlanRunQuery.data ?? null}
-          activeProcurementRun={activeProcurementRunQuery.data ?? null}
+          trace={[]}
+          costPlanTrace={[]}
+          workflowError={null}
+          costPlanWorkflowError={null}
+          isRunningWorkflow={false}
+          isRunningCostPlan={false}
           procurementError={procurementError}
-          isRunningProcurement={isRunningProcurement}
+          isRunningProcurement={false}
           procurementRefreshToken={procurementRefreshToken}
           selectedWorkflowId={selectedWorkflowId}
           onSelectWorkflow={selectWorkflow}
-          onRunCreatePmp={() => void runCreatePmp()}
-          onRunUpdatePmp={() => void runUpdatePmp()}
-          onRunCreateCostPlan={() => void runCreateCostPlan()}
-          onRunRefreshCostPlan={() => void runRefreshCostPlan()}
-          onRunProcessInvoices={() => void runProcessInvoices()}
+          onRunCreatePmp={() => submitChatInstruction(workflowChatCommand("create_pmp"))}
+          onRunUpdatePmp={() => submitChatInstruction(workflowChatCommand("update_pmp"))}
+          onRunCreateCostPlan={() =>
+            submitChatInstruction(workflowChatCommand("create_cost_plan"))
+          }
+          onRunRefreshCostPlan={() =>
+            submitChatInstruction(workflowChatCommand("refresh_cost_plan"))
+          }
+          onRunProcessInvoices={() =>
+            submitChatInstruction(workflowChatCommand("process_invoices"))
+          }
           onRunSortFiles={() => void runSortFiles()}
-          onCancelWorkflow={() => {
-            if (workflowRunId) void api.cancelWorkflowRun(project.id, workflowRunId);
-          }}
-          onCancelCostPlan={() => {
-            if (costPlanRunId) void api.cancelWorkflowRun(project.id, costPlanRunId);
-          }}
-          onCancelProcurement={() => {
-            if (procurementRunId) void api.cancelWorkflowRun(project.id, procurementRunId);
-          }}
           onRunProcurement={(kind, targetName) =>
-            void runProcurementRequest(kind, targetName)
+            submitChatInstruction(procurementChatCommand(kind, targetName))
           }
           onCancelSortFiles={() => {
             if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);
@@ -1395,7 +1103,6 @@ export function ProjectCockpitPage() {
           repositoryEvidence={evidence}
           onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
           onTransmittalSessionChange={setTransmittalSession}
-          invoiceProcessResult={invoiceProcessResult}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
@@ -1435,6 +1142,11 @@ export function ProjectCockpitPage() {
       {activeView === "file" ? (
         <Suspense fallback={null}>
           <WorkspaceFilePanel projectId={project.id} evidence={selectedEvidence} />
+        </Suspense>
+      ) : null}
+      {activeView === "knowledge" ? (
+        <Suspense fallback={null}>
+          <PlatformKnowledgeViewer document={selectedPlatformKnowledge} />
         </Suspense>
       ) : null}
       {activeView === "folder" ? (

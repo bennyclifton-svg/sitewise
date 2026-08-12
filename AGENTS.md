@@ -1,23 +1,20 @@
 # Agent Instructions
 
 This file is the source of truth for coding agents working in this repo. Read it
-before touching code. Product direction changed in July 2026: Clerk is moving
-toward a Pi-backed, agent-first hosted product with Tender Comparison as the
-flagship workflow.
+before touching code. Clerk is a Pi-backed, agent-first hosted product with
+Tender Comparison as the flagship workflow.
 
 ## Canonical Docs
 
-Read these in order when direction matters:
+Read these when direction matters:
 
-1. `docs/plans/2026-08-04-pi-only-agent-runtime.md`
-2. `docs/plans/2026-07-02-hermes-foundation-phases-0-2.md`
-3. `docs/plans/2026-07-03-hermes-foundation-phases-3-8.md`
-4. `docs/plans/2026-06-11-tender-comparison-module-prd.md`
-5. `docs/architecture.md`
+1. `docs/plans/2026-08-04-pi-only-agent-runtime.md` — sole agent runtime
+2. `docs/plans/2026-06-11-tender-comparison-module-prd.md` — Tender Comparison
+3. `docs/architecture.md` — system shape
 
-The Pi-only runtime decision governs agent process and deployment behaviour.
-The July plans otherwise govern product flow and migration sequence, and the
-TCM PRD governs Tender Comparison internals.
+Historical July "Hermes foundation" plans under `docs/plans/hermes-foundation/`
+and `docs/plans/2026-07-0*-hermes-foundation-*.md` are implementation history
+only. Do not treat them as current direction. Pi supersedes Hermes everywhere.
 
 ## Stack
 
@@ -35,7 +32,7 @@ TCM PRD governs Tender Comparison internals.
 - **Hosting:** Docker + Dokploy on the `sitewise.au` VPS, Supabase external
 
 Stack is locked unless explicitly changed. Do not propose alternatives without a
-stated reason.
+stated reason. Do not reintroduce Hermes or a second agent runtime.
 
 ## Repo Layout
 
@@ -54,14 +51,15 @@ clerk/
 
 ## Product Direction
 
-Clerk is the canonical hosted product repo. The current direction is:
+Clerk is the canonical hosted product repo. Current state:
 
-- Phase 2 lands the MCP tool bridge with per-project turn-token authorization.
-- Phases 3-8 add the Pi runtime, AI-SDK-compatible SSE relay, chat polish,
-  natural-language Tender Comparison, workspace/artefact editing, Stripe
-  billing, VPS deployment, and legacy cutover.
-- The existing PydanticAI grounded-RAG chat and cockpit pages are legacy-retained
-  until the Phase 8.5 cutover gate passes. Do not delete or rewrite them early.
+- Pi is the sole agent runtime (`backend/app/agent/pi_process.py`).
+- MCP tool bridge with per-project turn-token authorization is live at `/mcp`.
+- AI-SDK-compatible SSE chat, tool chips, workspaces/artefacts, Tender
+  Comparison MCP tools, and Stripe billing are in place.
+- Remaining open gate: live `sitewise.au` production acceptance, then legacy
+  PydanticAI chat/orchestrator cutover. Do not delete
+  `app/assistant/` or `app/chat/orchestrator.py` until that gate passes.
 
 ## Platform Knowledge
 
@@ -113,7 +111,7 @@ OK to depend on:
 - Things that are genuinely hard to get right: HTTP clients, ASGI servers, SQL
   drivers, parsers, LLM SDKs, ORM, migrations, auth SDKs.
 - The declared stack: FastAPI, React, Vite, Supabase clients, OpenAI SDK,
-  FastMCP, Pi CLI integration, Stripe SDK when Phase 7 begins.
+  FastMCP, Pi CLI integration, Stripe SDK.
 
 Not OK:
 
@@ -167,8 +165,7 @@ real config errors.
 - Validate at boundaries: HTTP input, external APIs, DB writes, untrusted
   parsing, tool calls, file paths, webhooks.
 - No backwards-compat shims unless explicitly asked for.
-- No speculative feature flags. Existing phase gates and runtime switches are
-  allowed where the plan calls for them.
+- No speculative feature flags. Existing runtime switches are allowed where
+  needed for ops (for example `AGENT_RUNTIME_ENABLED`).
 - Comments explain why when non-obvious, never what. Remove stale TODOs.
 - Keep files focused. Prefer small modules with clear interfaces.
-

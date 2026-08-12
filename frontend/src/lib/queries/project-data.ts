@@ -144,6 +144,20 @@ export function useBatchDeleteEvidence(projectId: string) {
   });
 }
 
+export function useDeleteDraft(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (draftId: string) => api.deleteProjectDraft(projectId, draftId),
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: projectKeys.workspaceTree(projectId),
+        exact: true,
+      });
+    },
+  });
+}
+
 /** Evidence changes alter the snapshot fingerprint used by workflow OCC. */
 function invalidateAfterEvidenceChange(
   queryClient: QueryClient,

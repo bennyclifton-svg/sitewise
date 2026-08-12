@@ -1,4 +1,4 @@
-import { Inbox } from "lucide-react";
+import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { MarkdownContent } from "@/components/project/MarkdownContent";
@@ -29,6 +29,12 @@ export function WorkspaceFilePanel({
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [documentView, setDocumentView] = useState<DocumentView>("markdown");
+  const [metadataOpen, setMetadataOpen] = useState(false);
+
+  useEffect(() => {
+    setMetadataOpen(false);
+    setDocumentView("markdown");
+  }, [evidence?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,57 +85,87 @@ export function WorkspaceFilePanel({
   }
 
   const displayEvidence = detail && detail.id === evidence.id ? detail : evidence;
+  const documentName = displayEvidence.title?.trim() || displayEvidence.filename;
 
   return (
     <section className="min-w-0 p-4 lg:p-6">
-      <article className="mx-auto max-w-4xl space-y-4">
-        <header className="rounded-md border bg-background p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold">{displayEvidence.title}</h1>
-              <p className="mt-1 break-all text-sm text-muted-foreground">
-                {displayEvidence.relative_path}
-              </p>
-            </div>
-            <Badge variant="outline">{displayEvidence.document_class}</Badge>
-          </div>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <MetaItem label="Doc No" value={displayEvidence.document_number?.trim() || "-"} />
-            <MetaItem label="Title" value={displayEvidence.title} />
-            <MetaItem label="Revision" value={displayEvidence.revision?.trim() || "-"} />
-            <MetaItem label="Category" value={displayEvidence.category?.trim() || "-"} />
-            <MetaItem label="Filename" value={displayEvidence.filename} />
-            <MetaItem label="Source type" value={displayEvidence.source_type ?? "Unknown"} />
-          </dl>
-        </header>
+      <article className="mx-auto max-w-4xl">
         <section className="rounded-md border bg-background">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">
-              {displayEvidence.content ? "Document content" : "Extracted excerpt"}
-            </h2>
-            {displayEvidence.content ? (
-              <div
-                className="inline-flex rounded-md border bg-muted p-0.5"
-                role="tablist"
-                aria-label="Document content views"
+          <header className="border-b px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                className="flex min-w-0 items-center gap-1.5 text-left"
+                aria-expanded={metadataOpen}
+                aria-controls="workspace-file-metadata"
+                onClick={() => setMetadataOpen((open) => !open)}
               >
-                {DOCUMENT_VIEWS.map((view) => (
-                  <button
-                    key={view.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={documentView === view.id}
-                    className={cn(
-                      "rounded-sm px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors",
-                      documentView === view.id
-                        ? "bg-background text-foreground"
-                        : "hover:text-foreground",
-                    )}
-                    onClick={() => setDocumentView(view.id)}
-                  >
-                    {view.label}
-                  </button>
-                ))}
+                {metadataOpen ? (
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                ) : (
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                )}
+                <h1 className="truncate text-sm font-semibold" title={documentName}>
+                  {documentName}
+                </h1>
+                <span className="sr-only">
+                  {metadataOpen ? "Hide document details" : "Show document details"}
+                </span>
+              </button>
+              {displayEvidence.content ? (
+                <div
+                  className="inline-flex rounded-md border bg-muted p-0.5"
+                  role="tablist"
+                  aria-label="Document content views"
+                >
+                  {DOCUMENT_VIEWS.map((view) => (
+                    <button
+                      key={view.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={documentView === view.id}
+                      className={cn(
+                        "rounded-sm px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors",
+                        documentView === view.id
+                          ? "bg-background text-foreground"
+                          : "hover:text-foreground",
+                      )}
+                      onClick={() => setDocumentView(view.id)}
+                    >
+                      {view.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            {metadataOpen ? (
+              <div id="workspace-file-metadata" className="mt-3 space-y-3 border-t pt-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <p className="min-w-0 break-all text-sm text-muted-foreground">
+                    {displayEvidence.relative_path}
+                  </p>
+                  <Badge variant="outline">{displayEvidence.document_class}</Badge>
+                </div>
+                <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  <MetaItem
+                    label="Doc No"
+                    value={displayEvidence.document_number?.trim() || "-"}
+                  />
+                  <MetaItem label="Title" value={displayEvidence.title} />
+                  <MetaItem
+                    label="Revision"
+                    value={displayEvidence.revision?.trim() || "-"}
+                  />
+                  <MetaItem
+                    label="Category"
+                    value={displayEvidence.category?.trim() || "-"}
+                  />
+                  <MetaItem label="Filename" value={displayEvidence.filename} />
+                  <MetaItem
+                    label="Source type"
+                    value={displayEvidence.source_type ?? "Unknown"}
+                  />
+                </dl>
               </div>
             ) : null}
           </header>

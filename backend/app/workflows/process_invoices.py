@@ -11,6 +11,7 @@ from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.invoice_candidates import (
     count_pending_invoice_ingests,
     discover_invoice_candidates,
+    resolve_invoice_source_document_ids,
 )
 from app.cost_plan.invoice_extraction import InvoiceExtractionError, extract_invoice
 from app.cost_plan.invoice_mapping import map_invoice_allocations
@@ -59,11 +60,38 @@ async def process_invoices(
         session,
         project_id=project.id,
     )
+    unresolved_document_ids: list[uuid.UUID] = []
+    resolved_source_ids = source_document_ids
+    if source_document_ids is not None:
+        resolved_source_ids, unresolved_document_ids = (
+            await resolve_invoice_source_document_ids(
+                session,
+                project_id=project.id,
+                document_ids=source_document_ids,
+            )
+        )
+        if not resolved_source_ids:
+            unresolved = ", ".join(str(value) for value in unresolved_document_ids)
+            raise ValueError(
+                "No matching invoice source documents for the provided document ids"
+                + (f" ({unresolved})" if unresolved else "")
+                + ". Pass source_document_id (or a workspace_file_id that maps to one) "
+                "from the selected-document-register or evidence tools."
+            )
     candidates = await discover_invoice_candidates(
         session,
         project_id=project.id,
-        source_document_ids=source_document_ids,
+        source_document_ids=resolved_source_ids,
     )
+    if (
+        source_document_ids is not None
+        and not candidates
+        and pending_ingest_count == 0
+    ):
+        raise ValueError(
+            "The provided document ids did not match any ingested invoice evidence. "
+            "Confirm the files are uploaded invoices and fully ingested, then retry."
+        )
 
     booked = []
     duplicate_count = 0

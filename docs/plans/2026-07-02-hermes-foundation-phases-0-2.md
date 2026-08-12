@@ -1,6 +1,8 @@
 # Hermes Foundation (Phases 0–2) Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **Historical only — do not execute.** Superseded by
+> [`2026-08-04-pi-only-agent-runtime.md`](./2026-08-04-pi-only-agent-runtime.md).
+> Pi is the sole agent runtime. Kept as implementation archaeology.
 
 **Goal:** De-risk headless Hermes, land the in-flight Stage-0.5/ODL tender work cleanly, and build the MCP-over-HTTP tool bridge with per-project authorization — Phases 0–2 of [2026-07-02-agent-first-dashboard-design.md](./2026-07-02-agent-first-dashboard-design.md).
 

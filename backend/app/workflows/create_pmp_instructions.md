@@ -52,7 +52,10 @@ the legacy role/archetype scaffold:
 - **FFE Schedule** follows Brief. It is the Finishes, Fixtures and Equipment register
   (`| Item | Location | Qty | Finish | Status | Notes |`). Preserve user-added
   shared `ffe_item` rows; keep unspecified fields as TBC. Do not bury FFE selections
-  inside Brief prose.
+  inside Brief prose. Place finishes/brief `pmp-decision` blocks (for example
+  `flooring-finish`, `kitchen-benchtop`, `wet-area-finish`) in this section after
+  the schedule table — the UI folds them into Finish-column dropdowns on the same
+  table. Do not emit a separate finishes-options table.
 - In evidence-grounded drafts, omit an empty work-scope taxonomy/fallback row. The
   fallback selector is for sparse projects only; do not ask the client to reconfirm
   scope already established by current documents.
@@ -257,6 +260,7 @@ Rules:
   mechanism (`design_construct`, `cost_plus`) as a contract-form value.
 - Preserve user-locked decisions exactly (`source: "user"`) when the prompt lists locked selections.
 - One block per open decision; place it in the relevant `##` section.
+  Finishes catalog decisions belong under **FFE Schedule** (not Brief).
 - Always set `evidenced` (boolean). `true` when project Sources nominate or clearly imply the selected option; `false` only when Sources are silent and you are using `default_hint` or another working assumption.
 - Prefer evidence over `default_hint`. If a specification, schedule, quote, or brief names a product/system that maps to an option, select that option, set `evidenced: true`, and cite the concrete nomination in `rationale` (do not call it a placeholder).
 - Finishes mapping examples: Caesarstone / Smartstone / reconstituted stone / quartz / engineered stone → `kitchen-benchtop` `engineered_stone`; polyurethane or veneer joinery → `kitchen-joinery-grade` `custom_pu`; Monier / concrete roof tiles → `roofing-system` `concrete_tile`.

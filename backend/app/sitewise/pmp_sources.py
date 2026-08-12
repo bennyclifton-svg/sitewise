@@ -127,7 +127,18 @@ def required_section_headings(
     if work_type is not None:
         taxonomy_kwargs["work_type"] = work_type
     if taxonomy_kwargs.get("building_class") is not None:
-        return pmp_section_headings(work_type=taxonomy_kwargs.get("work_type"))
+        # Narrow to the sections this project needs when a full taxonomy context
+        # is resolvable; callers passing loose kwargs still get the full list.
+        sections = None
+        if project is not None:
+            from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context
+
+            context = pmp_taxonomy_context(project)
+            if context is not None and context.sections:
+                sections = context.sections
+        return pmp_section_headings(
+            work_type=taxonomy_kwargs.get("work_type"), sections=sections
+        )
     return ARCHITECT_PM_PMP_SECTIONS
 
 

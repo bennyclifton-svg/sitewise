@@ -46,14 +46,14 @@
      TYPOGRAPHY
      Primary is a neo-grotesque. Söhne is the specified face; Hanken
      Grotesk is the open-licence substitute currently in use. Display
-     (landing headlines, brand word, cockpit project title) uses Chillax Light.
+     (landing headlines, brand word, cockpit project title) uses Satoshi Light.
      Labels and all numeric/data display use the mono.
      --------------------------------------------------------------- */
   --sw-font-sans: 'Söhne', 'Hanken Grotesk', Helvetica, Arial, sans-serif;
   --sw-font-mono: 'Söhne Mono', 'IBM Plex Mono', ui-monospace, monospace;
-  --sw-font-display: 'Chillax', 'Hanken Grotesk', Helvetica, Arial, sans-serif;
+  --sw-font-display: 'Satoshi', 'Hanken Grotesk', Helvetica, Arial, sans-serif;
 
-  /* Chillax Light is weight 300; body/UI weights stay on Hanken. */
+  /* Satoshi Light is weight 300; body/UI weights stay on Hanken. */
   --sw-weight-display: 300;
   --sw-weight-body:    300;
   --sw-weight-medium:  400;

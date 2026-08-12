@@ -50,7 +50,10 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     assert prompt.index("<document-access>") < prompt.index("<recent-conversation>")
     assert "refresh_cost_plan with reconcile_evidence=true" in prompt
     assert "process_invoices" in prompt
-    assert "Never use upsert_cost_item for an invoice" in prompt
+    assert "upsert_cost_item" in prompt
+    assert "only books ingested invoice evidence" in prompt
+    assert "If booked_invoice_count is 0, say so clearly" in prompt
+    assert "Do not invent ledger invoices from" in prompt
     assert prompt.rstrip().endswith("Compare the tenders")
     assert "construction management intelligence agent" in prompt
     assert "this software repository" in prompt
@@ -199,6 +202,7 @@ def test_transmittal_request_uses_the_selected_document_register_block() -> None
     user_text = "Create a transmittal with the selected files."
     document = SelectedTurnDocument(
         workspace_file_id="22222222-2222-2222-2222-222222222222",
+        source_document_id="33333333-3333-3333-3333-333333333333",
         workspace_path="04-projects/harbour-house/02-design/A101.pdf",
         filename="A101.pdf",
         content_hash="a" * 64,
@@ -225,6 +229,8 @@ def test_transmittal_request_uses_the_selected_document_register_block() -> None
     assert turn_needs_mutation_tools(user_text, classify_mutation_intent(user_text))
     assert "<selected-document-register>" in prompt
     assert '"document_number": "A101"' in prompt
+    assert '"source_document_id": "33333333-3333-3333-3333-333333333333"' in prompt
+    assert "pass source_document_id" in prompt
     assert "use start_transmittal" in prompt
     assert "Do not ask the user to repeat the file list." in prompt
 

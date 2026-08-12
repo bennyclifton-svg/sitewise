@@ -5,17 +5,16 @@ direction and code rules live there. This file adds backend-specific guidance.
 
 ## Current Direction
 
-The backend is moving from the legacy PydanticAI grounded-RAG chat path toward a
-Pi-backed agent runtime:
+Pi is the sole agent runtime. The backend already has:
 
-- Phase 2 adds `app/mcp_bridge/` and mounts FastMCP at `/mcp`.
-- Phase 3 adds `app/agent/` for Pi process invocation, AI-SDK-compatible
-  SSE relay, session mapping, bounded concurrency, and cancellation.
-- Phase 8.5 removes the old PydanticAI chat/orchestrator only after production
-  acceptance passes.
+- `app/mcp_bridge/` — FastMCP at `/mcp` with per-project turn-token auth
+- `app/agent/` — Pi process invocation, AI-SDK-compatible SSE relay, bounded
+  concurrency, and cancellation
+- `app/billing/` — Stripe entitlements and usage quotas
 
-Do not delete `app/assistant/` or `app/chat/orchestrator.py` early. They are
-live legacy modules until the planned cutover.
+Do not reintroduce Hermes or a dual-runtime switch. Do not delete
+`app/assistant/` or `app/chat/orchestrator.py` until live production acceptance
+and the legacy cutover gate pass. They remain the safety valve.
 
 ## Stack
 
@@ -41,7 +40,7 @@ backend/
 |   |-- main.py              # FastAPI entrypoint and router/mount wiring
 |   |-- config.py            # single backend env source of truth
 |   |-- agent/               # Pi runtime, SSE relay, concurrency
-|   |-- mcp_bridge/          # Phase 2 MCP tools and turn-token auth
+|   |-- mcp_bridge/          # MCP tools and turn-token auth
 |   |-- api/                 # FastAPI routers
 |   |-- auth/                # Supabase JWT verification
 |   |-- billing/             # Stripe billing, entitlements, usage quotas
@@ -113,4 +112,4 @@ not argv.
 - Silent config fallbacks.
 - New Clerk core imports from `backend/tender/` other than explicit router/mount
   or MCP adapter wiring.
-
+- Reintroducing Hermes, dual agent runtimes, or prompt-on-argv agent invocation.

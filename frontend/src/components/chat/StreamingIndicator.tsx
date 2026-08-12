@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 type StreamingIndicatorProps = {
   message?: string | null;
+  description?: string | null;
   /** Overrides the chat bubble layout when reused outside the message list. */
   className?: string;
 };
@@ -22,30 +23,27 @@ const CUBE_VERTICES: readonly Vec3[] = [
   [1, 1, 1],
 ] as const;
 
-/** Inline mark size — stays next to the status label. */
-const MARK_SIZE = 16;
-const DOT_SIZE = 2.35;
-const PROJECTION_SCALE = 3.85;
-/** Tiny view bias so face-on poses do not stack front/back corners. */
+const MARK_SIZE = 34;
+const DOT_SIZE = 3.2;
+const PROJECTION_SCALE = 5.6;
 const VIEW_BIAS_X = 0.16;
 const VIEW_BIAS_Y = -0.11;
 
-const HOLD_MS_MIN = 640;
-const HOLD_MS_MAX = 980;
-const WINDUP_MS = 140;
-/** Radians of anticipation opposite the tumble direction. */
-const WINDUP_AMOUNT = 0.12;
-const SETTLE_MS = 180;
+const HOLD_MS_MIN = 80;
+const HOLD_MS_MAX = 160;
+const WINDUP_MS = 80;
+const WINDUP_AMOUNT = 0.1;
+const SETTLE_MS = 70;
 
 const TAU = Math.PI * 2;
 
 const CUBE_FACES = [
-  { id: 0, quat: quatIdentity() }, // +Z toward camera
-  { id: 1, quat: quatFromAxisAngle([0, 1, 0], -Math.PI / 2) }, // +X
-  { id: 2, quat: quatFromAxisAngle([0, 1, 0], Math.PI / 2) }, // -X
-  { id: 3, quat: quatFromAxisAngle([1, 0, 0], Math.PI / 2) }, // +Y
-  { id: 4, quat: quatFromAxisAngle([1, 0, 0], -Math.PI / 2) }, // -Y
-  { id: 5, quat: quatFromAxisAngle([1, 0, 0], Math.PI) }, // -Z
+  { id: 0, quat: quatIdentity() },
+  { id: 1, quat: quatFromAxisAngle([0, 1, 0], -Math.PI / 2) },
+  { id: 2, quat: quatFromAxisAngle([0, 1, 0], Math.PI / 2) },
+  { id: 3, quat: quatFromAxisAngle([1, 0, 0], Math.PI / 2) },
+  { id: 4, quat: quatFromAxisAngle([1, 0, 0], -Math.PI / 2) },
+  { id: 5, quat: quatFromAxisAngle([1, 0, 0], Math.PI) },
 ] as const;
 
 const ADJACENT: readonly (readonly number[])[] = [
@@ -97,7 +95,6 @@ function normalize(v: Vec3): Vec3 {
   return [v[0] / len, v[1] / len, v[2] / len];
 }
 
-/** Relative rotation that takes `from` into `to` (shortest arc). */
 function quatDelta(from: Quat, to: Quat): Quat {
   return quatNormalize(quatMul(to, quatConjugate(from)));
 }
@@ -107,9 +104,7 @@ function quatToAxisAngle(qIn: Quat): { axis: Vec3; angle: number } {
   const w = Math.min(1, Math.max(-1, q.w));
   const angle = 2 * Math.acos(w);
   const s = Math.sqrt(Math.max(0, 1 - w * w));
-  if (s < 1e-6) {
-    return { axis: [0, 1, 0], angle: 0 };
-  }
+  if (s < 1e-6) return { axis: [0, 1, 0], angle: 0 };
   return { axis: [q.x / s, q.y / s, q.z / s], angle };
 }
 
@@ -125,19 +120,16 @@ function rotY([x, y, z]: Vec3, angle: number): Vec3 {
   return [x * c + z * s, y, -x * s + z * c];
 }
 
-/** Quintic in-out: slow start, quick middle, soft landing. */
 function easeInOutQuint(t: number): number {
   const x = Math.min(1, Math.max(0, t));
   return x < 0.5 ? 16 * x ** 5 : 1 - (-2 * x + 2) ** 5 / 2;
 }
 
-/** Soft landing only — used for the intro catch. */
 function easeOutCubic(t: number): number {
   const x = 1 - Math.min(1, Math.max(0, t));
   return 1 - x * x * x;
 }
 
-/** Anticipation ease — ease into the wind-up. */
 function easeOutQuad(t: number): number {
   const x = 1 - Math.min(1, Math.max(0, t));
   return 1 - x * x;
@@ -163,20 +155,14 @@ function pickNextFace(current: number): number {
 
 type TumblePlan = {
   axis: Vec3;
-  /** Signed radians; may be ±90/180/270/450-class. */
   angle: number;
   durationMs: number;
 };
 
-/**
- * Plan a tumble from one face pose to another.
- * Regime mixes short edge turns, long-way 270s, and occasional full-extra revolutions.
- */
 function planTumble(fromFace: number, toFace: number): TumblePlan {
   const delta = quatDelta(CUBE_FACES[fromFace].quat, CUBE_FACES[toFace].quat);
   let { axis, angle } = quatToAxisAngle(delta);
 
-  // Keep a stable signed turn; acos path is [0, π].
   if (Math.random() < 0.5 && angle > 1e-4 && angle < Math.PI - 1e-4) {
     axis = [-axis[0], -axis[1], -axis[2]];
     angle = -angle;
@@ -187,38 +173,38 @@ function planTumble(fromFace: number, toFace: number): TumblePlan {
   const roll = Math.random();
 
   if (abs < 1e-4) {
-    // Same orientation edge case — force a scenic spin onto a cardinal axis.
     axis = [0, 1, 0];
     angle = sign * (Math.PI / 2 + TAU);
-    return { axis, angle, durationMs: 1400 };
+    return { axis, angle, durationMs: 1100 };
   }
 
   if (roll < 0.38 && abs < Math.PI - 0.05) {
-    // Long way around the same axis (e.g. 90° → 270°).
     angle = sign * (TAU - abs);
-    return { axis, angle, durationMs: lerp(980, 1180, Math.min(1, Math.abs(angle) / TAU)) };
+    return { axis, angle, durationMs: lerp(820, 980, Math.min(1, Math.abs(angle) / TAU)) };
   }
 
   if (roll < 0.58) {
-    // Extra full revolution then settle on the target face.
     angle = angle + sign * TAU;
-    return { axis, angle, durationMs: lerp(1200, 1550, Math.min(1, Math.abs(angle) / (TAU + Math.PI))) };
+    return {
+      axis,
+      angle,
+      durationMs: lerp(980, 1280, Math.min(1, Math.abs(angle) / (TAU + Math.PI))),
+    };
   }
 
-  // Ordinary shortest tumble (often 90° / 180°).
   return {
     axis,
     angle,
-    durationMs: abs > Math.PI * 0.75 ? 920 : 760,
+    durationMs: abs > Math.PI * 0.75 ? 780 : 640,
   };
 }
 
-function projectVertex(
-  vertex: Vec3,
-  orientation: Quat,
-): { x: number; y: number; depth: number } {
-  let p = rotateByQuat(vertex, orientation);
-  p = rotY(p, VIEW_BIAS_Y);
+function orientationAtAngle(base: Quat, axis: Vec3, angle: number): Quat {
+  return quatNormalize(quatMul(quatFromAxisAngle(axis, angle), base));
+}
+
+function projectPoint(point: Vec3): { x: number; y: number; depth: number } {
+  let p = rotY(point, VIEW_BIAS_Y);
   p = rotX(p, VIEW_BIAS_X);
   const perspective = 1 / (1.18 - p[2] * 0.16);
   return {
@@ -228,28 +214,36 @@ function projectVertex(
   };
 }
 
-function paintVertices(dots: HTMLElement[], orientation: Quat, bloom = 1) {
+function paintCube(dots: HTMLElement[], orientation: Quat, bloom = 1) {
   const half = MARK_SIZE / 2;
 
   for (let index = 0; index < CUBE_VERTICES.length; index += 1) {
     const dot = dots[index];
     if (!dot) continue;
 
-    const point = projectVertex(CUBE_VERTICES[index], orientation);
+    const rotated = rotateByQuat(CUBE_VERTICES[index], orientation);
+    const point = projectPoint(rotated);
     const depthT = (point.depth + 1.7) / 3.4;
-    const opacity = (0.2 + depthT * 0.68) * lerp(0.85, 1, bloom);
-    const scale = (0.76 + depthT * 0.36) * bloom;
+    const opacity = (0.55 + depthT * 0.45) * lerp(0.92, 1, bloom);
+    const scale = (0.82 + depthT * 0.4) * bloom;
     const x = half + point.x * PROJECTION_SCALE - DOT_SIZE / 2;
     const y = half - point.y * PROJECTION_SCALE - DOT_SIZE / 2;
 
-    // Single transform avoids left/top + scale fighting and reduces jitter.
     dot.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
     dot.style.opacity = `${opacity}`;
   }
 }
 
-type Phase =
-  | { kind: "intro"; from: Quat; axis: Vec3; angle: number; toFace: number; start: number; duration: number }
+type SpinnerPhase =
+  | {
+      kind: "intro";
+      from: Quat;
+      axis: Vec3;
+      angle: number;
+      toFace: number;
+      start: number;
+      duration: number;
+    }
   | { kind: "hold"; face: number; until: number }
   | {
       kind: "windup";
@@ -264,7 +258,6 @@ type Phase =
     }
   | {
       kind: "tumble";
-      fromFace: number;
       toFace: number;
       base: Quat;
       axis: Vec3;
@@ -274,133 +267,179 @@ type Phase =
     }
   | { kind: "settle"; face: number; start: number };
 
-function orientationAtAngle(base: Quat, axis: Vec3, angle: number): Quat {
-  return quatNormalize(quatMul(quatFromAxisAngle(axis, angle), base));
+function createIntroPhase(now: number): SpinnerPhase {
+  const firstFace = 0;
+  const introPlan = planTumble(5, firstFace);
+  return {
+    kind: "intro",
+    from: orientationAtAngle(
+      CUBE_FACES[firstFace].quat,
+      introPlan.axis,
+      -introPlan.angle,
+    ),
+    axis: introPlan.axis,
+    angle: introPlan.angle,
+    toFace: firstFace,
+    start: now,
+    duration: 820,
+  };
 }
 
-function CubeTumbleMark() {
+function beginWindup(face: number, now: number): SpinnerPhase {
+  const toFace = pickNextFace(face);
+  const plan = planTumble(face, toFace);
+  const windupAngle = -WINDUP_AMOUNT * Math.sign(plan.angle || 1);
+  return {
+    kind: "windup",
+    face,
+    base: CUBE_FACES[face].quat,
+    axis: plan.axis,
+    windupAngle,
+    tumbleAngle: plan.angle,
+    tumbleDuration: plan.durationMs,
+    toFace,
+    start: now,
+  };
+}
+
+function stepSpinner(
+  phase: SpinnerPhase,
+  now: number,
+): {
+  orientation: Quat;
+  bloom: number;
+  phase: SpinnerPhase;
+} {
+  if (phase.kind === "intro") {
+    const t = (now - phase.start) / phase.duration;
+    if (t >= 1) {
+      return {
+        orientation: CUBE_FACES[phase.toFace].quat,
+        bloom: 1,
+        phase: {
+          kind: "hold",
+          face: phase.toFace,
+          until: now + randBetween(HOLD_MS_MIN, HOLD_MS_MAX),
+        },
+      };
+    }
+    const eased = easeOutCubic(t);
+    return {
+      orientation: orientationAtAngle(phase.from, phase.axis, phase.angle * eased),
+      bloom: lerp(0.92, 1, eased),
+      phase,
+    };
+  }
+
+  if (phase.kind === "hold") {
+    if (now >= phase.until) {
+      return {
+        orientation: CUBE_FACES[phase.face].quat,
+        bloom: 1,
+        phase: beginWindup(phase.face, now),
+      };
+    }
+    return {
+      orientation: CUBE_FACES[phase.face].quat,
+      bloom: 1,
+      phase,
+    };
+  }
+
+  if (phase.kind === "windup") {
+    const t = (now - phase.start) / WINDUP_MS;
+    if (t >= 1) {
+      return {
+        orientation: orientationAtAngle(phase.base, phase.axis, phase.windupAngle),
+        bloom: 1,
+        phase: {
+          kind: "tumble",
+          toFace: phase.toFace,
+          base: orientationAtAngle(phase.base, phase.axis, phase.windupAngle),
+          axis: phase.axis,
+          angle: phase.tumbleAngle - phase.windupAngle,
+          start: now,
+          duration: phase.tumbleDuration,
+        },
+      };
+    }
+    const eased = easeOutQuad(t);
+    return {
+      orientation: orientationAtAngle(
+        phase.base,
+        phase.axis,
+        phase.windupAngle * eased,
+      ),
+      bloom: 1,
+      phase,
+    };
+  }
+
+  if (phase.kind === "tumble") {
+    const t = (now - phase.start) / phase.duration;
+    if (t >= 1) {
+      return {
+        orientation: CUBE_FACES[phase.toFace].quat,
+        bloom: 1.03,
+        phase: {
+          kind: "settle",
+          face: phase.toFace,
+          start: now,
+        },
+      };
+    }
+    const eased = easeInOutQuint(t);
+    return {
+      orientation: orientationAtAngle(phase.base, phase.axis, phase.angle * eased),
+      bloom: 1,
+      phase,
+    };
+  }
+
+  const t = (now - phase.start) / SETTLE_MS;
+  if (t >= 1) {
+    return {
+      orientation: CUBE_FACES[phase.face].quat,
+      bloom: 1,
+      phase: {
+        kind: "hold",
+        face: phase.face,
+        until: now + randBetween(HOLD_MS_MIN, HOLD_MS_MAX),
+      },
+    };
+  }
+  return {
+    orientation: CUBE_FACES[phase.face].quat,
+    bloom: lerp(1.03, 1, easeOutCubic(t)),
+    phase,
+  };
+}
+
+export function CubeTumbleMark() {
   const rootRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
 
-    const dots = Array.from(root.querySelectorAll<HTMLElement>("[data-vertex]"));
+    const dots = Array.from(
+      root.querySelectorAll<HTMLElement>("[data-cube='primary']"),
+    );
     const reducedMotion =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const firstFace = 0;
-    paintVertices(dots, CUBE_FACES[firstFace].quat, 1);
+    paintCube(dots, CUBE_FACES[0].quat);
 
     if (reducedMotion) return;
 
-    // Intro: catch out of a long spin and land on the first face.
-    const introPlan = planTumble(5, firstFace);
-    let phase: Phase = {
-      kind: "intro",
-      from: orientationAtAngle(
-        CUBE_FACES[firstFace].quat,
-        introPlan.axis,
-        -introPlan.angle,
-      ),
-      axis: introPlan.axis,
-      angle: introPlan.angle,
-      toFace: firstFace,
-      start: performance.now(),
-      duration: 1100,
-    };
-
+    let phase: SpinnerPhase = createIntroPhase(performance.now());
     let frameId = 0;
 
-    const beginWindup = (face: number, now: number) => {
-      const toFace = pickNextFace(face);
-      const plan = planTumble(face, toFace);
-      const windupAngle = -WINDUP_AMOUNT * Math.sign(plan.angle || 1);
-      phase = {
-        kind: "windup",
-        face,
-        base: CUBE_FACES[face].quat,
-        axis: plan.axis,
-        windupAngle,
-        tumbleAngle: plan.angle,
-        tumbleDuration: plan.durationMs,
-        toFace,
-        start: now,
-      };
-    };
-
     const tick = (now: number) => {
-      if (phase.kind === "intro") {
-        const t = (now - phase.start) / phase.duration;
-        if (t >= 1) {
-          paintVertices(dots, CUBE_FACES[phase.toFace].quat, 1);
-          phase = {
-            kind: "hold",
-            face: phase.toFace,
-            until: now + randBetween(HOLD_MS_MIN, HOLD_MS_MAX),
-          };
-        } else {
-          const eased = easeOutCubic(t);
-          const q = orientationAtAngle(phase.from, phase.axis, phase.angle * eased);
-          // Soft bloom as it arrives.
-          const bloom = lerp(0.92, 1, eased);
-          paintVertices(dots, q, bloom);
-        }
-      } else if (phase.kind === "hold") {
-        paintVertices(dots, CUBE_FACES[phase.face].quat, 1);
-        if (now >= phase.until) {
-          beginWindup(phase.face, now);
-        }
-      } else if (phase.kind === "windup") {
-        const t = (now - phase.start) / WINDUP_MS;
-        if (t >= 1) {
-          phase = {
-            kind: "tumble",
-            fromFace: phase.face,
-            toFace: phase.toFace,
-            base: orientationAtAngle(phase.base, phase.axis, phase.windupAngle),
-            axis: phase.axis,
-            // Include the wind-up offset so we still finish on the target face.
-            angle: phase.tumbleAngle - phase.windupAngle,
-            start: now,
-            duration: phase.tumbleDuration,
-          };
-        } else {
-          const eased = easeOutQuad(t);
-          const q = orientationAtAngle(
-            phase.base,
-            phase.axis,
-            phase.windupAngle * eased,
-          );
-          paintVertices(dots, q, 1);
-        }
-      } else if (phase.kind === "tumble") {
-        const t = (now - phase.start) / phase.duration;
-        if (t >= 1) {
-          paintVertices(dots, CUBE_FACES[phase.toFace].quat, 1.04);
-          phase = { kind: "settle", face: phase.toFace, start: now };
-        } else {
-          const eased = easeInOutQuint(t);
-          const q = orientationAtAngle(phase.base, phase.axis, phase.angle * eased);
-          paintVertices(dots, q, 1);
-        }
-      } else {
-        // settle — brief bloom down to rest after impact
-        const t = (now - phase.start) / SETTLE_MS;
-        if (t >= 1) {
-          paintVertices(dots, CUBE_FACES[phase.face].quat, 1);
-          phase = {
-            kind: "hold",
-            face: phase.face,
-            until: now + randBetween(HOLD_MS_MIN, HOLD_MS_MAX),
-          };
-        } else {
-          const bloom = lerp(1.04, 1, easeOutCubic(t));
-          paintVertices(dots, CUBE_FACES[phase.face].quat, bloom);
-        }
-      }
-
+      const stepped = stepSpinner(phase, now);
+      phase = stepped.phase;
+      paintCube(dots, stepped.orientation, stepped.bloom);
       frameId = window.requestAnimationFrame(tick);
     };
 
@@ -411,15 +450,16 @@ function CubeTumbleMark() {
   return (
     <span
       ref={rootRef}
-      className="streaming-cube relative inline-block shrink-0"
+      className="streaming-cube relative inline-block shrink-0 overflow-visible"
       style={{ width: MARK_SIZE, height: MARK_SIZE }}
       aria-hidden="true"
     >
       {CUBE_VERTICES.map((_, index) => (
         <span
           key={index}
+          data-cube="primary"
           data-vertex
-          className="streaming-cube__point absolute left-0 top-0 rounded-full bg-muted-foreground will-change-transform"
+          className="streaming-cube__point absolute left-0 top-0 rounded-full bg-[var(--sw-beam-hex,#7fb0e4)] will-change-transform"
           style={{
             width: DOT_SIZE,
             height: DOT_SIZE,
@@ -431,20 +471,37 @@ function CubeTumbleMark() {
   );
 }
 
-export function StreamingIndicator({ message, className }: StreamingIndicatorProps) {
-  const label = message?.trim() ? message : "Pi is writing…";
+export function StreamingIndicator({
+  message,
+  description,
+  className,
+}: StreamingIndicatorProps) {
+  const label = message?.trim() || "";
+  const detail = description?.trim() || "";
 
   return (
     <div
       className={cn(
-        "flex items-center gap-2.5 text-sm text-muted-foreground",
+        "flex items-center gap-3 text-sm text-muted-foreground",
         className ?? "mr-8 max-w-[92%] self-start",
       )}
       role="status"
       aria-live="polite"
+      aria-label={label || "Working"}
     >
       <CubeTumbleMark />
-      <span>{label}</span>
+      {label || detail ? (
+        <div className="min-w-0">
+          {label ? (
+            <p className={cn("truncate", detail ? "font-medium text-foreground" : undefined)}>
+              {label}
+            </p>
+          ) : null}
+          {detail ? (
+            <p className="truncate text-xs text-muted-foreground">{detail}</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

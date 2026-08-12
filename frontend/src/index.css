@@ -323,6 +323,11 @@ html.sw-atmosphere-dense {
     --background: transparent;
   }
 
+  .project-left-nav {
+    /* Resize handle sits flush on this right edge. */
+    border-right: 1px solid var(--sw-edge);
+  }
+
   .project-left-nav > *,
   .project-main-panel > *,
   .project-side-panel > * {
@@ -357,7 +362,12 @@ html.sw-atmosphere-dense {
     width: 100%;
   }
 
+  /* Match ProjectControlBoard / cost-plan workbench gutters (lg:p-6). */
   @media (min-width: 1024px) {
+    .cockpit-shell > .cockpit-shell-header {
+      padding-inline: 1.5rem;
+    }
+
     .cockpit-shell {
       height: 100%;
       min-height: 0;
@@ -634,6 +644,49 @@ html.sw-atmosphere-dense {
     }
   }
 
+  /* Cost Plan / invoice surfaces match the dark PMP artefact sheet. */
+  .cost-plan-surface {
+    color: var(--sw-text-secondary);
+    color-scheme: dark;
+    background: var(--sw-void);
+    border-color: var(--sw-edge);
+    --background: var(--sw-void);
+    --foreground: var(--sw-text-primary);
+    --muted: color-mix(in oklch, var(--sw-panel) 80%, var(--sw-void));
+    --muted-foreground: var(--sw-text-tertiary);
+    --border: var(--sw-edge);
+    --input: var(--sw-edge);
+  }
+
+  .cost-plan-field {
+    border: 1px solid var(--sw-edge) !important;
+    border-radius: 0.125rem;
+    background: var(--sw-void) !important;
+    color: var(--sw-beam) !important;
+    box-shadow: none !important;
+  }
+
+  .cost-plan-field::placeholder {
+    color: color-mix(in oklch, var(--sw-beam) 55%, transparent);
+  }
+
+  .cost-plan-field:focus-visible {
+    border-color: var(--sw-beam) !important;
+    background: var(--sw-void) !important;
+    outline: none;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--sw-beam) 45%, transparent) !important;
+  }
+
+  .cost-plan-field--attention {
+    border-color: color-mix(in oklch, var(--sw-caution) 70%, var(--sw-edge)) !important;
+  }
+
+  .cost-plan-field option,
+  .cost-plan-field optgroup {
+    background: var(--sw-panel);
+    color: var(--sw-text-primary);
+  }
+
   /* Compact Excel-like Cost Plan grid: shared cell borders, no inter-cell buffer. */
   .cost-plan-grid-table {
     width: 100%;
@@ -642,6 +695,8 @@ html.sw-atmosphere-dense {
     table-layout: fixed;
     font-size: 0.6875rem;
     line-height: 1.2;
+    color: var(--sw-text-secondary);
+    background: var(--sw-void);
   }
 
   .cost-plan-grid-table th,
@@ -652,7 +707,8 @@ html.sw-atmosphere-dense {
   }
 
   .cost-plan-grid-table thead th {
-    background: color-mix(in oklch, var(--sw-panel) 88%, white);
+    background: color-mix(in oklch, var(--sw-panel) 88%, var(--sw-void));
+    color: var(--sw-text-primary);
     font-weight: 500;
     padding: 0.2rem 0.25rem;
     white-space: normal;
@@ -700,15 +756,18 @@ html.sw-atmosphere-dense {
   }
 
   .cost-plan-grid-cell--readonly {
-    background: color-mix(in oklch, var(--sw-panel) 94%, black);
+    background: var(--sw-void);
+    color: var(--sw-text-secondary);
   }
 
   .cost-plan-grid-cell--editable {
-    background: color-mix(in oklch, var(--sw-beam-hex) 6%, var(--sw-panel));
+    background: var(--sw-void);
+    color: var(--sw-beam);
   }
 
   .cost-plan-grid-cell--summary {
-    background: color-mix(in oklch, var(--sw-panel) 82%, white);
+    background: var(--sw-void);
+    color: var(--sw-text-primary);
     font-weight: 500;
     height: 1.5rem;
     padding: 0.15rem 0.25rem;
@@ -721,7 +780,7 @@ html.sw-atmosphere-dense {
   }
 
   .cost-plan-grid-table tr.cost-plan-grid-row--selected > td {
-    background: color-mix(in oklch, var(--sw-beam-hex) 14%, var(--sw-panel));
+    background: color-mix(in oklch, var(--sw-beam) 14%, var(--sw-void));
   }
 
   .cost-plan-grid-table tbody {
@@ -750,8 +809,9 @@ html.sw-atmosphere-dense {
   }
 
   .cost-plan-grid-input:focus-visible {
-    background: color-mix(in oklch, var(--sw-beam-hex) 12%, transparent) !important;
-    box-shadow: inset 0 0 0 1px var(--sw-beam-hex) !important;
+    background: var(--sw-void) !important;
+    box-shadow: inset 0 0 0 1px var(--sw-beam) !important;
+    color: var(--sw-beam);
   }
 
   .cost-plan-grid-input--money {
@@ -797,13 +857,53 @@ html.sw-atmosphere-dense {
   }
 
   .cost-plan-grid-action:hover {
-    background: color-mix(in oklch, var(--sw-panel) 80%, white);
+    background: color-mix(in oklch, var(--sw-beam) 16%, var(--sw-panel));
     color: var(--sw-text-primary);
   }
 
   .cost-plan-grid-action--danger:hover {
-    background: color-mix(in oklch, var(--destructive) 12%, transparent);
+    background: color-mix(in oklch, var(--destructive) 18%, transparent);
     color: var(--destructive);
+  }
+
+  .cost-invoice-register {
+    color: var(--sw-text-secondary);
+  }
+
+  .cost-invoice-table {
+    border-collapse: collapse;
+    color: var(--sw-text-secondary);
+  }
+
+  .cost-invoice-table th,
+  .cost-invoice-table td {
+    border-bottom: 1px solid var(--sw-edge);
+  }
+
+  .cost-invoice-table thead th {
+    background: color-mix(in oklch, var(--sw-panel) 88%, var(--sw-void));
+    color: var(--sw-text-primary);
+    font-weight: 500;
+  }
+
+  .cost-invoice-table tbody tr {
+    background: var(--sw-void);
+  }
+
+  .cost-invoice-cell--editable {
+    background: var(--sw-void);
+  }
+
+  .cost-invoice-paid-toggle {
+    border: 1px solid var(--sw-edge);
+    background: color-mix(in oklch, var(--sw-panel) 70%, var(--sw-void));
+    color: var(--sw-text-secondary);
+  }
+
+  .cost-invoice-paid-toggle--paid {
+    border-color: color-mix(in oklch, oklch(72% 0.12 155) 45%, var(--sw-edge));
+    background: color-mix(in oklch, oklch(72% 0.12 155) 16%, var(--sw-void));
+    color: oklch(82% 0.1 155);
   }
 }
 
@@ -1168,33 +1268,46 @@ html.sw-atmosphere-dense {
 
 .sw-collapse {
   position: absolute;
-  top: -1px;
+  top: 0;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
+  gap: 8px;
+  min-width: 88px;
+  min-height: 22px;
   background: var(--sw-composer-bg);
-  padding: 0 12px;
-  border: 0;
+  padding: 2px 18px;
+  border: 1px solid var(--sw-composer-edge);
+  border-radius: 999px;
   cursor: pointer;
   color: var(--sw-composer-ink-dim);
-  transition: color var(--sw-dur-state) var(--sw-ease-state);
+  transition:
+    color var(--sw-dur-state) var(--sw-ease-state),
+    border-color var(--sw-dur-state) var(--sw-ease-state),
+    background var(--sw-dur-state) var(--sw-ease-state);
 }
 
 .sw-collapse:hover {
   color: var(--sw-composer-ink);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: #12141a;
 }
 
-.sw-collapse i {
-  width: 26px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.sw-collapse svg {
+.sw-collapse-chevron {
+  display: block;
+  flex: 0 0 auto;
   transition: transform var(--sw-dur-state) var(--sw-ease-state);
+}
+
+.sw-collapse-grip {
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.55;
 }
 
 .sw-body {
@@ -1207,27 +1320,28 @@ html.sw-atmosphere-dense {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 28px 22px 20px 26px;
+  gap: 12px;
+  padding: 16px 14px 12px 18px;
 }
 
 .sw-field {
-  font-size: 16px;
+  position: relative;
+  font-size: 15px;
   color: var(--sw-composer-placeholder);
   display: flex;
   align-items: flex-start;
-  gap: 1px;
+  gap: 2px;
 }
 
 .sw-field textarea {
   all: unset;
   flex: 1 1 auto;
   width: 100%;
-  min-height: 1.4em;
+  min-height: 1.35em;
   max-height: none;
   font: inherit;
   font-weight: inherit;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--sw-composer-ink);
   caret-color: var(--sw-composer-sky);
   overflow-y: auto;
@@ -1248,8 +1362,8 @@ html.sw-atmosphere-dense {
   display: inline-block;
   flex: 0 0 auto;
   width: 1.5px;
-  height: 19px;
-  margin-top: 2px;
+  height: 17px;
+  margin-top: 1px;
   background: var(--sw-composer-sky);
   animation: sw-caret 1.1s steps(1, end) infinite;
 }
@@ -1271,7 +1385,7 @@ html.sw-atmosphere-dense {
 .sw-controls {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -1295,13 +1409,13 @@ html.sw-atmosphere-dense {
 .sw-depth button {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px 15px;
+  gap: 6px;
+  padding: 4px 10px;
   border: 0;
   background: transparent;
   cursor: pointer;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 12px;
   letter-spacing: 0.01em;
   color: var(--sw-composer-ink-dim);
   transition:
@@ -1322,14 +1436,14 @@ html.sw-atmosphere-dense {
 .sw-depth button[aria-pressed="true"] {
   color: var(--sw-composer-ink);
   background: rgba(47, 114, 196, 0.14);
-  box-shadow: inset 0 -2px 0 var(--sw-composer-blue);
+  box-shadow: inset 0 -1.5px 0 var(--sw-composer-blue);
 }
 
 .sw-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -1354,9 +1468,12 @@ html.sw-atmosphere-dense {
 }
 
 .sw-voice {
+  flex: 0 0 auto;
+  align-self: center;
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 0 4px;
 }
 
 .sw-voice-meter {
@@ -1529,7 +1646,7 @@ html.sw-atmosphere-dense {
 
 .sw-send {
   flex: 0 0 auto;
-  width: 104px;
+  width: 76px;
   border: 0;
   border-left: 1px solid var(--sw-composer-edge);
   display: grid;
@@ -1538,6 +1655,11 @@ html.sw-atmosphere-dense {
   color: var(--sw-composer-ink-dim);
   cursor: pointer;
   transition: background var(--sw-dur-state) var(--sw-ease-state);
+}
+
+.sw-send svg {
+  width: 36px;
+  height: 36px;
 }
 
 .sw-send:hover:not(:disabled) {
@@ -1552,22 +1674,22 @@ html.sw-atmosphere-dense {
 
 @media (max-width: 640px) {
   .sw-main {
-    gap: 18px;
-    padding: 22px 16px 16px;
+    gap: 10px;
+    padding: 14px 12px 10px;
   }
 
   .sw-depth button {
-    padding: 8px 10px;
-    gap: 6px;
-    font-size: 12.5px;
+    padding: 4px 8px;
+    gap: 5px;
+    font-size: 11.5px;
   }
 
   .sw-send {
-    width: 72px;
+    width: 64px;
   }
 
   .sw-send svg {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 }

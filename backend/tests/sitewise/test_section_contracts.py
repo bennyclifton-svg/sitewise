@@ -57,11 +57,73 @@ def test_legacy_no_taxonomy_section_tuple_still_available() -> None:
 
 
 def test_project_with_building_class_dispatches_to_universal_skeleton() -> None:
+    """A fitout refurb needs every section, FFE Schedule included."""
     project = SimpleNamespace(
         building_class="commercial",
         work_type="refurb",
-        project_metadata={"taxonomy": {"subclasses": ["office"]}},
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["office"],
+                "work_scope": ["internal_fitout"],
+            }
+        },
     )
     assert required_section_headings(project=project) == tuple(
         PMP_SECTION_HEADINGS.values()
     )
+
+
+def test_services_refurb_drops_the_ffe_schedule() -> None:
+    """Nothing is being finished or furnished, so the section has no content to
+    carry. It used to render as a one-row placeholder on every such project."""
+    project = SimpleNamespace(
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["office"],
+                "work_scope": ["fire_services"],
+            }
+        },
+    )
+    headings = required_section_headings(project=project)
+
+    assert "FFE Schedule" not in headings
+    assert "Consultants" in headings
+    assert headings[-1] == "Citation key"
+
+
+def test_an_asset_register_brings_the_schedule_back_as_equipment() -> None:
+    project = SimpleNamespace(
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["office"],
+                "work_scope": ["mechanical_hvac"],
+                "assets": [{"type": "Split ducted air conditioning system"}],
+            }
+        },
+    )
+
+    assert "FFE Schedule" in required_section_headings(project=project)
+
+
+def test_advisory_drops_procurement_and_delivery() -> None:
+    """An advisory engagement has no contractor to procure."""
+    project = SimpleNamespace(
+        building_class="institution",
+        work_type="advisory",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["healthcare_medical_centre"],
+                "work_scope": ["building_condition"],
+            }
+        },
+    )
+    headings = required_section_headings(project=project)
+
+    assert not any("Procurement" in heading for heading in headings)
+    assert "FFE Schedule" not in headings
+    # The advisory heading variant still applies to what does render.
+    assert "Programme of services" in headings

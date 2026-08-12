@@ -17,8 +17,10 @@ from app.sitewise.cost_plan_evidence_validation import (
     ensure_evidence_grounded_cost_plan_scaffold,
 )
 from app.sitewise.cost_plan_sources import required_section_headings
+from app.cost_plan.schemas import CostItemInput
 from app.workflows.create_cost_plan import (
     CostPlanDraftOutput,
+    render_typed_cost_plan_markdown,
     retrieve_create_cost_plan_sources,
     run_create_cost_plan_workflow,
     sync_cost_plan_revision_artifacts,
@@ -297,6 +299,105 @@ def _passage(*, project: str, source_type: str, relative_path: str) -> SourcePas
     )
 
 
+def _sample_typed_items(
+    *,
+    fee: str | None = "148500",
+    contingency: str | None = "120000",
+    construction_budget: str | None = "1850000",
+) -> list[CostItemInput]:
+    from decimal import Decimal
+
+    items = [
+        CostItemInput(
+            item_key="scaffold:1",
+            cost_code="1",
+            category="Fees and charges",
+            item="Architect / PM fee",
+            budget=None if fee is None else Decimal(fee),
+            forecast=Decimal(fee or "0"),
+            basis="Engagement letter",
+            status="confirmed",
+        ),
+        CostItemInput(
+            item_key="scaffold:12",
+            cost_code="12",
+            category="Construction",
+            item="Preliminaries",
+            budget=(
+                None
+                if construction_budget is None
+                else Decimal(construction_budget) * Decimal("8") / Decimal("100")
+            ),
+            forecast=Decimal("0"),
+            basis="Benchmark % of ceiling",
+            status="proposed",
+        ),
+        CostItemInput(
+            item_key="scaffold:13",
+            cost_code="13",
+            category="Construction",
+            item="Siteworks and demolition",
+            budget=(
+                None
+                if construction_budget is None
+                else Decimal(construction_budget) * Decimal("92") / Decimal("100")
+            ),
+            forecast=Decimal("0"),
+            basis="Benchmark % of ceiling",
+            status="proposed",
+        ),
+        CostItemInput(
+            item_key="scaffold:25",
+            cost_code="25",
+            category="Contingency / allowances",
+            item="Owner-held contingency",
+            budget=None if contingency is None else Decimal(contingency),
+            forecast=Decimal(contingency or "0"),
+            basis="Owner brief",
+            status="confirmed",
+        ),
+    ]
+    return items
+
+
+def _typed_output(
+    *,
+    draft_mode: str = "platform_seeded",
+    items: list[CostItemInput] | None = None,
+    seed_consulted: list[str] | None = None,
+    evidence_refs: list[str] | None = None,
+    omit_table: bool = False,
+) -> CostPlanDraftOutput:
+    typed_items = items if items is not None else _sample_typed_items()
+    markdown = (
+        "# Project Cost Plan\n\nNo table.\n"
+        if omit_table
+        else render_typed_cost_plan_markdown("Project Cost Plan", typed_items)
+    )
+    output = CostPlanDraftOutput(
+        title="Project Cost Plan",
+        markdown=markdown,
+        seed_consulted=seed_consulted
+        if seed_consulted is not None
+        else _valid_seed_consulted(),
+        evidence_refs=(
+            []
+            if draft_mode == "platform_seeded"
+            else (
+                evidence_refs
+                if evidence_refs is not None
+                else [
+                    "project_evidence:greenfield-demo/07-construction/"
+                    "05-progress-claims/claim-03.md#chunk=1"
+                ]
+            )
+        ),
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+    output._cost_items = typed_items
+    return output
+
+
 def test_create_cost_plan_blocks_when_overlay_gate_fails() -> None:
     result = run_async(
         run_create_cost_plan_workflow(
@@ -345,16 +446,7 @@ def test_create_cost_plan_fails_when_platform_and_project_sources_missing() -> N
 
 
 def test_create_cost_plan_greenfield_from_platform_documents() -> None:
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=_valid_cost_plan_markdown(),
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=[],
-        context_refs=[
-            "doctrine:docs/clerk-brief.md",
-            "reference:seed/cost-management-principles.md",
-        ],
-    )
+    output = _typed_output(draft_mode="platform_seeded")
     draft = AsyncMock()
     draft.id = uuid.uuid4()
     draft.project_id = PROJECT_ID
@@ -366,7 +458,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
     draft.author_user_id = USER_ID
     draft.content_markdown = output.markdown
     draft.model = "gpt-5.6-terra"
-    draft.runtime = "clerk-sitewise-create-cost-plan"
+    draft.runtime = "clerk-sitewise-create-cost-plan-typed"
     draft.provenance_metadata = {}
     draft.created_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
     draft.updated_at = datetime(2026, 6, 7, tzinfo=timezone.utc)
@@ -391,10 +483,6 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
 
     with (
         patch(
-            "app.workflows.create_cost_plan.locked_selections",
-            new=AsyncMock(return_value={}),
-        ),
-        patch(
             "app.workflows.create_cost_plan.load_cost_project_evidence_documents",
             new=AsyncMock(return_value=[]),
         ),
@@ -411,7 +499,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
             new=AsyncMock(return_value=([platform_passage], [])),
         ),
         patch(
-            "app.workflows.create_cost_plan.run_create_cost_plan_model",
+            "app.workflows.create_cost_plan.run_create_cost_plan_typed",
             new=AsyncMock(return_value=output),
         ),
         patch(
@@ -453,6 +541,7 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
         create_draft.await_args.kwargs["provenance_metadata"]["draft_mode"]
         == "platform_seeded"
     )
+    assert create_draft.await_args.kwargs["provenance_metadata"]["compiler"] == "typed"
     assert create_draft.await_args.kwargs["workspace_path"].endswith(
         "01-cost/cost_plan_v01.md"
     )
@@ -463,27 +552,17 @@ def test_create_cost_plan_greenfield_from_platform_documents() -> None:
 
 
 def test_validate_cost_plan_output_accepts_platform_seeded() -> None:
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=_valid_cost_plan_markdown(),
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
     validate_cost_plan_output(
-        output,
+        _typed_output(draft_mode="platform_seeded"),
         "platform_seeded",
         archetype="renovation",
     )
 
 
 def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=_valid_cost_plan_markdown(),
+    output = _typed_output(
+        draft_mode="platform_seeded",
         seed_consulted=["seed/role-architect-pm.md"],
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
     )
     with pytest.raises(WorkflowValidationError, match="mandatory seeds"):
         validate_cost_plan_output(
@@ -493,18 +572,9 @@ def test_validate_cost_plan_output_fails_when_mandatory_seed_missing() -> None:
         )
 
 
-def test_validate_cost_plan_output_fails_when_section_missing() -> None:
-    markdown = _valid_cost_plan_markdown().replace(
-        "## Cost plan summary and control decision", "## Cost plan summary"
-    )
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=markdown,
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
-    with pytest.raises(WorkflowValidationError, match="missing required sections"):
+def test_validate_cost_plan_output_fails_when_typed_table_missing() -> None:
+    output = _typed_output(draft_mode="platform_seeded", omit_table=True)
+    with pytest.raises(WorkflowValidationError, match="typed cost table"):
         validate_cost_plan_output(
             output,
             "platform_seeded",
@@ -512,55 +582,20 @@ def test_validate_cost_plan_output_fails_when_section_missing() -> None:
         )
 
 
-def test_validate_cost_plan_output_fails_when_greenfield_markers_missing() -> None:
-    thin = "\n\n".join(
-        f"## {heading}\n\nShort generic paragraph."
-        for heading in required_section_headings()
-    )
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=f"# Project Cost Plan\n\n{thin}",
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=[],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
-    with pytest.raises(WorkflowValidationError, match="depth markers"):
+def test_validate_cost_plan_output_fails_when_typed_rows_missing() -> None:
+    output = _typed_output(draft_mode="platform_seeded")
+    output._cost_items = []
+    with pytest.raises(WorkflowValidationError, match="typed cost rows"):
         validate_cost_plan_output(
             output,
             "platform_seeded",
-            archetype="renovation",
-        )
-
-
-def test_validate_cost_plan_evidence_grounded_requires_evidence_map() -> None:
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=_valid_cost_plan_markdown(),
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=["project_evidence:greenfield-demo/01-cost/claim.md#chunk=1"],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
-    with pytest.raises(WorkflowValidationError, match="evidence map"):
-        validate_cost_plan_output(
-            output,
-            "evidence_grounded",
             archetype="renovation",
         )
 
 
 def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=_valid_evidence_grounded_cost_plan_markdown(),
-        seed_consulted=_valid_seed_consulted(),
-        evidence_refs=[
-            "project_evidence:greenfield-demo/07-construction/05-progress-claims/"
-            "claim-03.md#chunk=1"
-        ],
-        context_refs=["doctrine:docs/clerk-brief.md"],
-    )
     validate_cost_plan_output(
-        output,
+        _typed_output(draft_mode="evidence_grounded"),
         "evidence_grounded",
         archetype="renovation",
     )
@@ -569,15 +604,13 @@ def test_validate_cost_plan_evidence_grounded_accepts_valid_draft() -> None:
 def test_validate_cost_plan_output_rejects_draft_that_omits_evidenced_walsh_figures() -> (
     None
 ):
-    output = CostPlanDraftOutput(
-        title="Project Cost Plan",
-        markdown=_valid_evidence_grounded_cost_plan_markdown(),
-        seed_consulted=_valid_seed_consulted(),
+    output = _typed_output(
+        draft_mode="evidence_grounded",
+        items=_sample_typed_items(fee=None, contingency=None, construction_budget=None),
         evidence_refs=[
             "project_evidence:walsh-reno/00-brief-pmp/03-owner-project-brief-walsh-house.md#chunk=1",
             "project_evidence:walsh-reno/02-consultant/architect/02-fee-proposal-atelier-north.md#chunk=1",
         ],
-        context_refs=["doctrine:docs/clerk-brief.md"],
     )
 
     with pytest.raises(WorkflowValidationError, match="evidenced"):

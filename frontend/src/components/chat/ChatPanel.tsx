@@ -11,11 +11,11 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { ActivityStream } from "@/components/chat/ActivityStream";
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatErrorBanner } from "@/components/chat/ChatErrorBanner";
 import { SourcePassagePanel } from "@/components/chat/SourcePassagePanel";
-import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
 import { UserMessage } from "@/components/chat/UserMessage";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -50,6 +50,11 @@ import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage } from "@/lib/types/chat";
 import { cn } from "@/lib/utils";
 
+export type PendingChatInstruction = {
+  id: number;
+  text: string;
+};
+
 type ChatPanelProps = {
   threadId: string;
   initialMessages: ChatMessage[];
@@ -57,6 +62,9 @@ type ChatPanelProps = {
   onResourceEvent?: (event: ResourceEvent) => void;
   onDocumentSelectionEvent?: (event: DocumentSelectionEvent) => void;
   onUserSubmit?: () => void;
+  /** Workbench command buttons inject an instruction as if the user typed it. */
+  pendingInstruction?: PendingChatInstruction | null;
+  onPendingInstructionConsumed?: (id: number) => void;
   layout?: "page" | "rail" | "main";
   collapsed?: boolean;
   collapsible?: boolean;
@@ -78,6 +86,8 @@ export function ChatPanel({
   onResourceEvent,
   onDocumentSelectionEvent,
   onUserSubmit,
+  pendingInstruction = null,
+  onPendingInstructionConsumed,
   layout = "page",
   collapsed = false,
   collapsible = false,
@@ -212,6 +222,38 @@ export function ChatPanel({
 
   const isBusy = status === "submitted" || status === "streaming";
   const chatError = error ? classifyChatError(error) : null;
+  const consumedInstructionIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!pendingInstruction) return;
+    if (consumedInstructionIdRef.current === pendingInstruction.id) return;
+    if (isBusy) return;
+    const text = pendingInstruction.text.trim();
+    const instructionId = pendingInstruction.id;
+    consumedInstructionIdRef.current = instructionId;
+    onPendingInstructionConsumed?.(instructionId);
+    if (!text) return;
+    onUserSubmit?.();
+    const submittedDocumentIds = [...selectedDocumentIds];
+    void (async () => {
+      if (agentMode && submittedDocumentIds.length) {
+        await sendMessage(
+          { text },
+          { body: { selected_document_ids: submittedDocumentIds } },
+        );
+        return;
+      }
+      await sendMessage({ text });
+    })();
+  }, [
+    agentMode,
+    isBusy,
+    onPendingInstructionConsumed,
+    onUserSubmit,
+    pendingInstruction,
+    selectedDocumentIds,
+    sendMessage,
+  ]);
 
   const updateScrollButton = useCallback(() => {
     if (ignoreScrollSyncRef.current) return;
@@ -288,6 +330,49 @@ export function ChatPanel({
       };
     }, [messages]);
 
+  const latestAssistantMessageId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index]?.role === "assistant") return messages[index].id;
+    }
+    return null;
+  }, [messages]);
+
+  const liveToolEvents = useMemo(() => {
+    if (!latestAssistantMessageId) return [] as ToolStatusEvent[];
+    return toolEventsByMessageId.get(latestAssistantMessageId) ?? [];
+  }, [latestAssistantMessageId, toolEventsByMessageId]);
+
+  const liveWorkflowRuns = useMemo(() => {
+    if (!latestAssistantMessageId) return [] as WorkflowRunRef[];
+    return workflowRunsByMessageId.get(latestAssistantMessageId) ?? [];
+  }, [latestAssistantMessageId, workflowRunsByMessageId]);
+
+  const [workflowActivityActive, setWorkflowActivityActive] = useState(false);
+  const [suppressWorkflowMount, setSuppressWorkflowMount] = useState(false);
+  const liveWorkflowRunKey = liveWorkflowRuns.map((run) => run.runId).join(",");
+
+  useEffect(() => {
+    setWorkflowActivityActive(false);
+    setSuppressWorkflowMount(false);
+  }, [latestAssistantMessageId, liveWorkflowRunKey]);
+
+  const handleActivityPresence = useCallback((active: boolean) => {
+    setWorkflowActivityActive(active);
+    if (!active) setSuppressWorkflowMount(true);
+  }, []);
+
+  // Keep mounting after the model turn ends while a workflow may still be
+  // in flight — WorkflowRunCard no longer renders its own spinner.
+  const mountActivityStream =
+    isBusy ||
+    workflowActivityActive ||
+    (liveWorkflowRuns.length > 0 && !suppressWorkflowMount);
+  // Keep the latest assistant message in "live" mode whenever the activity
+  // stream is mounted — otherwise AnswerTrace pills flash beside the cube
+  // while workflow presence is still settling after the model turn ends.
+  const liveAssistantMessage =
+    Boolean(latestAssistantMessageId) && mountActivityStream;
+
   async function handleSubmit() {
     const text = input.trim();
     if (!text || isBusy) return;
@@ -348,6 +433,8 @@ export function ChatPanel({
                   .join("");
 
                 if (message.role === "assistant") {
+                  const isLiveMessage =
+                    message.id === latestAssistantMessageId && liveAssistantMessage;
                   return (
                     <AssistantMessage
                       key={message.id}
@@ -358,6 +445,7 @@ export function ChatPanel({
                       workflowRuns={workflowRunsByMessageId.get(message.id)}
                       agentMode={agentMode}
                       projectId={projectId}
+                      live={isLiveMessage}
                       selectedCitationId={activeCitationId}
                       onSelectCitation={handleSelectCitation}
                     />
@@ -367,7 +455,16 @@ export function ChatPanel({
                 return <UserMessage key={message.id} text={text} />;
               })}
 
-              {isBusy ? <StreamingIndicator message={statusMessage} /> : null}
+              {mountActivityStream ? (
+                <ActivityStream
+                  busy={isBusy}
+                  statusMessage={statusMessage}
+                  toolEvents={liveToolEvents}
+                  workflowRuns={liveWorkflowRuns}
+                  projectId={projectId}
+                  onPresenceChange={handleActivityPresence}
+                />
+              ) : null}
             </div>
 
             {showScrollButton && !collapsed ? (

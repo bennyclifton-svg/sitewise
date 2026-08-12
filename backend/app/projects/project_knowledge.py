@@ -156,9 +156,13 @@ async def write_shared_project_object(
     now: datetime | None = None,
 ) -> SharedProjectObject:
     """Persist one shared fact while serializing its project-context revision."""
-    await session.refresh(project, with_for_update=True)
+    # Workflow workers pass a frozen Project that is not in this Session.
+    # Lock by primary key instead of refreshing the caller's instance.
+    locked = await session.get(Project, project.id, with_for_update=True)
+    if locked is None:
+        raise LookupError(f"project {project.id} not found")
     result = upsert_shared_project_object(
-        project,
+        locked,
         kind=kind,
         object_id=object_id,
         update=update,
@@ -167,7 +171,7 @@ async def write_shared_project_object(
     )
     await publish_project_event(
         session,
-        project_id=project.id,
+        project_id=locked.id,
         actor_source=source,
         resource_type="shared_project_object",
         resource_id=object_id,
@@ -175,6 +179,10 @@ async def write_shared_project_object(
         action="upserted",
         payload={"kind": kind},
         changes_context=True,
-        locked_project=project,
+        locked_project=locked,
     )
+    if project is not locked:
+        project.project_metadata = locked.project_metadata
+        project.project_context_version = locked.project_context_version
+        project.event_sequence = locked.event_sequence
     return result

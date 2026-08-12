@@ -1,0 +1,176 @@
+/* Sitewise light system — v1.0
+   Requires tokens.css.
+
+   The rule the whole system rests on: elevation is expressed as
+   luminance, never as a drop shadow. A raised surface has a brighter
+   top edge, not a bigger shadow. */
+
+/* ---------------------------------------------------------------
+   1. THE KEY LIGHT
+   Three fixed layers, painted over the page. Mount them as the first
+   children of the app root, in this order.
+   --------------------------------------------------------------- */
+
+.sw-light-sun,
+.sw-light-key,
+.sw-light-vignette,
+.sw-grain {
+  position: fixed;
+  pointer-events: none;
+}
+
+/* Slow drifting shaft. This is the ambient sun — 54s, never faster. */
+.sw-light-sun {
+  inset: -20% -20% auto -20%;
+  height: 150vh;
+  z-index: 0;
+  background: linear-gradient(
+    101deg,
+    transparent 40%,
+    rgba(150, 190, 235, 0.16) 47%,
+    rgba(190, 215, 240, 0.24) 50%,
+    rgba(150, 190, 235, 0.13) 53%,
+    transparent 60%
+  );
+  filter: blur(46px);
+  mix-blend-mode: plus-lighter;
+  animation: sw-sun 54s var(--sw-ease-ambient) infinite;
+}
+
+/* The key. Follows the pointer with damped easing — see the JS below. */
+.sw-light-key {
+  inset: 0;
+  z-index: 1;
+  mix-blend-mode: plus-lighter;
+  background: radial-gradient(
+    var(--sw-key-radius) circle at var(--sw-key-x) var(--sw-key-y),
+    var(--sw-key-tint),
+    rgba(126, 168, 220, 0.05) 42%,
+    transparent 68%
+  );
+}
+
+/* Falloff toward the edges of the frame. */
+.sw-light-vignette {
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(120% 90% at 50% 0%, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+/* Film grain. Without it, large soft gradients band on 8-bit displays. */
+.sw-grain {
+  inset: 0;
+  z-index: 60;
+  opacity: var(--sw-grain-opacity);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes sw-sun {
+  0%   { transform: translate3d(-22vw, 0, 0) rotate(14deg); opacity: 0.30; }
+  50%  { transform: translate3d( 34vw, 0, 0) rotate(14deg); opacity: 0.62; }
+  100% { transform: translate3d(-22vw, 0, 0) rotate(14deg); opacity: 0.30; }
+}
+
+/* Drive the key from JS. Damped, never 1:1 with the cursor.
+
+   let tx = innerWidth * .42, ty = innerHeight * .3, cx = tx, cy = ty;
+   addEventListener('pointermove', e => { tx = e.clientX; ty = e.clientY; },
+                    { passive: true });
+   (function tick() {
+     cx += (tx - cx) * 0.055;
+     cy += (ty - cy) * 0.055;
+     document.documentElement.style.setProperty('--sw-key-x', cx.toFixed(1) + 'px');
+     document.documentElement.style.setProperty('--sw-key-y', cy.toFixed(1) + 'px');
+     requestAnimationFrame(tick);
+   })();
+*/
+
+/* ---------------------------------------------------------------
+   2. SURFACES
+   Four behaviours, in the order light actually does them.
+   --------------------------------------------------------------- */
+
+/* FALLOFF — intensity decays smoothly. No hard terminator, no banding.
+   Any glow element must carry blur >= --sw-key-blur-min. */
+.sw-falloff {
+  filter: blur(var(--sw-key-blur-min));
+}
+
+/* SPECULAR EDGE — only the edge facing the key catches highlight.
+   Top border bright, sides faint, bottom black. */
+.sw-surface {
+  background: var(--sw-surface-raised);
+  border: 1px solid var(--sw-edge-side);
+  border-top-color: var(--sw-edge-lit);
+  border-bottom-color: var(--sw-edge-shade);
+  border-radius: var(--sw-radius);
+  box-shadow: var(--sw-contact);
+  transition: border-top-color var(--sw-dur-state) var(--sw-ease-state),
+              transform var(--sw-dur-state) var(--sw-ease-state);
+}
+
+/* Two elevation levels only. Raised gets a brighter top edge — the
+   shadow does not grow. */
+.sw-surface--raised {
+  border-top-color: var(--sw-edge-lit-raised);
+  transform: translateY(-2px);
+}
+
+.sw-surface:hover {
+  border-top-color: var(--sw-edge-lit-raised);
+  transform: translateY(-2px);
+}
+
+/* CONTACT — surfaces darken where they meet. Tight and opaque. */
+.sw-contact { box-shadow: var(--sw-contact); }
+.sw-contact--deep { box-shadow: var(--sw-contact-deep); }
+
+/* BOUNCE — saturated surfaces bleed their hue onto neighbours, at most
+   8%. Blue bounces; grey does not. Apply to the receiving element. */
+.sw-bounce-blue {
+  background-image: radial-gradient(
+    closest-side,
+    rgba(47, 114, 196, var(--sw-bounce-max)),
+    transparent
+  );
+}
+
+/* ---------------------------------------------------------------
+   3. SHEEN
+   A slow highlight sweep, for glazed or polished surfaces only. Stagger
+   siblings by 0.9s so a group reads as one light passing across it.
+   --------------------------------------------------------------- */
+@property --sw-sweep {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: -35%;
+}
+
+.sw-sheen { position: relative; overflow: hidden; }
+
+.sw-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent var(--sw-sweep),
+    rgba(255, 255, 255, 0.12) calc(var(--sw-sweep) + 6%),
+    transparent calc(var(--sw-sweep) + 14%)
+  );
+  animation: sw-sheen 9s linear infinite;
+}
+
+@keyframes sw-sheen {
+  0%, 72% { --sw-sweep: -35%; }
+  100%    { --sw-sweep: 135%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-light-sun,
+  .sw-sheen::after {
+    animation: none;
+  }
+}

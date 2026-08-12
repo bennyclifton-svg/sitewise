@@ -304,3 +304,37 @@ def test_process_invoices_duplicate_only_is_a_noop() -> None:
     assert result.booked_invoice_count == 0
     assert result.cost_plan_version == 5
     publish.assert_not_awaited()
+
+
+def test_process_invoices_fails_when_explicit_ids_do_not_resolve() -> None:
+    session = AsyncMock()
+    with (
+        patch(
+            "app.workflows.process_invoices.count_pending_invoice_ingests",
+            new=AsyncMock(return_value=0),
+        ),
+        patch(
+            "app.workflows.process_invoices.resolve_invoice_source_document_ids",
+            new=AsyncMock(return_value=([], [SOURCE_ID])),
+        ),
+        patch(
+            "app.workflows.process_invoices.discover_invoice_candidates",
+            new=AsyncMock(),
+        ) as discover,
+    ):
+        try:
+            run_async(
+                process_invoices(
+                    session,
+                    project=_project(),
+                    user_id=USER_ID,
+                    workflow_run_id=RUN_ID,
+                    expected_cost_plan_version=5,
+                    snapshot=_snapshot(),
+                    source_document_ids=[SOURCE_ID],
+                )
+            )
+            raise AssertionError("expected ValueError")
+        except ValueError as exc:
+            assert "No matching invoice source documents" in str(exc)
+    discover.assert_not_awaited()

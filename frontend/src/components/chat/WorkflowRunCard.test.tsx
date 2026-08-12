@@ -68,10 +68,10 @@ describe("WorkflowRunCard", () => {
     vi.clearAllMocks();
   });
 
-  it("shows progress while the consultant tender run is queued", async () => {
+  it("renders nothing while the run is still in flight", async () => {
     vi.mocked(api.getWorkflowRun).mockResolvedValue(run());
 
-    render(
+    const { container } = render(
       <WorkflowRunCard
         projectId="project-1"
         runRef={{
@@ -85,9 +85,11 @@ describe("WorkflowRunCard", () => {
       { wrapper: wrapper() },
     );
 
-    expect(
-      await screen.findByText(/Queued Request for Proposal/i),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(api.getWorkflowRun).toHaveBeenCalled();
+    });
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("renders an openable artefact card when the run completes", async () => {

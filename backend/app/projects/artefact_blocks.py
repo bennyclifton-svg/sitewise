@@ -826,6 +826,13 @@ def _replace(source: str, start: int, end: int, replacement: str) -> str:
 
 
 def _delete_with_spacing(source: str, start: int, end: int) -> str:
+    # Block ranges end at content (not the line terminator). Consume one
+    # trailing newline so table/list deletes do not leave a blank line that
+    # splits a GFM table or CommonMark list.
+    if end < len(source) and source[end] == "\n":
+        end += 1
+    elif start > 0 and source[start - 1] == "\n":
+        start -= 1
     result = _replace(source, start, end, "")
     return re.sub(r"\n{3,}", "\n\n", result)
 

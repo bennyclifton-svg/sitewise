@@ -5,12 +5,10 @@ import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { projectKeys } from "@/lib/queries/project-data";
 import { ProjectCockpitPage } from "@/pages/ProjectCockpitPage";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
-  ProcessInvoicesResult,
   ProjectDetail,
 } from "@/lib/types/project";
 
@@ -87,9 +85,18 @@ vi.mock("@/components/project/WorkspaceFolderPanel", () => ({
 }));
 
 vi.mock("@/components/chat/ChatRail", () => ({
-  ChatRail: ({ chatError }: { chatError?: string | null }) => (
+  ChatRail: ({
+    chatError,
+    pendingInstruction,
+  }: {
+    chatError?: string | null;
+    pendingInstruction?: { id: number; text: string } | null;
+  }) => (
     <div data-testid="chat-rail">
       {chatError ? <div role="alert">{chatError}</div> : null}
+      {pendingInstruction ? (
+        <div data-testid="pending-chat-instruction">{pendingInstruction.text}</div>
+      ) : null}
     </div>
   ),
 }));
@@ -135,36 +142,23 @@ vi.mock("@/components/project/ProjectLeftNav", () => ({
 
 vi.mock("@/components/project/ProjectControlBoard", () => ({
   ProjectControlBoard: ({
-    isRunningCostPlan,
     onRunCreateCostPlan,
     onRunRefreshCostPlan,
     onRunProcessInvoices,
-    costPlanWorkflowError,
-    onCancelCostPlan,
     latestCostPlanDraft,
-    invoiceProcessResult,
-    isRunningProcurement,
     onRunProcurement,
     onSelectWorkflow,
     onDraftSelected,
   }: {
-    isRunningCostPlan: boolean;
     onRunCreateCostPlan: () => void;
     onRunRefreshCostPlan?: () => void;
     onRunProcessInvoices?: () => void;
-    costPlanWorkflowError: string | null;
-    onCancelCostPlan?: () => void;
     latestCostPlanDraft: DraftArtifactSummary | null;
-    invoiceProcessResult?: ProcessInvoicesResult | null;
-    isRunningProcurement: boolean;
     onRunProcurement?: (kind: string, targetName: string) => void;
     onSelectWorkflow?: (workflowId: string) => void;
     onDraftSelected?: (draft: DraftArtifactSummary) => void;
   }) => (
     <div>
-      <div data-testid="control-cost-plan-state">
-        {isRunningCostPlan ? "running" : "idle"}
-      </div>
       <button type="button" onClick={onRunCreateCostPlan}>
         Create cost plan
       </button>
@@ -206,22 +200,8 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
           Process invoices
         </button>
       ) : null}
-      {isRunningCostPlan && onCancelCostPlan ? (
-        <button type="button" onClick={onCancelCostPlan}>
-          Cancel cost plan
-        </button>
-      ) : null}
-      {costPlanWorkflowError ? <div>{costPlanWorkflowError}</div> : null}
       <div data-testid="inline-cost-workbook">
         {latestCostPlanDraft ? `draft-v${latestCostPlanDraft.version}` : "no-draft"}
-      </div>
-      {invoiceProcessResult ? (
-        <div data-testid="invoice-process-result">
-          {JSON.stringify(invoiceProcessResult)}
-        </div>
-      ) : null}
-      <div data-testid="control-procurement-state">
-        {isRunningProcurement ? "running" : "idle"}
       </div>
       {onRunProcurement ? (
         <button type="button" onClick={() => onRunProcurement("trade_rft", "Electrical")}>
@@ -292,38 +272,16 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     );
   });
 
-  it("stops showing Cost Plan as running once the draft is returned", async () => {
+  it("sends Create cost plan as a chat instruction instead of starting a durable run", async () => {
     const user = userEvent.setup();
-    let resolveWorkspaceRefresh: (() => void) | undefined;
-    mocks.reloadProjectWorkspaceTree.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveWorkspaceRefresh = resolve;
-        }),
-    );
-
     renderProjectCockpit();
 
     await user.click(await screen.findByRole("button", { name: "Create cost plan" }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("cost-plan-nav-status")).toHaveTextContent(
-        "draft:Draft v2",
-      );
-    });
-    expect(screen.getByTestId("inline-cost-workbook")).toHaveTextContent("draft-v2");
-    expect(screen.queryByTestId("draft-review")).not.toBeInTheDocument();
-    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
-      project.id,
-      "cost-plan",
-      expect.objectContaining({
-        expected_snapshot_fingerprint: "a".repeat(64),
-        expected_profile_revision: 1,
-        expected_decision_set_revision: 1,
-      }),
+    expect(await screen.findByTestId("pending-chat-instruction")).toHaveTextContent(
+      "Create cost plan",
     );
-
-    resolveWorkspaceRefresh?.();
+    expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
   });
 
   it("highlights documents used by the open Cost Plan", async () => {
@@ -383,9 +341,8 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     expect(screen.getByTestId("repository")).toHaveTextContent("main-works-rft-v2");
   });
 
-  it("shows the workbook draft returned by a Cost Plan refresh", async () => {
+  it("sends Refresh cost plan and Process invoices as chat instructions", async () => {
     const user = userEvent.setup();
-    const baseDraft = { ...costPlanSummary, version: 1 };
     mocks.api.getProjectCockpitBootstrap.mockResolvedValueOnce({
       project,
       projects: [project],
@@ -398,107 +355,27 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       platform_knowledge: { available: true, buckets: [] },
       latest_drafts: {
         create_pmp: null,
-        create_cost_plan: baseDraft,
+        create_cost_plan: costPlanSummary,
         sort_files: null,
       },
       timings_ms: {},
-    });
-    mocks.api.getLatestDraft.mockRejectedValueOnce(new Error("not available"));
-    mocks.api.getWorkflowResult.mockResolvedValueOnce({
-      run: { id: "run-1", project_id: project.id, state: "complete" },
-      result: {
-        status: "complete",
-        draft: costPlanDraft,
-      },
     });
 
     renderProjectCockpit();
 
     await user.click(await screen.findByRole("button", { name: "Refresh cost plan" }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("inline-cost-workbook")).toHaveTextContent("draft-v2");
-    });
-    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
-      project.id,
-      "cost-plan/refresh",
-      expect.objectContaining({
-        expected_artefact_version: 1,
-        parameters: { proposed_items: [] },
-      }),
+    expect(await screen.findByTestId("pending-chat-instruction")).toHaveTextContent(
+      "Refresh cost plan",
     );
+
+    await user.click(screen.getByRole("button", { name: "Process invoices" }));
+    expect(await screen.findByTestId("pending-chat-instruction")).toHaveTextContent(
+      "Process invoices",
+    );
+    expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
   });
 
-  it("processes all ingested invoices against the current Cost Plan", async () => {
-    const user = userEvent.setup();
-    const baseDraft = { ...costPlanSummary, version: 5 };
-    mocks.api.getProjectCockpitBootstrap.mockResolvedValueOnce({
-      project,
-      projects: [project],
-      evidence: [],
-      workspace_tree: {
-        project_id: project.id,
-        root_path: project.workspace_path,
-        tree: [],
-      },
-      platform_knowledge: { available: true, buckets: [] },
-      latest_drafts: {
-        create_pmp: null,
-        create_cost_plan: baseDraft,
-        sort_files: null,
-      },
-      timings_ms: {},
-    });
-    mocks.api.getWorkflowResult.mockResolvedValueOnce({
-      run: { id: "run-1", project_id: project.id, state: "complete" },
-      result: {
-        candidate_count: 4,
-        pending_ingest_count: 1,
-        booked_invoice_count: 1,
-        register_row_count: 1,
-        duplicate_count: 0,
-        conflict_count: 1,
-        review_count: 1,
-        extraction_error_count: 1,
-        conflicts: ["Duplicate financial facts conflict"],
-        review_items: ["INV-2: Unidentified line"],
-        extraction_errors: ["INV-3 could not be extracted"],
-        cost_plan_version: 6,
-        workbook_path: "projects/kavanagh/01-cost/Cost_Plan_v06.draft.xlsx",
-        draft_id: costPlanDraft.id,
-        draft: { ...costPlanDraft, version: 6 },
-      },
-    });
-
-    renderProjectCockpit();
-    await user.click(await screen.findByRole("button", { name: "Process invoices" }));
-
-    await waitFor(() => {
-      expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
-        project.id,
-        "cost-plan/invoices",
-        expect.objectContaining({
-          expected_artefact_version: 5,
-          parameters: { source_document_ids: null },
-        }),
-      );
-    });
-    expect(screen.getByTestId("inline-cost-workbook")).toHaveTextContent("draft-v6");
-    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
-      '"conflict_count":1',
-    );
-    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
-      '"review_count":1',
-    );
-    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
-      '"extraction_error_count":1',
-    );
-    expect(screen.getByTestId("invoice-process-result")).toHaveTextContent(
-      '"pending_ingest_count":1',
-    );
-  });
-
-  it("queues a trade RFT for worker-side request attachment", async () => {
+  it("sends procurement create as a chat instruction", async () => {
     const user = userEvent.setup();
     renderProjectCockpit();
 
@@ -506,23 +383,11 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       await screen.findByRole("button", { name: "Create electrical RFT" }),
     );
 
-    await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
-    expect(mocks.api.createProcurementRequest).not.toHaveBeenCalled();
-    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
-      project.id,
-      "trade-procurement",
-      expect.objectContaining({
-        expected_snapshot_fingerprint: "a".repeat(64),
-        expected_profile_revision: 1,
-        expected_decision_set_revision: 1,
-        idempotency_key: expect.any(String),
-        parameters: {
-          package: "Electrical",
-          kind: "rft",
-          max_pages: 3,
-        },
-      }),
+    expect(await screen.findByTestId("pending-chat-instruction")).toHaveTextContent(
+      "Create a trade package for Electrical",
     );
+    expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
+    expect(mocks.api.createProcurementRequest).not.toHaveBeenCalled();
   });
 
   it("keeps project controls usable when chat bootstrap fails", async () => {
@@ -539,95 +404,10 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     const createCostPlan = screen.getByRole("button", { name: "Create cost plan" });
     expect(createCostPlan).toBeEnabled();
     await user.click(createCostPlan);
-    await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
-  });
-
-  it("shows a readable retry path when a durable run fails", async () => {
-    const user = userEvent.setup();
-    mocks.waitForWorkflowRun.mockImplementationOnce(
-      async (_client, _projectId, run) => ({
-        ...run,
-        state: "failed",
-        error_message: "Workbook export failed; retry the Cost Plan.",
-      }),
+    expect(await screen.findByTestId("pending-chat-instruction")).toHaveTextContent(
+      "Create cost plan",
     );
-
-    renderProjectCockpit();
-    const button = await screen.findByRole("button", { name: "Create cost plan" });
-    await user.click(button);
-
-    expect(
-      await screen.findByText("Workbook export failed; retry the Cost Plan."),
-    ).toBeInTheDocument();
-    expect(button).toBeEnabled();
-  });
-
-  /**
-   * A workflow launch must read the project itself rather than share the
-   * cockpit's cached copy. The cache entry is owned by the project-event
-   * poller, which invalidates it on every durable event; sharing it makes the
-   * launch inherit both the global `staleTime` (a stale OCC fingerprint) and
-   * `invalidateQueries`' `cancelRefetch`, which rejects an in-flight read with
-   * a `CancelledError` and aborts the launch before any request is sent.
-   */
-  it("starts the run with a freshly read fingerprint, not the cached one", async () => {
-    const user = userEvent.setup();
-    const queryClient = renderProjectCockpit({ staleTime: 30_000 });
-
-    await screen.findByRole("button", { name: "Create cost plan" });
-    queryClient.setQueryData(projectKeys.detail(project.id), {
-      ...project,
-      workflow_capabilities: {
-        ...project.workflow_capabilities,
-        snapshot_content_fingerprint: "b".repeat(64),
-      },
-    });
-
-    await user.click(screen.getByRole("button", { name: "Create cost plan" }));
-
-    await waitFor(() => expect(mocks.api.startWorkflowRun).toHaveBeenCalledOnce());
-    expect(mocks.api.startWorkflowRun).toHaveBeenCalledWith(
-      project.id,
-      "cost-plan",
-      expect.objectContaining({
-        expected_snapshot_fingerprint: "a".repeat(64),
-      }),
-    );
-  });
-
-  it("surfaces the underlying failure when a launch throws an unrecognised error", async () => {
-    const user = userEvent.setup();
-    mocks.api.getProject.mockRejectedValueOnce(new Error("CancelledError"));
-
-    renderProjectCockpit();
-    await user.click(await screen.findByRole("button", { name: "Create cost plan" }));
-
-    expect(
-      await screen.findByText(/Create Cost Plan could not run\..*CancelledError/),
-    ).toBeInTheDocument();
     expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
-  });
-
-  it("cancels the exact durable run from the UI", async () => {
-    const user = userEvent.setup();
-    let finishRun: ((run: Record<string, unknown>) => void) | undefined;
-    mocks.waitForWorkflowRun.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishRun = resolve;
-        }),
-    );
-
-    renderProjectCockpit();
-    await user.click(
-      await screen.findByRole("button", { name: "Create cost plan" }),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Cancel cost plan" }),
-    );
-
-    expect(mocks.api.cancelWorkflowRun).toHaveBeenCalledWith(project.id, "run-1");
-    finishRun?.({ id: "run-1", state: "cancelled", error_message: null });
   });
 });
 
