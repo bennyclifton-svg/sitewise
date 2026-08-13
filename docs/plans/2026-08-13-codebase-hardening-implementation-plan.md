@@ -21,10 +21,11 @@ findings in
 [the critical review](./2026-08-13-codebase-hardening-review.md) into staged,
 test-first work packets.
 
-The repository review is complete. Implementation has not started. This file is
-self-contained enough to resume work in a new coding-agent session without
-chat history, but it does not itself authorize a live deployment, credential
-change, destructive data operation, or production test.
+The repository review is complete and implementation is in progress. CH-0.0
+and CH-0.2 are complete; all other tasks and GATE-0 remain open. This file is
+self-contained enough to resume work in a new coding-agent session without chat
+history, but it does not itself authorize a live deployment, credential change,
+destructive data operation, or production test.
 
 The plan deliberately does not prescribe a rewrite. Its architectural strategy
 is to deepen a small number of important seams:
@@ -352,7 +353,7 @@ approval. The Owner/session/start column is filled whenever state is
 |---|---|---:|---|---|---|---|
 | CH-0.0 | Disable independent production auto-deploy | yes | complete | - | Codex /root / 2026-08-13T21:30:29Z | Probe `24f85b71`; `docs/acceptance/hardening/CH-0.0/2026-08-14-24f85b71.md` |
 | CH-0.1 | Rotate credentials and isolate environments/scopes | yes | not-started | CH-0.0 | - | - |
-| CH-0.2 | Default-deny offline test network and secrets | yes | not-started | CH-0.0 | - | - |
+| CH-0.2 | Default-deny offline test network and secrets | yes | complete | CH-0.0 | Codex /root / 2026-08-13T21:42:19Z | `f2584bd0`; `docs/acceptance/hardening/CH-0.2/2026-08-14-f2584bd0.md` |
 | CH-0.3 | Redact secrets from all logs/errors | yes | not-started | CH-0.2 | - | - |
 | CH-0.4 | Pin one frontend toolchain | yes | not-started | CH-0.0 | - | - |
 | CH-0.5 | Make TypeScript checking real and strict | yes | not-started | CH-0.4 | - | - |
@@ -732,14 +733,17 @@ and service environment/SHA.
 
 ### CH-0.2 - Default-deny offline test network and secrets
 
-**Objective and risk.** Make <code>uv run pytest</code> incapable of loading
-real credentials or opening external sockets unless a specifically marked test
-is explicitly opted in. This is the prerequisite for trusting all later
-backend verification.
+**Objective and risk.** Make ordinary <code>uv run pytest</code> incapable of
+loading real credentials or opening Python external sockets unless a
+specifically marked test is explicitly opted in. This is the application-level
+prerequisite for trusting later backend verification; CH-0.8 and the
+network-disabled CI/container lane provide the narrower database and OS-level
+process-tree proofs.
 
 **Files and discovery.**
 
 - <code>backend/tests/conftest.py</code>
+- new <code>backend/tests/offline_network.py</code>
 - new <code>backend/tests/test_offline_containment.py</code>
 - <code>backend/pyproject.toml</code> markers
 - <code>.github/workflows/ci.yml</code>
@@ -764,13 +768,24 @@ backend verification.
    required DB, Supabase, OpenAI, Stripe, Pi, search, token, runtime, and billing
    setting with safe sentinel values. Do not merely unset variables because
    settings may reload <code>.env</code>.
-2. Add an autouse socket guard covering DNS resolution, connection helpers,
-   <code>socket.connect</code>, and <code>connect_ex</code>.
-3. Permit network only when the test has an approved external marker and the
-   explicit opt-in variable equals one.
+2. Install the socket guard before test-module collection. Cover DNS resolution,
+   connection helpers, <code>socket.connect</code>, <code>connect_ex</code>, and
+   UDP send entry points.
+3. Grant a context-local, per-test generation lease only when the test has an
+   approved external marker and the process-start opt-in variable equals one.
+   Invalidate the generation at teardown so stale tasks/threads cannot reuse a
+   later test's authority; fail closed on same-process parallel protocols.
 4. Convert offline HTTP behavior tests to <code>httpx.MockTransport</code> or
    equivalent injected fakes; never globally permit loopback.
 5. Keep CI's unreachable DB URL and explicit sentinels as defense in depth.
+
+Generic network opt-in must keep <code>TEST_DATABASE_URL</code> unreachable and
+<code>ALLOW_DESTRUCTIVE_TEST_DATABASE=0</code>. CH-0.8 alone may add a database
+exception after its separate marker, parsed private-host allowlist, and database
+environment marker exist. This Python guard does not claim to intercept plugins
+loaded before root conftest, C-library networking, or arbitrary child processes
+that discard their environment; the later network-disabled runner owns that
+process-tree proof.
 
 **Verification.**
 
