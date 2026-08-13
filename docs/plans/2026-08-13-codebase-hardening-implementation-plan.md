@@ -353,7 +353,7 @@ approval. The Owner/session/start column is filled whenever state is
 |---|---|---:|---|---|---|---|
 | CH-0.0 | Disable independent production auto-deploy | yes | complete | - | Codex /root / 2026-08-13T21:30:29Z | Probe `24f85b71`; `docs/acceptance/hardening/CH-0.0/2026-08-14-24f85b71.md` |
 | CH-0.1 | Rotate credentials and isolate environments/scopes | yes | not-started | CH-0.0 | - | - |
-| CH-0.2 | Default-deny offline test network and secrets | yes | complete | CH-0.0 | Codex /root / 2026-08-13T21:42:19Z | `f2584bd0`; `docs/acceptance/hardening/CH-0.2/2026-08-14-f2584bd0.md` |
+| CH-0.2 | Default-deny offline test network and secrets | yes | complete | CH-0.0 | Codex /root / 2026-08-13T21:42:19Z | `f2584bd0`, `0824b99f`; `docs/acceptance/hardening/CH-0.2/2026-08-14-f2584bd0.md` |
 | CH-0.3 | Redact secrets from all logs/errors | yes | not-started | CH-0.2 | - | - |
 | CH-0.4 | Pin one frontend toolchain | yes | not-started | CH-0.0 | - | - |
 | CH-0.5 | Make TypeScript checking real and strict | yes | not-started | CH-0.4 | - | - |
@@ -778,6 +778,8 @@ process-tree proofs.
 4. Convert offline HTTP behavior tests to <code>httpx.MockTransport</code> or
    equivalent injected fakes; never globally permit loopback.
 5. Keep CI's unreachable DB URL and explicit sentinels as defense in depth.
+   Apply them at workflow scope so every Python lane that transitively imports
+   runtime settings, including Tender seed validation, remains hermetic.
 
 Generic network opt-in must keep <code>TEST_DATABASE_URL</code> unreachable and
 <code>ALLOW_DESTRUCTIVE_TEST_DATABASE=0</code>. CH-0.8 alone may add a database
