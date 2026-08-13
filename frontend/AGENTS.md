@@ -108,7 +108,7 @@ Env vars exposed to the browser must use the `VITE_` prefix.
 Always:
 
 ```bash
-pnpm tsc --noEmit
+pnpm typecheck
 pnpm lint
 ```
 

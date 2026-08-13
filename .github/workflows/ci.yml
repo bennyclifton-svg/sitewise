@@ -84,7 +84,18 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Typecheck frontend
         working-directory: frontend
-        run: pnpm tsc --noEmit
+        run: |
+          pnpm exec tsc --version
+          started_at=$SECONDS
+          set +e
+          typecheck_output="$(pnpm typecheck 2>&1)"
+          typecheck_status=$?
+          set -e
+          printf '%s\n' "$typecheck_output"
+          diagnostic_count="$(printf '%s\n' "$typecheck_output" | grep -Ec 'error TS[0-9]+:' || true)"
+          printf 'TypeScript diagnostics: %s\n' "$diagnostic_count"
+          printf 'Typecheck duration: %ss\n' "$((SECONDS - started_at))"
+          exit "$typecheck_status"
       - name: Lint frontend
         working-directory: frontend
         run: pnpm lint

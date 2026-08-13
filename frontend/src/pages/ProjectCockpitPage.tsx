@@ -7,7 +7,6 @@ import type { PendingChatInstruction } from "@/components/chat/ChatPanel";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
-import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
 import { ProjectLeftNav, type ProjectNavView } from "@/components/project/ProjectLeftNav";
 import {
   findDraftByWorkspacePath,
@@ -465,20 +464,6 @@ export function ProjectCockpitPage() {
     } catch {
       // Best-effort refresh after streaming completes.
     }
-  }
-
-  function refreshWorkflowSurfaces() {
-    void Promise.allSettled([
-      refreshMessages(),
-      refreshWorkspaceTree(),
-      refreshActivity(),
-      projectId
-        ? queryClient.invalidateQueries({
-            queryKey: projectKeys.detail(projectId),
-            exact: true,
-          })
-        : Promise.resolve(),
-    ]);
   }
 
   async function freshWorkflowRunInput(
