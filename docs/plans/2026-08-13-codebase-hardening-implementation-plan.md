@@ -6,7 +6,7 @@ date: 2026-08-13
 source_review: docs/plans/2026-08-13-codebase-hardening-review.md
 supersedes: docs/plans/2026-08-13-Codebase-Hardending
 reviewed_commit: 4480c680
-active_tasks: [CH-0.3, CH-0.5]
+active_tasks: [CH-0.3]
 labels: [security, reliability, performance, production-readiness, backend, frontend, ci, operations]
 ---
 
@@ -22,7 +22,8 @@ findings in
 test-first work packets.
 
 The repository review is complete and implementation is in progress. CH-0.0,
-CH-0.2, and CH-0.4 are complete; all other tasks and GATE-0 remain open. This file is
+CH-0.2, CH-0.4, and CH-0.5 are complete; all other tasks and GATE-0 remain
+open. This file is
 self-contained enough to resume work in a new coding-agent session without chat
 history, but it does not itself authorize a live deployment, credential change,
 destructive data operation, or production test.
@@ -356,7 +357,7 @@ approval. The Owner/session/start column is filled whenever state is
 | CH-0.2 | Default-deny offline test network and secrets | yes | complete | CH-0.0 | Codex /root / 2026-08-13T21:42:19Z | `f2584bd0`, `0824b99f`; `docs/acceptance/hardening/CH-0.2/2026-08-14-f2584bd0.md` |
 | CH-0.3 | Redact secrets from all logs/errors | yes | in-progress | CH-0.2 | Codex /root / 2026-08-13T22:40:29Z | red tests pending |
 | CH-0.4 | Pin one frontend toolchain | yes | complete | CH-0.0 | Codex /root / 2026-08-13T22:40:29Z | `14dc5aaa`, `e954b0c7`; `docs/acceptance/hardening/CH-0.4/2026-08-14-e954b0c7.md` |
-| CH-0.5 | Make TypeScript checking real and strict | yes | in-progress | CH-0.4 | Codex /root/frontend_audit / 2026-08-13T23:06:32Z | red baseline pending |
+| CH-0.5 | Make TypeScript checking real and strict | yes | complete | CH-0.4 | Codex /root/frontend_audit / 2026-08-13T23:06:32Z | `cecd15b6`; `docs/acceptance/hardening/CH-0.5/2026-08-14-cecd15b6.md` |
 | CH-0.6 | Restore deterministic frontend lint/tests | yes | not-started | CH-0.5 | - | A/B pending |
 | CH-0.7 | Capture baseline/dependency/secret evidence | yes | not-started | CH-0.2, CH-0.6 | - | - |
 | CH-0.8 | Bootstrap disposable Postgres/pgvector runner | yes | not-started | CH-0.2 | - | - |
