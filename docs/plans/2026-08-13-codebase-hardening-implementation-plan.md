@@ -6,7 +6,7 @@ date: 2026-08-13
 source_review: docs/plans/2026-08-13-codebase-hardening-review.md
 supersedes: docs/plans/2026-08-13-Codebase-Hardending
 reviewed_commit: 4480c680
-active_tasks: []
+active_tasks: [CH-0.3]
 labels: [security, reliability, performance, production-readiness, backend, frontend, ci, operations]
 ---
 
@@ -21,8 +21,8 @@ findings in
 [the critical review](./2026-08-13-codebase-hardening-review.md) into staged,
 test-first work packets.
 
-The repository review is complete and implementation is in progress. CH-0.0
-and CH-0.2 are complete; all other tasks and GATE-0 remain open. This file is
+The repository review is complete and implementation is in progress. CH-0.0,
+CH-0.2, and CH-0.4 are complete; all other tasks and GATE-0 remain open. This file is
 self-contained enough to resume work in a new coding-agent session without chat
 history, but it does not itself authorize a live deployment, credential change,
 destructive data operation, or production test.
@@ -354,8 +354,8 @@ approval. The Owner/session/start column is filled whenever state is
 | CH-0.0 | Disable independent production auto-deploy | yes | complete | - | Codex /root / 2026-08-13T21:30:29Z | Probe `24f85b71`; `docs/acceptance/hardening/CH-0.0/2026-08-14-24f85b71.md` |
 | CH-0.1 | Rotate credentials and isolate environments/scopes | yes | not-started | CH-0.0 | - | - |
 | CH-0.2 | Default-deny offline test network and secrets | yes | complete | CH-0.0 | Codex /root / 2026-08-13T21:42:19Z | `f2584bd0`, `0824b99f`; `docs/acceptance/hardening/CH-0.2/2026-08-14-f2584bd0.md` |
-| CH-0.3 | Redact secrets from all logs/errors | yes | not-started | CH-0.2 | - | - |
-| CH-0.4 | Pin one frontend toolchain | yes | not-started | CH-0.0 | - | - |
+| CH-0.3 | Redact secrets from all logs/errors | yes | in-progress | CH-0.2 | Codex /root / 2026-08-13T22:40:29Z | red tests pending |
+| CH-0.4 | Pin one frontend toolchain | yes | complete | CH-0.0 | Codex /root / 2026-08-13T22:40:29Z | `14dc5aaa`, `e954b0c7`; `docs/acceptance/hardening/CH-0.4/2026-08-14-e954b0c7.md` |
 | CH-0.5 | Make TypeScript checking real and strict | yes | not-started | CH-0.4 | - | - |
 | CH-0.6 | Restore deterministic frontend lint/tests | yes | not-started | CH-0.5 | - | A/B pending |
 | CH-0.7 | Capture baseline/dependency/secret evidence | yes | not-started | CH-0.2, CH-0.6 | - | - |
@@ -880,6 +880,8 @@ exist.
 **Files.** <code>frontend/package.json</code>,
 <code>frontend/pnpm-lock.yaml</code>,
 <code>frontend/package-lock.json</code>, <code>frontend/.npmrc</code>,
+<code>frontend/.node-version</code>, <code>frontend/pnpm-workspace.yaml</code>,
+<code>frontend/AGENTS.md</code>,
 <code>.github/workflows/ci.yml</code>, and
 <code>deploy/docker/frontend.Dockerfile</code>.
 
@@ -890,9 +892,11 @@ observed pnpm 11.5.2 locally while CI requested floating major 10. Confirm again
 
 1. Maintainer selects an exact pnpm version. Prefer the confirmed working local
    version; never use only a major.
-2. Add exact <code>packageManager</code> and Node 22 engine constraints to
+2. Pin one exact Node 22 release in <code>.node-version</code>, add exact
+   <code>packageManager</code> and matching narrow Node engine constraints to
    <code>package.json</code>.
-3. Make CI and Docker consume that version and print Node/pnpm once.
+3. Make local guidance, CI, and Docker consume those exact versions and print
+   Node/pnpm once.
 4. Confirm <code>minimum-release-age</code> support.
 5. Remove <code>frontend/package-lock.json</code>; pnpm remains the only package
    manager.
@@ -909,7 +913,9 @@ observed pnpm 11.5.2 locally while CI requested floating major 10. Confirm again
     pnpm lint
     pnpm build
 
-Local, CI, and Docker must report the identical version.
+Local, CI, and Docker must report identical Node and pnpm versions. Existing
+lint, strict-TypeScript, and order-sensitive-test findings are recorded as
+non-regression baselines here; CH-0.5 and CH-0.6 must clear them before GATE-0.
 
 **Observability/migration/rollback.** No runtime migration. Revert package
 metadata, CI, Docker, and lockfile removal together.
