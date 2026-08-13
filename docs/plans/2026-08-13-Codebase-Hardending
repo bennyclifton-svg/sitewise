@@ -1,0 +1,482 @@
+---
+title: Codebase hardening — drift guards, lint depth, and file decomposition
+status: superseded
+type: superseded-implementation-plan
+triage_label: needs-triage
+labels: [needs-triage, tech-debt, backend, frontend, ci]
+source: repo-review-2026-08-13
+superseded_by: docs/plans/2026-08-13-codebase-hardening-implementation-plan.md
+---
+
+> **Superseded on 2026-08-13.** Preserve this file as the reviewed historical
+> seven-task draft. Execute
+> [the staged production-hardening plan](./2026-08-13-codebase-hardening-implementation-plan.md)
+> instead. Its supporting evidence and critique are in
+> [the critical review](./2026-08-13-codebase-hardening-review.md).
+
+# Codebase hardening — implementation plan
+
+## Who this is for
+
+This plan is written to be executed by a coding agent working **one task at a
+time**, in the order given. Each task is self-contained: it states what is
+broken, what to change, how to prove it worked, and when to stop and ask.
+
+**Rules for the implementing agent:**
+
+1. Read `AGENTS.md` before starting. It is binding. In particular: small obvious
+   functions, no premature abstraction, no backwards-compat shims, no new
+   dependencies without justifying them in the commit message.
+2. Do **one task per commit**. Do not batch tasks.
+3. After every task, run the full verification block for that task. If it fails,
+   fix it before moving on. Do not proceed to the next task with a red suite.
+4. Baseline before you start: `cd backend && uv run pytest` should report
+   **2107 passed, 7 skipped**. `cd frontend && pnpm test` should report
+   **413 passed**. If your baseline differs, record the actual numbers and use
+   those as your comparison point.
+5. If a task's instructions do not match what you find in the code, **stop and
+   report** rather than improvising. The repo has moved since this plan was
+   written if that happens.
+6. Do **not** delete `backend/app/assistant/` or `backend/app/chat/orchestrator.py`.
+   AGENTS.md blocks this until the live `sitewise.au` production acceptance gate
+   passes. This plan does not touch them.
+
+## Ordering rationale
+
+Tasks are ordered so that **the safety nets are built before the risky changes**.
+Tasks 1–4 are guards and tooling: they are cheap, low-risk, and they are what
+catches a mistake made during Tasks 5–7. Do not reorder.
+
+| # | Task | Risk | Rough size |
+|---|------|------|-----------|
+| 1 | Derive `PROFILE_FIELDS` from its schema type | Very low | 2 lines |
+| 2 | Add profile-field round-trip guard test | Very low | 1 test file |
+| 3 | Deepen the ruff rule set | Low | config + fixes |
+| 4 | Speed up the test suite (`pytest-xdist`) | Low | config |
+| 5 | Consolidate duplicated workflow helpers | Medium | 5 files |
+| 6 | Split `api/projects.py` by route group | Medium-high | large |
+| 7 | Split `mcp_bridge/server.py` by tool group | High | large |
+
+Tasks 1–5 are worth doing regardless. Tasks 6 and 7 are optional and should
+only be started if 1–5 are merged and green.
+
+---
+
+## Task 1 — Make `PROFILE_FIELDS` derive from its own type
+
+**Plain-English problem.** The list of project profile fields is written out by
+hand in two different places. They currently agree, but nothing forces them to.
+If someone adds a field to one and forgets the other, the code keeps running and
+the field silently half-works.
+
+**Where.**
+
+- `backend/app/schemas/projects.py` — `ProjectProfileField` is a `Literal[...]`
+  with 12 members (around line 202).
+- `backend/app/projects/profile.py` — `PROFILE_FIELDS` is a hand-typed tuple with
+  the same 12 members in the same order (line 38).
+
+**Why this is safe.** `profile.py` already imports `ProjectProfileField` from
+`app.schemas.projects`, so no new import direction is created. The two lists have
+been confirmed identical in both content and order, so deriving one from the
+other changes nothing at runtime.
+
+**Change.** In `backend/app/projects/profile.py`, replace the hand-typed tuple:
+
+```python
+PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
+    "building_class",
+    ...
+    "client",
+)
+```
+
+with:
+
+```python
+# Derived, not hand-listed: the Literal is the single definition of what a
+# profile field is, and a new field cannot be added to one without the other.
+PROFILE_FIELDS: tuple[ProjectProfileField, ...] = get_args(ProjectProfileField)
+```
+
+Add `get_args` to the existing `from typing import Any` import at the top of the
+file.
+
+**Do not** change the `Literal` itself, reorder it, or add fields.
+
+**Verify.**
+
+```bash
+cd backend
+uv run python -c "from app.projects.profile import PROFILE_FIELDS; print(len(PROFILE_FIELDS), PROFILE_FIELDS)"
+uv run ruff check app
+uv run pytest
+```
+
+Expect 12 fields printed in the original order, and the same pass count as your
+baseline.
+
+---
+
+## Task 2 — Add a guard test so a new profile field cannot be silently dropped
+
+**Plain-English problem.** This is the highest-value task in the plan. On
+2026-08-13, commit `4480c68` fixed a bug where `budget` and `scope_narrative`
+were "accepted by the schema and dropped" on the create-project route. The user
+typed a budget, the API said OK, and the value was thrown away. Nothing crashed
+and no test failed.
+
+The cause is that `_taxonomy_metadata_from_values()` in
+`backend/app/api/projects.py` (around line 1109) lists the fields it carries as
+explicit keyword arguments. When a new profile field is added, this function
+keeps compiling and keeps returning a valid-looking result — it just quietly
+omits the new field. The same shape of bug will happen again on the next field
+added, because nothing checks.
+
+**Change.** Add a new test file `backend/tests/projects/test_profile_field_coverage.py`
+that fails when a profile field exists but is not carried end to end.
+
+The test must assert, driven off `PROFILE_FIELDS` (not a hand-written list — a
+hand-written list would reintroduce the exact problem):
+
+1. **Every** member of `PROFILE_FIELDS` is a declared field on
+   `ProjectProfilePatch`.
+2. **Every** taxonomy-carried profile field survives the create-project path.
+   Build a `CreateProjectRequest` with a non-empty value for every field it
+   declares, pass it to `_project_taxonomy_metadata()`, and assert each of those
+   field names appears as a key in the returned dict.
+
+**Important scoping note — read before writing the test.** Not every profile
+field travels through the taxonomy blob. As of this writing:
+
+- `subclasses`, `scale`, `complexity`, `work_scope`, `assets`, `scope_narrative`,
+  and `budget` go into the taxonomy metadata dict.
+- `building_class`, `work_type`, and `state` are stored as their own columns.
+- `site_address` and `client` are **not** on `CreateProjectRequest` or
+  `PatchProjectRequest` at all — they are set through the profile patch and chat
+  identity path instead.
+
+So assertion 2 must check the intersection of `PROFILE_FIELDS` and the fields
+actually declared on `CreateProjectRequest`, minus the three column-backed ones.
+Define that exclusion set **once at the top of the test file with a comment
+explaining why each name is excluded**, so that a future field is included by
+default and someone has to consciously exclude it.
+
+**Verify.**
+
+```bash
+cd backend
+uv run pytest tests/projects/test_profile_field_coverage.py -v
+```
+
+Then prove the test actually bites — this step is mandatory, a guard test that
+cannot fail is worthless:
+
+1. Temporarily comment out `"budget": budget,` in `_taxonomy_metadata_from_values`.
+2. Re-run the test. **It must fail.**
+3. Restore the line. Re-run. It must pass.
+
+Report the observed failure message in your commit message.
+
+---
+
+## Task 3 — Deepen the ruff rule set
+
+**Plain-English problem.** The backend has no ruff configuration at all, so ruff
+runs with its default rules only: basic pycodestyle errors and pyflakes. That
+catches unused imports and syntax problems, but not the bug-shaped things — a
+mutable default argument, a bare `except`, a loop variable captured by a closure.
+The frontend by contrast has a real eslint config and strict TypeScript, so the
+two halves of the codebase are held to very different standards.
+
+**Change.** Add a `[tool.ruff.lint]` section to `backend/pyproject.toml`:
+
+```toml
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+```
+
+- `E`/`F` — what you already have.
+- `I` — import sorting. Mechanical, auto-fixable.
+- `B` — flake8-bugbear. This is the one that finds real bugs.
+- `UP` — pyupgrade; the project is 3.12-only so this is safe.
+- `SIM` — simplification hints.
+
+**Expect a large number of findings on first run.** Work through them in this
+order and **commit each step separately**:
+
+1. `uv run ruff check --fix app ingest tender tests` — applies only the safe
+   automatic fixes. Commit.
+2. `uv run ruff check --fix --unsafe-fixes app ingest tender tests` — review the
+   diff **file by file** before accepting. Commit separately.
+3. Whatever remains, fix by hand.
+
+If a rule proves genuinely noisy against this codebase's style, add a targeted
+`ignore` entry with a one-line comment saying why — but do **not** silence `B`
+wholesale, since it is the reason for doing this task.
+
+**Verify.** After each step: `uv run ruff check app ingest tender tests` clean,
+and `uv run pytest` at the baseline count. Lint changes must not change behaviour;
+if the test count moves, you have broken something.
+
+---
+
+## Task 4 — Run the backend test suite in parallel
+
+**Plain-English problem.** There are roughly 2,100 backend tests and they run one
+after another on a single core. Every local run and every CI run pays that. The
+suite is the main feedback loop, so its speed sets the pace of everything else.
+
+**Change.**
+
+1. Add `pytest-xdist` to the `dev` dependency group in `backend/pyproject.toml`.
+   Per the dependency policy in AGENTS.md, justify it in the commit message: it
+   is a dev-only test runner, not a runtime dependency, and parallel process
+   scheduling is not something to write by hand.
+2. Update `addopts` in `[tool.pytest.ini_options]`:
+
+   ```toml
+   addopts = "-m 'not integration and not tender_eval' -n auto"
+   ```
+
+**Watch for this.** Some tests are order-dependent or share state (temp
+directories, module-level caches, fixture-scoped DB objects) and will fail only
+under parallel execution. That is a real finding, not an xdist problem — a test
+that only passes in a fixed order is a test you cannot trust.
+
+If tests fail under `-n auto`:
+
+- Identify each failing test and **why** it is not isolated.
+- Fix the isolation problem if it is small and obvious.
+- If it is not, mark that specific test with `@pytest.mark.xdist_group(name="...")`
+  or move it to a serial run, and **list every test you had to special-case in
+  the commit message**. Do not paper over a large number of them — if more than
+  about five tests need special-casing, stop and report instead.
+
+**Verify.**
+
+```bash
+cd backend
+time uv run pytest
+```
+
+Same pass/skip counts as baseline, in less wall-clock time. Record both the old
+and new timings in the commit message.
+
+---
+
+## Task 5 — Consolidate duplicated workflow helpers
+
+**Plain-English problem.** The same small helper functions are written out
+several times in different files. If one copy is fixed, the others stay wrong,
+and there is no signal that they exist.
+
+**Change 5a — `_load_agent_instructions` (5 identical copies).**
+
+Found in `backend/app/workflows/`: `draft_instructions.py:46`,
+`pmp_narrative.py:497`, `create_cost_plan.py:294`, `cost_plan_narrative.py:120`,
+`create_pmp.py:279`. All five bodies are byte-identical:
+
+```python
+return _INSTRUCTIONS_PATH.read_text(encoding="utf-8")
+```
+
+Each module has its own `_INSTRUCTIONS_PATH`. Create
+`backend/app/workflows/_helpers.py` with a single function taking the path as an
+argument, e.g. `load_agent_instructions(path: Path) -> str`, and have all five
+call sites use it with their own existing path constant. **Do not** move or merge
+the path constants themselves — they point at different files.
+
+**Change 5b — `_trace` (3 identical copies).**
+
+Found in `backend/app/workflows/`: `sort_files.py:25`, `create_cost_plan.py:306`,
+`create_pmp.py:323`. All three bodies are identical (pop `duration_ms`, build a
+`WorkflowTraceEvent`, drop `None` metadata). Move one copy into
+`_helpers.py` and import it in all three. Leave `runs.py:_trace_durations` alone
+— despite the similar name it is a different function.
+
+**Change 5c — `_slugify` — READ THIS CAREFULLY, IT IS A TRAP.**
+
+There are five functions named `_slugify` and **they are not the same function**.
+A naive merge will introduce bugs.
+
+| File | Behaviour | Fallback |
+|------|-----------|----------|
+| `workflows/consultant_procurement.py:95` | lower, non-alnum → `_` | `"consultant"` |
+| `workflows/trade_procurement.py:79` | lower, non-alnum → `_` | `"trade_package"` |
+| `workflows/contractor_procurement.py:37` | lower, non-alnum → `_` | `"main_works"` |
+| `projects/dependencies.py:873` | lower, **strips first**, non-alnum → `_` | `"item"` |
+| `inbox/sheet_titles.py:78` | **preserves case, collapses whitespace, does not slug at all** | none |
+
+Only consolidate the **first three**. Give the shared helper a required
+`fallback: str` parameter and pass each call site's existing fallback value
+explicitly. Consolidating the fallbacks into one shared default would change
+behaviour at three call sites.
+
+Leave `projects/dependencies.py` alone — the extra `.strip()` makes it
+behaviourally different and it lives outside `workflows/`.
+
+Leave `inbox/sheet_titles.py` alone entirely. It does not slugify; it normalises
+whitespace and preserves case. If you want, note in your report that the name is
+misleading, but **do not rename it in this task**.
+
+**Verify.**
+
+```bash
+cd backend
+uv run ruff check app
+uv run pytest
+```
+
+Baseline counts. Then confirm nothing is left behind:
+
+```bash
+grep -rn "def _load_agent_instructions\|def _trace(" app/workflows/
+```
+
+Should return nothing except the definitions in `_helpers.py`.
+
+---
+
+## Task 6 — Split `api/projects.py` (optional; only after 1–5 are green)
+
+**Plain-English problem.** `backend/app/api/projects.py` is 3,690 lines holding
+**69 routes**. It was touched in 27 of the last 143 commits — roughly one commit
+in five. Every change to any project-related endpoint goes through this one file,
+which makes it slow to read, easy to get lost in, and a constant merge and
+edit-collision point. AGENTS.md asks for focused files; this is the largest
+deviation from that in the repo.
+
+**Change.** Split by URL prefix into `backend/app/api/projects/`, keeping the
+existing router mount unchanged from the caller's point of view. Suggested
+groupings, taken from the actual route paths:
+
+- `core.py` — `""`, `/taxonomy`, `/{project_id}`, `/snapshot`, `/activity`,
+  `/events`, `/next-actions`, the `*-bootstrap` routes
+- `drafts.py` — `/{project_id}/drafts/*`
+- `evidence.py` — `/{project_id}/evidence/*`, `/knowledge/*`
+- `inbox.py` — `/{project_id}/inbox/*`
+- `cost_plan.py` — `/{project_id}/cost-plan/*`
+- `workflow_runs.py` — `/{project_id}/workflow-runs/*`
+- `procurement.py` — `/{project_id}/procurement-requests/*`
+- `profile.py` — `/{project_id}/profile-proposals/*`, `/dependency-offers/*`,
+  `/decisions/*`
+
+**Method — do this incrementally, one group per commit.** Do not attempt the
+whole split in one change.
+
+For each group: move its routes and the private helpers used *only* by those
+routes into the new module; leave shared helpers where they are for now; import
+and include the sub-router from the package `__init__.py`.
+
+**The critical safety check.** Before you start, capture the full route table:
+
+```bash
+cd backend
+uv run python -c "
+from app.main import app
+for r in sorted(app.routes, key=lambda r: str(getattr(r,'path',''))):
+    print(getattr(r,'methods',None), getattr(r,'path',None))
+" > /tmp/routes_before.txt
+```
+
+After **every** commit in this task, regenerate it and diff against
+`/tmp/routes_before.txt`. **The diff must be empty.** A route that silently stops
+being registered is the main risk here and it will not necessarily fail a test.
+
+**Verify.** Empty route diff, `uv run ruff check app`, `uv run pytest` at
+baseline, after every single commit.
+
+**Stop and report if:** a helper turns out to be shared by four or more groups,
+or the route diff is non-empty and you cannot immediately see why.
+
+---
+
+## Task 7 — Split `mcp_bridge/server.py` (optional; highest risk; do last)
+
+**Plain-English problem.** `backend/app/mcp_bridge/server.py` is 4,270 lines
+registering **69 MCP tools** — the entire surface the agent runtime can call. It
+was touched in 26 of the last 143 commits. Same problem as Task 6, with a sharper
+edge: this file is what Pi sees.
+
+**Why this is the riskiest task.** Tools are registered by an `@mcp.tool`
+decorator that runs **at import time**. If you move a tool into a new module and
+that module is never imported, the decorator never runs, the tool silently
+vanishes from the agent's toolset, and **the application still starts perfectly
+normally**. There is no error. The agent just quietly loses an ability.
+
+**Change.** Split into `backend/app/mcp_bridge/tools/` by domain — for example
+`documents.py`, `cost_plan.py`, `procurement.py`, `tender.py`,
+`platform_knowledge.py`, `workspace.py`, `profile.py`.
+
+Use an explicit registration function per module rather than relying on import
+side effects:
+
+```python
+def register(mcp) -> None:
+    @mcp.tool
+    async def ...
+```
+
+and call every `register()` explicitly from `server.py`. This makes a forgotten
+module a visible missing call rather than an invisible missing import.
+
+**The mandatory safety net — build this FIRST, before moving any tool.** Add a
+test that asserts the exact set of registered tool names:
+
+1. Enumerate the registered tool names from the `mcp` object.
+2. Assert the set equals a checked-in expected list of all 69 names.
+3. Commit this test **on its own, before any split work begins**, and confirm it
+   passes against the current unsplit file.
+
+This test is what converts "a tool silently disappeared" into "CI is red".
+`backend/tests/mcp_bridge/test_mount.py` is the closest existing test and is a
+reasonable place to look for how to reach the server object.
+
+Then move **one domain group per commit**, running the tool-name test every time.
+
+**Verify.** After every commit: the tool-name set test passes with all 69 names,
+`uv run pytest tests/mcp_bridge/ -v` passes, and the full suite is at baseline.
+
+**Stop and report if:** the tool count changes at any point, or you cannot
+enumerate tool names from the `mcp` object cleanly — in that case the safety net
+cannot be built, and **this task must not proceed without it**.
+
+---
+
+## Deliberately excluded
+
+Recorded so a later reader knows these were considered, not overlooked.
+
+- **Deleting `app/assistant/` and `app/chat/orchestrator.py`** (~980 lines).
+  Blocked by AGENTS.md until the live `sitewise.au` production acceptance gate
+  passes. Revisit after that gate.
+- **Running integration tests in CI.** `-m 'not integration and not tender_eval'`
+  means 23 integration tests and 5 eval tests never run automatically. This is a
+  real gap — the `queue_scope` bug fixed in `616a2b4`, where dev and production
+  polled the same `workflow_runs` table and executed each other's jobs, is
+  exactly what a live-service test catches. It is excluded here only because it
+  needs a staging database and secrets provisioned first, which is an
+  infrastructure decision, not a code change. Worth doing as its own piece of
+  work.
+- **Adding mypy to the backend.** Valuable, and asymmetric with the strict
+  TypeScript on the frontend, but introducing it across ~94k lines is a project
+  of its own, not a task in this plan.
+- **Pre-commit hooks.** Worth adding, but do it after Task 3 — otherwise the
+  hooks fire on a rule set that has not been cleaned up yet and every commit
+  fails.
+- **Archiving superseded plans.** `docs/plans/` holds 108 files including the
+  Hermes-era plans AGENTS.md marks as historical. Moving them under an archive
+  directory would reduce noise for agents reading the repo, but it is a docs
+  decision for the maintainer, not a code change.
+
+## Reporting back
+
+When the plan is finished (or stopped early), report:
+
+- Which tasks were completed, with commit SHAs.
+- Baseline vs final test counts and suite wall-clock time.
+- For Task 2: the failure message observed when the guard was deliberately broken.
+- For Task 3: how many findings, and any rules ignored plus why.
+- For Task 4: any tests that needed special-casing for parallel execution.
+- Anything where the code did not match this plan's description.

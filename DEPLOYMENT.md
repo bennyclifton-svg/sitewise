@@ -263,7 +263,7 @@ uv run alembic upgrade head
 If `current` already equals `heads`, skip — DB and code drift independently and
 prod is often already at head.
 
-### Step 3 — Push and monitor the automatic deployment
+### Step 3 — Push only after required CI
 
 ```bash
 git add -A
@@ -271,12 +271,23 @@ git commit -m "…"
 git push origin main
 ```
 
-A push to `main` **does trigger an automatic Dokploy deployment** on this stack;
-this was confirmed twice on 2026-08-02. During deployment the `code` directory
-may briefly contain only a partial `.git` checkout; do not run compose commands
-against it until `deploy/dokploy.compose.yml` exists again.
+Production Dokploy `Auto Deploy` was disabled on 2026-08-14 under hardening task
+CH-0.0. A push to `main` is **not** a production deployment instruction and must
+not update the production checkout, build an image, or restart a container.
+Until the protected immutable-image release path in CH-1.7C exists, routine
+production releases are blocked. Only an explicitly approved emergency/manual
+selection by the named operator is allowed.
 
-### Step 4 — Roll out manually if the automatic deploy does not complete
+Historical note: before CH-0.0, a push to `main` triggered Dokploy independently
+of CI; this was confirmed twice on 2026-08-02. During those deployments the
+`code` directory could briefly contain only a partial `.git` checkout. Do not
+restore that automatic path as a rollback.
+
+### Step 4 — Emergency/manual rollout only (temporary)
+
+This step is not a routine release path. Use it only for a named, explicitly
+approved production emergency until CH-1.7C replaces it. Record the selected
+source SHA, image IDs, operator, UTC time, approval, and before/after health.
 
 The compose uses `pull_policy: never` with `image: sitewise-production-*:latest`,
 so **Dokploy builds the images on the VPS from current `main`**. There is no
