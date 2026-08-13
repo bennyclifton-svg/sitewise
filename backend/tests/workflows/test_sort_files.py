@@ -211,6 +211,10 @@ def test_sort_inbox_moves_confident_match() -> None:
             "app.intake.sort_service._move_workspace_file",
             new=AsyncMock(return_value=moved_record),
         ),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=None,
+        ),
     ):
         result = run_async(sort_inbox_files(session, project=_project()))
 
@@ -258,6 +262,10 @@ def test_sort_inbox_moves_chen_authority_pack() -> None:
             new=AsyncMock(side_effect=fake_resolve_destination_filename),
         ),
         patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=None,
+        ),
     ):
         result = run_async(sort_inbox_files(session, project=_project()))
 
@@ -606,6 +614,10 @@ def test_sort_reads_drawing_identity_from_the_title_block_not_the_filename() -> 
             new=AsyncMock(return_value=None),
         ),
         patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=None,
+        ),
     ):
         result = run_async(sort_inbox_files(session, project=_project()))
 

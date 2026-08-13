@@ -4,7 +4,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-import app.database.models  # noqa: F401 — register all ORM mappers before tests
+from tests.offline_network import (
+    OFFLINE_NETWORK_GUARD,
+    startup_network_access_permitted,
+)
+
+# These imports must follow offline_network: app settings read backend/.env at
+# import time, and collected test modules may import HTTP/database libraries.
+import pytest  # noqa: E402
+
+import app.database.models  # noqa: E402, F401 — register ORM mappers after containment
 
 
 def pytest_configure(config):
@@ -13,6 +22,18 @@ def pytest_configure(config):
     # run's identity cannot delete.
     if config.option.basetemp is None:
         config.option.basetemp = Path(tempfile.mkdtemp(prefix="clerk-pytest-"))
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_protocol(item, nextitem):
+    marker_names = {marker.name for marker in item.iter_markers()}
+    lease = OFFLINE_NETWORK_GUARD.begin_test(
+        allowed=startup_network_access_permitted(marker_names)
+    )
+    try:
+        return (yield)
+    finally:
+        OFFLINE_NETWORK_GUARD.end_test(lease)
 
 
 def run_async(coro):

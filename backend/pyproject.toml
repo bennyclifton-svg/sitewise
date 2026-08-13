@@ -62,6 +62,6 @@ packages = ["app", "ingest", "tender"]
 [tool.pytest.ini_options]
 addopts = "-m 'not integration and not tender_eval'"
 markers = [
-    "integration: marks tests that require live external services",
-    "tender_eval: marks Tender Comparison Module golden-set evaluation tests",
+    "integration: network-eligible external-service test; still requires CLERK_TEST_ALLOW_NETWORK=1",
+    "tender_eval: network-eligible Tender golden-set evaluation; still requires CLERK_TEST_ALLOW_NETWORK=1",
 ]

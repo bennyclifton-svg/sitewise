@@ -8,6 +8,41 @@ jobs:
   backend-offline:
     name: Backend offline checks
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://clerk-ci.invalid
+      SUPABASE_ANON_KEY: test-anon-key-must-not-authenticate
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key-must-not-authenticate
+      SUPABASE_STORAGE_BUCKET: test-project-files
+      DATABASE_URL: postgresql://clerk_ci:clerk_ci@127.0.0.1:9/application_database_must_not_be_contacted
+      TEST_DATABASE_URL: postgresql://clerk_ci:clerk_ci@127.0.0.1:9/test_database_must_not_be_contacted
+      ALLOW_DESTRUCTIVE_TEST_DATABASE: "0"
+      OPENAI_API_KEY: test-openai-key-must-not-authenticate
+      PUBLIC_APP_URL: http://clerk-ci.invalid
+      ALLOWED_ORIGINS: http://clerk-ci.invalid
+      BILLING_PROVIDER: none
+      STRIPE_SECRET_KEY: test-stripe-key-must-not-authenticate
+      STRIPE_WEBHOOK_SECRET: test-stripe-webhook-must-not-authenticate
+      STRIPE_PRICE_ID: test-stripe-price
+      AGENT_RUNTIME_ENABLED: "false"
+      AGENT_PLATFORM_API_KEY: test-agent-platform-key-must-not-authenticate
+      AGENT_TURN_TOKEN_SECRET: test-turn-token-secret-000000000000000000000000
+      PI_BINARY_PATH: __clerk_ci_pi_must_not_execute__
+      PI_MCP_ADAPTER_PATH: __clerk_ci_adapter_must_not_execute__
+      AGENT_MCP_URL: http://127.0.0.1:9/mcp-must-not-be-contacted
+      AGENT_WEB_RESEARCH_ENABLED: "false"
+      WEB_SEARCH_PROVIDER: nsw_legislation
+      BRAVE_SEARCH_API_KEY: test-brave-key-must-not-authenticate
+      TENDER_WORKER_INPROC_ENABLED: "false"
+      WORKFLOW_WORKER_INPROC_ENABLED: "false"
+      DEPLOYMENT_ENVIRONMENT: test
+      BUILD_SHA: test-build-sha
+      AGENT_EXECUTION_SCOPE: test-agent
+      WORKFLOW_QUEUE_SCOPE: test-workflow
+      TENDER_QUEUE_SCOPE: test-tender
+      STORAGE_CLEANUP_QUEUE_SCOPE: test-storage-cleanup
+      PARSER_QUEUE_SCOPE: test-parser
+      CLERK_TEST_ALLOW_NETWORK: "0"
+      TENDER_LIVE_EVAL: "0"
 
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +55,6 @@ jobs:
         run: uv run ruff check app ingest tender tests
       - name: Run offline backend tests
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql://ci:ci@127.0.0.1:9/application_database_must_not_be_contacted
         run: uv run pytest -m "not integration and not tender_eval"
       - name: Verify migration graph
         working-directory: backend
