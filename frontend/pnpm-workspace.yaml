@@ -1,2 +1,5 @@
 allowBuilds:
   msw: true
+
+# Hold new package releases for seven days before they are eligible to resolve.
+minimumReleaseAge: 10080

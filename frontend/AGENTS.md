@@ -29,9 +29,9 @@ Use `pnpm` only. Do not use `npm install` or `yarn add`. The lockfile is
 `pnpm-lock.yaml`; `package-lock.json` or `yarn.lock` should be removed if they
 appear.
 
-The `.npmrc` minimum release age policy protects against compromised fresh
-package releases. Override only for a real need and justify it in the commit
-message.
+The `minimumReleaseAge` policy in `pnpm-workspace.yaml` protects against
+compromised fresh package releases. Change or exempt that policy only for a real
+need and justify it in the commit message.
 
 ## Dependency Policy
 

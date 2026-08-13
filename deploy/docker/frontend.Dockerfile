@@ -7,7 +7,9 @@ WORKDIR /app/frontend
 RUN corepack enable
 
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN node --version \
+    && pnpm --version \
+    && pnpm install --frozen-lockfile
 
 FROM deps AS builder
 
