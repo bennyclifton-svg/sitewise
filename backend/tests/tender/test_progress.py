@@ -66,15 +66,24 @@ def test_unsupported_document_fails_ingest_even_when_job_done() -> None:
 
 
 def test_failed_map_job_marks_map_failed() -> None:
+    historical_error = "historical-provider-secret-" + ("x" * 24)
+    facts = _facts(
+        ("ingest_document", "done"),
+        ("classify_document", "done"),
+        ("extract_line_items", "done"),
+        ("embed_items", "done"),
+    )
+    facts.append(
+        JobFacts(
+            kind="map_items",
+            quote_id=QUOTE_ID,
+            status="failed",
+            last_error=historical_error,
+        )
+    )
     milestones = compute_milestones(
         comparison_status="processing",
-        job_facts=_facts(
-            ("ingest_document", "done"),
-            ("classify_document", "done"),
-            ("extract_line_items", "done"),
-            ("embed_items", "done"),
-            ("map_items", "failed"),
-        ),
+        job_facts=facts,
         dead_documents=[],
         qa_pending=0,
         has_report=False,
@@ -84,6 +93,11 @@ def test_failed_map_job_marks_map_failed() -> None:
     assert states["extract"] == "done"
     assert states["map"] == "failed"
     assert states["analyse"] == "pending"
+    map_milestone = next(item for item in milestones if item.key == "map")
+    assert map_milestone.detail == (
+        "Processing failed. Retry the stage or contact support if it continues."
+    )
+    assert historical_error not in (map_milestone.detail or "")
 
 
 def test_complete_pipeline_with_qa_pending_needs_attention() -> None:

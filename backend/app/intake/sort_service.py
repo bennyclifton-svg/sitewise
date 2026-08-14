@@ -23,6 +23,7 @@ from app.database.workspace_files import (
 )
 from app.inbox.paths import build_storage_key
 from app.intake.classifier import classify_inbox_destination, is_intake_manifest
+from app.logging import get_logger
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
 from app.storage.project_files import (
     delete_project_files,
@@ -35,6 +36,10 @@ from ingest.ids import document_id
 from ingest.title_block import pdf_title_block_preview
 
 SortOutcome = Literal["moved", "already-filed", "unresolved", "skipped", "refused"]
+
+log = get_logger(__name__)
+MOVE_FAILURE_REASON = "Project storage could not move the file."
+MOVE_FAILURE_WARNING = "A project file could not be moved in storage."
 
 _MANIFEST_VERSION_PATTERN = re.compile(r"intake_manifest_v(\d+)\.md$", re.I)
 
@@ -566,6 +571,11 @@ async def sort_inbox_files(
                 destination_filename=destination_filename,
             )
         except Exception as exc:
+            log.error(
+                "sort_file_move_failed",
+                project_id=str(project.id),
+                error_type=type(exc).__name__,
+            )
             result.records.append(
                 SortFileRecord(
                     source_path=record.workspace_path,
@@ -573,11 +583,11 @@ async def sort_inbox_files(
                     outcome="refused",
                     destination_path=destination_path,
                     destination_filename=destination_filename,
-                    reason=f"Move failed: {exc}",
+                    reason=MOVE_FAILURE_REASON,
                 )
             )
             result.counts.refused += 1
-            result.warnings.append(f"Failed to move {record.filename}: {exc}")
+            result.warnings.append(MOVE_FAILURE_WARNING)
             continue
 
         metadata = _register_fields_from_path(

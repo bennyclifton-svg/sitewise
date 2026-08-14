@@ -5,12 +5,20 @@ import pytest
 
 from ingest.classify import classify_entry
 from ingest.metadata import infer_project_context
-from ingest.pipeline import ingest_plan, plan_entry, plan_platform_knowledge
+from ingest.pipeline import (
+    ingest_folder,
+    ingest_plan,
+    ingest_platform_knowledge,
+    plan_entry,
+    plan_platform_knowledge,
+)
 from ingest.router import build_ingest_plan, should_persist_chunks
 from ingest.types import ManifestEntry
 
 
-def _entry(relative_path: str, *, extension: str = ".md", filename: str | None = None) -> ManifestEntry:
+def _entry(
+    relative_path: str, *, extension: str = ".md", filename: str | None = None
+) -> ManifestEntry:
     name = filename or relative_path.rsplit("/", maxsplit=1)[-1]
     return ManifestEntry(
         absolute_path=Path(relative_path),
@@ -77,9 +85,13 @@ def test_plan_platform_knowledge_covers_doctrine_seed_and_reference(tmp_path) ->
     (data_dir / "seed").mkdir(parents=True)
     (data_dir / "skills" / "reference").mkdir(parents=True)
     (repo_root / "docs" / "clerk-brief.md").write_text("# Doctrine", encoding="utf-8")
-    (data_dir / "seed" / "renovation-guide.md").write_text("# Renovation", encoding="utf-8")
+    (data_dir / "seed" / "renovation-guide.md").write_text(
+        "# Renovation", encoding="utf-8"
+    )
     (data_dir / "seed" / "README.md").write_text("# skip", encoding="utf-8")
-    (data_dir / "skills" / "reference" / "cost.md").write_text("# Cost", encoding="utf-8")
+    (data_dir / "skills" / "reference" / "cost.md").write_text(
+        "# Cost", encoding="utf-8"
+    )
 
     plans = plan_platform_knowledge(data_dir=data_dir, repo_root=repo_root)
 
@@ -117,10 +129,49 @@ def test_ingest_plan_chunks_and_embeds_reports(
     mock_chunk.return_value = [chunk]
     events = []
 
-    assert ingest_plan(plan, skip_if_unchanged=False, trace_callback=lambda *args: events.append(args)) is True
+    assert (
+        ingest_plan(
+            plan,
+            skip_if_unchanged=False,
+            trace_callback=lambda *args: events.append(args),
+        )
+        is True
+    )
 
     mock_chunk.assert_called_once()
     mock_embed.assert_called_once_with(["Report section"])
     mock_persist.assert_called_once()
     extract_event = next(event for event in events if event[0] == "extract")
     assert extract_event[3]["pdf_extraction_source"] == "text_layer_fallback"
+
+
+@pytest.mark.parametrize(
+    ("runner", "plan_patch", "event"),
+    [
+        (ingest_folder, "ingest.pipeline.plan_folder", "ingest_file_failed"),
+        (
+            ingest_platform_knowledge,
+            "ingest.pipeline.plan_platform_knowledge",
+            "ingest_platform_file_failed",
+        ),
+    ],
+)
+def test_batch_ingest_logs_only_failure_class(runner, plan_patch, event) -> None:
+    canary = "ch03-ingest-provider-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    plan = plan_entry(_entry("seed/defects-and-dlp-guide.md"))
+
+    with (
+        patch(plan_patch, return_value=[plan]),
+        patch("ingest.pipeline.ingest_plan", side_effect=RuntimeError(canary)),
+        patch("ingest.pipeline.logger.error") as log_error,
+    ):
+        result = (
+            runner("seed", dry_run=False)
+            if runner is ingest_folder
+            else runner(dry_run=False)
+        )
+
+    assert result.skipped == 1
+    assert log_error.call_args.args[0] == event
+    assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+    assert canary not in str(log_error.call_args)

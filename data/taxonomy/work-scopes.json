@@ -1,11 +1,18 @@
 {
-  "_comment": "Source: docs/pmp2.0/pmp2.md Section 5. NEW and ADVISORY are transcribed from the source. Refurb, extend, and remediation are concise placeholders because the source notes they existed elsewhere but this repo has no matching config.",
+  "_comment": "Source: docs/pmp2.0/pmp2.md Section 5. NEW and ADVISORY are transcribed from the source. Refurb, extend, and remediation are concise placeholders because the source notes they existed elsewhere but this repo has no matching config. design_primacy ranks selected scopes for the design lead; non_design_consultants may sit on the register but are never named as lead.",
+  "non_design_consultants": [
+    "Project Manager",
+    "Building Consultant",
+    "Commissioning Agent",
+    "Building Certifier"
+  ],
   "work_types": {
     "new": {
       "categories": [
         {
           "value": "enabling_works",
           "label": "Enabling Works",
+          "design_primacy": 40,
           "items": [
             {"value": "demolition", "label": "Demolition", "consultants": ["Demolition Consultant", "Hazmat Consultant"]},
             {"value": "site_clearance", "label": "Site Clearance", "consultants": ["Civil Engineer"]},
@@ -18,6 +25,7 @@
         {
           "value": "civil_works",
           "label": "Civil Works",
+          "design_primacy": 70,
           "items": [
             {"value": "earthworks_detailed", "label": "Detailed Earthworks", "consultants": ["Civil Engineer"]},
             {"value": "site_drainage", "label": "Site Drainage", "consultants": ["Civil Engineer", "Hydraulic Engineer"]},
@@ -29,6 +37,7 @@
         {
           "value": "structure",
           "label": "Structure",
+          "design_primacy": 100,
           "items": [
             {"value": "substructure", "label": "Substructure/Foundations", "consultants": ["Structural Engineer", "Geotechnical Engineer"]},
             {"value": "superstructure", "label": "Superstructure", "consultants": ["Structural Engineer"]},
@@ -41,6 +50,7 @@
         {
           "value": "envelope",
           "label": "Building Envelope",
+          "design_primacy": 80,
           "items": [
             {"value": "facade_system", "label": "Facade System", "consultants": ["Facade Engineer", "Architect"]},
             {"value": "curtain_wall", "label": "Curtain Wall", "consultants": ["Facade Engineer"]},
@@ -52,6 +62,7 @@
         {
           "value": "services",
           "label": "Building Services",
+          "design_primacy": 95,
           "items": [
             {"value": "mechanical_hvac", "label": "Mechanical/HVAC", "consultants": ["Services Engineer (Mechanical)"]},
             {"value": "electrical_power", "label": "Electrical/Power", "consultants": ["Services Engineer (Electrical)"]},
@@ -67,6 +78,7 @@
         {
           "value": "fitout",
           "label": "Internal Fitout",
+          "design_primacy": 60,
           "items": [
             {"value": "partitions_walls", "label": "Partitions/Internal Walls", "consultants": ["Architect"]},
             {"value": "ceilings", "label": "Ceilings", "consultants": ["Architect"]},
@@ -78,6 +90,7 @@
         {
           "value": "external_works",
           "label": "External Works",
+          "design_primacy": 50,
           "items": [
             {"value": "landscaping", "label": "Landscaping", "consultants": ["Landscape Architect"]},
             {"value": "car_parking", "label": "Car Parking", "consultants": ["Civil Engineer", "Traffic Engineer"]},
@@ -93,6 +106,7 @@
         {
           "value": "investigation_stripout",
           "label": "Investigation and Strip-Out",
+          "design_primacy": 10,
           "items": [
             {"value": "building_condition", "label": "Building Condition Assessment", "consultants": ["Building Consultant"]},
             {"value": "asbestos_hazmat", "label": "Asbestos/Hazmat Survey", "consultants": ["Hazmat Consultant"], "riskFlag": "contaminated_land"},
@@ -103,6 +117,7 @@
         {
           "value": "commercial_fitout",
           "label": "Internal Fit-Out",
+          "design_primacy": 60,
           "items": [
             {"value": "partitions_walls", "label": "Partitions/Internal Walls", "consultants": ["Architect", "Interior Designer", "Acoustic Consultant"]},
             {"value": "ceilings", "label": "Ceilings and Acoustic Treatments", "consultants": ["Architect", "Interior Designer", "Acoustic Consultant"]},
@@ -119,13 +134,15 @@
         {
           "value": "services_compliance",
           "label": "Services and Compliance Upgrade",
+          "design_primacy": 95,
           "items": [
             {"value": "mechanical_hvac", "label": "Mechanical/HVAC", "consultants": ["Services Engineer (Mechanical)"]},
             {"value": "electrical_power", "label": "Electrical/Power", "consultants": ["Services Engineer (Electrical)"]},
             {"value": "lighting", "label": "Lighting", "consultants": ["Lighting Designer", "Services Engineer (Electrical)"]},
             {"value": "hydraulic_plumbing", "label": "Hydraulic/Plumbing", "consultants": ["Services Engineer (Hydraulic)"]},
             {"value": "fire_services", "label": "Fire Services Upgrade", "consultants": ["Fire Engineer"]},
-            {"value": "accessibility_upgrade", "label": "Accessibility Upgrade", "consultants": ["Access Consultant", "Building Certifier"]}
+            {"value": "accessibility_upgrade", "label": "Accessibility Upgrade", "consultants": ["Access Consultant", "Building Certifier"]},
+            {"value": "energy_generation_storage", "label": "Energy Generation / Storage", "consultants": ["Services Engineer (Electrical)", "Structural Engineer"]}
           ]
         }
       ]
@@ -135,11 +152,31 @@
         {
           "value": "extension_interface",
           "label": "Extension Interface",
+          "design_primacy": 80,
           "items": [
             {"value": "structural_tie_in", "label": "Structural Tie-In", "consultants": ["Structural Engineer"]},
             {"value": "weatherproofing_tie_in", "label": "Weatherproofing Tie-In", "consultants": ["Architect", "Waterproofing Consultant"]},
             {"value": "services_connections", "label": "Services Connections", "consultants": ["Services Engineer"]},
-            {"value": "staged_occupation", "label": "Staged Occupation", "consultants": ["Project Manager"], "riskFlag": "live_operations"}
+            {"value": "staged_occupation", "label": "Staged Occupation", "consultants": ["Project Manager"], "riskFlag": "live_operations", "design_primacy": 10}
+          ]
+        },
+        {
+          "value": "extension_fitout",
+          "label": "Extension Fitout",
+          "design_primacy": 60,
+          "items": [
+            {"value": "partitions_walls", "label": "Partitions/Internal Walls", "consultants": ["Architect", "Interior Designer"]},
+            {"value": "joinery", "label": "Joinery/Cabinetry", "consultants": ["Interior Designer"]},
+            {"value": "flooring", "label": "Flooring and Finishes", "consultants": ["Architect", "Interior Designer"]},
+            {"value": "hydraulic_plumbing", "label": "Hydraulic/Plumbing", "consultants": ["Services Engineer (Hydraulic)"]}
+          ]
+        },
+        {
+          "value": "energy_upgrade",
+          "label": "Energy Upgrade",
+          "design_primacy": 95,
+          "items": [
+            {"value": "energy_generation_storage", "label": "Energy Generation / Storage", "consultants": ["Services Engineer (Electrical)", "Structural Engineer"]}
           ]
         }
       ]
@@ -149,7 +186,9 @@
         {
           "value": "remediation_scope",
           "label": "Remediation Scope",
+          "design_primacy": 85,
           "items": [
+            {"value": "structural_remediation", "label": "Structural Remediation", "consultants": ["Structural Engineer"], "design_primacy": 100},
             {"value": "contamination_remediation", "label": "Contamination Remediation", "consultants": ["Environmental Consultant"], "riskFlag": "contaminated_land"},
             {"value": "waterproofing_rectification", "label": "Waterproofing Rectification", "consultants": ["Waterproofing Consultant"]},
             {"value": "fire_safety_orders", "label": "Fire Safety Orders", "consultants": ["Fire Engineer", "Building Certifier"]},
@@ -163,6 +202,7 @@
         {
           "value": "due_diligence",
           "label": "Due Diligence",
+          "design_primacy": 40,
           "items": [
             {"value": "technical_dd", "label": "Technical Due Diligence", "consultants": ["Building Consultant", "Structural Engineer"]},
             {"value": "building_condition", "label": "Building Condition Assessment", "consultants": ["Building Consultant"]},
@@ -175,6 +215,7 @@
         {
           "value": "feasibility",
           "label": "Feasibility Studies",
+          "design_primacy": 50,
           "items": [
             {"value": "highest_best_use", "label": "Highest & Best Use Study", "consultants": ["Town Planner", "Architect"]},
             {"value": "development_feasibility", "label": "Development Feasibility", "consultants": ["Quantity Surveyor", "Town Planner"]},
@@ -185,6 +226,7 @@
         {
           "value": "design_review",
           "label": "Design Review",
+          "design_primacy": 45,
           "items": [
             {"value": "design_audit", "label": "Design Audit", "consultants": ["Project Manager", "Architect"]},
             {"value": "value_engineering", "label": "Value Engineering", "consultants": ["Quantity Surveyor", "Architect"]},
@@ -195,6 +237,7 @@
         {
           "value": "procurement_support",
           "label": "Procurement Support",
+          "design_primacy": 15,
           "items": [
             {"value": "procurement_strategy", "label": "Procurement Strategy", "consultants": ["Project Manager"]},
             {"value": "tender_documentation", "label": "Tender Documentation Review", "consultants": ["Quantity Surveyor"]},
@@ -205,6 +248,7 @@
         {
           "value": "contract_administration",
           "label": "Contract Administration",
+          "design_primacy": 15,
           "items": [
             {"value": "superintendent_services", "label": "Superintendent Services", "consultants": ["Project Manager"]},
             {"value": "progress_certification", "label": "Progress Certification", "consultants": ["Quantity Surveyor"]},
@@ -216,6 +260,7 @@
         {
           "value": "dispute_resolution",
           "label": "Dispute Resolution",
+          "design_primacy": 15,
           "items": [
             {"value": "claim_assessment", "label": "Claim Assessment", "consultants": ["Quantity Surveyor"], "complexityPoints": 2},
             {"value": "delay_analysis", "label": "Delay Analysis", "consultants": ["Programming Consultant"], "complexityPoints": 2},

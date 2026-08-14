@@ -167,6 +167,38 @@ def test_export_project_draft_renders_and_caches_pdf(
     upsert.assert_awaited_once()
 
 
+def test_export_project_draft_hides_renderer_error(client: TestClient) -> None:
+    draft = _draft(version=3, content="# Project Management Plan")
+    provider_detail = "renderer-secret-" + ("x" * 24)
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.projects.get_draft_artifact",
+            new=AsyncMock(return_value=draft),
+        ),
+        patch(
+            "app.api.projects.get_artefact_export",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.api.projects.render_artifact_export",
+            side_effect=RuntimeError(provider_detail),
+        ),
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}/export",
+            params={"format": "pdf"},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "PDF export is temporarily unavailable. Please try again."
+    }
+    assert provider_detail not in response.text
+
+
 def test_export_project_draft_reuses_cached_bytes(client: TestClient) -> None:
     draft = _draft(version=3, content="# Project Management Plan")
     cached = MagicMock(

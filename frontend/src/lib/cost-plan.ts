@@ -402,19 +402,16 @@ export function sortCostPlanItems(
   }
   const direction = sort.direction === "asc" ? 1 : -1;
   return [...items].sort((left, right) => {
-    let result = 0;
-    if (sort.key === "cost_code") {
-      result = compareText(left.cost_code, right.cost_code);
-    } else if (sort.key === "item") {
-      result = compareText(left.item, right.item);
-    } else {
-      result =
-        categorySortIndex(left.category) - categorySortIndex(right.category) ||
-        compareText(
-          canonicalCostPlanCategory(left.category),
-          canonicalCostPlanCategory(right.category),
-        );
-    }
+    const result =
+      sort.key === "cost_code"
+        ? compareText(left.cost_code, right.cost_code)
+        : sort.key === "item"
+          ? compareText(left.item, right.item)
+          : categorySortIndex(left.category) - categorySortIndex(right.category) ||
+            compareText(
+              canonicalCostPlanCategory(left.category),
+              canonicalCostPlanCategory(right.category),
+            );
     if (result !== 0) return result * direction;
     return left.display_order - right.display_order;
   });

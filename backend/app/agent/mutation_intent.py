@@ -46,6 +46,8 @@ _BUILDING_CLASSES = {
     "mixed-use": "mixed",
     "mixed": "mixed",
     "infrastructure": "infrastructure",
+    "distribution centre": "industrial",
+    "distribution center": "industrial",
 }
 _WORK_TYPES = {
     "new build": "new",
@@ -59,6 +61,9 @@ _WORK_TYPES = {
     "remediation": "remediation",
     "rectification": "remediation",
     "advisory": "advisory",
+    "technical due diligence": "advisory",
+    "due diligence": "advisory",
+    "before settlement": "advisory",
 }
 _STATES = {
     "new south wales": "NSW",
@@ -86,6 +91,9 @@ _SUBCLASSES = {
     "house": "house",
     "class 1a": "house",
     "class1a": "house",
+    "distribution centre": "logistics_ecommerce",
+    "distribution center": "logistics_ecommerce",
+    "logistics": "logistics_ecommerce",
 }
 _STOREY_WORDS = {
     "single": 1,

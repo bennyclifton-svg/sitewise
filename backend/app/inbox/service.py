@@ -211,11 +211,11 @@ async def _upload_single_file(
             filename=filename,
         )
     except Exception as exc:
-        logger.exception(
+        logger.error(
             "inbox_storage_upload_failed",
             workspace_path=workspace_path,
             storage_key=storage_key,
-            error=str(exc),
+            error_type=type(exc).__name__,
         )
         await _record_file_activity(
             session,
@@ -229,13 +229,13 @@ async def _upload_single_file(
                     f"Could not store {filename} in project storage.",
                     filename=filename,
                     workspace_path=workspace_path,
-                    error=str(exc),
+                    error_type=type(exc).__name__,
                 )
             ],
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to store '{filename}' in object storage: {exc}",
+            detail="Could not store the file in project storage. Please try again.",
         ) from exc
 
     project = await lock_project(session, project_id=project.id)

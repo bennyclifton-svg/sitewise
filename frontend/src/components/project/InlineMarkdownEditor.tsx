@@ -1,6 +1,7 @@
 import {
   useLayoutEffect,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -39,17 +40,20 @@ export function InlineMarkdownEditor({
   const onCancelRef = useRef(onCancel);
   const onSaveRef = useRef(onSave);
   const isSavingRef = useRef(isSaving);
-  onCancelRef.current = onCancel;
-  onSaveRef.current = onSave;
-  isSavingRef.current = isSaving;
+  const [initialEditor] = useState(() => ({
+    caretPoint,
+    html: renderToStaticMarkup(<>{children}</>),
+    isChanged,
+    sourceEnd,
+    sourceStart,
+  }));
 
-  // Seed HTML once from the opening children; never let React reconcile into
-  // the contentEditable after that (that is what jumped the caret).
-  const initialHtmlRef = useRef<string | null>(null);
-  if (initialHtmlRef.current === null) {
-    initialHtmlRef.current = renderToStaticMarkup(<>{children}</>);
-  }
-  const caretPointRef = useRef(caretPoint);
+  // Keep native listeners current before the one-time editor mount runs.
+  useLayoutEffect(() => {
+    onCancelRef.current = onCancel;
+    onSaveRef.current = onSave;
+    isSavingRef.current = isSaving;
+  }, [isSaving, onCancel, onSave]);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -64,12 +68,12 @@ export function InlineMarkdownEditor({
     editor.contentEditable = isSavingRef.current ? "false" : "true";
     editor.spellcheck = true;
     editor.dataset.instructionUi = "";
-    editor.dataset.mdStart = String(sourceStart);
-    editor.dataset.mdEnd = String(sourceEnd);
-    if (isChanged) editor.dataset.mdChanged = "";
+    editor.dataset.mdStart = String(initialEditor.sourceStart);
+    editor.dataset.mdEnd = String(initialEditor.sourceEnd);
+    if (initialEditor.isChanged) editor.dataset.mdChanged = "";
     editor.className =
       "min-h-5 w-full whitespace-pre-wrap leading-relaxed caret-[var(--sw-beam-hex)] outline-none";
-    editor.innerHTML = initialHtmlRef.current ?? "";
+    editor.innerHTML = initialEditor.html;
 
     const onInput = () => {
       dirtyRef.current = true;
@@ -114,7 +118,7 @@ export function InlineMarkdownEditor({
     editor.addEventListener("click", onClick);
     host.replaceChildren(editor);
     editorRef.current = editor;
-    placeCaret(editor, caretPointRef.current);
+    placeCaret(editor, initialEditor.caretPoint);
 
     return () => {
       editor.removeEventListener("input", onInput);
@@ -125,9 +129,7 @@ export function InlineMarkdownEditor({
       editorRef.current = null;
       host.replaceChildren();
     };
-    // One-time mount for this edit session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
-  }, []);
+  }, [initialEditor]);
 
   useLayoutEffect(() => {
     const editor = editorRef.current;

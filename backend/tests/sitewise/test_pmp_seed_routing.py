@@ -377,3 +377,89 @@ def test_loader_records_section_refs_and_warns_for_optional_missing(monkeypatch)
     ]
     assert "seed/setup-and-commission-guide.md#shared-setup-workflow-all-roles" in refs
     assert any(event.status == "warning" for event in result.trace_events)
+
+
+def test_infrastructure_rail_routes_possessions_and_accreditation() -> None:
+    refs = _refs(
+        selected_paths=_selected(
+            "infrastructure",
+            "refurb",
+            subclasses=("rail_metro",),
+        ),
+        building_class="infrastructure",
+        work_type="refurb",
+        subclasses=("rail_metro",),
+    )
+    assert (
+        "seed/infrastructure-construction-guide.md#possessions-outages-and-live-network-access"
+        in refs
+    )
+    assert (
+        "seed/infrastructure-construction-guide.md#safety-accreditation-and-worker-competency"
+        in refs
+    )
+    assert (
+        "seed/infrastructure-construction-guide.md#authority-interfaces-and-network-operators"
+        in refs
+    )
+
+
+def test_institution_and_mixed_class_guides_route_core_sections() -> None:
+    institution_refs = _refs(
+        selected_paths=_selected("institution", "new"),
+        building_class="institution",
+        work_type="new",
+    )
+    mixed_refs = _refs(
+        selected_paths=_selected("mixed", "new"),
+        building_class="mixed",
+        work_type="new",
+    )
+    assert (
+        "seed/institution-construction-guide.md#public-procurement-and-probity"
+        in institution_refs
+    )
+    assert (
+        "seed/mixed-use-construction-guide.md#multiple-classifications-in-one-structure"
+        in mixed_refs
+    )
+    assert (
+        "seed/mixed-use-construction-guide.md#staged-handover-by-use" in mixed_refs
+    )
+
+
+def test_empty_remediation_scope_routes_rectification_sections() -> None:
+    refs = _refs(
+        selected_paths=_selected(
+            "residential",
+            "remediation",
+            subclasses=("apartments",),
+        ),
+        building_class="residential",
+        work_type="remediation",
+        subclasses=("apartments",),
+    )
+    assert (
+        "seed/building-remediation-rectification-guide.md"
+        "#investigation-before-solution"
+    ) in refs
+    assert not any("remediation-due-diligence-guide.md" in ref for ref in refs)
+
+
+def test_residential_extend_routes_heritage_and_tie_in() -> None:
+    refs = _refs(
+        selected_paths=_selected(
+            "residential",
+            "extend",
+            subclasses=("house",),
+        ),
+        building_class="residential",
+        work_type="extend",
+        subclasses=("house",),
+    )
+    assert (
+        "seed/renovation-guide.md#heritage-and-character-due-diligence" in refs
+    )
+    assert (
+        "seed/renovation-guide.md#waterproofing-and-old-to-new-tie-ins" in refs
+    )

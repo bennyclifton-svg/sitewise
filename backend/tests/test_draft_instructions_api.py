@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -282,16 +282,22 @@ def test_empty_instruction_list_is_rejected(
     apply_mock.assert_not_awaited()
 
 
-def test_unexpected_error_returns_a_diagnosable_500(
+def test_unexpected_error_returns_a_generic_500(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A bare 500 with no detail renders as 'Request failed with status 500'."""
-    _stub_apply(monkeypatch, AsyncMock(side_effect=RuntimeError("boom")))
+    canary = "ch03-draft-provider-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    _stub_apply(monkeypatch, AsyncMock(side_effect=RuntimeError(canary)))
 
-    response = client.post(ENDPOINT, json=BODY)
+    with patch("app.api.projects.log.error") as log_error:
+        response = client.post(ENDPOINT, json=BODY)
 
     assert response.status_code == 500
-    assert response.json()["detail"] == "Could not apply changes: RuntimeError: boom"
+    assert response.json()["detail"] == (
+        "Could not apply changes. Please try again shortly."
+    )
+    assert canary not in response.text
+    assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+    assert canary not in str(log_error.call_args)
 
 
 def test_response_serialization_error_returns_a_diagnosable_500(
@@ -314,4 +320,6 @@ def test_response_serialization_error_returns_a_diagnosable_500(
     response = client.post(ENDPOINT, json=BODY)
 
     assert response.status_code == 500
-    assert "ValidationError" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Could not apply changes. Please try again shortly."
+    )

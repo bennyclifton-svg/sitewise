@@ -236,12 +236,74 @@ describe("TaxonomyPicker", () => {
 
     expect(latest.work_scope).toEqual(["structural_tie_in"]);
   });
+
+  it("places budget beside work type and scope notes below the lists", async () => {
+    const user = userEvent.setup();
+    const onBudgetChange = vi.fn();
+    const onScopeNarrativeChange = vi.fn();
+
+    render(
+      <ControlledPicker
+        onChange={() => undefined}
+        budget=""
+        onBudgetChange={onBudgetChange}
+        scopeNarrative=""
+        onScopeNarrativeChange={onScopeNarrativeChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Industrial" }));
+    expect(
+      within(screen.getByLabelText("Work type")).getByLabelText("Budget"),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Scope notes")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Extension / addition" }));
+    const scope = screen.getByRole("region", { name: "Scope" });
+    expect(within(scope).getByLabelText("Structural Tie-In")).toBeInTheDocument();
+    expect(within(scope).getByLabelText("Scope notes")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Budget"), "$4m");
+    await user.type(screen.getByLabelText("Scope notes"), "Rooftop solar");
+    expect(onBudgetChange).toHaveBeenCalled();
+    expect(onScopeNarrativeChange).toHaveBeenCalled();
+  });
+
+  it("does not clear work type or subclass when the selected class is clicked again", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Infrastructure" }));
+    await user.click(screen.getByRole("button", { name: "Refurbishment" }));
+    await user.click(screen.getByLabelText("Infrastructure standard"));
+    await user.click(screen.getByRole("button", { name: "Infrastructure" }));
+
+    expect(latest).toMatchObject({
+      building_class: "infrastructure",
+      work_type: "refurb",
+      subclasses: ["infrastructure_standard"],
+    });
+    expect(screen.getByRole("button", { name: "Refurbishment" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });
 
 function ControlledPicker({
   onChange,
+  budget,
+  onBudgetChange,
+  scopeNarrative,
+  onScopeNarrativeChange,
 }: {
   onChange: (value: TaxonomyPickerValue) => void;
+  budget?: string;
+  onBudgetChange?: (value: string) => void;
+  scopeNarrative?: string;
+  onScopeNarrativeChange?: (value: string) => void;
 }) {
   const [value, setValue] = useState<TaxonomyPickerValue>({});
   return (
@@ -252,6 +314,10 @@ function ControlledPicker({
         setValue(next);
         onChange(next);
       }}
+      budget={budget}
+      onBudgetChange={onBudgetChange}
+      scopeNarrative={scopeNarrative}
+      onScopeNarrativeChange={onScopeNarrativeChange}
     />
   );
 }

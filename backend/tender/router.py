@@ -963,7 +963,9 @@ async def post_report_build(
     except report.WeasyPrintUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail=(
+                "Tender PDF generation is temporarily unavailable. Please try again."
+            ),
         ) from exc
 
 
@@ -1012,7 +1014,9 @@ async def post_report_approve(
     except report.WeasyPrintUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail=(
+                "Tender PDF generation is temporarily unavailable. Please try again."
+            ),
         ) from exc
     except report.CustomerQualityGateError as exc:
         raise HTTPException(

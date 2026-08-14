@@ -21,7 +21,11 @@ def _sync_database_url() -> str:
 
 @lru_cache
 def get_sync_engine() -> Engine:
-    return create_engine(_sync_database_url(), pool_pre_ping=True)
+    return create_engine(
+        _sync_database_url(),
+        pool_pre_ping=True,
+        hide_parameters=True,
+    )
 
 
 @lru_cache

@@ -25,16 +25,27 @@ export function WorkspaceFilePanel({
   projectId: string;
   evidence: EvidencePreview | null;
 }) {
+  return (
+    <WorkspaceFilePanelContent
+      key={`${projectId}:${evidence?.id ?? "empty"}`}
+      projectId={projectId}
+      evidence={evidence}
+    />
+  );
+}
+
+function WorkspaceFilePanelContent({
+  projectId,
+  evidence,
+}: {
+  projectId: string;
+  evidence: EvidencePreview | null;
+}) {
   const [detail, setDetail] = useState<EvidencePreview | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [documentView, setDocumentView] = useState<DocumentView>("markdown");
   const [metadataOpen, setMetadataOpen] = useState(false);
-
-  useEffect(() => {
-    setMetadataOpen(false);
-    setDocumentView("markdown");
-  }, [evidence?.id]);
 
   useEffect(() => {
     let cancelled = false;

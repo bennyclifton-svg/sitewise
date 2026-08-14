@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
   push:
+  workflow_dispatch:
 
 env:
   SUPABASE_URL: https://clerk-ci.invalid
@@ -11,6 +12,7 @@ env:
   SUPABASE_STORAGE_BUCKET: test-project-files
   DATABASE_URL: postgresql://clerk_ci:clerk_ci@127.0.0.1:9/application_database_must_not_be_contacted
   TEST_DATABASE_URL: postgresql://clerk_ci:clerk_ci@127.0.0.1:9/test_database_must_not_be_contacted
+  DATABASE_INTEGRATION_TESTS: "0"
   ALLOW_DESTRUCTIVE_TEST_DATABASE: "0"
   OPENAI_API_KEY: test-openai-key-must-not-authenticate
   PUBLIC_APP_URL: http://clerk-ci.invalid
@@ -122,3 +124,19 @@ jobs:
       - name: Validate tender seed data
         working-directory: backend
         run: uv run python ../data/tender/tools/validate.py
+
+  database-smoke:
+    name: Disposable database smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+      - name: Run disposable database smoke
+        shell: pwsh
+        run: ./scripts/test-database.ps1

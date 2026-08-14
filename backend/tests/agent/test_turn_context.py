@@ -542,3 +542,47 @@ def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:
     assert '"subclasses": ["house"]' in prompt
     assert "never claim that scale fields" in prompt
     assert "<profile-enrichment-request>" not in prompt
+
+
+def test_prompt_forbids_claiming_unmade_profile_writes() -> None:
+    prompt = build_agent_prompt(
+        "Hello",
+        project_id=PROJECT_ID,
+        title="Harbour House",
+        archetype=None,
+        state=None,
+        phase=None,
+        building_class=None,
+        work_type=None,
+        history=[],
+    )
+
+    assert "Never say setup was recorded" in prompt
+    assert "Project setup recorded from your brief" in prompt
+    assert "Never ask for NCC class labels" in prompt
+
+
+def test_due_diligence_brief_surfaces_inferred_taxonomy_values() -> None:
+    user_text = (
+        "Client is buying a distribution centre and wants technical due diligence "
+        "before settlement in six weeks. Building condition, compliance, capex "
+        "forecast, any deal-breakers."
+    )
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="11.1 DD advisory",
+        archetype=None,
+        state=None,
+        phase=None,
+        building_class=None,
+        work_type=None,
+        history=[],
+        mutation_intent=classify_mutation_intent(user_text),
+    )
+
+    assert "<inferred-profile-from-brief>" in prompt
+    assert '"work_type": "advisory"' in prompt
+    assert '"building_class": "industrial"' in prompt
+    assert "logistics_ecommerce" in prompt
+    assert "propose_project_profile_change" in prompt

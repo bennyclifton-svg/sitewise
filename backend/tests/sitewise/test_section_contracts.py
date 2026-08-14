@@ -13,8 +13,8 @@ def test_universal_skeleton_is_identical_across_classes() -> None:
     expected = (
         "Project Summary",
         "Brief",
-        "FFE Schedule",
         "Consultants",
+        "FFE Schedule",
         "Planning and Compliance",
         "Programme",
         "Cost Planning",
@@ -73,9 +73,9 @@ def test_project_with_building_class_dispatches_to_universal_skeleton() -> None:
     )
 
 
-def test_services_refurb_drops_the_ffe_schedule() -> None:
-    """Nothing is being finished or furnished, so the section has no content to
-    carry. It used to render as a one-row placeholder on every such project."""
+def test_services_refurb_keeps_the_ffe_schedule() -> None:
+    """FFE is finishes, fixtures and equipment — including services equipment
+    and any exterior finishes — not an interiors-only register."""
     project = SimpleNamespace(
         building_class="commercial",
         work_type="refurb",
@@ -88,9 +88,24 @@ def test_services_refurb_drops_the_ffe_schedule() -> None:
     )
     headings = required_section_headings(project=project)
 
-    assert "FFE Schedule" not in headings
+    assert "FFE Schedule" in headings
     assert "Consultants" in headings
     assert headings[-1] == "Citation key"
+
+
+def test_rail_station_refurb_keeps_the_ffe_schedule() -> None:
+    project = SimpleNamespace(
+        building_class="infrastructure",
+        work_type="refurb",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["rail_metro"],
+                "work_scope": ["facade_system", "roofing"],
+            }
+        },
+    )
+
+    assert "FFE Schedule" in required_section_headings(project=project)
 
 
 def test_an_asset_register_brings_the_schedule_back_as_equipment() -> None:

@@ -80,6 +80,11 @@ class WorkScopeItem:
     consultants: tuple[str, ...]
     risk_flag: str | None = None
     complexity_points: int | None = None
+    design_primacy: int = 0
+
+
+DESIGN_LEAD_UNCONFIRMED = "to be confirmed"
+DESIGN_LEAD_UNCONFIRMED_LABEL = "Design lead — to be confirmed"
 
 
 def _read_json(filename: str) -> dict[str, Any]:
@@ -208,6 +213,43 @@ def scale_fields_for(building_class: str, subclass: str) -> tuple[ScaleField, ..
     return ()
 
 
+def building_class_label(value: str | None) -> str:
+    if not value:
+        return ""
+    cls = _building_class_by_value().get(value)
+    return cls.label if cls is not None else value.replace("_", " ")
+
+
+def work_type_label(value: str | None) -> str:
+    if not value:
+        return ""
+    for item in work_types():
+        if item.value == value:
+            return item.label
+    return value.replace("_", " ")
+
+
+def subclass_label(building_class: str | None, value: str) -> str:
+    if building_class:
+        for item in subclasses_for(building_class):
+            if item.value == value:
+                return item.label
+    return value.replace("_", " ")
+
+
+def scale_field_label(
+    building_class: str | None,
+    subclasses: list[str] | tuple[str, ...],
+    key: str,
+) -> str:
+    if building_class:
+        for subclass in subclasses:
+            for field in scale_fields_for(building_class, subclass):
+                if field.key == key:
+                    return field.label
+    return key.replace("_", " ")
+
+
 def complexity_dimensions_for(
     building_class: str,
     subclasses: list[str] | tuple[str, ...] | None = None,
@@ -264,32 +306,46 @@ def derive_risk_flags(complexity: dict[str, str], work_scope: list[str]) -> list
     return derived
 
 
+def non_design_consultants() -> frozenset[str]:
+    """Roles that may sit on the register but must never be named as design lead."""
+    raw = _work_scope_config().get("non_design_consultants", [])
+    return frozenset(str(name).strip().lower() for name in raw if str(name).strip())
+
+
+def _is_design_discipline(name: str) -> bool:
+    return bool(name) and name.casefold() not in non_design_consultants()
+
+
 def design_lead_discipline(
     work_type: str | None,
     work_scope: list[str] | tuple[str, ...],
 ) -> str:
-    """Return the discipline that leads design for the dominant scope.
+    """Return the design discipline for the highest-primacy selected scope.
 
-    Each work-scope item lists its consultants most-relevant-first, so the first
-    consultant of the first selected scope is the discipline that actually leads
-    the work. Architect remains the answer for architectural scope and the
-    fallback when no scope is selected — but naming an Architect as design lead
-    on a mechanical plant replacement or a fire-services upgrade was wrong.
+    File declaration order is not primacy. Project Manager, Building Consultant,
+    Commissioning Agent, and Building Certifier are never the lead. When no
+    selected scope names a design discipline, the lead is to be confirmed —
+    inventing an Architect is a false statement in a client-facing document.
     """
+    ranked: list[tuple[int, str]] = []
     for item in work_scope_items_for(work_type, work_scope):
         for consultant in item.consultants:
             name = consultant.strip()
-            if name:
-                return name
-    return "Architect"
+            if name and _is_design_discipline(name):
+                ranked.append((item.design_primacy, name))
+                break
+    if not ranked:
+        return DESIGN_LEAD_UNCONFIRMED
+    ranked.sort(key=lambda row: -row[0])
+    return ranked[0][1]
 
 
 def work_scope_items_for(
     work_type: str | None,
-    selected_values: list[str] | tuple[str, ...],
+    selected_values: list[str] | tuple[str, ...] | None,
 ) -> tuple[WorkScopeItem, ...]:
     """Return selected work-scope item labels and consultant lists."""
-    selected = {value for value in selected_values if value}
+    selected = {value for value in (selected_values or ()) if value}
     if not work_type or not selected:
         return ()
     return tuple(
@@ -306,6 +362,11 @@ def work_scope_options_for(work_type: str | None) -> tuple[WorkScopeItem, ...]:
         return ()
     items: list[WorkScopeItem] = []
     for category in raw_work_type.get("categories", []):
+        category_primacy = (
+            int(category["design_primacy"])
+            if category.get("design_primacy") is not None
+            else 0
+        )
         for raw_item in category.get("items", []):
             value = str(raw_item.get("value", ""))
             if not value:
@@ -327,6 +388,11 @@ def work_scope_options_for(work_type: str | None) -> tuple[WorkScopeItem, ...]:
                         int(raw_item["complexityPoints"])
                         if raw_item.get("complexityPoints") is not None
                         else None
+                    ),
+                    design_primacy=(
+                        int(raw_item["design_primacy"])
+                        if raw_item.get("design_primacy") is not None
+                        else category_primacy
                     ),
                 )
             )

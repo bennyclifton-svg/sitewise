@@ -162,3 +162,57 @@ def test_apply_existing_file_repairs_rechecks_and_moves_only_approved_changes():
     assert record_activity.await_args.kwargs["source"] == "document_repair"
     assert record_activity.await_args.kwargs["events"][0].status == "complete"
     session.commit.assert_awaited_once()
+
+
+def test_apply_existing_file_repairs_hides_storage_failure_details() -> None:
+    session = AsyncMock()
+    legacy = _legacy_hydraulic_file()
+    canary = "ch03-repair-storage-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    proposal = FileRepairPreview(
+        status="change",
+        current_path=legacy.workspace_path,
+        current_filename=legacy.filename,
+        proposed_path="04-projects/industrial/03-design/hydraulic/repaired.pdf",
+        proposed_filename="repaired.pdf",
+        document_number="HY-SK-06",
+        title="HYDRAULIC ROOF DRAINAGE PLAN",
+        revision="P1",
+        category="Hydraulic",
+        confidence="high",
+        changes=("folder", "filename"),
+    )
+    preview = FileRepairPreviewResult(inspected=1, changes=1, rows=[proposal])
+
+    with (
+        patch(
+            "app.intake.repair_service.preview_existing_file_repairs",
+            new=AsyncMock(return_value=preview),
+        ),
+        patch(
+            "app.intake.repair_service.get_workspace_file_by_path",
+            new=AsyncMock(return_value=legacy),
+        ),
+        patch(
+            "app.intake.repair_service._move_workspace_file",
+            new=AsyncMock(side_effect=RuntimeError(canary)),
+        ),
+        patch(
+            "app.intake.repair_service.record_activity_events",
+            new=AsyncMock(),
+        ) as record_activity,
+        patch("app.intake.repair_service.log.error") as log_error,
+    ):
+        result = run_async(
+            apply_existing_file_repairs(
+                session,
+                project=_project(),
+                workspace_paths={legacy.workspace_path},
+            )
+        )
+
+    assert result.failed == 1
+    assert result.rows[0].reason == "Project storage could not repair the file."
+    assert canary not in str(result)
+    assert canary not in str(record_activity.await_args)
+    assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+    assert canary not in str(log_error.call_args)

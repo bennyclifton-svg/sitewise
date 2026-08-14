@@ -14,6 +14,7 @@ from app.intake.sort_service import sort_inbox_files
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
 from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from app.schemas.projects import WorkflowTraceEvent
+from app.schemas.project_snapshot import DOCUMENT_INGEST_FAILURE_DETAIL
 from app.storage.project_files import download_project_file
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 
@@ -201,7 +202,7 @@ async def ingest_project_document(
         )
     except Exception as exc:
         record.ingest_status = "failed"
-        record.ingest_error = str(exc)
+        record.ingest_error = DOCUMENT_INGEST_FAILURE_DETAIL
         await _record(
             session,
             project_id=project.id,
@@ -216,7 +217,7 @@ async def ingest_project_document(
                     metadata={
                         "filename": record.filename,
                         "workspace_path": record.workspace_path,
-                        "error": str(exc),
+                        "error_type": type(exc).__name__,
                     },
                 ),
             ],

@@ -149,6 +149,52 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
     run_async(_run())
 
 
+def test_upload_inbox_files_hides_storage_provider_error(
+    mock_session: AsyncMock,
+) -> None:
+    project = _project()
+    provider_detail = "provider-secret-" + ("x" * 24)
+    snapshot = type("Snapshot", (), {})()
+
+    async def _run() -> None:
+        with (
+            patch(
+                "app.inbox.service.get_workspace_file_by_path",
+                new=AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.inbox.service.upload_project_file",
+                side_effect=RuntimeError(provider_detail),
+            ),
+            patch(
+                "app.inbox.service.record_activity_events", new=AsyncMock()
+            ) as record_events,
+            patch("app.inbox.service.logger.error") as log_error,
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                await upload_inbox_files(
+                    mock_session,
+                    project=project,
+                    items=[InboxUploadItem(filename="report.md", content=b"body")],
+                    user_id=USER_ID,
+                    snapshot=snapshot,
+                )
+
+        assert exc_info.value.status_code == 502
+        assert exc_info.value.detail == (
+            "Could not store the file in project storage. Please try again."
+        )
+        assert provider_detail not in str(exc_info.value.detail)
+        event = record_events.await_args.kwargs["events"][0]
+        assert event.metadata["error_type"] == "RuntimeError"
+        assert provider_detail not in str(event)
+        assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+        assert "error" not in log_error.call_args.kwargs
+        assert "exc_info" not in log_error.call_args.kwargs
+
+    run_async(_run())
+
+
 def test_post_inbox_upload_requires_project_ownership(client: TestClient, mock_session: AsyncMock) -> None:
     other_project = _project()
     other_project.owner_user_id = uuid.uuid4()

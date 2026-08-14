@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_file=_BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     supabase_url: str

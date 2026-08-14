@@ -54,10 +54,11 @@ def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[s
             preview_snippet=preview_snippet,
             source_path=plan.entry.relative_path,
         )
-    except Exception:
-        logger.exception(
+    except Exception as exc:
+        logger.warning(
             "document_metadata_parse_failed",
             relative_path=plan.entry.relative_path,
+            error_type=type(exc).__name__,
         )
         return {}
 

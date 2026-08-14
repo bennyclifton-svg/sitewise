@@ -1,23 +1,28 @@
 ---
-tier: archetype
-seed_type: archetype
+tier: overlay
+seed_type: work-type-guide
 loaded_by: "archetype: renovation"
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_classes: [residential]
 applies_to_work_types: [refurb, extend]
+applies_to_subclasses: [house, townhouses]
+applies_to_archetypes: [renovation]
 state_default: NSW
-status: legacy-retained
-superseded_by: seed/residential-construction-guide.md
-summary: "Archetype coverage for altering an existing dwelling: due diligence package, latent conditions, dilapidation and neighbour management, structural intervention, BASIX for additions, heritage checks, live-occupancy staging and old-to-new tie-in risks."
+topics: [renovation, heritage, dilapidation, latent-conditions, tie-in, basix, occupancy]
+summary: "Residential refurbishment and extension overlay: due diligence package, latent conditions, dilapidation and neighbour management, structural intervention, BASIX for additions, heritage checks, live-occupancy staging and old-to-new tie-in risks."
+required_by: {create-pmp: 2}
 doctrine_anchors: [§seed-consultation-discipline, §evidence-discipline, §register-discipline, §decision-discipline, §escalation-triggers, §state-handling]
 agents_anchors: [§1, §2, §3, §7, §8, §11]
+status: seed
+author: agent
+reviewed_on: 2026-08-14
 ---
 
 # Archetype seed - Renovation
 
 A **renovation** changes an existing dwelling: alteration, addition, partial demolition, structural intervention, services upgrade, waterproofing renewal, facade / roof change, or staged work around an occupied home. The existing building is not background context. It is project evidence, project constraint, and project risk.
 
-This seed is loaded when the project `README.md` declares `archetype: renovation`. It is role-neutral; the role overlay (`role-owner-builder.md`, `role-architect-pm.md`, `role-builder.md`, or `role-d-and-c.md`) sits on top.
+This overlay loads for residential `refurb` and `extend` on house and townhouse projects, and remains the archetype seed when a project still declares `archetype: renovation`. It is role-neutral; the role overlay sits on top.
 
 NSW is the deep default. Non-NSW states get inline graceful-degradation callouts only. If a renovation task turns on a state-specific instrument and no callout exists, flag the gap instead of extending NSW guidance.
 

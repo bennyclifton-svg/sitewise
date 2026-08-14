@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -5,6 +6,10 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import settings
 from app.database.models import Base
+from app.database.disposable_target import (
+    migration_database_url,
+    require_test_environment_marker,
+)
 
 import tender.models  # noqa: E402,F401 — register tender_* tables on Base.metadata
 
@@ -14,16 +19,20 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+_DATABASE_INTEGRATION = os.environ.get("DATABASE_INTEGRATION_TESTS") == "1"
 
 
 def get_database_url() -> str:
-    url = settings.database_url
-    if url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-    if "sslmode=" not in url:
-        separator = "&" if "?" in url else "?"
-        url = f"{url}{separator}sslmode=require"
-    return url
+    return migration_database_url(
+        application_url=settings.database_url,
+        test_url=os.environ.get("TEST_DATABASE_URL"),
+        database_integration=_DATABASE_INTEGRATION,
+    )
+
+
+def include_object(object_, name, type_, reflected, compare_to) -> bool:
+    del object_, reflected, compare_to
+    return not (type_ == "table" and name == "clerk_test_environment")
 
 
 def run_migrations_offline() -> None:
@@ -32,6 +41,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -49,7 +59,13 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        if _DATABASE_INTEGRATION:
+            require_test_environment_marker(connection)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

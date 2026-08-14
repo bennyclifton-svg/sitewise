@@ -48,6 +48,15 @@ describe("formatErrorDetail", () => {
   it("falls back to a generic message when detail is missing entirely", () => {
     expect(formatErrorDetail({}, 500)).toBe("Request failed with status 500");
   });
+
+  it("joins FastAPI list details from profile validation", () => {
+    expect(
+      formatErrorDetail(
+        { detail: ["scale 'length_km' must be a number", "scale 'stations' must be an integer"] },
+        422,
+      ),
+    ).toBe("scale 'length_km' must be a number scale 'stations' must be an integer");
+  });
 });
 
 describe("httpRequest error surfacing", () => {

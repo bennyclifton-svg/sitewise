@@ -12,6 +12,9 @@ from app.sitewise.section_contracts import (
     section_id_for_heading,
 )
 
+HIGH_WEIGHT_THRESHOLD = 0.12
+_REGISTER_SECTIONS = frozenset({"snapshot", "ffe-schedule", "citation-key"})
+
 _WORD_RE = re.compile(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*")
 _FENCE_RE = re.compile(r"^\s*(```|~~~)\s*([A-Za-z0-9_-]*)")
 _LINK_RE = re.compile(r"!?\[([^\]]+)\]\([^)]+\)")
@@ -51,6 +54,8 @@ def length_violations(
         section_id = _section_id_for_heading_any(heading)
         if section_id is None or section_id not in weights:
             continue
+        if section_id in _REGISTER_SECTIONS:
+            continue
         target = int(weights[section_id] * max_words)
         limit = int(weights[section_id] * max_words * 1.5)
         if target <= 0 or section_words <= limit:
@@ -59,6 +64,80 @@ def length_violations(
             f"{heading} is {section_words} words, budget ~{target} - condense."
         )
     return violations
+
+
+def under_length_violations(
+    markdown: str,
+    *,
+    weights: dict[str, float],
+    min_words: int,
+    max_words: int,
+) -> list[str]:
+    """Floor breaches only. Over-length stays advisory and is not retried."""
+    return [
+        issue
+        for issue in length_violations(
+            markdown, weights=weights, min_words=min_words, max_words=max_words
+        )
+        if "minimum" in issue
+    ]
+
+
+def over_length_violations(
+    markdown: str,
+    *,
+    weights: dict[str, float],
+    min_words: int,
+    max_words: int,
+) -> list[str]:
+    return [
+        issue
+        for issue in length_violations(
+            markdown, weights=weights, min_words=min_words, max_words=max_words
+        )
+        if "minimum" not in issue
+    ]
+
+
+def is_high_weight_section(section_id: str, weight: float) -> bool:
+    return weight >= HIGH_WEIGHT_THRESHOLD and section_id not in _REGISTER_SECTIONS
+
+
+def length_retry_instruction(
+    under_issues: list[str],
+    *,
+    weights: dict[str, float],
+    target_words: int,
+    current_markdown: str,
+    work_type: str | None = None,
+) -> str:
+    """Turn an under-length draft into retry instructions with per-section budgets."""
+    budget_lines: list[str] = []
+    for section_id, weight in weights.items():
+        heading = heading_for_section_id(section_id, work_type=work_type)
+        line = f"- {heading} (~{int(weight * target_words)} words)"
+        if is_high_weight_section(section_id, weight):
+            line += (
+                ": write project-specific depth from the project profile; "
+                "do not restate the register."
+            )
+        budget_lines.append(line)
+    return "\n".join(
+        [
+            "LENGTH RETRY — the draft is under the scale-band floor.",
+            *under_issues,
+            (
+                "Deepen the high-weight sections to the budgets below with "
+                "project-specific content from the project profile. Do not restate "
+                "registers. Preserve every existing fact, table row, and citation."
+            ),
+            "Per-section word budgets:",
+            *budget_lines,
+            "",
+            "CURRENT DRAFT:",
+            current_markdown,
+        ]
+    )
 
 
 def _primary_markdown(markdown: str) -> str:

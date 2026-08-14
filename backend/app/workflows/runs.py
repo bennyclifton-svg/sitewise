@@ -18,7 +18,7 @@ from app.projects.events import publish_project_event
 from app.projects.generation_context import resolve_project_generation_context
 from app.projects.locks import lock_project
 from app.schemas.project_snapshot import ProjectSnapshot
-from app.schemas.workflow_runs import WorkflowRunStartRequest
+from app.schemas.workflow_runs import WORKFLOW_FAILURE_MESSAGE, WorkflowRunStartRequest
 
 
 TERMINAL_STATES = frozenset({"needs_input", "complete", "failed", "cancelled"})
@@ -489,7 +489,7 @@ async def fail_workflow_run(
         )
     now = datetime.now(UTC)
     run.error_class = type(error).__name__[:255]
-    run.error_message = str(error)[:4000] or type(error).__name__
+    run.error_message = WORKFLOW_FAILURE_MESSAGE
     run.stage_durations_ms = {**run.stage_durations_ms, "workflow": duration_ms}
     run.lock_owner = None
     run.lease_expires_at = None

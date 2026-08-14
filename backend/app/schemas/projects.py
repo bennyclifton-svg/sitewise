@@ -196,7 +196,7 @@ class ProjectProfilePatch(BaseModel):
         if value is None:
             return None
         stripped = [item.strip() for item in value if item.strip()]
-        return stripped or None
+        return stripped
 
 
 ProjectProfileField = Literal[

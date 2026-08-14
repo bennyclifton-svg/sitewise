@@ -8,13 +8,14 @@ import pytest
 from app.cost_plan.schemas import CostItemInput
 from app.database.project import Project
 from app.schemas.project_snapshot import ProjectSnapshot
-from app.schemas.workflow_runs import WorkflowRunStartRequest
+from app.schemas.workflow_runs import WorkflowRunStartRequest, WorkflowRunView
 from app.workflows.runs import (
     SUPPORTED_WORKFLOWS,
     WorkflowRunCapabilityConflict,
     build_workflow_run_brief,
     canonical_request_hash,
     complete_workflow_run,
+    fail_workflow_run,
     heartbeat_run,
     start_workflow_run,
 )
@@ -317,6 +318,95 @@ def test_successful_retry_clears_stale_workflow_error_fields() -> None:
     assert run.state == "complete"
     assert run.error_class is None
     assert run.error_message is None
+
+
+def test_failed_workflow_run_persists_error_class_and_generic_message() -> None:
+    provider_detail = "provider-secret-" + ("x" * 24)
+    run = SimpleNamespace(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        workflow_type="process_invoices",
+        attempt=3,
+        max_attempts=3,
+        state="running",
+        lock_owner="worker-1",
+        cancel_requested=False,
+        stage_durations_ms={},
+        progress={},
+        lease_expires_at=datetime.now(UTC),
+        completed_at=None,
+    )
+
+    with (
+        patch(
+            "app.workflows.runs._lock_project_then_run",
+            new=AsyncMock(return_value=run),
+        ),
+        patch("app.workflows.runs._locked_project", new=AsyncMock()),
+        patch(
+            "app.workflows.runs.publish_project_event",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        failed = run_async(
+            fail_workflow_run(
+                AsyncMock(),
+                run_id=run.id,
+                worker_id="worker-1",
+                error=RuntimeError(provider_detail),
+                duration_ms=25,
+            )
+        )
+
+    assert failed.error_class == "RuntimeError"
+    assert failed.error_message == (
+        "Workflow processing failed. Retry the workflow or contact support if it continues."
+    )
+    assert provider_detail not in failed.error_message
+
+
+def test_workflow_run_view_hides_historical_error_message() -> None:
+    provider_detail = "historical-workflow-secret-" + ("x" * 24)
+    now = datetime.now(UTC)
+    payload = WorkflowRunView.model_validate(
+        {
+            "id": uuid.uuid4(),
+            "project_id": uuid.uuid4(),
+            "requested_by_user_id": uuid.uuid4(),
+            "requested_by_thread_id": None,
+            "requested_by_turn_id": None,
+            "workflow_type": "process_invoices",
+            "idempotency_key": "historical-run",
+            "schema_version": 1,
+            "frozen_project_context_version": 1,
+            "frozen_profile_revision": 1,
+            "frozen_snapshot_fingerprint": "a" * 64,
+            "frozen_evidence_fingerprint": "b" * 64,
+            "frozen_decision_set_revision": 1,
+            "frozen_selection_revision": None,
+            "frozen_artefact_version": None,
+            "state": "failed",
+            "attempt": 3,
+            "max_attempts": 3,
+            "cancel_requested": False,
+            "progress": {"stage": "failed"},
+            "stage_durations_ms": {},
+            "result_artefact_id": None,
+            "result_reference": None,
+            "error_class": "RuntimeError",
+            "error_message": provider_detail,
+            "created_at": now,
+            "started_at": now,
+            "completed_at": now,
+            "updated_at": now,
+        }
+    )
+
+    assert payload.error_class == "RuntimeError"
+    assert payload.error_message == (
+        "Workflow processing failed. Retry the workflow or contact support if it continues."
+    )
+    assert provider_detail not in payload.model_dump_json()
 
 
 def test_contractor_eoi_is_supported_by_durable_run_boundary() -> None:

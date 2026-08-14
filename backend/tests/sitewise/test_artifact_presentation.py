@@ -10,6 +10,7 @@ from app.sitewise.artifact_presentation import (
     issue_export_markdown,
     prepare_issue_markdown,
 )
+from app.sitewise.taxonomy import DESIGN_LEAD_UNCONFIRMED_LABEL
 
 
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
@@ -35,6 +36,16 @@ def test_clean_issue_language_removes_review_shorthand_without_model_work() -> N
     assert clean_issue_language(
         "Evidence on file: engagement letter (executed 16/05/2026)."
     ) == "engagement letter (executed 16/05/2026)."
+
+
+def test_clean_issue_language_preserves_design_lead_to_be_confirmed() -> None:
+    sentence = (
+        f"{DESIGN_LEAD_UNCONFIRMED_LABEL}. Record firm, fee, and appointment status only."
+    )
+    assert clean_issue_language(sentence) == sentence
+    issued = prepare_issue_markdown(f"## Consultants\n\n{sentence}\n")
+    assert DESIGN_LEAD_UNCONFIRMED_LABEL in issued
+    assert "Design lead — not stated" not in issued
 
 
 def test_prepare_issue_markdown_keeps_one_primary_copy_and_one_review_area() -> None:

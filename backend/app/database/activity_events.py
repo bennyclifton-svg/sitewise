@@ -107,12 +107,13 @@ async def record_activity_events(
         flush_result = session.flush()
         if inspect.isawaitable(flush_result):
             await flush_result
-    except Exception:
-        log.exception(
+    except Exception as exc:
+        log.error(
             "activity_events_record_failed",
             project_id=str(project_id),
             source=source,
             run_id=str(run_id),
+            error_type=type(exc).__name__,
         )
 
 

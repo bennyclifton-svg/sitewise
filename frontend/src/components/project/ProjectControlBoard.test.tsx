@@ -66,7 +66,23 @@ const catalog: TaxonomyCatalog = {
     ],
   },
   risk_flags: {},
-  work_scopes: {},
+  work_scopes: {
+    refurb: {
+      categories: [
+        {
+          value: "building_services",
+          label: "Building Services",
+          items: [
+            {
+              value: "vertical_transport",
+              label: "Vertical Transport",
+              consultants: ["Services Engineer"],
+            },
+          ],
+        },
+      ],
+    },
+  },
   emphasis_profiles: { sections: [], base_weights: {}, modifiers: [] },
 };
 
@@ -114,6 +130,8 @@ describe("ProjectControlBoard project profile", () => {
         state: project.state,
         site_address: null,
         client: null,
+        budget: null,
+        scope_narrative: [],
       },
       previous_revision: 1,
       new_revision: 2,
@@ -135,6 +153,8 @@ describe("ProjectControlBoard project profile", () => {
           work_scope: [],
           site_address: null,
           client: null,
+          budget: null,
+          scope_narrative: [],
         },
       },
     };
@@ -185,9 +205,151 @@ describe("ProjectControlBoard project profile", () => {
         state: "NSW",
         site_address: null,
         client: null,
+        budget: null,
+        scope_narrative: [],
       }),
     );
     expect(onProjectUpdated).toHaveBeenCalledWith(updatedProject);
+  });
+
+  it("does not save when the profile has no unsaved changes", async () => {
+    const user = userEvent.setup();
+    const onProjectUpdated = vi.fn();
+    render(profileBoard(project, onProjectUpdated));
+
+    const saveButton = screen.getByRole("button", { name: "Save profile" });
+    expect(saveButton).toBeDisabled();
+    expect(saveButton).toHaveAttribute("title", "No unsaved changes");
+    await user.click(saveButton);
+    expect(api.updateProject).not.toHaveBeenCalled();
+    expect(onProjectUpdated).not.toHaveBeenCalled();
+  });
+
+  it("saves budget and scope notes from the project profile panel", async () => {
+    const user = userEvent.setup();
+    const onProjectUpdated = vi.fn();
+    vi.mocked(api.updateProject).mockResolvedValue({
+      profile: {
+        project_id: project.id,
+        profile_revision: 2,
+        building_class: project.building_class,
+        work_type: project.work_type,
+        subclasses: ["office"],
+        scale: {},
+        complexity: { operational_constraints: "live_environment" },
+        work_scope: [],
+        state: project.state,
+        site_address: null,
+        client: null,
+        budget: "$120m",
+        scope_narrative: [
+          "New lifts",
+          "Footbridge",
+          "Accessible platforms and canopies",
+          "Work in possessions",
+        ],
+      },
+      previous_revision: 1,
+      new_revision: 2,
+      changed_fields: ["budget", "scope_narrative"],
+      cleared_fields: [],
+      overlay_status: project.overlay_status,
+      risk_flags: project.risk_flags,
+    });
+
+    render(profileBoard(project, onProjectUpdated));
+
+    await user.type(screen.getByLabelText("Budget"), "$120m");
+    await user.type(
+      screen.getByLabelText("Scope notes"),
+      "New lifts{enter}Footbridge{enter}Accessible platforms and canopies{enter}Work in possessions",
+    );
+    await user.click(screen.getByRole("button", { name: "Save profile" }));
+
+    await waitFor(() =>
+      expect(api.updateProject).toHaveBeenCalledWith("project-1", {
+        expected_revision: 1,
+        building_class: "commercial",
+        work_type: "refurb",
+        subclasses: ["office"],
+        scale: {},
+        complexity: { operational_constraints: "live_environment" },
+        work_scope: [],
+        state: "NSW",
+        site_address: null,
+        client: null,
+        budget: "$120m",
+        scope_narrative: [
+          "New lifts",
+          "Footbridge",
+          "Accessible platforms and canopies",
+          "Work in possessions",
+        ],
+      }),
+    );
+  });
+
+  it("keeps the overlay banner and hides Saved when work type is still missing", async () => {
+    const user = userEvent.setup();
+    const onProjectUpdated = vi.fn();
+    const overlay = {
+      ready: false,
+      missing: [{ field: "work_type", value: null, reason: "missing" }],
+      invalid: [],
+    };
+    vi.mocked(api.updateProject).mockResolvedValue({
+      profile: {
+        project_id: blockedProject.id,
+        profile_revision: 2,
+        building_class: "commercial",
+        work_type: null,
+        subclasses: [],
+        scale: {},
+        complexity: {},
+        work_scope: [],
+        state: "NSW",
+        site_address: null,
+        client: null,
+      },
+      previous_revision: 1,
+      new_revision: 2,
+      changed_fields: ["building_class"],
+      cleared_fields: [],
+      overlay_status: overlay,
+      risk_flags: [],
+    });
+
+    render(profileBoard(blockedProject, onProjectUpdated));
+
+    await user.click(screen.getByRole("button", { name: "Commercial" }));
+    await user.click(screen.getByRole("button", { name: "Save profile" }));
+
+    await waitFor(() =>
+      expect(api.updateProject).toHaveBeenCalledWith(
+        "project-1",
+        expect.objectContaining({
+          building_class: "commercial",
+          work_type: null,
+        }),
+      ),
+    );
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+    expect(screen.getByText("Project overlays are incomplete.")).toBeInTheDocument();
+    expect(screen.getByText("work type: missing")).toBeInTheDocument();
+  });
+
+  it("asks to save when class and work type are selected but not yet persisted", async () => {
+    const user = userEvent.setup();
+    render(profileBoard(blockedProject, vi.fn()));
+
+    await user.click(screen.getByRole("button", { name: "Commercial" }));
+    await user.click(screen.getByRole("button", { name: "Refurbishment" }));
+
+    expect(
+      screen.getByText("Save profile to apply these overlays."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("work type: missing")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled();
   });
 
   it("persists explicit dependent-field clears when the building class changes", async () => {
@@ -225,7 +387,7 @@ describe("ProjectControlBoard project profile", () => {
         project_id: project.id,
         profile_revision: 2,
         building_class: "residential",
-        work_type: null,
+        work_type: "refurb",
         subclasses: [],
         scale: {},
         complexity: {},
@@ -237,7 +399,7 @@ describe("ProjectControlBoard project profile", () => {
       previous_revision: 1,
       new_revision: 2,
       changed_fields: ["building_class"],
-      cleared_fields: ["work_type", "subclasses", "complexity"],
+      cleared_fields: ["subclasses", "complexity"],
       overlay_status: project.overlay_status,
       risk_flags: [],
     });
@@ -251,7 +413,7 @@ describe("ProjectControlBoard project profile", () => {
       expect(api.updateProject).toHaveBeenCalledWith("project-1", {
         expected_revision: 1,
         building_class: "residential",
-        work_type: null,
+        work_type: "refurb",
         subclasses: [],
         scale: {},
         complexity: {},
@@ -259,6 +421,8 @@ describe("ProjectControlBoard project profile", () => {
         state: "NSW",
         site_address: null,
         client: null,
+        budget: null,
+        scope_narrative: [],
       }),
     );
   });
@@ -397,6 +561,8 @@ describe("ProjectControlBoard project profile", () => {
         state: "QLD",
         site_address: null,
         client: null,
+        budget: null,
+        scope_narrative: [],
       }),
     );
   });

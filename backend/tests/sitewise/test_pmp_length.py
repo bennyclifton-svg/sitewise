@@ -1,4 +1,10 @@
-from app.sitewise.pmp_length import length_violations, pmp_word_count
+from app.sitewise.pmp_length import (
+    length_retry_instruction,
+    length_violations,
+    over_length_violations,
+    pmp_word_count,
+    under_length_violations,
+)
 
 
 def test_pmp_word_count_counts_selected_decision_label_only() -> None:
@@ -78,3 +84,63 @@ def test_length_violation_tells_model_which_section_to_deepen() -> None:
         for issue in issues
     )
     assert not any("Citation key" in issue for issue in issues)
+
+
+def test_under_length_violations_exclude_over_length() -> None:
+    markdown = "# PMP\n\n## Brief\n\nshort draft\n"
+    weights = {"scope-client-requirements": 0.3, "risks": 0.19}
+    under = under_length_violations(
+        markdown, weights=weights, min_words=800, max_words=1800
+    )
+    over = over_length_violations(
+        markdown, weights=weights, min_words=800, max_words=1800
+    )
+    assert under
+    assert all("minimum" in issue for issue in under)
+    assert over == []
+
+
+def test_length_retry_instruction_names_band_budgets_and_forbids_register_restatement() -> None:
+    instruction = length_retry_instruction(
+        ["Draft is 786 words, minimum 1330 - deepen Risks."],
+        weights={
+            "snapshot": 0.05,
+            "risks": 0.19,
+            "compliance-approvals": 0.16,
+            "procurement-delivery": 0.13,
+            "citation-key": 0.04,
+        },
+        target_words=1900,
+        current_markdown="# PMP\n\n## Risks\n\nthree generic rows\n",
+    )
+    assert "minimum 1330" in instruction
+    assert "Risks and mitigations (~361 words)" in instruction
+    assert "Planning and Compliance (~304 words)" in instruction
+    assert "Procurement and Delivery (~247 words)" in instruction
+    assert "project-specific depth" in instruction
+    assert "not restate the register" in instruction
+    assert "# PMP" in instruction
+    assert "three generic rows" in instruction
+
+
+def test_ffe_schedule_register_is_not_length_condensed() -> None:
+    rows = "\n".join(
+        f"| Item {index} | Location | TBC | TBC | To be confirmed | Typical |"
+        for index in range(20)
+    )
+    markdown = f"""# PMP
+
+## FFE Schedule
+
+Unified Finishes, Fixtures and Equipment register.
+
+{rows}
+"""
+    issues = length_violations(
+        markdown,
+        weights={"ffe-schedule": 0.03, "scope-client-requirements": 0.14},
+        min_words=100,
+        max_words=1800,
+    )
+    assert not any("FFE Schedule" in issue for issue in issues)
+

@@ -107,15 +107,14 @@ def test_worker_registers_report_assembly_handler() -> None:
 def test_approve_report_endpoint_maps_weasyprint_unavailable(
     client: TestClient,
 ) -> None:
+    provider_detail = "native-library-secret-" + ("x" * 24)
     with (
         patch("tender.router.require_comparison_owner", new=AsyncMock()),
         patch("tender.router.require_active_entitlement", new=AsyncMock()),
         patch(
             "tender.router.report.approve_report",
             new=AsyncMock(
-                side_effect=report.WeasyPrintUnavailable(
-                    "WeasyPrint native dependencies are unavailable"
-                )
+                side_effect=report.WeasyPrintUnavailable(provider_detail)
             ),
         ),
     ):
@@ -124,7 +123,33 @@ def test_approve_report_endpoint_maps_weasyprint_unavailable(
         )
 
     assert response.status_code == 503
-    assert "WeasyPrint" in response.json()["detail"]
+    assert response.json() == {
+        "detail": "Tender PDF generation is temporarily unavailable. Please try again."
+    }
+    assert provider_detail not in response.text
+
+
+def test_build_report_endpoint_hides_weasyprint_error(client: TestClient) -> None:
+    provider_detail = "native-library-secret-" + ("x" * 24)
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch("tender.router.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "tender.router.report.build_report_draft",
+            new=AsyncMock(
+                side_effect=report.WeasyPrintUnavailable(provider_detail)
+            ),
+        ),
+    ):
+        response = client.post(
+            f"/api/tender/comparisons/{COMPARISON_ID}/report/build"
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Tender PDF generation is temporarily unavailable. Please try again."
+    }
+    assert provider_detail not in response.text
 
 
 def test_approve_report_endpoint_blocks_unapproved_customer_quality_gate(

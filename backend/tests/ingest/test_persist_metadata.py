@@ -173,8 +173,17 @@ def test_merged_metadata_survives_parse_failure() -> None:
     plan = build_ingest_plan(entry, context, classify_entry(entry))
     extracted = ExtractedDocument(normalized_content="content")
 
-    with patch("ingest.persist.parse_document_metadata", side_effect=RuntimeError("parse failed")):
+    canary = "ch03-metadata-provider-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    with (
+        patch(
+            "ingest.persist.parse_document_metadata",
+            side_effect=RuntimeError(canary),
+        ),
+        patch("ingest.persist.logger.warning") as warning,
+    ):
         metadata = _merged_metadata(plan, extracted)
 
     assert metadata["filename"] == entry.filename
     assert "document_number" not in metadata
+    assert warning.call_args.kwargs["error_type"] == "RuntimeError"
+    assert canary not in str(warning.call_args)

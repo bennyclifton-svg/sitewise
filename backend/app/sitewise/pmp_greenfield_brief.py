@@ -4,14 +4,21 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.sitewise.pmp_length import is_high_weight_section
 from app.sitewise.section_contracts import (
     PMP_SECTION_HEADINGS,
     heading_for_section_id,
 )
 from app.sitewise.taxonomy import (
+    DESIGN_LEAD_UNCONFIRMED,
     RiskFlag,
+    building_class_label,
     complexity_option_labels,
+    design_lead_discipline,
+    scale_field_label,
+    subclass_label,
     work_scope_items_for,
+    work_type_label,
 )
 
 # Cross-cutting markers every architect-PM greenfield draft must contain.
@@ -590,6 +597,15 @@ def _taxonomy_consultant_labels(
     return tuple(labels)
 
 
+def _depth_instruction(section_id: str, weight: float) -> str:
+    if not is_high_weight_section(section_id, weight):
+        return ""
+    return (
+        "; write project-specific depth from the project profile; "
+        "do not restate the register"
+    )
+
+
 def _contract_focus_line(
     section_id: str,
     *,
@@ -623,19 +639,34 @@ def _contract_focus_line(
         return focus
     if section_id == "ffe-schedule":
         return (
-            "cover the Finishes, Fixtures and Equipment schedule after Brief: "
-            "item, location, quantity, finish, status, and notes; preserve "
-            "user-added shared ffe_item rows; keep unspecified fields as TBC; "
-            "do not bury FFE selections inside the Brief prose; place finishes "
+            "cover the unified Finishes, Fixtures and Equipment schedule after "
+            "Consultants: one table for interior and exterior finishes, fixtures, and "
+            "equipment (cladding, roofing, paving, paint/render, wet-area "
+            "fittings, joinery, and plant); preserve user-added shared ffe_item "
+            "rows and typical starter rows; keep unspecified fields as TBC; do "
+            "not bury FFE selections inside the Brief prose; place finishes "
             "catalog pmp-decision blocks after the schedule table in this section "
             "(UI folds them into Finish-column dropdowns)"
         )
     if section_id == "consultants":
+        lead = design_lead_discipline(work_type, work_scope)
         disciplines = _taxonomy_consultant_labels(work_type, work_scope)
-        roster = ", ".join(disciplines) if disciplines else "taxonomy-expected disciplines"
+        if lead == DESIGN_LEAD_UNCONFIRMED:
+            roster_clause = (
+                f"design lead to be confirmed, then {', '.join(disciplines)}"
+                if disciplines
+                else "design lead to be confirmed"
+            )
+        else:
+            remainder = [label for label in disciplines if label != lead]
+            roster_clause = (
+                f"{lead} first, then {', '.join(remainder)}"
+                if remainder
+                else f"{lead} first"
+            )
         return (
-            "cover the appointment register with Architect first, then "
-            f"{roster}; one discipline per table row — never slash-join multiple "
+            "cover the appointment register with "
+            f"{roster_clause}; one discipline per table row — never slash-join multiple "
             "disciplines into one cell; keep firm/fee/status/citation columns; when the shared "
             "generation brief or stakeholders.consultant_appointments list evidenced "
             "firms from title blocks/certificates, fill those Firm cells and cite them "
@@ -674,6 +705,22 @@ def _contract_focus_line(
     return "cover only project-specific content supported by setup inputs or loaded seeds"
 
 
+def _subclass_scale_summary(
+    building_class: str | None,
+    subclasses: tuple[str, ...],
+    scale: dict[str, Any],
+) -> str:
+    subclass_text = ", ".join(
+        subclass_label(building_class, value) for value in subclasses
+    )
+    scale_text = ", ".join(
+        f"{scale_field_label(building_class, subclasses, key)}={_format_value(value)}"
+        for key, value in scale.items()
+        if value not in (None, "", [], {})
+    )
+    return "; ".join(part for part in (subclass_text, scale_text) if part) or "TBC"
+
+
 def _adaptive_greenfield_brief(
     *,
     archetype: str,
@@ -705,7 +752,8 @@ def _adaptive_greenfield_brief(
         ref_note = f" Loaded seed sections: {', '.join(refs)}." if refs else ""
         section_lines.append(
             f"- {heading} (~{int(weight * target_words)} words): "
-            f"{_contract_focus_line(section_id, work_type=work_type, work_scope=work_scope, refs=refs)}."
+            f"{_contract_focus_line(section_id, work_type=work_type, work_scope=work_scope, refs=refs)}"
+            f"{_depth_instruction(section_id, weight)}."
             f"{ref_note}"
         )
 
@@ -736,11 +784,13 @@ def _adaptive_greenfield_brief(
     else:
         scope_section = []
     consultant_labels = _taxonomy_consultant_labels(work_type, work_scope)
-    consultant_rows = (
-        [f"- {label}" for label in consultant_labels]
-        if consultant_labels
-        else ["- No taxonomy consultant roster yet; keep Architect first and mark other disciplines as Assumption."]
-    )
+    if consultant_labels:
+        consultant_rows = [f"- {label}" for label in consultant_labels]
+    else:
+        consultant_rows = [
+            "- No taxonomy consultant roster yet; design lead is to be confirmed "
+            "and remaining disciplines are Assumption."
+        ]
     risk_rows = [
         f"- {flag.severity.upper()}: {flag.title} - {flag.description}"
         for flag in risk_flags
@@ -750,16 +800,15 @@ def _adaptive_greenfield_brief(
         [
             "## Adaptive taxonomy PMP content contract (MUST follow)",
             f"Draft mode: {draft_mode}. Primary PMP target: {target_words} words inside the 2-4 page band.",
-            "Length discipline: the maximum is binding. Spend up to a section budget where the project warrants it; cut generic prose before project-specific facts.",
+            "Length discipline: the minimum is binding and will be retried. The maximum is advisory. Spend up to a section budget where the project warrants it; write project-specific depth in high-weight sections rather than restating the register.",
             "Condensed registers: top ~8 risks and top ~8 actions/decisions only. Full registers are companion artifacts/annexures.",
             "Evidence discipline: use current project-profile facts directly, without a provenance label or citation. Missing current-corpus facts are **Assumption** or **Not evidenced**. Do not write **Grounded** in platform_seeded drafts.",
             "No fallback: if a required seed section is missing, state the gap for confirmation; do not fill it from pretrained domain content.",
             "",
             "### Project taxonomy",
-            f"- Building class: {building_class}",
-            f"- Work type: {work_type or 'TBC'}",
-            f"- Subclass scale summary: {', '.join(subclasses) or 'TBC'}; "
-            + (", ".join(f"{key}={_format_value(value)}" for key, value in scale.items()) or "scale TBC"),
+            f"- Building class: {building_class_label(building_class) or building_class}",
+            f"- Work type: {work_type_label(work_type) or work_type or 'TBC'}",
+            f"- Subclass scale summary: {_subclass_scale_summary(building_class, subclasses, scale)}",
             f"- Legacy archetype fallback label: {archetype or 'none'}",
             "",
             "### Current project profile",

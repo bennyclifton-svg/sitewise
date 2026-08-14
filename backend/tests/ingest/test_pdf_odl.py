@@ -1,8 +1,76 @@
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from ingest.extractors.base import ExtractedDocument, PageText
-from ingest.extractors.pdf_odl import extract_pdf_odl
+from ingest.extractors.pdf_odl import (
+    _run_odl,
+    _text_layer_extract,
+    _text_layer_only,
+    _with_title_block,
+    extract_pdf_odl,
+)
+
+
+def test_odl_failures_log_and_persist_only_exception_class(
+    monkeypatch, tmp_path: Path
+) -> None:
+    pdf_path = tmp_path / "drawing.pdf"
+    pdf_path.write_bytes(b"pdf-bytes")
+    canary = "ch03-odl-provider-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+
+    def always_failing(*_args, **_kwargs):
+        raise RuntimeError(canary)
+
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl.extract_pdf_document", always_failing
+    )
+    warning = MagicMock()
+    monkeypatch.setattr("ingest.extractors.pdf_odl.logger.warning", warning)
+
+    document, error = _run_odl(pdf_path)
+
+    assert document is None
+    assert isinstance(error, RuntimeError)
+    assert warning.call_count == 2
+    assert all(call.kwargs["error_type"] == "RuntimeError" for call in warning.call_args_list)
+    assert canary not in str(warning.call_args_list)
+
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl._text_layer_extract",
+        lambda _path: _fake_text_layer("usable fallback text"),
+    )
+    salvaged = _text_layer_only(pdf_path, error)
+    assert salvaged.extraction_metadata["odl_error"] == "RuntimeError"
+    assert canary not in str(salvaged.extraction_metadata)
+
+
+def test_optional_pdf_fallbacks_log_only_exception_class(
+    monkeypatch, tmp_path: Path
+) -> None:
+    pdf_path = tmp_path / "drawing.pdf"
+    pdf_path.write_bytes(b"pdf-bytes")
+    canary = "ch03-pdf-provider-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    warning = MagicMock()
+    monkeypatch.setattr("ingest.extractors.pdf_odl.logger.warning", warning)
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError(canary)
+
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl.extract_pdf_title_block_text", fail
+    )
+    monkeypatch.setattr(
+        "ingest.extractors.pdf_odl.extract_pdf_title_block_fields", fail
+    )
+    monkeypatch.setattr("ingest.extractors.pdf_odl.extract_pdf_text", fail)
+
+    selected = _fake_text_layer("safe text")
+    assert _with_title_block(pdf_path, selected) is selected
+    assert _text_layer_extract(pdf_path) is None
+    assert warning.call_count == 3
+    assert all(call.kwargs["error_type"] == "RuntimeError" for call in warning.call_args_list)
+    assert canary not in str(warning.call_args_list)
 
 
 def test_extract_pdf_odl_uses_hybrid_and_normalizes_pages(monkeypatch, tmp_path: Path) -> None:

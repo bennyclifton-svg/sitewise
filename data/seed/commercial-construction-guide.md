@@ -14,8 +14,9 @@ required_by: {create-pmp: 1}
 This guide is routed to office, retail and serviced-office/coworking projects.
 References to Class 7, 8 or 9 buildings below explain classification and
 interface boundaries only; they do not provide industrial or institutional
-project coverage. Use `industrial-construction-guide.md` for industrial work.
-Institutional and other specialist subclasses remain second-pass gaps.
+project coverage. Use `industrial-construction-guide.md` for industrial work,
+`institution-construction-guide.md` for institutional work, and
+`mixed-use-construction-guide.md` for mixed-use work.
 
 ## Commercial Building Classifications (Class 5–9)
 

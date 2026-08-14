@@ -86,19 +86,21 @@ def test_run_once_dispatches_by_kind_and_completes(mock_session: AsyncMock) -> N
     run_async(_run())
 
 
-def test_run_once_handler_exception_fails_job_with_traceback(
+def test_run_once_handler_exception_persists_safe_diagnostic(
     mock_session: AsyncMock,
 ) -> None:
     job = _job()
+    provider_detail = "provider-secret-" + ("x" * 24)
 
     async def exploding_handler(session, job):
-        raise RuntimeError("kaboom in handler")
+        raise RuntimeError(provider_detail)
 
     async def _run() -> None:
         with (
             patch.object(worker.jobs, "claim_next", new=AsyncMock(return_value=job)),
             patch.object(worker.jobs, "fail", new=AsyncMock()) as mock_fail,
             patch.object(worker.jobs, "complete", new=AsyncMock()) as mock_complete,
+            patch.object(worker.log, "error") as log_error,
             patch.dict(worker.HANDLERS, {"ingest_document": exploding_handler}),
         ):
             processed = await worker.run_once(_session_factory(mock_session), "host:1")
@@ -107,8 +109,12 @@ def test_run_once_handler_exception_fails_job_with_traceback(
         mock_complete.assert_not_awaited()
         mock_fail.assert_awaited_once()
         error_text = mock_fail.await_args.args[2]
-        assert "kaboom in handler" in error_text
-        assert "RuntimeError" in error_text
+        assert error_text == "ingest_document failed (RuntimeError)"
+        assert provider_detail not in error_text
+        assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+        assert log_error.call_args.kwargs["job_id"] == str(job.id)
+        assert "error" not in log_error.call_args.kwargs
+        assert "exc_info" not in log_error.call_args.kwargs
 
     run_async(_run())
 
@@ -230,6 +236,7 @@ def test_run_lane_continues_after_run_once_raises(mock_session: AsyncMock) -> No
         with (
             patch.object(worker, "run_once", new=flaky_run_once),
             patch.object(worker.settings, "tender_worker_poll_seconds", 0.01),
+            patch.object(worker.log, "error") as log_error,
         ):
             await asyncio.wait_for(
                 worker.run_lane(
@@ -240,6 +247,9 @@ def test_run_lane_continues_after_run_once_raises(mock_session: AsyncMock) -> No
 
         # First call raised; the lane must self-heal and call run_once again.
         assert len(calls) == 2
+        assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+        assert "error" not in log_error.call_args.kwargs
+        assert "exc_info" not in log_error.call_args.kwargs
 
     run_async(_run())
 
@@ -263,5 +273,41 @@ def test_run_sweeper_requeues_stale_until_shutdown(mock_session: AsyncMock) -> N
             )
 
         assert calls == [worker.settings.tender_job_stale_lock_minutes]
+
+    run_async(_run())
+
+
+def test_run_sweeper_logs_error_class_without_provider_text(
+    mock_session: AsyncMock,
+) -> None:
+    shutdown = asyncio.Event()
+    calls: list[int] = []
+    provider_detail = "provider-secret-" + ("x" * 24)
+
+    async def flaky_requeue(session, *, older_than_minutes):
+        calls.append(older_than_minutes)
+        if len(calls) == 1:
+            raise RuntimeError(provider_detail)
+        shutdown.set()
+        return 0
+
+    async def _run() -> None:
+        with (
+            patch.object(worker.jobs, "requeue_stale", new=flaky_requeue),
+            patch.object(worker.settings, "tender_worker_poll_seconds", 0.01),
+            patch.object(worker.log, "error") as log_error,
+        ):
+            await asyncio.wait_for(
+                worker.run_sweeper(
+                    _session_factory(mock_session), shutdown_event=shutdown
+                ),
+                timeout=5,
+            )
+
+        assert len(calls) == 2
+        assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+        assert provider_detail not in str(log_error.call_args)
+        assert "error" not in log_error.call_args.kwargs
+        assert "exc_info" not in log_error.call_args.kwargs
 
     run_async(_run())

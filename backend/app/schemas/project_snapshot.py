@@ -5,9 +5,13 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 from app.schemas.profile_proposals import ProjectProfileProposalView
 from app.schemas.projects import ProjectProfileView
+
+
+DOCUMENT_INGEST_FAILURE_DETAIL = (
+    "Document ingestion failed. Retry the file or contact support if it continues."
+)
 
 
 class SnapshotValue(BaseModel):

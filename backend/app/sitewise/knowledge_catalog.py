@@ -398,8 +398,7 @@ def select_required_paths(
         (
             entry
             for entry in entries
-            if entry.tier == "archetype"
-            and entry.loaded_by == f"archetype: {archetype}"
+            if entry.loaded_by == f"archetype: {archetype}"
         ),
         None,
     )

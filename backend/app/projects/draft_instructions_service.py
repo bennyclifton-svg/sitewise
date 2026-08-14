@@ -238,12 +238,12 @@ async def apply_draft_instructions(
             # reported against its own instructions, exactly like a validation
             # failure, and the rest of the batch still publishes.
             if not isinstance(result, WorkflowValidationError):
-                logger.exception(
+                logger.error(
                     "draft_instruction_slice_error",
                     project_id=str(project.id),
                     draft_id=str(draft.id),
                     section_id=sections[position].section_id,
-                    exc_info=result,
+                    error_type=type(result).__name__,
                 )
             failed.extend(
                 FailedInstruction(index=index, reason=_failure_reason(result))

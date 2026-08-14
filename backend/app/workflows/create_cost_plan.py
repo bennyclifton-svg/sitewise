@@ -44,6 +44,8 @@ from app.cost_plan.evidence_reconciliation import (
     build_cost_evidence_reconciliation,
     is_main_works_cost_document,
 )
+from app.projects.profile import project_budget
+from app.cost_plan.calculations import money
 from app.cost_plan.import_legacy import import_legacy_draft
 from app.cost_plan.schemas import CostItemInput, CostPlanState, DependencySnapshot
 from app.cost_plan.invoice_service import list_invoice_register_rows
@@ -72,6 +74,11 @@ from app.sitewise.cost_plan_brief import (
     build_greenfield_brief,
     greenfield_quality_markers,
 )
+from app.sitewise.cost_plan_budget_forecast import (
+    AdoptedBudgetForecast,
+    build_adopted_budget_forecast,
+)
+from app.sitewise.taxonomy import parse_budget_amount
 from app.sitewise.pmp_decisions import (
     format_decision_option_sets,
     format_locked_decisions,
@@ -821,6 +828,90 @@ def _typed_cost_items(project: Project, pack) -> list[CostItemInput]:
     return items
 
 
+def _stated_construction_budget(
+    project: Project,
+    pack,
+    cost_plan_context: CostPlanContext | None = None,
+) -> Decimal | None:
+    """Prefer evidenced ceiling, then the Cost Plan context, then the profile."""
+    candidates: list[object] = []
+    if pack.construction_budget_ceiling:
+        candidates.append(pack.construction_budget_ceiling)
+    if cost_plan_context is not None:
+        field = cost_plan_context.commercial.get("budget")
+        value = getattr(field, "value", None) if field is not None else None
+        if value:
+            candidates.append(value)
+    profile_budget = project_budget(project)
+    if profile_budget:
+        candidates.append(profile_budget)
+    for raw in candidates:
+        amount = parse_budget_amount(raw)
+        if amount is None:
+            continue
+        return money(Decimal(str(round(amount, 2))))
+    return None
+
+
+def _envelope_items(items: list[CostItemInput]) -> list[CostItemInput]:
+    return [
+        item
+        for item in items
+        if item.category.lower() in {"construction", "pc allowances"}
+    ]
+
+
+def _needs_indicative_allocation(items: list[CostItemInput]) -> bool:
+    envelope = _envelope_items(items)
+    if not envelope:
+        return False
+    return any(item.budget is None for item in envelope)
+
+
+def apply_indicative_budget_allocation(
+    project: Project,
+    items: list[CostItemInput],
+    pack,
+    cost_plan_context: CostPlanContext | None = None,
+) -> tuple[list[CostItemInput], Decimal | None, AdoptedBudgetForecast | None]:
+    """Apportion a stated budget across TBC scaffold rows, labelled as indicative."""
+    stated = _stated_construction_budget(project, pack, cost_plan_context)
+    if stated is None or not _needs_indicative_allocation(items):
+        return items, stated, None
+    scaffold = _typed_cost_table_markdown(items)
+    forecast = build_adopted_budget_forecast(
+        scaffold,
+        construction_budget=stated,
+        work_type=project.work_type,
+        source_ref="project_profile",
+    )
+    return list(forecast.items), stated, forecast
+
+
+def _typed_cost_table_markdown(items: list[CostItemInput]) -> str:
+    lines = [
+        "| Cost Code | Category | Cost Items | Budget | Status | Basis |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for item in items:
+        basis = (item.basis or "").replace("|", "/")
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    item.cost_code,
+                    item.category,
+                    item.item.replace("|", "/"),
+                    _format_typed_budget(item.budget),
+                    item.status,
+                    basis,
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(lines)
+
+
 def _money_variants(value: str | None) -> set[str]:
     if not value:
         return set()
@@ -842,31 +933,69 @@ def _format_typed_budget(value: Decimal | None) -> str:
 def render_typed_cost_plan_markdown(
     title: str,
     items: list[CostItemInput],
+    *,
+    stated_budget: Decimal | None = None,
+    forecast: AdoptedBudgetForecast | None = None,
 ) -> str:
-    """Thin markdown table for draft/workspace/copy — not the legacy report."""
+    """Typed Cost Plan markdown: GST discipline, control narrative, then the table."""
+    table = _typed_cost_table_markdown(items)
     lines = [
         f"# {title}",
         "",
-        "| Cost Code | Category | Cost Items | Budget | Status | Basis |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "All figures are **ex GST** unless marked otherwise.",
+        "",
     ]
-    for item in items:
-        basis = (item.basis or "").replace("|", "/")
-        lines.append(
-            "| "
-            + " | ".join(
-                [
-                    item.cost_code,
-                    item.category,
-                    item.item.replace("|", "/"),
-                    _format_typed_budget(item.budget),
-                    item.status,
-                    basis,
-                ]
-            )
-            + " |"
+    if stated_budget is not None:
+        envelope_total = (
+            forecast.construction_envelope_total
+            if forecast is not None
+            else stated_budget
         )
-    return "\n".join(lines) + "\n"
+        planning_total = None
+        indicative_total = None
+        if forecast is not None:
+            planning_total = money(
+                forecast.total_excluding_gst - forecast.construction_envelope_total
+            )
+            indicative_total = forecast.total_excluding_gst
+        lines.extend(
+            [
+                "## Control decision",
+                "",
+                (
+                    f"The stated construction budget of **${stated_budget:,.0f}** ex GST "
+                    "has been split across Construction and PC rows as an "
+                    "**indicative allocation**, not a tendered price or quotation. "
+                    "Fees, consultants and owner contingency sit outside that envelope "
+                    "as planning allowances."
+                ),
+                "",
+                "## Cost breakdown",
+                "",
+                table,
+                "",
+                "## Reconciliation",
+                "",
+                f"- Stated construction budget (ex GST): **${stated_budget:,.0f}**",
+                (
+                    "- Construction + PC (reconciles to stated budget): "
+                    f"**${envelope_total:,.0f}**"
+                ),
+            ]
+        )
+        if planning_total is not None:
+            lines.append(
+                "- Planning allowances (fees, consultants, contingency): "
+                f"**${planning_total:,.0f}**"
+            )
+        if indicative_total is not None:
+            lines.append(
+                f"- Indicative total (ex GST): **${indicative_total:,.0f}**"
+            )
+        lines.append("")
+        return "\n".join(lines)
+    lines.extend([table, ""])
+    return "\n".join(lines)
 
 
 def _typed_item_preview_payload(item: CostItemInput) -> dict[str, str | None]:
@@ -928,10 +1057,23 @@ def _required_typed_evidence_fact_issues(
             item for item in items if item.category.lower() == "construction"
         ]
         priced_construction = [item for item in construction if item.budget is not None]
-        # Structure-only families keep construction as TBC pending tender; the
-        # ceiling is a control figure, not a row amount.
+        envelope_total = sum(
+            (item.budget or Decimal("0") for item in _envelope_items(items)),
+            Decimal("0"),
+        )
+        ceiling_amount = parse_budget_amount(pack.construction_budget_ceiling)
+        envelope_matches_ceiling = (
+            ceiling_amount is not None
+            and money(envelope_total) == money(Decimal(str(round(ceiling_amount, 2))))
+        )
+        # Structure-only families keep construction as TBC pending tender unless
+        # an indicative allocation has already split the stated budget.
         structure_only_scaffold = bool(construction) and not priced_construction
-        if len(priced_construction) < 2 and not structure_only_scaffold:
+        if (
+            len(priced_construction) < 2
+            and not structure_only_scaffold
+            and not envelope_matches_ceiling
+        ):
             issues.append(
                 "evidenced construction budget is missing from typed cost rows "
                 f"({_money_variants(pack.construction_budget_ceiling)})"
@@ -1250,10 +1392,10 @@ async def run_create_cost_plan_typed(
     generation_brief: ArtefactGenerationBrief | None = None,
     on_preview: PreviewPublisher | None = None,
 ) -> CostPlanDraftOutput:
-    """Typed compiler: extract evidence → build canonical rows → thin table markdown."""
+    """Typed compiler: extract evidence → allocate stated budget → table markdown."""
     from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
 
-    del chat_model, cost_plan_context, generation_brief  # reserved for future hooks
+    del chat_model, generation_brief  # reserved for future hooks
 
     evidence_refs = _evidence_refs_from_passages(passages, project.id)
     pack = extract_cost_plan_evidence_pack(project_source_texts, evidence_refs)
@@ -1293,6 +1435,12 @@ async def run_create_cost_plan_typed(
     )
 
     typed_items = _typed_cost_items(project, pack)
+    typed_items, stated_budget, forecast = apply_indicative_budget_allocation(
+        project,
+        typed_items,
+        pack,
+        cost_plan_context,
+    )
     await _publish_typed_cost_plan_batches(on_preview, typed_items)
     trace.append(
         _trace(
@@ -1305,7 +1453,12 @@ async def run_create_cost_plan_typed(
 
     await _publish_progress(on_preview, {"stage": "validation_started"})
     title = document_title()
-    markdown = render_typed_cost_plan_markdown(title, typed_items)
+    markdown = render_typed_cost_plan_markdown(
+        title,
+        typed_items,
+        stated_budget=stated_budget,
+        forecast=forecast,
+    )
     output = CostPlanDraftOutput(
         title=title,
         markdown=markdown,

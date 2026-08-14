@@ -18,6 +18,7 @@ from app.projects.profile import read_profile
 from app.projects.project_intelligence import enrich_project_snapshot
 from app.schemas.profile_proposals import ProjectProfileProposalView
 from app.schemas.project_snapshot import (
+    DOCUMENT_INGEST_FAILURE_DETAIL,
     EvidenceIngestFailure,
     ProjectSnapshot,
     ProjectSnapshotDecision,
@@ -241,7 +242,7 @@ async def get_project_snapshot(
             ingest_failures=[
                 EvidenceIngestFailure(
                     workspace_path=row.workspace_path,
-                    error=row.ingest_error,
+                    error=DOCUMENT_INGEST_FAILURE_DETAIL,
                 )
                 for row in failure_rows
             ],

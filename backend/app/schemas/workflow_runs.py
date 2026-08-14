@@ -4,8 +4,12 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
+WORKFLOW_FAILURE_MESSAGE = (
+    "Workflow processing failed. Retry the workflow or contact support if it continues."
+)
 
 WorkflowRunState = Literal[
     "queued", "running", "needs_input", "complete", "failed", "cancelled"
@@ -56,6 +60,11 @@ class WorkflowRunView(BaseModel):
     started_at: datetime | None
     completed_at: datetime | None
     updated_at: datetime
+
+    @field_validator("error_message")
+    @classmethod
+    def hide_internal_error_detail(cls, value: str | None) -> str | None:
+        return WORKFLOW_FAILURE_MESSAGE if value is not None else None
 
 
 class WorkflowRunResult(BaseModel):

@@ -4,7 +4,6 @@ seed_type: work-type-guide
 loaded_by: "work_type: remediation"
 applies_to_classes: [residential, commercial, industrial]
 applies_to_work_types: [remediation]
-applies_to_work_scopes: [waterproofing_rectification, fire_safety_orders, facade_cladding]
 state_default: NSW
 topics: [building-remediation, rectification, defects, facade, waterproofing, structural, fire-safety, investigation, occupied-buildings, consultant-procurement]
 summary: "Cross-class building-remediation and rectification overlay for investigating defects, defining causes and performance outcomes, planning occupied-building work, procuring specialist design, verifying rectification and preserving evidence. Contaminated-land remediation remains a separate discipline."

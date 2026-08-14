@@ -207,8 +207,9 @@ from tender.services.cost_handoff import (
     TenderCostHandoffError,
     approved_tender_cost_handoff,
 )
+from tender.services.progress import FAILED_JOB_DETAIL
 
-mcp = FastMCP("clerk")
+mcp = FastMCP("clerk", mask_error_details=True)
 
 TENDER_DOCUMENT_KEYWORDS = (
     "tender",
@@ -310,7 +311,7 @@ def _job_summary(job: TenderJob) -> dict:
         "status": job.status,
         "attempts": job.attempts,
         "quote_id": str(job.quote_id) if job.quote_id else None,
-        "last_error": job.last_error,
+        "last_error": FAILED_JOB_DETAIL if job.last_error else None,
         "run_after": job.run_after.isoformat() if job.run_after else None,
         "created_at": job.created_at.isoformat() if job.created_at else None,
     }

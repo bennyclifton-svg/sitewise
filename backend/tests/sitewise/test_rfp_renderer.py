@@ -308,7 +308,7 @@ def test_rfp_summary_humanises_scale_labels_and_singular_counts() -> None:
     )
 
     assert (
-        "| Subclass and scale | office; 365 m² NLA; 2 storeys; "
+        "| Subclass and scale | Office (Class 5); 365 m² NLA; 2 storeys; "
         "1 tenancy; 180 m² floor plate | [1] |"
     ) in scaffold
 

@@ -75,6 +75,7 @@
     {"flag": "bushfire_prone", "when": {"dimension": "bushfire_exposure", "values": ["bal_low", "bal_12_5", "bal_19", "bal_29", "bal_40", "bal_fz"]}},
     {"flag": "bushfire_flame_zone", "when": {"dimension": "bushfire_exposure", "values": ["bal_40", "bal_fz"]}},
     {"flag": "flood_overlay", "when": {"dimension": "flood_exposure", "values": ["flood_planning_area", "below_1pc_aep", "floodway"]}},
+    {"flag": "heritage_adaptive_reuse", "when": {"dimension": "heritage_status", "values": ["conservation_area", "local_heritage_item", "state_heritage_register"]}},
     {"flag": "critical_infrastructure", "when": {"dimension": "authority_interfaces", "values": ["critical_network"]}},
     {"flag": "multi_jurisdictional", "when": {"dimension": "authority_interfaces", "values": ["multi_jurisdictional"]}},
     {"flag": "gmp_manufacturing", "when": {"dimension": "hazardous_process", "values": ["gmp"]}},

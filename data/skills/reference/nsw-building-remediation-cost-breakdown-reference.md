@@ -3,7 +3,6 @@ tier: topic
 applies_to_roles: [owner-builder, architect-pm, builder, d-and-c]
 applies_to_classes: [residential, commercial, industrial]
 applies_to_work_types: [remediation]
-applies_to_work_scopes: [waterproofing_rectification, fire_safety_orders, facade_cladding]
 topics: [remediation, rectification, defects, occupied-building, cost, taxonomy, consultant-procurement]
 summary: "Practice-level taxonomy for early NSW building remediation and rectification cost plans: investigation, access, work packages, making good and close-out. Structure only—never diagnosis, market rates or active-project evidence."
 required_by: {create-pmp: 2, create-cost-plan: 2, consultant-procurement: 2}

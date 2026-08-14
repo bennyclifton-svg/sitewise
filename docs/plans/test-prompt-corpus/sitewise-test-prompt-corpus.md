@@ -46,7 +46,7 @@ Check: AS 2118 / AS 2941. Fire engineer and hydraulic consultant, not Architect.
 
 **3. Switchboard and electrical upgrade** — institution / education_primary_secondary / refurb · XS
 
-> Main switchboard at the primary school is at capacity and non-compliant. Need to upgrade the MSB and associated submains. Work has to happen in the summer holidays. About $220k.
+> Main switchboard at the primary school is at capacity and non-compliant. Need to upgrade the MSB and associated submains. Work has to happen in the summer holidays. About $220k. Need a PMP.
 
 Check: Working with children / site access during term. Hard programme constraint driving everything. Supply authority coordination and lead time. Electrical engineer leads. Shutdown planning. Should be brief.
 
@@ -494,7 +494,7 @@ Do not run 1 through 67. Run in waves and fix between waves.
 
 **Wave 1 — the blind spot.** Prompts 1, 2, 3, 8, 10, 49. Six small projects. If the generic-framework problem is real, it will be obvious and consistent here, and these are the cheapest to critique.
 
-**Wave 2 — work type coverage.** Prompts 6, 11, 14, 40, 43, 61. One of each work type against varied classes. Tests whether work type actually changes anything.
+**Wave 2 — work type coverage.** Prompts 6, 11, 14, **40**, 43, 61. One of each work type against varied classes. Tests whether work type actually changes anything. Do not skip 40: it is the industrial / ISO 14644 / validation-before-handover checkpoint and was omitted in the original Wave 2 run.
 
 **Wave 3 — scale proportionality.** Prompts 5, 26, 31, 35 in ascending scale within a similar domain. The documents should visibly differ in length and ceremony.
 
@@ -520,6 +520,7 @@ One row per run, so the critique aggregates instead of scattering.
 | Invented facts | |
 | Defect category | |
 | Repo area implicated | |
+| Build SHA | |
 
 **Defect categories to use consistently** — these are what you hand the coding agent:
 
@@ -531,3 +532,7 @@ One row per run, so the critique aggregates instead of scattering.
 - `INPUT-LOSS` — supplied fact not used
 - `INVENT` — unsupported assertion
 - `REGISTER` — tone or format not client-ready
+- `WORKFLOW-LAUNCH` — the artefact never launched, queued, or completed
+- `TAXONOMY-GAP` — the vocabulary has no value for a fact the prompt supplied
+- `HARNESS` — the test environment, not the product, invalidated the measurement
+- `COST` — cost plan missing figures, budget, GST discipline, or named plant

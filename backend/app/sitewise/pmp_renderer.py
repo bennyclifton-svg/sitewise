@@ -34,7 +34,16 @@ from app.sitewise.pmp_greenfield_brief import (
 from app.sitewise.pmp_sources import document_title, required_section_headings
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
 from app.sitewise.section_contracts import heading_for_section_id, pmp_section_headings
-from app.sitewise.taxonomy import design_lead_discipline, work_scope_items_for
+from app.sitewise.taxonomy import (
+    DESIGN_LEAD_UNCONFIRMED,
+    DESIGN_LEAD_UNCONFIRMED_LABEL,
+    building_class_label,
+    design_lead_discipline,
+    scale_field_label,
+    subclass_label,
+    work_scope_items_for,
+    work_type_label,
+)
 
 DraftMode = Literal["evidence_grounded", "platform_seeded"]
 
@@ -118,6 +127,7 @@ def _taxonomy_risk_rows(
         return ()
 
     lead = design_lead_discipline(context.work_type, context.work_scope)
+    owner = "TBC" if lead == DESIGN_LEAD_UNCONFIRMED else lead
     if pack is not None:
         if project.archetype == "renovation":
             base = _renovation_risk_rows(pack)
@@ -134,14 +144,14 @@ def _taxonomy_risk_rows(
             ),
             (
                 "Current corpus evidence not uploaded",
-                lead,
+                owner,
                 "Not evidenced",
                 "Upload brief, authority, cost, programme, and consultant records",
                 "TBC",
             ),
             (
                 "Consultant and approval pathway unresolved",
-                lead,
+                owner,
                 "Assumption",
                 "Confirm discipline roster and approval certifier/authority path",
                 "TBC",
@@ -154,7 +164,7 @@ def _taxonomy_risk_rows(
     rows.extend(
         (
             flag.title,
-            lead,
+            owner,
             "Assumption",
             flag.description,
             "TBC",
@@ -979,12 +989,29 @@ def _metadata_value(value: object) -> str:
 def _taxonomy_scale_summary(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
-        return "TBC"
-    scale = ", ".join(
-        f"{key} {_metadata_value(value)}" for key, value in context.scale.items()
+        return ""
+    subclass = ", ".join(
+        subclass_label(context.building_class, value) for value in context.subclasses
     )
-    subclass = ", ".join(context.subclasses) or "TBC"
-    return f"{subclass}; {scale or 'scale TBC'}"
+    scale = ", ".join(
+        f"{scale_field_label(context.building_class, context.subclasses, key)} "
+        f"{_metadata_value(value)}"
+        for key, value in context.scale.items()
+        if value not in (None, "", [], {})
+    )
+    return "; ".join(part for part in (subclass, scale) if part)
+
+
+def _class_type_subclass_line(context) -> str:
+    parts = [
+        building_class_label(context.building_class),
+        work_type_label(context.work_type),
+        ", ".join(
+            subclass_label(context.building_class, value)
+            for value in context.subclasses
+        ),
+    ]
+    return " / ".join(part for part in parts if part)
 
 
 def _top_weighted_section_id(project: Project) -> str | None:
@@ -1215,14 +1242,20 @@ _COMPACT_COUNT_LABELS = {
 def _compact_taxonomy_scale_summary(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
-        return "TBC"
-    parts = [", ".join(context.subclasses) or "TBC"]
+        return ""
+    subclass = ", ".join(
+        subclass_label(context.building_class, value) for value in context.subclasses
+    )
+    parts = [subclass] if subclass else []
     for key, value in context.scale.items():
         if value in (None, "", [], {}) or str(value).strip().lower() == "not declared":
             continue
         label, unit = _COMPACT_SCALE_LABELS.get(
             key,
-            (key.replace("_", " "), ""),
+            (
+                scale_field_label(context.building_class, context.subclasses, key),
+                "",
+            ),
         )
         rendered = _metadata_value(value)
         if key in _COMPACT_COUNT_LABELS and isinstance(value, (int, float)):
@@ -1234,7 +1267,7 @@ def _compact_taxonomy_scale_summary(project: Project) -> str:
             parts.append(f"{rendered} {unit} {label}")
         else:
             parts.append(f"{rendered} {label}")
-    return "; ".join(parts) if len(parts) > 1 else f"{parts[0]}; scale TBC"
+    return "; ".join(part for part in parts if part)
 
 
 def _taxonomy_project_description(project: Project) -> str:
@@ -1252,24 +1285,50 @@ def _taxonomy_project_description(project: Project) -> str:
         # the basement carpark"; they do not recognise "Facade/Cladding
         # Rectification", which is a routing key that happens to be printable.
         scope = "; ".join(narrative or [item.label for item in scope_items])
-        work_type = (context.work_type or "project").replace("_", " ")
+        work_type = work_type_label(context.work_type) or "Project"
         asset = _compact_taxonomy_scale_summary(project)
+        lead = f"{work_type} works for {asset}" if asset else f"{work_type} works"
         return (
-            f"{work_type.capitalize()} works for {asset}. Scope includes {scope}. "
+            f"{lead}. Scope includes {scope}. "
             "This plan coordinates approvals, consultants, cost, programme, "
             "procurement, risks, owner decisions, and delivery close-out."
         )
     project_type = " ".join(
-        part.replace("_", " ")
-        for part in (context.work_type, context.building_class)
+        part
+        for part in (
+            work_type_label(context.work_type),
+            building_class_label(context.building_class),
+        )
         if part
     )
     if not project_type:
         return "Not provided"
-    return (
-        f"{project_type.capitalize()} project. This plan establishes the brief, "
+    missing: list[str] = []
+    if not context.user_provided_fields.get("site_address"):
+        missing.append("site")
+    if not context.subclasses and not context.scale:
+        missing.append("asset")
+    if not scope_items and not narrative:
+        missing.append("scope")
+    base = (
+        f"{project_type} project. This plan establishes the brief, "
         "approvals, consultant, cost, programme, procurement, risk, and owner-decision "
-        "controls. Site, asset, and scope details remain to be confirmed from the "
+        "controls."
+    )
+    if not missing:
+        return base
+    return f"{base} {_unstated_details_clause(missing)}"
+
+
+def _unstated_details_clause(missing: list[str]) -> str:
+    if len(missing) == 1:
+        head = missing[0]
+    elif len(missing) == 2:
+        head = f"{missing[0]} and {missing[1]}"
+    else:
+        head = f"{missing[0]}, {missing[1]}, and {missing[2]}"
+    return (
+        f"{head[0].upper()}{head[1:]} details remain to be confirmed from the "
         "project profile or current evidence."
     )
 
@@ -1348,20 +1407,26 @@ def _render_taxonomy_scope(project: Project) -> str:
     else:
         residential_note = "Confirm inclusions, exclusions, interfaces, and acceptance criteria before procurement."
 
+    scale_summary = _taxonomy_scale_summary(project)
     lines = [
         f"## {heading_for_section_id('scope-client-requirements', work_type=context.work_type)}",
         "",
-        f"Class/type/subclass: {context.building_class} / {context.work_type or 'TBC'} / {', '.join(context.subclasses) or 'TBC'}.",
-        f"Scale summary: {_taxonomy_scale_summary(project)}.",
-        residential_note,
-        "Project-specific scope that is not established by the current profile or corpus "
-        "remains **Assumption** until clarified through design coordination and recorded "
-        "owner decisions.",
-        _emphasis_note(project, "scope-client-requirements"),
-        "",
-        "**Inclusions (work scope):**",
-        "\n".join(inclusions),
+        f"Class/type/subclass: {_class_type_subclass_line(context)}.",
     ]
+    if scale_summary:
+        lines.append(f"Scale summary: {scale_summary}.")
+    lines.extend(
+        [
+            residential_note,
+            "Project-specific scope that is not established by the current profile or corpus "
+            "remains **Assumption** until clarified through design coordination and recorded "
+            "owner decisions.",
+            _emphasis_note(project, "scope-client-requirements"),
+            "",
+            "**Inclusions (work scope):**",
+            "\n".join(inclusions),
+        ]
+    )
     if brief_is_emphasis or (
         context.building_class == "residential" and context.work_type == "new"
     ):
@@ -1385,18 +1450,12 @@ def _render_taxonomy_scope(project: Project) -> str:
     return "\n".join(lines)
 
 
-def _asset_schedule_rows(project: Project) -> list[str]:
-    """Render the profile's asset register into the FFE table.
-
-    A services or plant-replacement job has no finishes to schedule, so the
-    section used to render an empty stub. The equipment being replaced is the
-    schedule that project actually needs, and it is the one place the specifics
-    the PM supplied — make, capacity, age, refrigerant — can appear.
-    """
+def _asset_ffe_items(project: Project) -> list[dict[str, str]]:
+    """Profile asset-register rows as FFE items (equipment on the unified table)."""
     from app.projects.profile import project_assets
     from app.sitewise.taxonomy import asset_option_label
 
-    rows: list[str] = []
+    items: list[dict[str, str]] = []
     for asset in project_assets(project):
         condition = asset_option_label("condition", asset.condition)
         action = asset_option_label("action", asset.action)
@@ -1411,70 +1470,89 @@ def _asset_schedule_rows(project: Project) -> list[str]:
             )
             if part
         )
-        rows.append(
-            "| {item} | {location} | {qty} | {spec} | {status} | {notes} |".format(
-                item=asset.type,
-                location=asset.location or "—",
-                qty=asset.count if asset.count is not None else "—",
-                spec=asset.capacity or asset.make_model or "—",
-                status=action or condition or "User provided",
-                notes=notes or "—",
-            )
+        items.append(
+            {
+                "item": asset.type,
+                "location": asset.location or "—",
+                "quantity": str(asset.count) if asset.count is not None else "—",
+                "finish": asset.capacity or asset.make_model or "—",
+                "status": action or condition or "User provided",
+                "notes": notes or "—",
+            }
         )
-    return rows
+    return items
+
+
+def _asset_schedule_rows(project: Project) -> list[str]:
+    """Render the profile's asset register into the FFE table."""
+    return [_ffe_markdown_row(item) for item in _asset_ffe_items(project)]
+
+
+def _ffe_markdown_row(item: dict[str, str]) -> str:
+    return (
+        "| {item} | {location} | {quantity} | {finish} | {status} | {notes} |".format(
+            item=item["item"],
+            location=item.get("location") or "—",
+            quantity=item.get("quantity") or "—",
+            finish=item.get("finish") or "TBC",
+            status=item.get("status") or "To be confirmed",
+            notes=item.get("notes") or "—",
+        )
+    )
+
+
+def _merge_ffe_items(*groups: list[dict[str, str]]) -> list[dict[str, str]]:
+    seen: set[str] = set()
+    merged: list[dict[str, str]] = []
+    for group in groups:
+        for item in group:
+            key = str(item.get("item") or "").strip().casefold()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+    return merged
 
 
 def _render_taxonomy_ffe_schedule(project: Project) -> str:
     from app.sitewise.ffe_schedule import ffe_schedule_rows
+    from app.sitewise.ffe_typical import typical_ffe_rows
 
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
-    rows = [
+    explicit_items = ffe_schedule_rows(project)
+    asset_items = _asset_ffe_items(project)
+    typical_items = typical_ffe_rows(
+        work_type=context.work_type,
+        work_scope=context.work_scope,
+        subclasses=context.subclasses,
+    )
+    if asset_items:
+        typical_items = [
+            item for item in typical_items if item["item"] != "HVAC plant"
+        ]
+    display_items = _merge_ffe_items(explicit_items, asset_items, typical_items)
+    table = [
         "| Item | Location | Qty | Finish | Status | Notes |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
-    explicit_items = ffe_schedule_rows(project)
-    asset_rows = [] if explicit_items else _asset_schedule_rows(project)
-    if asset_rows:
-        # An equipment schedule has no finishes: the fourth column carries make
-        # and capacity, so label it for what it holds.
-        rows[0] = "| Item | Location | Qty | Make / capacity | Action | Notes |"
-    for item in explicit_items:
-        rows.append(
-            "| {item} | {location} | {quantity} | {finish} | {status} | {notes} |".format(
-                item=item["item"],
-                location=item["location"],
-                quantity=item["quantity"],
-                finish=item["finish"],
-                status=item["status"],
-                notes=item["notes"],
-            )
-        )
-    rows.extend(asset_rows)
-    if len(rows) == 2:
-        rows.append(
-            "| TBC — record finishes, fixtures and equipment selections | TBC | TBC | TBC | To be confirmed | — |"
+    table.extend(_ffe_markdown_row(item) for item in display_items)
+    if not display_items:
+        table.append(
+            "| — | — | — | — | To be confirmed | No finishes, fixtures or "
+            "equipment recorded yet — add items in chat |"
         )
     return "\n".join(
         [
             f"## {heading_for_section_id('ffe-schedule', work_type=context.work_type)}",
             "",
-            (
-                "Equipment schedule derived from the project asset register — the "
-                "plant being replaced, upgraded or remediated, with the make, "
-                "capacity and condition recorded against each item. Missing "
-                "detail stays TBC until confirmed."
-                if asset_rows
-                else "Finishes, Fixtures and Equipment (FFE) schedule. Capture "
-                "selected and outstanding items here — baths, tapware, joinery, "
-                "appliances, flooring, fixtures, and other owner or design "
-                "selections that affect procurement and cost. Missing selections "
-                "stay TBC until confirmed."
-            ),
+            "Unified Finishes, Fixtures and Equipment register for interior and "
+            "exterior finishes, fixtures, and plant. Add or tidy rows in chat. "
+            "Missing selections stay TBC.",
             _emphasis_note(project, "ffe-schedule"),
             "",
-            "\n".join(rows),
+            "\n".join(table),
         ]
     )
 
@@ -1504,25 +1582,26 @@ def _render_taxonomy_consultants(
     lead = design_lead_discipline(context.work_type, context.work_scope)
     engaged = has_engagement_evidence(pack)
     fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
-    lead_fact = appointment_rows.get(lead.strip().lower())
-    if engaged:
-        firm = pack.appointee or lead
-        fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
-        status = "Partial"
-        citation = _engagement_citation_token(pack, index)
-    elif lead_fact:
-        firm = str(lead_fact["firm"])
-        fee = str(lead_fact.get("fee") or "")
-        status = str(lead_fact["status"])
-        citation = "—"
-    else:
-        firm = pack.appointee or "TBC"
-        fee = "TBC"
-        status = "Assumption"
-        citation = "—"
-    rows.append(f"| {lead} | {firm} | {fee} | {status} | {citation} |")
-
-    seen: set[str] = {lead.strip().lower()}
+    seen: set[str] = set()
+    if lead != DESIGN_LEAD_UNCONFIRMED:
+        lead_fact = appointment_rows.get(lead.strip().lower())
+        if engaged:
+            firm = pack.appointee or lead
+            fee = pack.fee_total_ex_gst or ("Per fee proposal" if fee_known else "TBC")
+            status = "Partial"
+            citation = _engagement_citation_token(pack, index)
+        elif lead_fact:
+            firm = str(lead_fact["firm"])
+            fee = str(lead_fact.get("fee") or "")
+            status = str(lead_fact["status"])
+            citation = "—"
+        else:
+            firm = pack.appointee or "TBC"
+            fee = "TBC"
+            status = "Assumption"
+            citation = "—"
+        rows.append(f"| {lead} | {firm} | {fee} | {status} | {citation} |")
+        seen.add(lead.strip().lower())
     for item in work_scope_items_for(context.work_type, context.work_scope):
         for consultant in item.consultants:
             key = consultant.strip().lower()
@@ -1562,16 +1641,29 @@ def _render_taxonomy_consultants(
             "| Discipline roster | TBC | | Not evidenced | — |"
         )
 
-    return "\n".join(
-        [
-            f"## {heading_for_section_id('consultants', work_type=context.work_type)}",
-            "",
+    if lead == DESIGN_LEAD_UNCONFIRMED:
+        intro = (
+            f"{DESIGN_LEAD_UNCONFIRMED_LABEL}. "
+            "Record firm, fee, and appointment status only — engagement scope belongs in the brief "
+            "and filed engagement letters, not in this register. "
+            "Missing appointment evidence stays Assumption / Not evidenced until engagement letters "
+            "or fee proposals are filed."
+        )
+    else:
+        intro = (
             f"Appointment register for {lead} engagement and taxonomy-expected disciplines. "
             f"The {lead} row is the design lead; coordination duties sit under that appointment. "
             "Record firm, fee, and appointment status only — engagement scope belongs in the brief "
             "and filed engagement letters, not in this register. "
             "Missing appointment evidence stays Assumption / Not evidenced until engagement letters "
-            "or fee proposals are filed.",
+            "or fee proposals are filed."
+        )
+
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('consultants', work_type=context.work_type)}",
+            "",
+            intro,
             _emphasis_note(project, "consultants"),
             "",
             "\n".join(rows),
@@ -1809,13 +1901,14 @@ def _render_taxonomy_actions(project: Project) -> str:
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     lead = design_lead_discipline(context.work_type, context.work_scope)
+    owner = "TBC" if lead == DESIGN_LEAD_UNCONFIRMED else lead
     actions = [
         "| Item | Owner | Status | Next |",
         "| --- | --- | --- | --- |",
         "| Scope boundary | Owner | Assumption | Lock brief |",
-        f"| Approval pathway | {lead} | Assumption | Certifier |",
+        f"| Approval pathway | {owner} | Assumption | Certifier |",
         "| Budget basis | Owner | Assumption | Cost evidence |",
-        f"| Consultant roster | {lead} | Assumption | Appoint |",
+        f"| Consultant roster | {owner} | Assumption | Appoint |",
     ]
     emphasis = _emphasis_note(project, "actions-decisions")
     depth = ""
@@ -1882,10 +1975,10 @@ def _render_taxonomy_platform_scaffold(
     renderers = {
         "snapshot": lambda: _render_taxonomy_snapshot(project, citation_index=index),
         "scope-client-requirements": lambda: _render_taxonomy_scope(project),
-        "ffe-schedule": lambda: _render_taxonomy_ffe_schedule(project),
         "consultants": lambda: _render_taxonomy_consultants(
             project, pack, citation_index=index
         ),
+        "ffe-schedule": lambda: _render_taxonomy_ffe_schedule(project),
         "compliance-approvals": lambda: _render_taxonomy_compliance(
             project, seed_section_refs
         ),

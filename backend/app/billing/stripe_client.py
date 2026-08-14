@@ -83,7 +83,11 @@ async def create_checkout_session(
     except StripeBillingError:
         raise
     except Exception as exc:
-        log.warning("stripe_checkout_failed", plan_id=plan.id, error=str(exc))
+        log.warning(
+            "stripe_checkout_failed",
+            plan_id=plan.id,
+            error_type=type(exc).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Stripe checkout could not be created.",
@@ -109,7 +113,7 @@ async def create_portal_session(*, stripe_customer_id: str) -> str:
     except StripeBillingError:
         raise
     except Exception as exc:
-        log.warning("stripe_portal_failed", error=str(exc))
+        log.warning("stripe_portal_failed", error_type=type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Stripe customer portal could not be opened.",

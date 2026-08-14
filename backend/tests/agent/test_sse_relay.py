@@ -95,7 +95,7 @@ def test_relay_agent_turn_finishes_without_waiting_for_status_stream_end() -> No
 
 async def _failing_chunks() -> AsyncIterator[str]:
     yield "Partial"
-    raise RuntimeError("Pi stopped")
+    raise RuntimeError("Pi stopped with Bearer ch03-sse-chunk-provider-token")
 
 
 def test_relay_agent_turn_emits_error_and_done_on_failure() -> None:
@@ -110,4 +110,22 @@ def test_relay_agent_turn_emits_error_and_done_on_failure() -> None:
         "[DONE]",
     ]
     assert payloads[-1] == "[DONE]"
-    assert "Pi stopped" in payloads[-2]["errorText"]
+    assert payloads[-2]["errorText"] == "Agent turn failed"
+    assert "ch03-sse-chunk-provider-token" not in str(payloads)
+
+
+async def _failing_status() -> AsyncIterator[dict[str, Any] | str]:
+    raise RuntimeError("status failed with token=ch03-sse-status-provider-token")
+    yield "unreachable"
+
+
+def test_relay_agent_turn_masks_status_stream_failure() -> None:
+    events = run_async(_collect(_slow_text_chunk(), status=_failing_status()))
+    payloads = [_payload(event) for event in events]
+
+    assert [
+        payload["type"] if isinstance(payload, dict) else payload
+        for payload in payloads
+    ] == ["start", "text-start", "error", "[DONE]"]
+    assert payloads[-2]["errorText"] == "Agent status stream failed"
+    assert "ch03-sse-status-provider-token" not in str(payloads)

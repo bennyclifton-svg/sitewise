@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,10 @@ type TaxonomyPickerProps = {
   disabled?: boolean;
   idPrefix?: string;
   workScopeMode?: "starter" | "fallback";
+  budget?: string;
+  onBudgetChange?: (value: string) => void;
+  scopeNarrative?: string;
+  onScopeNarrativeChange?: (value: string) => void;
 };
 
 export function TaxonomyPicker({
@@ -31,6 +35,10 @@ export function TaxonomyPicker({
   disabled = false,
   idPrefix = "taxonomy",
   workScopeMode = "fallback",
+  budget,
+  onBudgetChange,
+  scopeNarrative,
+  onScopeNarrativeChange,
 }: TaxonomyPickerProps) {
   const selectedClass = catalog?.building_classes.find(
     (item) => item.value === value.building_class,
@@ -72,9 +80,13 @@ export function TaxonomyPicker({
   }
 
   function selectBuildingClass(buildingClass: BuildingClass) {
+    if (value.building_class === buildingClass.value) return;
+    const workTypeStillValid = buildingClass.work_types.includes(
+      value.work_type ?? "",
+    );
     onChange({
       building_class: buildingClass.value,
-      work_type: null,
+      work_type: workTypeStillValid ? value.work_type : null,
       subclasses: [],
       scale: {},
       complexity: {},
@@ -189,24 +201,40 @@ export function TaxonomyPicker({
 
       {selectedClass ? (
         <section className="grid gap-2" aria-label="Work type">
-          <h3 className="text-sm font-medium">Work type</h3>
-          <div className="flex flex-wrap gap-2">
-            {workTypes.map((workType) => (
-              <button
-                key={workType.value}
-                type="button"
-                disabled={disabled}
-                aria-pressed={value.work_type === workType.value}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50",
-                  value.work_type === workType.value &&
-                    "border-primary bg-primary/5 text-primary",
-                )}
-                onClick={() => selectWorkType(workType.value)}
-              >
-                {workType.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid min-w-0 flex-1 gap-2">
+              <h3 className="text-sm font-medium">Work type</h3>
+              <div className="flex flex-wrap gap-2">
+                {workTypes.map((workType) => (
+                  <button
+                    key={workType.value}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={value.work_type === workType.value}
+                    className={cn(
+                      "rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50",
+                      value.work_type === workType.value &&
+                        "border-primary bg-primary/5 text-primary",
+                    )}
+                    onClick={() => selectWorkType(workType.value)}
+                  >
+                    {workType.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {onBudgetChange ? (
+              <div className="grid w-full shrink-0 gap-2 sm:w-44">
+                <Label htmlFor={`${idPrefix}-budget`}>Budget</Label>
+                <Input
+                  id={`${idPrefix}-budget`}
+                  value={budget ?? ""}
+                  disabled={disabled}
+                  placeholder="$120m"
+                  onChange={(event) => onBudgetChange(event.target.value)}
+                />
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -350,6 +378,16 @@ export function TaxonomyPicker({
             disabled={disabled}
             idPrefix={idPrefix}
             onToggle={toggleWorkScope}
+            notes={
+              onScopeNarrativeChange ? (
+                <ScopeNotesField
+                  id={`${idPrefix}-scope-notes`}
+                  value={scopeNarrative ?? ""}
+                  disabled={disabled}
+                  onChange={onScopeNarrativeChange}
+                />
+              ) : null
+            }
           />
         ) : (
           <details className="rounded-md border p-2.5" open>
@@ -364,6 +402,16 @@ export function TaxonomyPicker({
                 disabled={disabled}
                 idPrefix={idPrefix}
                 onToggle={toggleWorkScope}
+                notes={
+                  onScopeNarrativeChange ? (
+                    <ScopeNotesField
+                      id={`${idPrefix}-scope-notes`}
+                      value={scopeNarrative ?? ""}
+                      disabled={disabled}
+                      onChange={onScopeNarrativeChange}
+                    />
+                  ) : null
+                }
               />
             </div>
           </details>
@@ -381,6 +429,7 @@ function WorkScopeFields({
   disabled,
   idPrefix,
   onToggle,
+  notes,
 }: {
   title?: string;
   description?: string;
@@ -389,6 +438,7 @@ function WorkScopeFields({
   disabled: boolean;
   idPrefix: string;
   onToggle: (itemValue: string, checked: boolean) => void;
+  notes?: ReactNode;
 }) {
   return (
     <section className="grid gap-2" aria-label={title ?? "Scope"}>
@@ -426,7 +476,35 @@ function WorkScopeFields({
           </fieldset>
         ))}
       </div>
+      {notes}
     </section>
+  );
+}
+
+function ScopeNotesField({
+  id,
+  value,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={id}>Scope notes</Label>
+      <textarea
+        id={id}
+        value={value}
+        disabled={disabled}
+        placeholder="One item per line"
+        rows={4}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-[6rem] w-full min-w-0 rounded-none border border-input bg-[var(--sw-panel)] px-2.5 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+      />
+    </div>
   );
 }
 

@@ -27,6 +27,18 @@ describe("procurement-disciplines", () => {
     ]);
   });
 
+  it("extracts consultant disciplines when the register ends the document", () => {
+    const markdown = `
+## Consultants
+
+| Discipline | Firm | Fee | Status | Citation |
+| --- | --- | --- | --- | --- |
+| Services engineer | Acme | — | Needed | [2] |
+`;
+
+    expect(disciplinesFromPmpMarkdown(markdown)).toEqual(["Services engineer"]);
+  });
+
   it("prefers PMP disciplines ahead of fallbacks", () => {
     expect(
       mergeDisciplineOptions(

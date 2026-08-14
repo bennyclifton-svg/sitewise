@@ -416,25 +416,30 @@ def test_no_transaction_is_released_when_every_anchor_is_stale() -> None:
 def test_unexpected_slice_error_fails_only_its_own_section() -> None:
     """A model timeout must not throw away the sections that succeeded."""
     published: list[str] = []
-    result = _apply(
-        [
-            _anchor(DOCUMENT, "single-stage invited tender", "make it two-stage"),
-            _anchor(DOCUMENT, "tracked milestones", "say reported"),
-        ],
-        slice_mock=AsyncMock(
-            side_effect=[
-                TimeoutError("read timeout"),
-                SECTION_TWO.replace("tracked", "reported"),
-            ]
-        ),
-        publish_mock=_publisher(published),
-    )
+    canary = "ch03-draft-model-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    with patch("app.projects.draft_instructions_service.logger.error") as log_error:
+        result = _apply(
+            [
+                _anchor(DOCUMENT, "single-stage invited tender", "make it two-stage"),
+                _anchor(DOCUMENT, "tracked milestones", "say reported"),
+            ],
+            slice_mock=AsyncMock(
+                side_effect=[
+                    TimeoutError(canary),
+                    SECTION_TWO.replace("tracked", "reported"),
+                ]
+            ),
+            publish_mock=_publisher(published),
+        )
 
     assert result.applied_count == 1
     assert [item.index for item in result.failed] == [0]
     assert "TimeoutError" in result.failed[0].reason
     assert "reported milestones" in published[0]
     assert SECTION_ONE in published[0]
+    assert canary not in str(result)
+    assert log_error.call_args.kwargs["error_type"] == "TimeoutError"
+    assert canary not in str(log_error.call_args)
 
 
 def test_cancellation_is_never_swallowed() -> None:

@@ -1,5 +1,9 @@
 from types import SimpleNamespace
 import uuid
+from unittest.mock import MagicMock
+
+import pytest
+from fastapi import HTTPException
 
 from app.auth.dependencies import CurrentUser
 from app.billing.plans import BillingPlan
@@ -69,3 +73,64 @@ def test_create_portal_session_uses_customer_and_return_url(monkeypatch):
         "customer": "cus_123",
         "return_url": "https://app.example/billing",
     }
+
+
+def test_checkout_failure_logs_error_class_without_provider_text(monkeypatch) -> None:
+    provider_detail = "stripe-provider-secret-" + ("x" * 24)
+    log_warning = MagicMock()
+
+    def fail_create(**_kwargs):
+        raise RuntimeError(provider_detail)
+
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+    monkeypatch.setattr(settings, "billing_provider", "stripe")
+    monkeypatch.setattr(stripe_client.stripe.checkout.Session, "create", fail_create)
+    monkeypatch.setattr(stripe_client.log, "warning", log_warning)
+
+    with pytest.raises(HTTPException) as exc_info:
+        run_async(
+            stripe_client.create_checkout_session(
+                plan=BillingPlan(
+                    id="starter",
+                    name="Starter",
+                    description="Starter",
+                    price_monthly=49,
+                    product_id="price_123",
+                ),
+                user=CurrentUser(
+                    id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
+                    email="a@example.com",
+                ),
+            )
+        )
+
+    assert exc_info.value.detail == "Stripe checkout could not be created."
+    assert log_warning.call_args.kwargs == {
+        "plan_id": "starter",
+        "error_type": "RuntimeError",
+    }
+    assert provider_detail not in str(log_warning.call_args)
+
+
+def test_portal_failure_logs_error_class_without_provider_text(monkeypatch) -> None:
+    provider_detail = "stripe-provider-secret-" + ("x" * 24)
+    log_warning = MagicMock()
+
+    def fail_create(**_kwargs):
+        raise RuntimeError(provider_detail)
+
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+    monkeypatch.setattr(settings, "billing_provider", "stripe")
+    monkeypatch.setattr(
+        stripe_client.stripe.billing_portal.Session, "create", fail_create
+    )
+    monkeypatch.setattr(stripe_client.log, "warning", log_warning)
+
+    with pytest.raises(HTTPException) as exc_info:
+        run_async(
+            stripe_client.create_portal_session(stripe_customer_id="cus_123")
+        )
+
+    assert exc_info.value.detail == "Stripe customer portal could not be opened."
+    assert log_warning.call_args.kwargs == {"error_type": "RuntimeError"}
+    assert provider_detail not in str(log_warning.call_args)

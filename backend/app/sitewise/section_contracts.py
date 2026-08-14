@@ -7,8 +7,8 @@ from app.sitewise.taxonomy import PMP_CORE_SECTIONS
 PMP_SECTION_HEADINGS: dict[str, str] = {
     "snapshot": "Project Summary",
     "scope-client-requirements": "Brief",
-    "ffe-schedule": "FFE Schedule",
     "consultants": "Consultants",
+    "ffe-schedule": "FFE Schedule",
     "compliance-approvals": "Planning and Compliance",
     "programme": "Programme",
     "cost-budget": "Cost Planning",

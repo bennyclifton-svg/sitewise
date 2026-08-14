@@ -16,13 +16,14 @@ export function ToolActivityFeed({ events }: ToolActivityFeedProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const hasRunning = lines.some((line) => line.state === "running");
   const visible = expanded ? lines : lines.slice(-VISIBLE_LINES);
+  const latestLineLabel = lines.at(-1)?.label;
 
   useEffect(() => {
     if (expanded) return;
     const node = scrollerRef.current;
     if (!node) return;
     node.scrollTop = node.scrollHeight;
-  }, [lines.length, expanded, lines[lines.length - 1]?.label]);
+  }, [expanded, latestLineLabel, lines.length]);
 
   if (lines.length === 0) return null;
 

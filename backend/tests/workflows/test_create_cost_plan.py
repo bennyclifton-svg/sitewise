@@ -942,3 +942,68 @@ def test_revision_sync_exports_only_the_workbook_from_typed_state() -> None:
     assert result == workbook_metadata
     sync_markdown.assert_not_awaited()
     assert save_workbook.await_args.kwargs["typed_state"] is typed_state
+
+
+def test_typed_compiler_allocates_stated_budget_and_names_actron() -> None:
+    from decimal import Decimal
+
+    from app.sitewise.cost_plan_evidence import extract_cost_plan_evidence_pack
+    from app.workflows.create_cost_plan import (
+        apply_indicative_budget_allocation,
+        render_typed_cost_plan_markdown,
+        _typed_cost_items,
+    )
+
+    project = _project(
+        archetype=None,
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["office"],
+                "work_scope": ["mechanical_hvac"],
+                "budget": "around $180k",
+                "assets": [
+                    {
+                        "type": "Split ducted AC",
+                        "count": 2,
+                        "location": "service centre and western office",
+                        "make_model": "Pioneer",
+                        "action": "replace",
+                        "replacement_spec": "Actron 30kW split ducted",
+                        "notes": "R22 refrigerant; beyond economical repair",
+                    }
+                ],
+            }
+        },
+    )
+    pack = extract_cost_plan_evidence_pack([], [])
+    items = _typed_cost_items(project, pack)
+    allocated, stated, forecast = apply_indicative_budget_allocation(
+        project, items, pack
+    )
+
+    assert stated == Decimal("180000.00")
+    assert forecast is not None
+    assert forecast.construction_envelope_total == Decimal("180000.00")
+    envelope = [
+        item
+        for item in allocated
+        if item.category.lower() in {"construction", "pc allowances"}
+    ]
+    assert envelope
+    assert all(item.budget is not None and item.budget > 0 for item in envelope)
+    assert any("Actron" in item.item for item in allocated)
+    assert any("Pioneer" in item.item for item in allocated)
+
+    markdown = render_typed_cost_plan_markdown(
+        "Project Cost Plan",
+        allocated,
+        stated_budget=stated,
+        forecast=forecast,
+    )
+    assert "ex GST" in markdown
+    assert "indicative allocation" in markdown.lower()
+    assert "$180,000" in markdown
+    assert "Actron" in markdown
+

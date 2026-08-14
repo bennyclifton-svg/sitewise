@@ -1,6 +1,7 @@
 import {
   useLayoutEffect,
   useRef,
+  useState,
   type FocusEvent,
   type KeyboardEvent,
 } from "react";
@@ -26,13 +27,11 @@ export function InlineTableRowEditor({
   onCancel: () => void;
   onSave: (markdown: string) => Promise<void>;
 }) {
-  const cells = editableTableCells(sourceRow);
-  const initialCellsRef = useRef(cells);
+  const [editCells] = useState(() => editableTableCells(sourceRow));
   const rowRef = useRef<HTMLTableRowElement>(null);
   const cellRefs = useRef<Array<HTMLTableCellElement | null>>([]);
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
-  const editCells = initialCellsRef.current;
 
   useLayoutEffect(() => {
     const focusIndex = Math.min(
@@ -48,7 +47,7 @@ export function InlineTableRowEditor({
     range.collapse(false);
     selection?.removeAllRanges();
     selection?.addRange(range);
-  }, []);
+  }, [editCells.length, focusCellIndex]);
 
   async function save() {
     const row = rowRef.current;

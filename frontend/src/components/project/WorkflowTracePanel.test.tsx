@@ -1,10 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import {
-  formatMetadataSummary,
-  WorkflowTracePanel,
-} from "@/components/project/WorkflowTracePanel";
+import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
+import { formatMetadataSummary } from "@/lib/workflow-trace-format";
 
 describe("formatMetadataSummary", () => {
   it("shows array lengths instead of joining evidence chunk refs", () => {

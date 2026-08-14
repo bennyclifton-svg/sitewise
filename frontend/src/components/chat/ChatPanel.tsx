@@ -347,26 +347,41 @@ export function ChatPanel({
     return workflowRunsByMessageId.get(latestAssistantMessageId) ?? [];
   }, [latestAssistantMessageId, workflowRunsByMessageId]);
 
-  const [workflowActivityActive, setWorkflowActivityActive] = useState(false);
-  const [suppressWorkflowMount, setSuppressWorkflowMount] = useState(false);
   const liveWorkflowRunKey = liveWorkflowRuns.map((run) => run.runId).join(",");
-
-  useEffect(() => {
-    setWorkflowActivityActive(false);
-    setSuppressWorkflowMount(false);
-  }, [latestAssistantMessageId, liveWorkflowRunKey]);
+  const workflowActivityKey = `${latestAssistantMessageId ?? "none"}:${liveWorkflowRunKey}`;
+  const [workflowActivity, setWorkflowActivity] = useState(() => ({
+    active: false,
+    key: workflowActivityKey,
+    suppressMount: false,
+  }));
+  const currentWorkflowActivity =
+    workflowActivity.key === workflowActivityKey
+      ? workflowActivity
+      : { active: false, key: workflowActivityKey, suppressMount: false };
 
   const handleActivityPresence = useCallback((active: boolean) => {
-    setWorkflowActivityActive(active);
-    if (!active) setSuppressWorkflowMount(true);
-  }, []);
+    setWorkflowActivity((current) => {
+      const sameActivity = current.key === workflowActivityKey;
+      const suppressMount = sameActivity
+        ? current.suppressMount || !active
+        : !active;
+      if (
+        sameActivity &&
+        current.active === active &&
+        current.suppressMount === suppressMount
+      ) {
+        return current;
+      }
+      return { active, key: workflowActivityKey, suppressMount };
+    });
+  }, [workflowActivityKey]);
 
   // Keep mounting after the model turn ends while a workflow may still be
   // in flight — WorkflowRunCard no longer renders its own spinner.
   const mountActivityStream =
     isBusy ||
-    workflowActivityActive ||
-    (liveWorkflowRuns.length > 0 && !suppressWorkflowMount);
+    currentWorkflowActivity.active ||
+    (liveWorkflowRuns.length > 0 && !currentWorkflowActivity.suppressMount);
   // Keep the latest assistant message in "live" mode whenever the activity
   // stream is mounted — otherwise AnswerTrace pills flash beside the cube
   // while workflow presence is still settling after the model turn ends.
@@ -457,6 +472,7 @@ export function ChatPanel({
 
               {mountActivityStream ? (
                 <ActivityStream
+                  key={workflowActivityKey}
                   busy={isBusy}
                   statusMessage={statusMessage}
                   toolEvents={liveToolEvents}

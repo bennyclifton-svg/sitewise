@@ -80,7 +80,12 @@ def _decision() -> ProjectDecision:
     )
 
 
-def _query_results(project: Project, *, content_hash: str = "abc") -> list[_Result]:
+def _query_results(
+    project: Project,
+    *,
+    content_hash: str = "abc",
+    failure_error: str = "parse failed",
+) -> list[_Result]:
     evidence = SimpleNamespace(
         id=uuid.UUID("33333333-3333-3333-3333-333333333333"),
         relative_path="brief.md",
@@ -90,7 +95,7 @@ def _query_results(project: Project, *, content_hash: str = "abc") -> list[_Resu
     )
     failure = SimpleNamespace(
         workspace_path="inbox/broken.pdf",
-        ingest_error="parse failed",
+        ingest_error=failure_error,
         total_count=1,
     )
     return [
@@ -106,11 +111,15 @@ def _query_results(project: Project, *, content_hash: str = "abc") -> list[_Resu
     ]
 
 
-def _session(*, content_hash: str = "abc") -> AsyncMock:
+def _session(*, content_hash: str = "abc", failure_error: str = "parse failed") -> AsyncMock:
     project = _project()
     session = AsyncMock()
     session.execute.side_effect = [
-        *_query_results(project, content_hash=content_hash),
+        *_query_results(
+            project,
+            content_hash=content_hash,
+            failure_error=failure_error,
+        ),
         _Result(value=project),
     ]
     return session
@@ -147,6 +156,24 @@ def test_snapshot_fingerprint_ignores_generation_time_and_exposes_missing_inputs
     assert first.evidence.active_count == 1
     assert first.evidence.ingest_failure_count == 1
     assert first.evidence.selection_status == "not_persisted"
+
+
+def test_snapshot_hides_historical_ingest_failure_detail() -> None:
+    historical_error = "historical-ingest-secret-" + ("x" * 24)
+
+    snapshot = asyncio.run(
+        get_project_snapshot(
+            _session(failure_error=historical_error),
+            project_id=PROJECT_ID,
+            owner_user_id=OWNER_ID,
+        )
+    )
+
+    assert snapshot.evidence.ingest_failures[0].error == (
+        "Document ingestion failed. Retry the file or contact support "
+        "if it continues."
+    )
+    assert historical_error not in str(snapshot.evidence.ingest_failures)
 
 
 def test_snapshot_fingerprint_changes_with_evidence_content() -> None:

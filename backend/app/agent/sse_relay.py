@@ -63,9 +63,9 @@ async def relay_agent_turn(
                     status_payload = status_task.result()
                 except StopAsyncIteration:
                     status_task = None
-                except Exception as exc:
+                except Exception:
                     _cancel_pending(chunk_task)
-                    async for event in stream_error(str(exc) or "Agent status stream failed"):
+                    async for event in stream_error("Agent status stream failed"):
                         yield event
                     return
                 else:
@@ -77,9 +77,9 @@ async def relay_agent_turn(
                     chunk = chunk_task.result()
                 except StopAsyncIteration:
                     chunk_task = None
-                except Exception as exc:
+                except Exception:
                     _cancel_pending(status_task)
-                    async for event in stream_error(str(exc) or "Agent turn failed"):
+                    async for event in stream_error("Agent turn failed"):
                         yield event
                     return
                 else:

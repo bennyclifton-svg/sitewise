@@ -23,12 +23,16 @@ from app.intake.sort_service import (
     _file_previews,
     _move_workspace_file,
 )
+from app.logging import get_logger
 from app.storage.project_files import download_project_file
 from app.schemas.projects import WorkflowTraceEvent
 from ingest.document_metadata import parse_document_metadata
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 
 RepairStatus = Literal["change", "unchanged", "needs_review", "conflict"]
+
+log = get_logger(__name__)
+REPAIR_FAILURE_REASON = "Project storage could not repair the file."
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,13 +308,18 @@ async def apply_existing_file_repairs(
                     record=record,
                 )
         except Exception as exc:
+            log.error(
+                "project_file_repair_failed",
+                project_id=str(project.id),
+                error_type=type(exc).__name__,
+            )
             result.failed += 1
             result.rows.append(
                 FileRepairApplyRow(
                     current_path=workspace_path,
                     proposed_path=proposal.proposed_path,
                     status="failed",
-                    reason=str(exc),
+                    reason=REPAIR_FAILURE_REASON,
                 )
             )
             continue

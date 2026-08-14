@@ -224,6 +224,29 @@ def test_validate_profile_patch_rejects_unknown_complexity_keys_and_options() ->
     )
 
 
+def test_validate_profile_patch_accepts_empty_work_scope_from_the_profile_form() -> None:
+    project = _project(profile_revision=2)
+
+    plan = validate_profile_patch(
+        project,
+        ProjectProfilePatch(
+            expected_revision=2,
+            building_class="infrastructure",
+            work_type="refurb",
+            subclasses=["rail_metro"],
+            scale={},
+            complexity={},
+            work_scope=[],
+            state="NSW",
+        ),
+    )
+
+    assert plan.after.work_type == "refurb"
+    assert plan.after.work_scope == []
+    assert plan.after.building_class == "infrastructure"
+    assert plan.after.state == "NSW"
+
+
 def test_validate_profile_patch_rejects_work_scope_from_another_work_type() -> None:
     project = _project(
         profile_revision=2,

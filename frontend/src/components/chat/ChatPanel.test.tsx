@@ -22,6 +22,24 @@ vi.mock("ai", () => ({
   }),
 }));
 
+vi.mock("@/components/chat/ActivityStream", () => ({
+  ActivityStream: ({
+    onPresenceChange,
+    workflowRuns = [],
+  }: {
+    onPresenceChange?: (active: boolean) => void;
+    workflowRuns?: { runId: string }[];
+  }) => (
+    <button
+      type="button"
+      data-testid="activity-stream"
+      onClick={() => onPresenceChange?.(false)}
+    >
+      {workflowRuns.map((run) => run.runId).join(",") || "turn activity"}
+    </button>
+  ),
+}));
+
 vi.mock("@/lib/api", () => ({
   api: {
     cancelAgentTurn: vi.fn(),
@@ -91,6 +109,25 @@ function mockUseChat({
   });
 }
 
+function workflowMessage(id: string, runId: string) {
+  return {
+    id,
+    role: "assistant",
+    parts: [
+      {
+        type: "data-clerk-status",
+        data: {
+          kind: "resource",
+          projectId: "project-1",
+          resourceType: "workflow_run",
+          resourceId: runId,
+          action: "queued",
+        },
+      },
+    ],
+  };
+}
+
 describe("ChatPanel stop control", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -131,6 +168,46 @@ describe("ChatPanel stop control", () => {
     await waitFor(() =>
       expect(api.cancelAgentTurn).toHaveBeenCalledWith("thread-1"),
     );
+  });
+});
+
+describe("ChatPanel workflow activity", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("mounts a new workflow stream after the previous stream completes", async () => {
+    const user = userEvent.setup();
+    const firstMessage = workflowMessage("assistant-1", "run-1");
+    mockUseChat({ messages: [firstMessage] });
+
+    const view = render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+      />,
+    );
+    expect(screen.getByTestId("activity-stream")).toHaveTextContent("run-1");
+
+    await user.click(screen.getByTestId("activity-stream"));
+    expect(screen.queryByTestId("activity-stream")).not.toBeInTheDocument();
+
+    mockUseChat({
+      messages: [firstMessage, workflowMessage("assistant-2", "run-2")],
+    });
+    view.rerender(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+      />,
+    );
+
+    expect(screen.getByTestId("activity-stream")).toHaveTextContent("run-2");
   });
 });
 

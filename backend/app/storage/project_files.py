@@ -50,7 +50,7 @@ def _with_transport_retry(operation: str, storage_key: str, call: Callable[[], T
                     operation=operation,
                     storage_key=storage_key,
                     attempts=attempt,
-                    error=f"{type(exc).__name__}: {exc}",
+                    error_type=type(exc).__name__,
                 )
                 raise
             backoff = STORAGE_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
@@ -60,7 +60,7 @@ def _with_transport_retry(operation: str, storage_key: str, call: Callable[[], T
                 storage_key=storage_key,
                 attempt=attempt,
                 backoff_seconds=backoff,
-                error=f"{type(exc).__name__}: {exc}",
+                error_type=type(exc).__name__,
             )
             time.sleep(backoff)
 
@@ -125,8 +125,13 @@ def delete_project_files(*, storage_keys: list[str]) -> None:
     try:
         client.storage.from_(bucket).remove(keys)
         logger.info("storage_deleted_batch", bucket=bucket, count=len(keys))
-    except Exception:
-        logger.warning("storage_delete_batch_failed", bucket=bucket, storage_keys=keys)
+    except Exception as exc:
+        logger.warning(
+            "storage_delete_batch_failed",
+            bucket=bucket,
+            count=len(keys),
+            error_type=type(exc).__name__,
+        )
 
 
 def move_project_file(

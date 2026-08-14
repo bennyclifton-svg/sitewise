@@ -96,6 +96,16 @@
         {"value": "below_1pc_aep", "label": "Below 1% AEP Flood Level (+10-20%)"},
         {"value": "floodway", "label": "Floodway / High Hazard (+20-35%)"}
       ]
+    },
+    {
+      "key": "heritage_status",
+      "label": "Heritage status",
+      "options": [
+        {"value": "none", "label": "None"},
+        {"value": "conservation_area", "label": "Heritage conservation area"},
+        {"value": "local_heritage_item", "label": "Local heritage item"},
+        {"value": "state_heritage_register", "label": "State Heritage Register"}
+      ]
     }
   ],
   "class_overlays": {

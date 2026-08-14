@@ -155,6 +155,45 @@ describe("ChatComposer voice input", () => {
     expect(screen.queryByTestId("voice-cube-meter")).not.toBeInTheDocument();
   });
 
+  it("stops on a second pointer down while listening", () => {
+    renderComposer();
+
+    const mic = screen.getByRole("button", {
+      name: "Click or hold to record",
+    });
+    fireEvent.pointerDown(mic);
+    expect(
+      screen.getByRole("button", { name: "Stop recording" }),
+    ).toBeInTheDocument();
+
+    const recognition = MockSpeechRecognition.instances[0]!;
+    fireEvent.pointerDown(mic);
+
+    expect(recognition.stop).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Click or hold to record" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("voice-cube-meter")).not.toBeInTheDocument();
+  });
+
+  it("clears the listening UI even when recognition stop does not fire onend", () => {
+    renderComposer();
+
+    const mic = screen.getByRole("button", {
+      name: "Click or hold to record",
+    });
+    fireEvent.pointerDown(mic);
+    const recognition = MockSpeechRecognition.instances[0]!;
+    recognition.stop = vi.fn();
+
+    fireEvent.pointerDown(mic);
+
+    expect(recognition.stop).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Click or hold to record" }),
+    ).toBeInTheDocument();
+  });
+
   it("starts on press and stops on release when held", () => {
     vi.useFakeTimers();
     renderComposer();

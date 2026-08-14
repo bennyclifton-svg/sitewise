@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -204,14 +204,22 @@ def test_database_errors_return_cors_503() -> None:
         raise OperationalError("SELECT 1", {}, Exception("connection refused"))
 
     app.add_api_route(path, raise_database_error, methods=["GET"])
-    with TestClient(cors_app, raise_server_exceptions=False) as test_client:
-        response = test_client.get(path, headers={"Origin": "http://localhost:5173"})
+    with (
+        patch("app.main.log.error") as log_error,
+        TestClient(cors_app, raise_server_exceptions=False) as test_client,
+    ):
+        response = test_client.get(
+            path, headers={"Origin": "http://localhost:5173"}
+        )
 
     assert response.status_code == 503
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
     assert response.json() == {
         "detail": "Database unavailable. Check DATABASE_URL and network access.",
     }
+    assert log_error.call_args.kwargs["error_type"] == "OperationalError"
+    assert "error" not in log_error.call_args.kwargs
+    assert "exc_info" not in log_error.call_args.kwargs
 
 
 def test_database_deadlocks_return_retryable_cors_409() -> None:
@@ -240,11 +248,19 @@ def test_integrity_errors_return_cors_409() -> None:
         raise IntegrityError("INSERT", {}, Exception("duplicate key"))
 
     app.add_api_route(path, raise_integrity_error, methods=["GET"])
-    with TestClient(cors_app, raise_server_exceptions=False) as test_client:
-        response = test_client.get(path, headers={"Origin": "http://localhost:5173"})
+    with (
+        patch("app.main.log.error") as log_error,
+        TestClient(cors_app, raise_server_exceptions=False) as test_client,
+    ):
+        response = test_client.get(
+            path, headers={"Origin": "http://localhost:5173"}
+        )
 
     assert response.status_code == 409
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
     assert response.json() == {
         "detail": "Database constraint conflict while saving. Retry the workflow.",
     }
+    assert log_error.call_args.kwargs["error_type"] == "IntegrityError"
+    assert "error" not in log_error.call_args.kwargs
+    assert "exc_info" not in log_error.call_args.kwargs

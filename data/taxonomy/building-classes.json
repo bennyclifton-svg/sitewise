@@ -121,7 +121,9 @@
             {"key": "nla_sqm", "label": "NLA sqm", "type": "number", "typical": "1,000-80,000+ sqm NLA"},
             {"key": "floor_plate_sqm", "label": "Floor plate sqm", "type": "number", "typical": "500-2,500 sqm"},
             {"key": "tenancies", "label": "Tenancies", "type": "integer"},
-            {"key": "grade", "label": "Grade", "type": "text", "typical": "B/A/Premium/Trophy"}
+            {"key": "grade", "label": "Grade", "type": "text", "typical": "B/A/Premium/Trophy"},
+            {"key": "capacity_mw", "label": "Capacity MW", "type": "number", "typical": "Solar 1-500MW, wind 10-1,000MW"},
+            {"key": "battery_storage_mwh", "label": "Battery storage MWh", "type": "number"}
           ]
         },
         {
@@ -180,7 +182,15 @@
             {"key": "nla_sqm", "label": "NLA sqm", "type": "number"}
           ]
         },
-        {"value": "other", "label": "Other", "ncc_class": "varies", "scale_fields": []}
+        {
+          "value": "other",
+          "label": "Other",
+          "ncc_class": "varies",
+          "scale_fields": [
+            {"key": "capacity_mw", "label": "Capacity MW", "type": "number", "typical": "Solar 1-500MW, wind 10-1,000MW"},
+            {"key": "battery_storage_mwh", "label": "Battery storage MWh", "type": "number"}
+          ]
+        }
       ]
     },
     {
@@ -198,7 +208,9 @@
             {"key": "clear_height_m", "label": "Clear height m", "type": "number", "typical": "8-15m+"},
             {"key": "dock_doors", "label": "Dock doors", "type": "integer"},
             {"key": "hardstand_sqm", "label": "Hardstand sqm", "type": "number"},
-            {"key": "office_percent", "label": "Office %", "type": "number", "typical": "3-10% office"}
+            {"key": "office_percent", "label": "Office %", "type": "number", "typical": "3-10% office"},
+            {"key": "capacity_mw", "label": "Capacity MW", "type": "number", "typical": "Solar 1-500MW, wind 10-1,000MW"},
+            {"key": "battery_storage_mwh", "label": "Battery storage MWh", "type": "number"}
           ]
         },
         {
@@ -210,7 +222,9 @@
             {"key": "clear_height_m", "label": "Clear height m", "type": "number", "typical": "12-18m"},
             {"key": "dock_doors", "label": "Dock doors", "type": "integer"},
             {"key": "cross_dock_bays", "label": "Cross-dock bays", "type": "integer"},
-            {"key": "automation_level", "label": "Automation level", "type": "text"}
+            {"key": "automation_level", "label": "Automation level", "type": "text"},
+            {"key": "capacity_mw", "label": "Capacity MW", "type": "number", "typical": "Solar 1-500MW, wind 10-1,000MW"},
+            {"key": "battery_storage_mwh", "label": "Battery storage MWh", "type": "number"}
           ]
         },
         {
@@ -325,7 +339,15 @@
             {"key": "stack_height_m", "label": "Stack height m", "type": "number"}
           ]
         },
-        {"value": "other", "label": "Other", "ncc_class": "varies", "scale_fields": []}
+        {
+          "value": "other",
+          "label": "Other",
+          "ncc_class": "varies",
+          "scale_fields": [
+            {"key": "capacity_mw", "label": "Capacity MW", "type": "number", "typical": "Solar 1-500MW, wind 10-1,000MW"},
+            {"key": "battery_storage_mwh", "label": "Battery storage MWh", "type": "number"}
+          ]
+        }
       ]
     },
     {

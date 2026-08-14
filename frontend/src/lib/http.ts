@@ -69,6 +69,18 @@ export function formatErrorDetail(payload: unknown, status: number): string {
   const detail = (payload as { detail: unknown }).detail;
   if (typeof detail === "string") return detail;
 
+  if (Array.isArray(detail)) {
+    const messages = detail.flatMap((item) => {
+      if (typeof item === "string" && item.trim()) return [item];
+      if (typeof item === "object" && item !== null && "msg" in item) {
+        const message = (item as { msg: unknown }).msg;
+        if (typeof message === "string" && message.trim()) return [message];
+      }
+      return [];
+    });
+    if (messages.length) return messages.join(" ");
+  }
+
   if (typeof detail === "object" && detail !== null) {
     const structured = detail as StructuredErrorDetail & { message?: unknown };
     if (typeof structured.message === "string" && structured.message.trim()) {

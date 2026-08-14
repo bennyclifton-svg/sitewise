@@ -2,8 +2,8 @@
   "sections": [
     "snapshot",
     "scope-client-requirements",
-    "ffe-schedule",
     "consultants",
+    "ffe-schedule",
     "compliance-approvals",
     "programme",
     "cost-budget",
@@ -43,18 +43,8 @@
   "applicability": {
     "ffe-schedule": {
       "include_when": {
-        "work_scope_any": [
-          "fitout",
-          "internal_fitout",
-          "live_environment_fitout",
-          "finishes",
-          "joinery",
-          "wet_areas",
-          "kitchen_joinery",
-          "ffe_procurement"
-        ],
-        "has_assets": true,
-        "work_type_any": ["new", "extend"]
+        "work_type_any": ["new", "extend", "refurb", "remediation"],
+        "has_assets": true
       }
     },
     "procurement-delivery": {

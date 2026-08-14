@@ -159,6 +159,7 @@ def test_sort_inbox_refuses_when_destination_hash_differs() -> None:
 def test_sort_inbox_refuses_when_move_fails() -> None:
     session = AsyncMock()
     source = _workspace_file()
+    canary = "ch03-sort-storage-token-xxxxxxxxxxxxxxxxxxxxxxxx"
 
     with (
         patch(
@@ -175,15 +176,20 @@ def test_sort_inbox_refuses_when_move_fails() -> None:
         ),
         patch(
             "app.intake.sort_service._move_workspace_file",
-            new=AsyncMock(side_effect=RuntimeError("storage unavailable")),
+            new=AsyncMock(side_effect=RuntimeError(canary)),
         ),
+        patch("app.intake.sort_service.log.error") as log_error,
     ):
         result = run_async(sort_inbox_files(session, project=_project()))
 
     assert result.counts.refused == 1
     assert result.records[0].outcome == "refused"
-    assert "Move failed" in (result.records[0].reason or "")
-    assert result.warnings
+    assert result.records[0].reason == "Project storage could not move the file."
+    assert result.warnings == ["A project file could not be moved in storage."]
+    assert canary not in str(result)
+    assert canary not in result.manifest_markdown
+    assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+    assert canary not in str(log_error.call_args)
 
 
 def test_sort_inbox_moves_confident_match() -> None:

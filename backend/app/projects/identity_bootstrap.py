@@ -129,13 +129,18 @@ async def safe_bootstrap_identity_from_document(
             source_document_id=source_document_id,
         )
     except Exception as exc:  # noqa: BLE001 - ingest must not fail on bootstrap
-        logger.exception(
-            "identity_bootstrap_failed project_id=%s source_document_id=%s error=%s",
-            project.id,
-            source_document_id,
-            exc,
+        logger.error(
+            "identity_bootstrap_failed",
+            extra={
+                "project_id": str(project.id),
+                "source_document_id": str(source_document_id),
+                "error_type": type(exc).__name__,
+            },
         )
-        return IdentityBootstrapResult(status="error", detail=str(exc))
+        return IdentityBootstrapResult(
+            status="error",
+            detail="Project identity could not be inferred from this document.",
+        )
 
 
 async def _propose(

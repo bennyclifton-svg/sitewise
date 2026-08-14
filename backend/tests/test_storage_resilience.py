@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from structlog.testing import capture_logs
 
 from app.storage import project_files
 
@@ -46,6 +47,14 @@ class _FakeClient:
         return self._bucket
 
 
+class _FailingRemoveBucket:
+    def __init__(self, provider_detail: str) -> None:
+        self.provider_detail = provider_detail
+
+    def remove(self, _keys: list[str]) -> None:
+        raise RuntimeError(self.provider_detail)
+
+
 @pytest.fixture
 def patch_client(monkeypatch):
     def _install(bucket: _FlakyBucket) -> _FlakyBucket:
@@ -78,14 +87,27 @@ def test_download_retries_after_server_disconnect(patch_client):
 
 
 def test_upload_gives_up_after_max_attempts(patch_client):
-    bucket = patch_client(_FlakyBucket(failures=99))
-
-    with pytest.raises(httpx.RemoteProtocolError):
-        project_files.upload_project_file(
-            storage_key="tender/page-0001.png", content=b"png", filename="page.png"
+    provider_detail = "provider-secret-" + ("x" * 24)
+    bucket = patch_client(
+        _FlakyBucket(
+            failures=99,
+            exc=httpx.RemoteProtocolError(provider_detail),
         )
+    )
+
+    with capture_logs() as logs:
+        with pytest.raises(httpx.RemoteProtocolError):
+            project_files.upload_project_file(
+                storage_key="tender/page-0001.png",
+                content=b"png",
+                filename="page.png",
+            )
 
     assert bucket.upload_calls == project_files.STORAGE_MAX_ATTEMPTS
+    assert provider_detail not in str(logs)
+    assert all("error" not in event for event in logs)
+    assert all("exc_info" not in event for event in logs)
+    assert {event["error_type"] for event in logs} == {"RemoteProtocolError"}
 
 
 def test_non_transport_errors_are_not_retried(patch_client):
@@ -99,6 +121,23 @@ def test_non_transport_errors_are_not_retried(patch_client):
         )
 
     assert bucket.upload_calls == 1
+
+
+def test_batch_delete_failure_logs_count_and_error_class_only(patch_client):
+    provider_detail = "provider-secret-" + ("x" * 24)
+    patch_client(_FailingRemoveBucket(provider_detail))
+
+    with capture_logs() as logs:
+        project_files.delete_project_files(
+            storage_keys=["project/customer-report.pdf", "project/quote.pdf"]
+        )
+
+    event = logs[-1]
+    assert event["event"] == "storage_delete_batch_failed"
+    assert event["count"] == 2
+    assert event["error_type"] == "RuntimeError"
+    assert "storage_keys" not in event
+    assert provider_detail not in str(event)
 
 
 def test_service_client_does_not_multiplex_over_http2():

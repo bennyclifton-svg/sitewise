@@ -10,8 +10,10 @@ descriptions a client recognises.
 from types import SimpleNamespace
 
 from app.sitewise.pmp_renderer import (
+    _compact_taxonomy_scale_summary,
     _render_taxonomy_scope,
     _taxonomy_project_description,
+    _taxonomy_scale_summary,
 )
 
 CONCRETE_CANCER = "Concrete cancer remediation to basement carpark slab and columns"
@@ -25,12 +27,18 @@ def _project(
     work_type: str = "remediation",
     building_class: str = "residential",
     subclasses: list[str] | None = None,
+    scale: dict | None = None,
+    site_address: str | None = None,
 ):
     taxonomy: dict = {"subclasses": subclasses or ["apartments"]}
     if work_scope is not None:
         taxonomy["work_scope"] = work_scope
     if scope_narrative is not None:
         taxonomy["scope_narrative"] = scope_narrative
+    if scale is not None:
+        taxonomy["scale"] = scale
+    if site_address is not None:
+        taxonomy["site_address"] = site_address
     return SimpleNamespace(
         title="Remedial concrete and facade",
         building_class=building_class,
@@ -128,3 +136,79 @@ def test_rail_station_scope_survives_into_the_brief() -> None:
 
     for fact in ("lifts", "footbridge", "canopies", "possessions"):
         assert fact in scope, fact
+
+
+def test_brief_uses_taxonomy_labels_not_raw_enums() -> None:
+    scope = _render_taxonomy_scope(
+        _project(
+            building_class="infrastructure",
+            subclasses=["rail_metro"],
+            work_type="refurb",
+            work_scope=["accessibility_upgrade"],
+        )
+    )
+
+    assert "rail_metro" not in scope
+    assert "Rail/Metro" in scope
+    assert "Refurbishment" in scope
+    assert "Infrastructure" in scope
+
+
+def test_scale_summary_drops_unresolved_scale_fragment() -> None:
+    project = _project(
+        building_class="commercial",
+        subclasses=["office"],
+        work_type="refurb",
+    )
+
+    assert _taxonomy_scale_summary(project) == "Office (Class 5)"
+    assert _compact_taxonomy_scale_summary(project) == "Office (Class 5)"
+
+
+def test_scale_summary_uses_field_labels_not_raw_keys() -> None:
+    summary = _taxonomy_scale_summary(
+        _project(
+            building_class="infrastructure",
+            subclasses=["energy_renewables"],
+            work_type="refurb",
+            scale={"capacity_mw": 2, "battery_storage_mwh": 1},
+        )
+    )
+
+    assert "capacity_mw" not in summary
+    assert "battery_storage_mwh" not in summary
+    assert "energy_renewables" not in summary
+    assert "Energy/Renewables" in summary
+    assert "Capacity MW" in summary
+    assert "Battery storage MWh" in summary
+
+
+def test_description_omits_scale_placeholder_when_scale_is_empty() -> None:
+    description = _taxonomy_project_description(
+        _project(work_scope=["facade_cladding"])
+    )
+
+    assert "scale TBC" not in description
+    assert "scale —" not in description
+
+
+def test_description_uses_subclass_label_not_raw_enum() -> None:
+    description = _taxonomy_project_description(
+        _project(
+            building_class="infrastructure",
+            subclasses=["rail_metro"],
+            work_type="refurb",
+            work_scope=["accessibility_upgrade"],
+        )
+    )
+
+    assert "rail_metro" not in description
+    assert "Rail/Metro" in description
+    assert "Refurbishment" in description
+
+
+def test_description_does_not_claim_asset_unstated_when_scale_is_known() -> None:
+    description = _taxonomy_project_description(_project(scale={"storeys": 6}))
+
+    assert "Site, asset, and scope details remain to be confirmed" not in description
+    assert "asset details remain" not in description.lower()

@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import patch
 
 from app.cost_plan.workbook_rebuild import WorkbookRebuildCoordinator
 
@@ -37,14 +38,20 @@ def test_explicit_flush_rebuilds_immediately() -> None:
 
 
 def test_rebuild_failure_is_swallowed_so_canonical_state_remains() -> None:
+    canary = "ch03-workbook-storage-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+
     async def scenario() -> str:
         coordinator = WorkbookRebuildCoordinator(quiet_seconds=0.01)
 
         async def rebuild() -> None:
-            raise RuntimeError("xlsx failed")
+            raise RuntimeError(canary)
 
         coordinator.schedule("project", rebuild)
         await asyncio.sleep(0.03)
         return "canonical-ok"
 
-    assert asyncio.run(scenario()) == "canonical-ok"
+    with patch("app.cost_plan.workbook_rebuild.log.error") as log_error:
+        assert asyncio.run(scenario()) == "canonical-ok"
+
+    assert log_error.call_args.kwargs["extra"]["error_type"] == "RuntimeError"
+    assert canary not in str(log_error.call_args)

@@ -141,6 +141,54 @@ def test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs() -> None:
     assert abs(sum(budgets) - target_words) <= len(budgets)
 
 
+def test_l_band_greenfield_brief_asks_high_weight_sections_for_project_specific_depth() -> None:
+    project = _project(
+        title="Rail station",
+        building_class="infrastructure",
+        work_type="refurb",
+        subclasses=["rail_metro"],
+        scale={"route_km": 1},
+        work_scope=["live_environment_fitout", "accessibility_upgrade", "temporary_works"],
+    )
+    project.project_metadata["taxonomy"]["budget"] = "$120m"
+    context = pmp_taxonomy_context(project)
+    assert context is not None
+    assert context.scale_band == "l"
+    from app.sitewise.taxonomy import scale_band_word_target
+
+    target_words = scale_band_word_target("l")
+    assert target_words == 1900
+
+    brief = build_greenfield_brief(
+        archetype="",
+        state="NSW",
+        draft_mode="platform_seeded",
+        building_class=context.building_class,
+        work_type=context.work_type,
+        subclasses=context.subclasses,
+        scale=context.scale,
+        complexity=context.complexity,
+        work_scope=context.work_scope,
+        risk_flags=context.risk_flags,
+        section_weights=context.section_weights,
+        seed_section_refs={},
+        user_provided_fields=context.user_provided_fields,
+        target_words=target_words,
+    )
+
+    assert f"Primary PMP target: {target_words} words" in brief
+    assert "minimum is binding" in brief.lower()
+    risks_line = next(
+        line for line in brief.splitlines() if line.startswith("- Risks and mitigations (~")
+    )
+    assert "project-specific depth" in risks_line
+    assert "not restate the register" in risks_line
+    citation_line = next(
+        line for line in brief.splitlines() if line.startswith("- Citation key (~")
+    )
+    assert "project-specific depth" not in citation_line
+
+
 def test_evidence_grounded_contract_omits_empty_fallback_work_scope_prompt() -> None:
     project = _project(work_scope=[])
     context = pmp_taxonomy_context(project)
@@ -188,13 +236,14 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     assert "| Description |" in summary
     assert "Critical current position" not in summary
     assert "| Expected consultants |" not in markdown
-    # Fire services with no fitout scope and no asset register: nothing is being
-    # finished or furnished, so the schedule is not applicable to this project.
-    assert "## FFE Schedule" not in markdown
+    assert "## FFE Schedule" in markdown
+    assert "Fire pumpset" in _section_body(markdown, "FFE Schedule")
+    assert "TBC — record finishes, fixtures and equipment selections" not in markdown
     assert "## Consultants" in markdown
     assert "Fire Engineer" in _section_body(markdown, "Consultants")
     assert "| Expected consultants |" not in _section_body(markdown, "Brief")
     assert headings.index("Brief") + 1 == headings.index("Consultants")
+    assert headings.index("Consultants") + 1 == headings.index("FFE Schedule")
     assert _min_words(project) <= pmp_word_count(markdown) <= _max_words(project) * 1.05
     assert "User provided" not in markdown
     assert "Assumption" in markdown
@@ -386,7 +435,7 @@ def test_taxonomy_matrix_scaffolds_obey_primary_contract(project, seed_refs) -> 
     assert all(
         top_count >= count
         for heading, count in counts.items()
-        if heading not in {"Project Summary", "Citation key"}
+        if heading not in {"Project Summary", "Citation key", "FFE Schedule"}
     )
 
     if context.work_scope:

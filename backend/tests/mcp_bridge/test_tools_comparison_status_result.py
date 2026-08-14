@@ -71,12 +71,13 @@ def _comparison() -> SimpleNamespace:
     )
 
 
-def _job(status: str) -> TenderJob:
+def _job(status: str, *, last_error: str | None = None) -> TenderJob:
     return TenderJob(
         id=uuid.uuid4(),
         kind="map_items",
         status=status,
         attempts=0,
+        last_error=last_error,
     )
 
 
@@ -132,6 +133,33 @@ def test_get_comparison_status_returns_progress_jobs_and_report(monkeypatch) -> 
     assert data["jobs"]["counts"] == {"queued": 1, "running": 1}
     assert data["qa"]["pending_count"] == 2
     assert data["quotes"][0]["documents"][0]["filename"] == "nexus-tender.pdf"
+
+
+def test_get_comparison_status_hides_historical_job_error(monkeypatch) -> None:
+    server = _install(monkeypatch)
+    historical_error = "historical-provider-secret-" + ("x" * 24)
+    monkeypatch.setattr(
+        server,
+        "_comparison_jobs",
+        AsyncMock(
+            return_value=[_job("failed", last_error=historical_error)]
+        ),
+    )
+    monkeypatch.setattr(server, "_pending_review_count", AsyncMock(return_value=0))
+    monkeypatch.setattr(server, "_latest_report_payload", AsyncMock(return_value=None))
+
+    async def _run():
+        async with Client(server.mcp) as client:
+            return await client.call_tool(
+                "get_comparison_status", {"comparison_id": str(COMPARISON_ID)}
+            )
+
+    data = run_async(_run()).data
+
+    assert data["jobs"]["latest"][0]["last_error"] == (
+        "Processing failed. Retry the stage or contact support if it continues."
+    )
+    assert historical_error not in str(data)
 
 
 def test_get_comparison_status_publishes_progress_on_done_event(monkeypatch) -> None:

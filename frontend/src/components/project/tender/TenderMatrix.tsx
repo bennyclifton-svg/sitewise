@@ -141,6 +141,7 @@ export function TenderMatrix({
     return totals.length > 1 ? Math.min(...totals) : null;
   }, [quotes]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns unmemoizable functions by design.
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,

@@ -1,5 +1,6 @@
 import uuid
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from sqlalchemy import select
 
@@ -32,7 +33,7 @@ class FakeSession:
 class BrokenSession:
     def add_all(self, rows) -> None:
         _ = rows
-        raise RuntimeError("activity table unavailable")
+        raise RuntimeError("ch03-activity-database-token-xxxxxxxxxxxxxxxxxxxxxxxx")
 
 
 class FakeDeleteSession:
@@ -81,21 +82,26 @@ def test_record_activity_events_adds_rows() -> None:
 
 
 def test_record_activity_events_swallows_failures() -> None:
-    run_async(
-        record_activity_events(
-            BrokenSession(),
-            project_id=PROJECT_ID,
-            source="document_ingest",
-            run_id=RUN_ID,
-            events=[
-                WorkflowTraceEvent(
-                    step="store",
-                    status="complete",
-                    message="Stored file.",
-                )
-            ],
+    canary = "ch03-activity-database-token-xxxxxxxxxxxxxxxxxxxxxxxx"
+    with patch("app.database.activity_events.log.error") as log_error:
+        run_async(
+            record_activity_events(
+                BrokenSession(),
+                project_id=PROJECT_ID,
+                source="document_ingest",
+                run_id=RUN_ID,
+                events=[
+                    WorkflowTraceEvent(
+                        step="store",
+                        status="complete",
+                        message="Stored file.",
+                    )
+                ],
+            )
         )
-    )
+
+    assert log_error.call_args.kwargs["error_type"] == "RuntimeError"
+    assert canary not in str(log_error.call_args)
 
 
 def test_activity_run_status_is_derived_from_latest_event() -> None:

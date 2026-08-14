@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from app.projects.artefact_blocks import detach_block_marker, strip_block_markers
+from app.sitewise.taxonomy import DESIGN_LEAD_UNCONFIRMED_LABEL
 
 _H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 _INTERNAL_PREFIXES = (
@@ -16,6 +17,8 @@ _AUDIT_LABEL_RE = re.compile(r"^-\s+\*\*(.+?)\*\*\s*$")
 _REVIEW_AUDIT_GROUPS = frozenset({"assumptions", "judgements", "workflow warnings"})
 _CONFIRM_RE = re.compile(r"\bconfirm\b", re.IGNORECASE)
 _TO_BE_CONFIRMED_RE = re.compile(r"\bto be confirmed\b", re.IGNORECASE)
+_DESIGN_LEAD_TBC_RE = re.compile(re.escape(DESIGN_LEAD_UNCONFIRMED_LABEL), re.IGNORECASE)
+_DESIGN_LEAD_PLACEHOLDER = "\x00DESIGN_LEAD_TBC\x00"
 _TBC_RE = re.compile(r"\bTBC\b", re.IGNORECASE)
 _OWNER_BRIEF_LEAD_IN_RE = re.compile(
     r"^\s*\*{0,2}draft owner project brief\*{0,2}\s*(?:—|–|-|:)\s*"
@@ -122,13 +125,19 @@ def clean_issue_language(value: str) -> str:
     if _CONFLICT_STATUS_ONLY_RE.fullmatch(cleaned):
         return ""
     cleaned = _CONFLICT_TRAILING_RE.sub("", cleaned)
+    held_lead = _DESIGN_LEAD_TBC_RE.search(cleaned)
+    if held_lead:
+        cleaned = _DESIGN_LEAD_TBC_RE.sub(_DESIGN_LEAD_PLACEHOLDER, cleaned)
     cleaned = _TO_BE_CONFIRMED_RE.sub("not stated", cleaned)
 
     def replace_confirm(match: re.Match[str]) -> str:
         return "State" if match.group(0)[0].isupper() else "state"
 
     cleaned = _CONFIRM_RE.sub(replace_confirm, cleaned)
-    return _TBC_RE.sub("—", cleaned).strip()
+    cleaned = _TBC_RE.sub("—", cleaned)
+    if held_lead:
+        cleaned = cleaned.replace(_DESIGN_LEAD_PLACEHOLDER, held_lead.group(0))
+    return cleaned.strip()
 
 
 def _strip_evidence_on_file_label(value: str) -> str:

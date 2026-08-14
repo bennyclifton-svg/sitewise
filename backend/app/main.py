@@ -84,7 +84,11 @@ async def log_requests(request: Request, call_next):
 
 @fastapi_app.exception_handler(IntegrityError)
 async def integrity_error_handler(request: Request, exc: IntegrityError):
-    log.exception("database_integrity_error", path=request.url.path, error=str(exc))
+    log.error(
+        "database_integrity_error",
+        path=request.url.path,
+        error_type=type(exc).__name__,
+    )
     return JSONResponse(
         status_code=409,
         content={
@@ -95,7 +99,11 @@ async def integrity_error_handler(request: Request, exc: IntegrityError):
 
 @fastapi_app.exception_handler(SQLAlchemyError)
 async def database_error_handler(request: Request, exc: SQLAlchemyError):
-    log.exception("database_error", path=request.url.path, error=str(exc))
+    log.error(
+        "database_error",
+        path=request.url.path,
+        error_type=type(exc).__name__,
+    )
     if isinstance(exc, OperationalError) and isinstance(exc.orig, DeadlockDetected):
         return JSONResponse(
             status_code=409,
@@ -152,4 +160,10 @@ app = CORSMiddleware(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        access_log=False,
+    )

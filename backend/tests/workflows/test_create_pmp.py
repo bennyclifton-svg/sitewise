@@ -808,10 +808,19 @@ def _active_corpus_sweep_result() -> SimpleNamespace:
     )
 
 
+def _empty_corpus_sweep_result() -> SimpleNamespace:
+    return SimpleNamespace(
+        passages=(),
+        listing=SimpleNamespace(documents=()),
+        trace_events=(),
+    )
+
+
 def test_create_pmp_retries_structural_failure_with_validation_feedback() -> None:
     bad_markdown = _valid_pmp_markdown()
     good_markdown = (
-        "# Project Management Plan\n\n## Actions and decisions\n\ngood draft"
+        "# Project Management Plan\n\n## Actions and decisions\n\n"
+        + " ".join(["good"] * 900)
     )
     bad_output = PmpDraftOutput(
         title="Project Management Plan",
@@ -850,6 +859,127 @@ def test_create_pmp_retries_structural_failure_with_validation_feedback() -> Non
         run_model.await_args_list[1].kwargs["validation_feedback"] == validation_message
     )
     assert result.status == "complete"
+
+
+def _l_band_taxonomy_project() -> Project:
+    return _project(
+        archetype=None,
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["office"],
+                "budget": "$120m",
+                "work_scope": ["mechanical_hvac"],
+            }
+        },
+    )
+
+
+def _padded_taxonomy_markdown(project: Project, words: int) -> str:
+    headings = required_section_headings(project=project)
+    per = max(words // max(len(headings), 1), 1)
+    body = "\n\n".join(
+        f"## {heading}\n\n" + " ".join(["content"] * per) for heading in headings
+    )
+    return f"# Project Management Plan\n\n{body}\n"
+
+
+def test_create_pmp_retries_under_length_scaffold_with_section_budgets() -> None:
+    project = _l_band_taxonomy_project()
+    short_markdown = _padded_taxonomy_markdown(project, 80)
+    long_markdown = _padded_taxonomy_markdown(project, 1800)
+    short_output = PmpDraftOutput(
+        title="Project Management Plan",
+        markdown=short_markdown,
+        seed_consulted=_valid_seed_consulted(),
+        evidence_refs=[],
+        context_refs=["doctrine:docs/clerk-brief.md"],
+    )
+    long_output = short_output.model_copy(update={"markdown": long_markdown})
+    run_model = AsyncMock(return_value=long_output)
+    mocks = _pmp_workflow_mocks(
+        _empty_corpus_sweep_result(),
+        run_model,
+        lambda *_args, **_kwargs: None,
+    )
+    with (
+        mocks[0],
+        mocks[1],
+        mocks[2],
+        mocks[3],
+        mocks[4],
+        mocks[5],
+        patch(
+            "app.sitewise.pmp_renderer.render_pmp_scaffold",
+            return_value=short_markdown,
+        ),
+        patch("app.workflows.create_pmp.sync_pmp_draft_workspace", new=AsyncMock()),
+        patch("app.workflows.create_pmp.sync_decisions_from_markdown", new=AsyncMock()),
+    ):
+        result = run_async(
+            run_create_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+            )
+        )
+
+    assert result.status == "complete"
+    assert run_model.await_count == 1
+    feedback = run_model.await_args.kwargs["validation_feedback"]
+    assert "minimum" in feedback
+    assert "project-specific depth" in feedback
+    assert "not restate the register" in feedback
+    length_events = [event for event in result.trace if event.step == "length"]
+    assert any(event.status == "retry" for event in length_events)
+    assert not any(
+        event.status == "advisory" and "not enforced" in event.message
+        for event in length_events
+        if "minimum" in event.message
+    )
+
+
+def test_create_pmp_keeps_over_length_advisory_without_retry() -> None:
+    project = _l_band_taxonomy_project()
+    long_markdown = _padded_taxonomy_markdown(project, 4000)
+    run_model = AsyncMock()
+    mocks = _pmp_workflow_mocks(
+        _empty_corpus_sweep_result(),
+        run_model,
+        lambda *_args, **_kwargs: None,
+    )
+    with (
+        mocks[0],
+        mocks[1],
+        mocks[2],
+        mocks[3],
+        mocks[4],
+        mocks[5],
+        patch(
+            "app.sitewise.pmp_renderer.render_pmp_scaffold",
+            return_value=long_markdown,
+        ),
+        patch("app.workflows.create_pmp.sync_pmp_draft_workspace", new=AsyncMock()),
+        patch("app.workflows.create_pmp.sync_decisions_from_markdown", new=AsyncMock()),
+    ):
+        result = run_async(
+            run_create_pmp_workflow(
+                AsyncMock(),
+                user_id=USER_ID,
+                project=project,
+                thread_id=None,
+            )
+        )
+
+    assert result.status == "complete"
+    assert run_model.await_count == 0
+    length_events = [event for event in result.trace if event.step == "length"]
+    assert length_events
+    assert all(event.status == "advisory" for event in length_events)
+    assert "not enforced" in length_events[0].message
+    assert "maximum" in length_events[0].message
 
 
 def _pmp_workflow_mocks(sweep_result, run_model_mock, validate_side_effect):
@@ -928,13 +1058,6 @@ def test_validate_pmp_output_allows_over_length_taxonomy_draft() -> None:
             "app.workflows.create_pmp.greenfield_structure_violations",
             return_value=[],
         ),
-        patch(
-            "app.workflows.create_pmp.length_violations",
-            return_value=[
-                "Draft is 2464 words, maximum 1800 (5% tolerance 1890) "
-                "- condense by about 664 words."
-            ],
-        ),
     ):
         validate_pmp_output(
             output,
@@ -978,7 +1101,6 @@ def test_validate_pmp_output_rejects_empty_scope_row_in_grounded_draft() -> None
             "app.workflows.create_pmp.greenfield_structure_violations", return_value=[]
         ),
         patch("app.workflows.create_pmp.evidence_grounded_violations", return_value=[]),
-        patch("app.workflows.create_pmp.length_violations", return_value=[]),
         pytest.raises(
             WorkflowValidationError,
             match="empty fallback work-scope row",
@@ -1156,9 +1278,14 @@ def _coverage_sweep_result() -> SimpleNamespace:
 
 
 def test_create_pmp_coverage_misses_backfill_without_retry() -> None:
+    markdown = _valid_pmp_markdown().replace(
+        "## Project overview",
+        "## Project overview\n\n" + " ".join(["padding"] * 80),
+        1,
+    )
     output = PmpDraftOutput(
         title="Project Management Plan",
-        markdown=_valid_pmp_markdown(),
+        markdown=markdown,
         seed_consulted=_valid_seed_consulted(),
         evidence_refs=[],
         context_refs=["doctrine:docs/clerk-brief.md"],

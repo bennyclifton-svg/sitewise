@@ -63,6 +63,45 @@
           }
         },
         {
+          "path": "seed/infrastructure-construction-guide.md",
+          "section_ids": [
+            "activation-and-subtype-control",
+            "authority-interfaces-and-network-operators",
+            "possessions-outages-and-live-network-access",
+            "safety-accreditation-and-worker-competency"
+          ],
+          "when": {
+            "building_class": "infrastructure",
+            "work_type": ["new", "refurb", "extend", "remediation"]
+          }
+        },
+        {
+          "path": "seed/institution-construction-guide.md",
+          "section_ids": [
+            "activation-and-subtype-control",
+            "public-procurement-and-probity",
+            "operating-calendar-and-live-environment-staging",
+            "child-protection-security-clearance-and-site-separation"
+          ],
+          "when": {
+            "building_class": "institution",
+            "work_type": ["new", "refurb", "extend", "remediation"]
+          }
+        },
+        {
+          "path": "seed/mixed-use-construction-guide.md",
+          "section_ids": [
+            "activation-and-subtype-control",
+            "multiple-classifications-in-one-structure",
+            "fire-and-acoustic-separation-between-uses",
+            "staged-handover-by-use"
+          ],
+          "when": {
+            "building_class": "mixed",
+            "work_type": ["new", "refurb", "extend", "remediation"]
+          }
+        },
+        {
           "path": "seed/advisory-services-guide.md",
           "section_ids": [
             "define-the-decision-before-the-scope",
@@ -130,12 +169,21 @@
             "governance-and-approvals"
           ],
           "when": {
-            "work_type": "remediation",
-            "work_scope": [
-              "waterproofing_rectification",
-              "fire_safety_orders",
-              "facade_cladding"
-            ]
+            "work_type": "remediation"
+          }
+        },
+        {
+          "path": "seed/renovation-guide.md",
+          "section_ids": [
+            "heritage-and-character-due-diligence",
+            "waterproofing-and-old-to-new-tie-ins",
+            "dilapidation-and-neighbour-management",
+            "latent-conditions"
+          ],
+          "when": {
+            "building_class": "residential",
+            "work_type": ["refurb", "extend"],
+            "subclasses": ["house", "townhouses"]
           }
         }
       ],
@@ -174,12 +222,7 @@
             "construction-verification-and-handover"
           ],
           "when": {
-            "work_type": "remediation",
-            "work_scope": [
-              "waterproofing_rectification",
-              "fire_safety_orders",
-              "facade_cladding"
-            ]
+            "work_type": "remediation"
           }
         }
       ]

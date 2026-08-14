@@ -6,7 +6,6 @@ import signal
 import socket
 import sys
 import time
-import traceback
 import uuid
 from contextlib import suppress
 from dataclasses import fields, is_dataclass
@@ -559,7 +558,7 @@ async def run_once(session_factory, worker_id: str) -> bool:
             "workflow_run_failed",
             run_id=str(run.id),
             workflow_type=run.workflow_type,
-            error=traceback.format_exc(),
+            error_type=type(exc).__name__,
         )
         async with session_factory() as failure_session:
             await fail_workflow_run(
@@ -591,8 +590,11 @@ async def run_lane(
     while not shutdown_event.is_set():
         try:
             processed = await run_once(session_factory, worker_id)
-        except Exception:
-            log.error("workflow_worker_lane_error", error=traceback.format_exc())
+        except Exception as exc:
+            log.error(
+                "workflow_worker_lane_error",
+                error_type=type(exc).__name__,
+            )
             processed = False
         if not processed:
             await _idle_wait(shutdown_event)

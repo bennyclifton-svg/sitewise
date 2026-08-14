@@ -6,6 +6,7 @@ from app.sitewise.taxonomy import (
     building_classes,
     complexity_dimensions_for,
     derive_risk_flags,
+    design_lead_discipline,
     risk_flag_definitions,
     scale_fields_for,
     subclasses_for,
@@ -66,6 +67,7 @@ def test_universal_complexity_dimensions_present_for_all_classes() -> None:
             "procurement_route",
             "stakeholder_complexity",
             "environmental_sensitivity",
+            "heritage_status",
         } <= keys
 
 
@@ -204,3 +206,63 @@ def test_residential_new_scope_outweighs_compliance() -> None:
         risk_flags=[],
     )
     assert weights["scope-client-requirements"] > weights["compliance-approvals"]
+
+
+def test_remediation_has_structural_remediation_scope() -> None:
+    items = work_scope_options_for("remediation")
+    structural = next(item for item in items if item.value == "structural_remediation")
+    assert structural.consultants[0] == "Structural Engineer"
+    assert design_lead_discipline("remediation", ["structural_remediation"]) == (
+        "Structural Engineer"
+    )
+
+
+def test_extend_includes_refurb_fitout_scopes() -> None:
+    values = {item.value for item in work_scope_options_for("extend")}
+    assert {
+        "partitions_walls",
+        "joinery",
+        "flooring",
+        "hydraulic_plumbing",
+        "structural_tie_in",
+    } <= values
+
+
+def test_heritage_status_is_a_universal_dimension() -> None:
+    expected_options = [
+        "none",
+        "conservation_area",
+        "local_heritage_item",
+        "state_heritage_register",
+    ]
+    for cls in building_classes():
+        heritage = next(
+            d for d in complexity_dimensions_for(cls.value) if d.key == "heritage_status"
+        )
+        assert [option.value for option in heritage.options] == expected_options
+    assert [
+        flag.value
+        for flag in derive_risk_flags({"heritage_status": "conservation_area"}, [])
+    ] == ["heritage_adaptive_reuse"]
+    assert derive_risk_flags({"heritage_status": "none"}, []) == []
+
+
+def test_energy_generation_storage_scope_on_extend_and_refurb() -> None:
+    for work_type in ("extend", "refurb"):
+        values = {item.value for item in work_scope_options_for(work_type)}
+        assert "energy_generation_storage" in values
+        assert design_lead_discipline(work_type, ["energy_generation_storage"]) == (
+            "Services Engineer (Electrical)"
+        )
+
+
+def test_industrial_and_commercial_expose_energy_scale_fields() -> None:
+    energy_keys = {"capacity_mw", "battery_storage_mwh"}
+    for building_class, subclass in (
+        ("industrial", "other"),
+        ("industrial", "warehouse"),
+        ("commercial", "office"),
+        ("infrastructure", "energy_renewables"),
+    ):
+        keys = {field.key for field in scale_fields_for(building_class, subclass)}
+        assert energy_keys <= keys, f"{building_class}/{subclass}"

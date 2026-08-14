@@ -181,6 +181,13 @@ def validate_profile_patch(
         if field in patch.model_fields_set
     }
     after = before.model_copy(update=updates)
+    after = after.model_copy(
+        update={
+            field: _empty_profile_value(field)
+            for field in ("subclasses", "work_scope", "assets", "scope_narrative")
+            if getattr(after, field) is None
+        }
+    )
     dependent_conflicts = _dependent_conflicts(before, after, patch)
     if dependent_conflicts and not patch.clear_incompatible:
         raise ProfileDependencyConflict(dependent_conflicts)
@@ -273,11 +280,26 @@ def project_assets(project: Project) -> list[ProjectAsset]:
     Renderers only need the assets, and building a ProjectProfileView requires a
     real project id that scaffold fixtures do not always carry.
     """
-    metadata = getattr(project, "project_metadata", None) or {}
-    taxonomy = metadata.get("taxonomy") if isinstance(metadata, dict) else None
-    if not isinstance(taxonomy, dict):
+    taxonomy = _project_taxonomy(project)
+    if taxonomy is None:
         return []
     return _asset_values(taxonomy.get("assets"))
+
+
+def project_budget(project: Project) -> str | None:
+    """Read the stated budget text off the project profile."""
+    taxonomy = _project_taxonomy(project)
+    if taxonomy is None:
+        return None
+    return _optional_text(taxonomy.get("budget"))
+
+
+def _project_taxonomy(project: Project) -> dict[str, Any] | None:
+    metadata = getattr(project, "project_metadata", None) or {}
+    if not isinstance(metadata, dict):
+        return None
+    taxonomy = metadata.get("taxonomy")
+    return taxonomy if isinstance(taxonomy, dict) else None
 
 
 def project_scope_narrative(project: Project) -> list[str]:
@@ -439,7 +461,7 @@ def _validate_work_scope(profile: ProjectProfileView) -> list[str]:
     }
     return [
         f"Unknown work_scope for {profile.work_type!r}: {value!r}"
-        for value in profile.work_scope
+        for value in profile.work_scope or []
         if value not in valid
     ]
 

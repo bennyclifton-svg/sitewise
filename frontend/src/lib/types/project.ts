@@ -182,6 +182,8 @@ export type UpdateProjectInput = ProjectTaxonomyInput & {
   state?: string | null;
   site_address?: string | null;
   client?: string | null;
+  budget?: string | null;
+  scope_narrative?: string[];
   clear_incompatible?: boolean;
 };
 
@@ -194,6 +196,9 @@ export type ProjectProfileView = {
   scale: Record<string, TaxonomyScalar>;
   complexity: Record<string, string>;
   work_scope: string[];
+  assets?: ProjectAsset[];
+  scope_narrative?: string[];
+  budget?: string | null;
   user_role?: string | null;
   state: string | null;
   site_address: string | null;
@@ -211,6 +216,9 @@ export type ProjectProfileChange = {
     | "scale"
     | "complexity"
     | "work_scope"
+    | "assets"
+    | "scope_narrative"
+    | "budget"
     | "state"
     | "site_address"
     | "client"

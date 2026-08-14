@@ -13,7 +13,6 @@ import os
 import signal
 import socket
 import time
-import traceback
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 
@@ -90,11 +89,19 @@ async def run_once(session_factory, worker_id: str) -> bool:
         try:
             await handler(session, job)
         except Exception as exc:
-            error_text = traceback.format_exc()
+            error_type = type(exc).__name__
+            log.error(
+                "tender_job_failed",
+                worker_id=worker_id,
+                job_id=str(job_id),
+                comparison_id=str(comparison_id),
+                job_kind=job_kind,
+                error_type=error_type,
+            )
             duration_ms = int((time.perf_counter() - started) * 1000)
             await session.rollback()
             failed_meta = dict(usage.metadata)
-            failed_meta["error_type"] = type(exc).__name__
+            failed_meta["error_type"] = error_type
             await telemetry.record_stage_timing(
                 session,
                 comparison_id=comparison_id,
@@ -108,7 +115,7 @@ async def run_once(session_factory, worker_id: str) -> bool:
                 cache_hits=usage.cache_hits,
                 metadata=failed_meta,
             )
-            await jobs.fail(session, job, error_text)
+            await jobs.fail(session, job, f"{job_kind} failed ({error_type})")
             return True
         finally:
             telemetry.end_stage_usage()
@@ -190,11 +197,11 @@ async def run_lane(
     while not shutdown_event.is_set():
         try:
             processed = await run_once(session_factory, worker_id)
-        except Exception:
+        except Exception as exc:
             log.error(
                 "tender_worker_lane_error",
                 worker_id=worker_id,
-                error=traceback.format_exc(),
+                error_type=type(exc).__name__,
             )
             await _idle_wait(shutdown_event)
             continue
@@ -218,8 +225,11 @@ async def run_sweeper(
                 await jobs.requeue_stale(
                     session, older_than_minutes=settings.tender_job_stale_lock_minutes
                 )
-        except Exception:
-            log.error("tender_worker_sweeper_error", error=traceback.format_exc())
+        except Exception as exc:
+            log.error(
+                "tender_worker_sweeper_error",
+                error_type=type(exc).__name__,
+            )
 
         if not shutdown_event.is_set():
             await _idle_wait(shutdown_event)

@@ -45,10 +45,13 @@ class WorkbookRebuildCoordinator:
             await self.flush(key)
         except asyncio.CancelledError:
             return
-        except Exception:
+        except Exception as exc:
             # The canonical state is already committed and remains authoritative;
             # a later preview/export request retries this derived artefact.
-            log.exception("cost_plan_workbook_rebuild_failed", extra={"key": key})
+            log.error(
+                "cost_plan_workbook_rebuild_failed",
+                extra={"key": key, "error_type": type(exc).__name__},
+            )
 
 
 workbook_rebuilds = WorkbookRebuildCoordinator()

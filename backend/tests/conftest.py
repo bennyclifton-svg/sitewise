@@ -6,6 +6,7 @@ from pathlib import Path
 
 from tests.offline_network import (
     OFFLINE_NETWORK_GUARD,
+    startup_database_access_target,
     startup_network_access_permitted,
 )
 
@@ -28,7 +29,8 @@ def pytest_configure(config):
 def pytest_runtest_protocol(item, nextitem):
     marker_names = {marker.name for marker in item.iter_markers()}
     lease = OFFLINE_NETWORK_GUARD.begin_test(
-        allowed=startup_network_access_permitted(marker_names)
+        allowed=startup_network_access_permitted(marker_names),
+        database_target=startup_database_access_target(marker_names),
     )
     try:
         return (yield)

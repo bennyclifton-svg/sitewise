@@ -107,4 +107,32 @@ describe("WorkspaceFilePanel", () => {
       "## Page 1\n\n|Trade|Price|\n|---|---|\n|Demo|$1,000|",
     );
   });
+
+  it("resets document controls when the selected file changes", async () => {
+    const user = userEvent.setup();
+    const view = render(
+      <WorkspaceFilePanel projectId={PROJECT_ID} evidence={evidence()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /show document details/i }));
+    await user.click(screen.getByRole("tab", { name: "Raw" }));
+    expect(screen.getByRole("button", { name: /hide document details/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Raw" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    view.rerender(
+      <WorkspaceFilePanel
+        projectId={PROJECT_ID}
+        evidence={evidence({ id: "evidence-2", title: "Second document" })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /show document details/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Markdown" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
 });

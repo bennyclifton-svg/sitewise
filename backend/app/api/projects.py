@@ -2346,7 +2346,10 @@ async def export_project_draft(
         except (ImportError, OSError, RuntimeError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"{format.upper()} export is unavailable: {exc}",
+                detail=(
+                    f"{format.upper()} export is temporarily unavailable. "
+                    "Please try again."
+                ),
             ) from exc
         storage_key = build_storage_key(str(project.id), workspace_path)
         await asyncio.to_thread(
@@ -3130,18 +3133,16 @@ async def post_apply_draft_instructions(
     except ArtefactPolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
-        # This endpoint costs minutes of model time. A bare 500 with no log and
-        # no detail makes a failed batch undiagnosable and unrepeatable, so the
-        # traceback is recorded and the caller is told what class of thing broke.
-        log.exception(
+        log.error(
             "apply_draft_instructions_failed",
             project_id=str(project.id),
             draft_id=str(draft.id),
             instruction_count=len(body.instructions),
+            error_type=type(exc).__name__,
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Could not apply changes: {type(exc).__name__}: {exc}",
+            detail="Could not apply changes. Please try again shortly.",
         ) from exc
 
 

@@ -30,7 +30,7 @@ the legacy role/archetype scaffold:
   document registers and overflow detail in companion records rather than the issued
   body. Do not truncate project-specific substance solely to hit a word count.
 - Use the universal `##` headings supplied in the prompt exactly (e.g. **Project
-  Summary**, **Brief**, **FFE Schedule**, **Consultants**, **Planning and Compliance**,
+  Summary**, **Brief**, **Consultants**, **FFE Schedule**, **Planning and Compliance**,
   **Programme**, **Cost Planning**, **Procurement and Delivery**, **Risks and
   mitigations**, **Actions and decisions**, **Citation key**).
 - Open with **Project Summary** and one compact identity table only (no bridge paragraph
@@ -49,13 +49,16 @@ the legacy role/archetype scaffold:
   acceptance criteria). Lead with the project scope itself. Do not
   prefix it with `Draft owner project brief`, draft status, formal-sign-off commentary,
   consultant rosters, engagement/fee content, or the detailed FFE item schedule.
-- **FFE Schedule** follows Brief. It is the Finishes, Fixtures and Equipment register
-  (`| Item | Location | Qty | Finish | Status | Notes |`). Preserve user-added
-  shared `ffe_item` rows; keep unspecified fields as TBC. Do not bury FFE selections
-  inside Brief prose. Place finishes/brief `pmp-decision` blocks (for example
-  `flooring-finish`, `kitchen-benchtop`, `wet-area-finish`) in this section after
-  the schedule table — the UI folds them into Finish-column dropdowns on the same
-  table. Do not emit a separate finishes-options table.
+- **FFE Schedule** follows Brief. It is the unified Finishes, Fixtures and Equipment
+  register (`| Item | Location | Qty | Finish | Status | Notes |`) covering
+  interior and exterior finishes, fixtures, and equipment — cladding, roofing,
+  paving, paint and render, wet-area fittings, joinery, and plant. Preserve
+  user-added shared `ffe_item` rows and typical starter rows; keep unspecified
+  fields as TBC. Do not bury FFE selections inside Brief prose. Place
+  finishes/brief `pmp-decision` blocks (for example `flooring-finish`,
+  `kitchen-benchtop`, `wet-area-finish`) in this section after the schedule
+  table — the UI folds them into Finish-column dropdowns on the same table. Do
+  not emit a separate finishes-options table or a second equipment schedule.
 - In evidence-grounded drafts, omit an empty work-scope taxonomy/fallback row. The
   fallback selector is for sparse projects only; do not ask the client to reconfirm
   scope already established by current documents.

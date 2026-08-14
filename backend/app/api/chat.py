@@ -1102,11 +1102,12 @@ async def post_chat_stream(
                 ):
                     yield event
             else:
-                log.exception(
+                log.error(
                     "chat_model_http_error",
                     user_id=str(user.id),
                     thread_id=str(body.thread_id),
                     status_code=exc.status_code,
+                    error_type=type(exc).__name__,
                 )
                 async for event in stream_error(
                     "The language model returned an error. Please try again shortly."
@@ -1124,11 +1125,12 @@ async def post_chat_stream(
                 "Please try rephrasing your question."
             ):
                 yield event
-        except Exception:
-            log.exception(
+        except Exception as exc:
+            log.error(
                 "chat_stream_error",
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
+                error_type=type(exc).__name__,
             )
             async for event in stream_error(
                 "Something went wrong while generating a response. Please try again."

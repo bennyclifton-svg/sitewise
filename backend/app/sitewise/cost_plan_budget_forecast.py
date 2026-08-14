@@ -16,6 +16,7 @@ USER_ASSUMPTION_REF = "user_instruction"
 PROTECTED_STATUS_TOKENS = frozenset(
     {
         "approved",
+        "confirmed",
         "contracted",
         "evidenced",
         "fact",

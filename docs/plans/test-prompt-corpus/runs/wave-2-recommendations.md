@@ -444,6 +444,47 @@ compiler's 2,087 on the same day.
 **Proof:** prompt 1's cost plan carries an indicative split of $180k across its 22 codes and names the
 Actron replacement.
 
+#### Fix log — R12 (2026-08-14)
+
+**Landed and unit-tested. Live prompt-1 cost-plan artefact not re-run** — same live-run skip as prompt 61.
+
+The intended compiler is **typed**. `run_create_cost_plan_workflow` always calls
+`run_create_cost_plan_typed`; the hybrid flag defaults true. The legacy markdown
+report path is not revived.
+
+**Stated budget is echoed and split.** Create-time allocation reads the pack
+ceiling, then Cost Plan context, then `project_budget`. When any Construction
+or PC-allowance row is still TBC, the scaffold round-trips through
+`build_adopted_budget_forecast` with `source_ref="project_profile"`. Typed
+markdown always states **ex GST**; when allocation ran it adds Control decision
+and Reconciliation, labelled **indicative allocation**.
+
+**Assets land on the construction row they belong to.** Mechanical plant
+(Pioneer / Actron / R22) is appended to the Mechanical / building-services
+label. Benchmark `%` lookup still uses the undecorated original label.
+
+**Protected rows stay protected.** `_typed_cost_items` maps Approved/Evidenced
+to status `"confirmed"`. Forecast treated that as unprotected until
+`"confirmed"` was added to `PROTECTED_STATUS_TOKENS`. Without that, a TBC
+envelope triggered a re-split that overwrote evidenced fees and contingency
+(Harrison Clarke hybrid). Confirmed + TBC remains allocatable because
+protection still requires a budget figure.
+
+Commercial fitout PC sits under `"Client-direct and landlord works"`, not
+`"PC allowances"`, so a $180k envelope is Construction-only. That is the
+prompt-1 shape.
+
+**Proof tests (59 passed):**
+[`test_typed_compiler_allocates_stated_budget_and_names_actron`](../../../backend/tests/workflows/test_create_cost_plan.py)
+splits $180,000 across envelope rows, names Actron/Pioneer, and prints ex GST
+plus the indicative-allocation label.
+[`test_mechanical_assets_are_named_on_the_mechanical_row`](../../../backend/tests/sitewise/test_cost_plan_lines.py)
+puts Pioneer, Actron, R22 and the service-centre location on the Mechanical
+services line. Hybrid integration (Harrison Clarke fees, industrial warehouse
+smoke, progressive batches) stayed green after the confirmed-status fix.
+
+Live prompt-1 artefact remains the remaining proof gate.
+
 ### R13 — Corpus and harness maintenance · **Size S**
 
 - **Run prompt 40.** It was skipped, so `industrial` was untested in the wave and the ISO 14644 /
@@ -452,6 +493,22 @@ Actron replacement.
 - **Add `TAXONOMY-GAP` and `HARNESS` to the corpus's defect-category list.** Both were needed this wave
   and neither is expressible in the original eight.
 - **Add a `Build SHA` row to the recording template**, once R0b lands.
+
+#### Fix log — R13 (2026-08-14)
+
+**Corpus and template landed. Live prompt 40 not run** — same live-run skip as
+prompts 61 and 1.
+
+In [`sitewise-test-prompt-corpus.md`](../sitewise-test-prompt-corpus.md):
+
+- Prompt 3 now ends **Need a PMP.**
+- Wave 2 note: do not skip prompt **40** (industrial / ISO 14644 /
+  validation-before-handover).
+- Recording template has a **Build SHA** row.
+- Defect categories now include `WORKFLOW-LAUNCH`, `TAXONOMY-GAP`, `HARNESS`,
+  and `COST`.
+
+Live prompt 40 remains the remaining proof gate for industrial coverage.
 
 ---
 

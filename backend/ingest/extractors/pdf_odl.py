@@ -37,7 +37,7 @@ def _run_odl(path: Path):
                 path=str(path),
                 attempt=attempt,
                 attempts=_ODL_ATTEMPTS,
-                error=f"{type(exc).__name__}: {exc}",
+                error_type=type(exc).__name__,
             )
     return None, last_error
 
@@ -51,7 +51,7 @@ def _text_layer_only(path: Path, odl_error: Exception) -> ExtractedDocument:
         "pdf_odl_failed_using_text_layer",
         path=str(path),
         text_layer_chars=len(text_layer.normalized_content.strip()),
-        error=f"{type(odl_error).__name__}: {odl_error}",
+        error_type=type(odl_error).__name__,
     )
     return ExtractedDocument(
         normalized_content=text_layer.normalized_content,
@@ -64,7 +64,7 @@ def _text_layer_only(path: Path, odl_error: Exception) -> ExtractedDocument:
             "odl_hybrid_requested": settings.tender_odl_hybrid_enabled,
             "odl_character_count": 0,
             "text_layer_character_count": len(text_layer.normalized_content.strip()),
-            "odl_error": f"{type(odl_error).__name__}: {odl_error}",
+            "odl_error": type(odl_error).__name__,
         },
     )
 
@@ -124,15 +124,23 @@ def _with_title_block(path: Path, selected: ExtractedDocument) -> ExtractedDocum
     """
     try:
         title_block = extract_pdf_title_block_text(path)
-    except Exception:
-        logger.exception("pdf_title_block_extract_failed", path=str(path))
+    except Exception as exc:
+        logger.warning(
+            "pdf_title_block_extract_failed",
+            path=str(path),
+            error_type=type(exc).__name__,
+        )
         title_block = ""
 
     identity = ""
     try:
         identity = render_title_block_preview(extract_pdf_title_block_fields(path)) or ""
-    except Exception:
-        logger.exception("pdf_title_block_fields_failed", path=str(path))
+    except Exception as exc:
+        logger.warning(
+            "pdf_title_block_fields_failed",
+            path=str(path),
+            error_type=type(exc).__name__,
+        )
 
     section = "\n\n".join(part for part in (identity, title_block) if part)
     if not section:
@@ -171,8 +179,12 @@ def _document_from_odl(document: PdfDocumentExtract) -> ExtractedDocument:
 def _text_layer_extract(path: Path) -> ExtractedDocument | None:
     try:
         return extract_pdf_text(path)
-    except Exception:
-        logger.exception("pdf_text_layer_fallback_failed", path=str(path))
+    except Exception as exc:
+        logger.warning(
+            "pdf_text_layer_fallback_failed",
+            path=str(path),
+            error_type=type(exc).__name__,
+        )
         return None
 
 

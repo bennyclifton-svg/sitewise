@@ -173,7 +173,8 @@ item, table row, or Cost Plan item), prefer structured operations:
 Do not write workbook cells or replace whole Markdown documents for these edits.
 
 For FFE schedule adds or edits (Finishes, Fixtures and Equipment in the PMP
-section after Brief), do not hunt for a Management Plan filename. Use
+section after Consultants — one register for interior and exterior finishes, fixtures,
+and equipment), do not hunt for a Management Plan filename. Use
 artefact.create_pmp from <project-snapshot> or get_artefact_blocks without a
 draft_id. Call list_shared_project_knowledge with kind ffe_item, then
 upsert_shared_project_knowledge with a stable slug id and fields such as item,

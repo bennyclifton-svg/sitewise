@@ -26,6 +26,15 @@ export function CostInvoiceRegister({
   /** When the published Cost Plan revision changes, reload the register. */
   revision?: number | null;
 }) {
+  return (
+    <CostInvoiceRegisterState
+      key={`${projectId}:${revision ?? "unversioned"}`}
+      projectId={projectId}
+    />
+  );
+}
+
+function CostInvoiceRegisterState({ projectId }: { projectId: string }) {
   const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -33,20 +42,16 @@ export function CostInvoiceRegister({
   const confirmedLedgerRef = useRef<InvoiceLedger | null>(null);
   const queueRef = useRef<InvoiceEdit[]>([]);
   const drainingRef = useRef(false);
-  const projectIdRef = useRef(projectId);
+  const projectIdRef = useRef<string | null>(projectId);
 
   useEffect(() => {
-    projectIdRef.current = projectId;
-  }, [projectId]);
+    return () => {
+      projectIdRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    queueRef.current = [];
-    drainingRef.current = false;
-    confirmedLedgerRef.current = null;
-    setPendingCount(0);
-    setSaveMessage(null);
-    setLedger(null);
 
     void api.getInvoiceLedger(projectId).then(
       (data) => {
@@ -69,7 +74,7 @@ export function CostInvoiceRegister({
     return () => {
       cancelled = true;
     };
-  }, [projectId, revision]);
+  }, [projectId]);
 
   function enqueue(edit: InvoiceEdit) {
     const confirmed = confirmedLedgerRef.current;
@@ -84,8 +89,9 @@ export function CostInvoiceRegister({
 
   async function drainQueue() {
     if (drainingRef.current) return;
-    drainingRef.current = true;
     const editingProjectId = projectIdRef.current;
+    if (!editingProjectId) return;
+    drainingRef.current = true;
     let latestSaved: InvoiceLedger | null = null;
 
     try {
@@ -137,7 +143,7 @@ export function CostInvoiceRegister({
       if (projectIdRef.current === editingProjectId) {
         setPendingCount(queueRef.current.length);
       }
-      if (queueRef.current.length > 0) void drainQueue();
+      if (projectIdRef.current && queueRef.current.length > 0) void drainQueue();
     }
   }
 

@@ -128,7 +128,15 @@ export function ChatComposer({
   function stopVoiceInput() {
     clearHoldTimer();
     holdModeRef.current = false;
-    recognitionRef.current?.stop();
+    startedOnPointerRef.current = false;
+    setListening(false);
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    try {
+      recognition?.stop();
+    } catch {
+      // Already stopped; onend may never fire.
+    }
   }
 
   function startVoiceInput() {
@@ -186,7 +194,13 @@ export function ChatComposer({
     if (micDisabled || event.button !== 0) return;
     event.preventDefault();
 
-    if (listening) return;
+    if (listening) {
+      // Chrome suppresses click after preventDefault on pointerdown, so the
+      // second press must stop here rather than waiting for handleMicClick.
+      suppressClickRef.current = true;
+      stopVoiceInput();
+      return;
+    }
 
     holdModeRef.current = false;
     suppressClickRef.current = false;

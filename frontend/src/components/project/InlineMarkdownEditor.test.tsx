@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { InlineMarkdownEditor } from "@/components/project/InlineMarkdownEditor";
@@ -56,5 +56,35 @@ describe("InlineMarkdownEditor", () => {
     fireEvent.blur(screen.getByRole("textbox", { name: "Edit selected text" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest save callback after its parent re-renders", async () => {
+    const firstSave = vi.fn().mockResolvedValue(undefined);
+    const latestSave = vi.fn().mockResolvedValue(undefined);
+    const onCancel = vi.fn();
+    const editor = (onSave: (markdown: string) => Promise<void>) => (
+      <InlineMarkdownEditor
+        sectionStart={0}
+        sourceStart={0}
+        sourceEnd={10}
+        isChanged={false}
+        isSaving={false}
+        onCancel={onCancel}
+        onSave={onSave}
+      >
+        Original
+      </InlineMarkdownEditor>
+    );
+
+    const view = render(editor(firstSave));
+    const textbox = screen.getByRole("textbox", { name: "Edit selected text" });
+    textbox.textContent = "Updated";
+    fireEvent.input(textbox);
+
+    view.rerender(editor(latestSave));
+    fireEvent.blur(textbox);
+
+    await waitFor(() => expect(latestSave).toHaveBeenCalledWith("Updated"));
+    expect(firstSave).not.toHaveBeenCalled();
   });
 });

@@ -68,3 +68,16 @@ def test_web_search_provider_is_validated():
             **_settings_kwargs(),
             web_search_provider="unknown",
         )
+
+
+def test_validation_errors_hide_invalid_secret_input() -> None:
+    secret = "ch03-invalid-database-password-xxxxxxxx"
+    kwargs = _settings_kwargs()
+    kwargs["database_url"] = (
+        f"postgresql://user:{secret}@aws-0-region.pooler.supabase.com:6543/postgres"
+    )
+
+    with pytest.raises(ValidationError) as captured:
+        Settings(**kwargs)
+
+    assert secret not in str(captured.value)

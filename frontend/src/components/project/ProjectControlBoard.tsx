@@ -68,7 +68,10 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { runOptimisticMutation } from "@/lib/optimistic-mutation";
 import { taxonomyValueFromProject } from "@/lib/project-taxonomy";
-import { projectStateOptions } from "@/lib/project-overlays";
+import {
+  overlayIssuesFromProfile,
+  projectStateOptions,
+} from "@/lib/project-overlays";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import { cn } from "@/lib/utils";
 import { type WorkflowProgressMode } from "@/lib/workflow-progress";
@@ -293,11 +296,21 @@ function ProjectProfilePanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const overlayIssues = [
+  const form = draft ?? serverForm;
+  const formOverlayIssues = overlayIssuesFromProfile({
+    buildingClass: form.profile.building_class,
+    workType: form.profile.work_type,
+    state: form.state,
+  });
+  const serverOverlayIssues = [
     ...project.overlay_status.missing,
     ...project.overlay_status.invalid,
   ];
-  const form = draft ?? serverForm;
+  const overlayPendingSave =
+    formOverlayIssues.length === 0 && serverOverlayIssues.length > 0;
+  const overlayIssues = overlayPendingSave
+    ? serverOverlayIssues
+    : formOverlayIssues;
 
   useEffect(() => {
     if (
@@ -383,6 +396,8 @@ function ProjectProfilePanel({
             state: base.form.state || null,
             site_address: base.form.siteAddress || null,
             client: base.form.client || null,
+            budget: base.form.budget.trim() || null,
+            scope_narrative: scopeNarrativeItems(base.form.scopeNarrative),
           }),
         confirmed: (result) => {
           const nextForm: ProfileFormValue = {
@@ -397,6 +412,8 @@ function ProjectProfilePanel({
             state: result.profile.state ?? "",
             siteAddress: result.profile.site_address ?? "",
             client: result.profile.client ?? "",
+            budget: result.profile.budget ?? "",
+            scopeNarrative: scopeNarrativeText(result.profile.scope_narrative),
           };
           return {
             form: nextForm,
@@ -461,6 +478,8 @@ function ProjectProfilePanel({
             work_scope: updated.profile.work_scope,
             site_address: updated.profile.site_address,
             client: updated.profile.client,
+            budget: updated.profile.budget,
+            scope_narrative: updated.profile.scope_narrative,
           },
         },
         overlay_status: updated.overlay_status,
@@ -470,7 +489,7 @@ function ProjectProfilePanel({
       setBaseForm(null);
       setEditingRevision(null);
       setConflictRevision(null);
-      setSaved(true);
+      setSaved(updated.overlay_status.ready);
     } catch (saveError) {
       if (!(saveError instanceof ApiError && saveError.status === 409) || !unresolvedConflict) {
         setError(
@@ -505,28 +524,52 @@ function ProjectProfilePanel({
           </div>
         </div>
       ) : null}
-      {overlayIssues.length ? (
+      {overlayIssues.length || overlayPendingSave ? (
         <div className="border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] p-3 text-sm text-[var(--sw-caution)]">
-          <p className="font-medium">Project overlays are incomplete.</p>
-          <p className="mt-1 text-xs">
-            Set state, class, and work type here so chat, knowledge
-            tools, and workflows use the right SiteWise context.
+          <p className="font-medium">
+            {overlayPendingSave
+              ? "Save profile to apply these overlays."
+              : "Project overlays are incomplete."}
           </p>
-          <ul className="mt-2 space-y-1 text-xs">
-            {overlayIssues.map((issue) => (
-              <li key={`${issue.field}-${issue.reason}`}>
-                {issue.field.replace("_", " ")}: {issue.reason}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-1 text-xs">
+            {overlayPendingSave
+              ? "Class, work type, and state are selected here but not saved yet. Chat and workflows still see the previous profile."
+              : "Set state, class, and work type here so chat, knowledge tools, and workflows use the right SiteWise context."}
+          </p>
+          {overlayPendingSave ? null : (
+            <ul className="mt-2 space-y-1 text-xs">
+              {overlayIssues.map((issue) => (
+                <li key={`${issue.field}-${issue.reason}`}>
+                  {issue.field.replace("_", " ")}: {issue.reason}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+      ) : null}
+      {error ? (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
       ) : null}
       {onProjectUpdated ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             onClick={() => void saveProfile()}
-            disabled={saving || !taxonomyQuery.data || conflictRevision !== null}
+            disabled={
+              saving ||
+              !draft ||
+              !taxonomyQuery.data ||
+              conflictRevision !== null
+            }
+            title={
+              conflictRevision !== null
+                ? "Resolve the profile conflict before saving"
+                : !draft
+                  ? "No unsaved changes"
+                  : undefined
+            }
           >
             {saving ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -579,15 +622,16 @@ function ProjectProfilePanel({
         onChange={(profile) => updateDraft({ ...form, profile })}
         disabled={saving || !onProjectUpdated}
         idPrefix={`project-profile-${project.id}`}
+        budget={form.budget}
+        onBudgetChange={(next) => updateDraft({ ...form, budget: next })}
+        scopeNarrative={form.scopeNarrative}
+        onScopeNarrativeChange={(next) =>
+          updateDraft({ ...form, scopeNarrative: next })
+        }
       />
       {taxonomyQuery.error ? (
         <p className="text-sm text-destructive" role="alert">
           Project profile options could not load.
-        </p>
-      ) : null}
-      {error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
         </p>
       ) : null}
     </div>
@@ -599,13 +643,17 @@ type ProfileFormValue = {
   state: string;
   siteAddress: string;
   client: string;
+  budget: string;
+  scopeNarrative: string;
 };
 
 type ProfileFormField =
   | keyof TaxonomyPickerValue
   | "state"
   | "site_address"
-  | "client";
+  | "client"
+  | "budget"
+  | "scope_narrative";
 
 const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
   "building_class",
@@ -617,6 +665,8 @@ const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
   "state",
   "site_address",
   "client",
+  "budget",
+  "scope_narrative",
 ];
 
 function profileFormFromProject(project: ProjectDetail): ProfileFormValue {
@@ -630,11 +680,14 @@ function profileFormFromProject(project: ProjectDetail): ProfileFormValue {
     (typeof taxonomy?.client === "string" && taxonomy.client) ||
     (typeof project.metadata?.client === "string" && project.metadata.client) ||
     "";
+  const budget = typeof taxonomy?.budget === "string" ? taxonomy.budget : "";
   return {
     profile: taxonomyValueFromProject(project),
     state: project.state ?? "",
     siteAddress,
     client,
+    budget,
+    scopeNarrative: scopeNarrativeText(taxonomy?.scope_narrative),
   };
 }
 
@@ -660,6 +713,8 @@ function profileFormField(form: ProfileFormValue, field: ProfileFormField) {
   if (field === "state") return form.state;
   if (field === "site_address") return form.siteAddress;
   if (field === "client") return form.client;
+  if (field === "budget") return form.budget;
+  if (field === "scope_narrative") return form.scopeNarrative;
   return form.profile[field];
 }
 
@@ -673,6 +728,8 @@ function rebaseProfileForm(
     state: latest.state,
     siteAddress: latest.siteAddress,
     client: latest.client,
+    budget: latest.budget,
+    scopeNarrative: latest.scopeNarrative,
   };
   for (const field of changedFields) {
     switch (field) {
@@ -684,6 +741,12 @@ function rebaseProfileForm(
         break;
       case "client":
         rebased.client = draft.client;
+        break;
+      case "budget":
+        rebased.budget = draft.budget;
+        break;
+      case "scope_narrative":
+        rebased.scopeNarrative = draft.scopeNarrative;
         break;
       case "building_class":
         rebased.profile.building_class = draft.profile.building_class;
@@ -706,6 +769,17 @@ function rebaseProfileForm(
     }
   }
   return rebased;
+}
+
+function scopeNarrativeText(items: string[] | undefined): string {
+  return (items ?? []).filter((item) => item.trim()).join("\n");
+}
+
+function scopeNarrativeItems(text: string): string[] {
+  return text
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function OverlaySelectField({

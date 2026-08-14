@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from app.database.project import Project
+from app.projects.profile import project_assets
+from app.schemas.projects import ProjectAsset
 from app.sitewise.archetype_bridge import effective_taxonomy, effective_work_scopes
 from app.sitewise.cost_plan_coverage import (
     CoverageFamily,
@@ -509,6 +511,7 @@ def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLi
     fee_rows = _FEE_ROWS_BY_FAMILY[family]
     consultant_rows = _CONSULTANT_ROWS_BY_FAMILY[family]
     construction_rows = _CONSTRUCTION_ROWS_BY_FAMILY[family]
+    construction_assets = _assets_by_construction_code(project, construction_rows)
     benchmark_pct = _CONSTRUCTION_BENCHMARK_PCT_BY_FAMILY[family]
     pc_allowance_rows = _PC_ALLOWANCE_ROWS_BY_FAMILY[family]
     contingency_code = _CONTINGENCY_CODE_BY_FAMILY[family]
@@ -578,7 +581,7 @@ def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLi
                 CostPlanLine(
                     cost_code=code,
                     category="Construction",
-                    cost_item=label,
+                    cost_item=_label_with_assets(label, construction_assets.get(code, ())),
                     budget=float(amount),
                     approved_contract=None,
                     status="Assumption",
@@ -598,7 +601,7 @@ def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLi
                 CostPlanLine(
                     cost_code=code,
                     category="Construction",
-                    cost_item=label,
+                    cost_item=_label_with_assets(label, construction_assets.get(code, ())),
                     budget=None,
                     approved_contract=None,
                     status="Assumption",
@@ -699,3 +702,116 @@ def cost_plan_lines(project: Project, pack: CostPlanEvidencePack) -> CostPlanLin
     rows = _build_rows(project, pack)
     lines, basis_key = _assign_basis_keys(rows)
     return CostPlanLineSet(lines=lines, basis_key=basis_key)
+
+
+_MECHANICAL_ASSET_TOKENS = (
+    "mechanical",
+    "hvac",
+    "air condition",
+    "aircon",
+    "split",
+    "chiller",
+    "vrf",
+    "plant",
+    "ducted",
+    "actron",
+    "pioneer",
+)
+_ELECTRICAL_ASSET_TOKENS = ("electrical", "switchboard", "submain", "msb", "power")
+_HYDRAULIC_ASSET_TOKENS = ("hydraulic", "plumbing", "sanitary")
+_VERTICAL_ASSET_TOKENS = ("lift", "elevator", "vertical transport")
+_FIRE_ASSET_TOKENS = ("fire", "sprinkler", "hydrant")
+
+
+def _assets_by_construction_code(
+    project: Project,
+    construction_rows: tuple[tuple[str, str], ...],
+) -> dict[str, tuple[ProjectAsset, ...]]:
+    """Map registered plant onto the construction row that will carry its cost."""
+    assets = project_assets(project)
+    if not assets or not construction_rows:
+        return {}
+
+    assigned: dict[str, list[ProjectAsset]] = {code: [] for code, _ in construction_rows}
+    unmatched: list[ProjectAsset] = []
+    for asset in assets:
+        targets = [
+            code
+            for code, label in construction_rows
+            if _asset_matches_label(asset, label)
+        ]
+        if targets:
+            assigned[targets[0]].append(asset)
+        else:
+            unmatched.append(asset)
+    if unmatched:
+        fallback = next(
+            (
+                code
+                for code, label in construction_rows
+                if any(
+                    token in label.lower()
+                    for token in ("mechanical", "building service", "service")
+                )
+            ),
+            construction_rows[-1][0],
+        )
+        assigned[fallback].extend(unmatched)
+    return {code: tuple(items) for code, items in assigned.items() if items}
+
+
+def _label_with_assets(label: str, assets: tuple[ProjectAsset, ...]) -> str:
+    if not assets:
+        return label
+    return f"{label} — {'; '.join(_asset_phrase(asset) for asset in assets)}"
+
+
+def _asset_blob(asset: ProjectAsset) -> str:
+    return " ".join(
+        part
+        for part in (
+            asset.type,
+            asset.make_model,
+            asset.capacity,
+            asset.replacement_spec,
+            asset.notes,
+            asset.location,
+        )
+        if part
+    ).lower()
+
+
+def _asset_matches_label(asset: ProjectAsset, label: str) -> bool:
+    blob = _asset_blob(asset)
+    lowered = label.lower()
+    if any(token in blob for token in _MECHANICAL_ASSET_TOKENS):
+        return any(
+            token in lowered for token in ("mechanical", "hvac", "building service", "service")
+        )
+    if any(token in blob for token in _ELECTRICAL_ASSET_TOKENS):
+        return "electrical" in lowered
+    if any(token in blob for token in _HYDRAULIC_ASSET_TOKENS):
+        return "hydraulic" in lowered
+    if any(token in blob for token in _VERTICAL_ASSET_TOKENS):
+        return any(token in lowered for token in ("vertical", "lift"))
+    if any(token in blob for token in _FIRE_ASSET_TOKENS):
+        return "fire" in lowered
+    return False
+
+
+def _asset_phrase(asset: ProjectAsset) -> str:
+    existing = asset.make_model or asset.type
+    if asset.count and asset.count > 1:
+        existing = f"{asset.count}× {existing}"
+    refrigerant = ""
+    if asset.notes and "r22" in asset.notes.lower():
+        refrigerant = " (R22)"
+    location = f" at {asset.location}" if asset.location else ""
+    action = (asset.action or "record").replace("_", " ")
+    if asset.replacement_spec and existing:
+        return (
+            f"{action} {existing}{refrigerant} with {asset.replacement_spec}{location}"
+        )
+    if asset.replacement_spec:
+        return f"{action} with {asset.replacement_spec}{location}"
+    return f"{action} {existing}{refrigerant}{location}"

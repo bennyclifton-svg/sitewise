@@ -46,13 +46,14 @@ comparisons. Then call select_document_register_files with only the exact return
 ids. Never treat the current selected-document-register block as the full list of
 available files.
 For FFE schedule adds or edits (Finishes, Fixtures and Equipment, including
-items the user wants in the PMP FFE schedule), call
+interior and exterior finishes, fixtures, and equipment the user wants in the
+PMP FFE schedule), call
 list_shared_project_knowledge with kind ffe_item, then
 upsert_shared_project_knowledge with a stable object id slug and fields such as
 item, location, quantity, finish, model, dimensions, supplier, status, package,
 and notes (use TBC when unspecified). If a create_pmp artefact exists, also call
 get_artefact_blocks and apply_artefact_operations to ADD or UPDATE the matching
-row in the PMP FFE Schedule section (after Brief). Do not ask the user to select
+row in the PMP FFE Schedule section (after Consultants). Do not ask the user to select
 a Management Plan file.
 For narrowly scoped PMP/RFP/RFT or Cost Plan edits, read get_artefact_blocks or
 get_cost_plan, then call apply_artefact_operations or apply_cost_plan_operations
@@ -159,7 +160,7 @@ Ground every answer in project evidence and platform knowledge:
   artefact.create_pmp in <project-snapshot> or get_artefact_blocks without a
   draft_id; never ask the user for a file named Management Plan.
 - For FFE schedule changes, upsert_shared_project_knowledge with kind ffe_item,
-  then optionally patch the PMP FFE Schedule section (after Brief) via
+  then optionally patch the PMP FFE Schedule section (after Consultants) via
   get_artefact_blocks and apply_artefact_operations when a create_pmp artefact
   exists.
 - For document-register selection requests, call list_document_register and
@@ -245,6 +246,17 @@ Ground every answer in project evidence and platform knowledge:
   with a default the user did not give. If the description contradicts the
   current profile, say so and propose the correction rather than generating
   against a value you know to be wrong.
+- Never say setup was recorded, saved, or applied unless propose_project_profile_change,
+  update_project_profile, or accept_project_profile_proposal returned success in
+  this turn. If you did not call a write tool, say what is still missing. Do not
+  open with "Project setup recorded from your brief".
+- When classification is blocked, call get_project_profile_options and ask using
+  those exact building_class, work_type and subclass values. Never ask for NCC class labels
+  such as Class 7b, or free-typed work types such as
+  "Existing-building technical due diligence/advisory".
+- Technical due diligence, pre-settlement advice, capex forecast and deal-breaker
+  review are work_type advisory. A distribution centre is building_class
+  industrial and subclass logistics_ecommerce.
 - Always record `scope_narrative`: the scope in the user's own words, as a
   short list of the items a project manager would bullet. `work_scope` is a
   fixed enum that selects consultants and doctrine, and it cannot hold "concrete
@@ -426,6 +438,12 @@ def build_agent_prompt(
         mutation_intent.scopes or mutation_intent.requires_confirmation
     ):
         blocks.append(_mutation_policy_block(mutation_intent))
+    elif (
+        mutation_intent is not None
+        and mutation_intent.profile_patch
+        and not mutation_intent.scopes
+    ):
+        blocks.append(_inferred_profile_block(mutation_intent))
     if _is_profile_enrichment_request(user_text, mutation_intent):
         blocks.append(_PROFILE_ENRICHMENT_GUIDANCE)
     if confirmed_profile_values:
@@ -663,6 +681,19 @@ def _snapshot_context_block(snapshot: ProjectSnapshot) -> str:
         "</project-snapshot>",
     ]
     return "\n".join(lines)
+
+
+def _inferred_profile_block(intent: MutationIntent) -> str:
+    patch_json = json.dumps(dict(intent.profile_patch), sort_keys=True)
+    return (
+        "<inferred-profile-from-brief>\n"
+        "The user's description maps to these taxonomy values. Lodge them with "
+        "propose_project_profile_change before claiming setup is recorded. "
+        f"{patch_json}\n"
+        "Use only these enum values. If a required field is still missing, call "
+        "get_project_profile_options and ask using those exact values.\n"
+        "</inferred-profile-from-brief>"
+    )
 
 
 def _mutation_policy_block(intent: MutationIntent) -> str:

@@ -7,8 +7,45 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.database.project import Project
 from app.database.project_profile_proposal import ProjectProfileProposal
-from app.projects.identity_bootstrap import bootstrap_identity_from_document
+from app.projects.identity_bootstrap import (
+    bootstrap_identity_from_document,
+    safe_bootstrap_identity_from_document,
+)
 from app.projects.profile import read_profile
+
+
+def test_safe_bootstrap_hides_provider_error(monkeypatch) -> None:
+    project = _project()
+    source_document_id = uuid.uuid4()
+    provider_detail = "provider-secret-" + ("x" * 24)
+    log_error = MagicMock()
+    monkeypatch.setattr(
+        "app.projects.identity_bootstrap.bootstrap_identity_from_document",
+        AsyncMock(side_effect=RuntimeError(provider_detail)),
+    )
+    monkeypatch.setattr(
+        "app.projects.identity_bootstrap.logger.error",
+        log_error,
+    )
+
+    result = asyncio.run(
+        safe_bootstrap_identity_from_document(
+            AsyncMock(),
+            project=project,
+            source_document_id=source_document_id,
+        )
+    )
+
+    assert result.status == "error"
+    assert result.detail == "Project identity could not be inferred from this document."
+    assert provider_detail not in str(result)
+    assert log_error.call_args.kwargs == {
+        "extra": {
+            "project_id": str(project.id),
+            "source_document_id": str(source_document_id),
+            "error_type": "RuntimeError",
+        }
+    }
 
 
 def _project(**overrides) -> Project:

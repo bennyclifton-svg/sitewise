@@ -145,6 +145,25 @@ def test_update_profile_bedrooms_and_garage_spaces_are_bound() -> None:
     }
 
 
+PROMPT_11_DUE_DILIGENCE = (
+    "Client is buying a distribution centre and wants technical due diligence "
+    "before settlement in six weeks. Building condition, compliance, capex "
+    "forecast, any deal-breakers."
+)
+
+
+def test_due_diligence_brief_maps_to_advisory_industrial_logistics() -> None:
+    """Wave 2 prompt 11 never raised a proposal; advisory was unreachable."""
+    intent = classify_mutation_intent(PROMPT_11_DUE_DILIGENCE)
+
+    assert dict(intent.profile_patch) == {
+        "building_class": "industrial",
+        "work_type": "advisory",
+        "subclasses": ["logistics_ecommerce"],
+    }
+    assert intent.scopes == ()
+
+
 def test_materialize_merges_partial_scale_with_current_profile() -> None:
     from app.agent.mutation_intent import materialize_profile_patch
 

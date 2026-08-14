@@ -296,7 +296,7 @@ def ingest_folder(
             logger.error(
                 "ingest_file_failed",
                 relative_path=plan.entry.relative_path,
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
 
     by_class = Counter(plan.classification.document_class for plan in plans)
@@ -359,7 +359,7 @@ def ingest_platform_knowledge(
             logger.error(
                 "ingest_platform_file_failed",
                 relative_path=plan.entry.relative_path,
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
 
     summary = FolderSummary(

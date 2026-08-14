@@ -122,7 +122,6 @@ export function CostPlanGrid({
     if (!batch.length) return;
     const snapshot = state;
     // Mutation handler timing, not render output.
-    // eslint-disable-next-line react-hooks/purity -- event handler, not render
     const startedAt = performance.now();
     setSaving(true);
     setError(null);
@@ -422,8 +421,7 @@ function CostPlanItemsTable({
     [viewRows],
   );
   const virtualize = viewRows.length >= COST_PLAN_VIRTUALIZE_THRESHOLD;
-  // TanStack Virtual is the supported large-list path; its API is intentionally unmemoized.
-  // eslint-disable-next-line react-hooks/incompatible-library -- measured threshold virtualization
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns unmemoizable functions by design.
   const virtualizer = useVirtualizer({
     count: viewRows.length,
     getScrollElement: () => scrollRef.current,

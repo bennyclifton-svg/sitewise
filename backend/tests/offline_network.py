@@ -9,8 +9,29 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Callable
 
+from app.database.disposable_target import (
+    DisposableDatabaseTarget,
+    authorize_database_operation,
+    parse_disposable_database_target,
+)
+
 
 _STARTUP_NETWORK_OPT_IN = os.environ.get("CLERK_TEST_ALLOW_NETWORK") == "1"
+_STARTUP_DATABASE_OPT_IN = os.environ.get("DATABASE_INTEGRATION_TESTS") == "1"
+_startup_test_database_url = os.environ.get("TEST_DATABASE_URL")
+if _STARTUP_DATABASE_OPT_IN:
+    if not _startup_test_database_url:
+        raise RuntimeError(
+            "TEST_DATABASE_URL is required for database integration tests"
+        )
+    try:
+        _STARTUP_DATABASE_TARGET = parse_disposable_database_target(
+            _startup_test_database_url
+        )
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from None
+else:
+    _STARTUP_DATABASE_TARGET = None
 _INTEGRATION_OVERRIDE_NAMES = (
     "TENDER_LIVE_EVAL",
     "TENDER_PERF_WRITE_REPORT",
@@ -41,6 +62,7 @@ TEST_ENV_SENTINELS = MappingProxyType(
             "postgresql://clerk_test:clerk_test@127.0.0.1:9/"
             "test_database_must_not_be_contacted"
         ),
+        "DATABASE_INTEGRATION_TESTS": "0",
         "ALLOW_DESTRUCTIVE_TEST_DATABASE": "0",
         "SUPABASE_URL": "https://clerk-pytest.invalid",
         "SUPABASE_ANON_KEY": "test-anon-key-must-not-authenticate",
@@ -94,10 +116,14 @@ TEST_ENV_SENTINELS = MappingProxyType(
 )
 os.environ.update(TEST_ENV_SENTINELS)
 
-# A generic network opt-in never authorizes database access. CH-0.8 introduces
-# a separate database marker and exact private-host allowlist; until then both
-# DB URLs and the destructive flag remain unreachable sentinels. Preserve only
-# non-credential Tender evaluation/report flags here.
+if _STARTUP_DATABASE_TARGET is not None:
+    os.environ["DATABASE_INTEGRATION_TESTS"] = "1"
+    os.environ["TEST_DATABASE_URL"] = _startup_test_database_url
+del _startup_test_database_url
+
+# A generic network opt-in never authorizes database access. Database tests use
+# a separate marker and exact loopback endpoint; all other tests keep both
+# database URLs and the destructive flag on unreachable sentinels.
 if _STARTUP_NETWORK_OPT_IN:
     os.environ["CLERK_TEST_ALLOW_NETWORK"] = "1"
     for _name, _value in _STARTUP_INTEGRATION_OVERRIDES.items():
@@ -125,6 +151,30 @@ def startup_network_access_permitted(marker_names: set[str]) -> bool:
     return network_access_permitted(marker_names, opt_in)
 
 
+def database_access_target(
+    marker_names: set[str],
+    opt_in: str | None,
+    test_url: str | None,
+) -> DisposableDatabaseTarget | None:
+    """Return the one database endpoint authorized for this marked test."""
+
+    if "database_integration" not in marker_names or opt_in != "1":
+        return None
+    if not test_url:
+        raise ValueError("TEST_DATABASE_URL is required for database integration tests")
+    return parse_disposable_database_target(test_url)
+
+
+def startup_database_access_target(
+    marker_names: set[str],
+) -> DisposableDatabaseTarget | None:
+    """Return immutable database authority only to its dedicated marker."""
+
+    if "database_integration" not in marker_names:
+        return None
+    return _STARTUP_DATABASE_TARGET
+
+
 @dataclass(frozen=True)
 class _NetworkAuthorityLease:
     generation: object | None
@@ -140,6 +190,8 @@ class _OfflineNetworkGuard:
             default=None,
         )
         self._active_generation: object | None = None
+        self._active_database_target: DisposableDatabaseTarget | None = None
+        self._unrestricted_network = False
         self._protocol_active = False
         self._authority_lock = threading.Lock()
 
@@ -150,9 +202,23 @@ class _OfflineNetworkGuard:
             return (
                 generation is not None
                 and generation is self._active_generation
+                and self._unrestricted_network
             )
 
-    def begin_test(self, *, allowed: bool) -> _NetworkAuthorityLease:
+    @property
+    def database_target(self) -> DisposableDatabaseTarget | None:
+        generation = self._authority_context.get()
+        with self._authority_lock:
+            if generation is None or generation is not self._active_generation:
+                return None
+            return self._active_database_target
+
+    def begin_test(
+        self,
+        *,
+        allowed: bool,
+        database_target: DisposableDatabaseTarget | None = None,
+    ) -> _NetworkAuthorityLease:
         """Open one test protocol and bind any authority to its context."""
 
         with self._authority_lock:
@@ -162,8 +228,10 @@ class _OfflineNetworkGuard:
                     "parallel pytest protocols"
                 )
             self._protocol_active = True
-            generation = object() if allowed else None
+            generation = object() if allowed or database_target is not None else None
             self._active_generation = generation
+            self._active_database_target = database_target
+            self._unrestricted_network = allowed
         context_token = self._authority_context.set(generation)
         return _NetworkAuthorityLease(generation, context_token)
 
@@ -177,6 +245,8 @@ class _OfflineNetworkGuard:
             ):
                 raise RuntimeError("offline network authority lease mismatch")
             self._active_generation = None
+            self._active_database_target = None
+            self._unrestricted_network = False
             self._protocol_active = False
         self._authority_context.reset(lease.context_token)
 
@@ -188,7 +258,18 @@ class _OfflineNetworkGuard:
         operation: str = "socket operation",
         **kwargs: Any,
     ) -> Any:
-        explicitly_allowed = self.allowed if allowed_for_test is None else allowed_for_test
+        if allowed_for_test is None:
+            explicitly_allowed = self.allowed
+            database_target = self.database_target
+            if database_target is not None:
+                explicitly_allowed = authorize_database_operation(
+                    database_target,
+                    operation,
+                    args,
+                    kwargs,
+                )
+        else:
+            explicitly_allowed = allowed_for_test
         inside_socketpair = getattr(self._internal, "socketpair_depth", 0) > 0
         if not explicitly_allowed and not inside_socketpair:
             raise OfflineNetworkBlocked(f"offline pytest blocked {operation}")

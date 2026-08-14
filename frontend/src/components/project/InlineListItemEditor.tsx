@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { serializeInlineMarkdown } from "@/lib/inline-markdown";
@@ -29,16 +29,18 @@ export function InlineListItemEditor({
   const onCancelRef = useRef(onCancel);
   const onSaveRef = useRef(onSave);
   const isSavingRef = useRef(isSaving);
-  onCancelRef.current = onCancel;
-  onSaveRef.current = onSave;
-  isSavingRef.current = isSaving;
+  const [initialEditor] = useState(() => ({
+    html: renderToStaticMarkup(<>{children}</>),
+    marker:
+      sourceItem.match(/^\s*(?:[-*+] |\d+[.)] )/)?.[0]?.trimStart() ?? "- ",
+  }));
 
-  const marker =
-    sourceItem.match(/^\s*(?:[-*+] |\d+[.)] )/)?.[0]?.trimStart() ?? "- ";
-  const initialHtmlRef = useRef<string | null>(null);
-  if (initialHtmlRef.current === null) {
-    initialHtmlRef.current = renderToStaticMarkup(<>{children}</>);
-  }
+  // Keep native listeners current before the one-time editor mount runs.
+  useLayoutEffect(() => {
+    onCancelRef.current = onCancel;
+    onSaveRef.current = onSave;
+    isSavingRef.current = isSaving;
+  }, [isSaving, onCancel, onSave]);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -56,7 +58,7 @@ export function InlineListItemEditor({
     editor.dataset.instructionUi = "";
     editor.className =
       "leading-relaxed caret-[var(--sw-beam-hex)] outline-none";
-    editor.innerHTML = initialHtmlRef.current ?? "";
+    editor.innerHTML = initialEditor.html;
 
     const onInput = () => {
       dirtyRef.current = true;
@@ -80,7 +82,7 @@ export function InlineListItemEditor({
         savingRef.current = true;
         try {
           const body = serializeInlineMarkdown(editor);
-          await onSaveRef.current(`${marker}${body}`);
+          await onSaveRef.current(`${initialEditor.marker}${body}`);
         } finally {
           savingRef.current = false;
         }
@@ -115,8 +117,7 @@ export function InlineListItemEditor({
       editorRef.current = null;
       host.replaceChildren();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once per edit
-  }, []);
+  }, [initialEditor]);
 
   useLayoutEffect(() => {
     const editor = editorRef.current;

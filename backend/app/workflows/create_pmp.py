@@ -99,7 +99,12 @@ from app.sitewise.pmp_claim_support import (
     citation_claim_support_violations,
     exclusion_citation_violations,
 )
-from app.sitewise.pmp_length import length_violations, pmp_word_count
+from app.sitewise.pmp_length import (
+    length_retry_instruction,
+    over_length_violations,
+    pmp_word_count,
+    under_length_violations,
+)
 from app.sitewise.pmp_decisions import (
     decision_violations,
     format_decision_option_sets,
@@ -300,8 +305,12 @@ async def _publish_preview(
         return
     try:
         await on_preview({"stage": stage, "markdown": markdown[:PREVIEW_MAX_CHARS]})
-    except Exception:  # noqa: BLE001 — a broken preview channel is not a draft failure
-        log.warning("pmp_preview_publish_failed", stage=stage, exc_info=True)
+    except Exception as exc:  # noqa: BLE001 — preview is not a draft failure
+        log.warning(
+            "pmp_preview_publish_failed",
+            stage=stage,
+            error_type=type(exc).__name__,
+        )
 
 
 async def _publish_progress(
@@ -312,11 +321,11 @@ async def _publish_progress(
         return
     try:
         await on_preview(progress)
-    except Exception:  # noqa: BLE001 - progress must not fail generation
+    except Exception as exc:  # noqa: BLE001 - progress must not fail generation
         log.warning(
             "workflow_progress_publish_failed",
             stage=progress.get("stage"),
-            exc_info=True,
+            error_type=type(exc).__name__,
         )
 
 
@@ -2025,7 +2034,7 @@ async def run_create_pmp_workflow(
                     "complete",
                     "Rendered adaptive taxonomy PMP scaffold.",
                     word_count=pmp_word_count(output.markdown),
-                    target_words=_target_words(),
+                    target_words=_target_words(taxonomy_context),
                     **model_metadata,
                 )
             )
@@ -2112,6 +2121,112 @@ async def run_create_pmp_workflow(
                         )
                         continue
                     raise
+
+        if taxonomy_context is not None:
+            min_words, max_words = scale_band_word_bounds(
+                taxonomy_context.scale_band,
+                section_count=len(taxonomy_context.sections) or None,
+                default_min=settings.pmp_min_words,
+                default_max=settings.pmp_max_words,
+            )
+            weights = taxonomy_context.section_weights
+            for length_attempt in range(HYBRID_NARRATIVE_MAX_ATTEMPTS):
+                under = under_length_violations(
+                    output.markdown,
+                    weights=weights,
+                    min_words=min_words,
+                    max_words=max_words,
+                )
+                over = over_length_violations(
+                    output.markdown,
+                    weights=weights,
+                    min_words=min_words,
+                    max_words=max_words,
+                )
+                if not under:
+                    if over:
+                        trace.append(
+                            _trace(
+                                "length",
+                                "advisory",
+                                "Length advisory (not enforced): " + "; ".join(over),
+                                word_count=pmp_word_count(output.markdown),
+                                max_words=max_words,
+                            )
+                        )
+                    break
+                if length_attempt == HYBRID_NARRATIVE_MAX_ATTEMPTS - 1:
+                    trace.append(
+                        _trace(
+                            "length",
+                            "advisory",
+                            "Length floor retries exhausted: " + "; ".join(under),
+                            word_count=pmp_word_count(output.markdown),
+                            min_words=min_words,
+                        )
+                    )
+                    break
+                feedback = length_retry_instruction(
+                    under,
+                    weights=weights,
+                    target_words=_target_words(taxonomy_context),
+                    current_markdown=output.markdown,
+                    work_type=taxonomy_context.work_type,
+                )
+                trace.append(
+                    _trace(
+                        "length",
+                        "retry",
+                        "Draft under scale-band floor — retrying: "
+                        + "; ".join(under),
+                        attempt=length_attempt + 1,
+                        word_count=pmp_word_count(output.markdown),
+                        min_words=min_words,
+                    )
+                )
+                try:
+                    expanded = await run_create_pmp_model(
+                        project=project,
+                        passages=passages,
+                        draft_mode=draft_mode,
+                        validation_feedback=feedback,
+                        chat_model=resolved_model,
+                        locked_decisions=locked_decisions,
+                        coverage_requirements=coverage_requirements,
+                        pmp_context=pmp_context,
+                        generation_brief=generation_brief,
+                    )
+                    expanded.markdown = normalize_pmp_markdown(expanded.markdown)
+                    if draft_mode == "evidence_grounded":
+                        expanded.markdown = sanitize_evidence_grounded_markdown(
+                            expanded.markdown,
+                            expanded.evidence_refs,
+                            source_texts=project_source_texts,
+                        )
+                    expanded.markdown = _apply_consultant_facts_to_markdown(
+                        expanded.markdown, project
+                    )
+                    expanded = _apply_locked_decisions(expanded, locked_decisions)
+                    validate_pmp_output(
+                        expanded,
+                        draft_mode,
+                        archetype=project.archetype or "",
+                        project=project,
+                        source_texts=project_source_texts,
+                        source_labels=project_source_labels,
+                    )
+                except WorkflowValidationError as exc:
+                    trace.append(
+                        _trace(
+                            "length",
+                            "retry",
+                            "Length expansion failed validation — retrying: "
+                            + str(exc),
+                            attempt=length_attempt + 1,
+                        )
+                    )
+                    continue
+                output = expanded
     except WorkflowValidationError as exc:
         message = str(exc)
         trace.append(
@@ -2209,30 +2324,6 @@ async def run_create_pmp_workflow(
                         for req in coverage_backfill.backfilled_facts
                     ],
                     added_evidence_refs=list(coverage_backfill.added_evidence_refs),
-                )
-            )
-
-    if taxonomy_context is not None:
-        min_words, max_words = scale_band_word_bounds(
-            taxonomy_context.scale_band,
-            section_count=len(taxonomy_context.sections) or None,
-            default_min=settings.pmp_min_words,
-            default_max=settings.pmp_max_words,
-        )
-        length_advisories = length_violations(
-            output.markdown,
-            weights=taxonomy_context.section_weights,
-            min_words=min_words,
-            max_words=max_words,
-        )
-        if length_advisories:
-            trace.append(
-                _trace(
-                    "length",
-                    "advisory",
-                    "Length advisory (not enforced): " + "; ".join(length_advisories),
-                    word_count=pmp_word_count(output.markdown),
-                    max_words=max_words,
                 )
             )
 

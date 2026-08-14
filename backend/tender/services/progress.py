@@ -53,6 +53,9 @@ RUNNING_DETAIL = {
     "map": "Mapping items to the cost taxonomy",
     "analyse": "Comparing scope, gaps and allowances",
 }
+FAILED_JOB_DETAIL = (
+    "Processing failed. Retry the stage or contact support if it continues."
+)
 
 # Documents in these states will never progress without a different file.
 DEAD_INGEST_STATUSES = frozenset({"unsupported_format", "duplicate"})
@@ -86,13 +89,6 @@ def _latest_jobs(rows: list[TenderJob]) -> list[JobFacts]:
     ]
 
 
-def _error_summary(error: str | None) -> str | None:
-    if not error:
-        return None
-    lines = [line.strip() for line in error.splitlines() if line.strip()]
-    return lines[-1][:300] if lines else None
-
-
 def _group_state(facts: list[JobFacts], kinds: frozenset[str]) -> tuple[str, str | None]:
     """Return (state, detail) for one milestone from its latest jobs."""
 
@@ -102,7 +98,7 @@ def _group_state(facts: list[JobFacts], kinds: frozenset[str]) -> tuple[str, str
 
     failed = [fact for fact in group if fact.status == "failed"]
     if failed:
-        return "failed", _error_summary(failed[0].last_error)
+        return "failed", FAILED_JOB_DETAIL
     if any(fact.status in {"queued", "running"} for fact in group):
         return "running", None
     if all(fact.status == "done" for fact in group):

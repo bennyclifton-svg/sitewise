@@ -70,7 +70,7 @@ export function compareProcurementRequests(
  */
 export function disciplinesFromPmpMarkdown(markdown: string): string[] {
   const sectionMatch = markdown.match(
-    /^##\s+Consultants\s*\n([\s\S]*?)(?=^##\s|\Z)/im,
+    /^##\s+Consultants\s*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/im,
   );
   if (!sectionMatch) return [];
   const body = sectionMatch[1];
