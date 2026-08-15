@@ -19,6 +19,7 @@ DirtyCategory = Literal[
     "cost_dirty",
     "consultants_dirty",
     "ffe_dirty",
+    "accommodation_dirty",
     "approvals_dirty",
     "design_dirty",
     "procurement_dirty",
@@ -47,6 +48,8 @@ _SECTION_BY_DIRTY_BLOCK: dict[str, str] = {
     "cost_planning": "cost-budget",
     "ffe": "ffe-schedule",
     "ffe-schedule": "ffe-schedule",
+    "accommodation": "accommodation-schedule",
+    "accommodation-schedule": "accommodation-schedule",
     "planning_and_compliance": "compliance-approvals",
     "design_management": "scope-client-requirements",
     "procurement_and_delivery": "procurement-delivery",
@@ -134,6 +137,9 @@ _DIRTY_TEMPLATES: dict[DirtyCategory, tuple[_Template, ...]] = {
         _Template("rft", "package", ("scope", "materials")),
         _Template("cost_plan", "project", ("finishes", "ffe")),
     ),
+    "accommodation_dirty": (
+        _Template("pmp", "project", ("accommodation",)),
+    ),
     "approvals_dirty": (
         _Template("pmp", "project", ("planning_and_compliance", "risks")),
         _Template("rfp", "discipline", ("requested_services",)),
@@ -167,6 +173,7 @@ def dirty_categories_for_block_sections(
         "snapshot": ("scope_dirty",),
         "scope-client-requirements": ("scope_dirty",),
         "ffe-schedule": ("ffe_dirty",),
+        "accommodation-schedule": ("accommodation_dirty",),
         "consultants": ("consultants_dirty",),
         "compliance-approvals": ("approvals_dirty",),
         "programme": ("programme_dirty",),
@@ -680,6 +687,8 @@ def _matching_pmp_block_ids(
     wanted_sections = set(section_ids)
     if "ffe" in blocks or "ffe-schedule" in blocks:
         wanted_sections.add("ffe-schedule")
+    if "accommodation" in blocks or "accommodation-schedule" in blocks:
+        wanted_sections.add("accommodation-schedule")
     matches: list[str] = []
     for block in pmp_blocks:
         section_id = str(block.get("section_id") or "")
@@ -693,7 +702,7 @@ def _matching_pmp_block_ids(
         if old_name and old_name in content:
             matches.append(block_id)
         elif not old_name and (
-            section_id in {"ffe-schedule", "consultants"}
+            section_id in {"ffe-schedule", "consultants", "accommodation-schedule"}
             or "ffe" in content.lower()
         ):
             matches.append(block_id)
@@ -832,7 +841,7 @@ def _package_slug(
 def _name_from(value: dict[str, Any] | None) -> str | None:
     if not isinstance(value, dict):
         return None
-    for key in ("name", "firm", "label", "title"):
+    for key in ("name", "firm", "label", "title", "space"):
         raw = value.get(key)
         if isinstance(raw, str) and raw.strip():
             return raw.strip()

@@ -21,5 +21,17 @@ def test_scope_section_no_longer_marks_ffe_dirty() -> None:
     )
 
 
+def test_accommodation_schedule_section_marks_accommodation_dirty() -> None:
+    assert dirty_categories_for_block_sections(["accommodation-schedule"]) == (
+        "accommodation_dirty",
+    )
+
+
+def test_scope_section_does_not_mark_accommodation_dirty() -> None:
+    assert "accommodation_dirty" not in dirty_categories_for_block_sections(
+        ["scope-client-requirements"]
+    )
+
+
 def test_unrelated_actions_section_marks_nothing() -> None:
     assert dirty_categories_for_block_sections(["actions-decisions"]) == ()

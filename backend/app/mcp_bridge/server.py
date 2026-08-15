@@ -1195,6 +1195,7 @@ _SHARED_OBJECT_KINDS = frozenset(
         "stakeholder",
         "scope_item",
         "ffe_item",
+        "accommodation_space",
         "cost_item",
         "milestone",
         "procurement_package",
@@ -1275,6 +1276,12 @@ async def upsert_shared_project_knowledge(
     For FFE schedule rows use kind=ffe_item with a stable slug object_id and a
     value dict (item, location, quantity, finish, model, dimensions, supplier,
     status, package, notes). Missing fields may be "TBC".
+    For Accommodation Schedule rows use kind=accommodation_space with a stable
+    slug object_id and a value dict (space, level, area, characteristics,
+    status). Missing fields may be "TBC". status "removed" deletes the row
+    from the schedule; use "Demolished" when the space is coming out of the
+    building. Put dimensions and other notes in characteristics — there is
+    no dimensions or notes column.
     """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:

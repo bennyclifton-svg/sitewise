@@ -176,6 +176,42 @@ def test_ffe_change_identifies_only_package_dependants() -> None:
     assert "programme" not in by_type["pmp"].selector.section_ids
 
 
+def test_accommodation_change_identifies_only_the_schedule_section() -> None:
+    affected = resolve_concrete_affected(
+        ["accommodation_dirty"],
+        source_kind="accommodation_space",
+        object_id="kitchen",
+        previous_value={"space": "Kitchen", "level": "Ground", "area": "16"},
+        new_value={"space": "Kitchen", "level": "Ground", "area": "18"},
+        pmp_blocks=(
+            {
+                "id": "blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "section_id": "accommodation-schedule",
+                "content": "| Kitchen | Ground | 16 m² | TBC | New |",
+            },
+            {
+                "id": "blk_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "section_id": "scope-client-requirements",
+                "content": "Brief prose",
+            },
+            {
+                "id": "blk_cccccccccccccccccccccccccccccccc",
+                "section_id": "ffe-schedule",
+                "content": "| Basin | Ensuite | 1 | TBC | Selected | — |",
+            },
+        ),
+    )
+
+    by_type = {item.artefact_type: item for item in affected}
+    assert set(by_type) == {"pmp"}
+    assert by_type["pmp"].selector.section_ids == ("accommodation-schedule",)
+    assert by_type["pmp"].selector.block_ids == (
+        "blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    )
+    assert "cost_plan" not in by_type
+    assert "rft" not in by_type
+
+
 def test_upsert_consultant_records_pending_offer_with_concrete_selectors() -> None:
     project = _project()
     upsert_shared_project_object(

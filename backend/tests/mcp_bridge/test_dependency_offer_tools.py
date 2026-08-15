@@ -280,6 +280,38 @@ def test_upsert_shared_project_knowledge_writes_ffe_item(monkeypatch) -> None:
     assert listed[0].id == "freestanding-bath"
 
 
+def test_upsert_shared_project_knowledge_writes_accommodation_space(monkeypatch) -> None:
+    project = _project()
+    session = _Session(project)
+    server, _access, mutation = _install(monkeypatch, session)
+
+    result = _call(
+        server,
+        "upsert_shared_project_knowledge",
+        {
+            "project_id": str(PROJECT_ID),
+            "kind": "accommodation_space",
+            "object_id": "kitchen",
+            "expected_revision": 0,
+            "value": {
+                "space": "Kitchen",
+                "level": "Ground",
+                "area": "18 m²",
+                "characteristics": "north-facing",
+                "status": "New",
+            },
+        },
+    )
+
+    assert result["id"] == "kitchen"
+    assert result["kind"] == "accommodation_space"
+    assert result["revision"] == 1
+    assert result["value"]["space"] == "Kitchen"
+    mutation.assert_called()
+    listed = list_shared_project_objects(project, kind="accommodation_space")
+    assert [item.id for item in listed] == ["kitchen"]
+
+
 def test_upsert_shared_project_knowledge_requires_mutation_auth(monkeypatch) -> None:
     session = _Session(_project())
     server, _access, mutation = _install(monkeypatch, session)
