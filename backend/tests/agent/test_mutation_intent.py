@@ -135,6 +135,16 @@ def test_two_storey_gfa_binds_scale_without_forcing_subclass() -> None:
     }
 
 
+def test_site_area_binds_without_stealing_gfa() -> None:
+    intent = classify_mutation_intent(
+        "Set scale to a 450 sqm site and 280 sqm GFA."
+    )
+
+    assert dict(intent.profile_patch) == {
+        "scale": {"site_sqm": 450, "gfa_sqm": 280},
+    }
+
+
 def test_update_profile_bedrooms_and_garage_spaces_are_bound() -> None:
     text = "update profile to have 5 bedrooms and 0 garage space"
     intent = classify_mutation_intent(text)

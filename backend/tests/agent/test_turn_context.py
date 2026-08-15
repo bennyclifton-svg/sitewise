@@ -380,7 +380,7 @@ def test_prompt_treats_taxonomy_profile_as_authoritative() -> None:
     assert "work_type: refurb" in prompt
     assert "subclasses: House (Class 1a)" in prompt
     assert (
-        "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)"
+        "scale: Site sqm=(not declared), GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)"
         in prompt
     )
 

@@ -48,6 +48,18 @@ def test_mixed_class_allows_multiple_subclasses() -> None:
     assert next(c for c in building_classes() if c.value == "mixed").multi_subclass
 
 
+def test_house_scale_fields_lead_with_site_area() -> None:
+    keys = [field.key for field in scale_fields_for("residential", "house")]
+    assert keys[:5] == [
+        "site_sqm",
+        "gfa_sqm",
+        "storeys",
+        "bedrooms",
+        "garage_spaces",
+    ]
+    assert scale_fields_for("residential", "house")[0].label == "Site sqm"
+
+
 def test_scale_fields_exist_for_every_subclass() -> None:
     for cls in building_classes():
         for sub in subclasses_for(cls.value):

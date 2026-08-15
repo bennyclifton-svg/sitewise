@@ -265,7 +265,7 @@ accept_project_profile_proposal rather than update_project_profile. That path
 does not require a profile_mutation scope. Read get_project_snapshot to find the
 pending proposal id and current profile revision if they are not in the current
 turn; only ask the user to clarify when more than one proposal could match.
-Residential house scale fields include gfa_sqm, storeys, bedrooms, and
+Residential house scale fields include site_sqm, gfa_sqm, storeys, bedrooms, and
 garage_spaces. When project-context lists a scale field as "(not declared)", it
 still exists — set it with update_project_profile when the bound patch includes
 it. Call get_project_profile_options if unsure which scale keys apply. Never tell

@@ -97,6 +97,8 @@ def classification_summary(project: Project) -> str | None:
     if subclass_labels:
         parts.append(", ".join(subclass_labels[:2]))
     scale = profile.scale
+    if isinstance(scale.get("site_sqm"), (int, float)):
+        parts.append(f"{scale['site_sqm']:g} m² site")
     if isinstance(scale.get("gfa_sqm"), (int, float)):
         parts.append(f"{scale['gfa_sqm']:g} m² GFA")
     if isinstance(scale.get("storeys"), int):

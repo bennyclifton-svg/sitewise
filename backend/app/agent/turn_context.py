@@ -741,8 +741,8 @@ def _mutation_policy_block(intent: MutationIntent) -> str:
             "update_project_profile with changes exactly equal to this JSON object "
             f"and the current expected_revision: {patch_json}. "
             "Do not omit nested scale/subclasses values, do not add other profile "
-            "fields, and never claim that scale fields such as storeys, gfa_sqm, "
-            "bedrooms, or garage_spaces are missing when they appear here or as "
+            "fields, and never claim that scale fields such as site_sqm, storeys, "
+            "gfa_sqm, bedrooms, or garage_spaces are missing when they appear here or as "
             "(not declared) in project-context."
         )
     elif intent.requires_confirmation:

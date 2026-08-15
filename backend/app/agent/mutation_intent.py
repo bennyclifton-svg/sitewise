@@ -113,7 +113,14 @@ _STOREYS_RE = re.compile(
     re.IGNORECASE,
 )
 _GFA_RE = re.compile(
-    r"\b(\d+(?:\.\d+)?)\s*(?:m(?:2|²)|sqm|m\^2)\b(?:\s*gfa)?|\bgfa\b[^\d]{0,12}(\d+(?:\.\d+)?)",
+    r"\b(\d+(?:\.\d+)?)\s*(?:m(?:2|²)|sqm|m\^2)\b(?!\s*(?:site|lot))(?:\s*gfa)?"
+    r"|\bgfa\b[^\d]{0,12}(\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_SITE_AREA_RE = re.compile(
+    r"\b(?:site(?:\s+area)?|lot)\b[^\d]{0,16}(\d+(?:\.\d+)?)"
+    r"|"
+    r"\b(\d+(?:\.\d+)?)\s*(?:m(?:2|²)|sqm|m\^2)\b\s*(?:site(?:\s+area)?|lot)\b",
     re.IGNORECASE,
 )
 _BEDROOMS_RE = re.compile(r"\b(\d+)\s*(?:bedrooms?|beds?)\b", re.IGNORECASE)
@@ -324,6 +331,10 @@ def _match_scale(text: str) -> dict[str, int]:
     if gfa:
         raw = gfa.group(1) or gfa.group(2)
         scale["gfa_sqm"] = int(float(raw))
+    site = _SITE_AREA_RE.search(text)
+    if site:
+        raw = site.group(1) or site.group(2)
+        scale["site_sqm"] = int(float(raw))
     bedrooms = _BEDROOMS_RE.search(text)
     if bedrooms:
         scale["bedrooms"] = int(bedrooms.group(1))

@@ -1225,6 +1225,7 @@ def _compact_summary_source(value: str, citation: str = "—") -> str:
 
 
 _COMPACT_SCALE_LABELS = {
+    "site_sqm": ("site", "m²"),
     "gfa_sqm": ("GFA", "m²"),
     "nla_sqm": ("NLA", "m²"),
     "floor_plate_sqm": ("floor plate", "m²"),

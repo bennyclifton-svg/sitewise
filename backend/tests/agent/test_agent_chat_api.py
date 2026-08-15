@@ -433,7 +433,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "building_class: residential\n"
         "work_type: refurb\n"
         "subclasses: House (Class 1a)\n"
-        "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)\n"
+        "scale: Site sqm=(not declared), GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), Garage spaces=(not declared)\n"
         "phase: brief-planning\n"
         "state: NSW\n"
         "site_address: (not declared)\n"
@@ -871,8 +871,8 @@ def test_agent_stream_pi_receives_project_context(
     assert "work_type: refurb" in seen["prompt"]
     assert "subclasses: House (Class 1a)" in seen["prompt"]
     assert (
-        "scale: GFA sqm=200, Storeys=(not declared), Bedrooms=(not declared), "
-        "Garage spaces=(not declared)"
+        "scale: Site sqm=(not declared), GFA sqm=200, Storeys=(not declared), "
+        "Bedrooms=(not declared), Garage spaces=(not declared)"
     ) in seen["prompt"]
     assert "what can you tell me about the project" in seen["prompt"]
     assert seen["mcp_url"] == "http://testserver/mcp"

@@ -60,7 +60,7 @@ def test_classification_summary_includes_scale() -> None:
         project_metadata={
             "taxonomy": {
                 "subclasses": ["house"],
-                "scale": {"gfa_sqm": 280, "storeys": 2},
+                "scale": {"site_sqm": 450, "gfa_sqm": 280, "storeys": 2},
                 "complexity": {},
                 "work_scope": [],
             }
@@ -68,5 +68,5 @@ def test_classification_summary_includes_scale() -> None:
     )
 
     assert classification_summary(project) == (
-        "residential / refurb / house / 280 m² GFA / 2 storeys"
+        "residential / refurb / house / 450 m² site / 280 m² GFA / 2 storeys"
     )
