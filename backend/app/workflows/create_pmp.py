@@ -526,6 +526,7 @@ def _build_contextual_greenfield_brief(
             seed_section_refs=seed_section_refs,
             user_provided_fields=pmp_context.user_provided_fields,
             target_words=_target_words(taxonomy_context),
+            sections=taxonomy_context.sections if taxonomy_context is not None else None,
         )
     if taxonomy_context is not None:
         return build_greenfield_brief(
@@ -543,6 +544,7 @@ def _build_contextual_greenfield_brief(
             seed_section_refs=seed_section_refs,
             user_provided_fields=taxonomy_context.user_provided_fields,
             target_words=_target_words(taxonomy_context),
+            sections=taxonomy_context.sections,
         )
     return build_greenfield_brief(
         archetype=archetype,

@@ -748,6 +748,7 @@ def _adaptive_greenfield_brief(
     user_provided_fields: dict[str, Any],
     target_words: int,
     draft_mode: str,
+    sections: tuple[str, ...] | None = None,
 ) -> str:
     work_scope_items = work_scope_items_for(work_type, work_scope)
     complexity_labels = complexity_option_labels(
@@ -755,13 +756,10 @@ def _adaptive_greenfield_brief(
         subclasses=subclasses,
         complexity=complexity,
     )
-    # has_assets is not an argument here; a positive FFE weight is the
-    # cheap signal that taxonomy already treated assets as present
-    # (FFE can apply via has_assets on advisory work).
-    applicable = applicable_sections(
-        work_type=work_type,
-        work_scope=work_scope,
-        has_assets=section_weights.get("ffe-schedule", 0.0) > 0,
+    applicable = (
+        sections
+        if sections is not None
+        else applicable_sections(work_type=work_type, work_scope=work_scope)
     )
     section_lines: list[str] = []
     for section_id in applicable:
@@ -862,6 +860,7 @@ def build_greenfield_brief(
     seed_section_refs: dict[str, tuple[str, ...]] | None = None,
     user_provided_fields: dict[str, Any] | None = None,
     target_words: int | None = None,
+    sections: tuple[str, ...] | None = None,
 ) -> str:
     if building_class is not None and section_weights is not None and target_words is not None:
         return _adaptive_greenfield_brief(
@@ -879,6 +878,7 @@ def build_greenfield_brief(
             user_provided_fields=user_provided_fields or {},
             target_words=target_words,
             draft_mode=draft_mode,
+            sections=sections,
         )
     evidence_grounded = draft_mode == "evidence_grounded"
     return _architect_pm_greenfield_brief(

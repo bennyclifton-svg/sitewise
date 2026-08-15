@@ -250,6 +250,40 @@ def test_remediation_greenfield_brief_omits_accommodation_schedule() -> None:
     assert "cover the Accommodation Schedule" not in brief
 
 
+def test_residential_new_greenfield_brief_includes_accommodation_schedule() -> None:
+    project = _project(
+        title="Harbour House",
+        building_class="residential",
+        work_type="new",
+        subclasses=["house"],
+        scale={"gfa_sqm": 260},
+        complexity={},
+        work_scope=[],
+    )
+    context = pmp_taxonomy_context(project)
+    assert context is not None
+
+    brief = build_greenfield_brief(
+        archetype="",
+        state="NSW",
+        draft_mode="platform_seeded",
+        building_class=context.building_class,
+        work_type=context.work_type,
+        subclasses=context.subclasses,
+        scale=context.scale,
+        complexity=context.complexity,
+        work_scope=context.work_scope,
+        risk_flags=context.risk_flags,
+        section_weights=context.section_weights,
+        seed_section_refs={},
+        user_provided_fields=context.user_provided_fields,
+        target_words=(settings.pmp_min_words + settings.pmp_max_words) // 2,
+    )
+
+    assert "- Accommodation Schedule (~" in brief
+    assert "cover the Accommodation Schedule" in brief
+
+
 def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance() -> None:
     project = _project()
     markdown = render_pmp_scaffold(
