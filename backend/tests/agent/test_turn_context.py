@@ -537,6 +537,8 @@ def test_prompt_teaches_accommodation_schedule_breadth() -> None:
     assert "circulation core" in prompt
     assert "Demolished" in prompt
     assert "characteristics" in prompt
+    assert "already has an Accommodation Schedule" in prompt
+    assert "does not already have it" in prompt
 
 
 def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:

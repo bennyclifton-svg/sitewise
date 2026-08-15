@@ -66,10 +66,11 @@ level, an area and a status — not only bedrooms and kitchens. Number
 repeated rooms (Bedroom 1, Bedroom 2). Put dimensions and other notes in
 characteristics; there is no dimensions or notes column. status "removed"
 deletes the row from the schedule; use "Demolished" when the space is
-coming out of the building. If a create_pmp artefact exists, also call
-get_artefact_blocks and apply_artefact_operations to ADD or UPDATE the
-matching row in the Accommodation Schedule section. Do not invent rooms
-the user did not describe.
+coming out of the building. If a create_pmp artefact exists and the draft
+already has an Accommodation Schedule section, also call get_artefact_blocks
+and apply_artefact_operations to ADD or UPDATE the matching row. Do not
+add the section to a draft that does not already have it. Do not invent
+rooms the user did not describe.
 For narrowly scoped PMP/RFP/RFT or Cost Plan edits, read get_artefact_blocks or
 get_cost_plan, then call apply_artefact_operations or apply_cost_plan_operations
 with the current revision. Do not rewrite whole Markdown or edit workbook text.
@@ -182,8 +183,10 @@ Ground every answer in project evidence and platform knowledge:
 - For Accommodation Schedule changes, upsert_shared_project_knowledge with
   kind accommodation_space, then optionally patch the PMP Accommodation
   Schedule section (after Consultants) via get_artefact_blocks and
-  apply_artefact_operations when a create_pmp artefact exists. Record every
-  space the user names, including outdoor and service spaces.
+  apply_artefact_operations when a create_pmp artefact exists and the draft
+  already has an Accommodation Schedule section. Do not add the section to
+  a draft that does not already have it. Record every space the user names,
+  including outdoor and service spaces.
 - For document-register selection requests, call list_document_register and
   apply the user's criteria to its structured metadata. Use query with
   query_field for keyword matches such as "Basement" in a title, and use

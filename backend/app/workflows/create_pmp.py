@@ -470,12 +470,22 @@ def _format_section_budgets(
         if taxonomy_context is None:
             return "Per-section word budgets: not applicable to legacy archetype draft."
         weights = taxonomy_context.section_weights
+    applicable = (
+        taxonomy_context.sections
+        if taxonomy_context is not None and taxonomy_context.sections
+        else None
+    )
+    items = (
+        [(section_id, weights.get(section_id, 0.0)) for section_id in applicable]
+        if applicable is not None
+        else list(weights.items())
+    )
     return "\n".join(
         [
             "Per-section word budgets:",
             *[
                 f"- {section_id}: ~{int(weight * _target_words(taxonomy_context))} words"
-                for section_id, weight in weights.items()
+                for section_id, weight in items
             ],
         ]
     )

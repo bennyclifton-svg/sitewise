@@ -195,9 +195,10 @@ plant room, a loading dock and a circulation core are all spaces — not only
 bedrooms and kitchens. Number repeated rooms (Bedroom 1, Bedroom 2). Put
 dimensions and other notes in characteristics. status "removed" deletes the
 row; use "Demolished" when the space is coming out of the building. When a
-create_pmp draft exists, also apply_artefact_operations to ADD or UPDATE the
-matching Accommodation Schedule table row. Do not invent rooms the user did
-not describe.
+create_pmp draft exists and the draft already has an Accommodation Schedule
+section, also apply_artefact_operations to ADD or UPDATE the matching
+Accommodation Schedule table row. Do not add the section to a draft that
+does not already have it. Do not invent rooms the user did not describe.
 
 When a request both adds a specific Cost Plan line and adopts a construction
 budget, call get_cost_plan, then apply_cost_plan_operations or upsert_cost_item

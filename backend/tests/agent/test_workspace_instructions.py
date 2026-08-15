@@ -34,6 +34,8 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "FFE Schedule" in WORKSPACE_AGENTS_MD
     assert "accommodation_space" in WORKSPACE_AGENTS_MD
     assert "Accommodation Schedule" in WORKSPACE_AGENTS_MD
+    assert "already has an Accommodation Schedule" in WORKSPACE_AGENTS_MD
+    assert "does not already have it" in WORKSPACE_AGENTS_MD
     assert "Prefer headings and bullet lists for structure" in WORKSPACE_AGENTS_MD
     assert "**bold**" in WORKSPACE_AGENTS_MD
 

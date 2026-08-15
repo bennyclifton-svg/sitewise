@@ -23,6 +23,7 @@ from app.workflows.create_pmp import (
     draft_workspace_path,
     RUNTIME_HYBRID_NAME,
     _format_mandatory_seeds,
+    _format_section_budgets,
     _source_excerpt_chars,
     normalize_pmp_markdown,
     retrieve_create_pmp_sources,
@@ -883,6 +884,22 @@ def _padded_taxonomy_markdown(project: Project, words: int) -> str:
         f"## {heading}\n\n" + " ".join(["content"] * per) for heading in headings
     )
     return f"# Project Management Plan\n\n{body}\n"
+
+
+def test_format_section_budgets_omits_inapplicable_accommodation_schedule() -> None:
+    project = _project(
+        archetype=None,
+        building_class="industrial",
+        work_type="remediation",
+        project_metadata={
+            "taxonomy": {
+                "subclasses": ["warehouse"],
+                "work_scope": [],
+            }
+        },
+    )
+    budgets = _format_section_budgets(project)
+    assert "accommodation-schedule" not in budgets
 
 
 def test_create_pmp_retries_under_length_scaffold_with_section_budgets() -> None:
