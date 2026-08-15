@@ -584,7 +584,10 @@ def _section_refs(
 def _taxonomy_consultant_labels(
     work_type: str | None,
     work_scope: tuple[str, ...],
+    subclasses: tuple[str, ...] = (),
 ) -> tuple[str, ...]:
+    from app.sitewise.consultant_typical import typical_consultant_labels
+
     seen: set[str] = set()
     labels: list[str] = []
     for item in work_scope_items_for(work_type, work_scope):
@@ -594,6 +597,14 @@ def _taxonomy_consultant_labels(
                 continue
             seen.add(key)
             labels.append(consultant)
+    for consultant in typical_consultant_labels(
+        work_type=work_type, subclasses=subclasses
+    ):
+        key = consultant.strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        labels.append(consultant)
     return tuple(labels)
 
 
@@ -612,6 +623,7 @@ def _contract_focus_line(
     work_type: str | None,
     work_scope: tuple[str, ...],
     refs: tuple[str, ...],
+    subclasses: tuple[str, ...] = (),
 ) -> str:
     if section_id == "snapshot":
         return (
@@ -663,7 +675,9 @@ def _contract_focus_line(
         )
     if section_id == "consultants":
         lead = design_lead_discipline(work_type, work_scope)
-        disciplines = _taxonomy_consultant_labels(work_type, work_scope)
+        disciplines = _taxonomy_consultant_labels(
+            work_type, work_scope, subclasses
+        )
         if lead == DESIGN_LEAD_UNCONFIRMED:
             roster_clause = (
                 f"design lead to be confirmed, then {', '.join(disciplines)}"
@@ -771,7 +785,7 @@ def _adaptive_greenfield_brief(
         ref_note = f" Loaded seed sections: {', '.join(refs)}." if refs else ""
         section_lines.append(
             f"- {heading} (~{int(weight * target_words)} words): "
-            f"{_contract_focus_line(section_id, work_type=work_type, work_scope=work_scope, refs=refs)}"
+            f"{_contract_focus_line(section_id, work_type=work_type, work_scope=work_scope, refs=refs, subclasses=subclasses)}"
             f"{_depth_instruction(section_id, weight)}."
             f"{ref_note}"
         )
@@ -802,7 +816,9 @@ def _adaptive_greenfield_brief(
         ]
     else:
         scope_section = []
-    consultant_labels = _taxonomy_consultant_labels(work_type, work_scope)
+    consultant_labels = _taxonomy_consultant_labels(
+        work_type, work_scope, subclasses
+    )
     if consultant_labels:
         consultant_rows = [f"- {label}" for label in consultant_labels]
     else:

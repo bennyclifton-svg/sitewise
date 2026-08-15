@@ -46,6 +46,8 @@ def consultant_appointment_rows(project: Project) -> list[dict[str, Any]]:
         value = item.value if isinstance(item.value, dict) else {}
         discipline = str(value.get("discipline") or "").strip()
         firm = str(value.get("firm") or value.get("name") or "").strip()
+        if str(value.get("status") or "").strip().casefold() == "removed":
+            continue
         if not discipline or not firm or is_noise_firm_candidate(firm):
             continue
         paths = [

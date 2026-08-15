@@ -1612,6 +1612,10 @@ def _render_taxonomy_consultants(
     citation_index: CitationIndex | None = None,
 ) -> str:
     from app.sitewise.consultant_register import consultant_appointment_rows
+    from app.sitewise.consultant_typical import (
+        removed_consultant_labels,
+        typical_consultant_labels,
+    )
 
     context = pmp_taxonomy_context(project)
     if context is None:
@@ -1650,33 +1654,44 @@ def _render_taxonomy_consultants(
             citation = "—"
         rows.append(f"| {lead} | {firm} | {fee} | {status} | {citation} |")
         seen.add(lead.strip().lower())
-    for item in work_scope_items_for(context.work_type, context.work_scope):
-        for consultant in item.consultants:
-            key = consultant.strip().lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            fact = appointment_rows.get(key)
-            if fact is None:
-                # Soft match Services Engineer (Hydraulic) etc.
-                fact = next(
-                    (
-                        row
-                        for label, row in appointment_rows.items()
-                        if label in key or key in label
-                    ),
-                    None,
-                )
-            if fact is not None:
-                rows.append(
-                    f"| {consultant} | {fact['firm']} | {fact.get('fee') or ''} | "
-                    f"{fact['status']} | — |"
-                )
-                seen.add(str(fact["discipline"]).strip().lower())
-            else:
-                rows.append(
-                    f"| {consultant} | TBC | | Not evidenced | — |"
-                )
+    removed = removed_consultant_labels(project)
+    expected = [
+        consultant
+        for item in work_scope_items_for(context.work_type, context.work_scope)
+        for consultant in item.consultants
+    ]
+    expected.extend(
+        typical_consultant_labels(
+            work_type=context.work_type,
+            subclasses=context.subclasses,
+        )
+    )
+    for consultant in expected:
+        key = consultant.strip().lower()
+        if not key or key in seen or key in removed:
+            continue
+        seen.add(key)
+        fact = appointment_rows.get(key)
+        if fact is None:
+            # Soft match Services Engineer (Hydraulic) etc.
+            fact = next(
+                (
+                    row
+                    for label, row in appointment_rows.items()
+                    if label in key or key in label
+                ),
+                None,
+            )
+        if fact is not None:
+            rows.append(
+                f"| {consultant} | {fact['firm']} | {fact.get('fee') or ''} | "
+                f"{fact['status']} | — |"
+            )
+            seen.add(str(fact["discipline"]).strip().lower())
+        else:
+            rows.append(
+                f"| {consultant} | TBC | | Not evidenced | — |"
+            )
     for label, fact in appointment_rows.items():
         if label in seen:
             continue
