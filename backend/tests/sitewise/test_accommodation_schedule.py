@@ -11,7 +11,9 @@ from app.projects.project_knowledge import (
     upsert_shared_project_object,
 )
 from app.sitewise.accommodation_schedule import (
+    accommodation_schedule_display_rows,
     accommodation_schedule_rows,
+    brief_accommodation_rows,
     parse_area_m2,
     scheduled_area_total,
 )
@@ -104,6 +106,83 @@ def test_scheduled_area_total_skips_demolished_and_unparseable() -> None:
 
     rows = accommodation_schedule_rows(project)
     assert scheduled_area_total(rows) == 42.0
+
+
+_NEWTOWN_BRIEF = (
+    "four bedrooms, a rear extension, second story addition to a semi "
+    "master bedroom and parents retreat upstairs, new kitchen opening, "
+    "open plan living dining"
+)
+
+
+def _project_with_brief(*lines: str) -> Project:
+    project = _project()
+    metadata = dict(project.project_metadata or {})
+    taxonomy = dict(metadata.get("taxonomy") or {})
+    taxonomy["scope_narrative"] = list(lines)
+    metadata["taxonomy"] = taxonomy
+    project.project_metadata = metadata
+    return project
+
+
+def test_brief_names_spaces_without_inventing_typical_rooms() -> None:
+    rows = brief_accommodation_rows(_project_with_brief(_NEWTOWN_BRIEF))
+    names = [row["space"] for row in rows]
+    assert "Master bedroom" in names
+    assert "Parents retreat" in names
+    assert "Kitchen" in names
+    assert "Living / dining" in names
+    assert "Bedroom 2" not in names
+    assert "Bedroom" not in names
+    assert "Laundry" not in names
+    assert "Garage" not in names
+    assert "Extension" not in names
+    assert "Addition" not in names
+    master = next(row for row in rows if row["space"] == "Master bedroom")
+    retreat = next(row for row in rows if row["space"] == "Parents retreat")
+    kitchen = next(row for row in rows if row["space"] == "Kitchen")
+    living = next(row for row in rows if row["space"] == "Living / dining")
+    assert master["level"] == "First"
+    assert retreat["level"] == "First"
+    assert kitchen["status"] == "New"
+    assert "open plan" in living["characteristics"].casefold()
+
+
+def test_display_rows_keep_explicit_and_skip_removed_brief_spaces() -> None:
+    project = _project_with_brief(
+        "new kitchen, laundry, and a covered deck"
+    )
+    _add(project, "kitchen", {
+        "space": "Kitchen",
+        "level": "Ground",
+        "area": "16 m²",
+        "characteristics": "owner-selected",
+        "status": "New",
+    })
+    _add(project, "laundry", {
+        "space": "Laundry",
+        "level": "Ground",
+        "status": "removed",
+    })
+
+    rows = accommodation_schedule_display_rows(project)
+    by_name = {row["space"]: row for row in rows}
+    assert by_name["Kitchen"]["area"] == "16 m²"
+    assert by_name["Kitchen"]["characteristics"] == "owner-selected"
+    assert "Laundry" not in by_name
+    assert "Covered deck" in by_name
+
+
+def test_taxonomy_scaffold_renders_named_brief_spaces() -> None:
+    project = _project_with_brief(_NEWTOWN_BRIEF)
+    markdown = render_pmp_scaffold(
+        project, MobilisationEvidencePack(), "platform_seeded"
+    )
+    assert "| Master bedroom |" in markdown
+    assert "| Parents retreat |" in markdown
+    assert "| Kitchen |" in markdown
+    assert "| Living / dining |" in markdown
+    assert "| — | — | TBC | TBC | To be confirmed |" not in markdown
 
 
 def test_applicable_for_new_absent_for_remediation() -> None:

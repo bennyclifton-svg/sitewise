@@ -642,9 +642,11 @@ def _contract_focus_line(
             "cover the Accommodation Schedule after Consultants: one table of "
             "spaces (rooms, zones, outdoor areas, plant rooms, loading docks, "
             "circulation cores) with level, area, characteristics and status; "
-            "preserve user-added shared accommodation_space rows; put dimensions "
-            "in characteristics; keep unspecified fields as TBC; do not invent "
-            "rooms the user did not describe; do not bury the schedule inside "
+            "preserve user-added shared accommodation_space rows; list every "
+            "space the brief or scope_narrative already names; do not leave the "
+            "placeholder row when the brief names spaces; put dimensions in "
+            "characteristics; keep unspecified fields as TBC; do not invent "
+            "rooms the brief does not name; do not bury the schedule inside "
             "the Brief prose"
         )
     if section_id == "ffe-schedule":

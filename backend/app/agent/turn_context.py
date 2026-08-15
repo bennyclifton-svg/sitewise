@@ -69,8 +69,11 @@ deletes the row from the schedule; use "Demolished" when the space is
 coming out of the building. If a create_pmp artefact exists and the draft
 already has an Accommodation Schedule section, also call get_artefact_blocks
 and apply_artefact_operations to ADD or UPDATE the matching row. Do not
-add the section to a draft that does not already have it. Do not invent
-rooms the user did not describe.
+add the section to a draft that does not already have it. If
+scope_narrative or the Brief already names spaces and the schedule is
+empty or missing those rooms, lodge them now. An empty Accommodation
+Schedule is wrong when the brief already names rooms. Do not invent
+rooms the brief does not name.
 For narrowly scoped PMP/RFP/RFT or Cost Plan edits, read get_artefact_blocks or
 get_cost_plan, then call apply_artefact_operations or apply_cost_plan_operations
 with the current revision. Do not rewrite whole Markdown or edit workbook text.
@@ -315,8 +318,11 @@ Ground every answer in project evidence and platform knowledge:
 - When the user describes spaces the project covers — rooms, outdoor areas,
   landscape zones, plant rooms, loading docks, circulation cores — lodge
   them with upsert_shared_project_knowledge kind=accommodation_space. Do
-  this on the opening description without being asked. Do not skip a
-  courtyard, a covered deck, or a loading dock because they are not rooms.
+  this on the opening description without being asked. If scope_narrative
+  or the Brief already names spaces, lodge those too even when this turn
+  did not repeat them. An empty Accommodation Schedule is wrong when the
+  brief already names rooms. Do not skip a courtyard, a covered deck, or
+  a loading dock because they are not rooms.
 - When the user explicitly confirms a pending profile proposal, call
   accept_project_profile_proposal instead of update_project_profile. Proposal
   acceptance is authorized by that confirmation and does not require a

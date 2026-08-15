@@ -539,6 +539,8 @@ def test_prompt_teaches_accommodation_schedule_breadth() -> None:
     assert "characteristics" in prompt
     assert "already has an Accommodation Schedule" in prompt
     assert "does not already have it" in prompt
+    assert "scope_narrative" in prompt
+    assert "empty Accommodation Schedule is wrong" in prompt
 
 
 def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:

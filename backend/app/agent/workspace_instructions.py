@@ -198,7 +198,10 @@ row; use "Demolished" when the space is coming out of the building. When a
 create_pmp draft exists and the draft already has an Accommodation Schedule
 section, also apply_artefact_operations to ADD or UPDATE the matching
 Accommodation Schedule table row. Do not add the section to a draft that
-does not already have it. Do not invent rooms the user did not describe.
+does not already have it. If scope_narrative or the Brief already names
+spaces and the schedule is empty or missing those rooms, lodge them now.
+An empty Accommodation Schedule is wrong when the brief already names
+rooms. Do not invent rooms the brief does not name.
 
 When a request both adds a specific Cost Plan line and adopts a construction
 budget, call get_cost_plan, then apply_cost_plan_operations or upsert_cost_item

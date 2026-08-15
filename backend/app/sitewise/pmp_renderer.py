@@ -1517,14 +1517,14 @@ def _merge_ffe_items(*groups: list[dict[str, str]]) -> list[dict[str, str]]:
 
 def _render_taxonomy_accommodation_schedule(project: Project) -> str:
     from app.sitewise.accommodation_schedule import (
-        accommodation_schedule_rows,
+        accommodation_schedule_display_rows,
         scheduled_area_total,
     )
 
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
-    rows = accommodation_schedule_rows(project)
+    rows = accommodation_schedule_display_rows(project)
     table = [
         "| Space | Level | Area | Characteristics | Status |",
         "| --- | --- | --- | --- | --- |",
