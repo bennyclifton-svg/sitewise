@@ -287,6 +287,10 @@ export const api = {
   createProject: async (input: CreateProjectInput): Promise<ProjectDetail> =>
     api.post<ProjectDetail>("/projects", input),
 
+  deleteProject: async (projectId: string): Promise<void> => {
+    await api.delete<void>(`/projects/${projectId}`);
+  },
+
   updateProject: async (
     projectId: string,
     input: UpdateProjectInput,

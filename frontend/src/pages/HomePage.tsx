@@ -11,6 +11,7 @@ import { AppSystemFooter } from "@/components/AppSystemFooter";
 import { SitewiseMark } from "@/components/SitewiseMark";
 import { Button } from "@/components/ui/button";
 import { CreateProjectPanel } from "@/components/project/CreateProjectPanel";
+import { ProjectTileMenu } from "@/components/project/ProjectTileMenu";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import type { ProjectDetail, ProjectSummary } from "@/lib/types/project";
@@ -24,6 +25,7 @@ export function HomePage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +54,24 @@ export function HomePage() {
   function handleProjectCreated(project: ProjectDetail) {
     setProjects((current) => [project, ...current]);
     navigate(`/projects/${project.id}`);
+  }
+
+  async function handleDeleteProject(project: ProjectSummary) {
+    const confirmed = window.confirm(
+      `Delete “${project.title}”? This cannot be undone.`,
+    );
+    if (!confirmed || deletingId) return;
+
+    setDeletingId(project.id);
+    setProjectsError(null);
+    try {
+      await api.deleteProject(project.id);
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+    } catch (error) {
+      setProjectsError(formatApiError(error, "Could not delete the project."));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const backendUnavailable = Boolean(projectsError);
@@ -107,16 +127,27 @@ export function HomePage() {
               <ul className="grid gap-3 md:grid-cols-2">
                 {projects.map((project) => (
                   <li key={project.id}>
-                    <Link
-                      to={`/projects/${project.id}`}
-                      className="flex items-center gap-2 rounded-md border border-border bg-card p-4 font-medium transition-colors hover:border-[var(--info-border)] hover:bg-[var(--info-bg)]"
-                    >
-                      <FolderOpen
-                        className="size-4 shrink-0 text-[var(--info-text)]"
-                        aria-hidden
-                      />
-                      <span className="truncate">{project.title}</span>
-                    </Link>
+                    <div className="flex items-center gap-1 rounded-md border border-border bg-card transition-colors hover:border-[var(--info-border)] hover:bg-[var(--info-bg)]">
+                      <Link
+                        to={`/projects/${project.id}`}
+                        className="flex min-w-0 flex-1 items-center gap-2 p-4 font-medium"
+                      >
+                        <FolderOpen
+                          className="size-4 shrink-0 text-[var(--info-text)]"
+                          aria-hidden
+                        />
+                        <span className="truncate">{project.title}</span>
+                      </Link>
+                      <div className="pr-2">
+                        <ProjectTileMenu
+                          title={project.title}
+                          disabled={deletingId === project.id}
+                          onDelete={() => {
+                            void handleDeleteProject(project);
+                          }}
+                        />
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>

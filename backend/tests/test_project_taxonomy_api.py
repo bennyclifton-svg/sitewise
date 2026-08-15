@@ -242,6 +242,40 @@ def test_get_project_detail_exposes_taxonomy_metadata(client: TestClient) -> Non
     assert [flag["value"] for flag in payload["risk_flags"]] == ["remote_site"]
 
 
+def test_delete_project_removes_owned_project(
+    client: TestClient, mock_session: AsyncMock
+) -> None:
+    project = _project()
+    delete_owned = AsyncMock(return_value=["demo/_inbox/brief.pdf"])
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.delete_owned_project", new=delete_owned),
+        patch("app.api.projects.delete_project_files") as delete_files,
+    ):
+        response = client.delete(f"/projects/{PROJECT_ID}")
+
+    assert response.status_code == 204
+    delete_owned.assert_awaited_once_with(mock_session, project=project)
+    delete_files.assert_called_once_with(storage_keys=["demo/_inbox/brief.pdf"])
+
+
+def test_delete_project_forbidden_for_other_owner(client: TestClient) -> None:
+    project = _project(owner_user_id=uuid.UUID("99999999-9999-9999-9999-999999999999"))
+
+    with patch("app.api.projects.get_project", new=AsyncMock(return_value=project)):
+        response = client.delete(f"/projects/{PROJECT_ID}")
+
+    assert response.status_code == 403
+
+
+def test_delete_project_missing_is_not_found(client: TestClient) -> None:
+    with patch("app.api.projects.get_project", new=AsyncMock(return_value=None)):
+        response = client.delete(f"/projects/{PROJECT_ID}")
+
+    assert response.status_code == 404
+
+
 def test_patch_project_updates_taxonomy_and_risk_flags(client: TestClient) -> None:
     project = _project()
     apply_patch = AsyncMock(return_value=_profile_change())

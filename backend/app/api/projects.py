@@ -57,6 +57,7 @@ from app.database.projects import (
     project_overlay_summary,
     user_owns_project,
 )
+from app.projects.project_delete import delete_owned_project
 from app.database.projects import ensure_default_project_catalog  # noqa: F401
 from app.database.session import get_db
 from app.database.draft_artifact import DraftArtifact
@@ -1256,6 +1257,19 @@ async def get_project_taxonomy(
     # SPA query cache already soft-caches for a minute.
     response.headers["Cache-Control"] = "private, max-age=60"
     return taxonomy_options_payload()
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    project_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> None:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    storage_keys = await delete_owned_project(session, project=project)
+    if storage_keys:
+        background_tasks.add_task(delete_project_files, storage_keys=storage_keys)
 
 
 @router.patch("/{project_id}")
