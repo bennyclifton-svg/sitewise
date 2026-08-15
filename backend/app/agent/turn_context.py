@@ -53,8 +53,23 @@ upsert_shared_project_knowledge with a stable object id slug and fields such as
 item, location, quantity, finish, model, dimensions, supplier, status, package,
 and notes (use TBC when unspecified). If a create_pmp artefact exists, also call
 get_artefact_blocks and apply_artefact_operations to ADD or UPDATE the matching
-row in the PMP FFE Schedule section (after Consultants). Do not ask the user to select
+row in the PMP FFE Schedule section (after the Accommodation Schedule, or after
+Consultants when that section is absent). Do not ask the user to select
 a Management Plan file.
+For Accommodation Schedule adds or edits (rooms, zones and outdoor spaces
+in the PMP section after Consultants), call list_shared_project_knowledge
+with kind accommodation_space, then upsert_shared_project_knowledge with a
+stable object id slug and fields space, level, area, characteristics, status
+(use TBC when unspecified). A courtyard, a landscape zone, a covered deck,
+a plant room, a loading dock and a circulation core are all spaces with a
+level, an area and a status — not only bedrooms and kitchens. Number
+repeated rooms (Bedroom 1, Bedroom 2). Put dimensions and other notes in
+characteristics; there is no dimensions or notes column. status "removed"
+deletes the row from the schedule; use "Demolished" when the space is
+coming out of the building. If a create_pmp artefact exists, also call
+get_artefact_blocks and apply_artefact_operations to ADD or UPDATE the
+matching row in the Accommodation Schedule section. Do not invent rooms
+the user did not describe.
 For narrowly scoped PMP/RFP/RFT or Cost Plan edits, read get_artefact_blocks or
 get_cost_plan, then call apply_artefact_operations or apply_cost_plan_operations
 with the current revision. Do not rewrite whole Markdown or edit workbook text.
@@ -160,9 +175,15 @@ Ground every answer in project evidence and platform knowledge:
   artefact.create_pmp in <project-snapshot> or get_artefact_blocks without a
   draft_id; never ask the user for a file named Management Plan.
 - For FFE schedule changes, upsert_shared_project_knowledge with kind ffe_item,
-  then optionally patch the PMP FFE Schedule section (after Consultants) via
+  then optionally patch the PMP FFE Schedule section (after the Accommodation
+  Schedule, or after Consultants when that section is absent) via
   get_artefact_blocks and apply_artefact_operations when a create_pmp artefact
   exists.
+- For Accommodation Schedule changes, upsert_shared_project_knowledge with
+  kind accommodation_space, then optionally patch the PMP Accommodation
+  Schedule section (after Consultants) via get_artefact_blocks and
+  apply_artefact_operations when a create_pmp artefact exists. Record every
+  space the user names, including outdoor and service spaces.
 - For document-register selection requests, call list_document_register and
   apply the user's criteria to its structured metadata. Use query with
   query_field for keyword matches such as "Basement" in a title, and use
@@ -288,6 +309,11 @@ Ground every answer in project evidence and platform knowledge:
   make, capacity, age and refrigerant can be recorded, and it populates the
   equipment schedule. Use get_project_profile_options for valid condition and
   action values, and leave a field out rather than guessing it.
+- When the user describes spaces the project covers — rooms, outdoor areas,
+  landscape zones, plant rooms, loading docks, circulation cores — lodge
+  them with upsert_shared_project_knowledge kind=accommodation_space. Do
+  this on the opening description without being asked. Do not skip a
+  courtyard, a covered deck, or a loading dock because they are not rooms.
 - When the user explicitly confirms a pending profile proposal, call
   accept_project_profile_proposal instead of update_project_profile. Proposal
   acceptance is authorized by that confirmation and does not require a

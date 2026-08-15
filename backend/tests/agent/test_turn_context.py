@@ -519,6 +519,26 @@ def test_snapshot_context_includes_latest_artefacts_and_ffe_guidance() -> None:
     assert "FFE Schedule" in prompt or "ffe_item" in prompt
 
 
+def test_prompt_teaches_accommodation_schedule_breadth() -> None:
+    prompt = build_agent_prompt(
+        "New kitchen, two bedrooms and a covered deck",
+        project_id=PROJECT_ID,
+        title="Harbour House",
+        archetype=None,
+        state="NSW",
+        phase="brief-planning",
+        building_class="residential",
+        work_type="new",
+        history=[],
+    )
+    assert "accommodation_space" in prompt
+    assert "courtyard" in prompt
+    assert "loading dock" in prompt
+    assert "circulation core" in prompt
+    assert "Demolished" in prompt
+    assert "characteristics" in prompt
+
+
 def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:
     user_text = (
         "Make this a Class 1a residential refurbishment in NSW. "

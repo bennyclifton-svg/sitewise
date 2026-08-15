@@ -6,12 +6,12 @@ from typing import Any
 
 from app.sitewise.pmp_length import is_high_weight_section
 from app.sitewise.section_contracts import (
-    PMP_SECTION_HEADINGS,
     heading_for_section_id,
 )
 from app.sitewise.taxonomy import (
     DESIGN_LEAD_UNCONFIRMED,
     RiskFlag,
+    applicable_sections,
     building_class_label,
     complexity_option_labels,
     design_lead_discipline,
@@ -755,8 +755,16 @@ def _adaptive_greenfield_brief(
         subclasses=subclasses,
         complexity=complexity,
     )
+    # has_assets is not an argument here; a positive FFE weight is the
+    # cheap signal that taxonomy already treated assets as present
+    # (FFE can apply via has_assets on advisory work).
+    applicable = applicable_sections(
+        work_type=work_type,
+        work_scope=work_scope,
+        has_assets=section_weights.get("ffe-schedule", 0.0) > 0,
+    )
     section_lines: list[str] = []
-    for section_id in PMP_SECTION_HEADINGS:
+    for section_id in applicable:
         weight = section_weights.get(section_id, 0.0)
         heading = heading_for_section_id(section_id, work_type=work_type)
         refs = _section_refs(seed_section_refs, section_id)

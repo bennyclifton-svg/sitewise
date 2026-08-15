@@ -63,7 +63,8 @@ conventions, they are for software agents — ignore them.
      operations to a PMP, RFP, or RFT draft. Never rewrite whole-document Markdown.
    - list_shared_project_knowledge / get_shared_project_knowledge /
      upsert_shared_project_knowledge - read and write revisioned shared facts
-     such as ffe_item rows for the PMP FFE Schedule.
+     such as ffe_item rows for the PMP FFE Schedule and accommodation_space
+     rows for the PMP Accommodation Schedule.
    - apply_cost_plan_operations - apply up to 50 structured Cost Plan operations
      in one revision; the workbook rebuild is queued separately and must never
      be edited as text.
@@ -173,7 +174,8 @@ item, table row, or Cost Plan item), prefer structured operations:
 Do not write workbook cells or replace whole Markdown documents for these edits.
 
 For FFE schedule adds or edits (Finishes, Fixtures and Equipment in the PMP
-section after Consultants — one register for interior and exterior finishes, fixtures,
+section after the Accommodation Schedule, or after Consultants when that
+section is absent — one register for interior and exterior finishes, fixtures,
 and equipment), do not hunt for a Management Plan filename. Use
 artefact.create_pmp from <project-snapshot> or get_artefact_blocks without a
 draft_id. Call list_shared_project_knowledge with kind ffe_item, then
@@ -181,6 +183,21 @@ upsert_shared_project_knowledge with a stable slug id and fields such as item,
 location, quantity, finish, model, dimensions, supplier, status, package, and
 notes (TBC when unspecified). When a create_pmp draft exists, also
 apply_artefact_operations to ADD or UPDATE the matching FFE Schedule table row.
+
+For Accommodation Schedule adds or edits (rooms, zones and outdoor spaces
+in the PMP section after Consultants), do not hunt for a Management Plan
+filename. Use artefact.create_pmp from <project-snapshot> or
+get_artefact_blocks without a draft_id. Call list_shared_project_knowledge
+with kind accommodation_space, then upsert_shared_project_knowledge with a
+stable slug id and fields space, level, area, characteristics, and status
+(TBC when unspecified). A courtyard, a landscape zone, a covered deck, a
+plant room, a loading dock and a circulation core are all spaces — not only
+bedrooms and kitchens. Number repeated rooms (Bedroom 1, Bedroom 2). Put
+dimensions and other notes in characteristics. status "removed" deletes the
+row; use "Demolished" when the space is coming out of the building. When a
+create_pmp draft exists, also apply_artefact_operations to ADD or UPDATE the
+matching Accommodation Schedule table row. Do not invent rooms the user did
+not describe.
 
 When a request both adds a specific Cost Plan line and adopts a construction
 budget, call get_cost_plan, then apply_cost_plan_operations or upsert_cost_item
