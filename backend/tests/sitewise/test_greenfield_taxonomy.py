@@ -243,7 +243,12 @@ def test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
     assert "Fire Engineer" in _section_body(markdown, "Consultants")
     assert "| Expected consultants |" not in _section_body(markdown, "Brief")
     assert headings.index("Brief") + 1 == headings.index("Consultants")
-    assert headings.index("Consultants") + 1 == headings.index("FFE Schedule")
+    assert headings.index("Consultants") + 1 == headings.index(
+        "Accommodation Schedule"
+    )
+    assert headings.index("Accommodation Schedule") + 1 == headings.index(
+        "FFE Schedule"
+    )
     assert _min_words(project) <= pmp_word_count(markdown) <= _max_words(project) * 1.05
     assert "User provided" not in markdown
     assert "Assumption" in markdown

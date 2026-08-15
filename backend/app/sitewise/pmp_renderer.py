@@ -1514,6 +1514,52 @@ def _merge_ffe_items(*groups: list[dict[str, str]]) -> list[dict[str, str]]:
     return merged
 
 
+def _render_taxonomy_accommodation_schedule(project: Project) -> str:
+    from app.sitewise.accommodation_schedule import (
+        accommodation_schedule_rows,
+        scheduled_area_total,
+    )
+
+    context = pmp_taxonomy_context(project)
+    if context is None:
+        raise ValueError("taxonomy scaffold requires building_class")
+    rows = accommodation_schedule_rows(project)
+    table = [
+        "| Space | Level | Area | Characteristics | Status |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    if rows:
+        for row in rows:
+            table.append(
+                "| {space} | {level} | {area} | {characteristics} | {status} |".format(
+                    space=row["space"],
+                    level=row["level"],
+                    area=row["area"],
+                    characteristics=row["characteristics"],
+                    status=row["status"],
+                )
+            )
+        total = scheduled_area_total(rows)
+        total_cell = f"{total:g} m²" if total is not None else "TBC"
+        table.append(f"| **Scheduled area** |  | {total_cell} |  |  |")
+    else:
+        table.append(
+            "| — | — | TBC | TBC | To be confirmed |"
+        )
+    return "\n".join(
+        [
+            f"## {heading_for_section_id('accommodation-schedule', work_type=context.work_type)}",
+            "",
+            "Rooms, zones and outdoor spaces the project covers. Area is "
+            "scheduled area, not GFA or NLA. Add or tidy rows in chat. "
+            "Missing fields stay TBC.",
+            _emphasis_note(project, "accommodation-schedule"),
+            "",
+            "\n".join(table),
+        ]
+    )
+
+
 def _render_taxonomy_ffe_schedule(project: Project) -> str:
     from app.sitewise.ffe_schedule import ffe_schedule_rows
     from app.sitewise.ffe_typical import typical_ffe_rows
@@ -1978,6 +2024,7 @@ def _render_taxonomy_platform_scaffold(
         "consultants": lambda: _render_taxonomy_consultants(
             project, pack, citation_index=index
         ),
+        "accommodation-schedule": lambda: _render_taxonomy_accommodation_schedule(project),
         "ffe-schedule": lambda: _render_taxonomy_ffe_schedule(project),
         "compliance-approvals": lambda: _render_taxonomy_compliance(
             project, seed_section_refs

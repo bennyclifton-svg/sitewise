@@ -13,7 +13,7 @@ from app.sitewise.section_contracts import (
 )
 
 HIGH_WEIGHT_THRESHOLD = 0.12
-_REGISTER_SECTIONS = frozenset({"snapshot", "ffe-schedule", "citation-key"})
+_REGISTER_SECTIONS = frozenset({"snapshot", "accommodation-schedule", "ffe-schedule", "citation-key"})
 
 _WORD_RE = re.compile(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*")
 _FENCE_RE = re.compile(r"^\s*(```|~~~)\s*([A-Za-z0-9_-]*)")

@@ -526,6 +526,7 @@ def test_taxonomy_endpoint_returns_frontend_option_shape(client: TestClient) -> 
         "snapshot",
         "scope-client-requirements",
         "consultants",
+        "accommodation-schedule",
         "ffe-schedule",
         "compliance-approvals",
         "programme",

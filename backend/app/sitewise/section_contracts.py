@@ -8,6 +8,7 @@ PMP_SECTION_HEADINGS: dict[str, str] = {
     "snapshot": "Project Summary",
     "scope-client-requirements": "Brief",
     "consultants": "Consultants",
+    "accommodation-schedule": "Accommodation Schedule",
     "ffe-schedule": "FFE Schedule",
     "compliance-approvals": "Planning and Compliance",
     "programme": "Programme",

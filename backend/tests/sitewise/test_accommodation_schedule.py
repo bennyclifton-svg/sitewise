@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
 
 from app.database.project import Project
 from app.projects.project_knowledge import (
@@ -14,6 +15,10 @@ from app.sitewise.accommodation_schedule import (
     parse_area_m2,
     scheduled_area_total,
 )
+from app.sitewise.mobilisation_evidence import MobilisationEvidencePack
+from app.sitewise.pmp_renderer import render_pmp_scaffold
+from app.sitewise.taxonomy import applicable_sections
+from app.workflows.create_pmp import markdown_section_headings
 
 
 def _project() -> Project:
@@ -99,3 +104,66 @@ def test_scheduled_area_total_skips_demolished_and_unparseable() -> None:
 
     rows = accommodation_schedule_rows(project)
     assert scheduled_area_total(rows) == 42.0
+
+
+def test_applicable_for_new_absent_for_remediation() -> None:
+    assert "accommodation-schedule" in applicable_sections(
+        work_type="new", work_scope=[]
+    )
+    assert "accommodation-schedule" not in applicable_sections(
+        work_type="remediation", work_scope=[]
+    )
+    assert "accommodation-schedule" not in applicable_sections(
+        work_type="advisory", work_scope=["building_condition"]
+    )
+    assert "accommodation-schedule" in applicable_sections(
+        work_type="advisory", work_scope=["massing_study"]
+    )
+
+
+def test_taxonomy_scaffold_renders_spaces_and_scheduled_area() -> None:
+    project = _project()
+    _add(project, "kitchen", {
+        "space": "Kitchen",
+        "level": "Ground",
+        "area": "18 m²",
+        "characteristics": "4.2 × 3.6 m, north-facing",
+        "status": "New",
+    })
+    _add(project, "deck", {
+        "space": "Covered deck",
+        "level": "External",
+        "area": "24",
+        "status": "New",
+    })
+
+    markdown = render_pmp_scaffold(
+        project, MobilisationEvidencePack(), "platform_seeded"
+    )
+    headings = markdown_section_headings(markdown)
+    assert headings.index("Consultants") + 1 == headings.index(
+        "Accommodation Schedule"
+    )
+    assert headings.index("Accommodation Schedule") + 1 == headings.index(
+        "FFE Schedule"
+    )
+    assert "| Space | Level | Area | Characteristics | Status |" in markdown
+    assert "| Kitchen | Ground | 18 m² | 4.2 × 3.6 m, north-facing | New |" in markdown
+    assert "| **Scheduled area** |  | 42 m² |  |  |" in markdown
+
+
+def test_remediation_project_omits_the_section() -> None:
+    project = SimpleNamespace(
+        slug="plant-swap",
+        title="Plant swap",
+        workspace_path="04-projects/plant-swap",
+        phase="brief-planning",
+        building_class="industrial",
+        work_type="remediation",
+        state="NSW",
+        project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+    )
+    markdown = render_pmp_scaffold(
+        project, MobilisationEvidencePack(), "platform_seeded"
+    )
+    assert "Accommodation Schedule" not in markdown_section_headings(markdown)

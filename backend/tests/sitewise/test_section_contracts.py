@@ -14,6 +14,7 @@ def test_universal_skeleton_is_identical_across_classes() -> None:
         "Project Summary",
         "Brief",
         "Consultants",
+        "Accommodation Schedule",
         "FFE Schedule",
         "Planning and Compliance",
         "Programme",
@@ -140,5 +141,6 @@ def test_advisory_drops_procurement_and_delivery() -> None:
 
     assert not any("Procurement" in heading for heading in headings)
     assert "FFE Schedule" not in headings
+    assert "Accommodation Schedule" not in headings
     # The advisory heading variant still applies to what does render.
     assert "Programme of services" in headings

@@ -99,7 +99,9 @@ def test_taxonomy_scaffold_renders_shared_ffe_rows_after_brief() -> None:
         "platform_seeded",
     )
     headings = markdown_section_headings(markdown)
-    assert headings.index("Consultants") + 1 == headings.index("FFE Schedule")
+    assert headings.index("Accommodation Schedule") + 1 == headings.index(
+        "FFE Schedule"
+    )
     assert "| Freestanding bath | Ensuite | 1 | TBC | To be confirmed | Owner selection |" in (
         markdown
     )
