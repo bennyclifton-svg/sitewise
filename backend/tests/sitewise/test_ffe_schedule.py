@@ -68,9 +68,9 @@ def test_ffe_schedule_rows_skip_removed_and_sort() -> None:
     )
 
     rows = ffe_schedule_rows(project)
-    assert [row["item"] for row in rows] == ["Freestanding bath", "Vanity"]
-    assert rows[0]["location"] == "TBC"
-    assert rows[1]["location"] == "Bathroom"
+    assert [row["item"] for row in rows] == ["Vanity", "Freestanding bath"]
+    assert rows[0]["location"] == "Bathroom"
+    assert rows[1]["location"] == "TBC"
 
 
 def test_taxonomy_scaffold_renders_shared_ffe_rows_after_brief() -> None:
@@ -136,6 +136,18 @@ def _taxonomy_project(
     )
 
 
+def _ffe_item_names(body: str) -> list[str]:
+    names: list[str] = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or stripped.startswith("| Item") or stripped.startswith("| ---"):
+            continue
+        item = stripped.strip("|").split("|", 1)[0].strip()
+        if item and item != "—":
+            names.append(item)
+    return names
+
+
 def _ffe_body(markdown: str) -> str:
     headings = markdown_section_headings(markdown)
     start = markdown.index("## FFE Schedule")
@@ -175,6 +187,13 @@ def test_new_house_prepopulates_wet_area_and_envelope_items() -> None:
     ):
         assert item in body, item
     assert "interior and exterior" in body.lower()
+    names = _ffe_item_names(body)
+    assert names.index("Facade cladding") < names.index("Render / paint")
+    assert names.index("Render / paint") < names.index("Bricks / masonry")
+    assert names.index("Roof sheeting / covering") < names.index("Wall and floor tiles")
+    assert names.index("Wall and floor tiles") < names.index("Basin")
+    assert names.index("Kitchen joinery") < names.index("Appliances")
+    assert names[-1] == "Appliances"
 
 
 def test_rail_station_prepopulates_exterior_finishes_not_an_empty_stub() -> None:
@@ -274,3 +293,7 @@ def test_office_refurb_prepopulates_interior_finishes() -> None:
         "Kitchen joinery",
     ):
         assert item in body, item
+    names = _ffe_item_names(body)
+    assert names.index("Floor finish") < names.index("Kitchen joinery")
+    assert names.index("Kitchen joinery") < names.index("Appliances")
+    assert names[-1] == "Appliances"

@@ -6,6 +6,7 @@ from typing import Any
 
 from app.database.project import Project
 from app.projects.project_knowledge import list_shared_project_objects
+from app.sitewise.ffe_typical import ffe_sequence_key
 
 _FFE_FIELDS = (
     "item",
@@ -37,7 +38,7 @@ def ffe_schedule_rows(project: Project) -> list[dict[str, Any]]:
         row["id"] = item.id
         row["revision"] = item.revision
         rows.append(row)
-    rows.sort(key=lambda row: (row["item"].casefold(), row["id"]))
+    rows.sort(key=lambda row: (*ffe_sequence_key(row), row["id"]))
     return rows
 
 

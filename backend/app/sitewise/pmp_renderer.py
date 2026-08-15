@@ -1562,7 +1562,7 @@ def _render_taxonomy_accommodation_schedule(project: Project) -> str:
 
 def _render_taxonomy_ffe_schedule(project: Project) -> str:
     from app.sitewise.ffe_schedule import ffe_schedule_rows
-    from app.sitewise.ffe_typical import typical_ffe_rows
+    from app.sitewise.ffe_typical import ffe_sequence_key, typical_ffe_rows
 
     context = pmp_taxonomy_context(project)
     if context is None:
@@ -1579,6 +1579,7 @@ def _render_taxonomy_ffe_schedule(project: Project) -> str:
             item for item in typical_items if item["item"] != "HVAC plant"
         ]
     display_items = _merge_ffe_items(explicit_items, asset_items, typical_items)
+    display_items.sort(key=ffe_sequence_key)
     table = [
         "| Item | Location | Qty | Finish | Status | Notes |",
         "| --- | --- | --- | --- | --- | --- |",

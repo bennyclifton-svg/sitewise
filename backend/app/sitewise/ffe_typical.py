@@ -100,12 +100,57 @@ _PACKS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
+# Display order follows construction: envelope and external works, then
+# internal finishes, then sanitaryware, then kitchen appliances, then plant.
+_ITEM_SEQUENCE: dict[str, tuple[int, int]] = {
+    "facade cladding": (0, 0),
+    "render / paint": (0, 1),
+    "bricks / masonry": (0, 2),
+    "curtain wall / cladding": (0, 3),
+    "windows / glazing": (0, 4),
+    "roof sheeting / covering": (0, 5),
+    "waterproofing membrane": (0, 6),
+    "weatherproofing / flashing": (0, 7),
+    "paving": (0, 8),
+    "external finishes": (0, 9),
+    "carpark pavement": (0, 10),
+    "pavement / paving": (0, 11),
+    "external light fittings": (0, 12),
+    "floor finish": (1, 0),
+    "wall finish / paint": (1, 1),
+    "ceiling finish": (1, 2),
+    "wall and floor tiles": (1, 3),
+    "joinery": (1, 4),
+    "kitchen joinery": (1, 5),
+    "light fittings": (1, 6),
+    "basin": (2, 0),
+    "wc": (2, 1),
+    "shower screen": (2, 2),
+    "tapware": (2, 3),
+    "sanitaryware": (2, 4),
+    "vanity": (2, 5),
+    "freestanding bath": (2, 6),
+    "appliances": (3, 0),
+}
+
+_LOCATION_BAND: dict[str, int] = {
+    "envelope": 0,
+    "roof": 0,
+    "external works": 0,
+    "envelope tie-in": 0,
+    "platform / concourse": 0,
+    "interior": 1,
+    "wet areas": 2,
+    "wet areas / envelope": 0,
+    "kitchen": 3,
+}
+
 _SUBCLASS_PACKS: dict[str, tuple[str, ...]] = {
-    "house": ("wet_areas", "kitchen", "envelope", "roofing", "paving"),
-    "townhouses": ("wet_areas", "kitchen", "envelope", "roofing", "paving"),
-    "apartments": ("wet_areas", "kitchen", "envelope", "roofing"),
-    "btr": ("wet_areas", "kitchen", "envelope", "roofing"),
-    "student_housing": ("wet_areas", "kitchen", "envelope", "roofing"),
+    "house": ("envelope", "roofing", "paving", "wet_areas", "kitchen"),
+    "townhouses": ("envelope", "roofing", "paving", "wet_areas", "kitchen"),
+    "apartments": ("envelope", "roofing", "wet_areas", "kitchen"),
+    "btr": ("envelope", "roofing", "wet_areas", "kitchen"),
+    "student_housing": ("envelope", "roofing", "wet_areas", "kitchen"),
     "rail_metro": ("station_finishes",),
     "energy_renewables": ("solar_pv",),
     "warehouse": ("envelope", "roofing", "paving"),
@@ -196,4 +241,19 @@ def typical_ffe_rows(
                     "notes": _NOTES,
                 }
             )
+    rows.sort(key=ffe_sequence_key)
     return rows
+
+
+def ffe_sequence_key(row: dict[str, str]) -> tuple[int, int, str]:
+    """Sort FFE rows in construction order, then by item name."""
+    item = str(row.get("item") or "").strip()
+    location = str(row.get("location") or "").strip()
+    named = _ITEM_SEQUENCE.get(item.casefold())
+    if named is not None:
+        band, order = named
+        return (band, order, item.casefold())
+    if location.casefold() == "kitchen" and "joinery" in item.casefold():
+        return (1, 5, item.casefold())
+    band = _LOCATION_BAND.get(location.casefold(), 4)
+    return (band, 50, item.casefold())
