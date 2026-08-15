@@ -212,6 +212,42 @@ def test_accommodation_change_identifies_only_the_schedule_section() -> None:
     assert "rft" not in by_type
 
 
+def test_upsert_accommodation_space_marks_accommodation_dirty() -> None:
+    project = _project()
+    upsert_shared_project_object(
+        project,
+        kind="accommodation_space",
+        object_id="kitchen",
+        update=SharedProjectObjectUpdate(
+            expected_revision=0,
+            value={"space": "Kitchen", "level": "Ground", "area": "16"},
+        ),
+        source="user",
+    )
+    upsert_shared_project_object(
+        project,
+        kind="accommodation_space",
+        object_id="kitchen",
+        update=SharedProjectObjectUpdate(
+            expected_revision=1,
+            value={"space": "Kitchen", "level": "Ground", "area": "18"},
+        ),
+        source="user",
+    )
+
+    dirty = project.project_metadata["dirty_categories"]
+    assert "accommodation_dirty" in dirty
+    assert "cost_dirty" not in dirty
+    assert "scope_dirty" not in dirty
+
+    offers = list_dependency_offers(project)
+    assert len(offers) == 1
+    offer = offers[0]
+    assert offer.category == "accommodation_dirty"
+    assert offer.source.kind == "accommodation_space"
+    assert {item.artefact_type for item in offer.artefacts} == {"pmp"}
+
+
 def test_upsert_consultant_records_pending_offer_with_concrete_selectors() -> None:
     project = _project()
     upsert_shared_project_object(
