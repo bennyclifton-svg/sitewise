@@ -1,4 +1,4 @@
-import { History } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
@@ -35,6 +35,7 @@ export function ProjectLeftNav({
   workflows,
   chatHistory,
   chatHistoryPreview = false,
+  onRenameProject,
 }: {
   project: ProjectDetail;
   projects: ProjectSummary[];
@@ -42,48 +43,37 @@ export function ProjectLeftNav({
   workflows?: WorkflowNavConfig;
   chatHistory?: ChatHistoryConfig;
   chatHistoryPreview?: boolean;
+  onRenameProject?: (title: string) => Promise<void>;
 }) {
   const { onResizeLeftPanel } = useCockpitShellResize();
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-[var(--cockpit-ribbon-height)] shrink-0 items-center px-3 pl-6">
+      <div className="flex h-[var(--cockpit-ribbon-height)] shrink-0 items-center px-3">
         <Link
           to="/"
           aria-label="SiteWise home"
           title="SiteWise"
           className="inline-flex sw-transition opacity-95 hover:opacity-100"
         >
-          <SitewiseMark size={48} variant="full" className="!p-1.5" />
+          <SitewiseMark size={32} padded={false} />
         </Link>
       </div>
+
+      <ProjectSwitcher
+        projects={projects}
+        activeProject={project}
+        loading={projectsLoading}
+        onRename={onRenameProject}
+      />
 
       {workflows ? (
         <ProjectWorkflowNav
           tiles={workflows.tiles}
           selectedWorkflowId={workflows.selectedWorkflowId}
           onSelectWorkflow={workflows.onSelectWorkflow}
-          leading={
-            <ProjectSwitcher
-              projects={projects}
-              activeProject={project}
-              loading={projectsLoading}
-            />
-          }
         />
-      ) : (
-        <nav className="shrink-0 px-3 pt-10 pb-2" aria-label="Project">
-          <ul className="flex flex-col gap-0.5">
-            <li>
-              <ProjectSwitcher
-                projects={projects}
-                activeProject={project}
-                loading={projectsLoading}
-              />
-            </li>
-          </ul>
-        </nav>
-      )}
+      ) : null}
 
       <div className="relative min-h-0 flex-1">
         {onResizeLeftPanel ? (
@@ -106,16 +96,19 @@ export function ProjectLeftNav({
       ) : chatHistoryPreview ? (
         <section
           className="flex min-h-0 max-h-[min(24rem,52%)] flex-col"
-          aria-label="Chat history preview"
+          aria-label="Chats preview"
         >
           <header className="shrink-0 px-3 py-2">
             <div className="flex items-center gap-2 px-1.5 py-1.5">
-              <History className="size-4 shrink-0" aria-hidden />
-              <span className="text-sm font-semibold">History</span>
+              <MessageSquare
+                className="size-4 shrink-0 text-[var(--cockpit-workflow-icon)]"
+                aria-hidden
+              />
+              <span className="text-sm font-semibold">Chats</span>
             </div>
           </header>
           <p className="px-3 py-3 text-sm text-muted-foreground">
-            Connect the backend to browse project chat sessions.
+            Connect the backend to browse project chats.
           </p>
         </section>
       ) : null}

@@ -9,9 +9,10 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
     data: {
       agent: {
         agent_runtime_enabled: true,
-        default_model: "openai:gpt-5.6-terra",
+        default_model: "openai:gpt-5.6-luna",
         models: [
-          { id: "openai:gpt-5.6-terra", label: "Balanced", is_default: true },
+          { id: "openai:gpt-5.6-luna", label: "Fast", is_default: true },
+          { id: "xai:grok-4.6", label: "Thorough", is_default: false },
         ],
       },
       legacy: { default_model: "gpt-5.6-luna", models: [] },

@@ -13,6 +13,7 @@ import {
 
 import { ActivityStream } from "@/components/chat/ActivityStream";
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
+import { useChatActivity } from "@/components/chat/chat-activity";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatErrorBanner } from "@/components/chat/ChatErrorBanner";
 import { SourcePassagePanel } from "@/components/chat/SourcePassagePanel";
@@ -38,6 +39,7 @@ import {
 } from "@/lib/chat-events";
 import {
   classifyChatError,
+  incompleteAgentTurnError,
   messageDataById,
   toUiMessages,
 } from "@/lib/chat-ui";
@@ -221,7 +223,19 @@ export function ChatPanel({
   });
 
   const isBusy = status === "submitted" || status === "streaming";
-  const chatError = error ? classifyChatError(error) : null;
+  const [turnStarted, setTurnStarted] = useState(false);
+  if (isBusy && !turnStarted) {
+    setTurnStarted(true);
+  }
+  const incompleteError =
+    error || isBusy || !turnStarted
+      ? null
+      : incompleteAgentTurnError(messages);
+  const chatError = error
+    ? classifyChatError(error)
+    : incompleteError
+      ? classifyChatError(incompleteError)
+      : null;
   const consumedInstructionIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -387,6 +401,13 @@ export function ChatPanel({
   // while workflow presence is still settling after the model turn ends.
   const liveAssistantMessage =
     Boolean(latestAssistantMessageId) && mountActivityStream;
+  const { setThreadBusy } = useChatActivity();
+
+  useEffect(() => {
+    const live = isBusy || mountActivityStream;
+    setThreadBusy(threadId, live);
+    return () => setThreadBusy(threadId, false);
+  }, [isBusy, mountActivityStream, setThreadBusy, threadId]);
 
   async function handleSubmit() {
     const text = input.trim();

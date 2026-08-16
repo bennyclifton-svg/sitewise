@@ -58,7 +58,7 @@ Check: Sequential replacement so one lift stays live. Strata approval and by-law
 
 **5. Roof replacement and waterproofing** — commercial / retail_standalone / refurb · XS
 
-> Metal roof on a standalone retail building is leaking badly. Replacing the roof sheeting and re-doing the box gutters. Tenant trading throughout. Around $160k.
+> Metal roof on a standalone retail building is leaking badly. Replacing the roof sheeting and re-doing the box gutters. Tenant trading throughout. Around $160k. Need a PMP.
 
 Check: Weather contingency and temporary weatherproofing. Trading-hours restrictions. Working at heights. Asbestos check on older roof. Building surveyor only if structural. Very short document.
 
@@ -110,7 +110,7 @@ Check: Multiple unrelated trades under one head contract. Council procurement ru
 
 **13. House, knock-down rebuild** — residential / house / new · M
 
-> Knock down rebuild at 123 Warrigal Street, Wollongong. Two storey, 4 bed 3 bath, double garage, pool. Clients are M & S Petrakis. Budget $1.6m, want to start on site early next year.
+> Knock down rebuild at 123 Warrigal Street, Wollongong. Two storey, 4 bed 3 bath, double garage, pool. Clients are M & S Petrakis. Budget $1.6m, want to start on site early next year. Need a PMP.
 
 Check: Demolition and enabling works. DA pathway. FFE schedule populated. Pool as a separate scope with fencing compliance. BASIX.
 
@@ -174,7 +174,7 @@ Check: Change of use and BCA classification change. Fire upgrade to current stan
 
 **23. Office, new** — commercial / office / new · L
 
-> New A-grade office building, 12 storeys, 18,000sqm NLA, target 5 star Green Star and 5.5 NABERS. CBD site. $140m.
+> New A-grade office building, 12 storeys, 18,000sqm NLA, target 5 star Green Star and 5.5 NABERS. CBD site. $140m. Need a PMP.
 
 Check: Green Star and NABERS as programme-critical, with commissioning and tuning. Base build vs tenant fitout boundary. Facade engineering. Developer/tenant decision split.
 
@@ -192,7 +192,7 @@ Check: Trading continuity as the governing constraint. Tenancy delivery and hand
 
 **26. Standalone retail** — commercial / retail_standalone / new · M
 
-> New standalone bulky goods retail building, 3,200sqm, on a highway site. Single tenant pre-committed. $7m.
+> New standalone bulky goods retail building, 3,200sqm, on a highway site. Single tenant pre-committed. $7m. Need a PMP.
 
 Check: Tenant agreement for lease driving specification. Highway access and RMS. Simple structure, fast programme. Shell vs fitout boundary.
 
@@ -226,7 +226,7 @@ Check: Underground fuel storage and EPA. Dangerous goods licensing. Civil and pa
 
 **31. Warehouse** — industrial / warehouse / new · M
 
-> New 12,000sqm warehouse with 800sqm office, 12m clear height, 8 recessed docks. Estate site in Eastern Creek. $18m.
+> New 12,000sqm warehouse with 800sqm office, 12m clear height, 8 recessed docks. Estate site in Eastern Creek. $18m. Need a PMP.
 
 Check: Clear height, dock count and floor flatness (FM2) as scale drivers. Portal frame. Slab specification. Estate design guidelines. Fire — early suppression.
 
@@ -244,13 +244,13 @@ Check: Process equipment interface and free-issue coordination. Services capacit
 
 **34. Cold storage** — industrial / cold_storage / new · L
 
-> Cold store, 8,000sqm, mix of chilled and frozen, minus 25 in the freezer chambers. Ammonia refrigeration. $45m.
+> Cold store, 8,000sqm, mix of chilled and frozen, minus 25 in the freezer chambers. Ammonia refrigeration. $45m. Need a PMP.
 
 Check: Ammonia safety, bunding and leak detection. Insulated panel fire risk. Vapour barrier and underfloor heating. Refrigeration as a specialist package. Pull-down commissioning.
 
 **35. Data centre** — industrial / data_centre / new · L
 
-> 15MW data centre, Tier III, on a greenfield site. Client wants N+1 across power and cooling. $180m.
+> 15MW data centre, Tier III, on a greenfield site. Client wants N+1 across power and cooling. $180m. Need a PMP.
 
 Check: Uptime Institute Tier certification. Power supply and substation lead time. Redundancy across every system. Level 1–5 commissioning. Security. Critical-path power authority approvals.
 
@@ -326,7 +326,7 @@ Check: Wet lab services and fume cupboards. Academic-calendar handover. Research
 
 **47. Hospital redevelopment** — institution / healthcare_hospital / refurb · L
 
-> Redeveloping the emergency department and adding two operating theatres at a regional hospital. Hospital fully operational, ED cannot close. $85m.
+> Redeveloping the emergency department and adding two operating theatres at a regional hospital. Hospital fully operational, ED cannot close. $85m. Need a PMP.
 
 Check: Australasian Health Facility Guidelines. Infection control risk assessment during construction. ED must stay live — staging is the entire problem. Medical gases. Clinical stakeholder governance. Commissioning with clinical staff.
 
@@ -366,7 +366,7 @@ Check: Security clearance for all workers and materials. Anti-ligature and secur
 
 **53. Residential over retail** — mixed / residential_retail / new · L
 
-> 8 storey mixed use — ground floor retail, 5 shops, with 54 apartments above. Site in Marrickville. $46m.
+> 8 storey mixed use — ground floor retail, 5 shops, with 54 apartments above. Site in Marrickville. $46m. Need a PMP.
 
 Check: Two building classifications in one structure. Fire separation between uses. Separate entries and services. Retail delivered as shell. Strata subdivision across uses.
 
@@ -424,7 +424,7 @@ Check: Track possessions govern everything. Rail safety accreditation and worker
 
 **62. Water treatment plant** — infrastructure / water_utilities / new · L
 
-> New water treatment plant, 40ML per day. Inlet works, filtration, chlorination, clear water storage, pumping. $180m.
+> New water treatment plant, 40ML per day. Inlet works, filtration, chlorination, clear water storage, pumping. $180m. Need a PMP.
 
 Check: Process design and treatment performance. Drinking water quality regulator. Process commissioning and proving. Utility asset standards. Long-term operability and maintenance access.
 

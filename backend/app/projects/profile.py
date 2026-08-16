@@ -36,6 +36,7 @@ from app.sitewise.taxonomy import (
 from app.projects.events import publish_project_event
 
 PROFILE_FIELDS: tuple[ProjectProfileField, ...] = (
+    "title",
     "building_class",
     "work_type",
     "subclasses",
@@ -206,6 +207,7 @@ def validate_profile_patch(
     errors.extend(_validate_assets(after))
     errors.extend(_validate_scope_narrative(after))
     errors.extend(_validate_budget(after))
+    errors.extend(_validate_title(after, patch))
     if after.state is not None and after.state not in SUPPORTED_STATES:
         errors.append(f"Unknown state: {after.state!r}")
     if errors:
@@ -234,6 +236,7 @@ def read_profile(project: Project) -> ProjectProfileView:
     return ProjectProfileView(
         project_id=project.id,
         profile_revision=getattr(project, "profile_revision", 1) or 1,
+        title=getattr(project, "title", "") or "",
         building_class=getattr(project, "building_class", None),
         work_type=getattr(project, "work_type", None),
         subclasses=_list_value(taxonomy.get("subclasses")),
@@ -402,6 +405,17 @@ def _validate_complexity(profile: ProjectProfileView) -> list[str]:
     return errors
 
 
+def _validate_title(
+    profile: ProjectProfileView,
+    patch: ProjectProfilePatch,
+) -> list[str]:
+    if "title" not in patch.model_fields_set:
+        return []
+    if not (profile.title or "").strip():
+        return ["title must not be blank"]
+    return []
+
+
 def _validate_budget(profile: ProjectProfileView) -> list[str]:
     """Budget is stored as the user's own words; it only has to contain a figure.
 
@@ -554,6 +568,8 @@ def _optional_text(value: Any) -> str | None:
 
 
 def _write_profile(project: Project, profile: ProjectProfileView) -> None:
+    if profile.title:
+        project.title = profile.title
     project.building_class = profile.building_class
     project.work_type = profile.work_type
     # Role is not user-editable; every project is pinned to the single role.

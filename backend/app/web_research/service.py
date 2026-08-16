@@ -7,9 +7,11 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
+from xml.etree import ElementTree
 
 import fitz
 from bs4 import BeautifulSoup
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,20 +168,35 @@ class WebResearchService:
         if self._page_fetcher is None:
             raise RuntimeError("web page fetcher is not configured")
 
-        page = await self._page_fetcher.fetch(url)
-        final_authority = _source_authority(page.url)
-        if final_authority is None:
+        from app.web_research.nsw_legislation import (
+            instrument_id_from_url,
+            is_nsw_legislation_url,
+            xml_export_url,
+        )
+
+        fetch_url = url
+        instrument_id = instrument_id_from_url(url)
+        if instrument_id and is_nsw_legislation_url(url):
+            fetch_url = xml_export_url(instrument_id)
+
+        page = await self._page_fetcher.fetch(fetch_url)
+        redirected_authority = _source_authority(page.url)
+        if redirected_authority is None and not is_nsw_legislation_url(page.url):
             raise ValueError("web source redirected outside official Australian government sites")
+        final_authority = redirected_authority or authority
         publisher, jurisdiction, authority_class, source_type = final_authority
-        if "application/pdf" in page.content_type.casefold():
+        content_type = page.content_type.casefold()
+        if "application/pdf" in content_type:
             title, text = await asyncio.to_thread(_extract_pdf, page.content)
+        elif "xml" in content_type or fetch_url != url:
+            title, text = extract_legislation_xml(page.content)
         else:
             title, text = _extract_html(page.content)
         if not text.strip():
             raise ValueError("web source contained no readable text")
         excerpt = _bounded_excerpt(text, section_hint=normalized_section)
         return WebSource(
-            url=_canonical_url(page.url),
+            url=_canonical_url(url),
             title=title[:500],
             publisher=publisher,
             jurisdiction=jurisdiction,
@@ -192,6 +209,33 @@ class WebResearchService:
             content_hash=hashlib.sha256(page.content).hexdigest(),
             retrieved_at=datetime.now(UTC).isoformat(),
         )
+
+
+def extract_legislation_xml(content: bytes) -> tuple[str, str]:
+    try:
+        root = ElementTree.fromstring(content)
+    except ElementTree.ParseError as exc:
+        raise ValueError("web source contained no readable text") from exc
+
+    texts = [
+        " ".join(item.split())
+        for item in root.itertext()
+        if item and item.split()
+    ]
+    if not texts:
+        raise ValueError("web source contained no readable text")
+
+    title = ""
+    for tag in ("title", "docTitle", "longtitle"):
+        element = root.find(f".//{tag}")
+        if element is None:
+            element = root.find(f".//{{*}}{tag}")
+        if element is not None and element.text and element.text.strip():
+            title = " ".join(element.text.split())
+            break
+    if not title:
+        title = texts[0]
+    return title, "\n".join(texts)
 
 
 def _extract_html(content: bytes) -> tuple[str, str]:

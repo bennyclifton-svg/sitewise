@@ -25,8 +25,32 @@ from ingest.consultant_firm import (
 _DISCIPLINE_TO_REGISTER: dict[str, str] = {
     "architect": "Architect",
     "architectural": "Architect",
+    "architectural services": "Architect",
     "structural": "Structural Engineer",
-    "civil": "Civil Engineer",
+    "structural engineering": "Structural Engineer",
+    "civil": "Civil / stormwater",
+    "civil engineering": "Civil / stormwater",
+    "civil and stormwater": "Civil / stormwater",
+    "civil / stormwater": "Civil / stormwater",
+    "civil and stormwater engineering": "Civil / stormwater",
+    "stormwater": "Civil / stormwater",
+    "town planning": "Town Planner",
+    "town planner": "Town Planner",
+    "planning": "Town Planner",
+    "certifier": "Building Certifier",
+    "certification": "Building Certifier",
+    "building certification": "Building Certifier",
+    "building certifier": "Building Certifier",
+    "principal certifier": "Building Certifier",
+    "surveyor": "Surveyor",
+    "quantity surveyor": "Quantity Surveyor",
+    "energy assessment": "BASIX / energy assessor",
+    "energy assessor": "BASIX / energy assessor",
+    "basix": "BASIX / energy assessor",
+    "heritage": "Heritage Consultant",
+    "arborist": "Arborist",
+    "bushfire": "Bushfire Consultant",
+    "bushfire consultant": "Bushfire Consultant",
     "geotechnical": "Geotechnical Engineer",
     "hydraulic": "Services Engineer (Hydraulic)",
     "electrical": "Services Engineer (Electrical)",
@@ -46,10 +70,13 @@ _DISCIPLINE_TO_REGISTER: dict[str, str] = {
     "hazmat": "Hazmat Consultant",
 }
 
+APPOINTED_STATUS = "Appointed"
+
 _STATUS_RANK = {
     "Report/drawings on file; appointment unverified": 1,
     "Certificate/DCD on file; appointment unverified": 2,
     "Engagement evidenced": 3,
+    APPOINTED_STATUS: 4,
 }
 
 _FIRM_PREFERENCE = {
@@ -82,12 +109,17 @@ def map_discipline_to_register_label(discipline: str | None) -> str | None:
     if not discipline:
         return None
     key = re.sub(r"\s+", " ", discipline).strip().lower()
+    key = re.sub(r"\s+(services|engineering|engineer)$", "", key).strip()
     if key in _DISCIPLINE_TO_REGISTER:
         return _DISCIPLINE_TO_REGISTER[key]
     # Already a taxonomy register label.
     if "engineer" in key or "consultant" in key or key == "architect":
         return discipline.strip()
     return None
+
+
+def object_id_for_discipline(register_label: str) -> str:
+    return _object_id_for_discipline(register_label)
 
 
 def evidence_status_for_kind(document_class: str | None, *, filename: str = "") -> str:
@@ -170,6 +202,8 @@ def upsert_consultant_fact_from_document(
         "evidence_kind": "design_document",
         "name": chosen_firm,
     }
+    if existing and existing.value.get("fee"):
+        value["fee"] = existing.value["fee"]
 
     expected = existing.revision if existing else 0
     try:

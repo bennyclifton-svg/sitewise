@@ -1,7 +1,7 @@
 import asyncio
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -45,6 +45,10 @@ from app.projects.consultant_facts import reconcile_project_consultant_facts
 from app.projects.generation_audit import generation_audit_provenance
 from app.projects.artefact_blocks import materialize_block_identity
 from app.projects.workflow_capabilities import CREATE_PMP, capability_block_message
+from app.sitewise.accommodation_schedule import (
+    accommodation_source_texts,
+    apply_accommodation_schedule_facts,
+)
 from app.sitewise.consultant_register import (
     apply_consultant_register_facts,
     citation_numbers_from_markdown,
@@ -195,6 +199,23 @@ def _apply_consultant_facts_to_markdown(markdown: str, project: Project) -> str:
         markdown,
         project=project,
         citation_numbers=citation_numbers_from_markdown(markdown),
+    )
+
+
+def _apply_accommodation_facts_to_markdown(
+    markdown: str,
+    project: Project,
+    source_texts: list[str] | None = None,
+    *,
+    documents: Sequence[Any] | None = None,
+) -> str:
+    return apply_accommodation_schedule_facts(
+        markdown,
+        project=project,
+        source_texts=accommodation_source_texts(
+            documents=documents or (),
+            fallback=source_texts,
+        ),
     )
 
 MOBILISATION_EVIDENCE_PATH_MARKERS: tuple[str, ...] = (
@@ -1845,6 +1866,7 @@ async def run_create_pmp_workflow(
         )
 
     active_corpus_documents: int | None = None
+    sweep_result = None
     if project_has_taxonomy(project):
         platform_passages = [
             passage for passage in passages if _is_platform_passage(passage)
@@ -2024,6 +2046,14 @@ async def run_create_pmp_workflow(
             output.markdown = normalize_pmp_markdown(output.markdown)
             output.markdown = _apply_consultant_facts_to_markdown(
                 output.markdown, project
+            )
+            output.markdown = _apply_accommodation_facts_to_markdown(
+                output.markdown,
+                project,
+                project_source_texts,
+                documents=(
+                    sweep_result.listing.documents if sweep_result is not None else None
+                ),
             )
             output = _apply_locked_decisions(output, locked_decisions)
             await _publish_preview(
@@ -2218,6 +2248,16 @@ async def run_create_pmp_workflow(
                     expanded.markdown = _apply_consultant_facts_to_markdown(
                         expanded.markdown, project
                     )
+                    expanded.markdown = _apply_accommodation_facts_to_markdown(
+                        expanded.markdown,
+                        project,
+                        project_source_texts,
+                        documents=(
+                            sweep_result.listing.documents
+                            if sweep_result is not None
+                            else None
+                        ),
+                    )
                     expanded = _apply_locked_decisions(expanded, locked_decisions)
                     validate_pmp_output(
                         expanded,
@@ -2349,6 +2389,23 @@ async def run_create_pmp_workflow(
                 "consultant_register",
                 "complete",
                 "Applied evidence-derived consultant firms to the Consultants register.",
+            )
+        )
+    patched_accommodation = _apply_accommodation_facts_to_markdown(
+        output.markdown,
+        project,
+        project_source_texts,
+        documents=(
+            sweep_result.listing.documents if sweep_result is not None else None
+        ),
+    )
+    if patched_accommodation != output.markdown:
+        output.markdown = patched_accommodation
+        trace.append(
+            _trace(
+                "accommodation_schedule",
+                "complete",
+                "Applied brief-table spaces to the Accommodation Schedule.",
             )
         )
 

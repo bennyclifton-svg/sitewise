@@ -187,6 +187,12 @@ def _disciplines_match(row_label: str, fact_label: str) -> bool:
         return True
     if "landscape" in left and "landscape" in right:
         return True
+    if "civil" in left and "civil" in right:
+        return True
+    if "town plan" in left and "town plan" in right:
+        return True
+    if "certif" in left and "certif" in right:
+        return True
     return False
 
 
@@ -251,14 +257,23 @@ def _row_for_discipline(
 
     fact = facts[matched_index]
     used_fact_indexes.add(matched_index)
+    fact_status = str(fact.get("status") or "")
+    fact_fee = str(fact.get("fee") or "").strip()
+    appointed = fact_status.casefold() == "appointed"
     if (
         not firm
         or firm.upper() in {"TBC", "—", "-"}
         or is_noise_firm_candidate(firm)
+        or appointed
     ):
         firm = fact["firm"]
-        status = fact["status"]
+        status = fact_status or status
         citation = _citation_for(fact["evidence_paths"], citation_numbers)
+    if fact_fee:
+        fee = fact_fee
+    if appointed:
+        status = fact_status
+        firm = fact["firm"]
     return _format_row(
         discipline=discipline,
         firm=firm,

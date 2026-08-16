@@ -117,6 +117,7 @@ export function ActivityStream({
         statusMessage: busy ? statusMessage : null,
         toolEvents,
         workflowLines,
+        busy,
       }),
     [busy, statusMessage, toolEvents, workflowLines],
   );
@@ -168,7 +169,7 @@ export function ActivityStream({
       ))}
       <div
         className={cn(
-          "mr-8 flex max-w-[92%] items-start gap-3 self-start text-sm",
+          "mr-8 flex max-w-[92%] items-end gap-3 self-start text-sm",
           className,
         )}
         role="status"
@@ -182,8 +183,8 @@ export function ActivityStream({
           <div
             ref={scrollerRef}
             className={cn(
-              "relative min-w-0 flex-1 overflow-hidden leading-5 text-muted-foreground",
-              visible.length > 1 ? "max-h-[3.75rem]" : "max-h-5",
+              "streaming-status-copy relative min-w-0 flex-1 overflow-hidden",
+              visible.length > 1 ? "max-h-[4.875rem]" : null,
               visible.length >= VISIBLE_LINES
                 ? "[mask-image:linear-gradient(to_bottom,transparent,black_28%,black)]"
                 : null,
@@ -192,19 +193,27 @@ export function ActivityStream({
             <ul className="flex flex-col justify-end gap-0.5">
               {visible.map((line, index) => {
                 const depth = visible.length - 1 - index;
+                const isLive = depth === 0;
                 return (
                   <li
                     key={line.id}
                     className={cn(
-                      "min-w-0 truncate transition-opacity duration-300 ease-out",
-                      depth === 0 && "text-foreground/90 opacity-100",
-                      depth === 1 && "opacity-45",
-                      depth >= 2 && "opacity-25",
-                      line.state === "error" && "text-destructive opacity-100",
+                      "min-w-0 leading-none transition-opacity duration-300 ease-out",
+                      isLive && "flex h-[34px] items-center",
+                      !isLive && depth === 1 && "leading-5 opacity-45",
+                      !isLive && depth >= 2 && "leading-5 opacity-25",
                     )}
                     title={line.label}
                   >
-                    {line.label}
+                    <span
+                      className={cn(
+                        "block w-full min-w-0 truncate",
+                        isLive && "streaming-status-live",
+                        line.state === "error" && "streaming-status-error",
+                      )}
+                    >
+                      {line.label}
+                    </span>
                   </li>
                 );
               })}

@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
+import { ChatActivityProvider, useChatActivity } from "@/components/chat/chat-activity";
 import type { PendingChatInstruction } from "@/components/chat/ChatPanel";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
@@ -158,7 +159,16 @@ export type ProjectCockpitOutletContext = {
 };
 
 export function ProjectCockpitPage() {
+  return (
+    <ChatActivityProvider>
+      <ProjectCockpitContents />
+    </ChatActivityProvider>
+  );
+}
+
+function ProjectCockpitContents() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { busyThreadIds } = useChatActivity();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -206,7 +216,6 @@ export function ProjectCockpitPage() {
     draftId: string;
     workflowType: string;
   } | null>(null);
-  const [isSavingTransmittal, setIsSavingTransmittal] = useState(false);
   const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
   const [selectedCitationId, setSelectedCitationId] = useState<string | null>(null);
   const [chatRevision, setChatRevision] = useState(0);
@@ -215,7 +224,7 @@ export function ProjectCockpitPage() {
   const [projectError, setProjectError] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatReloadToken, setChatReloadToken] = useState(0);
-  const [procurementError, setProcurementError] = useState<string | null>(null);
+  const procurementError = null;
   const [procurementRefreshToken, setProcurementRefreshToken] = useState(0);
   const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
   const [pendingChatInstruction, setPendingChatInstruction] =
@@ -262,6 +271,28 @@ export function ProjectCockpitPage() {
     active: isRunningSortFiles || pendingChatInstruction !== null,
     onEvent: reconcileArtefactEvent,
   });
+
+  useEffect(() => {
+    if (!transmittalSession) return;
+    const sessionDraftId = transmittalSession.draftId;
+    const viewingSessionDraft =
+      (activeView === "draft" && reviewDraft?.id === sessionDraftId) ||
+      (activeView === "workbench" &&
+        selectedWorkflowId === "procurement-requests" &&
+        reviewDraft?.id === sessionDraftId) ||
+      (activeView === "workbench" &&
+        selectedWorkflowId === "create-pmp" &&
+        latestDraft?.id === sessionDraftId);
+    if (!viewingSessionDraft) {
+      setTransmittalSession(null);
+    }
+  }, [
+    activeView,
+    latestDraft?.id,
+    reviewDraft?.id,
+    selectedWorkflowId,
+    transmittalSession,
+  ]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -449,6 +480,11 @@ export function ProjectCockpitPage() {
       setMessages(loadedMessages);
       setChatError(null);
     } catch (loadError) {
+      // A post-turn refresh must not unmount chat. Update PMP and other long
+      // runs can make this GET miss the default window; the thread is already open.
+      if (loadError instanceof ApiError && loadError.isNetworkError) {
+        return;
+      }
       setChatError(formatApiError(loadError, "Could not refresh project chat."));
     }
   }
@@ -539,41 +575,21 @@ export function ProjectCockpitPage() {
     await refreshWorkspaceTree();
   }
 
-  async function handleSaveTransmittal(evidenceIds: string[]) {
-    if (!project || !transmittalSession || isSavingTransmittal) return;
-    setIsSavingTransmittal(true);
-    setProcurementError(null);
-    try {
-      const current = await api.getProjectDraft(
-        project.id,
-        transmittalSession.draftId,
-      );
-      const updated = await api.replaceDraftTransmittal(
-        project.id,
-        current.id,
-        current.version,
-        evidenceIds,
-      );
-      await handleDraftUpdated(updated);
-      setTransmittalSession(null);
-    } catch (error) {
-      setProcurementError(
-        error instanceof ApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Could not save transmittal.",
-      );
-    } finally {
-      setIsSavingTransmittal(false);
-    }
-  }
-
   async function handleSelectThread(threadId: string) {
     setChatPanelCollapsed(false);
-    setChatLoading(true);
     setSelectedCitationId(null);
     setChatError(null);
+    if (thread?.id === threadId) return;
+    if (busyThreadIds.has(threadId)) {
+      const parked = queryClient
+        .getQueryData<ChatThread[]>(chatThreadQueryKey)
+        ?.find((candidate) => candidate.id === threadId);
+      if (parked) {
+        setThread(parked);
+        return;
+      }
+    }
+    setChatLoading(true);
     try {
       const loadedThread = await api.getThread(threadId);
       const loadedMessages = await api.getThreadMessages(threadId);
@@ -678,6 +694,9 @@ export function ProjectCockpitPage() {
     if (!trimmed) return;
     promoteChatFromComposer();
     setPendingChatInstruction({ id: Date.now(), text: trimmed });
+    if (chatError) {
+      setChatReloadToken((current) => current + 1);
+    }
   }
 
   // Nested tender routes render in the middle panel via <Outlet>. Any
@@ -918,6 +937,23 @@ export function ProjectCockpitPage() {
             onCreateSession: handleCreateThread,
             onActiveThreadDeleted: () => void handleActiveThreadDeleted(),
           }}
+          onRenameProject={async (title) => {
+            const updated = await api.updateProject(project.id, {
+              expected_revision: project.profile_revision ?? 1,
+              title,
+            });
+            const nextProject = {
+              ...project,
+              title: updated.profile.title || title,
+              profile_revision: updated.new_revision,
+            };
+            setProjectDetail(queryClient, nextProject);
+            setProjects((current) =>
+              current.map((item) =>
+                item.id === nextProject.id ? nextProject : item,
+              ),
+            );
+          }}
         />
       }
       chatPanel={
@@ -1029,11 +1065,14 @@ export function ProjectCockpitPage() {
             void refreshWorkspaceTree();
           }}
           usageHighlightArtefactId={usageHighlightArtefactId}
-          showSaveTransmittal={transmittalSession !== null}
-          isSavingTransmittal={isSavingTransmittal}
-          onSaveTransmittal={(evidenceIds) => {
-            void handleSaveTransmittal(evidenceIds);
-          }}
+          transmittalCuration={
+            transmittalSession !== null ||
+            (activeView === "workbench" &&
+              selectedWorkflowId === "procurement-requests") ||
+            (activeView === "draft" &&
+              activeDraft !== null &&
+              isProcurementDraftWorkflow(activeDraft.workflow_type))
+          }
         />
       }
     >
@@ -1086,6 +1125,7 @@ export function ProjectCockpitPage() {
             void handleDraftUpdated(draft);
           }}
           repositoryEvidence={evidence}
+          selectedEvidenceIds={selectedRepositoryEvidenceIds}
           onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
           onTransmittalSessionChange={setTransmittalSession}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
@@ -1147,6 +1187,7 @@ export function ProjectCockpitPage() {
           projectTitle={project.title}
           workflowType={activeWorkflowType}
           repositoryEvidence={evidence}
+          selectedEvidenceIds={selectedRepositoryEvidenceIds}
           onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
           onTransmittalSessionChange={setTransmittalSession}
           onDraftUpdated={(draft) => {

@@ -109,6 +109,28 @@ def test_evidence_preview_omits_content_when_not_requested() -> None:
     assert preview.content is None
 
 
+def test_evidence_preview_strips_markdown_emphasis_from_document_number() -> None:
+    preview = _evidence_preview_from_values(
+        document_id=uuid.UUID("99999999-9999-9999-9999-999999999999"),
+        document_type="Drawing",
+        metadata={
+            "document_number": "**A-000**",
+            "title": "**Cover Sheet and Drawing Register**",
+            "revision": "**C**",
+            "discipline": "Architectural",
+        },
+        filename="A-000.md",
+        relative_path="04-projects/demo/03-design/architect/A-000.md",
+        source_type="project_evidence",
+        document_class="drawing",
+        excerpt_source="Cover sheet",
+    )
+
+    assert preview.document_number == "A-000"
+    assert preview.title == "Cover Sheet and Drawing Register"
+    assert preview.revision == "C"
+
+
 def test_specification_preview_uses_filename_title_over_body_derived_metadata() -> None:
     preview = _evidence_preview_from_values(
         document_id=uuid.UUID("88888888-8888-8888-8888-888888888888"),

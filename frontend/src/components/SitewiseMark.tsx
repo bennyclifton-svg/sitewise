@@ -1,13 +1,18 @@
 import { cn } from "@/lib/utils";
 
 type SitewiseMarkProps = {
-  /** Rendered mark height in CSS pixels (clear space is added outside). */
+  /** Rendered mark height in CSS pixels. */
   size?: number;
   /**
    * `auto` uses mark.svg at ≥96px and mark-solid below that.
    * Pass `full` to force mark.svg at any size.
    */
   variant?: "auto" | "full" | "solid";
+  /**
+   * Brand stationery clear-space (`size / 3`). Product chrome should
+   * pass `false` so the seal sits on the type column, not in a padded tile.
+   */
+  padded?: boolean;
   className?: string;
   title?: string;
 };
@@ -19,6 +24,7 @@ type SitewiseMarkProps = {
 export function SitewiseMark({
   size = 48,
   variant = "auto",
+  padded = true,
   className,
   title = "SiteWise",
 }: SitewiseMarkProps) {
@@ -27,12 +33,12 @@ export function SitewiseMark({
   const src = useFull
     ? "/style-guide/logo/mark.svg"
     : "/style-guide/logo/mark-solid.svg";
-  const clear = size / 3;
+  const clear = padded ? size / 3 : 0;
 
   return (
     <span
       className={cn("inline-flex shrink-0 items-center justify-center", className)}
-      style={{ padding: clear }}
+      style={clear ? { padding: clear } : undefined}
       title={title}
     >
       <img

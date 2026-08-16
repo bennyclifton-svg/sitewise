@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ChatActivityProvider, useChatActivity } from "@/components/chat/chat-activity";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { api } from "@/lib/api";
 
@@ -45,7 +46,7 @@ vi.mock("@/lib/api", () => ({
     cancelAgentTurn: vi.fn(),
     getAgentModels: vi.fn().mockResolvedValue({
       agent_runtime_enabled: true,
-      default_model: "openai:gpt-5.6-terra",
+      default_model: "openai:gpt-5.6-luna",
       models: [],
     }),
     getLlmModels: vi.fn().mockResolvedValue({
@@ -64,7 +65,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
     data: {
       agent: {
         agent_runtime_enabled: true,
-        default_model: "openai:gpt-5.6-terra",
+        default_model: "openai:gpt-5.6-luna",
         models: [],
       },
       legacy: { default_model: "gpt-5.6-luna", models: [] },
@@ -127,6 +128,49 @@ function workflowMessage(id: string, runId: string) {
     ],
   };
 }
+
+function BusyProbe() {
+  const { busyThreadIds } = useChatActivity();
+  return <p>{[...busyThreadIds].join(",") || "idle"}</p>;
+}
+
+describe("ChatPanel live activity", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("publishes the thread as live while the agent is thinking", () => {
+    mockUseChat({ status: "streaming" });
+    render(
+      <ChatActivityProvider>
+        <ChatPanel threadId="thread-1" initialMessages={[]} agentMode />
+        <BusyProbe />
+      </ChatActivityProvider>,
+    );
+
+    expect(screen.getByText("thread-1")).toBeInTheDocument();
+  });
+
+  it("clears the live mark when the panel unmounts", () => {
+    mockUseChat({ status: "streaming" });
+    function Harness({ mounted }: { mounted: boolean }) {
+      return (
+        <ChatActivityProvider>
+          {mounted ? (
+            <ChatPanel threadId="thread-1" initialMessages={[]} agentMode />
+          ) : null}
+          <BusyProbe />
+        </ChatActivityProvider>
+      );
+    }
+
+    const { rerender } = render(<Harness mounted />);
+    expect(screen.getByText("thread-1")).toBeInTheDocument();
+    rerender(<Harness mounted={false} />);
+    expect(screen.getByText("idle")).toBeInTheDocument();
+  });
+});
 
 describe("ChatPanel stop control", () => {
   beforeEach(() => {
@@ -364,7 +408,7 @@ describe("ChatPanel agent model selection", () => {
   });
 
   it("sends the selected Pi model with agent chat requests", () => {
-    window.localStorage.setItem("clerk.agentModel.pi", "openai:gpt-5.6-sol");
+    window.localStorage.setItem("clerk.agentModel.v2", "xai:grok-4.6");
     renderPanel("ready");
 
     const config = transportMock.mock.calls[0][0] as {
@@ -383,7 +427,31 @@ describe("ChatPanel agent model selection", () => {
 
     expect(request.body).toMatchObject({
       thread_id: "thread-1",
-      agent_model: "openai:gpt-5.6-sol",
+      agent_model: "xai:grok-4.6",
+    });
+  });
+
+  it("remaps a stored Sol Thorough selection to Grok", () => {
+    window.localStorage.setItem("clerk.agentModel.v2", "openai:gpt-5.6-sol");
+    renderPanel("ready");
+
+    const config = transportMock.mock.calls[0][0] as {
+      prepareSendMessagesRequest: (input: {
+        id: string;
+        messages: unknown[];
+        body: Record<string, unknown>;
+      }) => { body: Record<string, unknown> };
+    };
+
+    const request = config.prepareSendMessagesRequest({
+      id: "thread-1",
+      messages: [],
+      body: {},
+    });
+
+    expect(request.body).toMatchObject({
+      thread_id: "thread-1",
+      agent_model: "xai:grok-4.6",
     });
   });
 

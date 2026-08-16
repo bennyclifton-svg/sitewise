@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   compareProcurementRequests,
   disciplinesFromPmpMarkdown,
+  latestRequest,
+  latestRequestForKind,
   mergeDisciplineOptions,
-  requestOptionLabel,
+  requestChipLabel,
 } from "@/lib/procurement-disciplines";
 import type { ProcurementRequest } from "@/lib/types/project";
 
@@ -49,19 +51,17 @@ describe("procurement-disciplines", () => {
     ).toEqual(["Certifier", "Structural engineer", "Architect"]);
   });
 
-  it("labels open-document options with kind and latest version", () => {
+  it("labels package chips with discipline and latest version", () => {
     const request = {
       kind: "consultant_rfp",
       target_name: "Structural engineer",
       revision: 1,
       current_draft: { version: 3 },
     } as ProcurementRequest;
-    expect(requestOptionLabel(request)).toBe(
-      "Consultant · Structural engineer · v3",
-    );
+    expect(requestChipLabel(request)).toBe("Structural engineer v3");
   });
 
-  it("orders open-document options by kind then discipline", () => {
+  it("orders package chips by kind then discipline", () => {
     const requests = [
       { kind: "trade_rft", target_name: "Main works" },
       { kind: "consultant_rfp", target_name: "Certifier" },
@@ -70,17 +70,37 @@ describe("procurement-disciplines", () => {
     ] as ProcurementRequest[];
     expect(
       [...requests].sort(compareProcurementRequests).map((request) =>
-        requestOptionLabel({
+        requestChipLabel({
           ...request,
           revision: 1,
           current_draft: null,
         } as ProcurementRequest),
       ),
     ).toEqual([
-      "Consultant · Architect · v1",
-      "Consultant · Certifier · v1",
-      "Supplier quote · Windows · v1",
-      "Trade package · Main works · v1",
+      "Architect v1",
+      "Certifier v1",
+      "Windows v1",
+      "Main works v1",
     ]);
+  });
+
+  it("picks the most recently updated request", () => {
+    const older = {
+      id: "architect",
+      kind: "consultant_rfp",
+      target_name: "Architect",
+      updated_at: "2026-08-01T00:00:00Z",
+    } as ProcurementRequest;
+    const newer = {
+      id: "structural",
+      kind: "consultant_rfp",
+      target_name: "Structural",
+      updated_at: "2026-08-10T00:00:00Z",
+    } as ProcurementRequest;
+    expect(latestRequest([older, newer])?.id).toBe("structural");
+    expect(latestRequestForKind([older, newer], "trade_rft")).toBeNull();
+    expect(latestRequestForKind([older, newer], "consultant_rfp")?.id).toBe(
+      "structural",
+    );
   });
 });

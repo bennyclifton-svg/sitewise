@@ -5,8 +5,9 @@ _REVISION_BRACKET_RE = re.compile(r"\[([A-Z0-9]+)\]\s*$")
 _REVISION_PAREN_RE = re.compile(r"-\((\d{2})\)\s*$")
 _SHEET_NUMBER_RE = re.compile(
     # Prefer CC-A-### before the shorter [A-Z]-### form so "CC-A-010" is not
-    # collapsed to the inner "A-010". Reject other mid-token hits.
-    r"(?<![A-Z0-9-])(CC-A-\d{3}|[A-Z]{1,3}-\d{2,4})(?![A-Z0-9-])",
+    # collapsed to the inner "A-010". A following hyphen is a title separator
+    # ("C-001-civil-notes"), not part of the sheet token.
+    r"(?<![A-Z0-9-])(CC-A-\d{3}|[A-Z]{1,3}-\d{2,4})(?![A-Z0-9])",
     re.IGNORECASE,
 )
 # Flat architectural exports: optional project no + CC-## + title + trailing rev.

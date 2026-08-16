@@ -125,6 +125,30 @@ def test_get_document_reads_ingested_text_by_document_id(monkeypatch) -> None:
     assert result.data["relative_path"] == "04-projects/test-project/_inbox/Specification.docx"
     assert result.data["content"] == content[:32]
     assert result.data["content_truncated"] is True
+    assert result.data["source_type"] == "project_evidence"
+    assert result.data["knowledge_scope"] is None
+
+
+def test_get_document_labels_official_planning_instruments(monkeypatch) -> None:
+    content = "4.15 Evaluation. A consent authority is to take into consideration."
+    document = _source_document(content)
+    document.source_type = "reference"
+    document.document_class = "planning_instrument"
+    document.document_metadata = {
+        "knowledge_scope": "official",
+        "official_url": "https://legislation.nsw.gov.au/view/whole/html/inforce/current/act-1979-203",
+    }
+    session = _Session(project=_project(), source_document=document)
+    server = _install(monkeypatch, session)
+
+    result = _call(
+        server,
+        {"project_id": str(PROJECT_ID), "document_id": str(DOCUMENT_ID)},
+    )
+
+    assert result.data["source_type"] == "reference"
+    assert result.data["document_class"] == "planning_instrument"
+    assert result.data["knowledge_scope"] == "official"
 
 
 def test_get_document_reads_ingested_text_by_workspace_path(monkeypatch) -> None:

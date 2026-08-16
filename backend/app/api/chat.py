@@ -110,7 +110,7 @@ _PLATFORM_KNOWLEDGE_TRACE_TOOLS = {
     "search_platform_knowledge",
     "read_platform_knowledge",
 }
-_WEB_TRACE_TOOLS = {"search_web", "read_web_source"}
+_WEB_TRACE_TOOLS = {"search_web", "read_web_source", "attach_official_instrument"}
 _WEB_SOURCE_TRACE_FIELDS = (
     "url",
     "title",
@@ -317,6 +317,39 @@ async def _persist_agent_user_message(
         message_data={"agent": {"runtime": runtime}},
     )
     return fallback_title
+
+
+INTERRUPTED_TURN_MESSAGE = (
+    "This turn was interrupted before Pi finished. Please try again."
+)
+TIMEOUT_TURN_MESSAGE = "Pi took too long to respond. Please try again."
+FAILED_TURN_MESSAGE = "Pi could not complete this turn. Please try again."
+ALREADY_RUNNING_TURN_MESSAGE = "An agent turn is already running for this chat."
+
+
+async def _persist_incomplete_agent_turn(
+    session: AsyncSession,
+    *,
+    thread_id: uuid.UUID,
+    project_id: uuid.UUID,
+    turn_id: uuid.UUID,
+    content: str,
+    runtime: str,
+    source_trace: dict[str, Any] | None = None,
+    terminal_events: list[dict[str, Any]] | None = None,
+) -> None:
+    await revoke_agent_turn(session, turn_id)
+    await _persist_agent_assistant_message(
+        session,
+        thread_id=thread_id,
+        project_id=project_id,
+        turn_id=turn_id,
+        content=content,
+        runtime=runtime,
+        source_trace=source_trace,
+        terminal_events=terminal_events,
+    )
+    await session.commit()
 
 
 async def _persist_agent_assistant_message(
@@ -796,6 +829,7 @@ async def post_agent_stream(
         answer_parts: list[str] = []
         tool_status_events: list[Mapping[str, Any]] = []
         completed = False
+        failure_message: str | None = None
         first_text_ms: int | None = None
         title_task = (
             asyncio.create_task(generate_thread_title(user_text, ""))
@@ -857,25 +891,28 @@ async def post_agent_stream(
                     async for event in relay_agent_turn(agent_chunks(), status=traced_statuses):
                         yield event
         except AgentTurnAlreadyRunning:
+            failure_message = ALREADY_RUNNING_TURN_MESSAGE
             log.warning(
                 "agent_stream_already_running",
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
             )
-            async for event in stream_error("An agent turn is already running for this chat."):
+            async for event in stream_error(failure_message):
                 yield event
             return
         except asyncio.CancelledError:
+            failure_message = INTERRUPTED_TURN_MESSAGE
             log.info(
                 "agent_stream_cancelled",
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
             )
-            async for event in stream_error("Agent turn cancelled."):
+            async for event in stream_error(failure_message):
                 yield event
             return
         except PiTurnTimeout:
+            failure_message = TIMEOUT_TURN_MESSAGE
             log.warning(
                 "agent_stream_timeout",
                 user_id=str(user.id),
@@ -883,10 +920,11 @@ async def post_agent_stream(
                 turn_id=str(turn_id),
                 agent_runtime=agent_runtime,
             )
-            async for event in stream_error("Pi took too long to respond. Please try again."):
+            async for event in stream_error(failure_message):
                 yield event
             return
         except PiTurnError as exc:
+            failure_message = FAILED_TURN_MESSAGE
             log.warning(
                 "agent_stream_failed",
                 user_id=str(user.id),
@@ -895,7 +933,7 @@ async def post_agent_stream(
                 agent_runtime=agent_runtime,
                 error_type=type(exc).__name__,
             )
-            async for event in stream_error("Pi could not complete this turn. Please try again."):
+            async for event in stream_error(failure_message):
                 yield event
             return
         finally:
@@ -904,9 +942,26 @@ async def post_agent_stream(
                     title_task.cancel()
                     with suppress(asyncio.CancelledError):
                         await title_task
-                async with factory() as revoke_session:
-                    await revoke_agent_turn(revoke_session, turn_id)
-                    await revoke_session.commit()
+                partial = "".join(answer_parts).rstrip()
+                message = failure_message or INTERRUPTED_TURN_MESSAGE
+                content = f"{partial}\n\n{message}" if partial else message
+
+                async def finalize_incomplete_turn() -> None:
+                    async with factory() as failed_session:
+                        await _persist_incomplete_agent_turn(
+                            failed_session,
+                            thread_id=body.thread_id,
+                            project_id=thread.project_id,
+                            turn_id=turn_id,
+                            content=content,
+                            runtime=agent_runtime,
+                            source_trace=_agent_source_trace(tool_status_events),
+                            terminal_events=_sanitized_terminal_events(
+                                tool_status_events
+                            ),
+                        )
+
+                await asyncio.shield(finalize_incomplete_turn())
 
         if completed:
             content = "".join(answer_parts)

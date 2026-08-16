@@ -450,7 +450,7 @@ export function CubeTumbleMark() {
   return (
     <span
       ref={rootRef}
-      className="streaming-cube relative inline-block shrink-0 overflow-visible"
+      className="streaming-cube relative block shrink-0 overflow-visible"
       style={{ width: MARK_SIZE, height: MARK_SIZE }}
       aria-hidden="true"
     >
@@ -482,7 +482,7 @@ export function StreamingIndicator({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 text-sm text-muted-foreground",
+        "flex items-center gap-3 text-sm",
         className ?? "mr-8 max-w-[92%] self-start",
       )}
       role="status"
@@ -491,14 +491,19 @@ export function StreamingIndicator({
     >
       <CubeTumbleMark />
       {label || detail ? (
-        <div className="min-w-0">
+        <div className="streaming-status-copy flex min-h-[34px] min-w-0 flex-col justify-center gap-1">
           {label ? (
-            <p className={cn("truncate", detail ? "font-medium text-foreground" : undefined)}>
+            <p
+              className={cn(
+                "streaming-status-live truncate leading-none",
+                detail ? "font-medium" : undefined,
+              )}
+            >
               {label}
             </p>
           ) : null}
           {detail ? (
-            <p className="truncate text-xs text-muted-foreground">{detail}</p>
+            <p className="truncate text-xs leading-none opacity-55">{detail}</p>
           ) : null}
         </div>
       ) : null}

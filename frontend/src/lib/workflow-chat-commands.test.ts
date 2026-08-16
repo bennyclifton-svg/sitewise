@@ -12,6 +12,7 @@ describe("workflowChatCommand", () => {
     expect(workflowChatCommand("create_cost_plan")).toBe("Create cost plan");
     expect(workflowChatCommand("refresh_cost_plan")).toBe("Refresh cost plan");
     expect(workflowChatCommand("process_invoices")).toBe("Process invoices");
+    expect(workflowChatCommand("create_programme")).toBe("Create a program");
   });
 });
 

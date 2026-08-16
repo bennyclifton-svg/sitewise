@@ -100,6 +100,22 @@ def parse_procurement_stage(relative_path: str) -> dict[str, str]:
     return {}
 
 
+_PLANNING_INSTRUMENT_RE = re.compile(
+    r"local environmental plan|\bdevelopment control plan\b|\blep\b|\bdcp\b",
+    re.IGNORECASE,
+)
+_PLANNING_INSTRUMENT_EXCLUDE_RE = re.compile(
+    r"\b(assessment|report|statement|review)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_planning_instrument(filename: str) -> bool:
+    if not _PLANNING_INSTRUMENT_RE.search(filename):
+        return False
+    return _PLANNING_INSTRUMENT_EXCLUDE_RE.search(filename) is None
+
+
 def _filename_hints(filename: str) -> DocumentClass | None:
     lowered = filename.lower()
     if any(token in lowered for token in ("contract", "agreement", "deed", "fioa")):
@@ -147,7 +163,9 @@ def classify_entry(entry: ManifestEntry) -> Classification:
         document_class = "eoi"
     elif metadata.get("procurement_stage") == "tep":
         document_class = "tep"
-    elif extension in _DRAWING_EXTENSIONS or (extension == ".pdf" and _looks_like_drawing(filename)):
+    elif extension in _DRAWING_EXTENSIONS or (
+        extension in {".pdf", ".md"} and _looks_like_drawing(filename)
+    ):
         document_class = "drawing"
         metadata.setdefault("format", extension.lstrip(".") or "pdf")
         identity = parse_drawing_filename(filename)
@@ -157,6 +175,8 @@ def classify_entry(entry: ManifestEntry) -> Classification:
             metadata.setdefault("revision", identity.revision)
         if identity.title:
             metadata.setdefault("title", identity.title)
+    elif _looks_like_planning_instrument(filename):
+        document_class = "planning_instrument"
     elif extension in {".xlsx", ".xls", ".csv"}:
         document_class = "schedule"
     elif extension in {".msg", ".eml"}:

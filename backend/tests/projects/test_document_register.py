@@ -52,6 +52,33 @@ def test_register_rows_keep_ui_identity_and_search_structured_metadata() -> None
     ) == []
 
 
+def test_register_rows_strip_markdown_emphasis_from_document_number() -> None:
+    source = SimpleNamespace(
+        id=_id(5),
+        relative_path="04-projects/demo/03-design/architect/A-000.md",
+        filename="A-000.md",
+        document_type="Drawing",
+        document_class="drawing",
+        document_metadata={
+            "document_number": "**A-000**",
+            "title": "**Cover Sheet and Drawing Register**",
+            "revision": "**C**",
+            "discipline": "Architectural",
+        },
+    )
+    workspace = SimpleNamespace(
+        id=_id(6),
+        workspace_path="04-projects/demo/03-design/architect/A-000.md",
+        filename="A-000.md",
+    )
+
+    rows = build_document_register_rows([source], [workspace])
+
+    assert rows[0].document_number == "A-000"
+    assert rows[0].title == "Cover Sheet and Drawing Register"
+    assert rows[0].revision == "C"
+
+
 def test_register_excludes_unavailable_source_and_includes_unindexed_inbox_file() -> None:
     stale_source = SimpleNamespace(
         id=_id(3),

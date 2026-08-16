@@ -103,6 +103,79 @@ def test_router_selects_odl_for_drawing_pdf():
     assert plan.chunker == "register"
 
 
+def test_classify_markdown_civil_sheet_as_drawing():
+    entry = _entry(
+        "04-projects/newtown-extension-2/_inbox/"
+        "C-001-civil-notes-legend-and-abbreviations.md",
+        extension=".md",
+    )
+    classification = classify_entry(entry)
+    assert classification.document_class == "drawing"
+    assert classification.ingest_mode == "register_only"
+    assert classification.document_metadata["drawing_number"] == "C-001"
+
+    context = infer_project_context(entry.relative_path)
+    plan = build_ingest_plan(entry, context, classification)
+    assert plan.extractor == "markdown"
+    assert plan.chunker == "register"
+
+
+def test_classify_markdown_fee_proposal_is_not_a_drawing():
+    entry = _entry(
+        "04-projects/newtown-extension-2/_inbox/"
+        "catchment-civil-hydraulic-cch-p2604.md",
+        extension=".md",
+    )
+    classification = classify_entry(entry)
+    assert classification.document_class != "drawing"
+
+
+def test_classify_lep_filename_as_planning_instrument():
+    entry = _entry("delivery-newtown/official/Inner-West-LEP-2022.pdf")
+    classification = classify_entry(entry)
+    assert classification.document_class == "planning_instrument"
+    assert classification.ingest_mode == "full_text"
+
+
+def test_router_selects_rtf_for_planning_instrument_upload():
+    entry = _entry(
+        "04-projects/newtown/_inbox/Inner-West-LEP-2022.rtf",
+        extension=".rtf",
+    )
+    classification = classify_entry(entry)
+    context = infer_project_context(entry.relative_path)
+    plan = build_ingest_plan(entry, context, classification)
+
+    assert classification.document_class == "planning_instrument"
+    assert plan.extractor == "rtf"
+    assert plan.chunker == "prose"
+
+
+def test_router_selects_rtf_for_generic_rich_text_upload():
+    entry = _entry(
+        "04-projects/newtown/_inbox/iwlep2022344.rtf",
+        extension=".rtf",
+    )
+    classification = classify_entry(entry)
+    context = infer_project_context(entry.relative_path)
+    plan = build_ingest_plan(entry, context, classification)
+
+    assert plan.extractor == "rtf"
+    assert plan.chunker == "prose"
+
+
+def test_classify_dcp_filename_as_planning_instrument():
+    entry = _entry("delivery-newtown/_inbox/Inner West DCP 2022.pdf")
+    classification = classify_entry(entry)
+    assert classification.document_class == "planning_instrument"
+
+
+def test_classify_does_not_treat_dcp_assessment_report_as_instrument():
+    entry = _entry("delivery-newtown/_inbox/Heritage DCP assessment report.pdf")
+    classification = classify_entry(entry)
+    assert classification.document_class == "report"
+
+
 def test_router_selects_odl_for_project_pdf_upload():
     entry = _entry("04-projects/caves-beach-reno/_inbox/Kaposi.pdf")
     context = infer_project_context(entry.relative_path)

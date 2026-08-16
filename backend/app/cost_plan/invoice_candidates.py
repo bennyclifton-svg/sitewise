@@ -13,13 +13,18 @@ from app.database.workspace_file import WorkspaceFile
 
 
 _INVOICE_HEADING_RE = re.compile(
-    r"^#\s+(?:tax\s+)?invoice(?:\s*/\s*progress\s+claim)?\s*$",
+    r"^#\s+(?:tax\s+)?invoice\b",
     re.IGNORECASE | re.MULTILINE,
 )
 _INVOICE_NUMBER_RE = re.compile(
-    r"^\*\*invoice\s+(?:number|no\.?):\*\*\s*\S+",
+    r"(?:"
+    r"^\*\*invoice\s+(?:number|no\.?):\*\*\s*\S+"
+    r"|"
+    r"^\|\s*\*\*invoice\s+(?:number|no\.?)\*\*\s*\|"
+    r")",
     re.IGNORECASE | re.MULTILINE,
 )
+_INVOICE_FILENAME_RE = re.compile(r"(?:invoice|\binv[-_])", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +38,7 @@ class InvoiceCandidate:
 
 
 def is_invoice_document(*, filename: str, content: str) -> bool:
-    filename_hint = "invoice" in filename.lower()
+    filename_hint = _INVOICE_FILENAME_RE.search(filename) is not None
     return bool(
         _INVOICE_HEADING_RE.search(content)
         or (filename_hint and _INVOICE_NUMBER_RE.search(content))
@@ -138,7 +143,10 @@ async def discover_invoice_candidates(
     for document, workspace_file in rows:
         if workspace_file is not None and workspace_file.ingest_status != "ingested":
             continue
-        if not is_invoice_document(
+        # An explicit selection is the user's invoice even if the heading
+        # heuristic has not seen this layout before. Extraction then accepts
+        # the file or records a precise error instead of failing the run.
+        if source_document_ids is None and not is_invoice_document(
             filename=document.filename,
             content=document.normalized_content,
         ):

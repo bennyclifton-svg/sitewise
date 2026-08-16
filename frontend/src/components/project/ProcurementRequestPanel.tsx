@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
-import { MenuSelect } from "@/components/ui/menu-select";
 import { SuggestionField } from "@/components/ui/suggestion-field";
 import { api } from "@/lib/api";
 import {
@@ -19,8 +18,10 @@ import {
   DEFAULT_TRADE_PACKAGES,
   disciplinesFromPmpMarkdown,
   kindShortLabel,
+  latestRequest,
+  latestRequestForKind,
   mergeDisciplineOptions,
-  requestOptionLabel,
+  requestChipLabel,
 } from "@/lib/procurement-disciplines";
 import type {
   DraftArtifact,
@@ -61,6 +62,16 @@ const KIND_OPTIONS: Array<{
   },
 ];
 
+function isRunnableKind(
+  value: ProcurementRequestKind,
+): value is RunnableProcurementRequestKind {
+  return (
+    value === "consultant_rfp" ||
+    value === "trade_rft" ||
+    value === "trade_rfq"
+  );
+}
+
 export function ProcurementRequestPanel({
   project,
   error,
@@ -70,6 +81,7 @@ export function ProcurementRequestPanel({
   onDraftSelected,
   onDraftUpdated,
   repositoryEvidence = [],
+  selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
 }: {
@@ -86,6 +98,7 @@ export function ProcurementRequestPanel({
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
   repositoryEvidence?: EvidencePreview[];
+  selectedEvidenceIds?: Set<string>;
   onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
   onTransmittalSessionChange?: (
     session: { draftId: string; workflowType: string } | null,
@@ -98,17 +111,39 @@ export function ProcurementRequestPanel({
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const reportedDraftId = useRef<string | null>(null);
+  const knownIds = useRef<Set<string>>(new Set());
+  const loadedProjectId = useRef(project.id);
 
   useEffect(() => {
     let cancelled = false;
+    if (loadedProjectId.current !== project.id) {
+      loadedProjectId.current = project.id;
+      knownIds.current = new Set();
+    }
     void api
       .listProcurementRequests(project.id)
       .then((next) => {
         if (cancelled) return;
+        const newcomers = next.filter((request) => !knownIds.current.has(request.id));
+        knownIds.current = new Set(next.map((request) => request.id));
+        const runnable = next.filter((request) => isRunnableKind(request.kind));
+        if (newcomers.length) {
+          const pick = latestRequest(
+            newcomers.filter((request) => isRunnableKind(request.kind)),
+          );
+          if (pick && isRunnableKind(pick.kind)) {
+            setKind(pick.kind);
+            setSelectedRequestId(pick.id);
+          }
+        } else {
+          setSelectedRequestId((current) => {
+            if (current && next.some((request) => request.id === current)) {
+              return current;
+            }
+            return latestRequest(runnable)?.id ?? null;
+          });
+        }
         setRequests(next);
-        setSelectedRequestId((current) =>
-          current && next.some((request) => request.id === current) ? current : null,
-        );
         setLoadError(null);
       })
       .catch(() => {
@@ -142,6 +177,13 @@ export function ProcurementRequestPanel({
   const selectedRequest = useMemo(
     () => requests.find((request) => request.id === selectedRequestId) ?? null,
     [requests, selectedRequestId],
+  );
+  const visibleRequests = useMemo(
+    () =>
+      requests
+        .filter((request) => request.kind === kind)
+        .sort(compareProcurementRequests),
+    [kind, requests],
   );
 
   useEffect(() => {
@@ -179,6 +221,12 @@ export function ProcurementRequestPanel({
     );
   }, [kind, pmpDisciplines, requests]);
 
+  function selectKind(next: RunnableProcurementRequestKind) {
+    setKind(next);
+    setDiscipline("");
+    setSelectedRequestId(latestRequestForKind(requests, next)?.id ?? null);
+  }
+
   function submit() {
     const target = discipline.trim();
     if (!target || !supported) return;
@@ -201,20 +249,17 @@ export function ProcurementRequestPanel({
         </p>
       ) : null}
 
-      <div>
-        <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center">
-          <MenuSelect
-            id="procurement-kind"
-            value={kind}
-            options={KIND_OPTIONS}
-            aria-label="Request type"
-            onChange={(next) => {
-              setKind(next as RunnableProcurementRequestKind);
-              setDiscipline("");
-            }}
-          />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <WorkbenchTabs
+          label="Request type"
+          value={kind}
+          options={KIND_OPTIONS}
+          onChange={selectKind}
+        />
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <SuggestionField
             id="procurement-discipline"
+            className="w-56"
             value={discipline}
             suggestions={disciplineOptions}
             aria-label="Discipline"
@@ -234,28 +279,16 @@ export function ProcurementRequestPanel({
         </div>
       </div>
 
-      {requests.length ? (
-        <div className="grid gap-1.5">
-          <MenuSelect
-            id="procurement-open"
-            value={selectedRequestId ?? ""}
-            aria-label="Open procurement request"
-            placeholder="Select a package to view or open"
-            options={[
-              { value: "", label: "Select a package to view or open" },
-              ...[...requests]
-                .sort(compareProcurementRequests)
-                .map((request) => ({
-                  value: request.id,
-                  label: requestOptionLabel(request),
-                })),
-            ]}
-            onChange={(next) => setSelectedRequestId(next || null)}
-          />
-          <p className="text-xs text-muted-foreground">
-            Latest version opens automatically — no draft acceptance step.
-          </p>
-        </div>
+      {visibleRequests.length ? (
+        <WorkbenchTabs
+          label="Open procurement request"
+          value={selectedRequestId ?? ""}
+          options={visibleRequests.map((request) => ({
+            value: request.id,
+            label: requestChipLabel(request),
+          }))}
+          onChange={setSelectedRequestId}
+        />
       ) : (
         <p className="text-sm text-muted-foreground">
           No requests yet. Create the first one above.
@@ -271,6 +304,7 @@ export function ProcurementRequestPanel({
             projectTitle={project.title}
             embedded
             repositoryEvidence={repositoryEvidence}
+            selectedEvidenceIds={selectedEvidenceIds}
             onSelectEvidenceIds={onSelectEvidenceIds}
             onTransmittalSessionChange={onTransmittalSessionChange}
             onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
@@ -281,6 +315,35 @@ export function ProcurementRequestPanel({
           The current document will appear here when it is ready.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function WorkbenchTabs<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1" role="tablist" aria-label={label}>
+      {options.map((option) => (
+        <Button
+          key={option.value}
+          size="sm"
+          variant={value === option.value ? "default" : "ghost"}
+          role="tab"
+          aria-selected={value === option.value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
     </div>
   );
 }

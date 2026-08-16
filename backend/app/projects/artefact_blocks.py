@@ -31,12 +31,16 @@ _MARKER_RE = re.compile(
     r"<!--\s*clerk:block\s+id=(?P<id>blk_[a-f0-9]{32})\s*-->",
     re.IGNORECASE,
 )
-_MARKER_LINE_RE = re.compile(
-    rf"^[ \t]*{_MARKER_RE.pattern}[ \t]*(?:\r?\n|$)",
+_VISIBLE_MARKER_RE = re.compile(
+    r"<!--\s*clerk:block\b[^>]*-->",
+    re.IGNORECASE,
+)
+_VISIBLE_MARKER_LINE_RE = re.compile(
+    rf"^[ \t]*{_VISIBLE_MARKER_RE.pattern}[ \t]*(?:\r?\n|$)",
     re.IGNORECASE | re.MULTILINE,
 )
-_END_MARKER_RE = re.compile(
-    rf" ?{_MARKER_RE.pattern}(?=[ \t]*(?:\r?$))",
+_VISIBLE_END_MARKER_RE = re.compile(
+    rf" ?{_VISIBLE_MARKER_RE.pattern}(?=[ \t]*(?:\r?$))",
     re.IGNORECASE | re.MULTILINE,
 )
 _LIST_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+[.)])\s+\S")
@@ -139,9 +143,9 @@ class IncrementalMergeResult:
 
 def strip_block_markers(markdown: str) -> str:
     """Remove internal provenance syntax from presentation/export Markdown."""
-    without_marker_lines = _MARKER_LINE_RE.sub("", markdown)
-    without_end_markers = _END_MARKER_RE.sub("", without_marker_lines)
-    return _MARKER_RE.sub("", without_end_markers)
+    without_marker_lines = _VISIBLE_MARKER_LINE_RE.sub("", markdown)
+    without_end_markers = _VISIBLE_END_MARKER_RE.sub("", without_marker_lines)
+    return _VISIBLE_MARKER_RE.sub("", without_end_markers)
 
 
 def detach_block_marker(value: str) -> tuple[str, str | None]:

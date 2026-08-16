@@ -42,7 +42,7 @@ def test_profile_patch_exposes_only_submitted_normalized_changes() -> None:
 
 def test_profile_patch_rejects_fields_outside_the_profile_contract() -> None:
     with pytest.raises(ValidationError):
-        ProjectProfilePatch(expected_revision=1, title="Silent generic mutation")
+        ProjectProfilePatch(expected_revision=1, slug="silent-generic-mutation")
 
 
 def test_profile_change_contains_complete_profile_and_derived_state() -> None:

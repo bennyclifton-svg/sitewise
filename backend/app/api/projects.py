@@ -87,6 +87,8 @@ from app.schemas.projects import (
     ReplaceDraftTransmittalRequest,
     ReplaceDraftTransmittalResponse,
     ApplyCostPlanOperationsRequest,
+    ApplyProgrammeOperationsRequest,
+    SetProgrammeViewRequest,
     DependencyOfferAcceptRequest,
     DependencyOfferRejectRequest,
     FailedInstructionResponse,
@@ -195,6 +197,16 @@ from app.cost_plan.workbook_rebuild import (
     flush_cost_plan_workbook_rebuild,
     schedule_cost_plan_workbook_rebuild,
 )
+from app.programme.figure import render_programme_svg
+from app.programme.schemas import ProgrammeState, ProgrammeViewUpdate
+from app.programme.service import (
+    ProgrammeNotFound,
+    ProgrammeRevisionConflict,
+    apply_programme_operations,
+    ensure_programme,
+    get_programme,
+    set_programme_view,
+)
 from app.projects.artefact_adapters import (
     accept_workflow_artefact,
     revise_workflow_artefact,
@@ -294,6 +306,7 @@ from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.consultant_procurement import (
     sync_consultant_procurement_draft_workspace,
 )
+from ingest.document_metadata import strip_markdown_emphasis
 from ingest.hashing import bytes_content_hash
 from app.workflows.contractor_procurement import sync_contractor_eoi_draft_workspace
 from app.workflows.create_cost_plan import (
@@ -462,7 +475,10 @@ def _metadata_text(metadata: dict | None, key: str) -> str | None:
     if not metadata:
         return None
     value = metadata.get(key)
-    return value if isinstance(value, str) and value.strip() else None
+    if not isinstance(value, str):
+        return None
+    stripped = strip_markdown_emphasis(" ".join(value.split()))
+    return stripped or None
 
 
 def _filename_title(filename: str) -> str:
@@ -2983,6 +2999,108 @@ async def apply_project_cost_plan_operations(
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return result.delta
+
+
+@router.get("/{project_id}/programme/state")
+async def get_project_programme_state(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProgrammeState:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        return await get_programme(session, project_id=project_id)
+    except ProgrammeNotFound as exc:
+        raise HTTPException(status_code=404, detail="Programme not found") from exc
+
+
+@router.post("/{project_id}/programme/ensure")
+async def ensure_project_programme(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProgrammeState:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    state = await ensure_programme(
+        session, project=project, author_user_id=user.id
+    )
+    await session.commit()
+    return state
+
+
+@router.post("/{project_id}/programme/operations")
+async def apply_project_programme_operations(
+    project_id: uuid.UUID,
+    body: ApplyProgrammeOperationsRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProgrammeState:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        state = await apply_programme_operations(
+            session,
+            project=project,
+            author_user_id=user.id,
+            expected_base_version=body.expected_base_version,
+            operations=body.operations,
+        )
+        await session.commit()
+    except ProgrammeRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ProgrammeNotFound as exc:
+        raise HTTPException(status_code=404, detail="Programme not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return state
+
+
+@router.patch("/{project_id}/programme/view")
+async def patch_project_programme_view(
+    project_id: uuid.UUID,
+    body: SetProgrammeViewRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProgrammeState:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        state = await set_programme_view(
+            session,
+            project=project,
+            author_user_id=user.id,
+            expected_base_version=body.expected_base_version,
+            update=ProgrammeViewUpdate(
+                view_scale=body.view_scale,
+                pmp_embed_visible=body.pmp_embed_visible,
+            ),
+        )
+        await session.commit()
+    except ProgrammeRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ProgrammeNotFound as exc:
+        raise HTTPException(status_code=404, detail="Programme not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return state
+
+
+@router.get("/{project_id}/programme/figure.svg")
+async def get_project_programme_figure(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        state = await get_programme(session, project_id=project_id)
+    except ProgrammeNotFound as exc:
+        raise HTTPException(status_code=404, detail="Programme not found") from exc
+    return Response(
+        content=render_programme_svg(state),
+        media_type="image/svg+xml",
+    )
 
 
 @router.get("/{project_id}/knowledge")

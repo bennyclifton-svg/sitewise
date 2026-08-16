@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   addCostItemOptimistically,
@@ -8,17 +8,21 @@ import {
   calculateCostPlanTotals,
   claimedAmountsByItem,
   costPlanCategories,
+  costPlanTabStorageKey,
   DEFAULT_COST_PLAN_CATEGORIES,
+  DEFAULT_COST_PLAN_TAB,
   duplicateCostItemOptimistically,
   formatCostPlanMoney,
   lineRollup,
   moveCostItemOptimistically,
   parseCostPlanMoneyInput,
+  readCostPlanTab,
   renumberCostPlanItems,
   type CostPlanItem,
   type CostPlanState,
   withItemVariations,
   withOptimisticTotals,
+  writeCostPlanTab,
 } from "@/lib/cost-plan";
 
 function item(
@@ -201,5 +205,32 @@ describe("cost-plan optimistic helpers", () => {
     ]);
     expect(renumbered.map((row) => row.cost_code)).toEqual(["1", "2"]);
     expect(renumbered.map((row) => row.item_key)).toEqual(["a", "b"]);
+  });
+});
+
+describe("cost plan tab persistence", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("defaults to the cost plan tab when nothing is stored", () => {
+    expect(readCostPlanTab("project-1")).toBe(DEFAULT_COST_PLAN_TAB);
+  });
+
+  it("round-trips the last tab for one project", () => {
+    writeCostPlanTab("project-1", "invoices");
+
+    expect(readCostPlanTab("project-1")).toBe("invoices");
+    expect(window.localStorage.getItem(costPlanTabStorageKey("project-1"))).toBe(
+      "invoices",
+    );
+  });
+
+  it("keeps projects isolated and treats invalid storage as the default tab", () => {
+    writeCostPlanTab("project-1", "variations");
+    window.localStorage.setItem(costPlanTabStorageKey("project-2"), "ledger");
+
+    expect(readCostPlanTab("project-2")).toBe(DEFAULT_COST_PLAN_TAB);
+    expect(readCostPlanTab("project-1")).toBe("variations");
   });
 });

@@ -25,7 +25,10 @@ export function HomePage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [catalogUnreachable, setCatalogUnreachable] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -33,12 +36,16 @@ export function HomePage() {
     async function loadProjects() {
       setProjectsLoading(true);
       setProjectsError(null);
+      setCatalogUnreachable(false);
       try {
         const data = await api.listProjects();
         if (!cancelled) setProjects(data);
       } catch (error) {
         if (!cancelled) {
           setProjectsError(formatApiError(error, "Could not load projects."));
+          setCatalogUnreachable(
+            !(error instanceof ApiError) || error.isNetworkError,
+          );
         }
       } finally {
         if (!cancelled) setProjectsLoading(false);
@@ -54,6 +61,32 @@ export function HomePage() {
   function handleProjectCreated(project: ProjectDetail) {
     setProjects((current) => [project, ...current]);
     navigate(`/projects/${project.id}`);
+  }
+
+  async function handleRenameProject(project: ProjectSummary) {
+    const title = renameDraft.trim();
+    if (!title || title === project.title || deletingId) {
+      setRenamingId(null);
+      return;
+    }
+
+    setProjectsError(null);
+    try {
+      const updated = await api.updateProject(project.id, {
+        expected_revision: project.profile_revision ?? 1,
+        title,
+      });
+      setProjects((current) =>
+        current.map((item) =>
+          item.id === project.id
+            ? { ...item, title: updated.profile.title || title, profile_revision: updated.new_revision }
+            : item,
+        ),
+      );
+      setRenamingId(null);
+    } catch (error) {
+      setProjectsError(formatApiError(error, "Could not rename the project."));
+    }
   }
 
   async function handleDeleteProject(project: ProjectSummary) {
@@ -74,13 +107,13 @@ export function HomePage() {
     }
   }
 
-  const backendUnavailable = Boolean(projectsError);
+  const backendUnavailable = catalogUnreachable;
 
   return (
     <div className="cockpit-page min-h-screen">
       <header className="cockpit-shell-header">
         <div className="mx-auto flex w-full max-w-7xl items-center gap-3">
-          <SitewiseMark size={48} variant="full" className="!p-2" />
+          <SitewiseMark size={36} padded={false} />
           <h1 className="truncate font-display text-[1.3rem] font-light leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
             SiteWise
           </h1>
@@ -122,26 +155,58 @@ export function HomePage() {
                 <SkeletonProject />
               </div>
             ) : projects.length === 0 ? (
-              <EmptyProjectState backendUnavailable={Boolean(projectsError)} />
+              <EmptyProjectState backendUnavailable={catalogUnreachable} />
             ) : (
               <ul className="grid gap-3 md:grid-cols-2">
                 {projects.map((project) => (
                   <li key={project.id}>
                     <div className="flex items-center gap-1 rounded-md border border-border bg-card transition-colors hover:border-[var(--info-border)] hover:bg-[var(--info-bg)]">
-                      <Link
-                        to={`/projects/${project.id}`}
-                        className="flex min-w-0 flex-1 items-center gap-2 p-4 font-medium"
-                      >
-                        <FolderOpen
-                          className="size-4 shrink-0 text-[var(--info-text)]"
-                          aria-hidden
-                        />
-                        <span className="truncate">{project.title}</span>
-                      </Link>
+                      {renamingId === project.id ? (
+                        <form
+                          className="flex min-w-0 flex-1 items-center gap-2 p-4"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void handleRenameProject(project);
+                          }}
+                        >
+                          <FolderOpen
+                            className="size-4 shrink-0 text-[var(--info-text)]"
+                            aria-hidden
+                          />
+                          <input
+                            className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
+                            value={renameDraft}
+                            autoFocus
+                            aria-label={`Rename ${project.title}`}
+                            onChange={(event) => setRenameDraft(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                setRenamingId(null);
+                              }
+                            }}
+                          />
+                        </form>
+                      ) : (
+                        <Link
+                          to={`/projects/${project.id}`}
+                          className="flex min-w-0 flex-1 items-center gap-2 p-4 font-medium"
+                        >
+                          <FolderOpen
+                            className="size-4 shrink-0 text-[var(--info-text)]"
+                            aria-hidden
+                          />
+                          <span className="truncate">{project.title}</span>
+                        </Link>
+                      )}
                       <div className="pr-2">
                         <ProjectTileMenu
                           title={project.title}
-                          disabled={deletingId === project.id}
+                          disabled={deletingId === project.id || renamingId === project.id}
+                          onRename={() => {
+                            setRenameDraft(project.title);
+                            setRenamingId(project.id);
+                          }}
                           onDelete={() => {
                             void handleDeleteProject(project);
                           }}

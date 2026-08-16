@@ -21,7 +21,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
     data: {
       agent: {
         agent_runtime_enabled: false,
-        default_model: "openai:gpt-5.6-terra",
+        default_model: "openai:gpt-5.6-luna",
         models: [],
       },
       legacy: { default_model: "gpt-5.6-luna", models: [] },
@@ -187,4 +187,46 @@ describe("ChatPanel long answer streaming", () => {
 
     expect(screen.queryByRole("alert")).toBeNull();
   }, 30000);
+
+  it("shows an interrupted error when the agent stream dies without a reply", async () => {
+    const truncated = [
+      `data: ${JSON.stringify({ type: "start", messageId: "msg_1" })}\n\n`,
+      `data: ${JSON.stringify({ type: "text-start", id: "t1" })}\n\n`,
+      `data: ${JSON.stringify({
+        type: "data-clerk-status",
+        data: { message: "Reading your request…" },
+      })}\n\n`,
+    ].join("");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(new TextEncoder().encode(truncated), {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          }),
+      ),
+    );
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Message"), {
+      target: { value: "Process the selected invoice." },
+    });
+    fireEvent.click(screen.getByLabelText("Ask SiteWise"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "This turn was interrupted before Pi finished",
+      );
+    });
+  });
 });

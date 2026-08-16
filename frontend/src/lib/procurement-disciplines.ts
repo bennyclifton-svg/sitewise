@@ -36,7 +36,7 @@ export function kindShortLabel(kind: ProcurementRequestKind): string {
   return "Trade package";
 }
 
-/** Kind order for the open-document combobox so like packages group together. */
+/** Kind order so like packages group together in the chip row. */
 const REQUEST_KIND_SORT_ORDER: Record<ProcurementRequestKind, number> = {
   consultant_rfp: 0,
   trade_rfq: 1,
@@ -44,10 +44,29 @@ const REQUEST_KIND_SORT_ORDER: Record<ProcurementRequestKind, number> = {
   contractor_eoi: 3,
 };
 
-/** Fast-scan label for the open-document combobox. Always the current/latest draft. */
-export function requestOptionLabel(request: ProcurementRequest): string {
+/** Chip label once kind is already selected. Always the current/latest draft. */
+export function requestChipLabel(request: ProcurementRequest): string {
   const version = request.current_draft?.version ?? request.revision;
-  return `${kindShortLabel(request.kind)} · ${request.target_name} · v${version}`;
+  return `${request.target_name} v${version}`;
+}
+
+/** Most recently updated request. Ties break with the open-list sort. */
+export function latestRequest(
+  requests: readonly ProcurementRequest[],
+): ProcurementRequest | null {
+  if (!requests.length) return null;
+  return [...requests].sort((left, right) => {
+    const timeDelta = right.updated_at.localeCompare(left.updated_at);
+    if (timeDelta !== 0) return timeDelta;
+    return compareProcurementRequests(left, right);
+  })[0] ?? null;
+}
+
+export function latestRequestForKind(
+  requests: readonly ProcurementRequest[],
+  kind: ProcurementRequestKind,
+): ProcurementRequest | null {
+  return latestRequest(requests.filter((request) => request.kind === kind));
 }
 
 /** Stable open-list order: Consultant → Supplier quote → Trade package → EOI. */

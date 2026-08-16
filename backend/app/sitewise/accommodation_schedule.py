@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any
 
 from app.database.project import Project
@@ -51,6 +52,8 @@ _SPACE_TERMS: tuple[tuple[str, str], ...] = tuple(
             ("parents retreat", "Parents retreat"),
             ("parent's retreat", "Parents retreat"),
             ("parents' retreat", "Parents retreat"),
+            ("rear sitting room", "Rear sitting room"),
+            ("sitting room", "Sitting room"),
             ("master bedroom", "Master bedroom"),
             ("guest bedroom", "Guest bedroom"),
             ("walk-in robe", "Walk-in robe"),
@@ -108,10 +111,22 @@ _LEVEL_CUES: tuple[tuple[re.Pattern[str], str], ...] = (
 
 _STATUS_CUES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bdemolish(?:ed|ing)?\b", re.I), "Demolished"),
+    (re.compile(r"\b(?:to be removed|take out|taken out|non-original)\b", re.I), "Demolished"),
     (re.compile(r"\bretain(?:ed|ing)?\b", re.I), "Retained"),
     (re.compile(r"\bexisting\b", re.I), "Existing"),
     (re.compile(r"\b(?:new|proposed)\b", re.I), "New"),
 )
+
+_TABLE_HEADER_ALIASES = {
+    "space": "space",
+    "room": "space",
+    "level": "level",
+    "area": "area",
+    "characteristics": "characteristics",
+    "status": "status",
+}
+_TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
+_REQUIRED_TABLE_FIELDS = frozenset({"space", "status"})
 
 _OPEN_PLAN_RE = re.compile(r"\bopen[-\s]?plan\b", re.I)
 _CLAUSE_SPLIT = re.compile(r"[,;]+")
@@ -143,17 +158,109 @@ def brief_accommodation_rows(project: Project) -> list[dict[str, Any]]:
     return _spaces_from_text(" ".join(project_scope_narrative(project)))
 
 
-def accommodation_schedule_display_rows(project: Project) -> list[dict[str, Any]]:
-    """Shared rows plus any brief-named spaces not already recorded or removed."""
+def parse_accommodation_schedule_tables(text: str) -> list[dict[str, Any]]:
+    """Read Space/Level/Area/Characteristics/Status tables from a brief."""
+    rows: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        mapping = _header_mapping(_split_table_row(lines[index]))
+        if mapping is None:
+            index += 1
+            continue
+        index += 1
+        if index < len(lines) and _is_table_separator(lines[index]):
+            index += 1
+        while index < len(lines):
+            cells = _split_table_row(lines[index])
+            if not cells:
+                break
+            if _is_table_separator(lines[index]):
+                index += 1
+                continue
+            row = _row_from_table_cells(cells, mapping)
+            index += 1
+            if row is None:
+                continue
+            key = _row_identity(row)
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(row)
+    return rows
+
+
+def accommodation_schedule_evidence_rows(
+    project: Project,
+    document_texts: Sequence[str] = (),
+) -> list[dict[str, Any]]:
+    """Shared rows plus demolished/new spaces named in an uploaded brief table."""
     explicit = accommodation_schedule_rows(project)
-    claimed = {row["space"].casefold() for row in explicit}
-    claimed.update(_removed_space_names(project))
+    claimed = {_row_name_status(row) for row in explicit}
+    removed = _removed_space_names(project)
+    extras: list[dict[str, Any]] = []
+    for text in document_texts:
+        for row in parse_accommodation_schedule_tables(text):
+            if _row_name_status(row) in claimed:
+                continue
+            if row["space"].casefold() in removed:
+                continue
+            claimed.add(_row_name_status(row))
+            extras.append(row)
+    return _sorted_rows(explicit + extras)
+
+
+def accommodation_schedule_display_rows(
+    project: Project,
+    document_texts: Sequence[str] = (),
+) -> list[dict[str, Any]]:
+    """Shared rows, brief-table rows, then any brief-named spaces still missing."""
+    evidence = accommodation_schedule_evidence_rows(
+        project, document_texts=document_texts
+    )
+    claimed = {_row_name_status(row) for row in evidence}
+    removed = _removed_space_names(project)
     extras = [
         row
         for row in brief_accommodation_rows(project)
-        if row["space"].casefold() not in claimed
+        if _row_name_status(row) not in claimed
+        and row["space"].casefold() not in removed
     ]
-    return _sorted_rows(explicit + extras)
+    return _sorted_rows(evidence + extras)
+
+
+def accommodation_source_texts(
+    *,
+    documents: Sequence[Any] = (),
+    fallback: Sequence[str] | None = None,
+) -> list[str]:
+    """Prefer full stored document text over a compressed evidence digest."""
+    texts = [
+        text
+        for document in documents
+        if (text := getattr(document, "normalized_content", None) or "").strip()
+    ]
+    return texts or [text for text in (fallback or ()) if text and text.strip()]
+
+
+def apply_accommodation_schedule_facts(
+    markdown: str,
+    *,
+    project: Project,
+    source_texts: Sequence[str] = (),
+) -> str:
+    """Replace the Accommodation Schedule table from brief evidence and shared rows."""
+    from app.sitewise.pmp_evidence_validation import _replace_markdown_section
+    from app.sitewise.section_contracts import heading_for_section_id
+
+    rows = accommodation_schedule_evidence_rows(project, document_texts=source_texts)
+    if not rows:
+        return markdown
+    heading = heading_for_section_id(
+        "accommodation-schedule", work_type=project.work_type
+    )
+    return _replace_markdown_section(markdown, heading, _format_schedule_section(rows))
 
 
 def parse_area_m2(raw: object) -> float | None:
@@ -231,7 +338,7 @@ def _spaces_from_text(text: str) -> list[dict[str, Any]]:
     if not text.strip():
         return []
     found: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str, str]] = set()
     for clause in _CLAUSE_SPLIT.split(text):
         clause = clause.strip()
         if not clause:
@@ -247,20 +354,21 @@ def _spaces_from_text(text: str) -> list[dict[str, Any]]:
                 if any(start < stop and end > begin for begin, stop in occupied):
                     continue
                 occupied.append((start, end))
-                if label.casefold() in seen:
+                status = _first_cue(clause, _STATUS_CUES)
+                row = {
+                    "space": label,
+                    "level": _first_cue(clause, _LEVEL_CUES),
+                    "area": "TBC",
+                    "characteristics": _infer_characteristics(clause),
+                    "status": status,
+                    "id": _slug(f"{label}-{status}"),
+                    "revision": 0,
+                }
+                key = _row_identity(row)
+                if key in seen:
                     continue
-                found.append(
-                    {
-                        "space": label,
-                        "level": _first_cue(clause, _LEVEL_CUES),
-                        "area": "TBC",
-                        "characteristics": _infer_characteristics(clause),
-                        "status": _first_cue(clause, _STATUS_CUES),
-                        "id": _slug(label),
-                        "revision": 0,
-                    }
-                )
-                seen.add(label.casefold())
+                found.append(row)
+                seen.add(key)
     return _sorted_rows(found)
 
 
@@ -279,3 +387,94 @@ def _infer_characteristics(window: str) -> str:
 
 def _slug(label: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", label.casefold()).strip("-")
+
+
+def _row_identity(row: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(row.get("space") or "").casefold(),
+        str(row.get("status") or "").casefold(),
+        str(row.get("level") or "").casefold(),
+    )
+
+
+def _row_name_status(row: dict[str, Any]) -> tuple[str, str]:
+    return (
+        str(row.get("space") or "").casefold(),
+        str(row.get("status") or "").casefold(),
+    )
+
+
+def _split_table_row(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped.startswith("|"):
+        return []
+    return [cell.strip() for cell in stripped.strip("|").split("|")]
+
+
+def _is_table_separator(line: str) -> bool:
+    cells = _split_table_row(line)
+    return bool(cells) and all(_TABLE_SEPARATOR_RE.match(cell.replace(" ", "")) for cell in cells)
+
+
+def _header_mapping(cells: list[str]) -> dict[str, int] | None:
+    mapping: dict[str, int] = {}
+    for index, cell in enumerate(cells):
+        field = _TABLE_HEADER_ALIASES.get(cell.casefold())
+        if field is not None:
+            mapping[field] = index
+    if not _REQUIRED_TABLE_FIELDS.issubset(mapping):
+        return None
+    return mapping
+
+
+def _row_from_table_cells(
+    cells: list[str],
+    mapping: dict[str, int],
+) -> dict[str, Any] | None:
+    def cell(field: str) -> str:
+        index = mapping.get(field)
+        if index is None or index >= len(cells):
+            return ""
+        return cells[index].strip()
+
+    space = cell("space")
+    if not space or space.casefold() in _TOTAL_LABELS or space.startswith("**"):
+        return None
+    status = cell("status") or "TBC"
+    if status.casefold() == "removed":
+        return None
+    return {
+        "space": space,
+        "level": cell("level") or "TBC",
+        "area": cell("area") or "TBC",
+        "characteristics": cell("characteristics") or "TBC",
+        "status": status,
+        "id": _slug(f"{space}-{status}-{cell('level')}"),
+        "revision": 0,
+    }
+
+
+def _format_schedule_section(rows: list[dict[str, Any]]) -> str:
+    table = [
+        "",
+        "Rooms, zones and outdoor spaces the project covers. Area is "
+        "scheduled area, not GFA or NLA. Add or tidy rows in chat. "
+        "Missing fields stay TBC.",
+        "",
+        "| Space | Level | Area | Characteristics | Status |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        table.append(
+            "| {space} | {level} | {area} | {characteristics} | {status} |".format(
+                space=row["space"],
+                level=row["level"],
+                area=row["area"],
+                characteristics=row["characteristics"],
+                status=row["status"],
+            )
+        )
+    total = scheduled_area_total(rows)
+    total_cell = f"{total:g} m²" if total is not None else "TBC"
+    table.append(f"| **Scheduled area** |  | {total_cell} |  |  |")
+    return "\n".join(table) + "\n"

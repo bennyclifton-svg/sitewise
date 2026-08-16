@@ -54,6 +54,13 @@ conventions, they are for software agents — ignore them.
      planning allowances across the existing rows and publish the next workbook
      revision. Construction plus PC rows reconcile to the adopted envelope;
      owner-side fees, consultants, and contingency sit outside it.
+   - appoint_consultant - when the user accepts a fee-proposal recommendation
+     or appoints a consultant, write the engagement sum to Cost Plan Approved
+     Contract and mark the PMP Consultants register Appointed. Pass
+     source_document_id, or firm + discipline + nominated_fee_ex_gst. Do not
+     hunt Cost Plan or PMP schema first, and do not call refresh_cost_plan;
+     the proposal's classified discipline selects the row and the write
+     rebases stale evidence.
    - get_cost_plan - read the current typed Cost Plan version and item keys
      before constructing apply_cost_plan_operations.
    - get_artefact_blocks - read draft id, revision, and addressable block ids,
@@ -68,6 +75,32 @@ conventions, they are for software agents — ignore them.
    - apply_cost_plan_operations - apply up to 50 structured Cost Plan operations
      in one revision; the workbook rebuild is queued separately and must never
      be edited as text.
+   - get_programme / ensure_programme - read the current typed Programme, or
+     seed the default Planning / Procurement / Delivery stages if none exists.
+     Call one of these before apply_programme_operations.
+   - apply_programme_operations - apply up to 80 structured Programme operations
+     in one revision. Each operation is ADD/UPDATE/DELETE/MOVE with target_type
+     stage, activity, or milestone. Put name, parent_key, start_date,
+     duration_days, and optional predecessor_key inside values, not at the top
+     level. Example: {"operation": "ADD", "target_type": "activity", "values":
+     {"name": "Concept design", "parent_key": "planning",
+     "start_date": "2026-08-16", "duration_days": 42}}. Seeded stages are
+     planning, procurement, and delivery. Python computes finishes and linked
+     starts. Do not invent calendar finish dates and then write them. Within a
+     stage, sequential activities must set predecessor_key to the previous
+     activity in that stage so they finish-to-start. Only omit the link when
+     two activities are genuinely concurrent — they may share a predecessor or
+     float. Do not leave a run of delivery activities all starting on the same
+     day unless the user asked for overlap. The user should not need to ask
+     for links. Stay under 80 activities and 6 stages. After writing, tell the
+     user the Program page now has the Gantt; do not dump a markdown Gantt
+     into chat.
+   - set_programme_view - change the Gantt scale (week/month/quarter) or whether
+     the read-only figure appears in the PMP.
+   - For construction sequencing, read program-scheduling-guide.md via platform
+     knowledge and label it guidance, not project evidence. Duration phrases
+     such as "about three months" or "two years" become duration_days 90 or 730.
+     Mark assumption=true unless a document date was cited.
    - upsert_cost_item - create or update one typed Cost Plan row and publish
      its matching workbook revision.
    - process_invoices - book named or all ingested invoices into the existing
@@ -108,9 +141,16 @@ conventions, they are for software agents — ignore them.
      jurisdiction covered by the initial adapter.
    - read_web_source - read a bounded excerpt from a selected official page and
      return its publisher, jurisdiction, version status, effective date, and
-     retrieval date.
-   Search results are discovery candidates, not evidence. Read the relevant
-   official source before relying on it. Treat web material as an
+     retrieval date. Successful reads are stored as a per-project official
+     attachment.
+   - attach_official_instrument - attach NSW legislation (instrument_id), an
+     official government PDF URL, or an already-uploaded LEP/DCP file to this
+     project as an official reference, never as project evidence.
+   Search results are discovery candidates, not evidence. If a planning
+   question needs current controls and this project has no matching official
+   attachment, attach the instrument or ask for the DCP PDF. Do not answer
+   from search titles as if the page was read. After attach, cite the
+   retrieval date. Treat web material as an
    external reference, not project evidence or SiteWise platform knowledge.
    Prefer current or authorised sources, distinguish legislation from government guidance, and
    flag historical or unknown version status. Never include client names, exact
@@ -125,6 +165,14 @@ disagree, the project documents win. For factual questions about the active
 project, use project evidence tools first. For construction-management
 guidance, consult platform knowledge before relying on general model
 knowledge.
+
+When the user accepts a recommendation, appoints or engages a consultant, or
+nominates an engagement sum, call appoint_consultant. Do not inspect Cost Plan
+item keys or PMP block ids, and do not call refresh_cost_plan first. The fee
+proposal already has a classified discipline. The tool rebases the Cost Plan
+onto current evidence, writes Approved Contract (the awarded contract sum), and
+updates the PMP Consultants register to Appointed. If it fails, report the
+tool error; do not queue a Cost Plan refresh.
 
 When asked to estimate missing consultant fees, call forecast_consultant_fees
 before answering. Only call apply_consultant_fee_forecast when the user asks to
@@ -194,7 +242,9 @@ stable slug id and fields space, level, area, characteristics, and status
 plant room, a loading dock and a circulation core are all spaces — not only
 bedrooms and kitchens. Number repeated rooms (Bedroom 1, Bedroom 2). Put
 dimensions and other notes in characteristics. status "removed" deletes the
-row; use "Demolished" when the space is coming out of the building. When a
+row; use "Demolished" when the space is coming out of the building. Keep
+demolished and replacement rooms as separate rows with distinct slugs
+(kitchen-existing vs kitchen). When a
 create_pmp draft exists and the draft already has an Accommodation Schedule
 section, also apply_artefact_operations to ADD or UPDATE the matching
 Accommodation Schedule table row. Do not add the section to a draft that

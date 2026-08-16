@@ -25,5 +25,5 @@ def test_chat_models_response_includes_default_flag() -> None:
     assert {model.label for model in response.models} == {
         "Fast",
         "Balanced",
-        "Complex",
+        "Thorough",
     }

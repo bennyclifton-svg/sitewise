@@ -644,6 +644,33 @@ html.sw-atmosphere-dense {
     }
   }
 
+  .program-gantt-surface {
+    color: var(--sw-text-secondary);
+    color-scheme: dark;
+    background: var(--sw-void);
+    border-color: var(--sw-edge);
+  }
+
+  .program-gantt-field {
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--sw-text-secondary) !important;
+    box-shadow: none !important;
+  }
+
+  .program-gantt-field:hover,
+  .program-gantt-field:focus-visible {
+    border-color: var(--sw-edge) !important;
+    background: color-mix(in oklch, var(--sw-panel) 70%, transparent) !important;
+  }
+
+  .program-gantt-calendar {
+    width: 13.5rem;
+    color: var(--sw-text-secondary);
+    background: var(--sw-void);
+    border: 1px solid var(--sw-edge);
+  }
+
   /* Cost Plan / invoice surfaces match the dark PMP artefact sheet. */
   .cost-plan-surface {
     color: var(--sw-text-secondary);
@@ -1693,3 +1720,73 @@ html.sw-atmosphere-dense {
     height: 30px;
   }
 }
+
+/* ── Live status next to the tumbling cube ───────────────────────────────
+   Same beam as the cube vertices. Sheen is ambient light, not decoration. */
+@keyframes sw-status-arrive {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes sw-status-signal {
+  0%,
+  100% {
+    background-position: 160% 50%;
+  }
+  50% {
+    background-position: -20% 50%;
+  }
+}
+
+.streaming-status-copy {
+  color: var(--sw-beam-hex, #7fb0e4);
+}
+
+.streaming-status-live {
+  color: var(--sw-beam-hex, #7fb0e4);
+  letter-spacing: 0.012em;
+  transform: translateY(1px);
+  background-image: linear-gradient(
+    105deg,
+    var(--sw-beam-hex, #7fb0e4) 0%,
+    var(--sw-beam-hex, #7fb0e4) 40%,
+    color-mix(in oklch, var(--sw-beam-hex, #7fb0e4) 58%, white) 50%,
+    var(--sw-beam-hex, #7fb0e4) 60%,
+    var(--sw-beam-hex, #7fb0e4) 100%
+  );
+  background-size: 260% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    sw-status-arrive var(--sw-dur-enter, 420ms) var(--sw-ease-enter, cubic-bezier(0.22, 1, 0.36, 1)) both,
+    sw-status-signal var(--sw-dur-ambient, 9s) var(--sw-ease-ambient, cubic-bezier(0.45, 0, 0.55, 1)) 420ms infinite;
+}
+
+.streaming-status-error {
+  letter-spacing: 0;
+  background: none;
+  -webkit-text-fill-color: var(--sw-critical);
+  color: var(--sw-critical);
+  animation: sw-status-arrive var(--sw-dur-enter, 420ms) var(--sw-ease-enter, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-status-live,
+  .streaming-status-error {
+    animation: none;
+    filter: none;
+  }
+
+  .streaming-status-live {
+    background: none;
+    -webkit-text-fill-color: var(--sw-beam-hex, #7fb0e4);
+  }
+}
+

@@ -13,7 +13,10 @@ from app.projects.project_knowledge import (
 from app.sitewise.accommodation_schedule import (
     accommodation_schedule_display_rows,
     accommodation_schedule_rows,
+    accommodation_source_texts,
+    apply_accommodation_schedule_facts,
     brief_accommodation_rows,
+    parse_accommodation_schedule_tables,
     parse_area_m2,
     scheduled_area_total,
 )
@@ -246,3 +249,124 @@ def test_remediation_project_omits_the_section() -> None:
         project, MobilisationEvidencePack(), "platform_seeded"
     )
     assert "Accommodation Schedule" not in markdown_section_headings(markdown)
+
+
+_NEWTOWN_BRIEF_TABLE = """
+## 4. Accommodation schedule
+
+| Space | Level | Area | Characteristics | Status |
+| --- | --- | --- | --- | --- |
+| Entry Hall | Ground | 8 m² | original tessellated tiles to be retained | Retained |
+| Bedroom 1 | Ground | 14 m² | front room, original fireplace and ceiling rose | Retained |
+| Bedroom 2 | Ground | 12 m² | second front room, redecorate only | Retained |
+| Hallway | Ground | 9 m² | original arch and skirtings retained | Retained |
+| Kitchen (existing) | Ground | 12 m² | 1980s addition, to be removed | Demolished |
+| Bathroom (existing) | Ground | 5 m² | 1980s addition, to be removed | Demolished |
+| Laundry (existing) | Ground | 5 m² | lean-to, non-original | Demolished |
+| Rear Sitting Room | Ground | 15 m² | 1980s addition, to be removed | Demolished |
+| Rear Verandah | Ground | 8 m² | non-original, to be removed | Demolished |
+| Kitchen | Ground | 16 m² | island bench, north light, walk-in pantry if it fits | New |
+| Living / Dining | Ground | 34 m² | single open-plan space, glazed rear wall to deck | New |
+| Laundry | Ground | 6 m² | external door to side passage, drying rail | New |
+| Powder Room | Ground | 2 m² | under the new stair | New |
+| Understair Store | Ground | 2 m² | TBC | New |
+| Master Bedroom | First | 17 m² | 4.6 × 3.7 m, north aspect to the street | New |
+| Ensuite | First | 6 m² | double vanity, walk-in shower, no bath | New |
+| Walk-in Robe | First | 5 m² | TBC | New |
+| Parents' Retreat | First | 14 m² | sitting room, rear aspect, must take a sofa bed | New |
+| Bedroom 3 | First | 11 m² | TBC | New |
+| Bathroom | First | 6 m² | bath required — this one is not negotiable | New |
+| Study Nook | First | 4 m² | off the landing, two desks side by side | New |
+| Stair and Landing | First | 9 m² | TBC | New |
+| Covered Deck | External | 18 m² | off living, roofed, north-facing | New |
+| Rear Courtyard | External | 42 m² | landscaped, deep soil, no paving over the whole thing | New |
+| Plunge Pool | External | 12 m² | 2.5 × 4.8 m, fenced to standard | New |
+| Side Passage | External | 14 m² | retained for access and bins | Retained |
+
+**Target gross floor area on completion: 175 m²** (existing 88 m², net addition 87 m²).
+"""
+
+
+def test_brief_table_keeps_demolished_spaces_out_of_the_total() -> None:
+    rows = parse_accommodation_schedule_tables(_NEWTOWN_BRIEF_TABLE)
+    demolished = [row for row in rows if row["status"] == "Demolished"]
+
+    assert len(rows) == 26
+    assert {row["space"] for row in demolished} == {
+        "Kitchen (existing)",
+        "Bathroom (existing)",
+        "Laundry (existing)",
+        "Rear Sitting Room",
+        "Rear Verandah",
+    }
+    assert scheduled_area_total(rows) == 261.0
+
+
+def test_display_rows_keep_demolished_kitchen_beside_new_kitchen() -> None:
+    project = _project()
+    _add(project, "kitchen", {
+        "space": "Kitchen",
+        "level": "Ground",
+        "area": "16 m²",
+        "status": "New",
+    })
+
+    rows = accommodation_schedule_display_rows(
+        project, document_texts=[_NEWTOWN_BRIEF_TABLE]
+    )
+    by_name = {(row["space"], row["status"]): row for row in rows}
+
+    assert by_name[("Kitchen", "New")]["area"] == "16 m²"
+    assert by_name[("Kitchen (existing)", "Demolished")]["area"] == "12 m²"
+    assert by_name[("Rear Sitting Room", "Demolished")]["status"] == "Demolished"
+    assert scheduled_area_total(rows) == 261.0
+
+
+def test_apply_stamps_demolished_rows_into_an_existing_pmp() -> None:
+    project = _project()
+    markdown = """## Consultants
+| Discipline | Firm | Fee | Status | Citation |
+|---|---|---|---|---|
+| Architect | TBC |  | Assumption / Not evidenced | — |
+
+## Accommodation Schedule
+
+Rooms, zones and outdoor spaces the project covers.
+
+| Space | Level | Area | Characteristics | Status |
+| --- | --- | --- | --- | --- |
+| Kitchen | Ground | 16 m² | island bench | New |
+| **Scheduled area** |  | 16 m² |  |  |
+
+## FFE Schedule
+| Item | Location | Qty | Finish | Status |
+| --- | --- | --- | --- | --- |
+| Oven | Kitchen | 1 | TBC | Selected |
+"""
+
+    patched = apply_accommodation_schedule_facts(
+        markdown,
+        project=project,
+        source_texts=[_NEWTOWN_BRIEF_TABLE],
+    )
+
+    assert "| Kitchen (existing) | Ground | 12 m² | 1980s addition, to be removed | Demolished |" in patched
+    assert "| Rear Sitting Room | Ground | 15 m² | 1980s addition, to be removed | Demolished |" in patched
+    assert "| Rear Verandah | Ground | 8 m² | non-original, to be removed | Demolished |" in patched
+    assert "| **Scheduled area** |  | 261 m² |  |  |" in patched
+    assert "| Oven | Kitchen | 1 | TBC | Selected |" in patched
+
+
+def test_source_texts_prefer_full_document_over_digest() -> None:
+    digest = "Owner brief. Target GFA 175 m². Living / Dining. Parents' Retreat."
+    document = SimpleNamespace(normalized_content=_NEWTOWN_BRIEF_TABLE)
+
+    texts = accommodation_source_texts(
+        documents=[document],
+        fallback=[digest],
+    )
+    rows = parse_accommodation_schedule_tables(texts[0])
+
+    assert texts == [_NEWTOWN_BRIEF_TABLE]
+    assert len(rows) == 26
+    assert scheduled_area_total(rows) == 261.0

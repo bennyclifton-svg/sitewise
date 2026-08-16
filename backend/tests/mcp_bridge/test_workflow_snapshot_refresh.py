@@ -143,6 +143,42 @@ def test_launch_does_not_retry_more_than_once(monkeypatch) -> None:
     assert calls["n"] == 2
 
 
+def test_launch_retries_once_against_current_cost_plan_version(monkeypatch) -> None:
+    """Invoice booking must not die because the agent froze an older Cost Plan v."""
+    fresh = _snapshot("b" * 64, 2, 3)
+    fresh.latest_artefacts = [
+        SimpleNamespace(workflow_type="create_cost_plan", version=9),
+    ]
+    attempts: list[int | None] = []
+
+    async def persist(_session, *, project, user_id, workflow_type, request, snapshot):
+        attempts.append(request.expected_artefact_version)
+        current = snapshot.latest_artefacts[0].version
+        if request.expected_artefact_version != current:
+            raise WorkflowRunCapabilityConflict(
+                f"create_cost_plan base changed: expected v{request.expected_artefact_version}, current v{current}"
+            )
+        return SimpleNamespace(id=uuid.uuid4()), True
+
+    _install(monkeypatch, snapshots=[fresh, fresh], persist=persist)
+
+    result = run_async(
+        server._start_mcp_workflow(
+            project_id=PROJECT_ID,
+            workflow_type="process_invoices",
+            idempotency_key="turn-1:process-invoices",
+            expected_snapshot_fingerprint="a" * 64,
+            expected_profile_revision=2,
+            expected_decision_set_revision=3,
+            expected_artefact_version=8,
+        )
+    )
+
+    assert result["status"] == "queued"
+    assert result["snapshot_refreshed"] is True
+    assert attempts == [8, 9]
+
+
 def test_capability_block_is_not_retried(monkeypatch) -> None:
     """A blocked capability is a real refusal, not a stale-snapshot race."""
     calls = {"n": 0}

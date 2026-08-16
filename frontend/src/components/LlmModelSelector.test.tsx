@@ -33,28 +33,21 @@ describe("LlmModelSelector", () => {
     const user = userEvent.setup();
     vi.mocked(api.getAgentModels).mockResolvedValue({
       agent_runtime_enabled: true,
-      default_model: "openai:gpt-5.6-terra",
+      default_model: "openai:gpt-5.6-luna",
       models: [
         {
           id: "openai:gpt-5.6-luna",
           label: "Fast",
-          is_default: false,
+          is_default: true,
           provider: "openai",
           model: "gpt-5.6-luna",
         },
         {
-          id: "openai:gpt-5.6-terra",
-          label: "Balanced",
-          is_default: true,
-          provider: "openai",
-          model: "gpt-5.6-terra",
-        },
-        {
-          id: "openai:gpt-5.6-sol",
-          label: "Complex",
+          id: "xai:grok-4.6",
+          label: "Thorough",
           is_default: false,
-          provider: "openai",
-          model: "gpt-5.6-sol",
+          provider: "xai",
+          model: "grok-4.6",
         },
       ],
     });
@@ -63,17 +56,16 @@ describe("LlmModelSelector", () => {
 
     const select = screen.getByLabelText(/model tier/i);
     await waitFor(() => {
-      expect(select).toHaveTextContent("Balanced");
+      expect(select).toHaveTextContent("Fast");
     });
 
     await user.click(select);
-    expect(screen.getByRole("menuitem", { name: "Balanced" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Fast" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Complex" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Thorough" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("menuitem", { name: "Complex" }));
+    await user.click(screen.getByRole("menuitem", { name: "Thorough" }));
 
-    expect(getSelectedAgentModel()).toBe("openai:gpt-5.6-sol");
+    expect(getSelectedAgentModel()).toBe("xai:grok-4.6");
     await waitFor(() => expect(api.getAgentConfiguration).toHaveBeenCalledTimes(1));
   });
 

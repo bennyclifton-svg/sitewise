@@ -72,6 +72,7 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     assert "find_document_text is the first choice" in prompt
     assert "search_web" in prompt
     assert "read_web_source" in prompt
+    assert "attach_official_instrument" in prompt
     assert "Search results are discovery candidates" in prompt
     assert "Never put project-confidential details into a web search query" in prompt
     assert "external reference, not project evidence" in prompt
@@ -139,11 +140,66 @@ def test_create_rfp_request_needs_mutation_tools() -> None:
     assert turn_needs_mutation_tools(user_text, intent) is True
 
 
+def test_create_programme_request_needs_mutation_tools() -> None:
+    user_text = (
+        "create a program with about 20 activities spanning design, "
+        "planning procurement and construction"
+    )
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_mutation_tools(user_text, intent) is True
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Harbour House",
+        archetype="renovation",
+        state="NSW",
+        phase="design",
+        building_class="residential",
+        work_type="refurb",
+        history=[],
+    )
+    assert "inside values" in prompt
+    assert "parent_key" in prompt
+    assert "genuinely concurrent" in prompt
+
+
 def test_read_only_project_question_does_not_need_mutation_tools() -> None:
     user_text = "what is the project budget?"
     intent = classify_mutation_intent(user_text)
 
     assert turn_needs_mutation_tools(user_text, intent) is False
+
+
+@pytest.mark.parametrize(
+    "user_text",
+    [
+        "Appoint Verity Urban Planning and update the cost plan and PMP with their $9,900 fee.",
+        "We'll accept that recommendation and engage Ardent Structural for $11,500.",
+        "Accept the town planner recommendation and award the contract sum.",
+    ],
+)
+def test_consultant_appointment_request_needs_mutation_tools(user_text: str) -> None:
+    intent = classify_mutation_intent(user_text)
+
+    assert turn_needs_mutation_tools(user_text, intent) is True
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Georgina Street",
+        archetype="renovation",
+        state="NSW",
+        phase="design",
+        building_class="residential",
+        work_type="extend",
+        history=[],
+        mutation_intent=intent,
+    )
+    assert "<consultant-appointment-request>" in prompt
+    assert "appoint_consultant" in prompt
+    assert "Approved Contract" in prompt
+    assert "Do not hunt artefact schema" in prompt
+    assert "Do not call refresh_cost_plan" in prompt
 
 
 def test_update_cost_plan_with_adopted_budget_needs_mutation_tools() -> None:
@@ -541,6 +597,7 @@ def test_prompt_teaches_accommodation_schedule_breadth() -> None:
     assert "does not already have it" in prompt
     assert "scope_narrative" in prompt
     assert "empty Accommodation Schedule is wrong" in prompt
+    assert "kitchen-existing" in prompt
 
 
 def test_bound_profile_patch_includes_exact_json_and_scale_fields() -> None:

@@ -122,7 +122,12 @@ def test_direct_tools_allowlist_includes_ai_operation_surface() -> None:
     for name in (
         "apply_artefact_operations",
         "apply_cost_plan_operations",
+        "apply_programme_operations",
+        "get_programme",
+        "ensure_programme",
+        "set_programme_view",
         "get_artefact_blocks",
+        "appoint_consultant",
     ):
         assert name in PI_MCP_DIRECT_TOOLS
 
@@ -139,7 +144,10 @@ def test_pi_discovers_operation_tools(monkeypatch) -> None:
     names = run_async(run())
     assert "apply_artefact_operations" in names
     assert "apply_cost_plan_operations" in names
+    assert "apply_programme_operations" in names
+    assert "get_programme" in names
     assert "get_artefact_blocks" in names
+    assert "appoint_consultant" in names
 
 
 def test_apply_artefact_operations_rejects_unauthorized(monkeypatch) -> None:
@@ -421,6 +429,93 @@ def test_apply_cost_plan_rejects_stale_revision(monkeypatch) -> None:
                 ],
             },
         )
+
+
+def test_apply_programme_operations_writes_state(monkeypatch) -> None:
+    session = _Session(_project())
+    server, _access, _mutation = _install(monkeypatch, session)
+    persist = AsyncMock(
+        return_value=SimpleNamespace(
+            model_dump=lambda mode="json": {"version": 2, "activities": []}
+        )
+    )
+    monkeypatch.setattr(server, "persist_programme_operations", persist)
+
+    result = _call(
+        server,
+        "apply_programme_operations",
+        {
+            "project_id": str(PROJECT_ID),
+            "expected_base_version": 1,
+            "operations": [
+                {
+                    "operation": "ADD",
+                    "target_type": "activity",
+                    "values": {
+                        "name": "Slab",
+                        "parent_key": "delivery",
+                        "start_date": "2027-02-01",
+                        "duration_days": 14,
+                    },
+                }
+            ],
+        },
+    )
+
+    persist.assert_awaited_once()
+    assert result["kind"] == "programme_operations_applied"
+    assert result["state"]["version"] == 2
+
+
+def test_apply_programme_operations_schema_describes_operation_shape(monkeypatch) -> None:
+    session = _Session(_project())
+    server, _access, _mutation = _install(monkeypatch, session)
+
+    async def run():
+        async with Client(server.mcp) as client:
+            tools = await client.list_tools()
+            return next(tool for tool in tools if tool.name == "apply_programme_operations")
+
+    tool = run_async(run())
+    items = tool.inputSchema["properties"]["operations"]["items"]
+    assert items["properties"]["operation"]["enum"] == ["ADD", "UPDATE", "DELETE", "MOVE"]
+    assert "activity" in items["properties"]["target_type"]["enum"]
+    assert items["properties"]["values"]["type"] == "object"
+
+
+def test_apply_programme_operations_accepts_flattened_fields(monkeypatch) -> None:
+    session = _Session(_project())
+    server, _access, _mutation = _install(monkeypatch, session)
+    persist = AsyncMock(
+        return_value=SimpleNamespace(
+            model_dump=lambda mode="json": {"version": 2, "activities": []}
+        )
+    )
+    monkeypatch.setattr(server, "persist_programme_operations", persist)
+
+    result = _call(
+        server,
+        "apply_programme_operations",
+        {
+            "project_id": str(PROJECT_ID),
+            "expected_base_version": 1,
+            "operations": [
+                {
+                    "operation": "ADD",
+                    "target_type": "activity",
+                    "name": "Concept design",
+                    "parent_key": "planning",
+                    "start_date": "2026-08-16",
+                    "duration_days": 42,
+                }
+            ],
+        },
+    )
+
+    parsed = persist.await_args.kwargs["operations"][0]
+    assert parsed.values["name"] == "Concept design"
+    assert parsed.values["parent_key"] == "planning"
+    assert result["kind"] == "programme_operations_applied"
 
 
 def test_turn_token_project_isolation_for_artefact_ops(monkeypatch) -> None:

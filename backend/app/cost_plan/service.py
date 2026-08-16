@@ -419,6 +419,7 @@ async def upsert_cost_item(
     expected_base_version: int,
     item: CostItemInput,
     current_snapshot: ProjectSnapshot | None = None,
+    dependency_snapshot: DependencySnapshot | None = None,
     actor_source: str = "cost_plan_tool",
 ) -> CostPlanMutationResult:
     base = await _base_for_mutation(
@@ -426,7 +427,7 @@ async def upsert_cost_item(
         project=project,
         author_user_id=author_user_id,
         expected_base_version=expected_base_version,
-        current_snapshot=current_snapshot,
+        current_snapshot=None if dependency_snapshot is not None else current_snapshot,
     )
     items = list(base.items)
     existing_index = next(
@@ -444,12 +445,15 @@ async def upsert_cost_item(
         items[existing_index] = item.model_copy(
             update={"display_order": items[existing_index].display_order}
         )
+    updates: dict = {"items": items}
+    if dependency_snapshot is not None:
+        updates["dependency_snapshot"] = dependency_snapshot
     state = await _publish_state(
         session,
         project=project,
         author_user_id=author_user_id,
         expected_base_version=expected_base_version,
-        state=base.model_copy(update={"items": items}),
+        state=base.model_copy(update=updates),
         actor_source=actor_source,
     )
     return CostPlanMutationResult(state=state, changed_item_keys=[item.item_key])

@@ -15,7 +15,7 @@ DEFAULT_OPENAI_CHAT_MODELS: tuple[str, ...] = (
 MODEL_LABELS: dict[str, str] = {
     "gpt-5.6-luna": "Fast",
     "gpt-5.6-terra": "Balanced",
-    "gpt-5.6-sol": "Complex",
+    "gpt-5.6-sol": "Thorough",
 }
 
 

@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  explorerExpandedPathsKey,
   findDraftByWorkspacePath,
   isDraftArtifactWorkspaceFile,
   isConsultantProcurementWorkspaceFile,
   isCostPlanWorkspaceFile,
   isContractorEoiWorkspaceFile,
   isTradeProcurementWorkspaceFile,
+  readExplorerExpandedPaths,
+  writeExplorerExpandedPaths,
 } from "@/components/project/workflow/workspaceRouting";
 import type { DraftArtifactSummary } from "@/lib/types/project";
 
@@ -129,5 +132,45 @@ describe("findDraftByWorkspacePath", () => {
         "04-projects/walsh-reno/01-cost/Cost_Plan_v10.draft.xlsx",
       ),
     ).toEqual(costPlanDraft);
+  });
+});
+
+describe("explorer expanded-path persistence", () => {
+  const projectId = "project-1";
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("starts collapsed when nothing is stored", () => {
+    expect(readExplorerExpandedPaths(projectId).size).toBe(0);
+  });
+
+  it("round-trips expanded folders for one project", () => {
+    writeExplorerExpandedPaths(projectId, new Set(["04-projects/demo/01-cost"]));
+
+    expect([...readExplorerExpandedPaths(projectId)]).toEqual([
+      "04-projects/demo/01-cost",
+    ]);
+    expect(window.localStorage.getItem(explorerExpandedPathsKey(projectId))).toBe(
+      JSON.stringify(["04-projects/demo/01-cost"]),
+    );
+  });
+
+  it("keeps projects isolated and treats invalid storage as collapsed", () => {
+    writeExplorerExpandedPaths(projectId, new Set(["04-projects/demo/01-cost"]));
+    window.localStorage.setItem(explorerExpandedPathsKey("project-2"), "{not json");
+
+    expect(readExplorerExpandedPaths("project-2").size).toBe(0);
+    expect([...readExplorerExpandedPaths(projectId)]).toEqual([
+      "04-projects/demo/01-cost",
+    ]);
+  });
+
+  it("clears storage when every folder is collapsed", () => {
+    writeExplorerExpandedPaths(projectId, new Set(["04-projects/demo/01-cost"]));
+    writeExplorerExpandedPaths(projectId, new Set());
+
+    expect(window.localStorage.getItem(explorerExpandedPathsKey(projectId))).toBeNull();
   });
 });

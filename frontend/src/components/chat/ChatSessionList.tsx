@@ -3,6 +3,7 @@ import { Check, MessageSquarePlus, MoreHorizontal, Pencil, Trash2, X } from "luc
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { useChatActivity } from "@/components/chat/chat-activity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
@@ -88,6 +89,7 @@ export function ChatSessionList({
   const isNav = variant === "nav";
   const isCompactList = isPopover || isNav;
   const isEmbedded = Boolean(onSelectThread);
+  const { busyThreadIds } = useChatActivity();
 
   const threadsQuery = useQuery({
     queryKey: chatThreadQueryKey,
@@ -188,6 +190,7 @@ export function ChatSessionList({
     const title = thread.title ?? "Untitled chat";
     const isEditing = editingId === thread.id;
     const isConfirmingDelete = confirmingDeleteId === thread.id;
+    const isLive = busyThreadIds.has(thread.id);
 
     return (
       <div
@@ -195,9 +198,11 @@ export function ChatSessionList({
         className={cn(
           isNav
             ? cn(
-                "flex w-full min-w-0 items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors",
+                "flex w-full min-w-0 items-center gap-1 rounded-sm px-1.5 py-0.5 transition-colors",
                 thread.id === activeThreadId
-                  ? "bg-muted/40 text-foreground"
+                  ? isLive
+                    ? "text-foreground"
+                    : "bg-muted/40 text-foreground"
                   : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
               )
             : "grid gap-2 rounded-md border p-2",
@@ -211,7 +216,7 @@ export function ChatSessionList({
               aria-label="Thread title"
               value={draftTitle}
               onChange={(event) => setDraftTitle(event.target.value)}
-              className={isNav ? "h-7 text-sm" : undefined}
+              className={isNav ? "h-6 text-xs" : undefined}
             />
             <Button
               type="button"
@@ -239,9 +244,11 @@ export function ChatSessionList({
             {isEmbedded ? (
               <button
                 type="button"
+                aria-busy={isLive || undefined}
                 className={cn(
-                  "min-w-0 flex-1 truncate text-left text-sm",
-                  isNav ? "hover:text-foreground" : "hover:underline",
+                  "min-w-0 flex-1 truncate text-left",
+                  isNav ? "text-xs leading-5 hover:text-foreground" : "text-sm hover:underline",
+                  isLive && "streaming-status-live",
                 )}
                 onClick={() => openThread(thread.id)}
               >
@@ -250,7 +257,11 @@ export function ChatSessionList({
             ) : (
               <Link
                 to={`/chat/${thread.id}`}
-                className="min-w-0 flex-1 truncate text-sm hover:underline"
+                aria-busy={isLive || undefined}
+                className={cn(
+                  "min-w-0 flex-1 truncate text-sm hover:underline",
+                  isLive && "streaming-status-live",
+                )}
               >
                 {title}
               </Link>
@@ -385,7 +396,7 @@ export function ChatSessionList({
 
       {visibleError ? <p className="text-xs text-destructive">{visibleError}</p> : null}
 
-      <div className={isNav ? "flex flex-col gap-0.5" : "grid gap-2"}>
+      <div className={isNav ? "flex flex-col" : "grid gap-2"}>
         {isPopover && threadGroups
           ? threadGroups.map((group) => (
               <section key={group} className="grid gap-1">

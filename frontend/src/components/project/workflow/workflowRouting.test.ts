@@ -17,4 +17,8 @@ describe("resolveWorkflowTileId", () => {
   it("keeps tender evaluation on Tender Comparison", () => {
     expect(resolveWorkflowTileId(["tender_evaluation"])).toBe("procurement");
   });
+
+  it("routes the programme folder to Program", () => {
+    expect(resolveWorkflowTileId(["programme"])).toBe("program");
+  });
 });

@@ -16,10 +16,7 @@ class _NswLegislationSource:
 
     @property
     def url(self) -> str:
-        return (
-            "https://legislation.nsw.gov.au/view/whole/html/inforce/current/"
-            f"{self.instrument_id}"
-        )
+        return html_view_url(self.instrument_id)
 
 
 _SOURCES = (
@@ -172,6 +169,16 @@ _SOURCES = (
         ),
     ),
     _NswLegislationSource(
+        title="Inner West Local Environmental Plan 2022",
+        instrument_id="epi-2022-0457",
+        summary="Local planning controls for the Inner West LGA, including zoning, heritage conservation areas and development standards.",
+        topics=(
+            "inner west newtown leichhardt marrickville ashfield",
+            "local environmental plan lep zoning height floor space",
+            "heritage conservation area demolition alterations additions",
+        ),
+    ),
+    _NswLegislationSource(
         title="Heritage Act 1977",
         instrument_id="act-1977-136",
         summary="Protection and approval framework for State heritage items and archaeology.",
@@ -217,6 +224,32 @@ _SOURCES = (
         ),
     ),
 )
+
+_INSTRUMENT_ID_RE = re.compile(r"\b((?:act|epi|sl)-\d{4}-\d+)\b", re.IGNORECASE)
+
+
+def html_view_url(instrument_id: str) -> str:
+    return (
+        "https://legislation.nsw.gov.au/view/whole/html/inforce/current/"
+        f"{instrument_id}"
+    )
+
+
+def xml_export_url(instrument_id: str) -> str:
+    return f"https://legislation.nsw.gov.au/export/xml/current/{instrument_id}"
+
+
+def instrument_id_from_url(url: str) -> str | None:
+    match = _INSTRUMENT_ID_RE.search(url)
+    return match.group(1).casefold() if match else None
+
+
+def is_nsw_legislation_url(url: str) -> bool:
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(url).hostname or "").lower().removeprefix("www.")
+    return host == "legislation.nsw.gov.au"
+
 
 _QUERY_FILLER_TERMS = {
     "about",

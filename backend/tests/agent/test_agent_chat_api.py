@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -40,12 +41,12 @@ BODY = {
 
 BODY_WITH_AGENT_MODEL = {
     **BODY,
-    "agent_model": "openai:gpt-5.6-sol",
+    "agent_model": "xai:grok-4.6",
 }
 
 BODY_WITH_PI_RUNTIME = {
     **BODY,
-    "agent_model": "openai:gpt-5.6-sol",
+    "agent_model": "xai:grok-4.6",
     "messages": [
         {
             "role": "user",
@@ -457,6 +458,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "workflow.create_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
         "workflow.create_pmp=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
         "workflow.edit_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
+        "workflow.edit_programme=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
         "workflow.refresh_cost_plan=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Cost Plan requires confirmed project context.\n"
         "workflow.tender_comparison=needs_input; required_fields=building_class,subclasses,work_type,state; reasons=Tender Comparison requires confirmed Class 1a project context.\n"
         "workflow.trade_procurement=needs_input; required_fields=building_class,work_type,state; reasons=Complete the required project profile fields.\n"
@@ -478,8 +480,8 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "mcp_url": "http://testserver/mcp",
         "turn_token": "turn-token",
         "cwd": str(tmp_path / str(PROJECT_ID)),
-        "provider": "openai",
-        "model": "gpt-5.6-sol",
+        "provider": "xai",
+        "model": "grok-4.6",
     }
     assert (tmp_path / str(PROJECT_ID) / "AGENTS.md").exists()
     token_mint.assert_called_once()
@@ -861,8 +863,8 @@ def test_agent_stream_pi_receives_project_context(
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
-    assert seen["provider"] == "openai"
-    assert seen["model"] == "gpt-5.6-sol"
+    assert seen["provider"] == "xai"
+    assert seen["model"] == "grok-4.6"
     assert "Walsh Reno is a residential refurbishment." in body
     assert "<project-context>" in seen["prompt"]
     assert "project_title: Walsh Reno" in seen["prompt"]
@@ -1190,6 +1192,138 @@ def test_agent_stream_routes_fast_semantic_to_configured_model(
     )
     assert reserve.await_args.kwargs["input_context"]["task_route"]["path"] == (
         "fast_semantic"
+    )
+
+
+def _patch_agent_stream_turn(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    *,
+    stream_pi_turn,
+) -> tuple[AsyncMock, AsyncMock]:
+    thread = _thread(title=None)
+    assistant_session = AsyncMock()
+    turn_id = uuid.uuid4()
+
+    async def fake_create_message(
+        session, *, thread_id, role, content, message_data=None
+    ):
+        return ChatMessage(
+            id=uuid.uuid4(),
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            message_data=message_data,
+            created_at=NOW,
+        )
+
+    monkeypatch.setattr(settings, "agent_workspace_root", tmp_path)
+    monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(
+        chat_api,
+        "reserve_agent_turn",
+        AsyncMock(
+            return_value=(
+                SimpleNamespace(id=turn_id),
+                SimpleNamespace(used_turns=1, quota=100, percent=1, warning=False),
+                True,
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
+    revoke = AsyncMock(return_value=True)
+    monkeypatch.setattr(chat_api, "revoke_agent_turn", revoke)
+    monkeypatch.setattr(
+        chat_api,
+        "require_project_owner",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                id=PROJECT_ID,
+                title="Walsh Reno",
+                archetype=None,
+                user_role="architect-pm",
+                state="NSW",
+                phase="brief-planning",
+                building_class="residential",
+                work_type="refurb",
+                project_metadata=None,
+            )
+        ),
+    )
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    monkeypatch.setattr(chat_api, "update_thread", AsyncMock(return_value=thread))
+    monkeypatch.setattr(
+        chat_api, "create_message", AsyncMock(side_effect=fake_create_message)
+    )
+    monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="turn-token"))
+    monkeypatch.setattr(chat_api, "stream_pi_turn", stream_pi_turn)
+    monkeypatch.setattr(
+        chat_api,
+        "get_session_factory",
+        lambda: _SessionFactory(assistant_session),
+    )
+    return assistant_session, revoke
+
+
+def test_agent_stream_persists_assistant_error_when_turn_is_cancelled(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    async def fake_stream_pi_turn(**_kwargs):
+        if False:
+            yield ""
+        raise asyncio.CancelledError()
+
+    assistant_session, revoke = _patch_agent_stream_turn(
+        monkeypatch, tmp_path, stream_pi_turn=fake_stream_pi_turn
+    )
+
+    with client.stream("POST", "/chat/agent/stream", json=BODY) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "This turn was interrupted before Pi finished" in body
+    revoke.assert_awaited_once()
+    chat_api.complete_agent_turn.assert_not_awaited()
+    assistant_calls = [
+        call
+        for call in chat_api.create_message.await_args_list
+        if call.kwargs["role"] == "assistant"
+    ]
+    assert len(assistant_calls) == 1
+    assert assistant_calls[0].kwargs["content"] == (
+        "This turn was interrupted before Pi finished. Please try again."
+    )
+    assert assistant_session.commit.await_count >= 1
+
+
+def test_agent_stream_persists_timeout_error_when_pi_stalls(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    async def fake_stream_pi_turn(**_kwargs):
+        if False:
+            yield ""
+        raise chat_api.PiTurnTimeout("Pi turn timed out")
+
+    _patch_agent_stream_turn(monkeypatch, tmp_path, stream_pi_turn=fake_stream_pi_turn)
+
+    with client.stream("POST", "/chat/agent/stream", json=BODY) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "Pi took too long to respond" in body
+    assistant_calls = [
+        call
+        for call in chat_api.create_message.await_args_list
+        if call.kwargs["role"] == "assistant"
+    ]
+    assert assistant_calls[0].kwargs["content"] == (
+        "Pi took too long to respond. Please try again."
     )
 
 

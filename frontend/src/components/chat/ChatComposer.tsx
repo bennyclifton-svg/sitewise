@@ -33,7 +33,7 @@ const MIN_TEXTAREA_ROWS = 1;
 const MAX_TEXTAREA_ROWS = 6;
 const HOLD_TO_RECORD_MS = 180;
 
-const DEPTH_LABELS = ["Fast", "Balanced", "Complex"] as const;
+const DEPTH_LABELS = ["Fast", "Thorough"] as const;
 
 type ModelOption = ChatModelOption | AgentModelOption;
 
@@ -489,7 +489,6 @@ function SolidMicIcon() {
 
 function DepthIcon({
   label,
-  active,
 }: {
   label: (typeof DEPTH_LABELS)[number];
   active: boolean;
@@ -501,22 +500,6 @@ function DepthIcon({
           d="M7.5 3.6L12.2 6.3L7.5 9L2.8 6.3Z"
           fill="currentColor"
           opacity=".85"
-        />
-      </svg>
-    );
-  }
-  if (label === "Balanced") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-        <path
-          d="M7.5 1.9L12.2 4.6L7.5 7.3L2.8 4.6Z"
-          fill={active ? "#7FB0E4" : "currentColor"}
-          opacity={active ? 1 : 0.85}
-        />
-        <path
-          d="M7.5 6.1L12.2 8.8L7.5 11.5L2.8 8.8Z"
-          fill={active ? "#2F72C4" : "currentColor"}
-          opacity={active ? 1 : 0.55}
         />
       </svg>
     );

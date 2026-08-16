@@ -21,6 +21,7 @@ CONSULTANT_PROCUREMENT = "consultant_procurement"
 CONTRACTOR_EOI = "contractor_eoi"
 TRADE_PROCUREMENT = "trade_procurement"
 TRANSMITTAL = "transmittal"
+EDIT_PROGRAMME = "edit_programme"
 
 _PROJECT_PLAN_FIELDS = ("building_class", "work_type", "state")
 _COST_PLAN_FIELDS = ("building_class", "subclasses", "work_type", "state")
@@ -55,6 +56,7 @@ def workflow_capabilities(snapshot: ProjectSnapshot) -> WorkflowCapabilityMatrix
             snapshot,
             _CONTRACTOR_FIELDS,
         ),
+        EDIT_PROGRAMME: plan.model_copy(deep=True),
         TRANSMITTAL: WorkflowCapability(
             status="supported",
             reasons=[

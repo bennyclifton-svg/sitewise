@@ -314,6 +314,66 @@ def test_parses_markdown_title_blocks_from_preview_snippets():
     assert result.confidence == "high"
 
 
+def test_parses_kebab_civil_sheet_numbers_from_filename():
+    result = _parse(
+        file_name="C-001-civil-notes-legend-and-abbreviations.md",
+        filed_path="04-projects/newtown-extension-2/_inbox/C-001-civil-notes-legend-and-abbreviations.md",
+    )
+    assert result.document_number == "C-001"
+    assert result.title == "civil notes legend and abbreviations"
+    assert result.discipline == "Civil"
+    assert result.confidence == "medium"
+    assert result.canonical_file_name == (
+        "C-001 - civil notes legend and abbreviations.md"
+    )
+
+
+def test_parses_kebab_architectural_sheet_numbers_from_filename():
+    result = _parse(
+        file_name="A-000-cover-sheet-and-drawing-register.md",
+        filed_path="04-projects/newtown-extension-2/_inbox/A-000-cover-sheet-and-drawing-register.md",
+    )
+    assert result.document_number == "A-000"
+    assert result.title == "cover sheet and drawing register"
+    assert result.confidence == "medium"
+
+
+def test_preview_title_wins_over_kebab_filename_slug():
+    result = _parse(
+        file_name="C-001-civil-notes-legend-and-abbreviations.md",
+        filed_path="04-projects/newtown-extension-2/_inbox/C-001-civil-notes-legend-and-abbreviations.md",
+        preview_snippet="\n".join(
+            [
+                "| **Drawing title** | **Civil Notes, Legend and Abbreviations** |",
+                "| **Drawing number** | **C-001** |",
+                "| **Revision** | **A** |",
+            ]
+        ),
+    )
+    assert result.document_number == "C-001"
+    assert result.title == "Civil Notes, Legend and Abbreviations"
+    assert result.revision == "A"
+    assert result.confidence == "high"
+
+
+def test_strips_markdown_emphasis_from_drawing_number_and_title():
+    result = _parse(
+        file_name="A-000-cover-sheet-and-drawing-register.md",
+        filed_path="04-projects/demo/03-design/architect",
+        preview_snippet="\n".join(
+            [
+                "| **Drawing title** | **Cover Sheet and Drawing Register** |",
+                "| **Drawing number** | **A-000** |",
+                "| **Revision** | **C** |",
+            ]
+        ),
+    )
+    assert result.document_number == "A-000"
+    assert result.title == "Cover Sheet and Drawing Register"
+    assert result.revision == "C"
+    assert result.confidence == "high"
+
+
 def test_keeps_windows_short_names_unchanged():
     result = _parse(
         file_name="E01-EL~1.PDF",

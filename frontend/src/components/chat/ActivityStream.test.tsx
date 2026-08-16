@@ -94,6 +94,7 @@ describe("ActivityStream", () => {
     const status = await screen.findByTestId("activity-stream");
     expect(status.querySelectorAll(".streaming-cube")).toHaveLength(1);
     expect(container.querySelectorAll(".streaming-cube")).toHaveLength(1);
+    expect(status.querySelector(".streaming-status-live")).toBeTruthy();
     expect(status).toHaveTextContent("Searched · plant.pdf");
     await waitFor(() => {
       expect(status).toHaveTextContent("Project context ready.");
@@ -101,11 +102,14 @@ describe("ActivityStream", () => {
     expect(status).not.toHaveTextContent("Workflow queued");
   });
 
-  it("shows a quiet cube while busy before the first status line", () => {
+  it("shows a starting line beside the cube while busy before the first status", () => {
     render(<ActivityStream busy />, { wrapper: wrapper() });
 
     const status = screen.getByTestId("activity-stream");
-    expect(status).toHaveAttribute("aria-label", "Working");
+    expect(status).toHaveAttribute("aria-label", "Reading your request…");
     expect(status.querySelector(".streaming-cube")).toBeTruthy();
+    expect(status.querySelector(".streaming-status-live")).toHaveTextContent(
+      "Reading your request…",
+    );
   });
 });

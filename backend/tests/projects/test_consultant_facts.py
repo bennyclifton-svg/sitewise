@@ -18,6 +18,10 @@ def test_map_discipline_to_register_label_normalizes_services_aliases():
     assert map_discipline_to_register_label("Structural") == "Structural Engineer"
     assert map_discipline_to_register_label("Acoustic") == "Acoustic Consultant"
     assert map_discipline_to_register_label("Fire") == "Fire Engineer"
+    assert map_discipline_to_register_label("Town Planning") == "Town Planner"
+    assert map_discipline_to_register_label("Architectural Services") == "Architect"
+    assert map_discipline_to_register_label("Certification") == "Building Certifier"
+    assert map_discipline_to_register_label("Civil") == "Civil / stormwater"
 
 
 def test_upsert_consultant_fact_from_document_metadata():

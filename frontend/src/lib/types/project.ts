@@ -179,6 +179,7 @@ export type CreateProjectInput = {
 
 export type UpdateProjectInput = ProjectTaxonomyInput & {
   expected_revision: number;
+  title?: string;
   state?: string | null;
   site_address?: string | null;
   client?: string | null;
@@ -190,6 +191,7 @@ export type UpdateProjectInput = ProjectTaxonomyInput & {
 export type ProjectProfileView = {
   project_id: string;
   profile_revision: number;
+  title?: string;
   building_class: string | null;
   work_type: string | null;
   subclasses: ProjectSubclassSelection[];
@@ -210,6 +212,7 @@ export type ProjectProfileChange = {
   previous_revision: number;
   new_revision: number;
   changed_fields: Array<
+    | "title"
     | "building_class"
     | "work_type"
     | "subclasses"

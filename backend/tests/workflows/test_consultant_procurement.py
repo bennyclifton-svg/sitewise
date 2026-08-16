@@ -330,7 +330,8 @@ def test_structural_engineer_happy_path_creates_rfp_draft(monkeypatch) -> None:
     assert (
         "# Request for Proposal - Structural engineer" in result.draft.content_markdown
     )
-    assert "## Proposal particulars" in result.draft.content_markdown
+    assert "## Project summary" in result.draft.content_markdown
+    assert "## Proposal particulars" not in result.draft.content_markdown
     assert "| Field | Project detail | Source |" not in result.draft.content_markdown
     assert "| Project |" in result.draft.content_markdown
     primary, trace = result.draft.content_markdown.split("## Trace & QA", maxsplit=1)

@@ -127,7 +127,14 @@ class SafePageFetcher:
                     content_type = response.headers.get("content-type", "").lower()
                     if not any(
                         allowed in content_type
-                        for allowed in ("text/html", "text/plain", "application/pdf")
+                        for allowed in (
+                            "text/html",
+                            "text/plain",
+                            "application/pdf",
+                            "application/xml",
+                            "text/xml",
+                            "application/xhtml+xml",
+                        )
                     ):
                         raise WebFetchError(f"unsupported web source content type: {content_type}")
                     content_length = response.headers.get("content-length")

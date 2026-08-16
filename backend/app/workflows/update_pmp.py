@@ -87,6 +87,7 @@ from app.sitewise.pmp_sources import document_title, required_platform_paths
 from app.sitewise.pmp_greenfield_brief import greenfield_structure_violations
 from app.sitewise.pmp_sources import seed_consulted_includes_required
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context, project_has_taxonomy
+from app.sitewise.pmp_corpus import list_current_pmp_corpus_documents
 from app.sitewise.pmp_sweep import (
     apply_sweep_downgrades,
     compute_evidence_changed,
@@ -99,6 +100,7 @@ from app.workflows.create_pmp import (
     PmpDraftOutput,
     PreviewPublisher,
     WorkflowValidationError,
+    _apply_accommodation_facts_to_markdown,
     _apply_consultant_facts_to_markdown,
     _apply_locked_decisions,
     _context_refs_from_passages,
@@ -652,6 +654,32 @@ async def run_update_pmp_workflow(
         affected_section_ids=section_ids,
     )
     if refresh_plan.skip:
+        listing = await list_current_pmp_corpus_documents(
+            session, project_id=project.id
+        )
+        stamped = _apply_accommodation_facts_to_markdown(
+            baseline.content_markdown,
+            project,
+            documents=listing.documents,
+        )
+        if stamped != baseline.content_markdown:
+            return await _save_stamp_only_update(
+                session,
+                user_id=user_id,
+                project=project,
+                baseline=baseline,
+                markdown=stamped,
+                gate=gate,
+                trace=trace,
+                run_id=run_id,
+                thread_id=thread_id,
+                on_preview=on_preview,
+                model_spec=model_spec,
+                resolved_model=resolved_model,
+                model_metadata=model_metadata,
+                locked_decisions=locked_decisions,
+                refresh_input_hash=refresh_plan.refresh_input_hash,
+            )
         trace.append(
             _trace(
                 "selective_refresh",
@@ -1117,6 +1145,23 @@ async def run_update_pmp_workflow(
                 "Applied evidence-derived consultant firms to the Consultants register.",
             )
         )
+    patched_accommodation = _apply_accommodation_facts_to_markdown(
+        output.markdown,
+        project,
+        delta_source_texts,
+        documents=(
+            sweep_result.listing.documents if sweep_result is not None else None
+        ),
+    )
+    if patched_accommodation != output.markdown:
+        output.markdown = patched_accommodation
+        trace.append(
+            _trace(
+                "accommodation_schedule",
+                "complete",
+                "Applied brief-table spaces to the Accommodation Schedule.",
+            )
+        )
 
     await _publish_progress(on_preview, {"stage": "saving"})
     next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
@@ -1239,6 +1284,118 @@ async def run_update_pmp_workflow(
     )
 
     content = f"Update PMP completed. Draft v{draft.version} is ready for review: {draft.title}"
+    await _persist_trace_message(
+        session,
+        project_id=project.id,
+        run_id=run_id,
+        thread_id=thread_id,
+        content=content,
+        trace=trace,
+        status="complete",
+        draft_id=draft.id,
+    )
+    await _publish_progress(on_preview, {"stage": "artefact_ready"})
+    return CreatePmpResponse(
+        status="complete",
+        gate=gate,
+        trace=trace,
+        draft=DraftArtifactResponse.model_validate(draft),
+        message=content,
+    )
+
+
+async def _save_stamp_only_update(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    project: Project,
+    baseline: DraftArtifact,
+    markdown: str,
+    gate,
+    trace: list[WorkflowTraceEvent],
+    run_id: uuid.UUID,
+    thread_id: uuid.UUID | None,
+    on_preview: PreviewPublisher | None,
+    model_spec,
+    resolved_model: str,
+    model_metadata: dict,
+    locked_decisions: dict[str, str],
+    refresh_input_hash: str,
+) -> CreatePmpResponse:
+    from app.workflows.create_pmp import (
+        _next_version_hint,
+        draft_workspace_path,
+        sync_pmp_draft_workspace,
+    )
+
+    trace.append(
+        _trace(
+            "accommodation_schedule",
+            "complete",
+            "Applied brief-table spaces to the Accommodation Schedule.",
+        )
+    )
+    await _publish_progress(on_preview, {"stage": "saving"})
+    next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
+    markdown = prepare_issue_markdown(markdown, project_title=project.title)
+    markdown = sync_document_control_version(markdown, next_version)
+    draft = await create_draft_artifact(
+        session,
+        project_id=project.id,
+        workflow_type=WORKFLOW_TYPE,
+        title=baseline.title or document_title(project=project),
+        workspace_path=draft_workspace_path(project, next_version),
+        author_user_id=user_id,
+        content_markdown=markdown,
+        model=resolved_model,
+        runtime=UPDATE_RUNTIME_NAME,
+        expected_base_version=next_version - 1,
+        actor_source="project_plan_workflow",
+        provenance_metadata={
+            "workflow": "update_pmp",
+            "draft_mode": "stamp_only",
+            "model": resolved_model,
+            "model_label": model_spec.label,
+            "model_provider": model_spec.provider,
+            "based_on_draft_id": str(baseline.id),
+            "based_on_version": baseline.version,
+            "incremental_update": {
+                "input_hash": refresh_input_hash,
+                "updated": ["accommodation-schedule"],
+                "preserved": [],
+                "conflicts": [],
+                "proposed_delete": [],
+            },
+            "trace": [event.model_dump() for event in trace],
+        },
+    )
+    await sync_pmp_draft_workspace(
+        session,
+        project=project,
+        draft=draft,
+        markdown=markdown,
+    )
+    await sync_decisions_from_markdown(
+        session,
+        project_id=project.id,
+        markdown=markdown,
+        workflow_type=WORKFLOW_TYPE,
+        locked=locked_decisions,
+    )
+    trace.append(
+        _trace(
+            "draft_save",
+            "complete",
+            "Saved Update PMP as a new versioned draft artefact.",
+            draft_id=str(draft.id),
+            version=draft.version,
+            **model_metadata,
+        )
+    )
+    content = (
+        f"Update PMP completed. Draft v{draft.version} is ready for review: "
+        f"{draft.title}"
+    )
     await _persist_trace_message(
         session,
         project_id=project.id,

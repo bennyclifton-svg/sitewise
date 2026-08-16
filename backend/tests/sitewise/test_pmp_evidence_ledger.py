@@ -1,8 +1,23 @@
+from pathlib import Path
+
+from app.sitewise.accommodation_schedule import (
+    parse_accommodation_schedule_tables,
+    scheduled_area_total,
+)
 from app.sitewise.pmp_evidence_ledger import (
     build_document_digest,
     build_evidence_ledger,
     conflict_summary_violations,
     format_evidence_ledger,
+)
+
+_NEWTOWN_BRIEF = (
+    Path(__file__).resolve().parents[3]
+    / "docs"
+    / "demo-corpus"
+    / "newtown"
+    / "01-brief"
+    / "owners-project-brief.md"
 )
 
 
@@ -14,6 +29,86 @@ def test_document_digest_retains_high_consequence_conclusion_after_old_cutoff() 
 
     assert len(digest) <= 2_000
     assert "Performance solution required for fire brigade access before CC." in digest
+
+
+def test_document_digest_keeps_accommodation_schedule_table() -> None:
+    preamble = "OWNER BRIEF\n" + ("context paragraph about the house and heritage.\n" * 80)
+    table = """
+## 4. Accommodation schedule
+
+| Space | Level | Area | Characteristics | Status |
+| --- | --- | --- | --- | --- |
+| Kitchen (existing) | Ground | 12 m² | 1980s addition, to be removed | Demolished |
+| Rear Sitting Room | Ground | 15 m² | 1980s addition, to be removed | Demolished |
+| Kitchen | Ground | 16 m² | island bench | New |
+| Covered Deck | External | 18 m² | off living | New |
+"""
+    text = preamble + table + ("\nmore notes about tapware and the construction budget.\n" * 40)
+    assert len(text) > 4_500
+
+    digest = build_document_digest(text, max_chars=4_500)
+    rows = parse_accommodation_schedule_tables(digest)
+    names = {row["space"] for row in rows}
+
+    assert "| Space | Level | Area | Characteristics | Status |" in digest
+    assert names >= {
+        "Kitchen (existing)",
+        "Rear Sitting Room",
+        "Kitchen",
+        "Covered Deck",
+    }
+    assert {row["space"] for row in rows if row["status"] == "Demolished"} == {
+        "Kitchen (existing)",
+        "Rear Sitting Room",
+    }
+
+
+def test_document_digest_keeps_schedule_of_accommodation_and_room_schedule() -> None:
+    preamble = "BRIEF\n" + ("heritage and existing-house context.\n" * 90)
+    table = """
+## Schedule of accommodation
+
+| Room | Level | Area | Status |
+| --- | --- | --- | --- |
+| Kitchen (existing) | Ground | 12 m² | Demolished |
+| Kitchen | Ground | 16 m² | New |
+"""
+    later = """
+## Room schedule
+
+| Space | Level | Area | Status |
+| --- | --- | --- | --- |
+| Rear Sitting Room | Ground | 15 m² | Demolished |
+"""
+    text = preamble + table + ("\nbudget notes and tapware preferences.\n" * 40) + later
+    assert len(text) > 4_500
+
+    digest = build_document_digest(text, max_chars=4_500)
+    rows = parse_accommodation_schedule_tables(digest)
+    names = {row["space"] for row in rows}
+
+    assert names >= {"Kitchen (existing)", "Kitchen", "Rear Sitting Room"}
+    assert {row["space"] for row in rows if row["status"] == "Demolished"} >= {
+        "Kitchen (existing)",
+        "Rear Sitting Room",
+    }
+
+
+def test_document_digest_keeps_newtown_brief_schedule() -> None:
+    text = _NEWTOWN_BRIEF.read_text(encoding="utf-8")
+    digest = build_document_digest(text, max_chars=4_500)
+    rows = parse_accommodation_schedule_tables(digest)
+    demolished = {row["space"] for row in rows if row["status"] == "Demolished"}
+
+    assert len(rows) == 26
+    assert demolished == {
+        "Kitchen (existing)",
+        "Bathroom (existing)",
+        "Laundry (existing)",
+        "Rear Sitting Room",
+        "Rear Verandah",
+    }
+    assert scheduled_area_total(rows) == 261.0
 
 
 def test_ledger_surfaces_unit_and_gfa_conflicts_at_the_front() -> None:

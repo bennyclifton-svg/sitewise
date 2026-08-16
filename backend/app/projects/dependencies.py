@@ -28,6 +28,7 @@ DirtyCategory = Literal[
 ArtefactType = Literal["pmp", "rfp", "rft", "cost_plan", "consultant_register"]
 
 _PROFILE_DIRTY: dict[str, tuple[DirtyCategory, ...]] = {
+    "title": ("scope_dirty",),
     "building_class": ("scope_dirty", "design_dirty", "cost_dirty"),
     "work_type": ("scope_dirty", "design_dirty", "cost_dirty", "procurement_dirty"),
     "subclasses": ("scope_dirty", "design_dirty", "cost_dirty"),

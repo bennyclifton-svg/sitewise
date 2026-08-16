@@ -2,6 +2,7 @@ import {
   BriefcaseBusiness,
   ClipboardList,
   FileText,
+  GanttChart,
   HandCoins,
   Settings2,
   type LucideIcon,
@@ -65,6 +66,7 @@ export function buildLifecycleTiles({
     workflowError: costPlanWorkflowError,
     isRunningWorkflow: isRunningCostPlan,
   });
+  const programmeStatus = getProgrammeStatus({ project });
 
   return [
     {
@@ -99,6 +101,17 @@ export function buildLifecycleTiles({
       statusLabel: costPlanStatus.label,
       description:
         "Create and review the project cost plan from cost evidence, claims, and SiteWise cost doctrine.",
+      implemented: true,
+    },
+    {
+      id: "program",
+      label: "Program",
+      folder: "06-programme",
+      icon: GanttChart,
+      status: programmeStatus.status,
+      statusLabel: programmeStatus.label,
+      description:
+        "Schedule stages and activities on a simple Gantt. The Project Plan can show a read-only copy.",
       implemented: true,
     },
     {
@@ -195,5 +208,18 @@ function getCreateCostPlanStatus({
   }
   if (!project.overlay_status.ready) return { status: "blocked", label: "Blocked" };
   if (latestDraft) return { status: "draft", label: `Draft v${latestDraft.version}` };
+  return { status: "ready", label: "Ready" };
+}
+
+function getProgrammeStatus({
+  project,
+}: {
+  project: ProjectDetail;
+}): { status: WorkflowStatus; label: string } {
+  const capability = project.workflow_capabilities?.capabilities.edit_programme;
+  if (capability && capability.status !== "supported") {
+    return { status: "blocked", label: "Blocked" };
+  }
+  if (!project.overlay_status.ready) return { status: "blocked", label: "Blocked" };
   return { status: "ready", label: "Ready" };
 }

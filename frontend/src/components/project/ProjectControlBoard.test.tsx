@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/http";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type {
   DraftArtifact,
@@ -24,6 +25,11 @@ vi.mock("@/lib/api", () => ({
     updateProject: vi.fn(),
     listProcurementRequests: vi.fn(),
     getLatestDraft: vi.fn(),
+    getProgrammeState: vi.fn(),
+    ensureProgramme: vi.fn(),
+    applyProgrammeOperations: vi.fn(),
+    setProgrammeView: vi.fn(),
+    getProgrammeFigureSvg: vi.fn(),
   },
 }));
 
@@ -102,6 +108,9 @@ describe("ProjectControlBoard project profile", () => {
         total_including_gst: "0.00",
       },
     });
+    vi.mocked(api.getProgrammeState).mockRejectedValue(
+      new ApiError("Programme not found", { kind: "http", status: 404 }),
+    );
     vi.mocked(api.getInvoiceLedger).mockResolvedValue({
       cost_plan_version: 1,
       workbook_path: "cost-plan.xlsx",
@@ -196,6 +205,7 @@ describe("ProjectControlBoard project profile", () => {
     await waitFor(() =>
       expect(api.updateProject).toHaveBeenCalledWith("project-1", {
         expected_revision: 1,
+        title: "Demo Project",
         building_class: "commercial",
         work_type: "refurb",
         subclasses: [{ value: "other", label: "Laboratory office" }],
@@ -223,6 +233,55 @@ describe("ProjectControlBoard project profile", () => {
     await user.click(saveButton);
     expect(api.updateProject).not.toHaveBeenCalled();
     expect(onProjectUpdated).not.toHaveBeenCalled();
+  });
+
+  it("saves a renamed project title from the project profile panel", async () => {
+    const user = userEvent.setup();
+    const onProjectUpdated = vi.fn();
+    vi.mocked(api.updateProject).mockResolvedValue({
+      profile: {
+        project_id: project.id,
+        profile_revision: 2,
+        title: "Newtown Heritage Extension",
+        building_class: project.building_class,
+        work_type: project.work_type,
+        subclasses: [{ value: "office" }],
+        scale: {},
+        complexity: { operational_constraints: "live_environment" },
+        work_scope: [],
+        state: project.state,
+        site_address: null,
+        client: null,
+        budget: null,
+        scope_narrative: [],
+      },
+      previous_revision: 1,
+      new_revision: 2,
+      changed_fields: ["title"],
+      cleared_fields: [],
+      overlay_status: project.overlay_status,
+      risk_flags: project.risk_flags,
+    });
+
+    render(profileBoard(project, onProjectUpdated));
+
+    const titleInput = screen.getByLabelText("Project name");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Newtown Heritage Extension");
+    await user.click(screen.getByRole("button", { name: "Save profile" }));
+
+    await waitFor(() =>
+      expect(api.updateProject).toHaveBeenCalledWith(
+        "project-1",
+        expect.objectContaining({
+          expected_revision: 1,
+          title: "Newtown Heritage Extension",
+        }),
+      ),
+    );
+    expect(onProjectUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Newtown Heritage Extension" }),
+    );
   });
 
   it("saves budget and scope notes from the project profile panel", async () => {
@@ -269,6 +328,7 @@ describe("ProjectControlBoard project profile", () => {
     await waitFor(() =>
       expect(api.updateProject).toHaveBeenCalledWith("project-1", {
         expected_revision: 1,
+        title: "Demo Project",
         building_class: "commercial",
         work_type: "refurb",
         subclasses: ["office"],
@@ -412,6 +472,7 @@ describe("ProjectControlBoard project profile", () => {
     await waitFor(() =>
       expect(api.updateProject).toHaveBeenCalledWith("project-1", {
         expected_revision: 1,
+        title: "Demo Project",
         building_class: "residential",
         work_type: "refurb",
         subclasses: [],
@@ -460,8 +521,7 @@ describe("ProjectControlBoard project profile", () => {
     );
 
     await screen.findByText("No requests yet. Create the first one above.");
-    await user.click(screen.getByLabelText("Request type"));
-    await user.click(screen.getByRole("menuitem", { name: "Trade package" }));
+    await user.click(screen.getByRole("tab", { name: "Trade package" }));
     await user.type(screen.getByLabelText("Discipline"), "Electrical services");
     await user.click(
       screen.getByRole("button", { name: "Create Trade package" }),
@@ -552,6 +612,7 @@ describe("ProjectControlBoard project profile", () => {
     await waitFor(() =>
       expect(api.updateProject).toHaveBeenCalledWith("project-1", {
         expected_revision: 2,
+        title: "Demo Project",
         building_class: "commercial",
         work_type: "refurb",
         subclasses: ["office"],
@@ -753,6 +814,21 @@ describe("ProjectControlBoard project profile", () => {
     const documentMarkdown = [
       "# Project Management Plan",
       "",
+      "## Brief",
+      "",
+      "Rear extension and first-floor addition. <!-- clerk:block id=blk_dba9073a16ea8cddb7bc1e7117d5e43 -->",
+      "",
+      "## Citation key",
+      "",
+      "- [P1] Project brief",
+    ].join("\n");
+    const copiedMarkdown = [
+      "# Project Management Plan",
+      "",
+      "## Brief",
+      "",
+      "Rear extension and first-floor addition.",
+      "",
       "## Citation key",
       "",
       "- [P1] Project brief",
@@ -777,12 +853,13 @@ describe("ProjectControlBoard project profile", () => {
       render(pmpBoard());
 
       await user.click(
-        screen.getByRole("button", { name: "Copy project management plan" }),
+        await screen.findByRole("button", { name: "Copy project management plan" }),
       );
 
       await waitFor(async () => {
-        expect(await navigator.clipboard.readText()).toBe(documentMarkdown);
+        expect(await navigator.clipboard.readText()).toBe(copiedMarkdown);
       });
+      expect(await navigator.clipboard.readText()).not.toContain("clerk:block");
       expect(await navigator.clipboard.readText()).not.toContain(
         "This workflow trace is not document content.",
       );

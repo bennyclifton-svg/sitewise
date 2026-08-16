@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import unquote
 
+from ingest.drawing_parse import parse_drawing_filename
+
 Confidence = Literal["high", "medium", "low"]
 
 DISCIPLINE_FOLDER_LABELS: dict[str, str] = {
@@ -549,11 +551,18 @@ def _is_corrupted_extracted_title(preview_title: str, file_title: str) -> bool:
     return False
 
 
+def strip_markdown_emphasis(value: str) -> str:
+    """Remove wrapping markdown bold/italic markers from a captured field."""
+    cleaned = value.strip()
+    cleaned = re.sub(r"^\*\*(.+)\*\*$", r"\1", cleaned)
+    cleaned = re.sub(r"^\*(.+)\*$", r"\1", cleaned)
+    return cleaned.strip()
+
+
 def _normalize_parsed_fields(fields: _ParsedFields) -> _ParsedFields:
+    document_number = strip_markdown_emphasis(fields.document_number)
     document_number = (
-        fields.document_number.strip()
-        if _is_valid_document_number(fields.document_number)
-        else ""
+        document_number if _is_valid_document_number(document_number) else ""
     )
     title = _normalize_title_for_canonical(fields.title, document_number)
     revision = fields.revision if _is_valid_revision(fields.revision) else "Current"
@@ -616,14 +625,18 @@ def _parse_from_markdown_table(preview: str) -> dict[str, str | Confidence] | No
         r"\*\*Drawing number\*\*\s*\|\s*(.+?)\s*\|", preview, re.I
     ) or re.search(r"\*\*Drawing No\.?\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
     drawing_number = (
-        drawing_number_match.group(1).strip() if drawing_number_match else None
+        strip_markdown_emphasis(drawing_number_match.group(1))
+        if drawing_number_match
+        else None
     )
 
     drawing_title_match = re.search(
         r"\*\*Drawing title\*\*\s*\|\s*(.+?)\s*\|", preview, re.I
     ) or re.search(r"\*\*Title\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
     drawing_title = (
-        drawing_title_match.group(1).strip() if drawing_title_match else None
+        strip_markdown_emphasis(drawing_title_match.group(1))
+        if drawing_title_match
+        else None
     )
 
     revision_match = re.search(
@@ -967,6 +980,7 @@ def _parse_from_file_name(stem: str) -> _ParsedFields:
         _match_rev_parenthetical,
         _match_bracket_revision,
         _match_job_reference,
+        _match_sheet_code,
         _match_leading_number_title,
         _match_generic_title,
     ]
@@ -1279,6 +1293,21 @@ def _match_job_reference(stem: str) -> _ParsedFields | None:
     )
 
 
+def _match_sheet_code(stem: str) -> _ParsedFields | None:
+    """Kebab or spaced sheet codes: ``C-001-civil-notes`` / ``A-000 cover sheet``."""
+    identity = parse_drawing_filename(f"{stem}.pdf")
+    if not identity.drawing_number:
+        return None
+    title = _clean_title(re.sub(r"[-_]+", " ", identity.title or ""))
+    revision = identity.revision or "Current"
+    return _ParsedFields(
+        document_number=identity.drawing_number,
+        title=title,
+        revision=_normalize_revision(revision) if revision != "Current" else "Current",
+        confidence="medium",
+    )
+
+
 def _match_leading_number_title(stem: str) -> _ParsedFields | None:
     match = re.match(r"^(\d{4,})\s+(.+)$", stem)
     if not match:
@@ -1379,7 +1408,8 @@ def _extract_extension(file_name: str) -> str:
 
 
 def _normalize_revision(value: str) -> str:
-    cleaned = re.sub(r"^rev(?:ision)?\s*", "", value, flags=re.I)
+    cleaned = strip_markdown_emphasis(value)
+    cleaned = re.sub(r"^rev(?:ision)?\s*", "", cleaned, flags=re.I)
     cleaned = re.sub(r"\s*—.*$", "", cleaned)
     cleaned = re.sub(r"\s*-\s*.*$", "", cleaned)
     cleaned = re.sub(r"[:.\s]+$", "", cleaned).strip()
@@ -1429,7 +1459,7 @@ def _is_safe_canonical_file_name(file_name: str) -> bool:
 
 
 def _clean_title(value: str) -> str:
-    cleaned = re.sub(r"\s+", " ", value).strip()
+    cleaned = re.sub(r"\s+", " ", strip_markdown_emphasis(value)).strip()
     while re.match(r"^[\s\-–—]+", cleaned):
         cleaned = re.sub(r"^[\s\-–—]+", "", cleaned).strip()
     return re.sub(r"\s-\s$", "", cleaned).strip()

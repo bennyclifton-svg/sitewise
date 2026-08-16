@@ -1,0 +1,24 @@
+[
+  {
+    "prompt": "5",
+    "expected": "commercial / retail_standalone / refurb",
+    "expected_band": "xs",
+    "title": "w3-5 Roof replacement and waterproofing 20260814-0933",
+    "project_id": "86d26e3e-2ce3-4b54-80f1-792d86f13942",
+    "thread_id": "8080f06f-8ca3-4f14-8a3b-6169585880ff",
+    "runs": [],
+    "chat_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w3-05-roof--chat.md",
+    "pmp": null
+  },
+  {
+    "prompt": "26",
+    "expected": "commercial / retail_standalone / new",
+    "expected_band": "m",
+    "title": "w3-26 Standalone retail 20260814-0933",
+    "project_id": "14c4c32d-5ed2-4864-bdd2-e8722dbf6acf",
+    "thread_id": "d760335b-b0be-41d1-b500-d7085026381e",
+    "runs": [],
+    "chat_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w3-26-retail--chat.md",
+    "pmp": null
+  }
+]

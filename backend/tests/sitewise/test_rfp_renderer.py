@@ -82,14 +82,18 @@ def test_rfp_summary_cites_project_profile_as_one_when_no_corroborating_evidence
         max_pages=1,
     )
 
-    summary = scaffold.split("## Proposal particulars", maxsplit=1)[1].split(
+    summary = scaffold.split("## Project summary", maxsplit=1)[1].split(
         "## Background", maxsplit=1
     )[0]
     assert "| Project | Walsh Renovation | [1] |" in summary
     assert "| Site / address | 12 Example Street, Sydney NSW 2000 | [1] |" in summary
     assert "| Client | Example Client Pty Ltd | [1] |" in summary
-    assert "| State | NSW | [1] |" in summary
-    assert "| Taxonomy | residential / refurb | [1] |" in summary
+    assert "| State |" not in summary
+    assert "| Class / work type | residential / refurb | [1] |" in summary
+    assert "| Taxonomy |" not in summary
+    assert "| Subclass and scale |" not in summary
+    assert "Services package:" not in summary
+    assert "Client instruction:" not in summary
     assert "Profile" not in summary
     assert "Confirm" not in summary
 
@@ -149,7 +153,10 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
     assert scaffold.count(BACKGROUND_PLACEHOLDER) == 1
     assert scaffold.count(REQUESTED_SERVICES_PLACEHOLDER) == 1
     assert scaffold.startswith("# Request for Proposal - Town planner")
-    assert "## Proposal particulars" in scaffold
+    assert "## Project summary" in scaffold
+    assert "## Proposal particulars" not in scaffold
+    assert "Services package:" not in scaffold
+    assert "Client instruction:" not in scaffold
     assert "| Field | Project detail | Source |" not in scaffold
     assert "| Project |" in scaffold
     assert "| --- | --- | --- |" in scaffold
@@ -174,6 +181,18 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
     assert "## Submission instructions" not in scaffold
     assert scaffold.rstrip().endswith("- No unresolved generation inputs recorded.")
     assert "TBC" not in scaffold.split("## Trace & QA", maxsplit=1)[0]
+    project_summary, remainder = scaffold.split("## Project summary", maxsplit=1)
+    del project_summary
+    summary_body, after_summary = remainder.split("## Background", maxsplit=1)
+    assert "Services package:" not in summary_body
+    assert "Client instruction:" not in summary_body
+    assert after_summary.lstrip().startswith(BACKGROUND_PLACEHOLDER)
+    services = scaffold.split("## Services and deliverables", maxsplit=1)[1].split(
+        "## Programme and submission", maxsplit=1
+    )[0]
+    assert re.search(r"^1\. ", services, flags=re.MULTILINE)
+    assert "**Required deliverables**" in services
+    assert not re.search(r"^- ", services.split("**Required deliverables**", maxsplit=1)[1])
 
 
 def test_rfp_summary_cites_evidence_that_corroborates_profile_identity() -> None:
@@ -226,7 +245,7 @@ def test_rfp_summary_keeps_provenance_in_source_column_without_status_prose() ->
         instructions="Use the supplied project context and do not invent details.",
     )
 
-    summary = scaffold.split("## Proposal particulars", maxsplit=1)[1].split(
+    summary = scaffold.split("## Project summary", maxsplit=1)[1].split(
         "## Background", maxsplit=1
     )[0]
     assert "| Project | Walsh Renovation | [1] |" in summary
@@ -238,6 +257,9 @@ def test_rfp_summary_keeps_provenance_in_source_column_without_status_prose() ->
     assert "Assumption" not in summary
     assert "Current PMP position" not in summary
     assert "Additional instruction:" not in scaffold
+    assert "Client instruction:" not in scaffold
+    assert "Services package:" not in scaffold
+    assert "Use the supplied project context" not in scaffold
     assert "No internal fee benchmark" not in scaffold
 
 

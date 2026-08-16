@@ -60,6 +60,7 @@ def test_complete_residential_snapshot_publishes_supported_capabilities() -> Non
 
     assert matrix.snapshot_content_fingerprint == "snapshot-fingerprint"
     assert matrix.capabilities["create_pmp"].status == "supported"
+    assert matrix.capabilities["edit_programme"].status == "supported"
     assert matrix.capabilities["tender_comparison"].status == "supported"
     assert matrix.capabilities["create_cost_plan"].status == "supported"
     assert matrix.capabilities["consultant_procurement"].status == "supported"

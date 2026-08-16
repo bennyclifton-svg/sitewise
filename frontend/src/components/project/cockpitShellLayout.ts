@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 
+import type { InstructionItem } from "@/lib/instruction-tray";
+
 export const COCKPIT_LEFT_PANEL_WIDTH_KEY = "clerk.cockpit.left-panel-width";
 export const COCKPIT_REPO_PANEL_WIDTH_KEY = "clerk.cockpit.repo-panel-width";
 
@@ -43,4 +45,25 @@ export const CockpitShellResizeContext = createContext<CockpitShellResizeContext
 
 export function useCockpitShellResize() {
   return useContext(CockpitShellResizeContext);
+}
+
+export type InstructionTraySlot = {
+  items: InstructionItem[];
+  isApplying: boolean;
+  error: string | null;
+  onRemove: (id: string) => void;
+  onClearAll: () => void;
+  onApply: () => void;
+};
+
+type InstructionTraySlotContextValue = {
+  setTray: (tray: InstructionTraySlot | null) => void;
+};
+
+/** Present only inside ProjectShell. The shell renders the tray in the right panel. */
+export const InstructionTraySlotContext =
+  createContext<InstructionTraySlotContextValue | null>(null);
+
+export function useInstructionTraySlot() {
+  return useContext(InstructionTraySlotContext);
 }

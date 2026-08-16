@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 
 INGEST_PROPOSER = "ingest"
 
+
+def _is_official_planning_instrument(document: SourceDocument) -> bool:
+    metadata = document.document_metadata or {}
+    return (
+        document.document_class == "planning_instrument"
+        or metadata.get("knowledge_scope") == "official"
+    )
+
 BootstrapStatus = Literal["noop", "proposed", "auto_applied", "mixed", "error"]
 
 
@@ -52,9 +60,16 @@ async def bootstrap_identity_from_document(
     if profile.site_address and profile.client:
         return IdentityBootstrapResult(status="noop", detail="identity already set")
 
+    document = await session.get(SourceDocument, source_document_id)
+    if isinstance(document, SourceDocument) and _is_official_planning_instrument(
+        document
+    ):
+        return IdentityBootstrapResult(
+            status="noop", detail="official planning instrument"
+        )
+
     text = document_text
     if text is None:
-        document = await session.get(SourceDocument, source_document_id)
         if document is None:
             return IdentityBootstrapResult(
                 status="noop", detail="source document missing"

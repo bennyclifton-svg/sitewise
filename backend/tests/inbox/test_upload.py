@@ -70,6 +70,24 @@ def test_validate_upload_batch_rejects_unsupported_extension() -> None:
         validate_upload_batch([InboxUploadItem(filename="notes.txt", content=b"hello")])
     assert exc_info.value.status_code == 400
 
+
+def test_default_ingest_extensions_include_rtf() -> None:
+    from app.config import Settings
+
+    default = Settings.model_fields["ingest_supported_extensions"].default
+    assert isinstance(default, str)
+    assert ".rtf" in {item.strip() for item in default.split(",") if item.strip()}
+
+
+def test_validate_upload_batch_accepts_rtf(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import settings
+    from app.inbox.service import validate_upload_batch
+
+    monkeypatch.setattr(settings, "ingest_supported_extensions", ".pdf,.docx,.rtf,.md")
+    validate_upload_batch(
+        [InboxUploadItem(filename="iwlep2022344.rtf", content=b"{\\rtf1 body}")]
+    )
+
 def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
     mock_session: AsyncMock,
 ) -> None:

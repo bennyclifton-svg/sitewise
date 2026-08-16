@@ -44,3 +44,15 @@ def test_parse_electrical_long_form_sheet():
     identity = parse_drawing_filename("E03 - ELECTRICAL - LEVEL L1 - LIGHTING LAYOUT - [C1].pdf")
     assert identity.drawing_number == "E03"
     assert identity.revision == "C1"
+
+
+def test_parse_kebab_civil_sheet():
+    identity = parse_drawing_filename("C-001-civil-notes-legend-and-abbreviations.md")
+    assert identity.drawing_number == "C-001"
+    assert identity.title == "civil-notes-legend-and-abbreviations"
+
+
+def test_parse_kebab_architectural_sheet():
+    identity = parse_drawing_filename("A-000-cover-sheet-and-drawing-register.md")
+    assert identity.drawing_number == "A-000"
+    assert identity.title == "cover-sheet-and-drawing-register"

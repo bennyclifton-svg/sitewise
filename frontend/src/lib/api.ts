@@ -9,6 +9,11 @@ import type {
   CostPlanOperation,
   CostPlanState,
 } from "@/lib/cost-plan";
+import type {
+  ProgrammeOperation,
+  ProgrammeScale,
+  ProgrammeState,
+} from "@/lib/programme";
 import {
   ApiError,
   httpRequest,
@@ -89,6 +94,7 @@ import type {
 } from "@/lib/types/project";
 
 const WORKFLOW_TIMEOUT_MS = 600_000;
+const CHAT_TIMEOUT_MS = 120_000;
 
 type JsonBody = Record<string, unknown> | unknown[] | null;
 
@@ -241,6 +247,7 @@ export const api = {
   listThreads: async (): Promise<ChatThread[]> => {
     const response = await api.get<{ threads: ChatThread[]; next_cursor?: string | null }>(
       "/chat/threads?limit=50",
+      { timeoutMs: CHAT_TIMEOUT_MS },
     );
     return response.threads;
   },
@@ -252,10 +259,11 @@ export const api = {
         ...(title ? { title } : {}),
         ...(projectId ? { projectId } : {}),
       },
+      { timeoutMs: CHAT_TIMEOUT_MS },
     ),
 
   getThread: async (threadId: string): Promise<ChatThread> =>
-    api.get<ChatThread>(`/chat/threads/${threadId}`),
+    api.get<ChatThread>(`/chat/threads/${threadId}`, { timeoutMs: CHAT_TIMEOUT_MS }),
 
   updateThreadTitle: async (threadId: string, title: string): Promise<ChatThread> =>
     api.patch<ChatThread>(`/chat/threads/${threadId}`, { title }),
@@ -275,6 +283,7 @@ export const api = {
   getThreadMessages: async (threadId: string): Promise<ChatMessage[]> => {
     const response = await api.get<{ messages: ChatMessage[] }>(
       `/chat/threads/${threadId}/messages`,
+      { timeoutMs: CHAT_TIMEOUT_MS },
     );
     return response.messages;
   },
@@ -528,7 +537,9 @@ export const api = {
   getProjectChatBootstrap: async (
     projectId: string,
   ): Promise<ProjectChatBootstrap> =>
-    api.get<ProjectChatBootstrap>(`/projects/${projectId}/chat-bootstrap`),
+    api.get<ProjectChatBootstrap>(`/projects/${projectId}/chat-bootstrap`, {
+      timeoutMs: CHAT_TIMEOUT_MS,
+    }),
 
   getProjectWorkspaceTree: async (
     projectId: string,
@@ -699,7 +710,11 @@ export const api = {
   },
 
   createProjectThread: async (projectId: string): Promise<ChatThread> =>
-    api.post<ChatThread>(`/projects/${projectId}/threads`, {}),
+    api.post<ChatThread>(
+      `/projects/${projectId}/threads`,
+      {},
+      { timeoutMs: CHAT_TIMEOUT_MS },
+    ),
 
   getPlatformKnowledgeStatus: async (): Promise<PlatformKnowledgeStatus> =>
     api.get<PlatformKnowledgeStatus>("/sitewise/platform-knowledge"),
@@ -787,6 +802,35 @@ export const api = {
       expected_base_version: expectedBaseVersion,
       operations,
     }),
+
+  getProgrammeState: async (projectId: string): Promise<ProgrammeState> =>
+    api.get(`/projects/${projectId}/programme/state`),
+
+  ensureProgramme: async (projectId: string): Promise<ProgrammeState> =>
+    api.post(`/projects/${projectId}/programme/ensure`),
+
+  applyProgrammeOperations: async (
+    projectId: string,
+    expectedBaseVersion: number,
+    operations: ProgrammeOperation[],
+  ): Promise<ProgrammeState> =>
+    api.post(`/projects/${projectId}/programme/operations`, {
+      expected_base_version: expectedBaseVersion,
+      operations,
+    }),
+
+  setProgrammeView: async (
+    projectId: string,
+    expectedBaseVersion: number,
+    update: { view_scale?: ProgrammeScale; pmp_embed_visible?: boolean },
+  ): Promise<ProgrammeState> =>
+    api.patch(`/projects/${projectId}/programme/view`, {
+      expected_base_version: expectedBaseVersion,
+      ...update,
+    }),
+
+  getProgrammeFigureSvg: async (projectId: string): Promise<string> =>
+    api.get(`/projects/${projectId}/programme/figure.svg`),
 
   applyDraftInstructions: async (
     projectId: string,

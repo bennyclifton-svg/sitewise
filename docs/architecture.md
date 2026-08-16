@@ -519,25 +519,31 @@ reference rows — never copied into a project, never stored as
 NCC guide gets retrieved as if it were the project's own fire engineering
 report.
 
-Official web references remain external and are not ingested into the project
-corpus. The answer trace records their canonical URL, publisher, jurisdiction,
-authority class, version status, effective date, retrieval timestamp, excerpt,
-and content hash in `message_web_citations`. Search results alone do not count as
-a source; Pi must call `read_web_source` before the globe trace appears.
+Official web references are not project evidence. A successful read may be
+stored on the active project as an official attachment
+(`source_type=reference`, `document_class=planning_instrument`,
+`knowledge_scope=official`) so later turns can reuse the snapshot. The answer
+trace records canonical URL, publisher, jurisdiction, authority class, version
+status, effective date, retrieval timestamp, excerpt, and content hash in
+`message_web_citations`. Search results alone do not count as a source; Pi must
+call `read_web_source` or `attach_official_instrument` before the globe trace
+appears.
 
 The initial discovery adapter is `nsw_legislation`: a keyless, curated registry
 of stable `legislation.nsw.gov.au` current-document URLs covering core NSW Acts,
-regulations, and environmental planning instruments. Discovery ranks that
-registry locally; `read_web_source` still retrieves the live authoritative page
-before Pi may rely on it. `brave` remains an optional configured provider for
-broader official-government discovery and requires its own API key.
+regulations, and environmental planning instruments, including LGA LEPs added
+when a project needs them. Discovery ranks that registry locally.
+`read_web_source` fetches NSW instruments from the official XML export
+(`/export/xml/current/{id}`), not the Cloudflare-guarded HTML view, and cites
+the human HTML URL. Council DCP PDFs are attached from an explicit `.gov.au`
+URL or an already-uploaded file. `brave` remains an optional configured
+provider for broader official-government discovery and requires its own API key.
 
 Production acceptance for an official-source adapter must include a successful
 live read from the deployed API service's egress IP. If an authority presents a
 browser-verification or bot-protection challenge, the adapter fails explicitly;
-Clerk does not automate around that control. Obtain sanctioned machine access or
-an allowlisting arrangement from the publishing authority before enabling that
-source in production.
+Clerk does not automate around that control. Use the sanctioned XML export or
+ask the user to upload the PDF. Do not spoof a browser.
 
 ### 6.1 Platform knowledge catalog
 

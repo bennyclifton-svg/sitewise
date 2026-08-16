@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
+import { ProgramWorkbench } from "@/components/project/ProgramWorkbench";
 import {
   ProcurementRequestPanel,
   type RunnableProcurementRequestKind,
@@ -65,6 +66,7 @@ import type {
   WorkflowTraceEvent,
 } from "@/lib/types/project";
 import { api } from "@/lib/api";
+import { stripArtifactBlockMarkers } from "@/lib/artifact-markdown";
 import { ApiError } from "@/lib/http";
 import { runOptimisticMutation } from "@/lib/optimistic-mutation";
 import { taxonomyValueFromProject } from "@/lib/project-taxonomy";
@@ -132,6 +134,7 @@ export function ProjectControlBoard({
   onDraftSelected,
   onDraftUpdated,
   repositoryEvidence = [],
+  selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
   invoiceProcessResult = null,
@@ -184,6 +187,7 @@ export function ProjectControlBoard({
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
   repositoryEvidence?: EvidencePreview[];
+  selectedEvidenceIds?: Set<string>;
   onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
   onTransmittalSessionChange?: (
     session: { draftId: string; workflowType: string } | null,
@@ -270,6 +274,7 @@ export function ProjectControlBoard({
           onDraftSelected={onDraftSelected}
           onDraftUpdated={onDraftUpdated}
           repositoryEvidence={repositoryEvidence}
+          selectedEvidenceIds={selectedEvidenceIds}
           onSelectEvidenceIds={onSelectEvidenceIds}
           onTransmittalSessionChange={onTransmittalSessionChange}
           invoiceProcessResult={invoiceProcessResult}
@@ -387,6 +392,7 @@ function ProjectProfilePanel({
         commit: (base) =>
           api.updateProject(project.id, {
             expected_revision: base.revision,
+            title: base.form.title.trim(),
             building_class: base.form.profile.building_class ?? null,
             work_type: base.form.profile.work_type ?? null,
             subclasses: base.form.profile.subclasses ?? [],
@@ -401,6 +407,7 @@ function ProjectProfilePanel({
           }),
         confirmed: (result) => {
           const nextForm: ProfileFormValue = {
+            title: result.profile.title ?? snapshot.form.title,
             profile: {
               building_class: result.profile.building_class,
               work_type: result.profile.work_type,
@@ -464,6 +471,7 @@ function ProjectProfilePanel({
       });
       onProjectUpdated({
         ...project,
+        title: updated.profile.title || draft.title,
         building_class: updated.profile.building_class,
         work_type: updated.profile.work_type,
         state: updated.profile.state,
@@ -560,6 +568,7 @@ function ProjectProfilePanel({
             disabled={
               saving ||
               !draft ||
+              !draft.title.trim() ||
               !taxonomyQuery.data ||
               conflictRevision !== null
             }
@@ -568,7 +577,9 @@ function ProjectProfilePanel({
                 ? "Resolve the profile conflict before saving"
                 : !draft
                   ? "No unsaved changes"
-                  : undefined
+                  : !draft.title.trim()
+                    ? "Project name is required"
+                    : undefined
             }
           >
             {saving ? (
@@ -581,9 +592,31 @@ function ProjectProfilePanel({
           {saved ? <Badge variant="secondary">Saved</Badge> : null}
         </div>
       ) : null}
+      <div className="grid gap-1">
+        <Label
+          htmlFor={`project-title-${project.id}`}
+          className="text-xs font-normal text-muted-foreground"
+        >
+          Project name
+        </Label>
+        <Input
+          id={`project-title-${project.id}`}
+          value={form.title}
+          onChange={(event) =>
+            updateDraft({ ...form, title: event.target.value })
+          }
+          placeholder="Project name"
+          disabled={saving || !onProjectUpdated}
+        />
+      </div>
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(7.5rem,9rem)]">
-        <div className="grid gap-2">
-          <Label htmlFor={`project-site-address-${project.id}`}>Site address</Label>
+        <div className="grid gap-1">
+          <Label
+            htmlFor={`project-site-address-${project.id}`}
+            className="text-xs font-normal text-muted-foreground"
+          >
+            Site address
+          </Label>
           <Input
             id={`project-site-address-${project.id}`}
             value={form.siteAddress}
@@ -594,8 +627,13 @@ function ProjectProfilePanel({
             disabled={saving || !onProjectUpdated}
           />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`project-client-${project.id}`}>Client / owners</Label>
+        <div className="grid gap-1">
+          <Label
+            htmlFor={`project-client-${project.id}`}
+            className="text-xs font-normal text-muted-foreground"
+          >
+            Client / owners
+          </Label>
           <Input
             id={`project-client-${project.id}`}
             value={form.client}
@@ -639,6 +677,7 @@ function ProjectProfilePanel({
 }
 
 type ProfileFormValue = {
+  title: string;
   profile: TaxonomyPickerValue;
   state: string;
   siteAddress: string;
@@ -649,6 +688,7 @@ type ProfileFormValue = {
 
 type ProfileFormField =
   | keyof TaxonomyPickerValue
+  | "title"
   | "state"
   | "site_address"
   | "client"
@@ -656,6 +696,7 @@ type ProfileFormField =
   | "scope_narrative";
 
 const PROFILE_FORM_FIELDS: readonly ProfileFormField[] = [
+  "title",
   "building_class",
   "work_type",
   "subclasses",
@@ -682,6 +723,7 @@ function profileFormFromProject(project: ProjectDetail): ProfileFormValue {
     "";
   const budget = typeof taxonomy?.budget === "string" ? taxonomy.budget : "";
   return {
+    title: project.title,
     profile: taxonomyValueFromProject(project),
     state: project.state ?? "",
     siteAddress,
@@ -710,6 +752,7 @@ function profileFormFieldEqual(
 }
 
 function profileFormField(form: ProfileFormValue, field: ProfileFormField) {
+  if (field === "title") return form.title;
   if (field === "state") return form.state;
   if (field === "site_address") return form.siteAddress;
   if (field === "client") return form.client;
@@ -724,6 +767,7 @@ function rebaseProfileForm(
   changedFields: ProfileFormField[],
 ): ProfileFormValue {
   const rebased: ProfileFormValue = {
+    title: latest.title,
     profile: { ...latest.profile },
     state: latest.state,
     siteAddress: latest.siteAddress,
@@ -733,6 +777,9 @@ function rebaseProfileForm(
   };
   for (const field of changedFields) {
     switch (field) {
+      case "title":
+        rebased.title = draft.title;
+        break;
       case "state":
         rebased.state = draft.state;
         break;
@@ -800,8 +847,10 @@ function OverlaySelectField({
   disabled?: boolean;
 }) {
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="grid gap-1">
+      <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">
+        {label}
+      </Label>
       <MenuSelect
         id={id}
         value={value}
@@ -845,6 +894,7 @@ function WorkflowDetail({
   onDraftSelected,
   onDraftUpdated,
   repositoryEvidence = [],
+  selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
 }: {
@@ -890,6 +940,7 @@ function WorkflowDetail({
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
   repositoryEvidence?: EvidencePreview[];
+  selectedEvidenceIds?: Set<string>;
   onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
   onTransmittalSessionChange?: (
     session: { draftId: string; workflowType: string } | null,
@@ -899,6 +950,7 @@ function WorkflowDetail({
   const isProjectProfile = tile.id === "project-profile";
   const isCreatePmp = tile.id === "create-pmp";
   const isCostPlan = tile.id === "cost-plan";
+  const isProgram = tile.id === "program";
   const isDocumentIntake = tile.id === "document-intake";
   const isProcurementRequests = tile.id === "procurement-requests";
   const isProcurement = tile.id === "procurement";
@@ -1076,7 +1128,20 @@ function WorkflowDetail({
                         project.id,
                         latestDraft.id,
                       );
-                      return fullDraft.content_markdown;
+                      const markdown = stripArtifactBlockMarkers(
+                        fullDraft.content_markdown,
+                      );
+                      try {
+                        const programme = await api.getProgrammeState(project.id);
+                        if (!programme.pmp_embed_visible) return markdown;
+                        const svg = await api.getProgrammeFigureSvg(project.id);
+                        const { insertAfterProgrammeHeading } = await import(
+                          "@/lib/programme"
+                        );
+                        return insertAfterProgrammeHeading(markdown, svg);
+                      } catch {
+                        return markdown;
+                      }
                     }}
                     label="Copy project management plan"
                     disabled={!latestDraft}
@@ -1090,12 +1155,19 @@ function WorkflowDetail({
             <Suspense
               fallback={<DraftReviewFallback label="Loading project plan..." />}
             >
-              <DraftReviewPanel
+                <DraftReviewPanel
                 projectId={project.id}
                 draft={latestDraft}
                 projectTitle={project.title}
                 workflowType="create_pmp"
                 embedded
+                onOpenProgram={
+                  onSelectWorkflow ? () => onSelectWorkflow("program") : undefined
+                }
+                repositoryEvidence={repositoryEvidence}
+                selectedEvidenceIds={selectedEvidenceIds}
+                onSelectEvidenceIds={onSelectEvidenceIds}
+                onTransmittalSessionChange={onTransmittalSessionChange}
                 onDraftUpdated={(draft) => {
                   onDraftUpdated?.(draft);
                 }}
@@ -1213,7 +1285,7 @@ function WorkflowDetail({
                         project.id,
                         latestCostPlanDraft.id,
                       );
-                      return fullDraft.content_markdown;
+                      return stripArtifactBlockMarkers(fullDraft.content_markdown);
                     }}
                     label="Copy cost plan"
                     disabled={!activeDraft}
@@ -1235,6 +1307,37 @@ function WorkflowDetail({
                 }}
               />
             </Suspense>
+          </>
+        ) : isProgram ? (
+          <>
+            {!project.overlay_status.ready ? (
+              <OverlayGateNotice
+                workflow="Program"
+                issues={[
+                  ...project.overlay_status.missing,
+                  ...project.overlay_status.invalid,
+                ]}
+                onOpenProfile={
+                  onSelectWorkflow
+                    ? () => onSelectWorkflow("project-profile")
+                    : undefined
+                }
+              />
+            ) : null}
+            {project.workflow_capabilities?.capabilities.edit_programme &&
+            project.workflow_capabilities.capabilities.edit_programme.status !==
+              "supported" ? (
+              <CapabilityGateNotice
+                workflow="Program"
+                capability={project.workflow_capabilities.capabilities.edit_programme}
+              />
+            ) : null}
+            {project.overlay_status.ready &&
+            (!project.workflow_capabilities?.capabilities.edit_programme ||
+              project.workflow_capabilities.capabilities.edit_programme.status ===
+                "supported") ? (
+              <ProgramWorkbench projectId={project.id} />
+            ) : null}
           </>
         ) : isProcurementRequests ? (
           <ProcurementRequestPanel
@@ -1268,6 +1371,7 @@ function WorkflowDetail({
             onDraftSelected={onDraftSelected}
             onDraftUpdated={onDraftUpdated}
             repositoryEvidence={repositoryEvidence}
+            selectedEvidenceIds={selectedEvidenceIds}
             onSelectEvidenceIds={onSelectEvidenceIds}
             onTransmittalSessionChange={onTransmittalSessionChange}
           />

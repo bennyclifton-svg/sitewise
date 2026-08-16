@@ -1,4 +1,4 @@
-import type { DraftArtifactSummary, WorkspaceTreeNode } from "@/lib/types/project";
+import type { DraftArtifactSummary } from "@/lib/types/project";
 
 /** True when the explorer path points at a PMP draft workspace file. */
 export function isPmpWorkspaceFile(path: string): boolean {
@@ -68,31 +68,34 @@ export function findDraftByWorkspacePath(
   return null;
 }
 
-/** Expand folders that contain files and any ancestor of the selected path. */
-export function collectExplorerExpandPaths(
-  tree: WorkspaceTreeNode[],
-  selectedPath: string | null,
-): Set<string> {
-  const expanded = new Set<string>();
-  const normalisedSelected = selectedPath?.replaceAll("\\", "/") ?? null;
+export const EXPLORER_EXPANDED_PATHS_KEY_PREFIX = "clerk.workspace-explorer.expanded";
 
-  function visit(nodes: WorkspaceTreeNode[]) {
-    for (const node of nodes) {
-      if (node.kind === "file") continue;
+export function explorerExpandedPathsKey(projectId: string): string {
+  return `${EXPLORER_EXPANDED_PATHS_KEY_PREFIX}:${projectId}`;
+}
 
-      const hasFileChildren = node.children.some((child) => child.kind === "file");
-      const onSelectedBranch =
-        normalisedSelected !== null &&
-        (normalisedSelected === node.path ||
-          normalisedSelected.startsWith(`${node.path}/`));
-
-      if (hasFileChildren || onSelectedBranch || node.document_count > 0) {
-        expanded.add(node.path);
-      }
-      visit(node.children);
-    }
+/** Restore the folders the user left open. Missing or invalid storage is collapsed. */
+export function readExplorerExpandedPaths(projectId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(explorerExpandedPathsKey(projectId));
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((item): item is string => typeof item === "string"));
+  } catch {
+    return new Set();
   }
+}
 
-  visit(tree);
-  return expanded;
+export function writeExplorerExpandedPaths(projectId: string, paths: Set<string>): void {
+  try {
+    const key = explorerExpandedPathsKey(projectId);
+    if (paths.size === 0) {
+      localStorage.removeItem(key);
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify([...paths]));
+  } catch {
+    // Ignore quota or private-mode storage failures.
+  }
 }

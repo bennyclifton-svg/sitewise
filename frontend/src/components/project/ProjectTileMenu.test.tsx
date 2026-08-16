@@ -16,4 +16,22 @@ describe("ProjectTileMenu", () => {
 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
+
+  it("offers rename when a handler is provided", async () => {
+    const user = userEvent.setup();
+    const onRename = vi.fn();
+
+    render(
+      <ProjectTileMenu
+        title="New Town Extension"
+        onRename={onRename}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Actions for New Town Extension" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }));
+
+    expect(onRename).toHaveBeenCalledTimes(1);
+  });
 });

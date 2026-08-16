@@ -125,6 +125,30 @@ describe("DocumentRepositoryPanel pending uploads", () => {
     await waitFor(() => expect(screen.queryByText("notes.md")).not.toBeInTheDocument());
   });
 
+  it("accepts a dropped RTF file for inbox ingest", async () => {
+    const upload = deferred<InboxUploadResult[]>();
+    vi.mocked(api.uploadInboxFiles).mockReturnValue(upload.promise);
+    const { container } = renderPanel();
+
+    dropFile(
+      container,
+      new File(["{\\rtf1 Inner West LEP}"], "iwlep2022344.rtf", {
+        type: "application/rtf",
+      }),
+    );
+
+    expect(await screen.findByText("iwlep2022344.rtf")).toBeInTheDocument();
+    expect(screen.queryByText(/Unsupported file type/)).not.toBeInTheDocument();
+    await waitFor(() => expect(api.uploadInboxFiles).toHaveBeenCalledTimes(1));
+    const uploaded = vi.mocked(api.uploadInboxFiles).mock.calls[0]?.[1] as File[];
+    expect(uploaded[0]?.name).toBe("iwlep2022344.rtf");
+
+    upload.resolve([uploadResult({ filename: "iwlep2022344.rtf" })]);
+    await waitFor(() =>
+      expect(screen.queryByText("iwlep2022344.rtf")).not.toBeInTheDocument(),
+    );
+  });
+
   it("queues a later drop while the current file is still ingesting", async () => {
     const firstUpload = deferred<InboxUploadResult[]>();
     const secondUpload = deferred<InboxUploadResult[]>();
@@ -482,11 +506,28 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
     );
     expect(documentNumberHeader).toHaveTextContent("#");
     expect(documentNumberHeader.closest("table")?.querySelector("col")).toHaveClass(
-      "w-[3.25rem]",
+      "w-[5rem]",
     );
     expect(screen.getByText("A-100").closest("td")).toHaveAttribute(
       "title",
       "A-100",
+    );
+  });
+
+  it("strips markdown emphasis from drawing numbers in the register", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-a",
+        title: "Cover Sheet",
+        document_number: "**A-000**",
+      }),
+    ]);
+
+    expect(screen.getByText("A-000")).toBeInTheDocument();
+    expect(screen.queryByText("**A-000**")).not.toBeInTheDocument();
+    expect(screen.getByText("A-000").closest("td")).toHaveAttribute(
+      "title",
+      "A-000",
     );
   });
 
@@ -579,5 +620,38 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
       "aria-sort",
       "ascending",
     );
+  });
+});
+
+describe("DocumentRepositoryPanel transmittal curation", () => {
+  it("toggles rows additively without Ctrl while curating a transmittal", () => {
+    const onSelectedEvidenceIdsChange = vi.fn();
+    render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[
+          evidenceRow({ id: "doc-1", title: "Brief" }),
+          evidenceRow({ id: "doc-2", title: "Drawing" }),
+        ]}
+        selectedEvidenceId={null}
+        selectedEvidenceIds={new Set(["doc-1"])}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectedEvidenceIdsChange={onSelectedEvidenceIdsChange}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        transmittalCuration
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Drawing"));
+    expect(onSelectedEvidenceIdsChange).toHaveBeenCalledWith(
+      new Set(["doc-1", "doc-2"]),
+    );
+    expect(screen.queryByRole("button", { name: "Save Transmittal" })).not.toBeInTheDocument();
   });
 });

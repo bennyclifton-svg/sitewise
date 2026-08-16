@@ -18,7 +18,7 @@ export function ProjectWorkflowNav({
   leading,
 }: ProjectWorkflowNavProps) {
   return (
-    <nav className="shrink-0 px-3 pt-10 pb-2" aria-label="Project workflows">
+    <nav className="shrink-0 px-3 pt-1 pb-2" aria-label="Project workflows">
       <ul className="flex flex-col gap-0.5">
         {leading ? <li>{leading}</li> : null}
         {tiles.map((tile) => {

@@ -33,6 +33,7 @@ from app.cost_plan.models import (
     CostPlanItem,
     CostPlanVersion,
 )
+from app.programme.models import ProgrammeActivity, ProgrammeVersion
 
 __all__ = [
     "Base",
@@ -66,4 +67,6 @@ __all__ = [
     "CostInvoice",
     "CostInvoiceAllocation",
     "CostInvoiceMappingMemory",
+    "ProgrammeActivity",
+    "ProgrammeVersion",
 ]

@@ -1140,6 +1140,8 @@ def render_project_summary_table(
     budget_source: str | None = None,
     compact_sources: bool = False,
     profile_citation: str = "",
+    include_state: bool = True,
+    taxonomy_label: str = "Taxonomy",
 ) -> str:
     """Render the shared project-summary table used by PMP-derived artefacts."""
     context = pmp_taxonomy_context(project)
@@ -1154,37 +1156,48 @@ def render_project_summary_table(
         budget_value = budget or _metadata_value(fields.get("budget"))
         timeframe_value = _metadata_value(fields.get("timeframe"))
         procurement_value = _metadata_value(fields.get("procurement_route"))
-        return _summary_table_markdown(
+        rows = [
+            f"| Project | {project_value} | {project_title_source} |",
+            f"| Site / address | {site_value} | {_compact_summary_source(site_value, site_address_citation)} |",
+            f"| Client | {client_value} | {_compact_summary_source(client_value, client_citation)} |",
+        ]
+        if include_state:
+            rows.append(
+                f"| State | {_metadata_value(project.state or 'NSW')} | Profile |"
+            )
+        rows.extend(
             [
-                f"| Project | {project_value} | {project_title_source} |",
-                f"| Site / address | {site_value} | {_compact_summary_source(site_value, site_address_citation)} |",
-                f"| Client | {client_value} | {_compact_summary_source(client_value, client_citation)} |",
-                f"| State | {_metadata_value(project.state or 'NSW')} | Profile |",
-                f"| Taxonomy | {taxonomy_value} | Profile |",
+                f"| {taxonomy_label} | {taxonomy_value} | Profile |",
                 f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} | Profile |",
                 f"| Budget | {budget_value} | {budget_source or _compact_summary_source(budget_value)} |",
                 f"| Timeframe | {timeframe_value} | {_compact_summary_source(timeframe_value)} |",
                 f"| Procurement route | {procurement_value} | {_compact_summary_source(procurement_value)} |",
             ]
         )
+        return _summary_table_markdown(rows)
     profile_cell = _citation_cell(profile_citation)
-    return _summary_table_markdown(
+    rows = [
+        (
+            f"| Project | {_metadata_value(project_title or project.title)} | "
+            f"{_citation_cell(project_title_source) or profile_cell} |"
+        ),
+        (
+            f"| Site / address | "
+            f"{site_address or _metadata_value(fields.get('site_address'))} | "
+            f"{_citation_cell(site_address_citation) or profile_cell} |"
+        ),
+        (
+            f"| Client | {client or _metadata_value(fields.get('client'))} | "
+            f"{_citation_cell(client_citation) or profile_cell} |"
+        ),
+    ]
+    if include_state:
+        rows.append(
+            f"| State | {_metadata_value(project.state or 'NSW')} | {profile_cell} |"
+        )
+    rows.extend(
         [
-            (
-                f"| Project | {_metadata_value(project_title or project.title)} | "
-                f"{_citation_cell(project_title_source) or profile_cell} |"
-            ),
-            (
-                f"| Site / address | "
-                f"{site_address or _metadata_value(fields.get('site_address'))} | "
-                f"{_citation_cell(site_address_citation) or profile_cell} |"
-            ),
-            (
-                f"| Client | {client or _metadata_value(fields.get('client'))} | "
-                f"{_citation_cell(client_citation) or profile_cell} |"
-            ),
-            f"| State | {_metadata_value(project.state or 'NSW')} | {profile_cell} |",
-            f"| Taxonomy | {taxonomy_value} | {profile_cell} |",
+            f"| {taxonomy_label} | {taxonomy_value} | {profile_cell} |",
             (
                 f"| Subclass and scale | {_compact_taxonomy_scale_summary(project)} | "
                 f"{profile_cell} |"
@@ -1197,6 +1210,7 @@ def render_project_summary_table(
             f"| Procurement route | {_metadata_value(fields.get('procurement_route'))} |  |",
         ]
     )
+    return _summary_table_markdown(rows)
 
 
 def _citation_cell(citation: str) -> str:

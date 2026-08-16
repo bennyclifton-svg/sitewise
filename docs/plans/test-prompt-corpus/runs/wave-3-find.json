@@ -1,0 +1,332 @@
+[
+  {
+    "id": "7c7a3704-8b57-43f2-b34d-ce0c61500d29",
+    "title": "35. Data centre",
+    "created_at": "2026-08-14T11:17:56.586193+00:00",
+    "building_class": "industrial",
+    "work_type": "new",
+    "state": "NSW",
+    "taxonomy": {
+      "subclasses": [
+        "data_centre"
+      ],
+      "work_scope": [
+        "site_clearance",
+        "bulk_earthworks",
+        "substructure",
+        "superstructure",
+        "mechanical_hvac",
+        "electrical_power",
+        "fire_services",
+        "bms_controls",
+        "security_systems",
+        "ict_structured_cabling"
+      ],
+      "budget": "$180m",
+      "assets": [],
+      "scope_narrative": [
+        "15MW data centre",
+        "Tier III",
+        "Greenfield site",
+        "N+1 across power and cooling"
+      ],
+      "scale": {
+        "it_load_mw": 15,
+        "redundancy_tier": 3
+      },
+      "complexity": {}
+    },
+    "band": "l",
+    "band_bounds": [
+      1330,
+      2755
+    ],
+    "words": 1943,
+    "in_band": true,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w3--35--data-centre--create_pmp.md",
+    "pmp_version": 1,
+    "runtime": "clerk-sitewise-create-pmp-adaptive-scaffold",
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "compiler": "adaptive_scaffold",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "lock_owner": null,
+        "error_class": null
+      },
+      {
+        "type": "create_cost_plan",
+        "state": "running",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "lock_owner": "dev:inproc-core:DESKTOP-H82BB8Q:23952#1",
+        "error_class": null
+      }
+    ]
+  },
+  {
+    "id": "426ac5ac-c0d2-480d-a885-113e32667295",
+    "title": "31.1 Warehouse",
+    "created_at": "2026-08-14T11:12:55.540647+00:00",
+    "building_class": "industrial",
+    "work_type": "new",
+    "state": "NSW",
+    "taxonomy": {
+      "subclasses": [
+        "warehouse"
+      ],
+      "work_scope": [],
+      "budget": "$18m",
+      "assets": [],
+      "scope_narrative": [
+        "New 12,000 sqm warehouse",
+        "800 sqm office",
+        "12 m clear height",
+        "8 recessed docks"
+      ],
+      "scale": {
+        "gfa_sqm": 12000,
+        "dock_doors": 8,
+        "clear_height_m": 12
+      },
+      "complexity": {}
+    },
+    "band": "m",
+    "band_bounds": [
+      1050,
+      2175
+    ],
+    "words": 1361,
+    "in_band": true,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w3--31-1-warehouse--create_pmp.md",
+    "pmp_version": 1,
+    "runtime": "clerk-sitewise-create-pmp-adaptive-scaffold",
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "compiler": "adaptive_scaffold",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "lock_owner": null,
+        "error_class": null
+      }
+    ]
+  },
+  {
+    "id": "c77d0a1d-ad96-4c13-b910-665a77a466d0",
+    "title": "26.1 Standalone retail",
+    "created_at": "2026-08-14T11:04:21.760455+00:00",
+    "building_class": "commercial",
+    "work_type": "new",
+    "state": "NSW",
+    "taxonomy": {
+      "subclasses": [
+        "retail_standalone"
+      ],
+      "work_scope": [],
+      "budget": "$7m",
+      "assets": [],
+      "scope_narrative": [
+        "New standalone bulky goods retail building",
+        "Highway site",
+        "Single tenant pre-committed"
+      ],
+      "scale": {
+        "gla_sqm": 3200
+      },
+      "complexity": {}
+    },
+    "band": "m",
+    "band_bounds": [
+      1050,
+      2175
+    ],
+    "words": 1570,
+    "in_band": true,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w3--26-1-standalone-retail--create_pmp.md",
+    "pmp_version": 1,
+    "runtime": "clerk-sitewise-create-pmp-adaptive-scaffold",
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "compiler": "adaptive_scaffold",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "lock_owner": null,
+        "error_class": null
+      },
+      {
+        "type": "create_cost_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "lock_owner": null,
+        "error_class": null
+      }
+    ]
+  },
+  {
+    "id": "7edd25f7-2b3a-47b8-9885-fcf7875ff9f1",
+    "title": "w3-31 Warehouse 20260814-0933",
+    "created_at": "2026-08-14T10:17:40.661079+00:00",
+    "building_class": "industrial",
+    "work_type": "new",
+    "state": null,
+    "taxonomy": {
+      "subclasses": [
+        "logistics_ecommerce"
+      ],
+      "work_scope": [],
+      "budget": "$18m",
+      "assets": [],
+      "scope_narrative": [
+        "New 12,000 sqm warehouse",
+        "800 sqm office",
+        "12 m clear height",
+        "8 recessed docks"
+      ],
+      "scale": {
+        "gfa_sqm": 12000
+      },
+      "complexity": {}
+    },
+    "band": "m",
+    "band_bounds": [
+      1050,
+      2175
+    ],
+    "words": null,
+    "in_band": null,
+    "pmp_path": null,
+    "pmp_version": null,
+    "runtime": null,
+    "build_version": null,
+    "queue_scope": null,
+    "compiler": null,
+    "runs": []
+  },
+  {
+    "id": "14c4c32d-5ed2-4864-bdd2-e8722dbf6acf",
+    "title": "w3-26 Standalone retail 20260814-0933",
+    "created_at": "2026-08-14T09:56:46.452856+00:00",
+    "building_class": "commercial",
+    "work_type": "new",
+    "state": null,
+    "taxonomy": {
+      "subclasses": [
+        "retail_standalone"
+      ],
+      "work_scope": [],
+      "budget": "$7m",
+      "assets": [],
+      "scope_narrative": [
+        "New standalone bulky goods retail building",
+        "Highway site",
+        "Single tenant pre-committed"
+      ],
+      "scale": {
+        "gla_sqm": 3200
+      },
+      "complexity": {}
+    },
+    "band": "m",
+    "band_bounds": [
+      1050,
+      2175
+    ],
+    "words": null,
+    "in_band": null,
+    "pmp_path": null,
+    "pmp_version": null,
+    "runtime": null,
+    "build_version": null,
+    "queue_scope": null,
+    "compiler": null,
+    "runs": []
+  },
+  {
+    "id": "904a4774-4e8a-404f-bb25-1b06ea1f1c68",
+    "title": "5.3 Roof replacement and waterproofing",
+    "created_at": "2026-08-14T09:49:05.021543+00:00",
+    "building_class": "commercial",
+    "work_type": "remediation",
+    "state": "NSW",
+    "taxonomy": {
+      "subclasses": [
+        "retail_standalone"
+      ],
+      "work_scope": [
+        "waterproofing_rectification"
+      ],
+      "budget": "Around $160k",
+      "assets": [],
+      "scope_narrative": [
+        "Replace leaking metal roof sheeting",
+        "Re-do box gutters"
+      ],
+      "scale": {},
+      "complexity": {}
+    },
+    "band": "xs",
+    "band_bounds": [
+      489,
+      1015
+    ],
+    "words": 767,
+    "in_band": true,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w3--5-3-roof-replacement-and-waterproofing--create_pmp.md",
+    "pmp_version": 1,
+    "runtime": "clerk-sitewise-create-pmp-adaptive-scaffold",
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "compiler": "adaptive_scaffold",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "lock_owner": null,
+        "error_class": null
+      }
+    ]
+  },
+  {
+    "id": "86d26e3e-2ce3-4b54-80f1-792d86f13942",
+    "title": "w3-5 Roof replacement and waterproofing 20260814-0933",
+    "created_at": "2026-08-14T09:33:22.843775+00:00",
+    "building_class": null,
+    "work_type": null,
+    "state": null,
+    "taxonomy": {
+      "subclasses": null,
+      "work_scope": null,
+      "budget": null,
+      "assets": null,
+      "scope_narrative": null,
+      "scale": null,
+      "complexity": null
+    },
+    "band": null,
+    "band_bounds": null,
+    "words": null,
+    "in_band": null,
+    "pmp_path": null,
+    "pmp_version": null,
+    "runtime": null,
+    "build_version": null,
+    "queue_scope": null,
+    "compiler": null,
+    "runs": []
+  }
+]

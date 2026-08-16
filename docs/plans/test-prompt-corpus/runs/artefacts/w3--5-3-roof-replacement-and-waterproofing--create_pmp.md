@@ -1,0 +1,171 @@
+# Project Management Plan
+
+## Project Summary
+| Project | 5.3 Roof replacement and waterproofing |  |
+| --- | --- | --- |
+| Address | Not provided |  |<!-- clerk:block id=blk_a1f1d01fcdd2f7bcd31248fff218fbb8 -->
+| Owner | Not provided |  |<!-- clerk:block id=blk_7b724790741aadc74472d5e361db483a -->
+| Description | Remediation / rectification works for Retail - Standalone (Class 6). Scope includes Replace leaking metal roof sheeting; Re-do box gutters. This plan coordinates approvals, consultants, cost, programme, procurement, risks, owner decisions, and delivery close-out |  |<!-- clerk:block id=blk_47a3a63485a9debb7de119363e8ff5d2 -->
+
+## Brief
+<!-- clerk:block id=blk_6c683bf5e9d1c0583e35529a68435bf4 -->
+Class/type/subclass: Commercial / Remediation / rectification / Retail - Standalone (Class 6).
+Scale summary: Retail - Standalone (Class 6).
+State inclusions, exclusions, interfaces, and acceptance criteria before procurement.
+Project-specific scope that is not established by the current profile or corpus remains **Assumption** until clarified through design coordination and recorded owner decisions.
+**Inclusions (work scope):**
+- Waterproofing Rectification <!-- clerk:block id=blk_39b0a30795e9dd6995eadb3c45934f8a -->
+- Replace leaking metal roof sheeting <!-- clerk:block id=blk_2244bf6d791b7fb4fe8e0ea96d85958c -->
+- Re-do box gutters <!-- clerk:block id=blk_cfaf4f9068b5349369cd80322b6a438d -->
+<!-- clerk:block id=blk_efbe21e18dcfcad515562570a798aa26 -->
+**Exclusions / interfaces / acceptance:** Assumption — state before tender.
+
+## Consultants
+<!-- clerk:block id=blk_000dba29bd8097d2926c11bebffd28b8 -->
+Appointment register for Waterproofing Consultant engagement and taxonomy-expected disciplines. The Waterproofing Consultant row is the design lead; coordination duties sit under that appointment. Record firm, fee, and appointment status only — engagement scope belongs in the brief and filed engagement letters, not in this register. Missing appointment evidence stays Assumption / Not evidenced until engagement letters or fee proposals are filed.
+| Discipline | Firm | Fee | Status | Citation |
+| --- | --- | --- | --- | --- |
+| Waterproofing Consultant | — | — | Assumption / Not evidenced | — |<!-- clerk:block id=blk_b457d9c631cd02613f36f7e1accc9268 -->
+
+## FFE Schedule
+| Item | Location | Qty | Finish | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Waterproofing membrane | Envelope | — | — | not stated | Typical |<!-- clerk:block id=blk_d0c89be2995dbc062c38f187e30a3748 -->
+
+## Planning and Compliance
+<!-- clerk:block id=blk_4204280132af0418e1d8a21f657c5e09 -->
+Do not use generic compliance prose where a required seed section is absent; mark the gap for user confirmation.
+The approval pathway, certifier position, authority inputs, and inspection or commissioning hold points are **Not evidenced** until the current corpus contains approval records, consultant advice, or authority correspondence.
+Planning emphasis for this commercial remediation: state the authority pathway, certifier engagement, inspection hold points, essential safety measures, and any live-environment or operational constraints that change lodgement sequencing. Keep seed-backed references visible and mark missing approval evidence as Not evidenced rather than inventing pathway detail.
+| Approval / compliance item | Status | Basis | Next action |
+| --- | --- | --- | --- |
+| NCC pathway | Assumption | Taxonomy and loaded seed doctrine | State DtS/performance pathway with certifier |<!-- clerk:block id=blk_f73898be8da55e3dd0dfefb6edcf3002 -->
+| Authority approvals | Not evidenced | No current approval records used | Upload planning/approval records |<!-- clerk:block id=blk_078b275bdf016836ad7bdef41f2f33ba -->
+| Essential safety measures | Assumption | Seed doctrine | State ESM schedule where applicable |<!-- clerk:block id=blk_39e3ef72b77434da24cc3370df7cd8ef -->
+
+## Programme
+| Milestone | Status | Basis | Next action |
+| --- | --- | --- | --- |
+| Setup / brief confirmation | Active | Current project profile | State scope and budget lock |<!-- clerk:block id=blk_b2bcbd6d68971682f315a5cb44c4f6f8 -->
+| Authority pathway | Assumption | Seed doctrine | State approval route and lead times |<!-- clerk:block id=blk_8d18f005245dccc726e2c36bb7f2457c -->
+| Procurement / services start | Assumption | Work type and role | State procurement or advisory deliverables programme |<!-- clerk:block id=blk_2096646b5739cb20f88968a697a9829e -->
+| Delivery / reporting cadence | Not evidenced | No programme document used | Upload programme or agree reporting cadence |<!-- clerk:block id=blk_05e84c5a4e7f04fcffd67cd427419d0c -->
+<!-- clerk:block id=blk_dfee71f126473c7b088019c9d3138fbf -->
+Programme logic should stay milestone-based until a current programme is uploaded. Authority lead times, live-environment staging, shutdown windows, and client review periods are assumptions that need confirmation before dates are issued.
+
+## Cost Planning
+<!-- clerk:block id=blk_0b08d5bcc10e4f62b45c157b998a1270 -->
+Budget: Around $160k.
+Complexity/risk uplift watch: **Assumption** No derived uplift flags.
+Cost plan, contingency, PC/PS allowances, and benchmark basis are **Not evidenced** until current project documents are uploaded.
+Use companion cost/risk annexures for detailed line items; keep the primary PMP to budget status, constraints, and decisions.
+Before commitment, state whether the stated budget covers consultants, authority fees, escalation, contingency, temporary works, and risk allowances triggered by the selected complexity profile.
+
+## Procurement and Delivery
+| Procurement / delivery item | Status | Next action |
+| --- | --- | --- |
+| Procurement route | Current | State contract and tender pathway |<!-- clerk:block id=blk_9a65f18849702e9c2787075e1ab5f4bc -->
+| Consultant inputs | Assumption | Appoint or state discipline roster |<!-- clerk:block id=blk_99f26fede2402ffda9565ec8a7610db9 -->
+| Tender / award gates | Not evidenced | Upload procurement programme and evaluation criteria |<!-- clerk:block id=blk_f5985529dbf93fa24eb185620aa16d73 -->
+<!-- clerk:block id=blk_51c3ce903d2af67b72aff78b4b2a1021 -->
+Delivery responsibilities remain an **Assumption** until appointment documents state who decides, who advises, who certifies, who contracts, and who carries coordination risk for each work-scope item.
+
+## Risks and mitigations
+| Risk | Owner | Status | Next action | Due |
+| --- | --- | --- | --- | --- |
+| Consultant and approval pathway unresolved | Waterproofing Consultant | Assumption | State discipline roster and approval certifier/authority path | — |<!-- clerk:block id=blk_eb82b4238a72b7591155394d7e196eb4 -->
+| Current corpus evidence not uploaded | Waterproofing Consultant | Not evidenced | Upload brief, authority, cost, programme, and consultant records | — |<!-- clerk:block id=blk_3b7fbe48d1f7dea1e91295328501d76f -->
+| Project setup incomplete | Owner | Assumption | State scope, budget, approvals pathway, and decision owner | — |<!-- clerk:block id=blk_f27e20780b8a6d057be3f6c9faa9b7a1 -->
+<!-- clerk:block id=blk_8a8dbdc81cf431ea9efc2928db4eb256 -->
+Primary risk register is capped at 8 rows; detail belongs in a companion annexure.
+
+## Actions and decisions
+| Item | Owner | Status | Next |
+| --- | --- | --- | --- |
+| Scope boundary | Owner | Assumption | Lock brief |<!-- clerk:block id=blk_c56a03d10c0fedcfc9a686920201835f -->
+| Approval pathway | Waterproofing Consultant | Assumption | Certifier |<!-- clerk:block id=blk_cd6c06654799f88d357df015140145d1 -->
+| Budget basis | Owner | Assumption | Cost evidence |<!-- clerk:block id=blk_410f5027f35893db65b6c1d9188bfc6d -->
+| Consultant roster | Waterproofing Consultant | Assumption | Appoint |<!-- clerk:block id=blk_16a49f468f52ad9bfeb67fe01c767c27 -->
+```pmp-decision
+{
+"id": "scope-boundary",
+"label": "Scope boundary",
+"prompt": "State the scope boundary and exclusions.",
+"selected": "decision-required",
+"source": "agent",
+"options": [
+{"value": "decision-required", "label": "Decision required"},
+{"value": "confirmed", "label": "Confirmed"},
+{"value": "defer", "label": "Defer"}
+]
+}
+```
+```pmp-decision
+{
+"id": "approval-pathway",
+"label": "Approval pathway",
+"prompt": "State the approval and certification pathway.",
+"selected": "decision-required",
+"source": "agent",
+"options": [
+{"value": "decision-required", "label": "Decision required"},
+{"value": "confirmed", "label": "Confirmed"},
+{"value": "defer", "label": "Defer"}
+]
+}
+```
+```pmp-decision
+{
+"id": "budget-basis",
+"label": "Budget basis",
+"prompt": "State the budget, contingency, and cost-plan basis.",
+"selected": "decision-required",
+"source": "agent",
+"options": [
+{"value": "decision-required", "label": "Decision required"},
+{"value": "confirmed", "label": "Confirmed"},
+{"value": "defer", "label": "Defer"}
+]
+}
+```
+```pmp-decision
+{
+"id": "consultant-roster",
+"label": "Consultant roster",
+"prompt": "State the required consultant roster.",
+"selected": "decision-required",
+"source": "agent",
+"options": [
+{"value": "decision-required", "label": "Decision required"},
+{"value": "confirmed", "label": "Confirmed"},
+{"value": "defer", "label": "Defer"}
+]
+}
+```
+
+## Citation key
+<!-- clerk:block id=blk_d732334bf2072ffd8deea1f4ce6699e9 -->
+Numbered project documents cited in this PMP. Each `[n]` marker in the body refers to the matching entry in the list below.
+- No project evidence documents are cited yet. Upload brief, engagement, approvals, programme, and cost records to populate numbered citations that match the inline `[n]` markers used in the body sections above. <!-- clerk:block id=blk_2119c870f7bb4cee90e1941c5f8516ed -->
+<!-- clerk:block id=blk_a25f958d0c305c9d231b70922adeffec -->
+Document control: draft v01, review-only. Inline `[n]` markers in the body share these numbers. Supersede under `00-brief-pmp/` when new evidence arrives.
+
+## Trace & QA
+
+<!-- clerk:block id=blk_8b736ded2e1722cf1fc02f60bf326744 -->
+This review-only section is excluded from Word and PDF exports.
+
+<!-- clerk:block id=blk_be595adea641de85851447bf1cbfbc88 -->
+**Inputs to resolve**
+- Waterproofing Consultant <!-- clerk:block id=blk_63efbffda67c5d95bf861e23e7546bbb -->
+- Unified Finishes, Fixtures and Equipment register for interior and exterior finishes, fixtures, and plant. Add or tidy rows in chat. Missing selections stay unresolved. <!-- clerk:block id=blk_c84a421f356207b481881e8149e92efa -->
+- Waterproofing membrane <!-- clerk:block id=blk_15d8787cb4e2a3c18babca2242896b95 -->
+- Consultant and approval pathway unresolved <!-- clerk:block id=blk_bae5c7270faed4ff6e7fffc8043858e2 -->
+- Current corpus evidence not uploaded <!-- clerk:block id=blk_5c4cbf4dacdbdc36d18ab6e5bb7659ec -->
+- Project setup incomplete <!-- clerk:block id=blk_6e424ad8b7157c04bd013b8e593c79ee -->
+
+<!-- clerk:block id=blk_854a0a720278e941e7558885e820cfea -->
+**Generation trace**
+- Scaffold status: this PMP is useful immediately from setup inputs, but every project-specific delivery claim remains open for owner review until current project documents are uploaded or the user confirms the assumption. <!-- clerk:block id=blk_ad00f2472f3eb83cf243f11a68229293 -->
+- Loaded seed sections: seed/ncc-reference-guide.md#compliance-pathways-and-documentation. <!-- clerk:block id=blk_c4823b4bc93ef2d03a4ab0bdadd8ac7d -->
+- Profile emphasis: this section carries the highest weighting for the selected taxonomy. Give it the most project-specific depth, retain concrete setup facts, and cut generic prose elsewhere before reducing this content. <!-- clerk:block id=blk_c3c62d5e434179e056e23ac27dc4d660 -->

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useInstructionTraySlot } from "@/components/project/cockpitShellLayout";
 import {
   ChevronRight,
   Eye,
@@ -13,6 +14,11 @@ import { SelectionInstructionCard } from "@/components/project/SelectionInstruct
 import { WorkflowTracePanel } from "@/components/project/WorkflowTracePanel";
 import { WorkbookGrid } from "@/components/project/WorkbookGrid";
 import { CostPlanGrid } from "@/components/project/CostPlanGrid";
+import {
+  PmpProgrammeFigure,
+  PmpProgrammeProvider,
+  PmpProgrammeToolbar,
+} from "@/components/project/PmpProgrammeEmbed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { normalizeDraftMarkdown, splitTraceQa } from "@/lib/artifact-markdown";
@@ -278,8 +284,10 @@ export function DraftReviewPanel({
   embedded = false,
   projectTitle,
   repositoryEvidence = [],
+  selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
+  onOpenProgram,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
@@ -289,10 +297,12 @@ export function DraftReviewPanel({
   /** Compact layout when nested inside a workflow panel. */
   embedded?: boolean;
   repositoryEvidence?: EvidencePreview[];
+  selectedEvidenceIds?: Set<string>;
   onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
   onTransmittalSessionChange?: (
     session: { draftId: string; workflowType: string } | null,
   ) => void;
+  onOpenProgram?: () => void;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
@@ -317,9 +327,14 @@ export function DraftReviewPanel({
     items: InstructionItem[];
   } | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+  const [programmeHost, setProgrammeHost] = useState<HTMLElement | null>(null);
   /** Kept separate from `actionError`, which renders inside the collapsed trace. */
   const [applyError, setApplyError] = useState<string | null>(null);
   const [showChanges, setShowChanges] = useState(true);
+  const [isSavingTransmittal, setIsSavingTransmittal] = useState(false);
+  const [transmittalSaveError, setTransmittalSaveError] = useState<string | null>(
+    null,
+  );
   const draftDetailsRef = useRef<HTMLDetailsElement>(null);
   const [decisionState, setDecisionState] = useState<{
     key: string;
@@ -336,7 +351,14 @@ export function DraftReviewPanel({
         : [];
   const decisionLoadError =
     decisionState.key === decisionContextKey ? decisionState.error : null;
-  const instructionTrayHost = useInstructionTrayHost();
+  const instructionTraySlot = useInstructionTraySlot();
+  const fallbackTrayHost = useMemo(
+    () =>
+      typeof document === "undefined"
+        ? null
+        : document.querySelector<HTMLElement>("[data-instruction-tray-host]"),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -537,6 +559,43 @@ export function DraftReviewPanel({
     }
   }
 
+  // The cockpit right panel owns the tray; this publishes into that slot.
+  useLayoutEffect(() => {
+    if (!instructionTraySlot) return;
+    if (!canInstruct || !loadedDraft || trayItems.length === 0) {
+      instructionTraySlot.setTray(null);
+      return () => instructionTraySlot.setTray(null);
+    }
+    instructionTraySlot.setTray({
+      items: trayItems,
+      isApplying,
+      error: applyError,
+      onRemove: (id) => {
+        setApplyError(null);
+        writeTray(
+          loadedDraft.id,
+          loadedDraft.version,
+          trayItems.filter((item) => item.id !== id),
+        );
+      },
+      onClearAll: () => {
+        setApplyError(null);
+        writeTray(loadedDraft.id, loadedDraft.version, []);
+      },
+      onApply: () => {
+        void applyInstructions();
+      },
+    });
+    return () => instructionTraySlot.setTray(null);
+  }, [
+    instructionTraySlot,
+    canInstruct,
+    loadedDraft,
+    trayItems,
+    isApplying,
+    applyError,
+  ]);
+
   if (!draft) {
     if (isCostPlanWorkflow) {
       return (
@@ -590,9 +649,11 @@ export function DraftReviewPanel({
     !isAccepted &&
     Boolean(onSelectEvidenceIds) &&
     /(?:Transmittal|Project Documents|Information to review)\b/i.test(source);
+  const canSaveTransmittal = canLoadTransmittal;
 
   function handleLoadTransmittal() {
     if (!loadedDraft || !onSelectEvidenceIds) return;
+    setTransmittalSaveError(null);
     const rows = parseTransmittalRows(source);
     const matchedIds = matchTransmittalEvidenceIds(rows, repositoryEvidence);
     onSelectEvidenceIds(new Set(matchedIds));
@@ -600,6 +661,32 @@ export function DraftReviewPanel({
       draftId: loadedDraft.id,
       workflowType: loadedDraft.workflow_type,
     });
+  }
+
+  async function handleSaveTransmittal() {
+    if (!loadedDraft || isSavingTransmittal) return;
+    setIsSavingTransmittal(true);
+    setTransmittalSaveError(null);
+    try {
+      const updated = await api.replaceDraftTransmittal(
+        projectId,
+        loadedDraft.id,
+        loadedDraft.version,
+        [...(selectedEvidenceIds ?? [])],
+      );
+      onDraftUpdated(updated);
+      onTransmittalSessionChange?.(null);
+    } catch (error) {
+      setTransmittalSaveError(
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Could not save transmittal.",
+      );
+    } finally {
+      setIsSavingTransmittal(false);
+    }
   }
 
   function startSelectionEdit(
@@ -1032,7 +1119,13 @@ export function DraftReviewPanel({
             Draft content could not be loaded.
           </p>
         ) : (
-          <div className="p-4">
+          <PmpProgrammeProvider projectId={projectId}>
+          <div className="p-4" ref={setProgrammeHost}>
+            {isPmpDraft(displayDraft.workflow_type) ? (
+              <div className="mb-2 flex justify-end print:hidden">
+                <PmpProgrammeToolbar />
+              </div>
+            ) : null}
             {actionError ? (
               <p
                 className="mb-3 border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -1138,8 +1231,21 @@ export function DraftReviewPanel({
               onLoadTransmittal={
                 canLoadTransmittal ? handleLoadTransmittal : undefined
               }
+              canSaveTransmittal={canSaveTransmittal}
+              onSaveTransmittal={
+                canSaveTransmittal ? () => void handleSaveTransmittal() : undefined
+              }
+              isSavingTransmittal={isSavingTransmittal}
+              transmittalSaveError={transmittalSaveError}
             />
+            {isPmpDraft(displayDraft.workflow_type) ? (
+              <PmpProgrammeFigure
+                host={programmeHost}
+                onOpenProgram={onOpenProgram}
+              />
+            ) : null}
           </div>
+          </PmpProgrammeProvider>
         )}
       </section>
 
@@ -1175,7 +1281,8 @@ export function DraftReviewPanel({
               }}
               onApply={() => void applyInstructions()}
             />,
-            instructionTrayHost,
+            instructionTraySlot,
+            fallbackTrayHost,
           )
         : null}
 
@@ -1374,21 +1481,14 @@ function emptyDraftMessage(workflowType?: string): string {
   return "No draft saved yet.";
 }
 
-/** Right-panel mount from ProjectShell; absent in unit tests / non-cockpit embeds. */
-function useInstructionTrayHost(): HTMLElement | null {
-  // ProjectShell always mounts the host before the draft panel. Query once;
-  // a mount effect that setState here trips react-hooks/set-state-in-effect.
-  return useMemo(
-    () =>
-      typeof document === "undefined"
-        ? null
-        : document.querySelector<HTMLElement>("[data-instruction-tray-host]"),
-    [],
-  );
-}
-
-function renderInstructionTray(tray: ReactNode, host: HTMLElement | null): ReactNode {
-  return host ? createPortal(tray, host) : tray;
+/** Right-panel slot from ProjectShell; portal/inline covers tests without the shell. */
+function renderInstructionTray(
+  tray: ReactNode,
+  slot: object | null,
+  fallbackHost: HTMLElement | null,
+): ReactNode {
+  if (slot) return null;
+  return fallbackHost ? createPortal(tray, fallbackHost) : tray;
 }
 
 function isFullDraft(draft: DraftArtifact | DraftArtifactSummary): draft is DraftArtifact {

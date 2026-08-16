@@ -14,6 +14,7 @@ from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
 from app.database.workspace_files import list_workspace_files_for_project
 from app.inbox.paths import is_inbox_workspace_path
+from ingest.document_metadata import strip_markdown_emphasis
 
 
 class DocumentRegisterRow(BaseModel):
@@ -173,7 +174,7 @@ def _metadata_text(metadata: dict, key: str) -> str | None:
     value = metadata.get(key)
     if not isinstance(value, str):
         return None
-    stripped = " ".join(value.split())
+    stripped = strip_markdown_emphasis(" ".join(value.split()))
     return stripped or None
 
 

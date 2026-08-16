@@ -33,15 +33,16 @@ from tests.conftest import run_async
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = ROOT / "data" / "synthetic-mobilisation-evidence" / "kavanagh-residence-cost-files"
+NEWTOWN_INVOICES = ROOT / "docs" / "demo-corpus" / "newtown" / "03-invoices"
 
 
-def _candidate(filename: str) -> InvoiceCandidate:
-    content = (FIXTURES / filename).read_text(encoding="utf-8")
+def _candidate(filename: str, *, root: Path = FIXTURES) -> InvoiceCandidate:
+    content = (root / filename).read_text(encoding="utf-8")
     return InvoiceCandidate(
         source_document_id=uuid.uuid5(uuid.NAMESPACE_URL, filename),
         workspace_file_id=None,
         filename=filename,
-        relative_path=f"projects/kavanagh/_inbox/{filename}",
+        relative_path=f"projects/_inbox/{filename}",
         content_hash=hashlib.sha256(content.encode("utf-8")).hexdigest(),
         content=content,
     )
@@ -125,6 +126,45 @@ def test_quoin_invoice_extracts_reconciled_source_facts() -> None:
     assert [line.description for line in invoice.lines] == [
         "Stage 1 — Schematic Design, completed"
     ]
+
+
+def test_newtown_table_invoice_is_recognised_and_extracted() -> None:
+    candidate = _candidate(
+        "INV-AS-2611-ardent-structural.md",
+        root=NEWTOWN_INVOICES,
+    )
+    invoice = extract_invoice(candidate)
+
+    assert is_invoice_document(filename=candidate.filename, content=candidate.content)
+    assert invoice.supplier_name == "Ardent Structural"
+    assert invoice.supplier_abn == "51208664372"
+    assert invoice.invoice_number == "INV-AS-2611"
+    assert invoice.invoice_date == date(2025, 5, 16)
+    assert invoice.due_date == date(2025, 5, 30)
+    assert invoice.related_reference == "AS-26118"
+    assert invoice.subtotal_ex_gst == Decimal("3450.00")
+    assert invoice.gst == Decimal("345.00")
+    assert invoice.total_including_gst == Decimal("3795.00")
+    assert [line.description for line in invoice.lines] == [
+        "Stage 1 — Concept design and footing investigation — 30% of agreed fee"
+    ]
+
+
+def test_newtown_invoice_pack_extracts_and_reconciles() -> None:
+    filenames = sorted(path.name for path in NEWTOWN_INVOICES.glob("INV-*.md"))
+
+    invoices = [
+        extract_invoice(_candidate(filename, root=NEWTOWN_INVOICES))
+        for filename in filenames
+    ]
+
+    assert len(invoices) == 16
+    assert len({(invoice.supplier_name, invoice.invoice_number) for invoice in invoices}) == 16
+    for invoice in invoices:
+        assert sum((line.amount_ex_gst for line in invoice.lines), Decimal("0.00")) == (
+            invoice.subtotal_ex_gst
+        )
+        assert invoice.subtotal_ex_gst + invoice.gst == invoice.total_including_gst
 
 
 def test_mixed_gst_invoice_preserves_disbursement_as_separate_line() -> None:
@@ -263,6 +303,35 @@ def test_structural_invoice_prefers_consultant_trade_over_construction_wording()
     allocation = map_invoice_allocations(invoice, state)[0]
 
     assert allocation.cost_item_key == "structural-engineer"
+    assert allocation.cost_item_label == "Structural engineer"
+    assert allocation.review_status == "mapped"
+
+
+def test_newtown_ardent_stage_line_maps_from_supplier_not_construction_wording() -> None:
+    state = _state(
+        [
+            _item(
+                key="6",
+                code="6",
+                label="Structural engineer",
+            ),
+            _item(
+                key="15",
+                code="15",
+                label="Existing-structure repair and new structural work",
+                category="Construction",
+            ),
+        ]
+    )
+    invoice = extract_invoice(
+        _candidate("INV-AS-2611-ardent-structural.md", root=NEWTOWN_INVOICES)
+    )
+
+    allocation = map_invoice_allocations(invoice, state)[0]
+
+    assert invoice.supplier_name == "Ardent Structural"
+    assert "structural" not in allocation.description.lower()
+    assert allocation.cost_item_key == "6"
     assert allocation.cost_item_label == "Structural engineer"
     assert allocation.review_status == "mapped"
 

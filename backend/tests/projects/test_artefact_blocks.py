@@ -251,6 +251,20 @@ def test_identity_marker_stripping_preserves_crlf_and_terminal_newline() -> None
     assert strip_block_markers(generated.markdown) == source
 
 
+def test_strip_block_markers_hides_truncated_identity_comments() -> None:
+    source = (
+        "Rear extension and first-floor addition. [1] Inclusions: kitchen. "
+        "<!-- clerk:block id=blk_dba9073a16ea8cddb7bc1e7117d5e43 -->"
+    )
+
+    visible = strip_block_markers(source)
+
+    assert visible == (
+        "Rear extension and first-floor addition. [1] Inclusions: kitchen."
+    )
+    assert "clerk:block" not in visible
+
+
 def test_generated_table_markers_follow_the_complete_visible_row() -> None:
     source = "| Project | Walsh 2 |\n| --- | --- |\n| Address | Paddington |"
     generated = materialize_block_identity(

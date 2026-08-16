@@ -27,14 +27,17 @@ export function CostInvoiceRegister({
   revision?: number | null;
 }) {
   return (
-    <CostInvoiceRegisterState
-      key={`${projectId}:${revision ?? "unversioned"}`}
-      projectId={projectId}
-    />
+    <CostInvoiceRegisterState projectId={projectId} revision={revision} />
   );
 }
 
-function CostInvoiceRegisterState({ projectId }: { projectId: string }) {
+function CostInvoiceRegisterState({
+  projectId,
+  revision,
+}: {
+  projectId: string;
+  revision: number | null;
+}) {
   const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -52,12 +55,17 @@ function CostInvoiceRegisterState({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    if (queueRef.current.length > 0 || drainingRef.current) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     void api.getInvoiceLedger(projectId).then(
       (data) => {
         if (cancelled) return;
         confirmedLedgerRef.current = data;
-        setLedger(data);
+        setLedger(replayEdits(data, queueRef.current));
         setError(null);
       },
       (loadError) => {
@@ -74,7 +82,7 @@ function CostInvoiceRegisterState({ projectId }: { projectId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, revision]);
 
   function enqueue(edit: InvoiceEdit) {
     const confirmed = confirmedLedgerRef.current;
@@ -93,17 +101,20 @@ function CostInvoiceRegisterState({ projectId }: { projectId: string }) {
     if (!editingProjectId) return;
     drainingRef.current = true;
     let latestSaved: InvoiceLedger | null = null;
+    let conflictRetries = 0;
 
     try {
       while (queueRef.current.length > 0) {
-        const edit = queueRef.current.shift();
+        const edit = queueRef.current[0];
         if (!edit) break;
-        setPendingCount(queueRef.current.length + 1);
+        setPendingCount(queueRef.current.length);
         const confirmed = confirmedLedgerRef.current;
         if (!confirmed) throw new Error("Invoice register is not ready.");
         try {
           const updated = await commitEdit(editingProjectId, confirmed, edit);
           if (projectIdRef.current !== editingProjectId) return;
+          queueRef.current.shift();
+          conflictRetries = 0;
           latestSaved = updated;
           confirmedLedgerRef.current = updated;
           setLedger(replayEdits(updated, queueRef.current));
@@ -121,6 +132,8 @@ function CostInvoiceRegisterState({ projectId }: { projectId: string }) {
             setError(
               "An invoice changed elsewhere. Remaining edits will use the latest values.",
             );
+            conflictRetries += 1;
+            if (conflictRetries > 1) queueRef.current.shift();
             continue;
           }
           queueRef.current = [];

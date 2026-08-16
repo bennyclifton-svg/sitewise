@@ -655,11 +655,13 @@ def _contract_focus_line(
             "spaces (rooms, zones, outdoor areas, plant rooms, loading docks, "
             "circulation cores) with level, area, characteristics and status; "
             "preserve user-added shared accommodation_space rows; list every "
-            "space the brief or scope_narrative already names; do not leave the "
-            "placeholder row when the brief names spaces; put dimensions in "
-            "characteristics; keep unspecified fields as TBC; do not invent "
-            "rooms the brief does not name; do not bury the schedule inside "
-            "the Brief prose"
+            "space the brief or scope_narrative already names, including "
+            "Demolished spaces that are coming out of the building; keep the "
+            "existing kitchen and the new kitchen as separate rows; do not "
+            "leave the placeholder row when the brief names spaces; put "
+            "dimensions in characteristics; keep unspecified fields as TBC; "
+            "do not invent rooms the brief does not name; do not bury the "
+            "schedule inside the Brief prose"
         )
     if section_id == "ffe-schedule":
         return (

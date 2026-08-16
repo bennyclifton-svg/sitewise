@@ -27,12 +27,14 @@ from app.sitewise.pmp_corpus import (
     list_current_pmp_corpus_documents,
 )
 from app.sitewise.pmp_evidence_validation import apply_corpus_evidence_downgrades
+from app.projects.selective_refresh import SelectiveRefreshPlan
 from app.sitewise.pmp_sweep import (
     compute_evidence_changed,
     compute_sections_changed,
     evidence_ref_path,
     sweep_current_pmp_corpus,
 )
+from tests.sitewise.test_accommodation_schedule import _NEWTOWN_BRIEF_TABLE
 from app.workflows.create_pmp import (
     CREATE_PMP_MAX_MOBILISATION_EVIDENCE_DOCS,
     PmpDraftOutput,
@@ -848,3 +850,137 @@ async def test_sweep_respects_config_cap(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(result.listing.documents) == 5
     assert result.listing.capped is True
     assert any(event.status == "warning" for event in result.trace_events)
+
+
+_THIN_ACCOMMODATION = """## Accommodation Schedule
+
+Rooms, zones and outdoor spaces the project covers.
+
+| Space | Level | Area | Characteristics | Status |
+| --- | --- | --- | --- | --- |
+| Hallway | Ground | 9 m² | Original arch and skirtings retained. | Retained |
+| Bedroom 3 | First | 11 m² | — | New |
+| Plunge pool | Rear courtyard | Approximately 12 m² | Located in the rear courtyard; site area 232 m². | Existing / proposed — state |
+| **Scheduled area** |  | 32 m² |  |  |
+"""
+
+
+def test_skipped_update_still_stamps_brief_accommodation_table() -> None:
+    baseline = _baseline_draft()
+    baseline.content_markdown = _replace_section(
+        baseline.content_markdown,
+        "Accommodation Schedule",
+        _THIN_ACCOMMODATION,
+    )
+    created_draft = DraftArtifact(
+        id=uuid.uuid4(),
+        project_id=PROJECT_ID,
+        workflow_type="create_pmp",
+        version=2,
+        status="draft",
+        title="Project Management Plan",
+        workspace_path=baseline.workspace_path,
+        author_user_id=USER_ID,
+        content_markdown="",
+        model="stamp-only",
+        runtime="clerk-sitewise-update-pmp",
+        provenance_metadata={},
+        created_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+    )
+    brief = _document(
+        relative_path="04-projects/taxonomy-project/01-brief/owners-project-brief.md",
+        filename="owners-project-brief.md",
+        content=_NEWTOWN_BRIEF_TABLE,
+    )
+    listing = CorpusListingResult(
+        documents=(brief,),
+        total_indexed=1,
+        skipped_superseded=0,
+        skipped_revision_duplicate=0,
+        capped=False,
+    )
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+
+    with (
+        patch(
+            "app.workflows.update_pmp.overlay_status",
+            return_value=overlay_status(archetype="new-dwelling", state="NSW"),
+        ),
+        patch(
+            "app.workflows.update_pmp.locked_selections",
+            new=AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.workflows.update_pmp.get_latest_draft_artifact",
+            new=AsyncMock(return_value=baseline),
+        ),
+        patch(
+            "app.workflows.update_pmp.plan_selective_refresh",
+            return_value=SelectiveRefreshPlan(
+                refresh_input_hash="unchanged",
+                skip=True,
+                affected_section_ids=(),
+            ),
+        ),
+        patch(
+            "app.workflows.update_pmp.list_current_pmp_corpus_documents",
+            new=AsyncMock(return_value=listing),
+        ),
+        patch(
+            "app.workflows.update_pmp.run_update_pmp_model",
+            new=AsyncMock(),
+        ) as run_model_mock,
+        patch(
+            "app.workflows.update_pmp.create_draft_artifact",
+            new=AsyncMock(return_value=created_draft),
+        ) as create_draft_mock,
+        patch("app.workflows.create_pmp.sync_pmp_draft_workspace", new=AsyncMock()),
+        patch("app.workflows.update_pmp.sync_decisions_from_markdown", new=AsyncMock()),
+        patch("app.workflows.update_pmp._persist_trace_message", new=AsyncMock()),
+        patch(
+            "app.workflows.create_pmp._next_version_hint",
+            new=AsyncMock(return_value=2),
+        ),
+    ):
+        response = run_async(
+            run_update_pmp_workflow(
+                session,
+                user_id=USER_ID,
+                project=_taxonomy_project(),
+                thread_id=None,
+            )
+        )
+
+    run_model_mock.assert_not_awaited()
+    assert response.status == "complete"
+    saved = create_draft_mock.await_args.kwargs["content_markdown"]
+    assert "| Kitchen (existing) | Ground | 12 m² |" in saved
+    assert "| Rear Sitting Room | Ground | 15 m² |" in saved
+    assert "| **Scheduled area** |  | 261 m² |  |  |" in saved
+    assert "Existing / proposed — state" not in saved
+
+
+def _replace_section(markdown: str, heading: str, replacement: str) -> str:
+    target = heading.strip().lower()
+    lines = markdown.splitlines()
+    output: list[str] = []
+    index = 0
+    replaced = False
+    while index < len(lines):
+        line = lines[index]
+        stripped = line.strip().lower()
+        if stripped.startswith("## ") and stripped[3:].strip() == target:
+            output.extend(replacement.rstrip().splitlines())
+            index += 1
+            while index < len(lines) and not lines[index].strip().startswith("## "):
+                index += 1
+            replaced = True
+            continue
+        output.append(line)
+        index += 1
+    if not replaced:
+        output.extend(["", replacement.rstrip()])
+    return "\n".join(output)

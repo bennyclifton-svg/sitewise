@@ -43,6 +43,8 @@ function headingForKind(kind: ChatErrorKind): string {
       return "Workflow incomplete";
     case "network":
       return "Connection problem";
+    case "interrupted":
+      return "Turn interrupted";
     default:
       return "Something went wrong";
   }

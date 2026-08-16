@@ -28,6 +28,17 @@ _CONCRETE_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SCHEDULE_MARKERS: tuple[str, ...] = (
+    "accommodation schedule",
+    "schedule of accommodation",
+    "area schedule",
+    "schedule of areas",
+    "room schedule",
+    "schedule of rooms",
+    "space schedule",
+    "schedule of spaces",
+)
+
 _PRIORITY_TERMS: tuple[tuple[int, tuple[str, ...]], ...] = (
     (
         8,
@@ -133,9 +144,11 @@ def build_document_digest(text: str, *, max_chars: int = 4_500) -> str:
         normalized = _normalize(line)
         if len(normalized) < 12:
             continue
-        if any(
+        if _is_schedule_heading(normalized):
+            selected.append((90, index, _schedule_table_window(lines, index)))
+        elif any(
             marker in normalized
-            for marker in ("area schedule", "scope exclusions", "service exclusions")
+            for marker in ("scope exclusions", "service exclusions")
         ):
             window = "\n".join(lines[index : index + 8])
             selected.append((7, index, _trim_span(window, 900)))
@@ -353,7 +366,7 @@ def _identity_sources(
 
 def _primary_project_area(text: str) -> tuple[str, str] | None:
     folded = text.casefold()
-    schedule_start = folded.find("area schedule")
+    schedule_start = _first_area_total_index(folded)
     if schedule_start >= 0:
         schedule_end = folded.find("all building areas", schedule_start)
         if schedule_end < 0:
@@ -387,6 +400,40 @@ def _primary_project_area(text: str) -> tuple[str, str] | None:
         metric_values.append((_canonical_number(value), _canonical_metric(metric)))
     unique = list(dict.fromkeys(metric_values))
     return unique[0] if len(unique) == 1 else None
+
+
+def _is_schedule_heading(normalized: str) -> bool:
+    return any(marker in normalized for marker in _SCHEDULE_MARKERS)
+
+
+def _first_marker_index(folded: str, markers: tuple[str, ...]) -> int:
+    starts = [folded.find(marker) for marker in markers]
+    found = [start for start in starts if start >= 0]
+    return min(found) if found else -1
+
+
+def _first_area_total_index(folded: str) -> int:
+    # Room-by-room accommodation tables are not a project GFA figure.
+    return _first_marker_index(
+        folded, ("area schedule", "schedule of areas")
+    )
+
+
+def _schedule_table_window(lines: Sequence[str], start: int) -> str:
+    """Keep a schedule heading and the markdown table that follows it."""
+    collected = [lines[start]]
+    index = start + 1
+    while index < len(lines) and not lines[index].startswith("|"):
+        if lines[index].startswith("## ") and index > start:
+            break
+        collected.append(lines[index])
+        index += 1
+        if index - start > 8:
+            break
+    while index < len(lines) and lines[index].startswith("|"):
+        collected.append(lines[index])
+        index += 1
+    return "\n".join(collected)
 
 
 def _priority_score(normalized: str) -> int:

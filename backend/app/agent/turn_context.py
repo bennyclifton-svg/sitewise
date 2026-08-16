@@ -66,7 +66,9 @@ level, an area and a status — not only bedrooms and kitchens. Number
 repeated rooms (Bedroom 1, Bedroom 2). Put dimensions and other notes in
 characteristics; there is no dimensions or notes column. status "removed"
 deletes the row from the schedule; use "Demolished" when the space is
-coming out of the building. If a create_pmp artefact exists and the draft
+coming out of the building. Keep demolished and replacement rooms as
+separate rows with distinct slugs (kitchen-existing vs kitchen). If a
+create_pmp artefact exists and the draft
 already has an Accommodation Schedule section, also call get_artefact_blocks
 and apply_artefact_operations to ADD or UPDATE the matching row. Do not
 add the section to a draft that does not already have it. If
@@ -74,9 +76,24 @@ scope_narrative or the Brief already names spaces and the schedule is
 empty or missing those rooms, lodge them now. An empty Accommodation
 Schedule is wrong when the brief already names rooms. Do not invent
 rooms the brief does not name.
+When the user accepts a fee-proposal recommendation, appoints or engages a
+consultant, or nominates an engagement sum, call appoint_consultant. Pass
+source_document_id from the selected-document-register or evidence tools when
+a proposal is in view; otherwise pass firm, discipline, and
+nominated_fee_ex_gst. The fee proposal already carries a classified
+discipline — do not rematch it, and do not inspect Cost Plan or PMP schema
+to find the row. Do not call refresh_cost_plan first. The tool rebases the
+Cost Plan onto current evidence, writes Approved Contract (committed), and
+updates the PMP Consultants register to Appointed.
 For narrowly scoped PMP/RFP/RFT or Cost Plan edits, read get_artefact_blocks or
 get_cost_plan, then call apply_artefact_operations or apply_cost_plan_operations
 with the current revision. Do not rewrite whole Markdown or edit workbook text.
+For programme or Gantt edits, call get_programme or ensure_programme, then
+apply_programme_operations. Each ADD/UPDATE puts name, parent_key, start_date,
+duration_days, and optional predecessor_key inside values. Sequential
+activities in a stage must set predecessor_key to the previous activity;
+omit the link only when work is genuinely concurrent. Python schedules
+finishes and linked starts.
 For missing consultant-fee estimates, call forecast_consultant_fees before
 answering. Only call apply_consultant_fee_forecast when the user asks to apply,
 write, update, or save the forecast into the cost plan.
@@ -143,8 +160,10 @@ depends on current NSW legislation, planning instruments, regulations,
 government requirements, or recent official changes. The current official-source
 adapter covers NSW legislation only. Do not imply that another jurisdiction was
 searched when no results for that jurisdiction were returned.
-Search results are discovery candidates, not evidence. Call read_web_source on
-the relevant official page before relying on it.
+Search results are discovery candidates, not evidence. Call read_web_source or
+attach_official_instrument before relying on an instrument. If this project has
+no matching official attachment, attach the NSW instrument or ask for the DCP
+PDF. Do not answer from search titles as if the page was read.
 
 Prefer current or authorised legislation and official government planning
 sources. Distinguish legislation, planning instruments, and government guidance.
@@ -197,6 +216,11 @@ Ground every answer in project evidence and platform knowledge:
   select_document_register_files with the exact returned ids. The
   selected-document-register block is only the current selection, not the set
   of available project files.
+- For appointing a consultant or accepting a fee-proposal recommendation,
+  call appoint_consultant. Do not hunt Cost Plan item keys or PMP block ids,
+  and do not call refresh_cost_plan. The classified discipline on the fee
+  proposal selects the row; the tool writes Approved Contract and the PMP
+  Consultants register.
 - For narrowly scoped artefact edits, use get_artefact_blocks / get_cost_plan
   then apply_artefact_operations / apply_cost_plan_operations. Do not rewrite
   whole Markdown or edit workbook text.
@@ -322,7 +346,8 @@ Ground every answer in project evidence and platform knowledge:
   or the Brief already names spaces, lodge those too even when this turn
   did not repeat them. An empty Accommodation Schedule is wrong when the
   brief already names rooms. Do not skip a courtyard, a covered deck, or
-  a loading dock because they are not rooms.
+  a loading dock because they are not rooms. When a brief table lists
+  demolished spaces, lodge those rows too — they are scope, not deletions.
 - When the user explicitly confirms a pending profile proposal, call
   accept_project_profile_proposal instead of update_project_profile. Proposal
   acceptance is authorized by that confirmation and does not require a
@@ -394,6 +419,25 @@ accept it. Ask a clarifying question only if multiple pending proposals could
 reasonably match this confirmation. Report the accepted fields after the tool
 succeeds.
 </profile-proposal-confirmation>"""
+
+_CONSULTANT_APPOINTMENT_GUIDANCE = """<consultant-appointment-request>
+The user has accepted a consultant recommendation or asked to appoint, engage,
+or award a fee proposal. Call appoint_consultant now. Do not hunt artefact schema,
+item keys, or PMP block ids. Do not call get_cost_plan, get_artefact_blocks,
+apply_cost_plan_operations, apply_artefact_operations, or refresh_cost_plan
+for this. Appointment rebases the Cost Plan onto current evidence as part of
+the write. If the tool fails, report that error; do not queue a Cost Plan refresh.
+
+If this turn has a selected fee proposal, pass its source_document_id. If the
+user named a firm and a sum, pass firm, discipline, and nominated_fee_ex_gst.
+The proposal's classified discipline already identifies the Cost Plan row and
+the PMP Consultants register row. The tool writes that sum to Approved
+Contract (the awarded contract sum) and marks the consultant Appointed.
+
+After it succeeds, report the firm, discipline, ex-GST fee, new Cost Plan
+version, and whether the PMP Consultants register was updated. Do not ask the
+user to identify a schema, row id, or Management Plan filename.
+</consultant-appointment-request>"""
 
 _ADOPTED_COST_PLAN_BUDGET_GUIDANCE = """<adopted-cost-plan-budget-request>
 The user has explicitly supplied or adopted a construction budget and asked to
@@ -493,6 +537,8 @@ def build_agent_prompt(
         )
     elif _is_profile_proposal_confirmation_request(user_text, mutation_intent):
         blocks.append(_PROFILE_PROPOSAL_CONFIRMATION_GUIDANCE)
+    if is_consultant_appointment_request(user_text):
+        blocks.append(_CONSULTANT_APPOINTMENT_GUIDANCE)
     if is_adopted_cost_plan_budget_request(user_text):
         blocks.append(_ADOPTED_COST_PLAN_BUDGET_GUIDANCE)
 
@@ -606,8 +652,30 @@ _WORKFLOW_MUTATION_RE = re.compile(
     r"\b(apply|write|save|update|revise|amend|refresh|populate|fill|allocate)\b"
     r".{0,60}\bcost\s+plan\b"
     r"|"
+    r"\b(create|draft|prepare|build|add|update|save|revise|amend|populate|fill)\b"
+    r".{0,80}\b(program(?:me)?|gantt)\b"
+    r"|"
     r"\b(process|book|record|add|apply|write|save|update)\b"
     r".{0,80}\b(invoice|invoices|invoice\s+(?:schedule|register))\b"
+    r"|"
+    r"\b(appoint|engage|award)\b.{0,100}\b("
+    r"consultant|architect|planner|planning|structural|civil|certifier|"
+    r"engineer|fee\s+proposal|recommendation|contract\s+sum|pmp|cost\s+plan"
+    r")\b"
+    r"|"
+    r"\b(accept|adopt)\b.{0,80}\b(recommendation|fee\s+proposal|proposal)\b"
+    r")",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_CONSULTANT_APPOINTMENT_RE = re.compile(
+    r"("
+    r"\b(appoint|engage|award)\b.{0,100}\b("
+    r"consultant|architect|planner|planning|structural|civil|certifier|"
+    r"engineer|fee\s+proposal|recommendation|contract\s+sum"
+    r")\b"
+    r"|"
+    r"\b(accept|adopt)\b.{0,80}\b(recommendation|fee\s+proposal|proposal)\b"
     r")",
     re.IGNORECASE | re.DOTALL,
 )
@@ -630,6 +698,10 @@ def is_adopted_cost_plan_budget_request(user_text: str) -> bool:
     return bool(_ADOPTED_COST_PLAN_BUDGET_RE.search(user_text or ""))
 
 
+def is_consultant_appointment_request(user_text: str) -> bool:
+    return bool(_CONSULTANT_APPOINTMENT_RE.search(user_text or ""))
+
+
 def is_workflow_mutation_request(user_text: str) -> bool:
     """True when the user is asking to queue or persist a mutating workflow."""
     return bool(_WORKFLOW_MUTATION_RE.search(user_text or ""))
@@ -643,6 +715,7 @@ def turn_needs_mutation_tools(
     return (
         turn_needs_profile_mutation_tools(user_text, mutation_intent)
         or is_adopted_cost_plan_budget_request(user_text)
+        or is_consultant_appointment_request(user_text)
         or is_workflow_mutation_request(user_text)
     )
 

@@ -16,11 +16,33 @@ _SUPPLIER_RE = re.compile(
     r"^\*\*([^*\n]+?)\*\*\s*\|\s*ABN\s+([0-9 ]+?)\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
+_SUPPLIER_HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+_ABN_FIELD_RE = re.compile(
+    r"^\*\*ABN\*\*\s+([0-9 ]+)\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 _FIELD_RE = re.compile(
     r"^\*\*{label}:\*\*\s*(.+?)\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
+_TABLE_FIELD_RE = re.compile(
+    r"^\|\s*\*\*{label}\*\*\s*\|\s*(.+?)\s*\|\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 _TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
+_TOTAL_LABELS = {
+    "total amount payable",
+    "total due",
+    "total incl gst",
+    "total including gst",
+}
+_SUBTOTAL_LABELS = {
+    "taxable supply",
+    "subtotal",
+    "total ex gst",
+    "subtotal excl gst",
+    "subtotal ex gst",
+}
 
 
 def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
@@ -28,13 +50,7 @@ def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
     if not is_invoice_document(filename=candidate.filename, content=content):
         raise InvoiceExtractionError(f"{candidate.relative_path} is not an invoice")
 
-    supplier_match = _SUPPLIER_RE.search(content)
-    supplier_name = (
-        " ".join(supplier_match.group(1).split()) if supplier_match else None
-    )
-    supplier_abn = (
-        re.sub(r"\s+", "", supplier_match.group(2)) if supplier_match else None
-    )
+    supplier_name, supplier_abn = _supplier(content)
     invoice_number = _field(content, r"invoice\s+(?:number|no\.?)")
     invoice_date_text = _field(content, "invoice date")
     due_date_text = _field(content, "due date")
@@ -76,13 +92,15 @@ def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
         label = _strip_markdown(cells[0])
         normalized_label = _normalize(label)
         amount = _money(cells[-1])
-        if normalized_label == "gst":
+        if normalized_label == "gst" or normalized_label.startswith("gst "):
             gst = amount
             continue
-        if "total amount payable" in normalized_label:
+        if any(marker in normalized_label for marker in _TOTAL_LABELS):
             total_including_gst = amount
+            if gst is not None:
+                break
             continue
-        if normalized_label in {"taxable supply", "subtotal", "total ex gst"}:
+        if normalized_label in _SUBTOTAL_LABELS:
             continue
         if amount is None:
             continue
@@ -125,7 +143,7 @@ def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
             po_number=_field(content, r"(?:po|purchase order)(?:\s+number|\s+no\.?)?"),
             related_reference=_field(
                 content,
-                r"related\s+(?:proposal|building proposal|contract)",
+                r"(?:related\s+(?:proposal|building proposal|contract)|our\s+reference)",
             ),
             subtotal_ex_gst=subtotal,
             gst=gst,
@@ -144,10 +162,27 @@ def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
         ) from exc
 
 
+def _supplier(content: str) -> tuple[str | None, str | None]:
+    match = _SUPPLIER_RE.search(content)
+    if match:
+        return " ".join(match.group(1).split()), re.sub(r"\s+", "", match.group(2))
+    heading = _SUPPLIER_HEADING_RE.search(content)
+    abn = _ABN_FIELD_RE.search(content)
+    if heading is None:
+        return None, None
+    return (
+        " ".join(heading.group(1).split()),
+        re.sub(r"\s+", "", abn.group(1)) if abn else None,
+    )
+
+
 def _field(content: str, label: str) -> str | None:
-    pattern = re.compile(_FIELD_RE.pattern.format(label=label), _FIELD_RE.flags)
-    match = pattern.search(content)
-    return " ".join(_strip_markdown(match.group(1)).split()) if match else None
+    for template in (_FIELD_RE, _TABLE_FIELD_RE):
+        pattern = re.compile(template.pattern.format(label=label), template.flags)
+        match = pattern.search(content)
+        if match:
+            return " ".join(_strip_markdown(match.group(1)).split())
+    return None
 
 
 def _date(value: str):

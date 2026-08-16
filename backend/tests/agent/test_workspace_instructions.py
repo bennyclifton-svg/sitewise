@@ -23,11 +23,19 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "never invent invoice numbers" in WORKSPACE_AGENTS_MD
     assert "search_web" in WORKSPACE_AGENTS_MD
     assert "read_web_source" in WORKSPACE_AGENTS_MD
+    assert "attach_official_instrument" in WORKSPACE_AGENTS_MD
     assert "Search results are discovery candidates" in WORKSPACE_AGENTS_MD
     assert "external reference, not project evidence" in WORKSPACE_AGENTS_MD
     assert "Never call upsert_cost_item" in WORKSPACE_AGENTS_MD
     assert "apply_artefact_operations" in WORKSPACE_AGENTS_MD
     assert "apply_cost_plan_operations" in WORKSPACE_AGENTS_MD
+    assert "get_programme" in WORKSPACE_AGENTS_MD
+    assert "apply_programme_operations" in WORKSPACE_AGENTS_MD
+    assert '"target_type": "activity"' in WORKSPACE_AGENTS_MD
+    assert '"parent_key": "planning"' in WORKSPACE_AGENTS_MD
+    assert "predecessor_key to the previous" in WORKSPACE_AGENTS_MD
+    assert "genuinely concurrent" in WORKSPACE_AGENTS_MD
+    assert "program-scheduling-guide.md" in WORKSPACE_AGENTS_MD
     assert "get_artefact_blocks" in WORKSPACE_AGENTS_MD
     assert "upsert_shared_project_knowledge" in WORKSPACE_AGENTS_MD
     assert "ffe_item" in WORKSPACE_AGENTS_MD
@@ -40,6 +48,9 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "empty Accommodation Schedule is wrong" in WORKSPACE_AGENTS_MD
     assert "Prefer headings and bullet lists for structure" in WORKSPACE_AGENTS_MD
     assert "**bold**" in WORKSPACE_AGENTS_MD
+    assert "appoint_consultant" in WORKSPACE_AGENTS_MD
+    assert "Approved Contract" in WORKSPACE_AGENTS_MD
+    assert "do not call refresh_cost_plan" in WORKSPACE_AGENTS_MD
 
 
 def test_rewrite_is_skipped_when_content_is_current(tmp_path: Path) -> None:

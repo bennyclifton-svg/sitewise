@@ -24,21 +24,45 @@ def test_delete_owned_project_returns_storage_keys_and_deletes() -> None:
     session = AsyncMock()
     session.scalars = AsyncMock(
         side_effect=[
-            SimpleNamespace(
-                all=lambda: [
-                    SimpleNamespace(storage_key="demo/_inbox/brief.pdf"),
-                    SimpleNamespace(storage_key=""),
-                ]
-            ),
-            SimpleNamespace(
-                all=lambda: [SimpleNamespace(storage_key="demo/pmp.docx")]
-            ),
+            SimpleNamespace(all=lambda: ["demo/_inbox/brief.pdf", ""]),
+            SimpleNamespace(all=lambda: ["demo/pmp.docx"]),
         ]
     )
 
     keys = run_async(delete_owned_project(session, project=project))
 
     assert keys == ["demo/_inbox/brief.pdf", "demo/pmp.docx"]
-    session.delete.assert_awaited_once_with(project)
+    session.delete.assert_not_called()
     session.flush.assert_awaited()
     session.commit.assert_awaited_once()
+
+
+def test_delete_owned_project_clears_restrict_children_before_project() -> None:
+    project = SimpleNamespace(id=PROJECT_ID, slug="demo")
+    order: list[tuple[str, str]] = []
+    session = AsyncMock()
+    session.scalars = AsyncMock(
+        side_effect=[
+            SimpleNamespace(all=lambda: []),
+            SimpleNamespace(all=lambda: []),
+        ]
+    )
+
+    async def _execute(stmt, *args, **kwargs):  # noqa: ANN001
+        order.append(("execute", stmt.table.name))
+        return _execute_result([])
+
+    session.execute = AsyncMock(side_effect=_execute)
+
+    run_async(delete_owned_project(session, project=project))
+
+    assert order == [
+        ("execute", "programme_versions"),
+        ("execute", "cost_plan_versions"),
+        ("execute", "procurement_requests"),
+        ("execute", "workflow_input_retention_locks"),
+        ("execute", "project_document_selection_items"),
+        ("execute", "chat_threads"),
+        ("execute", "projects"),
+    ]
+    session.delete.assert_not_called()

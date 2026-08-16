@@ -42,6 +42,7 @@ def test_read_profile_normalizes_columns_and_taxonomy_metadata() -> None:
     assert profile.model_dump() == {
         "project_id": project_id,
         "profile_revision": 3,
+        "title": "",
         "building_class": "commercial",
         "work_type": "refurb",
         "subclasses": ["office"],
@@ -56,6 +57,27 @@ def test_read_profile_normalizes_columns_and_taxonomy_metadata() -> None:
         "site_address": None,
         "client": None,
     }
+
+
+def test_validate_profile_patch_renames_project_title() -> None:
+    project = _orm_project(profile_revision=1, title="Demo")
+    session = _Session()
+
+    change = asyncio.run(
+        apply_profile_patch(
+            session,
+            project=project,
+            patch=ProjectProfilePatch(
+                expected_revision=1,
+                title="Newtown Heritage Extension",
+            ),
+            actor_source="user",
+        )
+    )
+
+    assert change.changed_fields == ["title"]
+    assert project.title == "Newtown Heritage Extension"
+    assert read_profile(project).title == "Newtown Heritage Extension"
 
 
 def test_validate_profile_patch_persists_site_address_and_client() -> None:

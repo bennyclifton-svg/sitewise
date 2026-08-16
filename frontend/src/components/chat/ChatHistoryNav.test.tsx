@@ -61,14 +61,16 @@ describe("ChatHistoryNav", () => {
     });
   });
 
-  it("shows a Converse nav action above history and selects the created thread", async () => {
+  it("creates a chat from the Chats section header and selects the created thread", async () => {
     const onCreateSession = vi.fn();
     renderNav(onCreateSession);
 
-    const history = screen.getByRole("region", { name: "Chat history" });
-    expect(within(history).queryByRole("button", { name: "Converse" })).not.toBeInTheDocument();
+    const chats = screen.getByRole("region", { name: "Chats" });
+    expect(within(chats).getByRole("heading", { name: "Chats" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Converse" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "History" })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Converse" }));
+    await userEvent.click(screen.getByRole("button", { name: "New chat" }));
 
     await waitFor(() =>
       expect(api.createThread).toHaveBeenCalledWith(undefined, "project-1"),

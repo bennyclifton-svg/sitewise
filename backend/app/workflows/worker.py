@@ -559,6 +559,7 @@ async def run_once(session_factory, worker_id: str) -> bool:
             run_id=str(run.id),
             workflow_type=run.workflow_type,
             error_type=type(exc).__name__,
+            error=str(exc),
         )
         async with session_factory() as failure_session:
             await fail_workflow_run(

@@ -60,6 +60,7 @@ const COMPLETION_MESSAGE_MS = 2_000;
 const SUPPORTED_INBOX_EXTENSIONS = new Set([
   ".pdf",
   ".docx",
+  ".rtf",
   ...MARKDOWN_EXTENSIONS,
 ]);
 const ACCEPT_ATTRIBUTE = Array.from(SUPPORTED_INBOX_EXTENSIONS).join(",");
@@ -152,9 +153,7 @@ export function DocumentRepositoryPanel({
   onOpenDraft,
   onArtefactDeleted,
   usageHighlightArtefactId = null,
-  showSaveTransmittal = false,
-  isSavingTransmittal = false,
-  onSaveTransmittal,
+  transmittalCuration = false,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
@@ -180,9 +179,8 @@ export function DocumentRepositoryPanel({
   onArtefactDeleted?: (result: DeleteDraftResponse) => void;
   /** When set, show source-doc dots only for this displayed artefact (e.g. open PMP). */
   usageHighlightArtefactId?: string | null;
-  showSaveTransmittal?: boolean;
-  isSavingTransmittal?: boolean;
-  onSaveTransmittal?: (evidenceIds: string[]) => void;
+  /** Additive row clicks while curating an RFP/PMP transmittal schedule. */
+  transmittalCuration?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
@@ -254,13 +252,6 @@ export function DocumentRepositoryPanel({
   const selectedScheduleRows = useMemo(
     () => scheduleRows.filter((row) => selectedIds.has(row.id)),
     [scheduleRows, selectedIds],
-  );
-  const selectedEvidenceRows = useMemo(
-    () =>
-      selectedScheduleRows.flatMap((row) =>
-        row.kind === "source" ? [row.evidence] : [],
-      ),
-    [selectedScheduleRows],
   );
   const inboxCount = useMemo(
     () => evidence.filter((item) => isInboxEvidence(item)).length,
@@ -358,7 +349,7 @@ export function DocumentRepositoryPanel({
     // During Transmittal curation, plain clicks should add/remove without
     // replacing the whole selection (Ctrl/Cmd still works the same way).
     const additive =
-      event.ctrlKey || event.metaKey || showSaveTransmittal;
+      event.ctrlKey || event.metaKey || transmittalCuration;
 
     if (event.shiftKey) {
       const anchorId =
@@ -775,7 +766,7 @@ export function DocumentRepositoryPanel({
       />
 
       {isDragging ? (
-        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary/10 p-6 text-center">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-primary/10 p-6 text-center">
           <div>
             <Upload className="mx-auto size-8 text-primary" aria-hidden />
             <p className="mt-3 text-sm font-medium text-primary">Drop to upload to _inbox/</p>
@@ -786,7 +777,7 @@ export function DocumentRepositoryPanel({
         </div>
       ) : null}
 
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-1.5 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
             className="flex shrink-0 items-center gap-0.5"
@@ -865,23 +856,6 @@ export function DocumentRepositoryPanel({
             </span>
           ) : null}
         </div>
-        {showSaveTransmittal && onSaveTransmittal ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 shrink-0 px-2 text-xs"
-            disabled={isSavingTransmittal}
-            onClick={() =>
-              onSaveTransmittal(selectedEvidenceRows.map((row) => row.id))
-            }
-          >
-            {isSavingTransmittal ? (
-              <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
-            ) : null}
-            {isSavingTransmittal ? "Saving…" : "Save Transmittal"}
-          </Button>
-        ) : null}
       </div>
 
       {uploadProgress ? (
@@ -955,8 +929,10 @@ export function DocumentRepositoryPanel({
 
       <div className="cockpit-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         {activePanelView === "tree" ? (
-          <div className="px-3 py-3">
+          <div className="px-1.5 py-2">
             <WorkspaceExplorer
+              key={projectId}
+              projectId={projectId}
               tree={workspaceTree}
               selectedPath={selectedWorkspacePath}
               onSelectPath={onSelectWorkspacePath}
@@ -1008,11 +984,11 @@ export function DocumentRepositoryPanel({
         ) : scheduleRows.length || pendingUploads.length ? (
           <table className="w-full min-w-0 table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
-              <col className="w-[3.25rem]" />
+              <col className="w-[5rem]" />
               <col />
               <col className="w-[2rem]" />
-              <col className="w-[3.5rem]" />
-              <col className="w-6" />
+              <col className="w-[2.75rem]" />
+              <col className="w-5" />
             </colgroup>
             <thead className="sticky top-0 z-[1] border-b bg-[var(--sw-panel)]">
               <tr className="text-muted-foreground">
@@ -1022,7 +998,7 @@ export function DocumentRepositoryPanel({
                   columnKey="document_number"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-1 py-2"
+                  className="px-0.5 py-2"
                   onSort={handleSortHeaderClick}
                 />
                 <SortableScheduleHeader
@@ -1030,7 +1006,7 @@ export function DocumentRepositoryPanel({
                   columnKey="title"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="min-w-0 px-2 py-2"
+                  className="min-w-0 px-1 py-2"
                   onSort={handleSortHeaderClick}
                 />
                 <SortableScheduleHeader
@@ -1038,7 +1014,7 @@ export function DocumentRepositoryPanel({
                   columnKey="revision"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-1 py-2"
+                  className="px-0.5 py-2"
                   onSort={handleSortHeaderClick}
                 />
                 <SortableScheduleHeader
@@ -1047,10 +1023,10 @@ export function DocumentRepositoryPanel({
                   columnKey="category"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-1 py-2"
+                  className="px-0.5 py-2"
                   onSort={handleSortHeaderClick}
                 />
-                <th className="w-6 px-0 py-1 text-center" aria-label="Actions">
+                <th className="w-5 px-0 py-1 text-center" aria-label="Actions">
                   <button
                     type="button"
                     disabled={
@@ -1096,14 +1072,14 @@ export function DocumentRepositoryPanel({
                       )}
                       onClick={(event) => handleRowClick(event, scheduleRow)}
                     >
-                      <td className="truncate px-1 py-2 tabular-nums">-</td>
-                      <td className="max-w-0 min-w-0 px-2 py-2 font-medium">
+                      <td className="truncate px-0.5 py-2 tabular-nums">-</td>
+                      <td className="max-w-0 min-w-0 px-1 py-2 font-medium">
                         <span className="block truncate" title={title}>
                           {title}
                         </span>
                       </td>
-                      <td className="truncate px-1 py-2">v{draft.version}</td>
-                      <td className="truncate px-1 py-2" title={artefactScheduleLabel(draft.workflow_type)}>
+                      <td className="truncate px-0.5 py-2">v{draft.version}</td>
+                      <td className="truncate px-0.5 py-2" title={artefactScheduleLabel(draft.workflow_type)}>
                         {artefactScheduleLabel(draft.workflow_type)}
                       </td>
                       <td className="px-0 py-1.5 text-center">
@@ -1152,12 +1128,12 @@ export function DocumentRepositoryPanel({
                     onClick={(event) => handleRowClick(event, scheduleRow)}
                   >
                     <td
-                      className="truncate px-1 py-2 tabular-nums"
-                      title={row.document_number?.trim() || undefined}
+                      className="truncate px-0.5 py-2 tabular-nums"
+                      title={plainMetadataText(row.document_number) || undefined}
                     >
                       {displayValue(row.document_number)}
                     </td>
-                    <td className="max-w-0 min-w-0 px-2 py-2 font-medium">
+                    <td className="max-w-0 min-w-0 px-1 py-2 font-medium">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <span className="min-w-0 flex-1 truncate" title={row.title}>
                           {row.title}
@@ -1169,11 +1145,11 @@ export function DocumentRepositoryPanel({
                         />
                       </div>
                     </td>
-                    <td className="truncate px-1 py-2">
+                    <td className="truncate px-0.5 py-2">
                       {displayValue(row.revision)}
                     </td>
                     <td
-                      className="truncate px-1 py-2"
+                      className="truncate px-0.5 py-2"
                       title={inInbox ? "Inbox" : row.category?.trim() || undefined}
                     >
                       {inInbox ? "Inbox" : displayValue(row.category)}
@@ -1210,19 +1186,22 @@ export function DocumentRepositoryPanel({
                   key={pending.id}
                   className="sw-table-row animate-in fade-in border-b text-muted-foreground duration-300"
                 >
-                  <td className="px-1 py-2">
+                  <td className="px-0.5 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-7" aria-hidden />
                   </td>
                   <td
-                    className="max-w-0 min-w-0 truncate px-2 py-2 font-medium"
+                    className="max-w-0 min-w-0 truncate px-1 py-2 font-medium"
                     title={pending.filename}
                   >
                     {pending.filename}
                   </td>
-                  <td className="px-1 py-2">
+                  <td className="px-0.5 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-4" aria-hidden />
                   </td>
-                  <td className="truncate px-1 py-2">
+                  <td
+                    className="truncate px-0.5 py-2"
+                    title={pendingStageLabel(pending)}
+                  >
                     {pendingStageLabel(pending)}
                   </td>
                   <td className="px-0 py-1.5 text-center">
@@ -1281,8 +1260,16 @@ function abbreviateArtefactTitle(title: string): string {
     .replace(/^Request for Quotation\b/i, "RFQ");
 }
 
+function plainMetadataText(value: string | null | undefined): string {
+  const trimmed = value?.trim() ?? "";
+  return trimmed
+    .replace(/^\*\*(.+)\*\*$/, "$1")
+    .replace(/^\*(.+)\*$/, "$1")
+    .trim();
+}
+
 function displayValue(value: string | null | undefined): string {
-  return value?.trim() ? value : "—";
+  return plainMetadataText(value) || "—";
 }
 
 function isInboxEvidence(row: EvidencePreview): boolean {
@@ -1478,11 +1465,11 @@ function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
 
   switch (key) {
     case "document_number":
-      return row.evidence.document_number?.trim() ?? "";
+      return plainMetadataText(row.evidence.document_number);
     case "title":
       return row.title;
     case "revision":
-      return row.evidence.revision?.trim() ?? "";
+      return plainMetadataText(row.evidence.revision);
     case "category":
       return isInboxEvidence(row.evidence)
         ? "Inbox"

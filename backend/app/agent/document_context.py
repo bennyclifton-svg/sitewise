@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
+from ingest.document_metadata import strip_markdown_emphasis
 
 
 class SelectedDocumentContextError(ValueError):
@@ -117,5 +118,5 @@ def _metadata_text(metadata: dict, key: str) -> str | None:
     value = metadata.get(key)
     if not isinstance(value, str):
         return None
-    stripped = " ".join(value.split())
+    stripped = strip_markdown_emphasis(" ".join(value.split()))
     return stripped or None

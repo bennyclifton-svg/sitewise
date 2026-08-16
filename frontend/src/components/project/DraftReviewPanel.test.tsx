@@ -3,10 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DraftReviewPanel } from "@/components/project/DraftReviewPanel";
+import { ProjectShell } from "@/components/project/ProjectShell";
 import { api } from "@/lib/api";
 import { calculateCostPlanTotals, type CostPlanItem } from "@/lib/cost-plan";
 import { ApiError } from "@/lib/http";
-import type { DraftArtifact } from "@/lib/types/project";
+import type { DraftArtifact, EvidencePreview } from "@/lib/types/project";
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -35,6 +36,9 @@ vi.mock("@/lib/api", () => ({
     applyDraftBlockOperations: vi.fn(),
     applyCostPlanOperations: vi.fn(),
     getInvoiceLedger: vi.fn(),
+    replaceDraftTransmittal: vi.fn(),
+    getProgrammeState: vi.fn(),
+    setProgrammeView: vi.fn(),
   },
 }));
 
@@ -132,6 +136,9 @@ describe("DraftReviewPanel", () => {
         total_including_gst: "0.00",
       },
     });
+    vi.mocked(api.getProgrammeState).mockRejectedValue(
+      new ApiError("Programme not found", { kind: "http", status: 404 }),
+    );
     vi.mocked(api.getInvoiceLedger).mockResolvedValue({
       cost_plan_version: 1,
       workbook_path: "cost-plan.xlsx",
@@ -993,6 +1000,57 @@ Issued content. [1]
       }
     });
 
+    it("shows queued changes in the right panel above the document repository", async () => {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: (query: string) => ({
+          matches: query.includes("min-width: 1024px"),
+          media: query,
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+        }),
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ProjectShell
+          leftNav={<div>nav</div>}
+          repository={<div>Document repository</div>}
+        >
+          <DraftReviewPanel
+            projectId={PROJECT_ID}
+            draft={draft({ content_markdown: ANCHORED_MARKDOWN })}
+            onDraftUpdated={vi.fn()}
+          />
+        </ProjectShell>,
+      );
+      await queueOneInstruction(user);
+
+      const host = document.querySelector("[data-instruction-tray-host]");
+      const repo = screen.getByText("Document repository");
+      await waitFor(() => {
+        expect(host?.querySelector("[data-instruction-ui]")).not.toBeNull();
+      });
+      expect(host).toHaveTextContent(/tighten this/);
+      expect(
+        host &&
+          (host.compareDocumentPosition(repo) & Node.DOCUMENT_POSITION_FOLLOWING),
+      ).toBeTruthy();
+      expect(
+        document.querySelector(
+          ".project-main-panel [data-instruction-ui]:not([data-block-actions])",
+        ),
+      ).toBeNull();
+      expect(
+        screen.getByText("Alpha paragraph.").closest("[data-instruction-ui]"),
+      ).toBeNull();
+    });
+
     it("applies with the exact source anchors and the current version", async () => {
       const user = userEvent.setup();
       const updated = draft({ version: 2, content_markdown: ANCHORED_MARKDOWN });
@@ -1277,6 +1335,122 @@ Issued content. [1]
     });
   });
 
+  it("loads a saved transmittal into the repository selection", async () => {
+    const user = userEvent.setup();
+    const onSelectEvidenceIds = vi.fn();
+    const onTransmittalSessionChange = vi.fn();
+    const evidence: EvidencePreview[] = [
+      {
+        id: "ev-a001",
+        title: "General arrangement",
+        filename: "A001.pdf",
+        relative_path: "04-projects/demo/drawings/A001.pdf",
+        source_type: "project_evidence",
+        document_class: "project_evidence",
+        excerpt: "",
+        document_number: "A001",
+        revision: "C",
+        category: "Architectural",
+      },
+      {
+        id: "ev-other",
+        title: "Unrelated report",
+        filename: "report.pdf",
+        relative_path: "04-projects/demo/reports/report.pdf",
+        source_type: "project_evidence",
+        document_class: "project_evidence",
+        excerpt: "",
+      },
+    ];
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: "consultant_procurement_architect",
+          title: "Request for Proposal - Architect",
+          content_markdown: [
+            "# Request for Proposal",
+            "",
+            "## Transmittal (1 document)",
+            "",
+            "| Document number | Title | Rev | Category |",
+            "| --- | --- | --- | --- |",
+            "| A001 | General arrangement | C | Architectural |",
+          ].join("\n"),
+        })}
+        repositoryEvidence={evidence}
+        onSelectEvidenceIds={onSelectEvidenceIds}
+        onTransmittalSessionChange={onTransmittalSessionChange}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Load Transmittal" }));
+    expect(onSelectEvidenceIds).toHaveBeenCalledWith(new Set(["ev-a001"]));
+    expect(onTransmittalSessionChange).toHaveBeenCalledWith({
+      draftId: "draft-1",
+      workflowType: "consultant_procurement_architect",
+    });
+  });
+
+  it("saves the curated repository selection into the transmittal list", async () => {
+    const user = userEvent.setup();
+    const onDraftUpdated = vi.fn();
+    const onTransmittalSessionChange = vi.fn();
+    const updated = draft({
+      workflow_type: "consultant_procurement_architect",
+      version: 2,
+      content_markdown: [
+        "# Request for Proposal",
+        "",
+        "## Transmittal (1 document)",
+        "",
+        "| Document number | Title | Rev | Category |",
+        "| --- | --- | --- | --- |",
+        "| A001 | General arrangement | C | Architectural |",
+      ].join("\n"),
+    });
+    vi.mocked(api.replaceDraftTransmittal).mockResolvedValue(updated);
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: "consultant_procurement_architect",
+          title: "Request for Proposal - Architect",
+          content_markdown: [
+            "# Request for Proposal",
+            "",
+            "## Transmittal (0 documents)",
+            "",
+            "| Document number | Title | Rev | Category |",
+            "| --- | --- | --- | --- |",
+          ].join("\n"),
+        })}
+        repositoryEvidence={[]}
+        selectedEvidenceIds={new Set(["ev-a001"])}
+        onSelectEvidenceIds={vi.fn()}
+        onTransmittalSessionChange={onTransmittalSessionChange}
+        onDraftUpdated={onDraftUpdated}
+      />,
+    );
+
+    expect(await screen.findByRole("button", { name: "Load Transmittal" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save Transmittal" }));
+
+    await waitFor(() => {
+      expect(api.replaceDraftTransmittal).toHaveBeenCalledWith(
+        PROJECT_ID,
+        "draft-1",
+        1,
+        ["ev-a001"],
+      );
+    });
+    expect(onDraftUpdated).toHaveBeenCalledWith(updated);
+    expect(onTransmittalSessionChange).toHaveBeenCalledWith(null);
+  });
+
   it("shows only the three-tab cost workbook with all 25 Greenbank items", async () => {
     const user = userEvent.setup();
     const greenbankItems: CostPlanItem[] = GREENBANK_COST_ITEMS.map(
@@ -1381,5 +1555,81 @@ Issued content. [1]
     expect(await screen.findByText(/No invoices in the register yet/i)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Variations" }));
     expect(screen.getByText(/Variation schedule coming soon/i)).toBeInTheDocument();
+  });
+
+  it("hides the PMP Gantt icon when no programme exists", async () => {
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          content_markdown: "## Programme\n\nDates TBC.\n",
+        })}
+        workflowType="create_pmp"
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+    await waitForPmpDecisions();
+    expect(
+      screen.queryByRole("button", { name: /programme in PMP/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("embeds a read-only Gantt under Programme and can hide it", async () => {
+    const user = userEvent.setup();
+    const programme = {
+      id: "prog-1",
+      project_id: PROJECT_ID,
+      version: 1,
+      status: "proposed" as const,
+      view_scale: "month" as const,
+      pmp_embed_visible: true,
+      activities: [
+        {
+          activity_key: "planning",
+          kind: "stage" as const,
+          parent_key: null,
+          name: "Planning",
+          display_order: 0,
+          start_date: "2026-08-16",
+          duration_days: 90,
+          finish_date: "2026-11-14",
+          predecessor_key: null,
+          lag_days: 0,
+          assumption: true,
+          notes: "",
+        },
+      ],
+    };
+    vi.mocked(api.getProgrammeState).mockResolvedValue(programme);
+    vi.mocked(api.setProgrammeView).mockResolvedValue({
+      ...programme,
+      version: 2,
+      pmp_embed_visible: false,
+    });
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          content_markdown: "## Programme\n\nDates TBC.\n",
+        })}
+        workflowType="create_pmp"
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+    await waitForPmpDecisions();
+    expect(
+      await screen.findByRole("button", { name: "Hide programme from PMP" }),
+    ).toBeInTheDocument();
+    expect(document.querySelector("[data-programme-figure]")).toBeTruthy();
+    expect(document.querySelector("[data-interactive]")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Hide programme from PMP" }));
+    expect(api.setProgrammeView).toHaveBeenCalledWith(PROJECT_ID, 1, {
+      pmp_embed_visible: false,
+    });
+    await waitFor(() => {
+      expect(document.querySelector("[data-programme-figure]")).toBeNull();
+    });
   });
 });

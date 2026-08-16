@@ -15,6 +15,7 @@ from app.assistant.chat_models import InvalidChatModelError, resolve_chat_model
 from app.assistant.pmp_models import InvalidPmpModelError, resolve_pmp_model
 from app.projects.artefact_blocks import ArtefactBlockOperation
 from app.cost_plan.schemas import CostPlanOperation
+from app.programme.schemas import ProgrammeOperation, ProgrammeScale
 from app.sitewise.gate import OverlayStatus
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
 
@@ -143,6 +144,7 @@ class ProjectProfilePatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     expected_revision: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=512)
     building_class: str | None = Field(default=None, max_length=64)
     work_type: str | None = Field(default=None, max_length=64)
     subclasses: list[str | ProjectSubclassSelection] | None = None
@@ -156,6 +158,16 @@ class ProjectProfilePatch(BaseModel):
     site_address: str | None = Field(default=None, max_length=256)
     client: str | None = Field(default=None, max_length=128)
     clear_incompatible: bool = False
+
+    @field_validator("title")
+    @classmethod
+    def strip_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("title must not be blank")
+        return stripped
 
     @field_validator(
         "building_class",
@@ -200,6 +212,7 @@ class ProjectProfilePatch(BaseModel):
 
 
 ProjectProfileField = Literal[
+    "title",
     "building_class",
     "work_type",
     "subclasses",
@@ -218,6 +231,7 @@ ProjectProfileField = Literal[
 class ProjectProfileView(BaseModel):
     project_id: uuid.UUID
     profile_revision: int = Field(ge=1)
+    title: str = ""
     building_class: str | None = None
     work_type: str | None = None
     subclasses: list[str | ProjectSubclassSelection] = Field(default_factory=list)
@@ -766,6 +780,23 @@ class DependencyOfferRejectRequest(BaseModel):
 class ApplyCostPlanOperationsRequest(BaseModel):
     expected_base_version: int = Field(ge=1)
     operations: list[CostPlanOperation] = Field(min_length=1, max_length=50)
+
+
+class ApplyProgrammeOperationsRequest(BaseModel):
+    expected_base_version: int = Field(ge=1)
+    operations: list[ProgrammeOperation] = Field(min_length=1, max_length=80)
+
+
+class SetProgrammeViewRequest(BaseModel):
+    expected_base_version: int = Field(ge=1)
+    view_scale: ProgrammeScale | None = None
+    pmp_embed_visible: bool | None = None
+
+    @model_validator(mode="after")
+    def require_view_field(self) -> Self:
+        if self.view_scale is None and self.pmp_embed_visible is None:
+            raise ValueError("view_scale or pmp_embed_visible is required")
+        return self
 
 
 class DraftInstructionInput(BaseModel):

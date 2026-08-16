@@ -107,6 +107,8 @@ def render_procurement_project_summary(
                 budget_source=budget_source,
                 compact_sources=False,
                 profile_citation=profile_token,
+                include_state=False,
+                taxonomy_label="Class / work type",
             )
         )
     except ValueError:
@@ -127,7 +129,7 @@ def render_rfp_scaffold(
     instructions: str | None = None,
 ) -> str:
     """Render the deterministic consultant Request for Proposal scaffold."""
-    del max_pages
+    del max_pages, instructions
     project_summary = render_procurement_project_summary(
         project=project,
         citation_index=citation_index,
@@ -141,15 +143,8 @@ def render_rfp_scaffold(
     sections = [
         f"# Request for Proposal - {target.name}",
         "",
-        "## Proposal particulars",
+        "## Project summary",
         project_summary,
-        "",
-        f"- Services package: {target.name}",
-        *(
-            [f"- Client instruction: {' '.join(instructions.split())}"]
-            if instructions and instructions.strip()
-            else []
-        ),
         "",
         "## Background",
         BACKGROUND_PLACEHOLDER,
@@ -504,12 +499,17 @@ def _omit_placeholder_rows(markdown_table: str) -> str:
     """Keep unresolved identity fields out of the issue-facing summary."""
     lines: list[str] = []
     for line in markdown_table.splitlines():
-        if not line.startswith("|") or "TBC" not in line:
-            lines.append(line.replace("| Confirm |", "| — |"))
+        if not line.startswith("|"):
+            lines.append(line)
             continue
         cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) > 1 and cells[1] == "":
+            continue
+        if "TBC" not in line:
+            lines.append(line.replace("| Confirm |", "| — |"))
+            continue
         cleaned_cells = [_without_placeholder_fragments(cell) for cell in cells]
-        if len(cleaned_cells) > 1 and cleaned_cells[1] == "—":
+        if len(cleaned_cells) > 1 and cleaned_cells[1] in {"—", ""}:
             continue
         lines.append(f"| {' | '.join(cleaned_cells)} |")
     return "\n".join(lines)

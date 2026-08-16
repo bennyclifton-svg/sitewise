@@ -7,7 +7,8 @@ export function workflowChatCommand(
     | "update_pmp"
     | "create_cost_plan"
     | "refresh_cost_plan"
-    | "process_invoices",
+    | "process_invoices"
+    | "create_programme",
 ): string {
   switch (action) {
     case "create_pmp":
@@ -20,6 +21,8 @@ export function workflowChatCommand(
       return "Refresh cost plan";
     case "process_invoices":
       return "Process invoices";
+    case "create_programme":
+      return "Create a program";
   }
 }
 

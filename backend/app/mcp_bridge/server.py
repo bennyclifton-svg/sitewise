@@ -131,6 +131,10 @@ from app.projects.workflow_capabilities import (
 )
 from app.cost_plan.dependencies import dependency_snapshot as cost_dependency_snapshot
 from app.cost_plan.schemas import CostItemInput, CostPlanOperation, CostPlanState
+from app.cost_plan.consultant_appointment import (
+    ConsultantAppointmentError,
+    appoint_consultant as persist_consultant_appointment,
+)
 from app.cost_plan.service import (
     apply_external_proposal,
     get_cost_plan as read_typed_cost_plan,
@@ -141,6 +145,15 @@ from app.cost_plan.service import (
     upsert_cost_item as persist_cost_item,
 )
 from app.cost_plan.workbook_rebuild import schedule_cost_plan_workbook_rebuild
+from app.programme.schemas import ProgrammeOperation, ProgrammeViewUpdate
+from app.programme.service import (
+    ProgrammeNotFound,
+    ProgrammeRevisionConflict,
+    apply_programme_operations as persist_programme_operations,
+    ensure_programme as persist_ensure_programme,
+    get_programme as read_programme,
+    set_programme_view as persist_programme_view,
+)
 from app.mcp_bridge.tender_cost_handoff import map_tender_handoff
 from app.schemas.profile_proposals import ProfileEvidenceReference
 from app.schemas.projects import ProjectProfilePatch
@@ -187,9 +200,15 @@ from app.workflows.runs import (
     get_workflow_run as read_workflow_run,
     start_workflow_run as persist_workflow_run,
 )
+from app.web_research.attachments import (
+    find_official_attachment,
+    persist_official_attachment,
+    web_source_from_attachment,
+)
 from app.web_research.factory import WebResearchDisabled, get_web_research_service
 from app.web_research.fetcher import WebFetchError
-from app.web_research.service import WebSearchProviderError
+from app.web_research.nsw_legislation import html_view_url, instrument_id_from_url
+from app.web_research.service import WebSearchProviderError, _source_authority
 from tender.router import (
     get_comparison_detail,
     list_comparisons,
@@ -676,6 +695,7 @@ def _source_document_payload(
         "phase": document.phase,
         "source_type": document.source_type,
         "document_class": document.document_class,
+        "knowledge_scope": (document.document_metadata or {}).get("knowledge_scope"),
         "metadata": document.document_metadata or {},
         "content": returned,
         "content_chars": len(content),
@@ -1404,6 +1424,25 @@ _MCP_WORKFLOW_CAPABILITIES = {
     TRANSMITTAL_WORKFLOW_TYPE: TRANSMITTAL,
 }
 
+_ARTEFACT_WORKFLOW_FOR_LAUNCH = {
+    "refresh_project_plan": "create_pmp",
+    "refresh_cost_plan": "create_cost_plan",
+    "process_invoices": "create_cost_plan",
+}
+
+
+def _current_artefact_version(snapshot: object, workflow_type: str) -> int | None:
+    artefact_workflow = _ARTEFACT_WORKFLOW_FOR_LAUNCH.get(workflow_type)
+    if artefact_workflow is None:
+        return None
+    artefacts = getattr(snapshot, "latest_artefacts", None) or []
+    for artefact in artefacts:
+        if getattr(artefact, "workflow_type", None) == artefact_workflow:
+            version = getattr(artefact, "version", None)
+            if isinstance(version, int) and version >= 1:
+                return version
+    return None
+
 
 def _normalise_optional_workflow_text(
     value: str | None,
@@ -1453,13 +1492,20 @@ async def _start_mcp_workflow(
                 if message:
                     raise WorkflowRunCapabilityConflict(message)
 
-            async def _persist(current_snapshot, *, fingerprint, profile, decisions):
+            async def _persist(
+                current_snapshot,
+                *,
+                fingerprint,
+                profile,
+                decisions,
+                artefact_version,
+            ):
                 request = WorkflowRunStartRequest(
                     idempotency_key=idempotency_key,
                     expected_snapshot_fingerprint=fingerprint,
                     expected_profile_revision=profile,
                     expected_decision_set_revision=decisions,
-                    expected_artefact_version=expected_artefact_version,
+                    expected_artefact_version=artefact_version,
                     turn_id=authorization.claims.turn_id,
                     chat_model=chat_model,
                     parameters=parameters or {},
@@ -1479,6 +1525,7 @@ async def _start_mcp_workflow(
                     fingerprint=expected_snapshot_fingerprint,
                     profile=expected_profile_revision,
                     decisions=expected_decision_set_revision,
+                    artefact_version=expected_artefact_version,
                 )
             except WorkflowRunCapabilityConflict:
                 # The agent froze its expectations when the turn began. A turn
@@ -1494,11 +1541,19 @@ async def _start_mcp_workflow(
                     owner_user_id=authorization.project.owner_user_id,
                 )
                 snapshot_refreshed = True
+                current_artefact_version = _current_artefact_version(
+                    snapshot, workflow_type
+                )
                 run, _created = await _persist(
                     snapshot,
                     fingerprint=snapshot.content_fingerprint,
                     profile=snapshot.profile.profile_revision,
                     decisions=snapshot.decisions.set_revision,
+                    artefact_version=(
+                        current_artefact_version
+                        if current_artefact_version is not None
+                        else expected_artefact_version
+                    ),
                 )
             await session.commit()
         except ToolAuthError as exc:
@@ -1685,6 +1740,123 @@ async def get_cost_plan(project_id: str, version: int | None = None) -> dict:
 
 
 @mcp.tool
+async def get_programme(project_id: str) -> dict:
+    """Read the current typed Programme version for the authorized project."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            state = await read_programme(session, project_id=pid)
+        except (ToolAuthError, ValueError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return state.model_dump(mode="json")
+
+
+@mcp.tool
+async def ensure_programme(project_id: str) -> dict:
+    """Create the default three-stage Programme if the project has none."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            state = await persist_ensure_programme(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+            )
+            await session.commit()
+        except (ToolAuthError, ValueError, LookupError) as exc:
+            raise ToolError(str(exc)) from exc
+    return state.model_dump(mode="json")
+
+
+@mcp.tool
+async def apply_programme_operations(
+    project_id: str,
+    expected_base_version: int,
+    operations: list[ProgrammeOperation],
+) -> dict:
+    """Apply up to 80 structured Programme operations in one revision.
+
+    Each item is ADD/UPDATE/DELETE/MOVE with target_type stage|activity|milestone.
+    Put name, parent_key, start_date, duration_days, and optional predecessor_key
+    inside values, not at the top level. Example ADD:
+    {"operation":"ADD","target_type":"activity","values":{"name":"Concept design","parent_key":"planning","start_date":"2026-08-16","duration_days":42}}.
+    Seeded stages are planning, procurement, and delivery. Sequential
+    activities in a stage must set predecessor_key to the previous activity
+    so Python can chain finish-to-start dates. Omit the link only for
+    genuinely concurrent work. Do not invent calendar finish dates.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+            )
+            state = await persist_programme_operations(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                operations=operations,
+            )
+            await session.commit()
+        except (
+            ToolAuthError,
+            ValidationError,
+            ValueError,
+            LookupError,
+            ProgrammeNotFound,
+            ProgrammeRevisionConflict,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return {"kind": "programme_operations_applied", "state": state.model_dump(mode="json")}
+
+
+@mcp.tool
+async def set_programme_view(
+    project_id: str,
+    expected_base_version: int,
+    view_scale: str | None = None,
+    pmp_embed_visible: bool | None = None,
+) -> dict:
+    """Update the Programme Gantt scale or whether it appears in the PMP."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            state = await persist_programme_view(
+                session,
+                project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version,
+                update=ProgrammeViewUpdate(
+                    view_scale=view_scale,  # type: ignore[arg-type]
+                    pmp_embed_visible=pmp_embed_visible,
+                ),
+            )
+            await session.commit()
+        except (
+            ToolAuthError,
+            ValidationError,
+            ValueError,
+            LookupError,
+            ProgrammeNotFound,
+            ProgrammeRevisionConflict,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return state.model_dump(mode="json")
+
+
+@mcp.tool
 async def upsert_cost_item(
     project_id: str,
     expected_base_version: int,
@@ -1852,6 +2024,108 @@ async def get_artefact_blocks(
         "version": draft.version,
         "workflow_type": draft.workflow_type,
         "blocks": blocks,
+    }
+
+
+@mcp.tool
+async def appoint_consultant(
+    project_id: str,
+    source_document_id: str | None = None,
+    firm: str | None = None,
+    discipline: str | None = None,
+    nominated_fee_ex_gst: str | None = None,
+) -> dict:
+    """Adopt a fee proposal and write the awarded contract sum.
+
+    Use this when the user accepts a recommendation, appoints a consultant, or
+    nominates an engagement sum. Do not inspect Cost Plan or PMP schema first.
+    The fee proposal's classified discipline selects the row. The tool writes
+    Approved Contract (committed) on the Cost Plan and marks the PMP
+    Consultants register Appointed.
+
+    Prefer source_document_id from the selected-document-register or evidence
+    tools. If the user names a firm and sum without a file, pass firm,
+    discipline, and nominated_fee_ex_gst. The write rebases a Cost Plan that
+    is stale only because fee proposals were added; do not refresh first.
+    """
+    pid = uuid.UUID(project_id)
+    nominated: Decimal | None = None
+    if nominated_fee_ex_gst:
+        try:
+            nominated = Decimal(nominated_fee_ex_gst.replace(",", "").replace("$", ""))
+        except Exception as exc:
+            raise ToolError("nominated_fee_ex_gst must be a valid amount") from exc
+    document_id = uuid.UUID(source_document_id) if source_document_id else None
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            turn = await session.get(AgentTurn, authorization.claims.turn_id)
+            selected = documents_from_turn_context(
+                turn.input_context if turn is not None else None
+            )
+            selected_ids = [
+                document.source_document_id
+                for document in selected
+                if document.source_document_id is not None
+            ]
+            async with _tool_status(
+                _turn_id(authorization),
+                tool="appoint_consultant",
+                running="Appointing the consultant",
+                done="Appointed the consultant",
+                error="Consultant appointment failed",
+            ):
+                result = await persist_consultant_appointment(
+                    session,
+                    project=authorization.project,
+                    author_user_id=authorization.claims.user_id,
+                    source_document_id=document_id,
+                    firm=firm,
+                    discipline=discipline,
+                    nominated_fee_ex_gst=nominated,
+                    selected_source_document_ids=selected_ids or None,
+                )
+                await session.commit()
+        except ToolError:
+            raise
+        except (
+            ToolAuthError,
+            ConsultantAppointmentError,
+            ValidationError,
+            ValueError,
+            RuntimeError,
+            LookupError,
+            ArtefactPolicyViolation,
+            ArtefactRevisionConflict,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+    return {
+        "kind": "consultant_appointed",
+        "discipline": result.discipline,
+        "firm": result.firm,
+        "fee_ex_gst": str(result.fee_ex_gst),
+        "fee_source": result.fee_source,
+        "proposal_reference": result.proposal_reference,
+        "approved_contract": str(result.approved_contract),
+        "cost_plan_item_key": result.cost_plan_item_key,
+        "cost_plan_version": result.cost_plan_version,
+        "pmp_updated": result.pmp_updated,
+        "pmp_version": result.pmp_version,
+        "source_document_id": (
+            str(result.source_document_id) if result.source_document_id else None
+        ),
+        "message": (
+            f"Appointed {result.firm} as {result.discipline} for "
+            f"${result.fee_ex_gst:,.2f} ex GST. Cost Plan v{result.cost_plan_version} "
+            "Approved Contract updated"
+            + (
+                f"; PMP Consultants register updated to v{result.pmp_version}."
+                if result.pmp_updated
+                else "."
+            )
+        ),
     }
 
 
@@ -3735,11 +4009,13 @@ async def read_web_source(
     project_id: str,
     url: str,
     section_hint: str | None = None,
+    refresh: bool = False,
 ) -> dict:
     """Read an official Australian government page selected by search_web.
 
     Returns a bounded excerpt plus provenance and currentness metadata. Treat
     the result as an external reference, never as evidence from the project.
+    Successful reads are stored as a per-project official attachment.
     """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
@@ -3757,13 +4033,31 @@ async def read_web_source(
             done="Read official web source",
             error="Official web source read failed",
         ) as extra:
-            try:
-                source = await get_web_research_service().read(
-                    url,
-                    section_hint=section_hint,
+            source = None
+            if not refresh:
+                snapshot = await find_official_attachment(
+                    session, project_id=pid, url=url
                 )
-            except (ValueError, WebResearchDisabled, WebFetchError) as exc:
-                raise ToolError(str(exc)) from exc
+                if snapshot is not None:
+                    source = web_source_from_attachment(
+                        snapshot, section_hint=section_hint
+                    )
+            if source is None:
+                try:
+                    source = await get_web_research_service().read(
+                        url,
+                        section_hint=section_hint,
+                    )
+                except (ValueError, WebResearchDisabled, WebFetchError) as exc:
+                    raise ToolError(str(exc)) from exc
+                await persist_official_attachment(
+                    session,
+                    project_id=pid,
+                    project_slug=authorization.project.slug,
+                    source=source,
+                    text=source.excerpt,
+                )
+                await session.commit()
             source_data = asdict(source)
             extra["message"] = _activity_message(
                 "Read official web source",
@@ -3774,6 +4068,136 @@ async def read_web_source(
             }
             extra["web_source"]["excerpt"] = source.excerpt[:2000]
             return source_data
+
+
+@mcp.tool
+async def attach_official_instrument(
+    project_id: str,
+    instrument_id: str | None = None,
+    url: str | None = None,
+    document_id: str | None = None,
+    section_hint: str | None = None,
+    refresh: bool = False,
+) -> dict:
+    """Attach an official planning instrument to this project.
+
+    Provide exactly one of instrument_id (NSW legislation), url (official
+    government page or PDF), or document_id (an already-uploaded file).
+    The attachment is an official reference, never project evidence.
+    """
+    provided = [value for value in (instrument_id, url, document_id) if value]
+    if len(provided) != 1:
+        raise ToolError("provide exactly one of instrument_id, url, or document_id")
+
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="attach_official_instrument",
+            running=_activity_message("Attaching official instrument"),
+            done="Attached official instrument",
+            error="Official instrument attach failed",
+        ) as extra:
+            if document_id:
+                document = await _load_project_source_document(
+                    session,
+                    project_id=pid,
+                    document_id=uuid.UUID(document_id),
+                )
+                if document is None:
+                    raise ToolError("uploaded document was not found in this project")
+                metadata = dict(document.document_metadata or {})
+                metadata.update(
+                    {
+                        "knowledge_scope": "official",
+                        "official_url": metadata.get("official_url") or "",
+                        "source_type": "web_reference",
+                        "authority_class": metadata.get("authority_class")
+                        or "government_guidance",
+                        "retrieved_at": datetime.now(UTC).isoformat(),
+                    }
+                )
+                document.source_type = "reference"
+                document.document_class = "planning_instrument"
+                document.document_type = "planning_instrument"
+                document.document_metadata = metadata
+                await session.commit()
+                source = web_source_from_attachment(
+                    document, section_hint=section_hint
+                )
+                extra["message"] = _activity_message(
+                    "Attached official instrument",
+                    subject=document.filename,
+                )
+                extra["web_source"] = {
+                    key: value
+                    for key, value in asdict(source).items()
+                    if key != "excerpt"
+                }
+                return {
+                    **asdict(source),
+                    "title": document.filename,
+                    "document_id": str(document.id),
+                    "relative_path": document.relative_path,
+                    "knowledge_scope": "official",
+                }
+
+            resolved_url = url
+            if instrument_id:
+                if instrument_id_from_url(instrument_id) != instrument_id.casefold():
+                    raise ToolError("instrument_id must be a NSW legislation id")
+                resolved_url = html_view_url(instrument_id.casefold())
+            assert resolved_url is not None
+            if _source_authority(resolved_url) is None:
+                raise ToolError("url must be an official Australian government URL")
+
+            source = None
+            if not refresh:
+                snapshot = await find_official_attachment(
+                    session, project_id=pid, url=resolved_url
+                )
+                if snapshot is not None:
+                    source = web_source_from_attachment(
+                        snapshot, section_hint=section_hint
+                    )
+                    document = snapshot
+            if source is None:
+                try:
+                    source = await get_web_research_service().read(
+                        resolved_url,
+                        section_hint=section_hint,
+                    )
+                except (ValueError, WebResearchDisabled, WebFetchError) as exc:
+                    raise ToolError(str(exc)) from exc
+                document = await persist_official_attachment(
+                    session,
+                    project_id=pid,
+                    project_slug=authorization.project.slug,
+                    source=source,
+                    text=source.excerpt,
+                )
+                await session.commit()
+            extra["message"] = _activity_message(
+                "Attached official instrument",
+                subject=source.title,
+            )
+            extra["web_source"] = {
+                key: value for key, value in asdict(source).items() if key != "excerpt"
+            }
+            extra["web_source"]["excerpt"] = source.excerpt[:2000]
+            return {
+                **asdict(source),
+                "document_id": str(document.id),
+                "relative_path": document.relative_path,
+                "knowledge_scope": "official",
+            }
 
 
 @mcp.tool
@@ -3937,6 +4361,10 @@ async def find_document_text(
                         "filename": document.filename,
                         "relative_path": document.relative_path,
                         "document_class": document.document_class,
+                        "source_type": getattr(document, "source_type", None),
+                        "knowledge_scope": (
+                            getattr(document, "document_metadata", None) or {}
+                        ).get("knowledge_scope"),
                         "content_chars": len(document.normalized_content or ""),
                         "snippets": snippets,
                     }

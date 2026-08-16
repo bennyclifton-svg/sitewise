@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/http";
 import { ProjectCockpitPage } from "@/pages/ProjectCockpitPage";
 import type {
   DraftArtifact,
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     getProjectChatBootstrap: vi.fn(),
     getProjectCockpitBootstrap: vi.fn(),
     getProjectDraft: vi.fn(),
+    getThread: vi.fn(),
     getThreadMessages: vi.fn(),
     listThreads: vi.fn(),
     startWorkflowRun: vi.fn(),
@@ -88,15 +90,20 @@ vi.mock("@/components/chat/ChatRail", () => ({
   ChatRail: ({
     chatError,
     pendingInstruction,
+    onConversationUpdate,
   }: {
     chatError?: string | null;
     pendingInstruction?: { id: number; text: string } | null;
+    onConversationUpdate?: () => void;
   }) => (
     <div data-testid="chat-rail">
       {chatError ? <div role="alert">{chatError}</div> : null}
       {pendingInstruction ? (
         <div data-testid="pending-chat-instruction">{pendingInstruction.text}</div>
       ) : null}
+      <button type="button" onClick={() => onConversationUpdate?.()}>
+        Finish conversation
+      </button>
     </div>
   ),
 }));
@@ -234,6 +241,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     });
     mocks.api.getProjectChatBootstrap.mockResolvedValue({ thread, messages: [] });
     mocks.api.listThreads.mockResolvedValue([thread]);
+    mocks.api.getThread.mockResolvedValue(thread);
     mocks.api.getThreadMessages.mockResolvedValue([]);
     mocks.api.getLatestDraft.mockResolvedValue(costPlanSummary);
     mocks.api.getProjectDraft.mockResolvedValue(costPlanDraft);
@@ -410,6 +418,24 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       "Create cost plan",
     );
     expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("keeps chat mounted when a post-turn message refresh times out", async () => {
+    const user = userEvent.setup();
+    mocks.api.getThreadMessages.mockRejectedValueOnce(
+      new ApiError("Request timed out.", { kind: "timeout" }),
+    );
+
+    renderProjectCockpit();
+
+    await screen.findByTestId("chat-rail");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Finish conversation" }));
+    await waitFor(() => expect(mocks.api.getThreadMessages).toHaveBeenCalled());
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByTestId("chat-rail")).toBeInTheDocument();
   });
 });
 

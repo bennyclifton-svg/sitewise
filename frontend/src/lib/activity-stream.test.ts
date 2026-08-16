@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  STARTING_ACTIVITY_LABEL,
   buildActivityLines,
   formatWorkflowActivityLabel,
 } from "@/lib/activity-stream";
@@ -49,6 +50,29 @@ describe("buildActivityLines", () => {
         (line) => line.label,
       ),
     ).toEqual(["Loading project context…"]);
+  });
+
+  it("shows a starting line while busy before any real activity arrives", () => {
+    expect(
+      buildActivityLines({ busy: true }).map((line) => line.label),
+    ).toEqual([STARTING_ACTIVITY_LABEL]);
+  });
+
+  it("drops the starting line once a tool or workflow line exists", () => {
+    expect(
+      buildActivityLines({
+        busy: true,
+        statusMessage: STARTING_ACTIVITY_LABEL,
+        toolEvents: [
+          {
+            kind: "tool",
+            tool: "search_documents",
+            state: "running",
+            message: "Searching project documents",
+          },
+        ],
+      }).map((line) => line.label),
+    ).toEqual(["Searching project documents"]);
   });
 });
 

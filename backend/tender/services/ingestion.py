@@ -13,6 +13,8 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import fitz
+
 from app.config import settings
 from tender.models import (
     TenderComparison,
@@ -23,6 +25,15 @@ from tender.models import (
 )
 from tender.services import jobs
 from tender.services.pdf import PageExtract, extract_pages, render_page_png
+
+_MARKDOWN_PAGE_WIDTH = 595.0
+_MARKDOWN_PAGE_HEIGHT = 842.0
+_MARKDOWN_MARGIN = 50.0
+_MARKDOWN_FONT_SIZE = 10.0
+_MARKDOWN_LINE_HEIGHT = 12.0
+_MARKDOWN_WRAP = 96
+_MARKDOWN_MIMES = {"text/markdown", "text/x-markdown"}
+_MARKDOWN_SUFFIXES = {".md", ".markdown"}
 
 
 @dataclass(frozen=True)
@@ -68,7 +79,11 @@ async def ingest_document(
         await session.flush()
         return
 
-    if not _is_pdf(document) and not _is_convertible_office(document):
+    if (
+        not _is_pdf(document)
+        and not _is_convertible_office(document)
+        and not _is_markdown(document)
+    ):
         document.ingest_status = "unsupported_format"
         await session.flush()
         return
@@ -77,8 +92,11 @@ async def ingest_document(
         return
 
     source_bytes = await asyncio.to_thread(downloader, storage_key=document.storage_path)
-    if _is_pdf(document):
+    if _is_markdown(document):
+        extracted_pages, pdf_bytes = _markdown_pages(source_bytes)
+    elif _is_pdf(document):
         pdf_bytes = source_bytes
+        extracted_pages = await asyncio.to_thread(extractor, pdf_bytes)
     else:
         try:
             pdf_bytes = await asyncio.to_thread(
@@ -91,8 +109,7 @@ async def ingest_document(
             document.ingest_status = "unsupported_format"
             await session.flush()
             return
-
-    extracted_pages = await asyncio.to_thread(extractor, pdf_bytes)
+        extracted_pages = await asyncio.to_thread(extractor, pdf_bytes)
     existing_page_nos = await _existing_page_numbers(session, document.id)
 
     prepared_pages: list[_PreparedPage] = []
@@ -277,6 +294,62 @@ def _is_pdf(document: TenderDocument) -> bool:
     return document.mime_type.lower() == "application/pdf" or document.original_filename.lower().endswith(
         ".pdf"
     )
+
+
+def _is_markdown(document: TenderDocument) -> bool:
+    mime_type = document.mime_type.lower()
+    suffix = Path(document.original_filename).suffix.lower()
+    return mime_type in _MARKDOWN_MIMES or suffix in _MARKDOWN_SUFFIXES
+
+
+def _decode_markdown(source_bytes: bytes) -> str:
+    return source_bytes.decode("utf-8-sig", errors="replace")
+
+
+def _markdown_line_chunks(text: str) -> list[str]:
+    usable_height = _MARKDOWN_PAGE_HEIGHT - (2 * _MARKDOWN_MARGIN)
+    lines_per_page = max(1, int(usable_height / _MARKDOWN_LINE_HEIGHT))
+    wrapped: list[str] = []
+    for raw in text.splitlines() or [""]:
+        if not raw:
+            wrapped.append("")
+            continue
+        for start in range(0, len(raw), _MARKDOWN_WRAP):
+            wrapped.append(raw[start : start + _MARKDOWN_WRAP])
+    return [
+        "\n".join(wrapped[index : index + lines_per_page])
+        for index in range(0, len(wrapped), lines_per_page)
+    ]
+
+
+def _markdown_to_pdf(chunks: list[str]) -> bytes:
+    document = fitz.open()
+    try:
+        for chunk in chunks:
+            page = document.new_page(
+                width=_MARKDOWN_PAGE_WIDTH, height=_MARKDOWN_PAGE_HEIGHT
+            )
+            y = _MARKDOWN_MARGIN + _MARKDOWN_FONT_SIZE
+            for line in chunk.splitlines():
+                page.insert_text(
+                    (_MARKDOWN_MARGIN, y),
+                    line.encode("latin-1", errors="replace").decode("latin-1"),
+                    fontsize=_MARKDOWN_FONT_SIZE,
+                    fontname="helv",
+                )
+                y += _MARKDOWN_LINE_HEIGHT
+        return document.tobytes()
+    finally:
+        document.close()
+
+
+def _markdown_pages(source_bytes: bytes) -> tuple[list[PageExtract], bytes]:
+    chunks = _markdown_line_chunks(_decode_markdown(source_bytes))
+    extracts = [
+        PageExtract(page_no=index + 1, text=chunk)
+        for index, chunk in enumerate(chunks)
+    ]
+    return extracts, _markdown_to_pdf(chunks)
 
 
 def _is_convertible_office(document: TenderDocument) -> bool:

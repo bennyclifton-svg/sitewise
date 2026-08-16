@@ -1,13 +1,10 @@
 # Request for Proposal - Structural engineer
 
-## Proposal particulars
+## Project summary
 | Project | Walsh Renovation | [1] |
 | --- | --- | --- |
-| State | NSW | [1] |<!-- clerk:block id=blk_2c3858f4a0a4e9207a37656f5b08c741 -->
-| Taxonomy | residential / refurb | [1] |<!-- clerk:block id=blk_4acc52794bb4373f093c8ae5d1d31648 -->
+| Class / work type | residential / refurb | [1] |<!-- clerk:block id=blk_4acc52794bb4373f093c8ae5d1d31648 -->
 | Budget | $920,000 ex GST |  |<!-- clerk:block id=blk_4171b8c03d7314c59c4b4d1c18ad4a8c -->
-
-- Services package: Structural engineer <!-- clerk:block id=blk_64c7ddde18c5f04bc1f57e74f09feeb9 -->
 
 ## Background
 <!-- clerk:block id=blk_5f21ed9b44cb7b70b2984c585ba7655d -->

@@ -16,6 +16,7 @@ import {
   BetweenVerticalStart,
   ChevronRight,
   Copy,
+  LoaderCircle,
   MoreHorizontal,
   Shield,
   ShieldOff,
@@ -193,6 +194,10 @@ type InlineEditOptions = {
   onToggleInformationRegister?: () => void;
   onLoadTransmittal?: () => void;
   canLoadTransmittal?: boolean;
+  onSaveTransmittal?: () => void;
+  canSaveTransmittal?: boolean;
+  isSavingTransmittal?: boolean;
+  transmittalSaveError?: string | null;
 };
 
 function blockActionsKey(target: ArtifactBlockTarget): string {
@@ -917,7 +922,7 @@ function baseComponents(
       const placement = composerPlacement(editOptions);
       const item = (
         <li
-          className="relative flex items-start gap-2 leading-relaxed"
+          className="relative list-item leading-relaxed"
           {...position(node)}
           data-block-type="list_item"
           onMouseEnter={
@@ -941,12 +946,14 @@ function baseComponents(
               : undefined
           }
         >
-          <span className="min-w-0 flex-1">
-            {visibleText === text ? children : visibleText}
+          <span className="flex items-start gap-2">
+            <span className="min-w-0 flex-1">
+              {visibleText === text ? children : visibleText}
+            </span>
+            {target ? (
+              <BlockHoverActions target={target} options={editOptions} />
+            ) : null}
           </span>
-          {target ? (
-            <BlockHoverActions target={target} options={editOptions} />
-          ) : null}
         </li>
       );
       if (!form || !placement) return item;
@@ -1029,7 +1036,7 @@ function baseComponents(
       </th>
     ),
     td: ({ children }) => (
-      <td className="border-b px-3 py-2 align-top text-foreground">
+      <td className="border-b px-3 py-2 align-middle text-foreground">
         {children}
       </td>
     ),
@@ -1390,6 +1397,7 @@ function markdownComponents(
                   variant="outline"
                   size="xs"
                   className="shrink-0 print:hidden"
+                  disabled={options.isSavingTransmittal}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={(event) => {
                     event.preventDefault();
@@ -1400,7 +1408,32 @@ function markdownComponents(
                   Load Transmittal
                 </Button>
               ) : null}
+              {options?.canSaveTransmittal && options.onSaveTransmittal ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="shrink-0 print:hidden"
+                  disabled={options.isSavingTransmittal}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    options.onSaveTransmittal?.();
+                  }}
+                >
+                  {options.isSavingTransmittal ? (
+                    <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+                  ) : null}
+                  {options.isSavingTransmittal ? "Saving…" : "Save Transmittal"}
+                </Button>
+              ) : null}
             </div>
+            {options?.transmittalSaveError ? (
+              <p className="mt-2 text-xs text-destructive print:hidden" role="alert">
+                {options.transmittalSaveError}
+              </p>
+            ) : null}
           </div>
         );
       }
@@ -1995,6 +2028,10 @@ export function MarkdownContent({
   reviewBlockStatuses,
   onLoadTransmittal,
   canLoadTransmittal = false,
+  onSaveTransmittal,
+  canSaveTransmittal = false,
+  isSavingTransmittal = false,
+  transmittalSaveError = null,
 }: {
   /**
    * Already normalized (see `normalizeDraftMarkdown`). Callers own the
@@ -2014,6 +2051,10 @@ export function MarkdownContent({
   onDraftUpdated?: (draft: DraftArtifact) => void;
   onLoadTransmittal?: () => void;
   canLoadTransmittal?: boolean;
+  onSaveTransmittal?: () => void;
+  canSaveTransmittal?: boolean;
+  isSavingTransmittal?: boolean;
+  transmittalSaveError?: string | null;
   editingRange?: MarkdownRange | null;
   editingFocusCellIndex?: number;
   editingCaretPoint?: { x: number; y: number } | null;
@@ -2163,6 +2204,15 @@ export function MarkdownContent({
                   }
                 : undefined,
               canLoadTransmittal,
+              onSaveTransmittal: onSaveTransmittal
+                ? () => {
+                    setInformationRegisterOpen(true);
+                    onSaveTransmittal();
+                  }
+                : undefined,
+              canSaveTransmittal,
+              isSavingTransmittal,
+              transmittalSaveError,
             })}
           >
 

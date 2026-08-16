@@ -13,7 +13,7 @@ const WORKFLOW_SLUG_TO_TILE: Record<string, string> = {
   trade_procurement: "procurement-requests",
   tender_evaluation: "procurement",
   tender_recommendation: "procurement",
-  programme: "delivery",
+  programme: "program",
   risk_register: "risk-register",
   rfi: "rfis",
   process_variations: "variations",
@@ -24,6 +24,7 @@ const WORKFLOW_SLUG_TO_TILE: Record<string, string> = {
 const IMPLEMENTED_TILES = new Set([
   "create-pmp",
   "cost-plan",
+  "program",
   "document-intake",
   "procurement-requests",
 ]);

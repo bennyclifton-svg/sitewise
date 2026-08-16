@@ -17,16 +17,20 @@ export type ActivityLine = {
   state: ActivityLineState;
 };
 
+function normalizeLabel(label: string): string {
+  return label.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Shown beside the cube from the moment a turn is submitted. */
+export const STARTING_ACTIVITY_LABEL = "Reading your request…";
+
 const GENERIC_STATUS = new Set([
   "workflow queued",
   "workflow running",
   "working",
   "thinking",
+  normalizeLabel(STARTING_ACTIVITY_LABEL),
 ]);
-
-function normalizeLabel(label: string): string {
-  return label.trim().replace(/\s+/g, " ").toLowerCase();
-}
 
 function workflowKind(workflowType: string | undefined): WorkflowProgressKind {
   const type = (workflowType ?? "").toLowerCase();
@@ -128,6 +132,8 @@ export function buildActivityLines(options: {
   statusMessage?: string | null;
   toolEvents?: ToolStatusEvent[];
   workflowLines?: ActivityLine[];
+  /** When the parent turn is in-flight, keep a starting line until real work arrives. */
+  busy?: boolean;
 }): ActivityLine[] {
   const lines: ActivityLine[] = [];
   const toolLines = toolActivityLines(options.toolEvents ?? []);
@@ -169,6 +175,14 @@ export function buildActivityLines(options: {
         });
       }
     }
+  }
+
+  if (options.busy && lines.length === 0) {
+    lines.push({
+      id: "status-starting",
+      label: STARTING_ACTIVITY_LABEL,
+      state: "info",
+    });
   }
 
   return lines;

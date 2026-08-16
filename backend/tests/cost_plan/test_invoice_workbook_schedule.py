@@ -15,7 +15,7 @@ INVOICE_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 DRAFT_ID = uuid.UUID("55555555-5555-5555-5555-555555555555")
 
 
-def test_invoice_publish_schedules_workbook_without_immediate_sync() -> None:
+def test_invoice_publish_schedules_workbook_without_republishing_cost_plan() -> None:
     session = AsyncMock()
     project = SimpleNamespace(id=PROJECT_ID, owner_user_id=USER_ID)
     state = SimpleNamespace(version=4, artefact_revision_id=DRAFT_ID)
@@ -24,18 +24,6 @@ def test_invoice_publish_schedules_workbook_without_immediate_sync() -> None:
     schedule = MagicMock(return_value={"status": "pending", "version": 4})
 
     with (
-        patch(
-            "app.api.cost_invoices.get_project_snapshot",
-            new=AsyncMock(return_value=SimpleNamespace()),
-        ),
-        patch(
-            "app.api.cost_invoices.dependency_snapshot",
-            return_value=SimpleNamespace(),
-        ),
-        patch(
-            "app.api.cost_invoices.republish_cost_plan_for_ledger",
-            new=AsyncMock(return_value=state),
-        ),
         patch(
             "app.api.cost_invoices.schedule_cost_plan_workbook_rebuild",
             schedule,
@@ -47,14 +35,13 @@ def test_invoice_publish_schedules_workbook_without_immediate_sync() -> None:
         patch(
             "app.api.cost_invoices.workbook_workspace_path",
             return_value="01-cost/Cost_Plan_v04.draft.xlsx",
-        ),
+        ) as workbook_path,
     ):
         result = asyncio.run(
             _publish_edit(
                 session,
                 project=project,
-                user_id=USER_ID,
-                expected_cost_plan_version=3,
+                state=state,
                 edit_kind="invoice_fields",
                 invoice_id=INVOICE_ID,
                 details={"paid": True},
@@ -64,6 +51,7 @@ def test_invoice_publish_schedules_workbook_without_immediate_sync() -> None:
     assert result == {"ok": True}
     session.commit.assert_awaited_once()
     schedule.assert_called_once_with(PROJECT_ID, 4)
+    workbook_path.assert_called_once_with(project, 4)
     assert draft.provenance_metadata["workbook"] == {
         "status": "pending",
         "version": 4,

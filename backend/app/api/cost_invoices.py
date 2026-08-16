@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.billing.entitlements import require_active_entitlement
-from app.cost_plan.dependencies import dependency_snapshot
 from app.cost_plan.invoice_service import (
     InvoiceNotFound,
     InvoiceRevisionConflict,
@@ -25,15 +24,12 @@ from app.cost_plan.service import (
     CostPlanNotFound,
     complete_cost_plan_state,
     get_cost_plan,
-    republish_cost_plan_for_ledger,
 )
 from app.cost_plan.workbook_rebuild import schedule_cost_plan_workbook_rebuild
 from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.database.projects import get_project
 from app.database.session import get_db
-from app.projects.artefact_revisions import ArtefactRevisionConflict
-from app.projects.snapshot import get_project_snapshot
 from app.workflows.create_cost_plan import workbook_workspace_path
 
 
@@ -68,57 +64,33 @@ async def _publish_edit(
     session: AsyncSession,
     *,
     project: Project,
-    user_id: uuid.UUID,
-    expected_cost_plan_version: int,
+    state: CostPlanState,
     edit_kind: str,
     invoice_id: uuid.UUID,
     allocation_id: uuid.UUID | None = None,
     details: dict[str, object] | None = None,
 ) -> InvoiceLedgerResponse:
-    snapshot = await get_project_snapshot(
-        session,
-        project_id=project.id,
-        owner_user_id=user_id,
-    )
+    """Commit the ledger mutation without republishing the Cost Plan.
+
+    A dropdown change is already canonical on cost_invoices. Republishing a
+    new Cost Plan revision in the same transaction made the save take tens of
+    seconds and rolled the mapping back if the user left the page.
+    """
     edit_id = uuid.uuid4()
-    try:
-        state = await republish_cost_plan_for_ledger(
-            session,
-            project=project,
-            author_user_id=user_id,
-            expected_base_version=expected_cost_plan_version,
-            dependency_snapshot=dependency_snapshot(
-                snapshot,
-                model_version=None,
-                prompt_version="invoice-operator-edit-v1",
-                runtime_version="clerk-cost-plan-invoice-edit-v1",
-            ),
-            external_idempotency_key=f"invoice-edit:{edit_id}",
-            actor_source="invoice_operator",
-        )
-    except ArtefactRevisionConflict as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    if state.artefact_revision_id is None:
-        raise RuntimeError("published Cost Plan has no artefact revision")
-    draft = await session.get(DraftArtifact, state.artefact_revision_id)
-    if draft is None:
-        raise RuntimeError("published Cost Plan artefact revision was not found")
-    # Canonical ledger state is already published; workbook derivation is
-    # coalesced so rapid invoice/cost edits share one rebuild.
-    draft.provenance_metadata = {
-        **(draft.provenance_metadata or {}),
-        "invoice_operator_edit": {
-            "edit_id": str(edit_id),
-            "kind": edit_kind,
-            "invoice_id": str(invoice_id),
-            "allocation_id": str(allocation_id) if allocation_id else None,
-            "details": details or {},
-        },
-        "workbook": {"status": "pending", "version": state.version},
-    }
+    if state.artefact_revision_id is not None:
+        draft = await session.get(DraftArtifact, state.artefact_revision_id)
+        if draft is not None:
+            draft.provenance_metadata = {
+                **(draft.provenance_metadata or {}),
+                "invoice_operator_edit": {
+                    "edit_id": str(edit_id),
+                    "kind": edit_kind,
+                    "invoice_id": str(invoice_id),
+                    "allocation_id": str(allocation_id) if allocation_id else None,
+                    "details": details or {},
+                },
+                "workbook": {"status": "pending", "version": state.version},
+            }
     await session.flush()
     await session.commit()
     schedule_cost_plan_workbook_rebuild(project.id, state.version)
@@ -187,8 +159,7 @@ async def patch_invoice(
     return await _publish_edit(
         session,
         project=project,
-        user_id=user.id,
-        expected_cost_plan_version=body.expected_cost_plan_version,
+        state=state,
         edit_kind="invoice_fields",
         invoice_id=invoice.id,
         details={
@@ -254,8 +225,7 @@ async def patch_invoice_allocation(
     return await _publish_edit(
         session,
         project=project,
-        user_id=user.id,
-        expected_cost_plan_version=body.expected_cost_plan_version,
+        state=state,
         edit_kind="allocation_mapping",
         invoice_id=invoice.id,
         allocation_id=allocation_id,

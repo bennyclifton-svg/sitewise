@@ -648,6 +648,38 @@ export function applyCostPlanDelta(
   };
 }
 
+export type CostPlanTab = "cost-plan" | "invoices" | "variations";
+
+export const COST_PLAN_TABS = ["cost-plan", "invoices", "variations"] as const;
+export const COST_PLAN_TAB_STORAGE_PREFIX = "clerk.cost-plan.tab";
+export const DEFAULT_COST_PLAN_TAB: CostPlanTab = "cost-plan";
+
+export function costPlanTabStorageKey(projectId: string): string {
+  return `${COST_PLAN_TAB_STORAGE_PREFIX}:${projectId}`;
+}
+
+export function isCostPlanTab(value: string | null): value is CostPlanTab {
+  return COST_PLAN_TABS.some((tab) => tab === value);
+}
+
+/** Restore the last Cost Plan section the user had open for this project. */
+export function readCostPlanTab(projectId: string): CostPlanTab {
+  try {
+    const raw = localStorage.getItem(costPlanTabStorageKey(projectId));
+    return isCostPlanTab(raw) ? raw : DEFAULT_COST_PLAN_TAB;
+  } catch {
+    return DEFAULT_COST_PLAN_TAB;
+  }
+}
+
+export function writeCostPlanTab(projectId: string, tab: CostPlanTab): void {
+  try {
+    localStorage.setItem(costPlanTabStorageKey(projectId), tab);
+  } catch {
+    // Ignore quota or private-mode storage failures.
+  }
+}
+
 export function formatCostPlanDeletionError(body: unknown): string | null {
   if (typeof body !== "object" || body === null || !("detail" in body)) return null;
   const detail = (body as { detail: unknown }).detail;

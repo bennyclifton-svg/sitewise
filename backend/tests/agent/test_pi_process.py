@@ -10,6 +10,7 @@ from app.agent.pi_process import (
     PiTurnError,
     _default_spawn,
     _build_argv,
+    _build_env,
     _iter_pi_stdout,
     pi_builtin_tools_flag,
     _prompt_file_arg,
@@ -193,8 +194,10 @@ def test_pi_mcp_config_only_allows_web_tools_when_enabled(
 
     disabled = set(disabled_config["mcpServers"]["clerk"]["directTools"])
     enabled = set(enabled_config["mcpServers"]["clerk"]["directTools"])
-    assert {"search_web", "read_web_source"}.isdisjoint(disabled)
-    assert {"search_web", "read_web_source"} <= enabled
+    assert {"search_web", "read_web_source", "attach_official_instrument"}.isdisjoint(
+        disabled
+    )
+    assert {"search_web", "read_web_source", "attach_official_instrument"} <= enabled
 
 
 def test_pi_builtin_tools_flag_uses_the_legacy_flag_when_needed(monkeypatch) -> None:
@@ -308,3 +311,67 @@ def test_stream_pi_turn_cleans_prompt_file_when_spawn_fails(tmp_path: Path) -> N
         )
 
     assert not seen["prompt_path"].exists()
+
+
+def test_build_argv_uses_xhigh_thinking_for_grok(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.pi_builtin_tools_flag",
+        lambda _binary: "--no-builtin-tools",
+    )
+
+    argv = _build_argv(
+        prompt_arg="@.pi/turn-prompts/turn.md",
+        provider="xai",
+        model="grok-4.6",
+    )
+
+    assert argv[argv.index("--provider") + 1] == "xai"
+    assert argv[argv.index("--model") + 1] == "grok-4.6"
+    assert argv[argv.index("--thinking") + 1] == "xhigh"
+
+
+def test_build_argv_keeps_thinking_off_for_openai_luna(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.pi_builtin_tools_flag",
+        lambda _binary: "--no-builtin-tools",
+    )
+
+    argv = _build_argv(
+        prompt_arg="@.pi/turn-prompts/turn.md",
+        provider="openai",
+        model="gpt-5.6-luna",
+    )
+
+    assert argv[argv.index("--thinking") + 1] == "off"
+
+
+def test_build_env_injects_xai_api_key(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.xai_api_key",
+        "xai-test-key",
+    )
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.agent_platform_api_key",
+        "openai-platform-key",
+    )
+
+    env = _build_env(mcp_url="http://test/mcp", turn_token="turn-token", cwd=tmp_path)
+
+    assert env["XAI_API_KEY"] == "xai-test-key"
+    assert env["OPENAI_API_KEY"] == "openai-platform-key"
+
+
+def test_stream_pi_turn_rejects_grok_without_xai_key(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("app.agent.pi_process.settings.xai_api_key", None)
+
+    with pytest.raises(PiTurnError, match="XAI_API_KEY"):
+        _collect(
+            stream_pi_turn(
+                prompt="project_title: Walsh Reno",
+                mcp_url="http://test/mcp",
+                turn_token="turn-token",
+                cwd=tmp_path,
+                provider="xai",
+                model="grok-4.6",
+            )
+        )

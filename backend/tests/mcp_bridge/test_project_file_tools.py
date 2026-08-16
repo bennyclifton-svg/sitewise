@@ -261,6 +261,7 @@ def test_pi_runtime_allows_project_file_tools() -> None:
     assert "forecast_consultant_fees" in PI_MCP_DIRECT_TOOLS
     assert "apply_consultant_fee_forecast" in PI_MCP_DIRECT_TOOLS
     assert "apply_cost_plan_budget_forecast" in PI_MCP_DIRECT_TOOLS
+    assert "appoint_consultant" in PI_MCP_DIRECT_TOOLS
     assert "get_cost_plan" in PI_MCP_DIRECT_TOOLS
     assert "upsert_cost_item" in PI_MCP_DIRECT_TOOLS
     assert "draft_consultant_procurement_artifact" in PI_MCP_DIRECT_TOOLS

@@ -8,6 +8,7 @@ from ingest.extractors.markdown import extract_markdown
 from ingest.extractors.pdf_drawing import extract_pdf_drawing
 from ingest.extractors.pdf_odl import extract_pdf_odl
 from ingest.extractors.pdf_text import extract_pdf_text
+from ingest.extractors.rtf import extract_rtf
 from ingest.types import IngestPlan
 
 logger = structlog.get_logger(__name__)
@@ -15,6 +16,7 @@ logger = structlog.get_logger(__name__)
 _EXTRACTORS = {
     "markdown": extract_markdown,
     "docx": extract_docx,
+    "rtf": extract_rtf,
     "pdf_text": extract_pdf_text,
     "pdf_odl": extract_pdf_odl,
     "pdf_drawing": extract_pdf_drawing,

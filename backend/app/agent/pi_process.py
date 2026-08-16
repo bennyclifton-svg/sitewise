@@ -27,9 +27,14 @@ PI_MCP_DIRECT_TOOLS = (
     "apply_consultant_fee_forecast",
     "apply_cost_plan_budget_forecast",
     "get_cost_plan",
+    "appoint_consultant",
     "get_artefact_blocks",
     "apply_artefact_operations",
     "apply_cost_plan_operations",
+    "get_programme",
+    "ensure_programme",
+    "apply_programme_operations",
+    "set_programme_view",
     "upsert_cost_item",
     "draft_consultant_procurement_artifact",
     "start_project_plan",
@@ -76,6 +81,7 @@ PI_MCP_DIRECT_TOOLS = (
 PI_WEB_DIRECT_TOOLS = (
     "search_web",
     "read_web_source",
+    "attach_official_instrument",
 )
 
 # Pi serializes complete tool results and terminal events as single JSONL records.
@@ -232,14 +238,15 @@ def _build_argv(
                 settings.pi_mcp_adapter_path,
             ]
         )
+    resolved_provider = provider or settings.pi_model_provider
     return [
         *argv,
         "--provider",
-        provider or settings.pi_model_provider,
+        resolved_provider,
         "--model",
         model or settings.pi_model,
         "--thinking",
-        "off",
+        "xhigh" if resolved_provider == "xai" else "off",
         "--no-session",
         "--mode",
         "json",
@@ -296,6 +303,8 @@ def _build_env(*, mcp_url: str, turn_token: str, cwd: Path) -> dict[str, str]:
     env["PI_OFFLINE"] = "1"
     if settings.agent_platform_api_key:
         env["OPENAI_API_KEY"] = settings.agent_platform_api_key
+    if settings.xai_api_key:
+        env["XAI_API_KEY"] = settings.xai_api_key
     _write_pi_mcp_config(cwd, mcp_url=mcp_url)
     return env
 
@@ -359,6 +368,11 @@ async def stream_pi_turn(
     prompt_path: Path | None = None
 
     try:
+        resolved_provider = provider or settings.pi_model_provider
+        if resolved_provider == "xai" and not settings.xai_api_key:
+            raise PiTurnError(
+                "Thorough turns use Grok 4.6, but XAI_API_KEY is not configured."
+            )
         prompt_path = _write_prompt_file(workspace, prompt=prompt)
         argv = _build_argv(
             prompt_arg=_prompt_file_arg(workspace, prompt_path),

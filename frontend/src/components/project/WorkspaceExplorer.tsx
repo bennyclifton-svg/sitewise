@@ -1,8 +1,11 @@
 import { ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { handleWorkspaceNodeSelect } from "@/components/project/workflow/workflowRouting";
-import { collectExplorerExpandPaths } from "@/components/project/workflow/workspaceRouting";
+import {
+  readExplorerExpandedPaths,
+  writeExplorerExpandedPaths,
+} from "@/components/project/workflow/workspaceRouting";
 import type { WorkspaceTreeNode } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +55,7 @@ function FileTypeIcon({ mark }: { mark: FileTypeMark }) {
 }
 
 export function WorkspaceExplorer({
+  projectId,
   tree,
   selectedPath,
   onSelectPath,
@@ -59,6 +63,7 @@ export function WorkspaceExplorer({
   onViewWorkbench,
   onViewFolder,
 }: {
+  projectId: string;
   tree: WorkspaceTreeNode[];
   selectedPath: string | null;
   onSelectPath: (path: string) => void;
@@ -66,13 +71,9 @@ export function WorkspaceExplorer({
   onViewWorkbench: () => void;
   onViewFolder: () => void;
 }) {
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    // External selection changes should reopen the path to the active file.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setExpandedPaths(collectExplorerExpandPaths(tree, selectedPath));
-  }, [tree, selectedPath]);
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
+    readExplorerExpandedPaths(projectId),
+  );
 
   if (!tree.length) {
     return <p className="px-1.5 text-xs text-muted-foreground">Loading folder template...</p>;
@@ -83,6 +84,7 @@ export function WorkspaceExplorer({
       const next = new Set(current);
       if (next.has(path)) next.delete(path);
       else next.add(path);
+      writeExplorerExpandedPaths(projectId, next);
       return next;
     });
   }

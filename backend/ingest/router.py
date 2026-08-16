@@ -9,9 +9,13 @@ def _extractor_for(classification: Classification, extension: str) -> str:
     if classification.document_class == "drawing":
         if extension == ".dwg":
             return "dwg"
+        if extension == ".md":
+            return "markdown"
         return "register_stub"
     if extension == ".docx":
         return "docx"
+    if extension == ".rtf":
+        return "rtf"
     if extension == ".md":
         return "markdown"
     return "unsupported"

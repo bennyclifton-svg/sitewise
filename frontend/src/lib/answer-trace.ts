@@ -13,7 +13,11 @@ const PLATFORM_KNOWLEDGE_TOOLS = new Set([
   "read_platform_knowledge",
 ]);
 
-const WEB_RESEARCH_TOOLS = new Set(["search_web", "read_web_source"]);
+const WEB_RESEARCH_TOOLS = new Set([
+  "search_web",
+  "read_web_source",
+  "attach_official_instrument",
+]);
 
 export type AnswerTraceTone =
   | "context"

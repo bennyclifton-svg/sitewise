@@ -11,10 +11,12 @@ from app.config import settings
 PI_RUNTIME_ID = "pi"
 PI_MODEL_TIER_LABELS = {
     "gpt-5.6-luna": "Fast",
+    "grok-4.6": "Thorough",
+    "gpt-5.6-sol": "Thorough",
     "gpt-5.6-terra": "Balanced",
-    "gpt-5.6-sol": "Complex",
 }
 PI_MODEL_TIER_ORDER = {model: index for index, model in enumerate(PI_MODEL_TIER_LABELS)}
+PI_RETIRED_THOROUGH_IDS = frozenset({"gpt-5.6-sol", "openai:gpt-5.6-sol"})
 
 
 class PiModelOption(BaseModel):
@@ -80,18 +82,29 @@ def pi_model_options() -> list[PiModelOption]:
     return options
 
 
+def _canonical_pi_model_id(model_id: str) -> str:
+    options = pi_model_options()
+    if any(option.id == model_id for option in options):
+        return model_id
+    if model_id in PI_RETIRED_THOROUGH_IDS:
+        for option in options:
+            if option.label == "Thorough":
+                return option.id
+    return model_id
+
+
 def resolve_pi_model_override(model_id: str | None) -> PiModelOverride | None:
     if model_id is None or not model_id.strip():
         return None
 
-    stripped = model_id.strip()
+    stripped = _canonical_pi_model_id(model_id.strip())
     for option in pi_model_options():
         if option.id == stripped:
             return PiModelOverride(provider=option.provider, model=option.model)
 
     allowed = ", ".join(option.id for option in pi_model_options())
     raise InvalidPiModelError(
-        f"Unsupported Pi model {stripped!r}. Allowed models: {allowed}"
+        f"Unsupported Pi model {model_id.strip()!r}. Allowed models: {allowed}"
     )
 
 

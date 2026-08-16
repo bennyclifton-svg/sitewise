@@ -16,8 +16,7 @@ export type ChatModelsResponse = {
 
 export const FALLBACK_CHAT_MODELS: ChatModelOption[] = [
   { id: "gpt-5.6-luna", label: "Fast", is_default: true },
-  { id: "gpt-5.6-terra", label: "Balanced", is_default: false },
-  { id: "gpt-5.6-sol", label: "Complex", is_default: false },
+  { id: "gpt-5.6-sol", label: "Thorough", is_default: false },
 ];
 
 export const FALLBACK_DEFAULT_MODEL = "gpt-5.6-luna";

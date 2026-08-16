@@ -14,7 +14,9 @@ not pull the whole request down into one discipline's detail.
   specific project document or its contents must end with that document's exact
   assigned `[n]` token. If there is no evidence for a claim, omit the claim
   rather than fabricating a citation.
-- `requested_services`: return 5–8 concise, one-line scope items. This is the
+- `requested_services`: return 5–8 concise, one-line scope items. Each item
+  will be numbered in the issued request so later review can cite it by number.
+  Do not write a prose paragraph. This is the
   highest-priority section. Tailor the baseline services to the evidenced
   building uses, rooms, systems, constraints and current design maturity.
   Preserve whole-of-appointment coverage by combining related controls rather

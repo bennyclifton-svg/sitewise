@@ -284,7 +284,7 @@ def test_legacy_procurement_scaffold_detects_fee_proposal_shell() -> None:
     )
     modern = (
         "# Request for Proposal - Structural engineer\n\n"
-        "## Proposal particulars\n"
+        "## Project summary\n"
         "| Project | Petersham | [1] |\n"
         "| --- | --- | --- |\n\n"
         "## Citation key\n\n"

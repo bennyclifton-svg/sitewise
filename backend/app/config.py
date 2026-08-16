@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "project-files"
     database_url: str
     openai_api_key: str
+    # Thorough chat turns use Grok via Pi. Fast stays on OpenAI Luna.
+    xai_api_key: str | None = None
     # Luna is the default across chat and workflows; terra is reserved for the
     # surfaces where reasoning earns its cost (see pmp_model).
     openai_chat_model: str = "gpt-5.6-luna"
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5173,http://localhost:5174"
     data_dir: Path = _BACKEND_DIR.parent / "data"
     ingest_embedding_batch_size: int = 64
-    ingest_supported_extensions: str = ".pdf,.docx,.md"
+    ingest_supported_extensions: str = ".pdf,.docx,.rtf,.md"
     retrieval_semantic_limit: int = 20
     retrieval_fts_limit: int = 20
     retrieval_final_limit: int = 10
@@ -117,11 +119,10 @@ class Settings(BaseSettings):
     pi_binary_path: str = "pi"
     pi_mcp_adapter_path: str = ""
     pi_model_provider: str = "openai"
-    pi_model: str = "gpt-5.6-terra"
+    pi_model: str = "gpt-5.6-luna"
     pi_model_options: str = (
         "openai:gpt-5.6-luna:Fast,"
-        "openai:gpt-5.6-terra:Balanced,"
-        "openai:gpt-5.6-sol:Complex"
+        "xai:grok-4.6:Thorough"
     )
     agent_platform_api_key: str | None = None
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"

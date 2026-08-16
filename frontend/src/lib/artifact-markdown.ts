@@ -1,13 +1,22 @@
 import { splitMarkdownSections } from "@/lib/markdown-sections";
 
-const ARTIFACT_BLOCK_MARKER =
-  /<!--\s*clerk:block\s+id=blk_[a-f0-9]{32}\s*-->/gi;
+/** Any clerk:block comment, including truncated or rewritten ids. */
+function artifactBlockMarkerRe(): RegExp {
+  return /<!--\s*clerk:block\b[^>]*-->/gi;
+}
 
 /** Hide provenance syntax without shifting canonical Markdown offsets. */
 export function maskArtifactBlockMarkers(markdown: string): string {
-  return markdown.replace(ARTIFACT_BLOCK_MARKER, (marker) =>
+  return markdown.replace(artifactBlockMarkerRe(), (marker) =>
     " ".repeat(marker.length),
   );
+}
+
+/** Remove provenance syntax from copied or exported Markdown. */
+export function stripArtifactBlockMarkers(markdown: string): string {
+  return markdown
+    .replace(/^[ \t]*<!--\s*clerk:block\b[^>]*-->[ \t]*(?:\r?\n|$)/gim, "")
+    .replace(/ ?<!--\s*clerk:block\b[^>]*-->/gi, "");
 }
 
 /**

@@ -17,7 +17,9 @@ describe("StreamingIndicator", () => {
   it("uses a live status message when one is available", () => {
     render(<StreamingIndicator message="Checking the tender schedule" />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Checking the tender schedule");
+    expect(status.querySelector(".streaming-status-live")).toHaveTextContent(
       "Checking the tender schedule",
     );
     expect(screen.getByRole("status")).toHaveAttribute(

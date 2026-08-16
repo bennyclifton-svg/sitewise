@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ChatActivityProvider, useChatActivity } from "@/components/chat/chat-activity";
 import { ChatSessionList } from "@/components/chat/ChatSessionList";
 import { api } from "@/lib/api";
 import type { ChatThread } from "@/lib/types/chat";
@@ -128,6 +129,48 @@ describe("ChatSessionList", () => {
 
     await userEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
     expect(screen.getByLabelText("Thread title")).toHaveValue("Tender review");
+  });
+
+  it("uses the thinking text treatment on a live navigation title", async () => {
+    function Harness() {
+      const { setThreadBusy } = useChatActivity();
+      return (
+        <>
+          <button type="button" onClick={() => setThreadBusy("thread-1", true)}>
+            mark-live
+          </button>
+          <ChatSessionList
+            activeThreadId="thread-2"
+            projectId="project-1"
+            variant="nav"
+            onSelectThread={vi.fn()}
+          />
+        </>
+      );
+    }
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatActivityProvider>
+            <Harness />
+          </ChatActivityProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const title = await screen.findByRole("button", { name: "Tender review" });
+    expect(title).not.toHaveAttribute("aria-busy", "true");
+    await userEvent.click(screen.getByRole("button", { name: "mark-live" }));
+    expect(title).toHaveAttribute("aria-busy", "true");
+    expect(title).toHaveClass("streaming-status-live");
   });
 
   it("truncates long navigation titles without hiding their actions", async () => {

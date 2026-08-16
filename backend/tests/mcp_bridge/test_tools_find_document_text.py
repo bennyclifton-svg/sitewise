@@ -139,6 +139,29 @@ def test_find_document_text_returns_keyword_snippets(monkeypatch) -> None:
     assert any("Laundry, bathroom and ensuite" in excerpt for excerpt in excerpts)
 
 
+def test_find_document_text_labels_official_planning_instruments(monkeypatch) -> None:
+    document = _source_document(
+        "4.15 Evaluation. A consent authority is to take into consideration."
+    )
+    document.source_type = "reference"
+    document.document_metadata = {"knowledge_scope": "official"}
+    document.document_class = "planning_instrument"
+    session = _Session(project=_project(), source_documents=[document])
+    server = _install(monkeypatch, session)
+
+    result = _call(
+        server,
+        {
+            "project_id": str(PROJECT_ID),
+            "query": "consent authority evaluation",
+        },
+    )
+
+    assert result.data[0]["source_type"] == "reference"
+    assert result.data[0]["knowledge_scope"] == "official"
+    assert result.data[0]["document_class"] == "planning_instrument"
+
+
 def test_find_document_text_publishes_document_name_in_status(monkeypatch) -> None:
     turn_id = uuid.uuid4()
     content = "Gross floor area is 225.84 m2 across two storeys."

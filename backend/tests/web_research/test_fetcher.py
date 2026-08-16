@@ -98,6 +98,31 @@ def test_fetch_rejects_an_invalid_declared_content_length() -> None:
         run_async(client.aclose())
 
 
+def test_fetch_accepts_official_xml_content_type() -> None:
+    async def resolve(_host: str) -> list[str]:
+        return ["1.1.1.1"]
+
+    def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "application/xml; charset=utf-8"},
+            content=b"<exdoc><title>Act</title></exdoc>",
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    fetcher = SafePageFetcher(client=client, resolver=resolve)
+
+    try:
+        page = run_async(
+            fetcher.fetch("https://legislation.nsw.gov.au/export/xml/current/act-1979-203")
+        )
+    finally:
+        run_async(client.aclose())
+
+    assert page.content_type.startswith("application/xml")
+    assert page.content == b"<exdoc><title>Act</title></exdoc>"
+
+
 def test_fetch_reports_an_official_site_browser_challenge() -> None:
     async def resolve(_host: str) -> list[str]:
         return ["1.1.1.1"]

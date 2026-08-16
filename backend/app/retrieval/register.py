@@ -9,6 +9,7 @@ from app.database.source_document import SourceDocument
 from app.retrieval.schemas import SourcePassage
 from app.retrieval.schemas import RetrievalFilters
 from app.retrieval.queries import apply_document_filters
+from ingest.document_metadata import strip_markdown_emphasis
 
 
 class DrawingRegisterRow(BaseModel):
@@ -26,7 +27,10 @@ def _metadata_text(metadata: dict | None, key: str) -> str | None:
     if not metadata:
         return None
     value = metadata.get(key)
-    return value if isinstance(value, str) and value.strip() else None
+    if not isinstance(value, str):
+        return None
+    stripped = strip_markdown_emphasis(" ".join(value.split()))
+    return stripped or None
 
 
 async def list_drawings(

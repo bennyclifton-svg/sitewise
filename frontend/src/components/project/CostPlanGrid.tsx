@@ -35,6 +35,8 @@ import {
   COST_PLAN_VIRTUALIZE_THRESHOLD,
   costPlanCategories,
   currentBillingMonthValue,
+  readCostPlanTab,
+  writeCostPlanTab,
   duplicateCostItemOptimistically,
   forecastFromContractAndVariations,
   formatCostPlanDeletionError,
@@ -50,6 +52,7 @@ import {
   type CostPlanSort,
   type CostPlanSortKey,
   type CostPlanState,
+  type CostPlanTab,
   type CostPlanViewRow,
 } from "@/lib/cost-plan";
 import { ApiError } from "@/lib/http";
@@ -60,8 +63,6 @@ import { cn } from "@/lib/utils";
 
 const COST_PLAN_ROW_PX = 26;
 const TABLE_COL_COUNT = 13;
-
-type CostPlanTab = "cost-plan" | "invoices" | "variations";
 
 export function CostPlanGrid({
   projectId,
@@ -76,12 +77,21 @@ export function CostPlanGrid({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
-  const [tab, setTab] = useState<CostPlanTab>("cost-plan");
+  const [tab, setTab] = useState<CostPlanTab>(() => readCostPlanTab(projectId));
   const [sort, setSort] = useState<CostPlanSort | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(currentBillingMonthValue);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setTab(readCostPlanTab(projectId));
+  }, [projectId]);
+
+  function selectTab(next: CostPlanTab) {
+    setTab(next);
+    writeCostPlanTab(projectId, next);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -234,7 +244,7 @@ export function CostPlanGrid({
               variant={tab === id ? "default" : "ghost"}
               role="tab"
               aria-selected={tab === id}
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
             >
               {label}
             </Button>

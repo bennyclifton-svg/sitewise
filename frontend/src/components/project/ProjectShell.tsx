@@ -1,6 +1,7 @@
-import { useSyncExternalStore, useState, type ReactNode } from "react";
+import { useMemo, useSyncExternalStore, useState, type ReactNode } from "react";
 import { CockpitPanelResizeHandle } from "@/components/project/CockpitPanelResizeHandle";
 import { CockpitShellResizeProvider } from "@/components/project/CockpitShellResizeProvider";
+import { InstructionTray } from "@/components/project/InstructionTray";
 import {
   clampPanelWidth,
   COCKPIT_LEFT_PANEL_DEFAULT_WIDTH,
@@ -11,8 +12,10 @@ import {
   COCKPIT_REPO_PANEL_MAX_WIDTH,
   COCKPIT_REPO_PANEL_MIN_WIDTH,
   COCKPIT_REPO_PANEL_WIDTH_KEY,
+  InstructionTraySlotContext,
   readStoredPanelWidth,
   writeStoredPanelWidth,
+  type InstructionTraySlot,
 } from "@/components/project/cockpitShellLayout";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +87,10 @@ export function ProjectShell({
   const [repoWidth, setRepoWidth] = useState(() =>
     readStoredPanelWidth(COCKPIT_REPO_PANEL_WIDTH_KEY, COCKPIT_REPO_PANEL_DEFAULT_WIDTH),
   );
+  const [instructionTray, setInstructionTray] = useState<InstructionTraySlot | null>(
+    null,
+  );
+  const instructionTraySlot = useMemo(() => ({ setTray: setInstructionTray }), []);
   const largeLayout = useSyncExternalStore(
     subscribeToLargeLayout,
     getLargeLayoutSnapshot,
@@ -119,6 +126,7 @@ export function ProjectShell({
     : undefined;
 
   return (
+    <InstructionTraySlotContext.Provider value={instructionTraySlot}>
     <div className="cockpit-page min-h-screen lg:h-screen lg:overflow-hidden">
       <div
         className={cn(
@@ -180,16 +188,28 @@ export function ProjectShell({
           </div>
         </main>
 
-        <aside className="project-side-panel relative flex min-h-0 min-w-0 flex-col overflow-hidden border-t lg:col-start-3 lg:row-start-2 lg:h-full lg:min-h-0 lg:border-t-0">
+        <aside className="project-side-panel relative flex min-h-0 min-w-0 flex-col overflow-hidden border-t lg:col-start-3 lg:row-start-2 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
           <CockpitPanelResizeHandle
             ariaLabel="Resize documents panel"
             edge="start"
             onResize={resizeRepoPanel}
           />
-          <div data-instruction-tray-host className="shrink-0 empty:hidden" />
+          <div data-instruction-tray-host className="shrink-0 empty:hidden">
+            {instructionTray && instructionTray.items.length > 0 ? (
+              <InstructionTray
+                items={instructionTray.items}
+                isApplying={instructionTray.isApplying}
+                error={instructionTray.error}
+                onRemove={instructionTray.onRemove}
+                onClearAll={instructionTray.onClearAll}
+                onApply={instructionTray.onApply}
+              />
+            ) : null}
+          </div>
           <div className="relative min-h-0 flex-1 overflow-hidden">{repository}</div>
         </aside>
       </div>
     </div>
+    </InstructionTraySlotContext.Provider>
   );
 }

@@ -517,6 +517,47 @@ def test_row_upsert_changes_only_the_named_item() -> None:
     assert state_sent.items[1] == base.items[1]
 
 
+def test_upsert_rebases_dependency_snapshot_when_provided() -> None:
+    base = _state()
+    replacement = _item(budget="90000")
+    published = base.model_copy(update={"version": 2, "items": [replacement]})
+    rebased = _dependencies().model_copy(
+        update={"evidence_fingerprint": "evidence-after-fee-proposals"}
+    )
+    project = Project(
+        id=PROJECT_ID,
+        owner_user_id=USER_ID,
+        slug="house",
+        title="House",
+        workspace_path="projects/house",
+    )
+    with (
+        patch(
+            "app.cost_plan.service._base_for_mutation",
+            new=AsyncMock(return_value=base),
+        ) as base_for_mutation,
+        patch(
+            "app.cost_plan.service._publish_state",
+            new=AsyncMock(return_value=published),
+        ) as publish_state,
+    ):
+        run_async(
+            upsert_cost_item(
+                AsyncMock(),
+                project=project,
+                author_user_id=USER_ID,
+                expected_base_version=1,
+                item=replacement,
+                dependency_snapshot=rebased,
+            )
+        )
+    assert base_for_mutation.await_args.kwargs["current_snapshot"] is None
+    assert (
+        publish_state.await_args.kwargs["state"].dependency_snapshot
+        == rebased
+    )
+
+
 def test_refresh_preserves_locked_and_manual_rows_as_explicit_conflicts() -> None:
     locked = _item(locked=True, status="manual")
     base = _state(items=[locked])

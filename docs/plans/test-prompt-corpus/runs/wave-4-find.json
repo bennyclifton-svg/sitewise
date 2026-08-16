@@ -1,0 +1,278 @@
+[
+  {
+    "id": "0df5950e-a144-4c6f-b053-6a77e3bd3768",
+    "title": "13.4 House, knock-down rebuild",
+    "created_at": "2026-08-14T11:30:20.882667+00:00",
+    "building_class": "residential",
+    "work_type": "new",
+    "subclasses": [
+      "house"
+    ],
+    "work_scope": [
+      "demolition",
+      "substructure",
+      "superstructure",
+      "site_drainage",
+      "hydraulic_plumbing",
+      "electrical_power",
+      "landscaping"
+    ],
+    "budget": "$1.6m",
+    "scope_narrative": [
+      "Knock down existing house",
+      "Construct new two-storey house",
+      "Include 4 bedrooms and 3 bathrooms",
+      "Include double garage",
+      "Include pool"
+    ],
+    "scale": {
+      "storeys": 2,
+      "bedrooms": 4,
+      "garage_spaces": 2
+    },
+    "band": "s",
+    "band_bounds": [
+      770,
+      1595
+    ],
+    "words": 952,
+    "in_band": true,
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "pmp_version": 1,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w4--13-4-house--knock-down-rebuild--create_pmp.md",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "error_class": null,
+        "error_message": null
+      }
+    ]
+  },
+  {
+    "id": "53f8a47f-ffc0-4cea-a98c-aa89d5320245",
+    "title": "23.4 Office, new*",
+    "created_at": "2026-08-14T11:35:11.685697+00:00",
+    "building_class": "commercial",
+    "work_type": "new",
+    "subclasses": [
+      "office"
+    ],
+    "work_scope": [],
+    "budget": "$140m",
+    "scope_narrative": [
+      "New A-grade office building",
+      "12 storeys",
+      "18,000 sqm NLA",
+      "CBD site",
+      "Target 5 star Green Star",
+      "Target 5.5 NABERS"
+    ],
+    "scale": {
+      "grade": "A",
+      "nla_sqm": 18000,
+      "storeys": 12
+    },
+    "band": "l",
+    "band_bounds": [
+      1330,
+      2755
+    ],
+    "words": 1937,
+    "in_band": true,
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "pmp_version": 1,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w4--23-4-office--new--create_pmp.md",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "error_class": null,
+        "error_message": null
+      }
+    ]
+  },
+  {
+    "id": "5a17e91c-b0a1-4946-89d6-5339dd8a3e99",
+    "title": "34.4 Cold storage",
+    "created_at": "2026-08-14T11:47:56.783685+00:00",
+    "building_class": "industrial",
+    "work_type": "new",
+    "subclasses": [
+      "cold_storage"
+    ],
+    "work_scope": [
+      "mechanical_hvac",
+      "electrical_power",
+      "fire_services",
+      "hydraulic_plumbing",
+      "bms_controls",
+      "internal_roads",
+      "site_drainage",
+      "stormwater_management"
+    ],
+    "budget": "$45m",
+    "scope_narrative": [
+      "Cold storage facility of approximately 8,000 sqm",
+      "Mix of chilled and frozen storage",
+      "Freezer chambers operating at approximately -25\u00b0C",
+      "Ammonia refrigeration system"
+    ],
+    "scale": {
+      "gfa_sqm": 8000
+    },
+    "band": "l",
+    "band_bounds": [
+      1330,
+      2755
+    ],
+    "words": 1855,
+    "in_band": true,
+    "build_version": "bfe7a350-dirty",
+    "queue_scope": "dev",
+    "pmp_version": 1,
+    "pmp_path": "D:\\AI Projects\\clerk\\docs\\plans\\test-prompt-corpus\\runs\\artefacts\\w4--34-4-cold-storage--create_pmp.md",
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "complete",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "error_class": null,
+        "error_message": null
+      }
+    ]
+  },
+  {
+    "id": "1d4d0f89-1d59-4c38-b999-efe83b6d753f",
+    "title": "47.4 Hospital redevelopment",
+    "created_at": "2026-08-14T11:51:46.809538+00:00",
+    "building_class": "institution",
+    "work_type": "refurb",
+    "subclasses": [
+      "healthcare_hospital"
+    ],
+    "work_scope": [],
+    "budget": "$85m",
+    "scope_narrative": [
+      "Redevelop the emergency department",
+      "Add two operating theatres",
+      "Maintain hospital operations during the works",
+      "Emergency department cannot close"
+    ],
+    "scale": {},
+    "band": "l",
+    "band_bounds": [
+      1330,
+      2755
+    ],
+    "words": null,
+    "in_band": null,
+    "build_version": null,
+    "queue_scope": null,
+    "pmp_version": null,
+    "pmp_path": null,
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "failed",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "error_class": "WorkflowResultFailed",
+        "error_message": "Create PMP could not load mandatory platform sources: seed/institution-construction-guide.md, seed/institution-construction-guide.md#activation-and-subtype-control, seed/institution-construction-guide.md#public-procurement-and-probity, seed/institution-construction-guide.md#operating-calendar-and-live-environment-staging, seed/institution-construction-guide.md#child-protection-security-clearance-and-site-separation. Ingest seed/ and docs/clerk-brief.md into the platform corpus."
+      }
+    ]
+  },
+  {
+    "id": "97c92297-304c-481b-8b0c-8fcbcf2f7fbc",
+    "title": "53.4 Residential over retail*",
+    "created_at": "2026-08-14T11:54:08.053058+00:00",
+    "building_class": "mixed",
+    "work_type": "new",
+    "subclasses": [
+      "residential_retail"
+    ],
+    "work_scope": [],
+    "budget": "$46m",
+    "scope_narrative": [
+      "8 storey mixed use development",
+      "Ground floor retail with 5 shops",
+      "54 apartments above"
+    ],
+    "scale": {
+      "total_storeys": 8,
+      "residential_units": 54
+    },
+    "band": "l",
+    "band_bounds": [
+      1330,
+      2755
+    ],
+    "words": null,
+    "in_band": null,
+    "build_version": null,
+    "queue_scope": null,
+    "pmp_version": null,
+    "pmp_path": null,
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "failed",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "error_class": "WorkflowResultFailed",
+        "error_message": "Create PMP could not load mandatory platform sources: seed/mixed-use-construction-guide.md, seed/mixed-use-construction-guide.md#activation-and-subtype-control, seed/mixed-use-construction-guide.md#multiple-classifications-in-one-structure, seed/mixed-use-construction-guide.md#fire-and-acoustic-separation-between-uses, seed/mixed-use-construction-guide.md#staged-handover-by-use. Ingest seed/ and docs/clerk-brief.md into the platform corpus."
+      }
+    ]
+  },
+  {
+    "id": "3671206e-fc57-451b-94d3-b77d80d0a460",
+    "title": "62.4 Water treatment plant",
+    "created_at": "2026-08-14T11:56:31.815217+00:00",
+    "building_class": "infrastructure",
+    "work_type": "new",
+    "subclasses": [
+      "water_utilities"
+    ],
+    "work_scope": [],
+    "budget": "$180m",
+    "scope_narrative": [
+      "New water treatment plant",
+      "Inlet works",
+      "Filtration",
+      "Chlorination",
+      "Clear water storage",
+      "Pumping"
+    ],
+    "scale": {
+      "capacity_ml_day": 40
+    },
+    "band": "l",
+    "band_bounds": [
+      1330,
+      2755
+    ],
+    "words": null,
+    "in_band": null,
+    "build_version": null,
+    "queue_scope": null,
+    "pmp_version": null,
+    "pmp_path": null,
+    "runs": [
+      {
+        "type": "create_project_plan",
+        "state": "failed",
+        "attempt": 1,
+        "queue_scope": "dev",
+        "error_class": "WorkflowResultFailed",
+        "error_message": "Create PMP could not load mandatory platform sources: seed/infrastructure-construction-guide.md, seed/infrastructure-construction-guide.md#activation-and-subtype-control, seed/infrastructure-construction-guide.md#authority-interfaces-and-network-operators, seed/infrastructure-construction-guide.md#possessions-outages-and-live-network-access, seed/infrastructure-construction-guide.md#safety-accreditation-and-worker-competency. Ingest seed/ and docs/clerk-brief.md into the platform corpus."
+      }
+    ]
+  }
+]

@@ -408,6 +408,67 @@ def test_xlsx_document_converts_to_pdf_before_ingest() -> None:
     assert session.jobs[0].kind == "classify_document"
 
 
+def test_markdown_document_ingests_source_text() -> None:
+    markdown = (
+        "# Fee Proposal — Town Planning\n\n"
+        "Verity Urban Planning\n\n"
+        "| Stage | Fee excl GST |\n"
+        "| --- | ---: |\n"
+        "| Total | **$9,900.00** |\n"
+    )
+    document = _document(mime_type="text/markdown", filename="verity-urban-planning.md")
+    quote = _quote()
+    session = _Session(document=document, quote=quote, execute_values=[[], []])
+    uploaded: list[str] = []
+    extract_calls: list[bytes] = []
+    converter_calls: list[bytes] = []
+
+    run_async(
+        ingestion.ingest_document(
+            session,
+            _job(document),
+            downloader=lambda *, storage_key: markdown.encode("utf-8"),
+            uploader=lambda *, storage_key, content, filename: uploaded.append(storage_key)
+            or storage_key,
+            extractor=lambda pdf_bytes: extract_calls.append(pdf_bytes) or [],
+            converter=lambda *, source_bytes, filename, mime_type: converter_calls.append(
+                source_bytes
+            )
+            or b"",
+        )
+    )
+
+    assert document.ingest_status == "ingested"
+    assert document.page_count >= 1
+    assert extract_calls == []
+    assert converter_calls == []
+    assert any("$9,900.00" in page.text_content for page in session.pages)
+    assert any("Verity Urban Planning" in page.text_content for page in session.pages)
+    assert uploaded
+    assert quote.stage == "classify_document"
+    assert session.jobs[0].kind == "classify_document"
+
+
+def test_markdown_filename_is_accepted_when_mime_is_plain_text() -> None:
+    document = _document(mime_type="text/plain", filename="callan-planning-group.md")
+    quote = _quote()
+    session = _Session(document=document, quote=quote, execute_values=[[], []])
+
+    run_async(
+        ingestion.ingest_document(
+            session,
+            _job(document),
+            downloader=lambda *, storage_key: b"Callan Planning Group fee $13,500.00\n",
+            uploader=lambda *, storage_key, content, filename: storage_key,
+            extractor=lambda pdf_bytes: [],
+        )
+    )
+
+    assert document.ingest_status == "ingested"
+    assert "$13,500.00" in session.pages[0].text_content
+    assert session.jobs[0].kind == "classify_document"
+
+
 def test_unconvertible_office_document_resolves_to_unsupported_format() -> None:
     document = _document(
         mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

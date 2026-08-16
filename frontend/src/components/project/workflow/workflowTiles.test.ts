@@ -64,6 +64,7 @@ describe("buildLifecycleTiles workflow capabilities", () => {
       "project-profile",
       "create-pmp",
       "cost-plan",
+      "program",
       "procurement-requests",
       "procurement",
     ]);

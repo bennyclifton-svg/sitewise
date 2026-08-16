@@ -69,9 +69,15 @@ class Project(Base):
     )
 
     owner: Mapped["User"] = relationship(back_populates="projects")
-    chat_threads: Mapped[list["ChatThread"]] = relationship(back_populates="project")
-    draft_artifacts: Mapped[list["DraftArtifact"]] = relationship(back_populates="project")
-    workspace_files: Mapped[list["WorkspaceFile"]] = relationship(back_populates="project")
+    chat_threads: Mapped[list["ChatThread"]] = relationship(
+        back_populates="project", passive_deletes=True
+    )
+    draft_artifacts: Mapped[list["DraftArtifact"]] = relationship(
+        back_populates="project", passive_deletes=True
+    )
+    workspace_files: Mapped[list["WorkspaceFile"]] = relationship(
+        back_populates="project", passive_deletes=True
+    )
     __table_args__ = (
         UniqueConstraint("owner_user_id", "slug", name="uq_projects_owner_user_id_slug"),
         CheckConstraint(

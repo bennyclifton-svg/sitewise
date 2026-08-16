@@ -228,6 +228,35 @@ describe("AssistantMessage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a web source after an official instrument is attached", () => {
+    render(
+      <MemoryRouter>
+        <AssistantMessage
+          message={message}
+          toolEvents={[
+            {
+              kind: "tool",
+              tool: "attach_official_instrument",
+              state: "done",
+              message: "Attached official instrument",
+              webSource: {
+                url: "https://legislation.nsw.gov.au/view/whole/html/inforce/current/act-1979-203",
+                title: "Environmental Planning and Assessment Act 1979",
+                authorityClass: "official_legislation",
+              },
+            },
+          ]}
+          agentMode
+          selectedCitationId={null}
+          onSelectCitation={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText("Answer trace")).toHaveTextContent("Web source");
+    expect(screen.queryByText("Internet search")).not.toBeInTheDocument();
+  });
+
   it("shows an internet-search globe when search informed the answer but source read failed", () => {
     render(
       <MemoryRouter>

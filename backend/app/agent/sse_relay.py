@@ -4,6 +4,7 @@ import uuid
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
+from app.agent.pi_process import PiTurnError
 from app.chat.streaming import _sse, clerk_status_event, stream_error
 
 
@@ -47,6 +48,7 @@ async def relay_agent_turn(
 
     yield _sse({"type": "start", "messageId": message_id})
     yield _sse({"type": "text-start", "id": text_id})
+    yield clerk_status_event("Reading your request…")
 
     chunk_task: asyncio.Task[str] | None = asyncio.create_task(_next_item(chunks))
     status_task: asyncio.Task[StatusEvent] | None = (
@@ -77,6 +79,9 @@ async def relay_agent_turn(
                     chunk = chunk_task.result()
                 except StopAsyncIteration:
                     chunk_task = None
+                except PiTurnError:
+                    _cancel_pending(status_task)
+                    raise
                 except Exception:
                     _cancel_pending(status_task)
                     async for event in stream_error("Agent turn failed"):

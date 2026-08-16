@@ -88,9 +88,35 @@ const catalog: TaxonomyCatalog = {
               consultants: ["Structural Engineer"],
             },
             {
+              value: "weatherproofing_tie_in",
+              label: "Weatherproofing Tie-In",
+              consultants: ["Architect"],
+            },
+            {
               value: "services_connections",
               label: "Services Connections",
               consultants: ["Services Engineer"],
+            },
+            {
+              value: "staged_occupation",
+              label: "Staged Occupation",
+              consultants: ["Project Manager"],
+            },
+          ],
+        },
+        {
+          value: "site_works",
+          label: "Site Works",
+          items: [
+            {
+              value: "demolition",
+              label: "Demolition",
+              consultants: ["Demolition Consultant"],
+            },
+            {
+              value: "temporary_works",
+              label: "Temporary Works",
+              consultants: ["Structural Engineer"],
             },
           ],
         },
@@ -237,6 +263,125 @@ describe("TaxonomyPicker", () => {
     expect(latest.work_scope).toEqual(["structural_tie_in"]);
   });
 
+  it("selects every item in a scope category from the category checkbox", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Industrial" }));
+    await user.click(screen.getByRole("button", { name: "Extension / addition" }));
+    await user.click(screen.getByLabelText("Demolition"));
+    await user.click(screen.getByLabelText("Select all Extension Interface"));
+
+    expect(screen.getByLabelText("Structural Tie-In")).toBeChecked();
+    expect(screen.getByLabelText("Weatherproofing Tie-In")).toBeChecked();
+    expect(screen.getByLabelText("Services Connections")).toBeChecked();
+    expect(screen.getByLabelText("Staged Occupation")).toBeChecked();
+    expect(screen.getByLabelText("Demolition")).toBeChecked();
+    expect(screen.getByLabelText("Temporary Works")).not.toBeChecked();
+    expect(screen.getByLabelText("Select all Extension Interface")).toBeChecked();
+    expect(screen.getByLabelText("Select all Site Works")).not.toBeChecked();
+    expect(latest.work_scope).toEqual([
+      "demolition",
+      "structural_tie_in",
+      "weatherproofing_tie_in",
+      "services_connections",
+      "staged_occupation",
+    ]);
+  });
+
+  it("clears the category checkbox when one item in the category is cleared", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Industrial" }));
+    await user.click(screen.getByRole("button", { name: "Extension / addition" }));
+    await user.click(screen.getByLabelText("Select all Extension Interface"));
+    await user.click(screen.getByLabelText("Weatherproofing Tie-In"));
+
+    expect(screen.getByLabelText("Weatherproofing Tie-In")).not.toBeChecked();
+    expect(screen.getByLabelText("Structural Tie-In")).toBeChecked();
+    expect(screen.getByLabelText("Select all Extension Interface")).not.toBeChecked();
+    expect(screen.getByLabelText("Select all Extension Interface")).toHaveProperty(
+      "indeterminate",
+      true,
+    );
+    expect(latest.work_scope).toEqual([
+      "structural_tie_in",
+      "services_connections",
+      "staged_occupation",
+    ]);
+  });
+
+  it("clears a scope category when the category checkbox is unchecked", async () => {
+    const user = userEvent.setup();
+    let latest: TaxonomyPickerValue = {};
+
+    render(<ControlledPicker onChange={(value) => (latest = value)} />);
+
+    await user.click(screen.getByRole("button", { name: "Industrial" }));
+    await user.click(screen.getByRole("button", { name: "Extension / addition" }));
+    await user.click(screen.getByLabelText("Demolition"));
+    await user.click(screen.getByLabelText("Select all Extension Interface"));
+    await user.click(screen.getByLabelText("Select all Extension Interface"));
+
+    expect(screen.getByLabelText("Structural Tie-In")).not.toBeChecked();
+    expect(screen.getByLabelText("Staged Occupation")).not.toBeChecked();
+    expect(screen.getByLabelText("Demolition")).toBeChecked();
+    expect(screen.getByLabelText("Select all Extension Interface")).not.toBeChecked();
+    expect(latest.work_scope).toEqual(["demolition"]);
+  });
+
+  it("uses zone titles for sections and quieter labels below the identity block", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ControlledPicker
+        onChange={() => undefined}
+        budget=""
+        onBudgetChange={() => undefined}
+        scopeNarrative=""
+        onScopeNarrativeChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Class" })).toHaveClass(
+      "cockpit-zone-title",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Industrial" }));
+    expect(screen.getByRole("heading", { name: "Work type" })).toHaveClass(
+      "cockpit-zone-title",
+    );
+    expect(screen.getByText("Budget")).toHaveClass(
+      "text-xs",
+      "text-muted-foreground",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Extension / addition" }));
+    expect(screen.getByRole("heading", { name: "Subclass" })).toHaveClass(
+      "cockpit-zone-title",
+    );
+    expect(screen.getByRole("heading", { name: "Scale" })).toHaveClass(
+      "cockpit-zone-title",
+    );
+    expect(screen.getByRole("heading", { name: "Complexity" })).toHaveClass(
+      "cockpit-zone-title",
+    );
+    expect(screen.getByLabelText("Project profile")).toHaveClass(
+      "border-t",
+      "border-[var(--sw-edge)]",
+    );
+    expect(screen.getByText("Scope")).toHaveClass("cockpit-zone-title");
+    expect(screen.getByText("Scope notes")).toHaveClass(
+      "text-xs",
+      "text-muted-foreground",
+    );
+  });
+
   it("places budget beside work type and scope notes below the lists", async () => {
     const user = userEvent.setup();
     const onBudgetChange = vi.fn();
@@ -264,7 +409,9 @@ describe("TaxonomyPicker", () => {
     expect(within(scope).getByLabelText("Scope notes")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Budget"), "$4m");
-    await user.type(screen.getByLabelText("Scope notes"), "Rooftop solar");
+    const scopeNotes = screen.getByLabelText("Scope notes");
+    expect(scopeNotes).toHaveClass("overflow-hidden", "resize-none");
+    await user.type(scopeNotes, "Rooftop solar");
     expect(onBudgetChange).toHaveBeenCalled();
     expect(onScopeNarrativeChange).toHaveBeenCalled();
   });

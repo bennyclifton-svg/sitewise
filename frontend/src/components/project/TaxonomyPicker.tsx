@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,8 @@ import type {
   TaxonomyScalar,
 } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
+
+const fieldLabelClassName = "text-xs font-normal text-muted-foreground";
 
 export type TaxonomyPickerValue = ProjectTaxonomyInput;
 
@@ -172,13 +174,23 @@ export function TaxonomyPicker({
     });
   }
 
+  function setWorkScopeItems(itemValues: string[], checked: boolean) {
+    const current = value.work_scope ?? [];
+    const itemSet = new Set(itemValues);
+    const without = current.filter((item) => !itemSet.has(item));
+    onChange({
+      ...value,
+      work_scope: checked ? [...without, ...itemValues] : without,
+    });
+  }
+
   const otherSelected = selectedSubclassValues.includes("other");
   const otherLabel = selectedOtherLabel(value.subclasses);
 
   return (
     <div className="grid min-w-0 gap-3">
       <section className="grid gap-2" aria-label="Building class">
-        <h3 className="text-sm font-medium">Class</h3>
+        <h3 className="cockpit-zone-title">Class</h3>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {catalog.building_classes.map((buildingClass) => (
             <button
@@ -203,7 +215,7 @@ export function TaxonomyPicker({
         <section className="grid gap-2" aria-label="Work type">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid min-w-0 flex-1 gap-2">
-              <h3 className="text-sm font-medium">Work type</h3>
+              <h3 className="cockpit-zone-title">Work type</h3>
               <div className="flex flex-wrap gap-2">
                 {workTypes.map((workType) => (
                   <button
@@ -224,8 +236,10 @@ export function TaxonomyPicker({
               </div>
             </div>
             {onBudgetChange ? (
-              <div className="grid w-full shrink-0 gap-2 sm:w-44">
-                <Label htmlFor={`${idPrefix}-budget`}>Budget</Label>
+              <div className="grid w-full shrink-0 gap-1 sm:w-44">
+                <Label htmlFor={`${idPrefix}-budget`} className={fieldLabelClassName}>
+                  Budget
+                </Label>
                 <Input
                   id={`${idPrefix}-budget`}
                   value={budget ?? ""}
@@ -241,11 +255,11 @@ export function TaxonomyPicker({
 
       {selectedClass && value.work_type ? (
         <section
-          className="grid min-w-0 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]"
+          className="grid min-w-0 gap-2 border-t border-[var(--sw-edge)] pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]"
           aria-label="Project profile"
         >
           <div className="grid min-w-0 content-start gap-2 rounded-md border p-2.5">
-            <h3 className="text-sm font-medium">Subclass</h3>
+            <h3 className="cockpit-zone-title">Subclass</h3>
             <div className="grid gap-1.5">
               {selectedClass.subclasses.map((subclass) => {
                 const checked = selectedSubclassValues.includes(subclass.value);
@@ -288,9 +302,9 @@ export function TaxonomyPicker({
           </div>
 
           <div className="grid min-w-0 content-start gap-2 rounded-md border p-2.5">
-            <h3 className="text-sm font-medium">Scale</h3>
+            <h3 className="cockpit-zone-title">Scale</h3>
             {scaleFields.length ? (
-              <div className="grid gap-2">
+              <div className="grid gap-1.5">
                 {scaleFields.map((field) => {
                   const inputId = `${idPrefix}-scale-${field.key}`;
                   const fieldValue = value.scale?.[field.key];
@@ -313,8 +327,10 @@ export function TaxonomyPicker({
                     );
                   }
                   return (
-                    <div key={field.key} className="grid gap-1">
-                      <Label htmlFor={inputId}>{field.label}</Label>
+                    <div key={field.key} className="grid gap-0.5">
+                      <Label htmlFor={inputId} className={fieldLabelClassName}>
+                        {field.label}
+                      </Label>
                       <Input
                         id={inputId}
                         type={field.type === "number" || field.type === "integer" ? "number" : "text"}
@@ -336,14 +352,16 @@ export function TaxonomyPicker({
           </div>
 
           <div className="grid min-w-0 content-start gap-2 rounded-md border p-2.5">
-            <h3 className="text-sm font-medium">Complexity</h3>
-            <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+            <h3 className="cockpit-zone-title">Complexity</h3>
+            <div className="grid min-w-0 gap-1.5 sm:grid-cols-2">
               {dimensions.map((dimension) => {
                 const selectId = `${idPrefix}-complexity-${dimension.key}`;
                 const selectedValue = value.complexity?.[dimension.key] ?? "";
                 return (
-                  <div key={dimension.key} className="grid min-w-0 gap-1">
-                    <Label htmlFor={selectId}>{dimension.label}</Label>
+                  <div key={dimension.key} className="grid min-w-0 gap-0.5">
+                    <Label htmlFor={selectId} className={fieldLabelClassName}>
+                      {dimension.label}
+                    </Label>
                     <select
                       id={selectId}
                       value={selectedValue}
@@ -378,6 +396,7 @@ export function TaxonomyPicker({
             disabled={disabled}
             idPrefix={idPrefix}
             onToggle={toggleWorkScope}
+            onToggleCategory={setWorkScopeItems}
             notes={
               onScopeNarrativeChange ? (
                 <ScopeNotesField
@@ -391,9 +410,13 @@ export function TaxonomyPicker({
           />
         ) : (
           <details className="rounded-md border p-2.5" open>
-            <summary className="cursor-pointer text-sm font-medium">
-              Scope
-              {selectedWorkScope.size ? ` (${selectedWorkScope.size} selected)` : ""}
+            <summary className="flex cursor-pointer items-center gap-2">
+              <span className="cockpit-zone-title">Scope</span>
+              {selectedWorkScope.size ? (
+                <span className="text-xs text-muted-foreground">
+                  ({selectedWorkScope.size} selected)
+                </span>
+              ) : null}
             </summary>
             <div className="mt-2">
               <WorkScopeFields
@@ -402,6 +425,7 @@ export function TaxonomyPicker({
                 disabled={disabled}
                 idPrefix={idPrefix}
                 onToggle={toggleWorkScope}
+                onToggleCategory={setWorkScopeItems}
                 notes={
                   onScopeNarrativeChange ? (
                     <ScopeNotesField
@@ -429,6 +453,7 @@ function WorkScopeFields({
   disabled,
   idPrefix,
   onToggle,
+  onToggleCategory,
   notes,
 }: {
   title?: string;
@@ -438,43 +463,80 @@ function WorkScopeFields({
   disabled: boolean;
   idPrefix: string;
   onToggle: (itemValue: string, checked: boolean) => void;
+  onToggleCategory: (itemValues: string[], checked: boolean) => void;
   notes?: ReactNode;
 }) {
   return (
     <section className="grid gap-2" aria-label={title ?? "Scope"}>
-      {title ? <h3 className="text-sm font-medium">{title}</h3> : null}
+      {title ? <h3 className="cockpit-zone-title">{title}</h3> : null}
       {description ? (
         <p className="text-xs text-muted-foreground">{description}</p>
       ) : null}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] gap-2">
-        {categories.map((category) => (
-          <fieldset key={category.value} className="rounded-md border p-2">
-            <legend className="px-1 text-xs font-medium">{category.label}</legend>
-            <div className="grid gap-1">
-              {category.items.map((item) => {
-                const inputId = `${idPrefix}-work-scope-${item.value}`;
-                return (
+        {categories.map((category) => {
+          const itemValues = category.items.map((item) => item.value);
+          const selectedCount = itemValues.filter((item) => selected.has(item)).length;
+          const allSelected = itemValues.length > 0 && selectedCount === itemValues.length;
+          const someSelected = selectedCount > 0 && !allSelected;
+          const selectAllId = `${idPrefix}-work-scope-${category.value}-all`;
+          return (
+            <fieldset key={category.value} className="rounded-md border p-2">
+              <legend className="sr-only">{category.label}</legend>
+              <div className="grid gap-1">
+                {itemValues.length > 1 ? (
                   <label
-                    key={item.value}
-                    htmlFor={inputId}
-                    className="flex items-start gap-2 text-sm leading-snug"
+                    htmlFor={selectAllId}
+                    className="mb-0.5 flex items-center gap-2 border-b border-border pb-1.5"
                   >
-                    <input
-                      id={inputId}
-                      type="checkbox"
-                      checked={selected.has(item.value)}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        onToggle(item.value, event.target.checked)
-                      }
-                    />
-                    <span>{item.label}</span>
+                    <span className="flex w-4 shrink-0 justify-center">
+                      <input
+                        id={selectAllId}
+                        type="checkbox"
+                        checked={allSelected}
+                        disabled={disabled}
+                        aria-label={`Select all ${category.label}`}
+                        className="size-4 accent-primary"
+                        ref={(element) => {
+                          if (element) element.indeterminate = someSelected;
+                        }}
+                        onChange={(event) =>
+                          onToggleCategory(itemValues, event.target.checked)
+                        }
+                      />
+                    </span>
+                    <span className="text-xs font-medium">{category.label}</span>
                   </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        ))}
+                ) : (
+                  <span className="text-xs font-medium">{category.label}</span>
+                )}
+                {category.items.map((item) => {
+                  const inputId = `${idPrefix}-work-scope-${item.value}`;
+                  return (
+                    <label
+                      key={item.value}
+                      htmlFor={inputId}
+                      className="flex items-start gap-2 text-sm leading-snug"
+                    >
+                      <span className="flex w-4 shrink-0 justify-center pt-0.5">
+                        <input
+                          id={inputId}
+                          type="checkbox"
+                          checked={selected.has(item.value)}
+                          disabled={disabled}
+                          className="size-3"
+                          onChange={(event) =>
+                            onToggle(item.value, event.target.checked)
+                          }
+                        />
+                      </span>
+                      <span>{item.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          );
+        })}
       </div>
       {notes}
     </section>
@@ -492,17 +554,29 @@ function ScopeNotesField({
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value]);
+
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>Scope notes</Label>
+    <div className="grid gap-1">
+      <Label htmlFor={id} className={fieldLabelClassName}>
+        Scope notes
+      </Label>
       <textarea
+        ref={textareaRef}
         id={id}
         value={value}
         disabled={disabled}
         placeholder="One item per line"
         rows={4}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-[6rem] w-full min-w-0 rounded-none border border-input bg-[var(--sw-panel)] px-2.5 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+        className="min-h-[6rem] w-full min-w-0 resize-none overflow-hidden rounded-none border border-input bg-[var(--sw-panel)] px-2.5 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
       />
     </div>
   );

@@ -82,7 +82,7 @@ def _map_line(
     if remembered is not None:
         return _mapped(line, line_number, remembered, "remembered", Decimal("1"))
 
-    eligible_items = _eligible_items(line, items)
+    eligible_items = _eligible_items(line, items, invoice.supplier_name)
     exact = [
         item
         for item in eligible_items
@@ -118,21 +118,31 @@ def _map_line(
 def _eligible_items(
     line: InvoiceLineInput,
     items: list[CostItemInput],
+    supplier_name: str = "",
 ) -> list[CostItemInput]:
     """Keep explicit professional services out of construction trade rows.
 
     Structural invoices often mention framing, slabs, or roofs as design scope.
     Those words describe the engineer's service and must not outweigh the
     professional discipline when an existing consultant identity is available.
+    The supplier name is part of that identity: "Ardent Structural" should
+    map to the consultant row even when the fee line never says "structural".
     """
-    professional_markers = _markers(line.description) & _PROFESSIONAL_TRADE_MARKERS
-    if not professional_markers:
+    line_professional = _markers(line.description) & _PROFESSIONAL_TRADE_MARKERS
+    supplier_professional = _markers(supplier_name) & _PROFESSIONAL_TRADE_MARKERS
+    if not line_professional and not supplier_professional:
         return items
-    return [
+    eligible = [
         item
         for item in items
         if "construction" not in _normalize(item.category)
-        and professional_markers
+    ]
+    if not line_professional:
+        return eligible
+    return [
+        item
+        for item in eligible
+        if line_professional
         & _markers(" ".join((item.category, item.item, item.basis)))
     ]
 

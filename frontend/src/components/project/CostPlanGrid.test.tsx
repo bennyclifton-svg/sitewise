@@ -63,6 +63,7 @@ const baseItems = [
 
 describe("CostPlanGrid", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     vi.mocked(api.getCostPlanState).mockResolvedValue({
       version: 1,
       items: baseItems,
@@ -87,6 +88,7 @@ describe("CostPlanGrid", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.clearAllMocks();
     vi.restoreAllMocks();
   });
@@ -229,6 +231,31 @@ describe("CostPlanGrid", () => {
         1,
         [expect.objectContaining({ operation: "DELETE", target_id: "joinery" })],
       ),
+    );
+  });
+
+  it("restores the last Cost Plan tab after leaving and returning", async () => {
+    const { unmount } = render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByRole("tab", { name: "Cost Plan v1" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Invoices" }));
+    expect(screen.getByRole("tab", { name: "Invoices" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    unmount();
+
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByRole("tab", { name: "Invoices" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Cost Plan v1" })).toHaveAttribute(
+      "aria-selected",
+      "false",
     );
   });
 

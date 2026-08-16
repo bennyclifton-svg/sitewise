@@ -12,7 +12,26 @@ export type ChatErrorKind =
   | "tool"
   | "partial_pipeline"
   | "network"
+  | "interrupted"
   | "generic";
+
+export const INTERRUPTED_TURN_MESSAGE =
+  "This turn was interrupted before Pi finished. Please try again.";
+
+function assistantHasVisibleText(message: UIMessage): boolean {
+  return message.parts.some(
+    (part) => part.type === "text" && part.text.trim().length > 0,
+  );
+}
+
+export function incompleteAgentTurnError(messages: UIMessage[]): Error | null {
+  const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
+  if (lastUserIndex < 0) return null;
+  const answered = messages
+    .slice(lastUserIndex + 1)
+    .some((message) => message.role === "assistant" && assistantHasVisibleText(message));
+  return answered ? null : new Error(INTERRUPTED_TURN_MESSAGE);
+}
 
 export function toUiMessage(message: ChatMessage): UIMessage {
   const parts: UIMessage["parts"] = [{ type: "text", text: message.content }];
@@ -175,6 +194,18 @@ export function classifyChatError(error: Error): { kind: ChatErrorKind; message:
     return {
       kind: "network",
       message: "Could not reach the backend. Is it running on port 8000?",
+    };
+  }
+
+  if (
+    lower.includes("interrupted") ||
+    lower.includes("aborted") ||
+    lower.includes("cancelled") ||
+    lower.includes("canceled")
+  ) {
+    return {
+      kind: "interrupted",
+      message: INTERRUPTED_TURN_MESSAGE,
     };
   }
 

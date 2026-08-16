@@ -184,6 +184,19 @@ Review note.`;
     expect(container).not.toHaveTextContent("clerk:block");
   });
 
+  it("hides truncated clerk:block comments in Brief prose", () => {
+    const stamped = `## Brief
+
+Rear extension and first-floor addition. [1] Inclusions: kitchen. <!-- clerk:block id=blk_dba9073a16ea8cddb7bc1e7117d5e43 -->
+`;
+
+    const { container } = render(<MarkdownContent markdown={stamped} />);
+
+    expect(container).toHaveTextContent("Inclusions: kitchen.");
+    expect(container).not.toHaveTextContent("clerk:block");
+    expect(container).not.toHaveTextContent("blk_dba9073a16ea8cddb7bc1e7117d5e43");
+  });
+
   it("keeps Trace & QA collapsed, out of section navigation, and optionally hidden", () => {
     const markdown = `${MARKDOWN}\n## Trace & QA\n\n**Inputs to resolve**\n- Tender close date\n`;
     const view = render(<MarkdownContent markdown={markdown} />);
@@ -405,6 +418,62 @@ Scope.`}
 
     await user.click(screen.getByRole("button", { name: "Load Transmittal" }));
     expect(onLoadTransmittal).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the curated transmittal from the heading row", async () => {
+    const user = userEvent.setup();
+    const onSaveTransmittal = vi.fn();
+    render(
+      <MarkdownContent
+        markdown={[
+          "# Request for Proposal",
+          "",
+          "## Transmittal (0 documents)",
+          "",
+          "| Document number | Title | Rev | Category |",
+          "| --- | --- | --- | --- |",
+        ].join("\n")}
+        canLoadTransmittal
+        onLoadTransmittal={vi.fn()}
+        canSaveTransmittal
+        onSaveTransmittal={onSaveTransmittal}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Load Transmittal" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save Transmittal" }));
+    expect(onSaveTransmittal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders services and deliverables as a numbered list with visible markers", () => {
+    const { container } = render(
+      <MarkdownContent
+        markdown={[
+          "## Services and deliverables",
+          "",
+          "1. Review the project brief and planning pathway.",
+          "2. Define architectural design scope and approval support.",
+          "",
+          "**Required deliverables**",
+          "",
+          "1. Fee proposal with staged architectural services.",
+          "2. Scope schedule by phase.",
+        ].join("\n")}
+      />,
+    );
+
+    const lists = container.querySelectorAll(".draft-markdown ol");
+    expect(lists.length).toBeGreaterThanOrEqual(1);
+    for (const list of lists) {
+      expect(list).toHaveClass("list-decimal");
+    }
+    const items = container.querySelectorAll(".draft-markdown ol > li");
+    expect(items.length).toBe(4);
+    for (const item of items) {
+      expect(item).toHaveClass("list-item");
+      expect(item.className).not.toMatch(/\bflex\b/);
+    }
+    expect(screen.getByText("Review the project brief and planning pathway.")).toBeInTheDocument();
   });
 
   it("renders citation key entries as a list, one per row", () => {

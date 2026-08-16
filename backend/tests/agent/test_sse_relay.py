@@ -3,6 +3,8 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
+import pytest
+
 from app.agent.sse_relay import relay_agent_turn
 from tests.conftest import run_async
 
@@ -34,14 +36,16 @@ def test_relay_agent_turn_emits_ai_sdk_event_order() -> None:
     assert [payload["type"] if isinstance(payload, dict) else payload for payload in payloads] == [
         "start",
         "text-start",
+        "data-clerk-status",
         "text-delta",
         "text-delta",
         "text-end",
         "finish",
         "[DONE]",
     ]
-    assert payloads[2]["delta"] == "Hello"
-    assert payloads[3]["delta"] == " world"
+    assert payloads[2]["data"]["message"] == "Reading your request…"
+    assert payloads[3]["delta"] == "Hello"
+    assert payloads[4]["delta"] == " world"
 
 
 async def _slow_text_chunk() -> AsyncIterator[str]:
@@ -61,12 +65,14 @@ async def _tool_status() -> AsyncIterator[dict[str, Any] | str]:
 def test_relay_agent_turn_interleaves_structured_status_events() -> None:
     events = run_async(_collect(_slow_text_chunk(), status=_tool_status()))
     payloads = [_payload(event) for event in events]
-    status_payload = next(
+    status_payloads = [
         payload
         for payload in payloads
         if isinstance(payload, dict) and payload["type"] == "data-clerk-status"
-    )
+    ]
 
+    assert status_payloads[0]["data"] == {"message": "Reading your request…"}
+    status_payload = status_payloads[1]
     assert status_payload["data"] == {
         "message": "Searching project documents",
         "kind": "tool",
@@ -93,6 +99,20 @@ def test_relay_agent_turn_finishes_without_waiting_for_status_stream_end() -> No
     assert payloads[-1] == "[DONE]"
 
 
+async def _timeout_chunks() -> AsyncIterator[str]:
+    from app.agent.pi_process import PiTurnTimeout
+
+    raise PiTurnTimeout("Pi turn timed out")
+    yield "unreachable"
+
+
+def test_relay_agent_turn_reraises_pi_turn_errors() -> None:
+    from app.agent.pi_process import PiTurnTimeout
+
+    with pytest.raises(PiTurnTimeout):
+        run_async(_collect(_timeout_chunks()))
+
+
 async def _failing_chunks() -> AsyncIterator[str]:
     yield "Partial"
     raise RuntimeError("Pi stopped with Bearer ch03-sse-chunk-provider-token")
@@ -105,6 +125,7 @@ def test_relay_agent_turn_emits_error_and_done_on_failure() -> None:
     assert [payload["type"] if isinstance(payload, dict) else payload for payload in payloads] == [
         "start",
         "text-start",
+        "data-clerk-status",
         "text-delta",
         "error",
         "[DONE]",
@@ -126,6 +147,6 @@ def test_relay_agent_turn_masks_status_stream_failure() -> None:
     assert [
         payload["type"] if isinstance(payload, dict) else payload
         for payload in payloads
-    ] == ["start", "text-start", "error", "[DONE]"]
+    ] == ["start", "text-start", "data-clerk-status", "error", "[DONE]"]
     assert payloads[-2]["errorText"] == "Agent status stream failed"
     assert "ch03-sse-status-provider-token" not in str(payloads)
