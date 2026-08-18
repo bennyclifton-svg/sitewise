@@ -1,0 +1,63 @@
+# Each fixture is a filename + a text body. Tests generate the PDF/MD at runtime;
+# do not commit binaries. `expect` is the CANONICAL (post-Stage-3) answer.
+fixtures:
+  - filename: "Cost Plan.pdf"
+    body: "ELEMENTAL COST PLAN\nStage: Concept\nTotal construction cost $4,120,000\nPreliminaries 12%"
+    expect: { class: commercial, subject: cost, commercial_type: cost_plan }
+    note: "regression for the \\bplan\\b bug"
+
+  - filename: "Business Plan.pdf"
+    body: "BUSINESS PLAN\nExecutive summary\nMarket analysis and funding strategy"
+    expect: { class: report, subject: none }
+
+  - filename: "Payment Plan.pdf"
+    body: "PAYMENT PLAN\nProgress payment schedule against milestones"
+    expect: { class: commercial, subject: cost }
+
+  - filename: "Structural Specification Plan.pdf"
+    body: "STRUCTURAL SPECIFICATION\nSection 0531 Structural Steelwork\nClause 1.1 Scope"
+    expect: { class: specification, subject: structural }
+
+  - filename: "A-101 Rev C.pdf"
+    body: "GROUND FLOOR PLAN\nDRAWING A-101 REV C\nSCALE 1:100\nGENERAL NOTES: refer structural."
+    expect: { class: drawing, subject: none }
+    note: "notes MUST remain searchable after Stage 1"
+
+  - filename: "Heritage Impact Statement.pdf"
+    body: "HERITAGE IMPACT STATEMENT\nPrepared for the applicant\nSignificance assessment"
+    expect: { class: report, subject: heritage }
+
+  - filename: "Scan_20260815_001.pdf"
+    body: "HERITAGE IMPACT STATEMENT\nThe subject site is listed as a local heritage item."
+    expect: { class: report, subject: heritage, basis: content }
+    note: "filename carries zero signal — forces Stage D content markers"
+
+  - filename: "IMG_4471.pdf"
+    body: ""
+    expect: { class: unknown, subject: none }
+    note: "no useful text -> register-only path, but NOT because of class"
+
+  - filename: "Notice of Determination.pdf"
+    body: "NOTICE OF DETERMINATION\nDevelopment Application DA-2026-114\nCONDITIONS OF CONSENT"
+    expect: { class: certificate, subject: planning }
+
+  - filename: "Council RFI response.pdf"
+    body: "Dear Sir/Madam\nWe respond to your request for further information.\nYours sincerely"
+    expect: { class: correspondence, subject: planning }
+
+  - filename: "Invoice 0043.pdf"
+    body: "TAX INVOICE\nABN 12 345 678 901\nInvoice No 0043\nSubtotal $8,500\nGST $850\nTotal $9,350"
+    expect: { class: commercial, subject: cost, commercial_type: invoice }
+
+  - filename: "Variation 017.pdf"
+    body: "VARIATION 017\nAdditional structural works\nAmount claimed $12,400"
+    expect: { class: commercial, subject: contract_admin, commercial_type: variation }
+
+  - filename: "Tender - Builder B.pdf"
+    body: "REQUEST FOR TENDER\nReturn by 5pm 12 September\nSchedule of prices attached"
+    expect: { class: commercial, subject: none, procurement_stage: rft }
+
+  - filename: "Builder B final.pdf"
+    body: "TENDER SUBMISSION\nBuilder B Pty Ltd\nLump sum tender price $6,840,000"
+    expect: { class: commercial, procurement_stage: submission }
+    note: "filename says nothing about tender — content must carry it"
