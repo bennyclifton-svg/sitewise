@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 7 code complete (`x1/stage-7-auto-filing`); 7.6 live scenario blocked
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 7 code complete (`432e3ce5`); 7.6 live scenario blocked
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -773,7 +773,7 @@ Branch/worktree: x1/stage-7-auto-filing (repo root)
 Predecessors verified: Stage 6 [x] SHA a914dc7b
 Reading list actually read: 00-doctrine.md §D2, 01-ground-truth.md §Sort Files path, sort_service.py 30–90 and 410–end (needed already-filed + _file_previews), document_ingest.py 54–end, tests/workflows/test_sort_files.py. Extra (named in tasks): SortFilesResultPanel, schemas SortFilesSummary, test_document_ingest_auto_sort.py, repair_service import of _file_previews.
 Failing test written: test_files_still_ingesting_report_waiting_not_skipped (skipped vs waiting); test_failed_ingest_reports_failed_not_skipped; test_low_confidence_reports_needs_review (unresolved vs needs-review); test_sort_does_not_download_files (one download); file_single_document ImportError
-Commit SHA: (feat commit; recorded in follow-up docs commit)
+Commit SHA: 432e3ce5
 
 Verification — 7.1 RED:
 assert 'skipped' == 'waiting'
