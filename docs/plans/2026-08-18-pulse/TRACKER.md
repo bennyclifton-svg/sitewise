@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 6 complete (SHA in packet record)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 6 complete (`a914dc7b`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -707,7 +707,7 @@ Branch/worktree: x1/stage-6-collapse-classifiers (repo root)
 Predecessors verified: Stage 4 [x] SHA 7052d143; Stage 5 [x] SHA 90f12255
 Reading list actually read: 00-doctrine.md, 01-ground-truth.md §The two classifiers, app/intake/classifier.py (full), ingest/classify.py (post-Stage-4/5), tests/workflows/test_sort_files.py. Callers required by 6.4: tests/intake/test_classifier.py (destination assertions kept as shim regression).
 Failing test written: tests/ingest/test_filename_scoring.py (9 new cases → None/wrong class); tests/ingest/test_classify.py (8 metadata/content tests); tests/intake/test_filing_destination.py (ImportError filing_destination)
-Commit SHA: (feat commit; recorded in follow-up docs commit)
+Commit SHA: a914dc7b
 Production LOC delta: ingest/classify.py 436→577 (+141); app/intake/classifier.py 288→233 (−55). Gate total 5982 vs Stage 0.6 5609 = +373 / +6.6% (<10%).
 Integration notes raised: extra preview families; DA/CDC not ported as class; metadata routes beyond 6.3 table; test_classifier.py kept; shim callers remain until Stage 7
 Handoff: Stage 6 complete. Stage 7 is unblocked. sort_service still calls classify_inbox_destination (shim).
