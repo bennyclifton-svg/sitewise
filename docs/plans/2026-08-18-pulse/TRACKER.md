@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 3 complete (`c1b38f4b`, tag `x1-gate-1`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 4 complete (SHA filled after commit)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -82,13 +82,13 @@ is not done.
 
 ### Stage 4 — Deterministic classifier → [`stage-04-deterministic-classifier.md`](./stage-04-deterministic-classifier.md)
 
-- [ ] 4.1 Structural signals (Stage B)
-- [ ] 4.2 Scored filename rules replace first-match-wins (Stage C)
-- [ ] 4.3 Filename test matrix (≥40 cases)
-- [ ] 4.4 Deterministic content markers (Stage D)
-- [ ] 4.5 Persist `confidence` + `basis`
-- [ ] 4.6 Accuracy measured on fixture corpus, recorded below
-- [ ] 4.7 Model fallback remains **absent** (not merely disabled)
+- [x] 4.1 Structural signals (Stage B) — Cursor Grok 4.6 / `x1/stage-4-deterministic-classifier`
+- [x] 4.2 Scored filename rules replace first-match-wins (Stage C)
+- [x] 4.3 Filename test matrix (≥40 cases)
+- [x] 4.4 Deterministic content markers (Stage D)
+- [x] 4.5 Persist `confidence` + `basis`
+- [x] 4.6 Accuracy measured on fixture corpus, recorded below
+- [x] 4.7 Model fallback remains **absent** (not merely disabled)
 
 ### Stage 5 — User override → [`stage-05-user-override.md`](./stage-05-user-override.md)
 
@@ -183,7 +183,7 @@ that do not exist. Expanding them now would produce fiction.
 
 | Date | Corpus | Class acc. | Subject acc. | Unknown % | Low-conf % | By |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| 2026-08-18 | fixture corpus (14) | 14/14 | 14/14 | 1/14 (`IMG_4471.pdf`, expected) | 1/14 (same row, conf 0.0) | Cursor Grok 4.6 |
 
 ---
 
@@ -235,6 +235,8 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | Stage 3.3 expected `Classification(` in `ingest/pipeline.py`. Grep found none; `plan_entry` calls `classify_entry`. Construction sites were `classify.py`, tests, and `scripts/x1_backfill.py`. | open |
 | 2026-08-18 | Cursor Grok 4.6 | `ingest/router.py` `_extractor_for` still branches on `doctrine`/`reference_guide`. Dead after canonical mapping (`.md` still hits the generic markdown extractor). Left untouched — not a construction site; Stage 8/6 can delete. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Gate 1 contract frozen as tag `x1-gate-1` (`c1b38f4b128ded46755ee0cb8236188a4bf4ac90`). Human signature on the GATE 1 checklist is still required before Wave 2. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 4: `pipeline.py` / `hosted.py` still call `classify_entry(entry)` before extraction, so Stage D content markers only run when the caller passes `extracted_text`. Did not rewire those files (outside Stage 4 ownership). Fixture accuracy passes text in. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 4 filename table extras beyond the sketch: `\bpayment plan\b` (test matrix), `^M\d{2,3}\b` (split mechanical sheets), DCP/LEP skipped when assessment/report/statement/review present (keeps Heritage DCP assessment as report). Content extras: `\bBUSINESS PLAN\b` → report (fixture; filename scoring correctly returns None). | open |
 
 ---
 
@@ -547,6 +549,67 @@ Files changed:
 - backend/tests/ingest/test_classify.py (legacy class assertions → canonical + metadata)
 - backend/tests/ingest/test_rtf.py (planning_instrument → statutory_instrument)
 - backend/tests/stage01/test_database_gates.py (tender_submission → commercial)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+
+### Stage 4 (4.1–4.7) — 2026-08-18
+
+```text
+Packet: 4.1–4.7 Deterministic classifier (no model fallback)
+Status: [x]
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-4-deterministic-classifier (repo root)
+Predecessors verified: Stage 3 [x], tag x1-gate-1 at c1b38f4b
+Reading list actually read: 00-doctrine.md §Canonical vocabularies, ingest/classify.py, tests/fixtures/classification/manifest.yaml, ingest/drawing_parse.py + title_block.py (interfaces). persist.py required by 4.5.
+Failing test written: tests/ingest/test_filename_scoring.py. Confirmed FAIL: ImportError: cannot import name 'score_filename' from 'ingest.classify'
+Commit SHA: (filled after commit)
+Production LOC delta: ingest/classify.py +318/−118 (net +200); ingest/persist.py +3 (writes confidence/basis/subject into JSONB). types.py untouched.
+Integration notes raised: pipeline/hosted classify before extract so Stage D is opt-in via extracted_text; extra payment-plan / M## / BUSINESS PLAN / DCP-exclude signals
+Handoff: Stage 4 complete. Stage 5 (user override into Stage A seam `_user_override`) is unblocked.
+
+Verification — 4.3 RED:
+ERROR tests/ingest/test_filename_scoring.py
+ImportError: cannot import name 'score_filename' from 'ingest.classify'
+
+Verification — 4.3/4.4/4.5 GREEN:
+uv run pytest tests/ingest/ -q
+  203 passed, 1 warning in 1.75s
+  (46 filename cases + count assertion; Scan_20260815_001 → report/heritage/content; persist round-trip)
+
+Verification — 4.6:
+uv run pytest tests/ingest/test_fixture_corpus_accuracy.py -s
+  class accuracy: 14/14
+  subject accuracy: 14/14
+  unknown rate: 1/14
+  low-confidence rate: 1/14
+  ratchet raised 11 → 14
+
+Verification — 4.7:
+grep openai|OpenAI|completion backend/ingest/classify.py
+  (no matches)
+
+uv run ruff check .
+  All checks passed!
+
+uv run pytest -q --tb=line --import-mode=importlib
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+4 failed, 2463 passed, 7 skipped, 34 deselected, 5 warnings in 52.09s
+(diff vs baseline-backend-failures.txt: empty — same 4 FAILED names)
+
+Files added:
+- backend/tests/ingest/test_filename_scoring.py (new; does not replace a file)
+- backend/tests/ingest/test_fixture_corpus_accuracy.py (new; does not replace a file)
+
+Files changed:
+- backend/ingest/classify.py (replaces first-match-wins with B/C/D cascade; removes _looks_like_drawing / _filename_hints)
+- backend/ingest/persist.py (copies confidence/basis/subject into document_metadata JSONB)
+- backend/tests/ingest/test_classify.py (confidence 0.85; Stage D + title-block cases)
+- backend/tests/ingest/test_persist_metadata.py (round-trip)
 - docs/plans/2026-08-18-pulse/TRACKER.md
 
 Files deleted: none

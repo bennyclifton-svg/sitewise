@@ -96,6 +96,9 @@ def _merged_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict:
             metadata["frontmatter"] = frontmatter
     metadata.update(_register_metadata(plan, extracted))
     metadata["filename"] = plan.entry.filename
+    metadata["confidence"] = f"{plan.classification.confidence:.2f}"
+    metadata["basis"] = plan.classification.basis
+    metadata["subject"] = plan.classification.document_subject
     return metadata
 
 

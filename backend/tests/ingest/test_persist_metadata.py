@@ -187,3 +187,24 @@ def test_merged_metadata_survives_parse_failure() -> None:
     assert "document_number" not in metadata
     assert warning.call_args.kwargs["error_type"] == "RuntimeError"
     assert canary not in str(warning.call_args)
+
+
+def test_merged_metadata_round_trips_confidence_and_basis() -> None:
+    entry = _entry("04-projects/demo/_inbox/Invoice 0043.pdf")
+    context = infer_project_context(entry.relative_path)
+    from ingest.classify import classify_entry
+
+    classification = classify_entry(
+        entry,
+        extracted_text="TAX INVOICE\nABN 12 345 678 901\nInvoice No 0043\nTotal $9,350",
+    )
+    plan = build_ingest_plan(entry, context, classification)
+    extracted = ExtractedDocument(normalized_content="TAX INVOICE\nABN 12 345 678 901")
+    metadata = _merged_metadata(plan, extracted)
+
+    assert metadata["confidence"] == f"{classification.confidence:.2f}"
+    assert metadata["basis"] == classification.basis
+    assert metadata["subject"] == classification.document_subject
+    assert classification.basis in {"filename", "content", "structural"}
+    assert classification.confidence >= 0.65
+

@@ -5,6 +5,7 @@ import pytest
 from ingest.classify import classify_entry, parse_procurement_stage
 from ingest.metadata import infer_project_context
 from ingest.router import build_ingest_plan
+from ingest.title_block import TitleBlockFields
 from ingest.types import ManifestEntry
 
 
@@ -48,7 +49,7 @@ def test_classify_tender_submission():
     assert classification.document_metadata["procurement_stage"] == "submission"
     assert classification.document_metadata["tenderer_id"] == "01"
     assert classification.document_subject == "none"
-    assert classification.confidence == 0.5
+    assert classification.confidence == 0.85
     assert classification.basis == "filename"
 
 
@@ -82,6 +83,8 @@ def test_classify_seed_reference():
     assert classification.document_class == "report"
     assert classification.document_metadata["reference_kind"] == "reference_guide"
     assert classification.ingest_mode == "full_text"
+    assert classification.basis == "structural"
+    assert classification.confidence == 0.95
 
 
 def test_parse_procurement_stage_demo_folder_names():
@@ -193,3 +196,29 @@ def test_router_selects_odl_for_project_pdf_upload():
 
     assert plan.extractor == "pdf_odl"
     assert plan.chunker == "prose"
+
+
+def test_scan_filename_resolves_from_content_markers() -> None:
+    entry = _entry("04-projects/demo/_inbox/Scan_20260815_001.pdf")
+    classification = classify_entry(
+        entry,
+        extracted_text=(
+            "HERITAGE IMPACT STATEMENT\n"
+            "The subject site is listed as a local heritage item."
+        ),
+    )
+    assert classification.document_class == "report"
+    assert classification.document_subject == "heritage"
+    assert classification.basis == "content"
+    assert classification.confidence == 0.95
+
+
+def test_parsed_title_block_is_structural_drawing() -> None:
+    entry = _entry("04-projects/demo/_inbox/scan-sheet.pdf")
+    classification = classify_entry(
+        entry,
+        title_block=TitleBlockFields(document_number="A-204", revision="C"),
+    )
+    assert classification.document_class == "drawing"
+    assert classification.basis == "structural"
+    assert classification.confidence == 0.95
