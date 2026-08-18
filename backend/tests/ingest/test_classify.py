@@ -213,6 +213,86 @@ def test_scan_filename_resolves_from_content_markers() -> None:
     assert classification.confidence == 0.95
 
 
+def test_planning_pathway_filename_sets_planning_subject() -> None:
+    entry = _entry(
+        "04-projects/demo/_inbox/09-planning-pathway-memo-harrison-clarke.md",
+        extension=".md",
+    )
+    classification = classify_entry(entry)
+    assert classification.document_class == "report"
+    assert classification.document_subject == "planning"
+
+
+def test_engagement_letter_sets_fee_proposal_type() -> None:
+    entry = _entry(
+        "04-projects/demo/_inbox/01-engagement-letter-harrison-clarke-studio.md",
+        extension=".md",
+    )
+    classification = classify_entry(entry)
+    assert classification.document_class == "commercial"
+    assert classification.document_metadata["commercial_type"] == "fee_proposal"
+
+
+def test_owner_brief_sets_brief_kind() -> None:
+    entry = _entry("04-projects/demo/_inbox/owner-project-brief.md", extension=".md")
+    classification = classify_entry(entry)
+    assert classification.document_class == "report"
+    assert classification.document_metadata["brief_kind"] == "project_brief"
+
+
+def test_dilapidation_report_sets_due_diligence() -> None:
+    entry = _entry(
+        "04-projects/demo/_inbox/07-dilapidation-report-buildcheck.md",
+        extension=".md",
+    )
+    classification = classify_entry(entry)
+    assert classification.document_class == "report"
+    assert classification.document_metadata["due_diligence"] == "true"
+
+
+def test_price_schedule_filename_sets_quote_type() -> None:
+    entry = _entry("04-projects/demo/_inbox/Price Schedule.pdf")
+    classification = classify_entry(entry)
+    assert classification.document_class == "commercial"
+    assert classification.document_metadata["commercial_type"] == "quote"
+
+
+def test_builder_quote_content_sets_quote_type() -> None:
+    entry = _entry("04-projects/demo/_inbox/Kaposi.pdf")
+    classification = classify_entry(
+        entry,
+        extracted_text=(
+            "# PRICE ESTIMATE\n"
+            "|STAGE 1|SHED|EARTHWORKS|14,880.00|\n"
+            "EXC GST $182,417.00\nPLUS 10% BUILDER MARGIN $200,658.70"
+        ),
+    )
+    assert classification.document_class == "commercial"
+    assert classification.document_metadata["commercial_type"] == "quote"
+    assert classification.basis == "content"
+
+
+def test_fee_proposal_heading_beats_quote_content() -> None:
+    entry = _entry("04-projects/demo/_inbox/HCS-doc.pdf")
+    classification = classify_entry(
+        entry,
+        extracted_text="# Fee Proposal\nArchitect-PM services, staged fee basis.",
+    )
+    assert classification.document_class == "commercial"
+    assert classification.document_metadata["commercial_type"] == "fee_proposal"
+
+
+def test_planning_pathway_memo_heading_is_report_planning() -> None:
+    entry = _entry("04-projects/demo/_inbox/upload.md", extension=".md")
+    classification = classify_entry(
+        entry,
+        extracted_text="# PLANNING PATHWAY MEMO\n\nPursue DA + CC pathway.",
+    )
+    assert classification.document_class == "report"
+    assert classification.document_subject == "planning"
+    assert classification.basis == "content"
+
+
 def test_parsed_title_block_is_structural_drawing() -> None:
     entry = _entry("04-projects/demo/_inbox/scan-sheet.pdf")
     classification = classify_entry(

@@ -2,6 +2,10 @@ import re
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
+from ingest.document_metadata import (
+    DISCIPLINE_FOLDER_LABELS,
+    infer_discipline_from_file_name,
+)
 from ingest.drawing_parse import parse_drawing_filename
 from ingest.metadata import infer_project_context
 from ingest.title_block import TitleBlockFields
@@ -42,6 +46,35 @@ _STRUCTURAL_EXTENSIONS: dict[str, DocumentClass] = {
 }
 
 _FILENAME_SIGNALS: list[tuple[re.Pattern[str], DocumentClass, int]] = [
+    # Stage 6.2 — ported from app/intake/classifier.py (semantic families)
+    (re.compile(r"\bplanning[-_ ]?pathway\b", re.I), "report", 5),
+    (re.compile(r"\bauthorit(y|ies)[-_ ]?pathway\b", re.I), "report", 5),
+    (re.compile(r"\bcdc[-_ ]?screening\b", re.I), "report", 5),
+    (re.compile(r"\bprincipal[-_ ]?certifier\b", re.I), "certificate", 5),
+    (re.compile(r"\bcertifier[-_ ]?appointment\b", re.I), "certificate", 5),
+    (re.compile(r"\bengagement[-_ ]?letter\b", re.I), "commercial", 6),
+    (re.compile(r"\bletter[-_ ]?of[-_ ]?engagement\b", re.I), "commercial", 6),
+    (re.compile(r"\bconsultant[-_ ]?(appointment|agreement)\b", re.I), "commercial", 6),
+    (re.compile(r"\bscope[-_ ]?of[-_ ]?services\b", re.I), "commercial", 5),
+    (re.compile(r"\bappointment[-_ ]?letter\b", re.I), "commercial", 6),
+    (re.compile(r"\bppr\b", re.I), "report", 5),
+    (re.compile(r"\bprincipal'?s?[-_ ]+project[-_ ]+requirements?\b", re.I), "report", 5),
+    (re.compile(r"\b(owner[-_ ]?)?project[-_ ]?brief\b", re.I), "report", 5),
+    (re.compile(r"\bclient[-_ ]?brief\b", re.I), "report", 5),
+    (re.compile(r"\bpmp[-_ ]?(draft|brief)\b", re.I), "report", 5),
+    (re.compile(r"\brole[-_ ]?declaration\b", re.I), "report", 5),
+    (re.compile(r"\bbrief[-_ ]?sign[-_ ]?off\b", re.I), "report", 5),
+    (re.compile(r"\bemail[-_ ]?thread[-_ ].*\bbrief\b", re.I), "report", 5),
+    (re.compile(r"\bsurvey[-_ ]?report\b", re.I), "report", 5),
+    (re.compile(r"\b(feature|level)[-_ ]?survey\b", re.I), "report", 5),
+    (re.compile(r"\bgeotech(?:nical)?[-_ ]?(investigation[-_ ]?)?report\b", re.I), "report", 5),
+    (re.compile(r"\bdilapidation\b", re.I), "report", 5),
+    (re.compile(r"\bsydney[-_ ]?water\b", re.I), "report", 5),
+    (re.compile(r"\bsewer(age)?[-_ ]?(services[-_ ]?)?diagram\b", re.I), "report", 5),
+    (re.compile(r"\bbuild[-_ ]?over[-_ ]?sewer\b", re.I), "report", 5),
+    (re.compile(r"\bdue[-_ ]?diligence\b", re.I), "report", 5),
+    (re.compile(r"\bprice[-_ ]?schedule\b", re.I), "commercial", 5),
+    (re.compile(r"\bquote\b", re.I), "commercial", 5),
     # strong
     (re.compile(r"\bcost plan\b", re.I), "commercial", 5),
     (re.compile(r"\bpayment plan\b", re.I), "commercial", 5),
@@ -93,9 +126,75 @@ _PLANNING_INSTRUMENT_EXCLUDE_RE = re.compile(
     re.IGNORECASE,
 )
 
+_FILENAME_EXTRAS: list[tuple[re.Pattern[str], dict[str, str]]] = [
+    (re.compile(r"\bfee[-_ ]?proposal\b", re.I), {"commercial_type": "fee_proposal"}),
+    (re.compile(r"\bengagement[-_ ]?letter\b", re.I), {"commercial_type": "fee_proposal"}),
+    (re.compile(r"\bletter[-_ ]?of[-_ ]?engagement\b", re.I), {"commercial_type": "fee_proposal"}),
+    (re.compile(r"\bconsultant[-_ ]?(appointment|agreement)\b", re.I),
+     {"commercial_type": "fee_proposal"}),
+    (re.compile(r"\bscope[-_ ]?of[-_ ]?services\b", re.I), {"commercial_type": "fee_proposal"}),
+    (re.compile(r"\bappointment[-_ ]?letter\b", re.I), {"commercial_type": "fee_proposal"}),
+    (re.compile(r"\bprice[-_ ]?schedule\b", re.I), {"commercial_type": "quote"}),
+    (re.compile(r"\bquote\b", re.I), {"commercial_type": "quote"}),
+    (re.compile(r"\b(owner[-_ ]?)?project[-_ ]?brief\b", re.I), {"brief_kind": "project_brief"}),
+    (re.compile(r"\bclient[-_ ]?brief\b", re.I), {"brief_kind": "project_brief"}),
+    (re.compile(r"\bppr\b", re.I), {"brief_kind": "ppr"}),
+    (re.compile(r"\bprincipal'?s?[-_ ]+project[-_ ]+requirements?\b", re.I), {"brief_kind": "ppr"}),
+    (re.compile(r"\bpmp[-_ ]?(draft|brief)\b", re.I), {"brief_kind": "pmp"}),
+    (re.compile(r"\brole[-_ ]?declaration\b", re.I), {"brief_kind": "project_brief"}),
+    (re.compile(r"\bbrief[-_ ]?sign[-_ ]?off\b", re.I), {"brief_kind": "project_brief"}),
+    (re.compile(r"\bemail[-_ ]?thread[-_ ].*\bbrief\b", re.I), {"brief_kind": "project_brief"}),
+    (re.compile(r"\bdilapidation\b", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\bsydney[-_ ]?water\b", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\bsewer(age)?[-_ ]?(services[-_ ]?)?diagram\b", re.I),
+     {"due_diligence": "true"}),
+    (re.compile(r"\bbuild[-_ ]?over[-_ ]?sewer\b", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\bdue[-_ ]?diligence\b", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\bsurvey[-_ ]?report\b", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\b(feature|level)[-_ ]?survey\b", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\bgeotech", re.I), {"due_diligence": "true"}),
+    (re.compile(r"\bheritage[-_ ]?(advisor|desktop|assessment)\b", re.I),
+     {"due_diligence": "true"}),
+    (re.compile(r"\bplanning[-_ ]?pathway\b", re.I), {"subject": "planning"}),
+    (re.compile(r"\bauthorit(y|ies)[-_ ]?pathway\b", re.I), {"subject": "planning"}),
+    (re.compile(r"\bcdc[-_ ]?screening\b", re.I), {"subject": "planning"}),
+    (re.compile(r"\bcertifier[-_ ]?appointment\b", re.I), {"subject": "planning"}),
+    (re.compile(r"\bprincipal[-_ ]?certifier\b", re.I), {"subject": "planning"}),
+]
+
 _CONTENT_MARKERS: list[
     tuple[re.Pattern[str], DocumentClass, DocumentSubject, dict[str, str], float]
 ] = [
+    (re.compile(r"^\s*#\s*fee[-_ ]?proposal\b", re.I | re.M), "commercial", "none",
+     {"commercial_type": "fee_proposal"}, 0.90),
+    (re.compile(r"^\s*#\s*letter[-_ ]?of[-_ ]?engagement\b", re.I | re.M), "commercial", "none",
+     {"commercial_type": "fee_proposal"}, 0.90),
+    (re.compile(r"^\s*#\s*engagement[-_ ]?letter\b", re.I | re.M), "commercial", "none",
+     {"commercial_type": "fee_proposal"}, 0.90),
+    (re.compile(r"^\s*#\s*planning\s+pathway\s+memo\b", re.I | re.M), "report", "planning",
+     {}, 0.90),
+    (re.compile(r"\bprincipal\s+certifier\s+appointed\b", re.I), "certificate", "planning",
+     {}, 0.90),
+    (re.compile(r"^\s*#\s*price\s+estimate\b", re.I | re.M), "commercial", "cost",
+     {"commercial_type": "quote"}, 0.90),
+    (re.compile(r"\bbuilder'?s?\s+margin\b", re.I), "commercial", "cost",
+     {"commercial_type": "quote"}, 0.85),
+    (re.compile(r"\bschedule\s+of\s+rates\b", re.I), "commercial", "cost",
+     {"commercial_type": "quote"}, 0.85),
+    (re.compile(r"\bquotation\b", re.I), "commercial", "cost",
+     {"commercial_type": "quote"}, 0.80),
+    (re.compile(r"^\s*#\s*principal'?s?\s+project\s+requirements?\b", re.I | re.M),
+     "report", "none", {"brief_kind": "ppr"}, 0.90),
+    (re.compile(r"^\s*#\s*(owner[-_ ]?)?project[-_ ]?brief\b", re.I | re.M),
+     "report", "none", {"brief_kind": "project_brief"}, 0.90),
+    (re.compile(r"\bbrief formal sign[-_ ]?off\b", re.I), "report", "none",
+     {"brief_kind": "project_brief"}, 0.85),
+    (re.compile(r"^\s*#\s*(feature\s*[&]\s*)?level\s*survey\b", re.I | re.M),
+     "report", "survey", {"due_diligence": "true"}, 0.90),
+    (re.compile(r"^\s*#\s*dilapidation\s+condition\s+report\b", re.I | re.M),
+     "report", "defects", {"due_diligence": "true"}, 0.90),
+    (re.compile(r"\bsewerage services diagram\b", re.I), "report", "none",
+     {"due_diligence": "true"}, 0.90),
     (re.compile(r"\bTAX INVOICE\b", re.I), "commercial", "cost",
      {"commercial_type": "invoice"}, 0.95),
     (re.compile(r"\bHERITAGE IMPACT STATEMENT\b", re.I), "report", "heritage", {}, 0.95),
@@ -111,6 +210,12 @@ _CONTENT_MARKERS: list[
     (re.compile(r"\bVARIATION\b.{0,80}\$", re.I | re.S), "commercial", "contract_admin",
      {"commercial_type": "variation"}, 0.85),
     (re.compile(r"\bGEOTECHNICAL INVESTIGATION\b", re.I), "report", "geotechnical", {}, 0.90),
+    (re.compile(r"\b(?:master|project|construction|works)\s+programme\b", re.I),
+     "schedule", "programme", {}, 0.90),
+    (re.compile(r"\b(?:two|three|four|six|eight|twelve)[-_ ]week\s+lookahead\b", re.I),
+     "schedule", "programme", {}, 0.90),
+    (re.compile(r"\bmilestone\s+schedule\b", re.I), "schedule", "programme", {}, 0.85),
+    (re.compile(r"\bgantt(?:\s+chart)?\b", re.I), "schedule", "programme", {}, 0.85),
     (re.compile(r"^\s*Dear\b.*\bYours (sincerely|faithfully)\b", re.I | re.S | re.M),
      "correspondence", "none", {}, 0.85),
 ]
@@ -296,6 +401,33 @@ def _content_match(
     return None
 
 
+def _extras_from_filename(filename: str) -> dict[str, str]:
+    extra: dict[str, str] = {}
+    for pattern, payload in _FILENAME_EXTRAS:
+        if not pattern.search(filename):
+            continue
+        for key, value in payload.items():
+            extra.setdefault(key, value)
+    return extra
+
+
+def _discipline_slug(*texts: str) -> str | None:
+    for text in texts:
+        if not text:
+            continue
+        label = infer_discipline_from_file_name(text)
+        if not label:
+            continue
+        matches = [
+            slug for slug, mapped in DISCIPLINE_FOLDER_LABELS.items() if mapped == label
+        ]
+        if not matches:
+            continue
+        canonical = [slug for slug in matches if "-engineer" not in slug]
+        return (canonical or matches)[0]
+    return None
+
+
 def _user_override(_entry: ManifestEntry) -> Classification | None:
     """Cascade Stage A fallback. Callers pass an already-resolved override."""
     return None
@@ -350,6 +482,16 @@ def classify_entry(
     filename = entry.filename
     scored = score_filename(filename)
     subject = scored.subject
+    extras = _extras_from_filename(filename)
+    subject_override = extras.get("subject")
+    for key, value in extras.items():
+        if key != "subject":
+            metadata.setdefault(key, value)
+    if subject == "none" and subject_override:
+        subject = subject_override  # type: ignore[assignment]
+    discipline = _discipline_slug(filename, extracted_text or "")
+    if discipline:
+        metadata.setdefault("discipline", discipline)
 
     identity = parse_drawing_filename(filename)
     if identity.drawing_number:

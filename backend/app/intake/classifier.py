@@ -1,14 +1,17 @@
-"""Classify inbox files into known SiteWise lifecycle destination folders."""
+"""Route classified documents into known SiteWise lifecycle destination folders."""
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from urllib.parse import unquote
 
+from ingest.classify import classify_entry
 from ingest.document_metadata import (
     DISCIPLINE_FOLDER_LABELS,
     infer_discipline_from_file_name,
 )
+from ingest.types import Classification, ManifestEntry
 
 # Top-level `_inbox/<package>/` folder → destination path relative to project workspace.
 INBOX_PACKAGE_DESTINATIONS: dict[str, str] = {
@@ -43,7 +46,8 @@ INBOX_PACKAGE_DESTINATIONS: dict[str, str] = {
     "s73 NOR DEVELOPER DEED & MLIM": "04-planning-and-authorities",
 }
 
-_FILENAME_DESTINATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+# Discipline sheet prefixes — routing, not semantic (Stage 6.1 split).
+_FILENAME_ROUTING_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^CC-A-", re.I), "03-design/architect"),
     (
         re.compile(r"^(?:\d{3,6}[\s_-]+)?M-?\d{2,4}\b", re.I),
@@ -57,118 +61,33 @@ _FILENAME_DESTINATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^F-", re.I), "03-design/fire"),
     (re.compile(r"^S\d{3}", re.I), "03-design/structural"),
     (re.compile(r"\bctmp\b", re.I), "03-design/civil"),
-    (re.compile(r"\bprice[-_ ]?schedule\b", re.I), "05-procurement/quotes"),
-    (re.compile(r"\b(tender|submission|procurement|quote)\b", re.I), "05-procurement"),
-    (re.compile(r"\b(invoice|claim|estimate|budget|cost)\b", re.I), "01-cost"),
-    (re.compile(r"\b(minutes|meeting)\b", re.I), "08-meetings-reporting"),
 ]
 
-_BRIEF_FILENAME_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\bppr\b", re.I),
-    re.compile(r"\bprincipal'?s?[-_ ]+project[-_ ]+requirements?\b", re.I),
-    re.compile(r"\b(owner[-_ ]?)?project[-_ ]?brief\b", re.I),
-    re.compile(r"\bclient[-_ ]?brief\b", re.I),
-    re.compile(r"\bpmp[-_ ]?(draft|brief)\b", re.I),
-    re.compile(r"\brole[-_ ]?declaration\b", re.I),
-    re.compile(r"\bbrief[-_ ]?sign[-_ ]?off\b", re.I),
-    re.compile(r"\bemail[-_ ]?thread[-_ ].*\bbrief\b", re.I),
-]
+_ROUTES: dict[tuple[str, str], str] = {
+    ("commercial", "cost"): "01-cost",
+    ("commercial", "contract_admin"): "01-cost/variations",
+    ("report", "structural"): "03-design/structural",
+    ("report", "geotechnical"): "03-design/01-due-diligence",
+    ("report", "survey"): "03-design/01-due-diligence",
+    ("report", "heritage"): "03-design/01-due-diligence",
+    ("report", "planning"): "04-planning-and-authorities",
+    ("certificate", "planning"): "04-planning-and-authorities",
+    ("schedule", "programme"): "06-programme",
+    ("schedule", "cost"): "01-cost",
+}
 
-_CONSULTANT_COMMERCIAL_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\bfee[-_ ]?proposal\b", re.I),
-    re.compile(r"\bengagement[-_ ]?letter\b", re.I),
-    re.compile(r"\bletter[-_ ]?of[-_ ]?engagement\b", re.I),
-    re.compile(r"\bconsultant[-_ ]?(appointment|agreement)\b", re.I),
-    re.compile(r"\bscope[-_ ]?of[-_ ]?services\b", re.I),
-    re.compile(r"\bappointment[-_ ]?letter\b", re.I),
-]
-
-_AUTHORITY_DESTINATION = "04-planning-and-authorities"
-
-_AUTHORITY_FILENAME_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\bplanning[-_ ]?pathway\b", re.I),
-    re.compile(r"\bauthorit(y|ies)[-_ ]?pathway\b", re.I),
-    re.compile(r"\bcdc[-_ ]?screening\b", re.I),
-    re.compile(r"\bprincipal[-_ ]?certifier\b", re.I),
-    re.compile(r"\bcertifier[-_ ]?appointment\b", re.I),
-]
-
-_PREVIEW_AUTHORITY_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^\s*#\s*planning\s+pathway\s+memo\b", re.I | re.M),
-    re.compile(r"\bDA\s*(?:\+|/)\s*CC\s+pathway\b", re.I),
-    re.compile(r"\bComplying Development\s*\(CDC\)\b", re.I),
-    re.compile(r"\bDevelopment Application\s*\(DA\)\b", re.I),
-    re.compile(r"\bprincipal\s+certifier\s+appointed\b", re.I),
-    re.compile(r"\bcertifier\s+engagement\s+on\s+file\b", re.I),
-]
-
-_PREVIEW_BRIEF_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(
-        r"^\s*#\s*principal'?s?\s+project\s+requirements?\b",
-        re.I | re.M,
-    ),
-    re.compile(r"\bprincipal'?s?\s+project\s+requirements?\s*\(PPR\)", re.I),
-    re.compile(r"^\s*#\s*(owner[-_ ]?)?project[-_ ]?brief\b", re.I | re.M),
-    re.compile(r"^\s*#\s*client[-_ ]?brief\b", re.I | re.M),
-    re.compile(r"^\s*#\s*project[-_ ]?management[-_ ]?plan\b", re.I | re.M),
-    re.compile(r"\bbrief formal sign[-_ ]?off\b", re.I),
-    re.compile(r"Subject:\s*RE:.*\bowner brief\b", re.I),
-]
-
-_PREVIEW_CONSULTANT_COMMERCIAL_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^\s*#\s*fee[-_ ]?proposal\b", re.I | re.M),
-    re.compile(r"^\s*#\s*letter[-_ ]?of[-_ ]?engagement\b", re.I | re.M),
-    re.compile(r"^\s*#\s*engagement[-_ ]?letter\b", re.I | re.M),
-]
-
-_DUE_DILIGENCE_DESTINATION = "03-design/01-due-diligence"
-
-_DUE_DILIGENCE_FILENAME_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\bsurvey[-_ ]?report\b", re.I),
-    re.compile(r"\b(feature|level)[-_ ]?survey\b", re.I),
-    re.compile(r"\bgeotechnical[-_ ]?(investigation[-_ ]?)?report\b", re.I),
-    re.compile(r"\bgeotech[-_ ]?report\b", re.I),
-    re.compile(r"\bdilapidation[-_ ]?(condition[-_ ]?)?report\b", re.I),
-    re.compile(r"\bdilapidation\b", re.I),
-    re.compile(r"\bsydney[-_ ]?water\b", re.I),
-    re.compile(r"\bsewer(age)?[-_ ]?(services[-_ ]?)?diagram\b", re.I),
-    re.compile(r"\bbuild[-_ ]?over[-_ ]?sewer\b", re.I),
-    re.compile(r"\bheritage[-_ ]?(advisor|desktop|assessment)\b", re.I),
-    re.compile(r"\bdue[-_ ]?diligence\b", re.I),
-]
-
-_PREVIEW_DUE_DILIGENCE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^\s*#\s*(feature\s*[&]\s*)?level\s*survey\b", re.I | re.M),
-    re.compile(r"^\s*#\s*geotechnical\s+investigation\s+report\b", re.I | re.M),
-    re.compile(r"^\s*#\s*dilapidation\s+condition\s+report\b", re.I | re.M),
-    re.compile(r"\bgeotechnical investigation report on file\b", re.I),
-    re.compile(r"\bsewerage services diagram\b", re.I),
-    re.compile(r"\bpre-demolition dilapidation\b", re.I),
-]
-
-# Builder quotes / price estimates identified by document CONTENT — filenames
-# are often just a builder's name (e.g. "Kaposi.pdf"), so content signals are
-# the reliable route to 05-procurement.
-_QUOTE_DESTINATION = "05-procurement/quotes"
-
-_PREVIEW_QUOTE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^\s*#\s*price\s+estimate\b", re.I | re.M),
-    re.compile(r"\bprice\s+estimate\b", re.I),
-    re.compile(r"\bprice\s+schedule\b", re.I),
-    re.compile(r"\bbuilder'?s?\s+margin\b", re.I),
-    re.compile(r"\bquotation\b", re.I),
-    re.compile(r"\bschedule\s+of\s+rates\b", re.I),
-    re.compile(r"\btender\s+(?:price|sum|submission)\b", re.I),
-]
-
-_PROGRAMME_DESTINATION = "06-programme"
-
-_PROGRAMME_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\b(?:master|project|construction|works)\s+programme\b", re.I),
-    re.compile(r"\b(?:two|three|four|six|eight|twelve)[-_ ]week\s+lookahead\b", re.I),
-    re.compile(r"\bmilestone\s+schedule\b", re.I),
-    re.compile(r"\bgantt(?:\s+chart)?\b", re.I),
-]
+_ROUTES_BY_CLASS: dict[str, str | None] = {
+    "statutory_instrument": "04-planning-and-authorities",
+    "certificate": "04-planning-and-authorities",
+    "contract": "02-consultant",
+    "correspondence": "08-meetings-reporting",
+    "photo": "07-construction/photos",
+    "drawing": None,
+    "specification": None,
+    "commercial": None,
+    "schedule": None,
+    "unknown": None,
+}
 
 _MANIFEST_PATTERN = re.compile(r"^intake_manifest_v\d+\.md$", re.I)
 
@@ -211,21 +130,76 @@ def _infer_discipline_slug(*, stem: str, preview_snippet: str | None) -> str | N
     return None
 
 
-def _consultant_destination(*, stem: str, preview_snippet: str | None) -> str:
-    discipline_slug = _infer_discipline_slug(stem=stem, preview_snippet=preview_snippet)
+def _consultant_destination(discipline_slug: str | None) -> str:
     if discipline_slug:
         return f"02-consultant/{discipline_slug}"
     return "02-consultant"
 
 
-def _matches_any(patterns: list[re.Pattern[str]], *texts: str) -> bool:
-    for text in texts:
-        if not text:
-            continue
-        for pattern in patterns:
-            if pattern.search(text):
-                return True
-    return False
+def _discipline_for(
+    classification: Classification, *, filename: str
+) -> str | None:
+    slug = classification.document_metadata.get("discipline")
+    if slug:
+        return slug
+    stem = filename.rsplit(".", maxsplit=1)[0] if "." in filename else filename
+    return _infer_discipline_slug(stem=stem, preview_snippet=None)
+
+
+def _filename_routing(filename: str) -> str | None:
+    stem = filename.rsplit(".", maxsplit=1)[0] if "." in filename else filename
+    for pattern, destination in _FILENAME_ROUTING_PATTERNS:
+        if pattern.search(stem) or pattern.search(filename):
+            return destination
+    return None
+
+
+def filing_destination(
+    classification: Classification,
+    *,
+    workspace_path: str,
+    filename: str,
+    project_workspace_path: str,
+) -> str | None:
+    """Route a classified document to a lifecycle folder. Makes no semantic
+    judgement — it only reads the canonical Classification."""
+
+    package = inbox_package_folder(workspace_path, project_workspace_path)
+    if package and (dest := INBOX_PACKAGE_DESTINATIONS.get(unquote(package).upper())):
+        return dest
+
+    metadata = classification.document_metadata
+    if metadata.get("procurement_stage"):
+        return "05-procurement"
+
+    commercial_type = metadata.get("commercial_type")
+    if commercial_type == "fee_proposal":
+        return _consultant_destination(
+            _discipline_for(classification, filename=filename)
+        )
+    if commercial_type == "quote":
+        return "05-procurement/quotes"
+    if metadata.get("brief_kind"):
+        return "00-brief-pmp"
+    if metadata.get("due_diligence"):
+        return "03-design/01-due-diligence"
+
+    pair = _ROUTES.get((classification.document_class, classification.document_subject))
+    if pair is not None:
+        return pair
+    by_class = _ROUTES_BY_CLASS.get(classification.document_class)
+    if by_class is not None:
+        return by_class
+
+    routed = _filename_routing(filename)
+    if routed is not None:
+        return routed
+
+    discipline_slug = _discipline_for(classification, filename=filename)
+    if discipline_slug:
+        return f"03-design/{discipline_slug}"
+
+    return None
 
 
 def classify_inbox_destination(
@@ -235,53 +209,25 @@ def classify_inbox_destination(
     project_workspace_path: str,
     preview_snippet: str | None = None,
 ) -> str | None:
-    """Return a confident lifecycle destination folder or None when unresolved."""
+    """Shim: classify then route. Stage 7 wires sort_service to filing_destination."""
     if is_intake_manifest(filename):
         return None
 
-    package = inbox_package_folder(workspace_path, project_workspace_path)
-    if package:
-        decoded = unquote(package).upper()
-        destination = INBOX_PACKAGE_DESTINATIONS.get(
-            decoded
-        ) or INBOX_PACKAGE_DESTINATIONS.get(package.upper())
-        if destination:
-            return destination
-
-    stem = filename.rsplit(".", maxsplit=1)[0] if "." in filename else filename
-
-    if _matches_any(_AUTHORITY_FILENAME_PATTERNS, stem, filename) or _matches_any(
-        _PREVIEW_AUTHORITY_PATTERNS, preview_snippet or ""
-    ):
-        return _AUTHORITY_DESTINATION
-
-    if _matches_any(_CONSULTANT_COMMERCIAL_PATTERNS, stem, filename) or _matches_any(
-        _PREVIEW_CONSULTANT_COMMERCIAL_PATTERNS, preview_snippet or ""
-    ):
-        return _consultant_destination(stem=stem, preview_snippet=preview_snippet)
-
-    if _matches_any(_BRIEF_FILENAME_PATTERNS, stem, filename) or _matches_any(
-        _PREVIEW_BRIEF_PATTERNS, preview_snippet or ""
-    ):
-        return "00-brief-pmp"
-
-    if _matches_any(_DUE_DILIGENCE_FILENAME_PATTERNS, stem, filename) or _matches_any(
-        _PREVIEW_DUE_DILIGENCE_PATTERNS, preview_snippet or ""
-    ):
-        return _DUE_DILIGENCE_DESTINATION
-
-    if _matches_any(_PROGRAMME_PATTERNS, stem, filename, preview_snippet or ""):
-        return _PROGRAMME_DESTINATION
-
-    for pattern, destination in _FILENAME_DESTINATION_PATTERNS:
-        if pattern.search(stem) or pattern.search(filename):
-            return destination
-
-    if _matches_any(_PREVIEW_QUOTE_PATTERNS, preview_snippet or ""):
-        return _QUOTE_DESTINATION
-
-    discipline_slug = _infer_discipline_slug(stem=stem, preview_snippet=preview_snippet)
-    if discipline_slug:
-        return f"03-design/{discipline_slug}"
-
-    return None
+    extension = ""
+    if "." in filename:
+        extension = "." + filename.rsplit(".", maxsplit=1)[-1]
+    entry = ManifestEntry(
+        absolute_path=Path(workspace_path),
+        relative_path=workspace_path,
+        project=project_workspace_path.split("/", maxsplit=1)[0],
+        filename=filename,
+        extension=extension,
+        size_bytes=0,
+    )
+    classification = classify_entry(entry, extracted_text=preview_snippet)
+    return filing_destination(
+        classification,
+        workspace_path=workspace_path,
+        filename=filename,
+        project_workspace_path=project_workspace_path,
+    )

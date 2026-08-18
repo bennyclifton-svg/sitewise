@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 5 complete (`90f12255`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 6 complete (SHA in packet record)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -104,12 +104,12 @@ is not done.
 
 ### Stage 6 — Collapse duplicate classifiers → [`stage-06-collapse-classifiers.md`](./stage-06-collapse-classifiers.md)
 
-- [ ] 6.1 Signal inventory: which of B's rules survive
-- [ ] 6.2 Port surviving semantic signals into `classify.py`
-- [ ] 6.3 `filing_destination(Classification) -> str | None`
-- [ ] 6.4 Delete superseded regex families from `app/intake/classifier.py`
-- [ ] 6.5 Routing test matrix
-- [ ] 6.6 **LOC gate check vs. Stage 0.6 number**
+- [x] 6.1 Signal inventory: which of B's rules survive — Cursor Grok 4.6 / `x1/stage-6-collapse-classifiers`
+- [x] 6.2 Port surviving semantic signals into `classify.py`
+- [x] 6.3 `filing_destination(Classification) -> str | None`
+- [x] 6.4 Delete superseded regex families from `app/intake/classifier.py`
+- [x] 6.5 Routing test matrix
+- [x] 6.6 **LOC gate check vs. Stage 0.6 number** — 5982 vs 5609 (**+6.6%**, <10%; justification in packet record)
 
 ### Stage 7 — Auto-filing / Sort repair → [`stage-07-auto-filing.md`](./stage-07-auto-filing.md)
 
@@ -192,6 +192,7 @@ that do not exist. Expanding them now would produce fiction.
 | Shim | File | Added by | Removal packet |
 |---|---|---|---|
 | `LegacyDocumentClass` alias (procurement / doctrine / undeclared DB values kept reachable until data migration) | `backend/ingest/types.py` | Stage 3.1 | 8.9 |
+| `classify_inbox_destination` thin adapter (classify then `filing_destination`). `sort_service` / `repair_service` still call it. | `backend/app/intake/classifier.py` | Stage 6.4 | 7.2 |
 
 ---
 
@@ -242,6 +243,11 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | Stage 5.6 known limitation: `key_basis=relative_path` (null `content_hash`, OD-3) does not survive a file move. Hash-keyed overrides do. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 5.2 does not re-OCR or re-embed. Updating `source_documents.document_class` is enough for drawing-register membership and retrieval class filters. Existing chunks are left in place (D3). | open |
 | 2026-08-18 | Cursor Grok 4.6 | `pnpm lint` still fails on pre-existing `CostPlanGrid.tsx` `react-hooks/set-state-in-effect`. Stage 5 chip/panel files lint clean. Not fixed in this packet. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 6.1 extras not in the stage-file sketch: `_PREVIEW_BRIEF_PATTERNS`, `_PREVIEW_CONSULTANT_COMMERCIAL_PATTERNS`, `_PREVIEW_DUE_DILIGENCE_PATTERNS`, `_consultant_destination`. Ported with the parent filename families. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 6.1 did not port bare `Development Application (DA)` / `Complying Development (CDC)` as class — too broad; they would steal reports. Chen pack still classifies from filename (`planning-pathway`, `certifier-appointment`). | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 6.3 `_ROUTES` table does not name `00-brief-pmp`, `02-consultant/{discipline}`, `05-procurement/quotes`, or generic due-diligence. `filing_destination` reads `brief_kind` / `commercial_type` / `due_diligence` metadata so Classifier B destinations survive. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 6.4 kept `tests/intake/test_classifier.py` as shim regression (filename+preview → destination via classify then route). New matrix is `tests/intake/test_filing_destination.py`. | open |
+| 2026-08-18 | Cursor Grok 4.6 | `grep classify_inbox_destination` hits the shim plus `sort_service.py` / `repair_service.py` callers (Stage 7 wires those) and adapter tests. | open |
 
 ---
 
@@ -690,4 +696,69 @@ Files changed:
 
 Files deleted: none
 ```
+
+### Stage 6 (6.1–6.6) — 2026-08-18
+
+```text
+Packet: 6.1–6.6 Collapse duplicate classifiers
+Status: [x]
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-6-collapse-classifiers (repo root)
+Predecessors verified: Stage 4 [x] SHA 7052d143; Stage 5 [x] SHA 90f12255
+Reading list actually read: 00-doctrine.md, 01-ground-truth.md §The two classifiers, app/intake/classifier.py (full), ingest/classify.py (post-Stage-4/5), tests/workflows/test_sort_files.py. Callers required by 6.4: tests/intake/test_classifier.py (destination assertions kept as shim regression).
+Failing test written: tests/ingest/test_filename_scoring.py (9 new cases → None/wrong class); tests/ingest/test_classify.py (8 metadata/content tests); tests/intake/test_filing_destination.py (ImportError filing_destination)
+Commit SHA: (feat commit; recorded in follow-up docs commit)
+Production LOC delta: ingest/classify.py 436→577 (+141); app/intake/classifier.py 288→233 (−55). Gate total 5982 vs Stage 0.6 5609 = +373 / +6.6% (<10%).
+Integration notes raised: extra preview families; DA/CDC not ported as class; metadata routes beyond 6.3 table; test_classifier.py kept; shim callers remain until Stage 7
+Handoff: Stage 6 complete. Stage 7 is unblocked. sort_service still calls classify_inbox_destination (shim).
+
+LOC justification (D8): increase is Stages 1–6 scoring tables and extras inside the one classifier, not a parallel engine. classifier.py lost every semantic regex family. classify_inbox_destination is a thin classify-then-route adapter listed under Shims outstanding (removal: 7.2).
+
+Verification — 6.2 RED:
+FAILED score_filename planning-pathway / certifier-appointment / engagement-letter / owner-project-brief / PPR / email-thread-brief / sydney-water / Price Schedule / cdc-screening
+FAILED classify_entry metadata/content ports (unknown or correspondence; KeyError due_diligence)
+17 failed, 70 passed
+
+Verification — 6.5 RED:
+ImportError: cannot import name 'filing_destination' from 'app.intake.classifier'
+
+Verification — GREEN:
+uv run pytest tests/ingest/ tests/intake/test_filing_destination.py tests/intake/test_classifier.py tests/workflows/test_sort_files.py -q
+  279 passed, 1 warning in 4.11s
+
+uv run ruff check .
+  All checks passed!
+
+grep classify_inbox_destination backend/:
+  app/intake/classifier.py          def classify_inbox_destination  (shim)
+  app/intake/sort_service.py        destination_folder = classify_inbox_destination(
+  app/intake/repair_service.py      destination_folder = classify_inbox_destination(
+  tests/intake/test_classifier.py   adapter regression
+
+Verification — 6.6 LOC:
+5982 total  (Stage 0.6 baseline 5609; +373 / +6.6%)
+
+Verification — backend suite:
+uv run pytest -q --tb=line --import-mode=importlib
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+4 failed, 2501 passed, 7 skipped, 34 deselected, 5 warnings in 50.64s
+(diff vs baseline-backend-failures.txt: empty — same 4 FAILED names; +27 passed vs Stage 5)
+
+Files added:
+- docs/acceptance/x1/classifier-signal-inventory.md (new; replaces nothing — 6.1 inventory)
+- backend/tests/intake/test_filing_destination.py (new; does not replace a file)
+
+Files changed:
+- backend/ingest/classify.py (replaces nothing; receives ported semantic signals)
+- backend/app/intake/classifier.py (replaces regex semantic families with filing_destination + shim)
+- backend/tests/ingest/test_filename_scoring.py
+- backend/tests/ingest/test_classify.py
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+
 

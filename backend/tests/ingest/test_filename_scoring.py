@@ -49,6 +49,17 @@ CASES = [
     ("Section AA.pdf", "drawing"),
     ("Detail 12.pdf", "drawing"),
     ("unknown-scan.pdf", None),
+    # Stage 6.2 ports from app/intake/classifier.py
+    ("09-planning-pathway-memo-harrison-clarke.md", "report"),
+    ("12-certifier-appointment-chen-residence.md", "certificate"),
+    ("01-engagement-letter-harrison-clarke-studio.md", "commercial"),
+    ("owner-project-brief.md", "report"),
+    ("Mosaic Apartments PPR.pdf", "report"),
+    ("04-email-thread-brief-signoff.md", "report"),
+    ("07-dilapidation-report-buildcheck.md", "report"),
+    ("08-email-sydney-water-sewer-diagram.md", "report"),
+    ("Price Schedule.pdf", "commercial"),
+    ("cdc-screening-note.md", "report"),
 ]
 
 
