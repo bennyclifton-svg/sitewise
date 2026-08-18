@@ -115,6 +115,7 @@ from app.schemas.projects import (
     DocumentRepairPreviewRow,
     DocumentUsageMark,
     EvidencePreview,
+    SetDocumentClassificationRequest,
     InboxUploadResponse,
     InboxUploadResult,
     PdfAnalyzeResponse,
@@ -162,6 +163,11 @@ from app.schemas.profile_proposals import (
 )
 from app.projects.document_usage import latest_document_usage
 from app.projects.events import list_project_events
+from app.projects.classification_override import (
+    DocumentClassificationInvalid,
+    DocumentClassificationNotFound,
+    set_document_classification,
+)
 from app.projects.decisions import (
     DecisionNotFound,
     DecisionRevisionConflict,
@@ -547,6 +553,18 @@ def _download_headers(filename: str) -> dict[str, str]:
     }
 
 
+def _metadata_confidence(metadata: dict | None) -> float | None:
+    if not metadata:
+        return None
+    raw = metadata.get("confidence")
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 def _evidence_preview_from_values(
     *,
     document_id: uuid.UUID,
@@ -574,6 +592,9 @@ def _evidence_preview_from_values(
         relative_path=relative_path,
         source_type=source_type,
         document_class=document_class,
+        document_subject=_metadata_text(metadata, "subject"),
+        confidence=_metadata_confidence(metadata),
+        classification_basis=_metadata_text(metadata, "basis"),
         excerpt=_excerpt(excerpt_source),
         content=content,
         document_number=_metadata_text(metadata, "document_number"),
@@ -2046,6 +2067,39 @@ async def get_project_evidence_document(
             detail="Evidence not found",
         )
     return _evidence_preview_from_workspace_file(workspace_file)
+
+
+@router.put("/{project_id}/documents/{document_id}/classification")
+async def put_document_classification(
+    project_id: uuid.UUID,
+    document_id: uuid.UUID,
+    body: SetDocumentClassificationRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> EvidencePreview:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        document = await set_document_classification(
+            session,
+            project_id=project.id,
+            document_id=document_id,
+            document_class=body.document_class,
+            document_subject=body.document_subject,
+            actor_id=user.id,
+            reason=body.reason,
+        )
+    except DocumentClassificationNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        ) from exc
+    except DocumentClassificationInvalid as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return _evidence_preview_from_document(document, include_content=False)
 
 
 @router.delete("/{project_id}/evidence/batch")

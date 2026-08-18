@@ -1176,7 +1176,11 @@ function ProjectCockpitContents() {
       ) : null}
       {activeView === "folder" ? (
         <Suspense fallback={null}>
-          <WorkspaceFolderPanel folder={selectedFolder} evidence={evidence} />
+          <WorkspaceFolderPanel
+            projectId={project.id}
+            folder={selectedFolder}
+            evidence={evidence}
+          />
         </Suspense>
       ) : null}
       {activeView === "draft" && project ? (

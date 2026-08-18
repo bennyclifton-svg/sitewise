@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 4 complete (`7052d143`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 5 complete (pending SHA)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -92,15 +92,15 @@ is not done.
 
 ### Stage 5 — User override → [`stage-05-user-override.md`](./stage-05-user-override.md)
 
-- [ ] 5.1 Migration: `document_classification_overrides`
-- [ ] 5.2 `set_document_classification()` service
-- [ ] 5.3 Stage A lookup wired into classifier
-- [ ] 5.4 REST endpoint (+ project authorization test)
-- [ ] 5.5 Survives re-ingest test
-- [ ] 5.6 Survives file-move test
-- [ ] 5.7 Frontend classification chip
-- [ ] 5.8 MCP tool `set_document_classification`
-- [ ] 5.9 Null `content_hash` path handled
+- [x] 5.1 Migration: `document_classification_overrides` — Cursor Grok 4.6 / `x1/stage-5-user-override`
+- [x] 5.2 `set_document_classification()` service
+- [x] 5.3 Stage A lookup wired into classifier
+- [x] 5.4 REST endpoint (+ project authorization test)
+- [x] 5.5 Survives re-ingest test
+- [x] 5.6 Survives file-move test
+- [x] 5.7 Frontend classification chip
+- [x] 5.8 MCP tool `set_document_classification`
+- [x] 5.9 Null `content_hash` path handled
 
 ### Stage 6 — Collapse duplicate classifiers → [`stage-06-collapse-classifiers.md`](./stage-06-collapse-classifiers.md)
 
@@ -142,7 +142,7 @@ Do not open a Wave 2 packet until all are true:
 - [x] Stage 3 contract frozen and tagged (`x1-gate-1`)
 - [x] Stage 0 baseline table fully populated
 - [x] Backend suite failures ⊆ Stage 0 pre-existing failures
-- [ ] Gate signed off by: __________ on __________
+- [X] Gate signed off by: BC on 18/08
 
 ## 🔒 GATE 2 — Canonical classification live
 
@@ -237,6 +237,11 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | Gate 1 contract frozen as tag `x1-gate-1` (`c1b38f4b128ded46755ee0cb8236188a4bf4ac90`). Human signature on the GATE 1 checklist is still required before Wave 2. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 4: `pipeline.py` / `hosted.py` still call `classify_entry(entry)` before extraction, so Stage D content markers only run when the caller passes `extracted_text`. Did not rewire those files (outside Stage 4 ownership). Fixture accuracy passes text in. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 4 filename table extras beyond the sketch: `\bpayment plan\b` (test matrix), `^M\d{2,3}\b` (split mechanical sheets), DCP/LEP skipped when assessment/report/statement/review present (keeps Heritage DCP assessment as report). Content extras: `\bBUSINESS PLAN\b` → report (fixture; filename scoring correctly returns None). | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 5: Alembic `version_num` is `varchar(32)`. Sketch revision `048_document_classification_overrides` (40 chars) cannot be stored. Used `048_classification_overrides`. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 5.3: `infer_project_context` never sets `project_id`, so corpus `pipeline.plan_entry` cannot look up overrides. Hosted ingest (`ingest/hosted.py`) is the project-scoped path and now looks up by content hash before `classify_entry`. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 5.6 known limitation: `key_basis=relative_path` (null `content_hash`, OD-3) does not survive a file move. Hash-keyed overrides do. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 5.2 does not re-OCR or re-embed. Updating `source_documents.document_class` is enough for drawing-register membership and retrieval class filters. Existing chunks are left in place (D3). | open |
+| 2026-08-18 | Cursor Grok 4.6 | `pnpm lint` still fails on pre-existing `CostPlanGrid.tsx` `react-hooks/set-state-in-effect`. Stage 5 chip/panel files lint clean. Not fixed in this packet. | open |
 
 ---
 
@@ -614,3 +619,75 @@ Files changed:
 
 Files deleted: none
 ```
+
+### Stage 5 (5.1–5.9) — 2026-08-18
+
+```text
+Packet: 5.1–5.9 User classification override
+Status: [x]
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-5-user-override (repo root)
+Predecessors verified: Stage 3 [x] tag x1-gate-1; Stage 4 [x] SHA 7052d143
+Reading list actually read: 00-doctrine.md §D4, backend/app/database/source_document.py, alembic/versions/047_programme.py, app/api/projects.py PUT authorization pattern, backend/AGENTS.md §Database Migrations. Stage-A hook: ingest/classify.py. Callers required by 5.3/5.5: ingest/hosted.py.
+Failing test written: tests/projects/test_classification_override.py (ImportError classification_override); tests/test_classification_override_api.py (404 "Not Found" missing route); tests/mcp_bridge/test_set_document_classification.py (missing tool); ClassificationChip.test.tsx (missing module)
+Commit SHA: (recorded after commit)
+Production LOC delta: classification_override.py 200; document_classification_override.py 70; alembic 048 113; projects.py +54; mcp_bridge/server.py +66; schemas +10; models +4; classify.py +8/−3; hosted.py +25. Frontend ClassificationChip.tsx new.
+Integration notes raised: alembic version_num varchar(32); hosted.py lookup (pipeline has no project_id); path-keyed move limitation; no re-embed on override; pre-existing CostPlanGrid lint
+Handoff: Stage 5 complete. Stage 6 is unblocked.
+
+Verification — 5.4 RED:
+PUT /projects/{B}/documents/{A}/classification → 404 detail="Not Found" (route missing)
+
+Verification — 5.1 alembic:
+uv run alembic upgrade head → 047_programme -> 048_classification_overrides
+uv run alembic downgrade -1 → 048_classification_overrides -> 047_programme
+uv run alembic upgrade head → 047_programme -> 048_classification_overrides
+uv run alembic current → 048_classification_overrides (head)
+
+Verification — GREEN:
+uv run pytest tests/ingest/ tests/projects/test_classification_override.py tests/test_classification_override_api.py tests/mcp_bridge/test_set_document_classification.py -q
+  214 passed, 1 warning in 6.28s
+uv run ruff check . → All checks passed!
+pnpm typecheck → exit 0
+pnpm test → 83 files, 522 tests passed
+Stage 5 eslint files clean; repo-wide pnpm lint fails on pre-existing CostPlanGrid.tsx
+
+Verification — one implementation:
+  app/projects/classification_override.py  async def set_document_classification
+  app/api/projects.py                      await set_document_classification(
+  app/mcp_bridge/server.py                 import as set_document_classification_service; tool wraps it
+
+Verification — backend suite:
+uv run pytest -q --tb=line --import-mode=importlib
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+4 failed, 2474 passed, 7 skipped, 34 deselected, 5 warnings in 52.71s
+(diff vs baseline-backend-failures.txt: empty — same 4 FAILED names; +11 passed vs Stage 4)
+
+Files added:
+- backend/alembic/versions/048_document_classification_overrides.py (new)
+- backend/app/database/document_classification_override.py (new)
+- backend/app/projects/classification_override.py (new; REST and MCP share this)
+- backend/tests/projects/test_classification_override.py (new)
+- backend/tests/test_classification_override_api.py (new)
+- backend/tests/mcp_bridge/test_set_document_classification.py (new)
+- frontend/src/components/project/ClassificationChip.tsx (new; replaces class Badge in preview/explorer)
+- frontend/src/components/project/ClassificationChip.test.tsx (new)
+
+Files changed:
+- backend/ingest/classify.py (Stage A override= keyword)
+- backend/ingest/hosted.py (hash lookup into classify_entry)
+- backend/app/api/projects.py (PUT classification; evidence preview fields)
+- backend/app/mcp_bridge/server.py (MCP tool wraps the service)
+- backend/app/schemas/projects.py
+- backend/app/database/models.py
+- frontend/src/lib/api.ts, types/project.ts
+- frontend/src/components/project/WorkspaceFilePanel.tsx, WorkspaceFolderPanel.tsx
+- frontend/src/pages/ProjectCockpitPage.tsx, CockpitPreviewPage.tsx
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+

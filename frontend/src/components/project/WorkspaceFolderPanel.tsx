@@ -1,16 +1,20 @@
 import { Bot, FileText, FolderOpen, Play } from "lucide-react";
 
+import { ClassificationChip } from "@/components/project/ClassificationChip";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { isMarkdownFilename } from "@/lib/markdown";
 import type { EvidencePreview, WorkspaceTreeNode } from "@/lib/types/project";
 
 export function WorkspaceFolderPanel({
+  projectId,
   folder,
   evidence,
 }: {
+  projectId: string;
   folder: WorkspaceTreeNode | null;
   evidence: EvidencePreview[];
 }) {
@@ -59,7 +63,18 @@ export function WorkspaceFolderPanel({
                         <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <span className="truncate">{item.title}</span>
                       </span>
-                      <Badge variant="outline">{item.document_class}</Badge>
+                      <ClassificationChip
+                        key={item.id}
+                        documentClass={item.document_class}
+                        documentSubject={item.document_subject}
+                        confidence={item.confidence}
+                        onChange={async ({ documentClass, documentSubject }) => {
+                          await api.putDocumentClassification(projectId, item.id, {
+                            document_class: documentClass,
+                            document_subject: documentSubject,
+                          });
+                        }}
+                      />
                     </div>
                     {isMarkdownEvidence(item) && item.content ? (
                       <div className="mt-2 text-muted-foreground">

@@ -447,7 +447,11 @@ export function CockpitPreviewPage() {
         <WorkspaceFilePanel projectId={previewProject.id} evidence={selectedEvidence} />
       ) : null}
       {activeView === "folder" ? (
-        <WorkspaceFolderPanel folder={selectedFolder} evidence={previewEvidence} />
+        <WorkspaceFolderPanel
+          projectId={previewProject.id}
+          folder={selectedFolder}
+          evidence={previewEvidence}
+        />
       ) : null}
       {activeView === "draft" ? (
         <DraftReviewPanel

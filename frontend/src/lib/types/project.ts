@@ -266,6 +266,9 @@ export type EvidencePreview = {
   relative_path: string;
   source_type: string | null;
   document_class: string;
+  document_subject?: string | null;
+  confidence?: number | null;
+  classification_basis?: string | null;
   excerpt: string;
   content?: string | null;
   document_number?: string | null;

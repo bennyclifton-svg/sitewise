@@ -297,7 +297,7 @@ def _content_match(
 
 
 def _user_override(_entry: ManifestEntry) -> Classification | None:
-    """Cascade Stage A. Stage 5 fills this; do not call a model here."""
+    """Cascade Stage A fallback. Callers pass an already-resolved override."""
     return None
 
 
@@ -337,10 +337,12 @@ def classify_entry(
     entry: ManifestEntry,
     extracted_text: str | None = None,
     title_block: TitleBlockFields | None = None,
+    *,
+    override: Classification | None = None,
 ) -> Classification:
-    override = _user_override(entry)
-    if override is not None:
-        return override
+    resolved = override if override is not None else _user_override(entry)
+    if resolved is not None:
+        return resolved
 
     context = infer_project_context(entry.relative_path)
     metadata = parse_procurement_stage(entry.relative_path)

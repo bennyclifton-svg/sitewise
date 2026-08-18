@@ -21,6 +21,9 @@ from app.database.project_document_selection import (
     WorkflowInputRetentionLock,
 )
 from app.database.source_document import SourceDocument
+from app.database.document_classification_override import (
+    DocumentClassificationOverride,
+)
 from app.database.stripe_customer import StripeCustomer
 from app.database.stripe_subscription import StripeSubscription
 from app.database.user import User
@@ -57,6 +60,7 @@ __all__ = [
     "ProjectDocumentSelectionItem",
     "WorkflowInputRetentionLock",
     "SourceDocument",
+    "DocumentClassificationOverride",
     "StripeCustomer",
     "StripeSubscription",
     "User",

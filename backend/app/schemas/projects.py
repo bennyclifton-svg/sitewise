@@ -18,6 +18,7 @@ from app.cost_plan.schemas import CostPlanOperation
 from app.programme.schemas import ProgrammeOperation, ProgrammeScale
 from app.sitewise.gate import OverlayStatus
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
+from ingest.types import DocumentClass, DocumentSubject
 
 
 def _validate_optional_chat_model(value: str | None) -> str | None:
@@ -468,6 +469,9 @@ class EvidencePreview(BaseModel):
     relative_path: str
     source_type: str | None
     document_class: str
+    document_subject: str | None = None
+    confidence: float | None = None
+    classification_basis: str | None = None
     excerpt: str
     content: str | None = None
     document_number: str | None = None
@@ -485,6 +489,12 @@ class EvidencePreview(BaseModel):
         | None
     ) = None
     used_by: list[DocumentUsageMark] = Field(default_factory=list)
+
+
+class SetDocumentClassificationRequest(BaseModel):
+    document_class: DocumentClass
+    document_subject: DocumentSubject | None = None
+    reason: str | None = Field(default=None, max_length=4000)
 
 
 class ProjectDetail(ProjectSummary):

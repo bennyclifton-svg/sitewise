@@ -1,9 +1,9 @@
 import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ClassificationChip } from "@/components/project/ClassificationChip";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
-import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { cn } from "@/lib/utils";
@@ -155,7 +155,18 @@ function WorkspaceFilePanelContent({
                   <p className="min-w-0 break-all text-sm text-muted-foreground">
                     {displayEvidence.relative_path}
                   </p>
-                  <Badge variant="outline">{displayEvidence.document_class}</Badge>
+                  <ClassificationChip
+                    key={displayEvidence.id}
+                    documentClass={displayEvidence.document_class}
+                    documentSubject={displayEvidence.document_subject}
+                    confidence={displayEvidence.confidence}
+                    onChange={async ({ documentClass, documentSubject }) => {
+                      await api.putDocumentClassification(projectId, displayEvidence.id, {
+                        document_class: documentClass,
+                        document_subject: documentSubject,
+                      });
+                    }}
+                  />
                 </div>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                   <MetaItem

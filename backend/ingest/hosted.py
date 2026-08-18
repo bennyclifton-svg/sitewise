@@ -3,6 +3,7 @@ import tempfile
 import uuid
 
 from ingest.classify import classify_entry
+from ingest.hashing import bytes_content_hash
 from ingest.pipeline import TraceCallback, ingest_plan
 from ingest.router import build_ingest_plan
 from ingest.types import ManifestEntry, ProjectContext
@@ -40,7 +41,9 @@ def ingest_hosted_file(
             source_type="project_evidence",
             project_id=project_id,
         )
-        classification = classify_entry(entry)
+        classification = classify_entry(
+            entry, override=_hosted_override(project_id, content, workspace_path)
+        )
         plan = build_ingest_plan(entry, context, classification)
         if trace_callback is not None:
             trace_callback(
@@ -61,6 +64,26 @@ def ingest_hosted_file(
         )
     finally:
         temp_path.unlink(missing_ok=True)
+
+
+def _hosted_override(project_id: uuid.UUID, content: bytes, workspace_path: str):
+    from app.projects.classification_override import (
+        classification_from_override,
+        lookup_override_sync,
+    )
+    from ingest.db import get_sync_session_factory
+
+    factory = get_sync_session_factory()
+    with factory() as session:
+        row = lookup_override_sync(
+            session,
+            project_id=project_id,
+            content_hash=bytes_content_hash(content),
+            relative_path=workspace_path,
+        )
+    if row is None:
+        return None
+    return classification_from_override(row)
 
 
 def source_document_id_for_path(

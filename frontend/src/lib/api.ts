@@ -633,6 +633,20 @@ export const api = {
   ): Promise<EvidencePreview> =>
     api.get<EvidencePreview>(`/projects/${projectId}/evidence/${evidenceId}`),
 
+  putDocumentClassification: async (
+    projectId: string,
+    documentId: string,
+    input: {
+      document_class: string;
+      document_subject?: string | null;
+      reason?: string | null;
+    },
+  ): Promise<EvidencePreview> =>
+    api.put<EvidencePreview>(
+      `/projects/${projectId}/documents/${documentId}/classification`,
+      input,
+    ),
+
   deleteProjectEvidence: async (
     projectId: string,
     evidenceId: string,

@@ -65,6 +65,11 @@ from app.projects.document_register import (
     list_document_register_rows,
     search_document_register_rows,
 )
+from app.projects.classification_override import (
+    DocumentClassificationInvalid,
+    DocumentClassificationNotFound,
+    set_document_classification as set_document_classification_service,
+)
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
@@ -4198,6 +4203,67 @@ async def attach_official_instrument(
                 "relative_path": document.relative_path,
                 "knowledge_scope": "official",
             }
+
+
+@mcp.tool
+async def set_document_classification(
+    project_id: str,
+    document_id: str,
+    document_class: str,
+    document_subject: str | None = None,
+    reason: str | None = None,
+) -> dict:
+    """Record a human correction of a document's class and subject.
+
+    Use when the user corrects classification, for example: "That heritage
+    report is actually a planning certificate." The correction is permanent
+    (basis=user, confidence=1.0) and survives re-ingest.
+    """
+    from typing import get_args
+
+    from ingest.types import DocumentClass, DocumentSubject
+
+    pid = uuid.UUID(project_id)
+    try:
+        parsed_document_id = uuid.UUID(document_id)
+    except ValueError as exc:
+        raise ToolError("document_id must be a UUID") from exc
+    if document_class not in get_args(DocumentClass):
+        raise ToolError("document_class is not a canonical class")
+    subject = document_subject
+    if subject is not None and subject not in get_args(DocumentSubject):
+        raise ToolError("document_subject is not a canonical subject")
+
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            document = await set_document_classification_service(
+                session,
+                project_id=authorization.project.id,
+                document_id=parsed_document_id,
+                document_class=document_class,
+                document_subject=subject,
+                actor_id=authorization.claims.user_id,
+                reason=reason,
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except DocumentClassificationNotFound as exc:
+            raise ToolError("Document not found") from exc
+        except DocumentClassificationInvalid as exc:
+            raise ToolError(str(exc)) from exc
+
+    metadata = document.document_metadata if isinstance(document.document_metadata, dict) else {}
+    return {
+        "document_id": str(document.id),
+        "document_class": document.document_class,
+        "document_subject": metadata.get("subject"),
+        "basis": metadata.get("basis", "user"),
+        "confidence": metadata.get("confidence", "1.0"),
+    }
 
 
 @mcp.tool
