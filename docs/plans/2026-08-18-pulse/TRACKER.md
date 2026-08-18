@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 2 complete (`x1/stage-2-audit-backfill`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 2 complete (`563eee84`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -391,7 +391,7 @@ Branch/worktree: x1/stage-2-audit-backfill (repo root)
 Predecessors verified: Stage 1 complete, SHA 8438ecb9; baseline suppressed_with_text=192, text_without_chunks=224
 Reading list actually read: 00-doctrine.md §D3, backend/scripts/x1_census.sql, ingest/persist.py (delete_document_chunks, upsert_chunks), app/database/source_document.py, app/database/session.py (get_session_factory, not get_sessionmaker)
 Failing test written: tests/scripts/test_x1_backfill.py::test_backfill_twice_produces_identical_chunk_counts. Confirmed FAIL: ImportError: cannot import name 'x1_backfill' from 'scripts'
-Commit SHA: (fill after commit)
+Commit SHA: 563eee84b6bd4aa8581fc8c2843dfe1b8969b397
 Production LOC delta: 0 under backend/app/ and backend/ingest/ (forbidden this stage)
 Integration notes raised: get_sessionmaker missing → get_session_factory; backfill is sync because persist helpers are sync; no live filename Cost Plan.pdf
 x1_backfill_log: created before apply; 224 rows
