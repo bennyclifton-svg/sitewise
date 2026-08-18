@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 3 complete — Gate 1 freeze pending human signature
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 3 complete (`c1b38f4b`, tag `x1-gate-1`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -77,7 +77,7 @@ is not done.
 - [x] 3.3 Fix all `Classification(...)` construction sites
 - [x] 3.4 Exhaustiveness test over every `DocumentClass`
 - [x] 3.5 Chunker/extractor policy guard test
-- [x] 3.6 **FREEZE** — tag `x1-gate-1` (SHA filled after commit)
+- [x] 3.6 **FREEZE** — tag `x1-gate-1` / SHA `c1b38f4b`
 - [x] 3.7 Legacy→canonical mapping table agreed (see *Open decisions*; OD-1 uses default)
 
 ### Stage 4 — Deterministic classifier → [`stage-04-deterministic-classifier.md`](./stage-04-deterministic-classifier.md)
@@ -234,7 +234,7 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | OD-1 unanswered. Stage 3 mapped `doctrine`/`reference_guide` → `report` + `reference_kind` per the default. Flag if a human answers otherwise before Stage 8.6. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 3.3 expected `Classification(` in `ingest/pipeline.py`. Grep found none; `plan_entry` calls `classify_entry`. Construction sites were `classify.py`, tests, and `scripts/x1_backfill.py`. | open |
 | 2026-08-18 | Cursor Grok 4.6 | `ingest/router.py` `_extractor_for` still branches on `doctrine`/`reference_guide`. Dead after canonical mapping (`.md` still hits the generic markdown extractor). Left untouched — not a construction site; Stage 8/6 can delete. | open |
-| 2026-08-18 | Cursor Grok 4.6 | Gate 1 contract frozen as tag `x1-gate-1`. Human signature on the GATE 1 checklist is still required before Wave 2. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Gate 1 contract frozen as tag `x1-gate-1` (`c1b38f4b128ded46755ee0cb8236188a4bf4ac90`). Human signature on the GATE 1 checklist is still required before Wave 2. | open |
 
 ---
 
@@ -507,7 +507,7 @@ Branch/worktree: x1/stage-3-classification-contract (repo root)
 Predecessors verified: Stage 1 SHA 8438ecb9; Stage 2 SHA 563eee84
 Reading list actually read: 00-doctrine.md §Canonical vocabularies, 01-ground-truth.md §Current DocumentClass vs target, ingest/types.py, ingest/classify.py. Callers required by 3.3 grep: ingest/pipeline.py (no Classification()), ingest/router.py (chunker/extractor for 3.4/3.5), tests, scripts/x1_backfill.py
 Failing test written: tests/ingest/test_classification_contract.py (5 tests). Confirmed FAIL: ImportError: cannot import name 'ClassificationBasis' from 'ingest.types'
-Commit SHA: (filled after freeze commit)
+Commit SHA: c1b38f4b128ded46755ee0cb8236188a4bf4ac90
 Tag: x1-gate-1
 Production LOC delta: ingest/types.py +27/−13; ingest/classify.py +46/−15 (net +45). x1_backfill.py +11/−2 is a construction-site fix, not app/intake.
 Integration notes raised: OD-1 default used; pipeline.py has no Classification(); router.py dead doctrine/reference_guide extractor branch left; Gate 1 awaits human signature
