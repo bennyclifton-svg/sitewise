@@ -453,7 +453,7 @@ def test_stage_0_and_stage_1_database_acceptance() -> None:
                 project_id=P1,
             ),
             classification=Classification(
-                document_class="tender_submission",
+                document_class="commercial",
                 ingest_mode="full_text",
             ),
             extractor="test",

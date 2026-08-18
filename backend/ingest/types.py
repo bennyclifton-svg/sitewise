@@ -4,24 +4,35 @@ from typing import Literal
 import uuid
 
 DocumentClass = Literal[
-    "unknown",
-    "contract",
-    "specification",
-    "tender_submission",
-    "trr",
-    "evaluation",
-    "rft",
-    "addendum",
-    "eoi",
-    "tep",
     "drawing",
+    "specification",
     "report",
     "certificate",
     "correspondence",
+    "contract",
+    "commercial",
     "schedule",
-    "reference_guide",
-    "doctrine",
-    "planning_instrument",
+    "statutory_instrument",
+    "photo",
+    "unknown",
+]
+
+DocumentSubject = Literal[
+    "planning", "heritage", "structural", "services", "hydraulic", "fire",
+    "geotechnical", "survey", "cost", "programme", "contract_admin",
+    "defects", "sustainability", "access", "acoustic", "none",
+]
+
+ClassificationBasis = Literal[
+    "user", "structural", "filename", "content", "model", "default",
+]
+
+# Stage 8 migrates these out of document_class. Delete this alias when
+# TRACKER.md packet 8.9 closes. Tracked as a shim.
+LegacyDocumentClass = Literal[
+    "tender_submission", "trr", "evaluation", "rft", "addendum", "eoi", "tep",
+    "reference_guide", "doctrine", "planning_instrument",
+    "inbox_pending", "corpus_catalog",   # never declared, but present in the DB
 ]
 
 IngestMode = Literal["full_text", "register_only", "hybrid"]
@@ -54,6 +65,9 @@ class Classification:
     document_class: DocumentClass
     ingest_mode: IngestMode
     document_metadata: dict[str, str] = field(default_factory=dict)
+    document_subject: DocumentSubject = "none"
+    confidence: float = 0.0
+    basis: ClassificationBasis = "default"
 
 
 @dataclass(frozen=True, slots=True)

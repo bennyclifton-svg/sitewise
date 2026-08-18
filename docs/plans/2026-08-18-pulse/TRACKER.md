@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 2 complete (`563eee84`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 3 complete — Gate 1 freeze pending human signature
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -72,13 +72,13 @@ is not done.
 
 **Gate 1 lives here. Contract freezes at 3.6.**
 
-- [ ] 3.1 New closed `Literal`s in `ingest/types.py`
-- [ ] 3.2 Extend `Classification` with `document_subject` / `confidence` / `basis`
-- [ ] 3.3 Fix all `Classification(...)` construction sites
-- [ ] 3.4 Exhaustiveness test over every `DocumentClass`
-- [ ] 3.5 Chunker/extractor policy guard test
-- [ ] 3.6 **FREEZE** — announce in Integration notes, tag commit
-- [ ] 3.7 Legacy→canonical mapping table agreed (see *Open decisions*)
+- [x] 3.1 New closed `Literal`s in `ingest/types.py` — Cursor Grok 4.6 / `x1/stage-3-classification-contract`
+- [x] 3.2 Extend `Classification` with `document_subject` / `confidence` / `basis`
+- [x] 3.3 Fix all `Classification(...)` construction sites
+- [x] 3.4 Exhaustiveness test over every `DocumentClass`
+- [x] 3.5 Chunker/extractor policy guard test
+- [x] 3.6 **FREEZE** — tag `x1-gate-1` (SHA filled after commit)
+- [x] 3.7 Legacy→canonical mapping table agreed (see *Open decisions*; OD-1 uses default)
 
 ### Stage 4 — Deterministic classifier → [`stage-04-deterministic-classifier.md`](./stage-04-deterministic-classifier.md)
 
@@ -138,10 +138,10 @@ is not done.
 
 Do not open a Wave 2 packet until all are true:
 
-- [ ] Stage 1 green; no class-driven evidence suppression anywhere
-- [ ] Stage 3 contract frozen and tagged
-- [ ] Stage 0 baseline table fully populated
-- [ ] Backend suite failures ⊆ Stage 0 pre-existing failures
+- [x] Stage 1 green; no class-driven evidence suppression anywhere
+- [x] Stage 3 contract frozen and tagged (`x1-gate-1`)
+- [x] Stage 0 baseline table fully populated
+- [x] Backend suite failures ⊆ Stage 0 pre-existing failures
 - [ ] Gate signed off by: __________ on __________
 
 ## 🔒 GATE 2 — Canonical classification live
@@ -191,7 +191,32 @@ that do not exist. Expanding them now would produce fiction.
 
 | Shim | File | Added by | Removal packet |
 |---|---|---|---|
-| | | | |
+| `LegacyDocumentClass` alias (procurement / doctrine / undeclared DB values kept reachable until data migration) | `backend/ingest/types.py` | Stage 3.1 | 8.9 |
+
+---
+
+## Legacy → canonical mapping
+
+Copied verbatim from `ingest.classify._LEGACY_TO_CANONICAL`. Stage 8's data
+migration must use this exact table.
+
+```python
+_LEGACY_TO_CANONICAL: dict[str, tuple[DocumentClass, dict[str, str]]] = {
+    "tep":              ("commercial", {"procurement_stage": "tep"}),
+    "eoi":              ("commercial", {"procurement_stage": "eoi"}),
+    "rft":              ("commercial", {"procurement_stage": "rft"}),
+    "addendum":         ("commercial", {"procurement_stage": "addendum"}),
+    "tender_submission":("commercial", {"procurement_stage": "submission"}),
+    "evaluation":       ("commercial", {"procurement_stage": "evaluation"}),
+    "trr":              ("commercial", {"procurement_stage": "trr"}),
+    "planning_instrument": ("statutory_instrument", {}),
+    "doctrine":         ("report", {"reference_kind": "doctrine"}),        # OD-1
+    "reference_guide":  ("report", {"reference_kind": "reference_guide"}), # OD-1
+}
+```
+
+`inbox_pending` and `corpus_catalog` are on `LegacyDocumentClass` but **not** in
+this table. They are not produced by `classify_entry`; Stage 8.4 / 8.5 own them.
 
 ---
 
@@ -206,6 +231,10 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | Stage 1.5 expected `should_persist_chunks` in `ingest/persist.py`. Grep found no call there; the only production caller is `ingest/pipeline.py`. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 2 sketch imported `get_sessionmaker`; real name is `get_session_factory` in `app/database/session.py`. Audit uses that. Persist helpers are sync (`ingest.db.get_sync_session_factory`), so `x1_backfill.py` is sync rather than async. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Live DB has no filename `Cost Plan.pdf`. Spot-check used previously-suppressed `cost-plan-system.md` (26 chunks; FTS `plainto_tsquery('english', 'cost plan')` rank 0.905). | open |
+| 2026-08-18 | Cursor Grok 4.6 | OD-1 unanswered. Stage 3 mapped `doctrine`/`reference_guide` → `report` + `reference_kind` per the default. Flag if a human answers otherwise before Stage 8.6. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 3.3 expected `Classification(` in `ingest/pipeline.py`. Grep found none; `plan_entry` calls `classify_entry`. Construction sites were `classify.py`, tests, and `scripts/x1_backfill.py`. | open |
+| 2026-08-18 | Cursor Grok 4.6 | `ingest/router.py` `_extractor_for` still branches on `doctrine`/`reference_guide`. Dead after canonical mapping (`.md` still hits the generic markdown extractor). Left untouched — not a construction site; Stage 8/6 can delete. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Gate 1 contract frozen as tag `x1-gate-1`. Human signature on the GATE 1 checklist is still required before Wave 2. | open |
 
 ---
 
@@ -465,5 +494,60 @@ Files added:
 - docs/acceptance/x1/audit-post-backfill.json (new; replaces nothing)
 
 Files changed: docs/plans/2026-08-18-pulse/TRACKER.md
+Files deleted: none
+```
+
+### Stage 3 (3.1–3.7) — 2026-08-18
+
+```text
+Packet: 3.1–3.7 Canonical classification contract (Gate 1)
+Status: [x] code frozen; GATE 1 human signature still required
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-3-classification-contract (repo root)
+Predecessors verified: Stage 1 SHA 8438ecb9; Stage 2 SHA 563eee84
+Reading list actually read: 00-doctrine.md §Canonical vocabularies, 01-ground-truth.md §Current DocumentClass vs target, ingest/types.py, ingest/classify.py. Callers required by 3.3 grep: ingest/pipeline.py (no Classification()), ingest/router.py (chunker/extractor for 3.4/3.5), tests, scripts/x1_backfill.py
+Failing test written: tests/ingest/test_classification_contract.py (5 tests). Confirmed FAIL: ImportError: cannot import name 'ClassificationBasis' from 'ingest.types'
+Commit SHA: (filled after freeze commit)
+Tag: x1-gate-1
+Production LOC delta: ingest/types.py +27/−13; ingest/classify.py +46/−15 (net +45). x1_backfill.py +11/−2 is a construction-site fix, not app/intake.
+Integration notes raised: OD-1 default used; pipeline.py has no Classification(); router.py dead doctrine/reference_guide extractor branch left; Gate 1 awaits human signature
+Handoff: Stage 3 complete. Wave 2 waits on GATE 1 human signature. Stage 4 (still Wave 1) is unblocked for classifier logic against the frozen fields.
+
+Verification — 3.4 RED:
+ERROR tests/ingest/test_classification_contract.py
+ImportError: cannot import name 'ClassificationBasis' from 'ingest.types'
+
+Verification — 3.4/3.5 GREEN:
+uv run pytest tests/ingest/test_classification_contract.py -v
+  5 passed, 1 warning in 0.19s
+
+uv run ruff check .
+  All checks passed!
+
+uv run pytest tests/ingest/ tests/scripts/test_x1_backfill.py -q
+  153 passed, 1 warning in 1.65s
+
+uv run pytest -q --tb=line --import-mode=importlib
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+4 failed, 2412 passed, 7 skipped, 34 deselected, 5 warnings in 50.00s
+(diff vs baseline-backend-failures.txt: empty — same 4 FAILED names; +10 passed vs Stage 0 from Stages 1–3 tests)
+
+Stage 3.5 written command `uv run pytest -q` still cannot collect (duplicate basenames). Compared with --import-mode=importlib per Stage 0 integration note.
+
+Files added:
+- backend/tests/ingest/test_classification_contract.py (new; does not replace a file)
+
+Files changed:
+- backend/ingest/types.py (replaces 18-value DocumentClass; adds DocumentSubject, ClassificationBasis, LegacyDocumentClass shim, Classification fields)
+- backend/ingest/classify.py (replaces legacy class emission; maps through _LEGACY_TO_CANONICAL)
+- backend/scripts/x1_backfill.py (Classification construction now canonicalizes stored class)
+- backend/tests/ingest/test_classify.py (legacy class assertions → canonical + metadata)
+- backend/tests/ingest/test_rtf.py (planning_instrument → statutory_instrument)
+- backend/tests/stage01/test_database_gates.py (tender_submission → commercial)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
 Files deleted: none
 ```

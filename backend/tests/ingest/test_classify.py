@@ -43,9 +43,13 @@ def test_parse_procurement_stage(relative_path, stage, tenderer_id):
 def test_classify_tender_submission():
     entry = _entry("procurement-blockb/05 SUBMISSION 01/bid.pdf")
     classification = classify_entry(entry)
-    assert classification.document_class == "tender_submission"
+    assert classification.document_class == "commercial"
     assert classification.ingest_mode == "full_text"
+    assert classification.document_metadata["procurement_stage"] == "submission"
     assert classification.document_metadata["tenderer_id"] == "01"
+    assert classification.document_subject == "none"
+    assert classification.confidence == 0.5
+    assert classification.basis == "filename"
 
 
 def test_classify_drawing_pdf():
@@ -75,7 +79,8 @@ def test_classify_split_mechanical_sheet_as_drawing():
 def test_classify_seed_reference():
     entry = _entry("seed/defects-and-dlp-guide.md", extension=".md")
     classification = classify_entry(entry)
-    assert classification.document_class == "reference_guide"
+    assert classification.document_class == "report"
+    assert classification.document_metadata["reference_kind"] == "reference_guide"
     assert classification.ingest_mode == "full_text"
 
 
@@ -136,7 +141,7 @@ def test_classify_markdown_fee_proposal_is_not_a_drawing():
 def test_classify_lep_filename_as_planning_instrument():
     entry = _entry("delivery-newtown/official/Inner-West-LEP-2022.pdf")
     classification = classify_entry(entry)
-    assert classification.document_class == "planning_instrument"
+    assert classification.document_class == "statutory_instrument"
     assert classification.ingest_mode == "full_text"
 
 
@@ -149,7 +154,7 @@ def test_router_selects_rtf_for_planning_instrument_upload():
     context = infer_project_context(entry.relative_path)
     plan = build_ingest_plan(entry, context, classification)
 
-    assert classification.document_class == "planning_instrument"
+    assert classification.document_class == "statutory_instrument"
     assert plan.extractor == "rtf"
     assert plan.chunker == "prose"
 
@@ -170,7 +175,7 @@ def test_router_selects_rtf_for_generic_rich_text_upload():
 def test_classify_dcp_filename_as_planning_instrument():
     entry = _entry("delivery-newtown/_inbox/Inner West DCP 2022.pdf")
     classification = classify_entry(entry)
-    assert classification.document_class == "planning_instrument"
+    assert classification.document_class == "statutory_instrument"
 
 
 def test_classify_does_not_treat_dcp_assessment_report_as_instrument():

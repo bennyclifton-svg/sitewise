@@ -73,7 +73,7 @@ def test_extract_document_uses_rtf_extractor(tmp_path: Path) -> None:
             source_type="project_evidence",
         ),
         classification=Classification(
-            document_class="planning_instrument",
+            document_class="statutory_instrument",
             ingest_mode="full_text",
             document_metadata={},
         ),

@@ -145,36 +145,63 @@ def _ingest_mode_for_class(document_class: DocumentClass) -> IngestMode:
     return "full_text"
 
 
+# Stage 8 migrates stored document_class values. Keep identical to TRACKER.md.
+_LEGACY_TO_CANONICAL: dict[str, tuple[DocumentClass, dict[str, str]]] = {
+    "tep":              ("commercial", {"procurement_stage": "tep"}),
+    "eoi":              ("commercial", {"procurement_stage": "eoi"}),
+    "rft":              ("commercial", {"procurement_stage": "rft"}),
+    "addendum":         ("commercial", {"procurement_stage": "addendum"}),
+    "tender_submission":("commercial", {"procurement_stage": "submission"}),
+    "evaluation":       ("commercial", {"procurement_stage": "evaluation"}),
+    "trr":              ("commercial", {"procurement_stage": "trr"}),
+    "planning_instrument": ("statutory_instrument", {}),
+    "doctrine":         ("report", {"reference_kind": "doctrine"}),        # OD-1
+    "reference_guide":  ("report", {"reference_kind": "reference_guide"}), # OD-1
+}
+
+
+def canonicalize_document_class(
+    raw_class: str, metadata: dict[str, str]
+) -> tuple[DocumentClass, dict[str, str]]:
+    mapped = _LEGACY_TO_CANONICAL.get(raw_class)
+    if mapped is None:
+        return raw_class, metadata  # type: ignore[return-value]
+    canonical, extra = mapped
+    if not extra:
+        return canonical, metadata
+    return canonical, {**metadata, **extra}
+
+
 def classify_entry(entry: ManifestEntry) -> Classification:
     context = infer_project_context(entry.relative_path)
     extension = entry.extension.lower()
     filename = entry.filename
     metadata = parse_procurement_stage(entry.relative_path)
 
-    document_class: DocumentClass = "unknown"
+    raw_class: str = "unknown"
 
     if context.source_type == "doctrine":
-        document_class = "doctrine"
+        raw_class = "doctrine"
     elif context.source_type == "reference":
-        document_class = "reference_guide"
+        raw_class = "reference_guide"
     elif metadata.get("procurement_stage") == "submission":
-        document_class = "tender_submission"
+        raw_class = "tender_submission"
     elif metadata.get("procurement_stage") == "trr":
-        document_class = "trr"
+        raw_class = "trr"
     elif metadata.get("procurement_stage") == "evaluation":
-        document_class = "evaluation"
+        raw_class = "evaluation"
     elif metadata.get("procurement_stage") == "rft":
-        document_class = "rft"
+        raw_class = "rft"
     elif metadata.get("procurement_stage") == "addendum":
-        document_class = "addendum"
+        raw_class = "addendum"
     elif metadata.get("procurement_stage") == "eoi":
-        document_class = "eoi"
+        raw_class = "eoi"
     elif metadata.get("procurement_stage") == "tep":
-        document_class = "tep"
+        raw_class = "tep"
     elif extension in _DRAWING_EXTENSIONS or (
         extension in {".pdf", ".md"} and _looks_like_drawing(filename)
     ):
-        document_class = "drawing"
+        raw_class = "drawing"
         metadata.setdefault("format", extension.lstrip(".") or "pdf")
         identity = parse_drawing_filename(filename)
         if identity.drawing_number:
@@ -184,19 +211,23 @@ def classify_entry(entry: ManifestEntry) -> Classification:
         if identity.title:
             metadata.setdefault("title", identity.title)
     elif _looks_like_planning_instrument(filename):
-        document_class = "planning_instrument"
+        raw_class = "planning_instrument"
     elif extension in {".xlsx", ".xls", ".csv"}:
-        document_class = "schedule"
+        raw_class = "schedule"
     elif extension in {".msg", ".eml"}:
-        document_class = "correspondence"
+        raw_class = "correspondence"
     else:
         hinted = _filename_hints(filename)
         if hinted:
-            document_class = hinted
+            raw_class = hinted
 
+    document_class, metadata = canonicalize_document_class(raw_class, metadata)
     ingest_mode = _ingest_mode_for_class(document_class)
     return Classification(
         document_class=document_class,
         ingest_mode=ingest_mode,
         document_metadata=metadata,
+        document_subject="none",           # Stage 4 fills this
+        confidence=0.5 if document_class != "unknown" else 0.0,
+        basis="filename" if document_class != "unknown" else "default",
     )

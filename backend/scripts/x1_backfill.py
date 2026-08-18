@@ -15,12 +15,13 @@ from sqlalchemy.orm import Session, sessionmaker
 import app.database.models  # noqa: F401 — register ORM mappers
 from app.database.source_document import SourceDocument
 from ingest.chunk import chunk_document
+from ingest.classify import canonicalize_document_class
 from ingest.db import get_sync_session_factory
 from ingest.embed import embed_texts
 from ingest.extractors.base import ExtractedDocument
 from ingest.persist import delete_document_chunks, upsert_chunks
 from ingest.router import _chunker_for, has_useful_text
-from ingest.types import Classification, DocumentClass, IngestPlan, ManifestEntry, ProjectContext, SourceType
+from ingest.types import Classification, IngestPlan, ManifestEntry, ProjectContext, SourceType
 
 EmbedFn = Callable[[list[str]], list[list[float]]]
 SessionFactory = Callable[[], Session]
@@ -89,10 +90,16 @@ def load_candidates(session: Session, *, limit: int | None = None) -> list[Sourc
 
 
 def _plan_for(doc: SourceDocument) -> IngestPlan:
-    document_class = cast(DocumentClass, doc.document_class or "unknown")
+    document_class, metadata = canonicalize_document_class(
+        doc.document_class or "unknown", {}
+    )
     classification = Classification(
         document_class=document_class,
         ingest_mode="full_text",
+        document_metadata=metadata,
+        document_subject="none",
+        confidence=0.5 if document_class != "unknown" else 0.0,
+        basis="default",
     )
     filename = doc.filename or "document.txt"
     relative_path = doc.relative_path or filename
