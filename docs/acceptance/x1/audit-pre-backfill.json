@@ -1,0 +1,24 @@
+{
+  "total": 543,
+  "by_class": {
+    "certificate": 9,
+    "correspondence": 9,
+    "reference_guide": 75,
+    "planning_instrument": 2,
+    "doctrine": 1,
+    "specification": 5,
+    "report": 8,
+    "unknown": 234,
+    "drawing": 200
+  },
+  "by_ingest_mode": {
+    "register_only": 200,
+    "full_text": 343
+  },
+  "suppressed_with_text": 192,
+  "text_without_chunks": 224,
+  "legacy_procurement_classes": 0,
+  "planning_instrument": 2,
+  "undeclared_classes": {},
+  "null_content_hash": 0
+}

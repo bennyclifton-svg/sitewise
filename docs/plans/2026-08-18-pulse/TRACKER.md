@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 1 complete (`8438ecb9`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 2 complete (`x1/stage-2-audit-backfill`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -62,11 +62,11 @@ is not done.
 
 ### Stage 2 — Audit & backfill → [`stage-02-audit-backfill.md`](./stage-02-audit-backfill.md)
 
-- [ ] 2.1 Read-only audit script
-- [ ] 2.2 Audit report committed to `docs/acceptance/x1/`
-- [ ] 2.3 Backfill with `--dry-run` (default)
-- [ ] 2.4 Idempotency test (run twice, zero delta)
-- [ ] 2.5 Live backfill + post-counts recorded
+- [x] 2.1 Read-only audit script — Cursor Grok 4.6 / `x1/stage-2-audit-backfill`
+- [x] 2.2 Audit report committed to `docs/acceptance/x1/`
+- [x] 2.3 Backfill with `--dry-run` (default)
+- [x] 2.4 Idempotency test (run twice, zero delta)
+- [x] 2.5 Live backfill + post-counts recorded
 
 ### Stage 3 — Classification contract 🔒 → [`stage-03-classification-contract.md`](./stage-03-classification-contract.md)
 
@@ -204,6 +204,8 @@ unrelated bug you found.
 |---|---|---|---|
 | 2026-08-18 | Cursor Grok 4.6 | Exact `uv run pytest -q` (Stage 0.2 as written) cannot collect: duplicate basenames `test_models.py`, `test_schemas.py`, `test_service.py` under `tests/programme/` vs `tests/tender/` and `tests/web_research/`. Clearing `__pycache__` does not fix it. The committed failure contract was produced with `--import-mode=importlib`. Later stages must compare against that contract, not the collection-ERROR run. Do not "fix" the duplicate names in a Wave 1 packet. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 1.5 expected `should_persist_chunks` in `ingest/persist.py`. Grep found no call there; the only production caller is `ingest/pipeline.py`. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 2 sketch imported `get_sessionmaker`; real name is `get_session_factory` in `app/database/session.py`. Audit uses that. Persist helpers are sync (`ingest.db.get_sync_session_factory`), so `x1_backfill.py` is sync rather than async. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Live DB has no filename `Cost Plan.pdf`. Spot-check used previously-suppressed `cost-plan-system.md` (26 chunks; FTS `plainto_tsquery('english', 'cost plan')` rank 0.905). | open |
 
 ---
 
@@ -376,5 +378,92 @@ Files changed:
 - backend/tests/ingest/test_pipeline.py (extracted_text kwarg; mock bodies ≥200 chars)
 - docs/plans/2026-08-18-pulse/TRACKER.md
 
+Files deleted: none
+```
+
+### Stage 2 (2.1–2.5) — 2026-08-18
+
+```text
+Packet: 2.1–2.5 Historical audit & backfill
+Status: [x]
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-2-audit-backfill (repo root)
+Predecessors verified: Stage 1 complete, SHA 8438ecb9; baseline suppressed_with_text=192, text_without_chunks=224
+Reading list actually read: 00-doctrine.md §D3, backend/scripts/x1_census.sql, ingest/persist.py (delete_document_chunks, upsert_chunks), app/database/source_document.py, app/database/session.py (get_session_factory, not get_sessionmaker)
+Failing test written: tests/scripts/test_x1_backfill.py::test_backfill_twice_produces_identical_chunk_counts. Confirmed FAIL: ImportError: cannot import name 'x1_backfill' from 'scripts'
+Commit SHA: (fill after commit)
+Production LOC delta: 0 under backend/app/ and backend/ingest/ (forbidden this stage)
+Integration notes raised: get_sessionmaker missing → get_session_factory; backfill is sync because persist helpers are sync; no live filename Cost Plan.pdf
+x1_backfill_log: created before apply; 224 rows
+Handoff: Stage 2 complete. Stage 3 is unblocked.
+
+Headline counts:
+  pre  suppressed_with_text=192  text_without_chunks=224
+  post suppressed_with_text=0    text_without_chunks=0
+  ingest_mode pre  register_only=200 full_text=343
+  ingest_mode post register_only=8   full_text=535
+  remaining register_only=8 are docs without useful text (correct)
+
+Verification — 2.1/2.2 audit-pre-backfill.json:
+{
+  "total": 543,
+  "suppressed_with_text": 192,
+  "text_without_chunks": 224,
+  "by_ingest_mode": {"register_only": 200, "full_text": 343}
+}
+
+Verification — 2.3 dry-run (before apply):
+would re-index 224 documents
+
+Verification — 2.4 RED:
+ERROR tests/scripts/test_x1_backfill.py
+ImportError: cannot import name 'x1_backfill' from 'scripts'
+
+Verification — 2.4 GREEN:
+uv run pytest tests/scripts/test_x1_backfill.py -v
+  1 passed, 1 warning in 1.07s
+
+Verification — 2.5 apply:
+progress: re-indexed 100/224 documents
+progress: re-indexed 200/224 documents
+progress: re-indexed 224/224 documents
+re-indexed 224 documents
+
+Verification — 2.5 dry-run after apply:
+would re-index 0 documents
+
+Verification — 2.5 audit-post-backfill.json:
+{
+  "total": 543,
+  "suppressed_with_text": 0,
+  "text_without_chunks": 0,
+  "by_ingest_mode": {"register_only": 8, "full_text": 535}
+}
+
+Verification — 2.5 x1_backfill_log:
+x1_backfill_log_rows=224
+
+Verification — 2.5 Cost Plan spot-check (no live filename 'Cost Plan.pdf'):
+FTS plainto_tsquery('english', 'cost plan') on previously-suppressed cost-plan-system.md:
+  filename=cost-plan-system.md chunk_index=1 rank=0.90506
+  snippet='## When to use\n\nWhen the PM asks for:\n- a project budget allocation;\n- a cost-plan structure or review;\n- a cost-plan workbook update;\n- reconciliation of cost-plan line items with'
+  ingest_mode=full_text chunks=26
+
+Verification — 2.5 backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+4 failed, 2407 passed, 7 skipped, 34 deselected, 5 warnings in 49.75s
+(diff vs baseline-backend-failures.txt: empty — same 4 FAILED names; +5 passed vs Stage 0 from Stage 1 tests + this idempotency test)
+
+Files added:
+- backend/scripts/x1_audit.py (new; replaces nothing — read-only census)
+- backend/scripts/x1_backfill.py (new; replaces nothing — one-shot historical repair using ingest/persist.py helpers)
+- backend/tests/scripts/test_x1_backfill.py (new; replaces nothing)
+- docs/acceptance/x1/audit-pre-backfill.json (new; replaces nothing)
+- docs/acceptance/x1/audit-post-backfill.json (new; replaces nothing)
+
+Files changed: docs/plans/2026-08-18-pulse/TRACKER.md
 Files deleted: none
 ```
