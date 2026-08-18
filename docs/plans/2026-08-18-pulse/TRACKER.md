@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 4 complete (SHA filled after commit)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 4 complete (`7052d143`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -564,7 +564,7 @@ Branch/worktree: x1/stage-4-deterministic-classifier (repo root)
 Predecessors verified: Stage 3 [x], tag x1-gate-1 at c1b38f4b
 Reading list actually read: 00-doctrine.md §Canonical vocabularies, ingest/classify.py, tests/fixtures/classification/manifest.yaml, ingest/drawing_parse.py + title_block.py (interfaces). persist.py required by 4.5.
 Failing test written: tests/ingest/test_filename_scoring.py. Confirmed FAIL: ImportError: cannot import name 'score_filename' from 'ingest.classify'
-Commit SHA: (filled after commit)
+Commit SHA: 7052d14304bf09434b7e116c800c24a30fbbb624
 Production LOC delta: ingest/classify.py +318/−118 (net +200); ingest/persist.py +3 (writes confidence/basis/subject into JSONB). types.py untouched.
 Integration notes raised: pipeline/hosted classify before extract so Stage D is opt-in via extracted_text; extra payment-plan / M## / BUSINESS PLAN / DCP-exclude signals
 Handoff: Stage 4 complete. Stage 5 (user override into Stage A seam `_user_override`) is unblocked.
