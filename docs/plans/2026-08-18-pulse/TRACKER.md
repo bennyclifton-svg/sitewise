@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 0 complete (`7a819d6f`); Stage 1 in progress
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 1 complete (`8438ecb9`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -334,7 +334,7 @@ Branch/worktree: x1/stage-1-evidence-safety
 Predecessors verified: Stage 0 complete, SHA 7a819d6f, baseline table filled
 Reading list actually read: 00-doctrine.md §D3, 01-ground-truth.md suppression section, ingest/router.py (all), ingest/classify.py _looks_like_drawing + _ingest_mode_for_class, tests/ingest/test_classify.py. Callers required by 1.5: ingest/pipeline.py, tests/ingest/test_pipeline.py. persist.py has no should_persist_chunks call.
 Failing test written: tests/ingest/test_evidence_safety.py (3 tests). Confirmed FAIL: TypeError: should_persist_chunks() got an unexpected keyword argument 'extracted_text'
-Commit SHA: recorded after this commit
+Commit SHA: 8438ecb96d944623d9dd9043656ad73d96c4c2a3
 Production LOC delta: router.py net +13, classify.py net +8, pipeline.py 0 (message + extracted_text kwarg). persist.py unchanged.
 Integration notes raised: persist.py has no should_persist_chunks caller (stage file expected one).
 
