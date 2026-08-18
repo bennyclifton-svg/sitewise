@@ -41,6 +41,9 @@ def _summary(result: SortFilesResult) -> SortFilesSummary:
         unresolved=result.counts.unresolved,
         skipped=result.counts.skipped,
         refused=result.counts.refused,
+        waiting=result.counts.waiting,
+        needs_review=result.counts.needs_review,
+        failed=result.counts.failed,
     )
 
 
@@ -63,11 +66,11 @@ def _rows(result: SortFilesResult) -> list[SortFileRow]:
 
 
 def _record_status(outcome: str) -> str:
-    if outcome in {"moved", "already-filed"}:
+    if outcome in {"moved", "already-filed", "waiting"}:
         return "complete"
     if outcome == "unresolved":
         return "blocked"
-    if outcome in {"refused", "skipped"}:
+    if outcome in {"refused", "skipped", "failed", "needs-review"}:
         return outcome
     return "complete"
 
@@ -158,6 +161,9 @@ async def run_sort_files_workflow(
             refused=result.counts.refused,
             skipped=result.counts.skipped,
             already_filed=result.counts.already_filed,
+            waiting=result.counts.waiting,
+            needs_review=result.counts.needs_review,
+            failed=result.counts.failed,
             duration_ms=int((time.perf_counter() - inspection_started) * 1000),
         )
     )
@@ -203,13 +209,24 @@ async def run_sort_files_workflow(
         )
     )
 
-    needs_review = bool(result.counts.unresolved or result.counts.refused)
-    workflow_status = "needs_review" if needs_review else "complete"
-    message = (
-        f"Sort Files {'needs review' if needs_review else 'completed'}. "
-        f"{result.counts.moved} moved, {result.counts.unresolved} unresolved, "
-        f"{result.counts.refused} refused."
+    needs_review = bool(
+        result.counts.unresolved
+        or result.counts.refused
+        or result.counts.needs_review
+        or result.counts.failed
     )
+    workflow_status = "needs_review" if needs_review else "complete"
+    if result.counts.waiting > 0 and result.counts.moved == 0 and not needs_review:
+        message = (
+            f"{result.counts.waiting} files are still being processed. "
+            "They will be filed automatically when classification completes."
+        )
+    else:
+        message = (
+            f"Sort Files {'needs review' if needs_review else 'completed'}. "
+            f"{result.counts.moved} moved, {result.counts.waiting} waiting, "
+            f"{result.counts.needs_review} need review."
+        )
     trace.append(
         _trace(
             "finalize",

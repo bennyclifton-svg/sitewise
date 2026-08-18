@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 6 complete (`a914dc7b`)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 7 code complete (`x1/stage-7-auto-filing`); 7.6 live scenario blocked
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -113,12 +113,12 @@ is not done.
 
 ### Stage 7 — Auto-filing / Sort repair → [`stage-07-auto-filing.md`](./stage-07-auto-filing.md)
 
-- [ ] 7.1 Add `waiting` + `needs-review` to `SortOutcome`
-- [ ] 7.2 Auto-file on successful classification
-- [ ] 7.3 Remove `_file_previews` re-download (D2)
-- [ ] 7.4 Idempotent move test
-- [ ] 7.5 Frontend per-outcome breakdown
-- [ ] 7.6 Ten-file upload-then-immediately-sort scenario
+- [x] 7.1 Add `waiting` + `needs-review` to `SortOutcome` — Cursor Grok 4.6 / `x1/stage-7-auto-filing`
+- [x] 7.2 Auto-file on successful classification
+- [x] 7.3 Remove `_file_previews` re-download (D2) — Sort Files no longer calls it; `repair_service` still does (justified below)
+- [x] 7.4 Idempotent move test
+- [x] 7.5 Frontend per-outcome breakdown
+- [!] 7.6 Ten-file upload-then-immediately-sort scenario — ports 5173/8000 were not listening; automated waiting + auto-file tests stand in
 
 ### Stage 8 — Taxonomy migration → [`stage-08-taxonomy-migration.md`](./stage-08-taxonomy-migration.md)
 
@@ -192,7 +192,7 @@ that do not exist. Expanding them now would produce fiction.
 | Shim | File | Added by | Removal packet |
 |---|---|---|---|
 | `LegacyDocumentClass` alias (procurement / doctrine / undeclared DB values kept reachable until data migration) | `backend/ingest/types.py` | Stage 3.1 | 8.9 |
-| `classify_inbox_destination` thin adapter (classify then `filing_destination`). `sort_service` / `repair_service` still call it. | `backend/app/intake/classifier.py` | Stage 6.4 | 7.2 |
+| `classify_inbox_destination` thin adapter | `backend/app/intake/classifier.py` | Stage 6.4 | `sort_service` now calls `filing_destination` (7.2/7.3). `repair_service` still calls the shim — not Stage 7 owned. |
 
 ---
 
@@ -247,7 +247,9 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | Stage 6.1 did not port bare `Development Application (DA)` / `Complying Development (CDC)` as class — too broad; they would steal reports. Chen pack still classifies from filename (`planning-pathway`, `certifier-appointment`). | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 6.3 `_ROUTES` table does not name `00-brief-pmp`, `02-consultant/{discipline}`, `05-procurement/quotes`, or generic due-diligence. `filing_destination` reads `brief_kind` / `commercial_type` / `due_diligence` metadata so Classifier B destinations survive. | open |
 | 2026-08-18 | Cursor Grok 4.6 | Stage 6.4 kept `tests/intake/test_classifier.py` as shim regression (filename+preview → destination via classify then route). New matrix is `tests/intake/test_filing_destination.py`. | open |
-| 2026-08-18 | Cursor Grok 4.6 | `grep classify_inbox_destination` hits the shim plus `sort_service.py` / `repair_service.py` callers (Stage 7 wires those) and adapter tests. | open |
+| 2026-08-18 | Cursor Grok 4.6 | `grep classify_inbox_destination` hits the shim plus `sort_service.py` / `repair_service.py` callers (Stage 7 wires those) and adapter tests. | resolved in Stage 7 for sort_service |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 7.3: `_file_previews` kept because `app/intake/repair_service.py` still imports it. Sort Files no longer calls it (`test_sort_does_not_download_files`). Repair is outside Stage 7 ownership. | open |
+| 2026-08-18 | Cursor Grok 4.6 | Stage 7.6 live 10-file scenario not run: `Get-NetTCPConnection` showed nothing on 5173/8000. Automated stand-in: waiting outcome + `file_single_document` after ingest. | open |
 
 ---
 
@@ -760,5 +762,65 @@ Files changed:
 
 Files deleted: none
 ```
+
+### Stage 7 (7.1–7.5) — 2026-08-18
+
+```text
+Packet: 7.1–7.5 Auto-filing / Sort Files repair (7.6 live blocked)
+Status: [x] for 7.1–7.5; 7.6 [!]
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-7-auto-filing (repo root)
+Predecessors verified: Stage 6 [x] SHA a914dc7b
+Reading list actually read: 00-doctrine.md §D2, 01-ground-truth.md §Sort Files path, sort_service.py 30–90 and 410–end (needed already-filed + _file_previews), document_ingest.py 54–end, tests/workflows/test_sort_files.py. Extra (named in tasks): SortFilesResultPanel, schemas SortFilesSummary, test_document_ingest_auto_sort.py, repair_service import of _file_previews.
+Failing test written: test_files_still_ingesting_report_waiting_not_skipped (skipped vs waiting); test_failed_ingest_reports_failed_not_skipped; test_low_confidence_reports_needs_review (unresolved vs needs-review); test_sort_does_not_download_files (one download); file_single_document ImportError
+Commit SHA: (feat commit; recorded in follow-up docs commit)
+
+Verification — 7.1 RED:
+assert 'skipped' == 'waiting'
+assert 'skipped' == 'failed'
+assert 'unresolved' == 'needs-review'
+
+Verification — 7.3 RED:
+assert [{'storage_key': '...CC-A-010.pdf'}] == []
+
+Verification — GREEN:
+uv run pytest tests/workflows/test_sort_files.py tests/workflows/test_document_ingest_auto_sort.py -q
+  24 passed, 1 warning in 3.87s
+
+uv run ruff check .
+  All checks passed!
+
+pnpm typecheck → exit 0
+pnpm test → 83 files, 525 tests passed
+pnpm build → ✓ built in 1.54s (initialCockpit gzipBytes 242707 / budget 256000)
+
+Verification — backend suite:
+uv run pytest -q --tb=line --import-mode=importlib
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+4 failed, 2508 passed, 7 skipped, 34 deselected, 4 warnings in 82.48s
+(diff vs baseline: empty — same 4 FAILED names; +7 passed vs Stage 6)
+
+7.6 live: NOT RUN. Get-NetTCPConnection Listen on 5173/8000 returned no rows.
+
+Files added: none (SortFilesResultPanel already existed; rewritten in place — replaces the collapsed "Moved/Skipped" grid)
+
+Files changed:
+- backend/app/intake/sort_service.py (replaces classify_inbox_destination + _file_previews on the Sort path with filing_destination + persisted Classification; adds file_single_document)
+- backend/app/workflows/document_ingest.py (replaces whole-inbox sort_inbox_files call with file_single_document)
+- backend/app/workflows/sort_files.py (summary + waiting headline)
+- backend/app/schemas/projects.py
+- backend/tests/workflows/test_sort_files.py
+- backend/tests/workflows/test_document_ingest_auto_sort.py
+- frontend/src/components/project/SortFilesResultPanel.tsx (replaces metric grid that could show a bare 0 moved)
+- frontend/src/components/project/SortFilesResultPanel.test.tsx
+- frontend/src/lib/types/project.ts
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none (_file_previews kept for repair_service)
+```
+
 
 

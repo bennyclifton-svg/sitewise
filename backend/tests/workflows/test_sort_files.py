@@ -96,7 +96,7 @@ def test_sort_inbox_skips_manifest_and_leaves_unresolved() -> None:
         result = run_async(sort_inbox_files(session, project=_project()))
 
     assert result.counts.skipped == 1
-    assert result.counts.unresolved == 1
+    assert result.counts.needs_review == 1
     assert result.counts.moved == 0
     assert "intake_manifest_v" in result.manifest_markdown
 
@@ -110,16 +110,170 @@ def test_sort_inbox_skips_files_that_are_still_ingesting() -> None:
             "app.intake.sort_service.list_workspace_files_under_prefix",
             new=AsyncMock(return_value=[queued]),
         ),
-        patch("app.intake.sort_service._file_previews", new=AsyncMock()) as previews,
         patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()) as move,
     ):
         result = run_async(sort_inbox_files(session, project=_project()))
 
-    assert result.counts.skipped == 1
+    assert result.counts.waiting == 1
     assert result.counts.inspected == 0
+    assert result.records[0].outcome == "waiting"
     assert result.records[0].reason == "Ingestion is still in progress"
-    previews.assert_not_awaited()
     move.assert_not_awaited()
+
+
+def test_files_still_ingesting_report_waiting_not_skipped() -> None:
+    session = AsyncMock()
+    queued = _workspace_file(
+        ingest_status="queued",
+        filename="still-ingesting.pdf",
+        workspace_path="04-projects/greenfield-demo/_inbox/still-ingesting.pdf",
+    )
+
+    with patch(
+        "app.intake.sort_service.list_workspace_files_under_prefix",
+        new=AsyncMock(return_value=[queued]),
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    record = next(r for r in result.records if r.filename == "still-ingesting.pdf")
+    assert record.outcome == "waiting"
+    assert result.counts.waiting == 1
+    assert result.counts.skipped == 0
+
+
+def test_failed_ingest_reports_failed_not_skipped() -> None:
+    session = AsyncMock()
+    failed = _workspace_file(
+        ingest_status="failed",
+        filename="broken.pdf",
+        workspace_path="04-projects/greenfield-demo/_inbox/broken.pdf",
+    )
+
+    with patch(
+        "app.intake.sort_service.list_workspace_files_under_prefix",
+        new=AsyncMock(return_value=[failed]),
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert result.records[0].outcome == "failed"
+    assert result.counts.failed == 1
+    assert result.counts.skipped == 0
+
+
+def test_low_confidence_reports_needs_review() -> None:
+    session = AsyncMock()
+    doc_id = uuid.uuid4()
+    source = _workspace_file(
+        source_document_id=doc_id,
+        ingest_status="ingested",
+        filename="scan.pdf",
+        workspace_path="04-projects/greenfield-demo/_inbox/scan.pdf",
+    )
+    document = SimpleNamespace(
+        document_class="unknown",
+        ingest_mode="full_text",
+        document_metadata={"confidence": "0.40", "basis": "filename", "subject": "none"},
+        relative_path=source.workspace_path,
+    )
+    session.get = AsyncMock(return_value=document)
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[source]),
+        ),
+        patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()) as move,
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert result.records[0].outcome == "needs-review"
+    assert result.counts.needs_review == 1
+    assert result.counts.moved == 0
+    move.assert_not_awaited()
+
+
+def test_sort_does_not_download_files(monkeypatch) -> None:
+    session = AsyncMock()
+    source = _workspace_file()
+    calls: list[object] = []
+
+    def capture_download(**kwargs):
+        calls.append(kwargs)
+        return b""
+
+    monkeypatch.setattr(
+        "app.intake.sort_service.download_project_file", capture_download
+    )
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[source]),
+        ),
+        patch(
+            "app.intake.sort_service.get_workspace_file_by_path",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.intake.sort_service._resolve_destination_filename",
+            new=AsyncMock(return_value="CC-A-010.pdf"),
+        ),
+        patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=None,
+        ),
+    ):
+        run_async(sort_inbox_files(session, project=_project()))
+
+    assert calls == []
+
+
+def test_sort_twice_is_a_no_op() -> None:
+    session = AsyncMock()
+    source = _workspace_file()
+    destinations: dict[str, WorkspaceFile] = {}
+
+    async def fake_get_by_path(session_obj, *, project_id, workspace_path):
+        return destinations.get(workspace_path)
+
+    async def fake_move(session_obj, *, project, record, destination_workspace_path, destination_filename):
+        moved_record = _workspace_file(
+            workspace_path=destination_workspace_path,
+            filename=destination_filename,
+            content_hash=record.content_hash,
+        )
+        destinations[destination_workspace_path] = moved_record
+        return moved_record
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[source]),
+        ),
+        patch(
+            "app.intake.sort_service.get_workspace_file_by_path",
+            side_effect=fake_get_by_path,
+        ),
+        patch(
+            "app.intake.sort_service._resolve_destination_filename",
+            new=AsyncMock(return_value="CC-A-010.pdf"),
+        ),
+        patch(
+            "app.intake.sort_service._move_workspace_file",
+            new=AsyncMock(side_effect=fake_move),
+        ),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=None,
+        ),
+    ):
+        first = run_async(sort_inbox_files(session, project=_project()))
+        second = run_async(sort_inbox_files(session, project=_project()))
+
+    assert first.counts.moved == 1
+    assert second.counts.moved == 0
+    assert second.counts.already_filed == first.counts.moved
 
 
 def test_sort_inbox_refuses_when_destination_hash_differs() -> None:
@@ -559,61 +713,37 @@ def test_run_sort_files_workflow_reports_reviewable_outcomes(
     session.commit.assert_awaited()
 
 
-def _decoupled_electrical_sheet_pdf() -> bytes:
-    """Sheet whose title block is graphically decoupled from its labels.
-
-    Reading the page text in order pairs a label with the next label, so the
-    register only gets the real identity if it reads the block by position.
-    """
-    import fitz
-
-    document = fitz.open()
-    page = document.new_page(width=2384, height=1684)
-    for index in range(30):
-        page.insert_text((120 + (index % 6) * 100, 320 + (index // 6) * 70), "DL1", fontsize=9)
-
-    # Every label first, then every value — the layout CAD exports actually
-    # produce, and the reason text-order pairing reads label -> label.
-    for point, text in (
-        ((36, 90), "Drawing Title:"),
-        ((300, 90), "Drawing No:"),
-        ((37, 108), "Rev"),
-        ((37, 152), "Project Address:"),
-        ((37, 168), "DP Full Name"),
-    ):
-        page.insert_text(point, text, fontsize=8)
-    for point, text in (
-        ((92, 90), "LEVEL L0 GROUND - LIGHTING LAYOUT"),
-        ((352, 90), "E02"),
-        ((43, 130), "C1"),
-    ):
-        page.insert_text(point, text, fontsize=8)
-
-    data = document.tobytes()
-    document.close()
-    return data
-
-
 def test_sort_reads_drawing_identity_from_the_title_block_not_the_filename() -> None:
-    # E02-EL~1.PDF is a Windows 8.3 alias: it carries the sheet number and
-    # nothing else, so title and revision must come off the drawing.
+    # E02-EL~1.PDF is a Windows 8.3 alias: identity is persisted at ingest (D2).
     session = AsyncMock()
+    doc_id = uuid.uuid4()
     drawing = _workspace_file(
         workspace_path="04-projects/greenfield-demo/_inbox/ELEC/E02-EL~1.PDF",
         filename="E02-EL~1.PDF",
         storage_key=f"{PROJECT_ID}/elec.pdf",
         content_hash="elec",
+        source_document_id=doc_id,
     )
-    content = _decoupled_electrical_sheet_pdf()
+    document = SimpleNamespace(
+        document_class="drawing",
+        ingest_mode="register_only",
+        relative_path=drawing.workspace_path,
+        document_metadata={
+            "confidence": "0.95",
+            "basis": "structural",
+            "subject": "services",
+            "document_number": "E02",
+            "title": "LEVEL L0 GROUND - LIGHTING LAYOUT",
+            "revision": "C1",
+            "split_method": "title_block_v1",
+        },
+    )
+    session.get = AsyncMock(return_value=document)
 
     with (
         patch(
             "app.intake.sort_service.list_workspace_files_under_prefix",
             new=AsyncMock(return_value=[drawing]),
-        ),
-        patch(
-            "app.intake.sort_service.download_project_file",
-            side_effect=lambda *, storage_key: content,
         ),
         patch(
             "app.intake.sort_service.get_workspace_file_by_path",
@@ -632,4 +762,6 @@ def test_sort_reads_drawing_identity_from_the_title_block_not_the_filename() -> 
     assert record.document_number == "E02"
     assert record.title == "LEVEL L0 GROUND - LIGHTING LAYOUT"
     assert record.revision == "C1"
-    assert record.destination_filename == "E02 - LEVEL L0 GROUND - LIGHTING LAYOUT Rev C1.PDF"
+    assert record.destination_filename.lower() == (
+        "e02 - level l0 ground - lighting layout rev c1.pdf"
+    )

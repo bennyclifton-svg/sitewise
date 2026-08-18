@@ -930,6 +930,9 @@ class SortFilesSummary(BaseModel):
     unresolved: int = 0
     skipped: int = 0
     refused: int = 0
+    waiting: int = 0
+    needs_review: int = 0
+    failed: int = 0
 
 
 class SortFileRow(BaseModel):

@@ -7,6 +7,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 
 from sqlalchemy import delete, or_, select
@@ -22,7 +23,7 @@ from app.database.workspace_files import (
     upsert_workspace_file,
 )
 from app.inbox.paths import build_storage_key
-from app.intake.classifier import classify_inbox_destination, is_intake_manifest
+from app.intake.classifier import filing_destination, is_intake_manifest
 from app.logging import get_logger
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
 from app.storage.project_files import (
@@ -30,12 +31,23 @@ from app.storage.project_files import (
     download_project_file,
     upload_project_file,
 )
+from ingest.classify import classify_entry
 from ingest.document_metadata import parse_document_metadata
 from ingest.hosted import ingest_hosted_file, source_document_id_for_path
 from ingest.ids import document_id
 from ingest.title_block import pdf_title_block_preview
+from ingest.types import Classification, ManifestEntry
 
-SortOutcome = Literal["moved", "already-filed", "unresolved", "skipped", "refused"]
+SortOutcome = Literal[
+    "moved",
+    "already-filed",
+    "waiting",
+    "needs-review",
+    "unresolved",
+    "skipped",
+    "failed",
+    "refused",
+]
 
 log = get_logger(__name__)
 MOVE_FAILURE_REASON = "Project storage could not move the file."
@@ -66,6 +78,9 @@ class SortFilesCounts:
     unresolved: int = 0
     skipped: int = 0
     refused: int = 0
+    waiting: int = 0
+    needs_review: int = 0
+    failed: int = 0
 
 
 @dataclass
@@ -98,15 +113,62 @@ _SPLIT_IDENTITY_KEYS = {
 }
 
 
+def _classification_from_document(document: object) -> Classification:
+    raw_meta = getattr(document, "document_metadata", None) or {}
+    meta = {
+        str(key): str(value)
+        for key, value in raw_meta.items()
+        if value is not None
+    }
+    try:
+        confidence = float(meta.get("confidence", "0") or 0)
+    except ValueError:
+        confidence = 0.0
+    subject = meta.get("subject", "none") or "none"
+    basis = meta.get("basis", "default") or "default"
+    from ingest.classify import canonicalize_document_class
+
+    document_class, meta = canonicalize_document_class(
+        getattr(document, "document_class", "unknown") or "unknown",
+        meta,
+    )
+    ingest_mode = getattr(document, "ingest_mode", None) or "full_text"
+    return Classification(
+        document_class=document_class,
+        ingest_mode=ingest_mode,
+        document_metadata=meta,
+        document_subject=subject,  # type: ignore[arg-type]
+        confidence=confidence,
+        basis=basis,  # type: ignore[arg-type]
+    )
+
+
+async def load_persisted_classification(
+    session: AsyncSession, record: WorkspaceFile
+) -> Classification | None:
+    if record.source_document_id is None:
+        return None
+    document = await session.get(SourceDocument, record.source_document_id)
+    if document is None:
+        return None
+    return _classification_from_document(document)
+
+
+def _filename_classification(record: WorkspaceFile, project: Project) -> Classification:
+    entry = ManifestEntry(
+        absolute_path=Path(record.workspace_path),
+        relative_path=record.workspace_path,
+        project=project.workspace_path.split("/", maxsplit=1)[0],
+        filename=record.filename,
+        extension=_extension(record.filename),
+        size_bytes=record.size_bytes or 0,
+    )
+    return classify_entry(entry)
+
+
 @dataclass(frozen=True, slots=True)
 class _Previews:
-    """Two views of one file, because they answer different questions.
-
-    ``classification`` is the broad first-page text used to pick a lifecycle
-    folder. ``identity`` is the drawing's title block read by position; a sheet's
-    text order cannot be trusted for identity, but the broad text is still the
-    better signal for classification.
-    """
+    """Kept for `repair_service` (not Sort Files). Sort reads persisted classification."""
 
     classification: str | None = None
     identity: str | None = None
@@ -145,6 +207,38 @@ async def _file_previews(record: WorkspaceFile) -> _Previews:
     return _Previews(
         classification=content[:_PREVIEW_BYTE_LIMIT].decode("utf-8", errors="replace")
     )
+
+
+async def file_single_document(
+    session: AsyncSession,
+    *,
+    project: Project,
+    document: SourceDocument,
+) -> str | None:
+    """File one classified inbox document. No-op if it has already left `_inbox/`."""
+    relative = document.relative_path or ""
+    inbox_prefix = f"{project.workspace_path.rstrip('/')}/_inbox/"
+    if not relative.startswith(inbox_prefix):
+        return None
+    meta = document.document_metadata or {}
+    try:
+        confidence = float(meta.get("confidence", 0) or 0)
+    except (TypeError, ValueError):
+        confidence = 0.0
+    if confidence < 0.65:
+        return None
+    result = await sort_inbox_files(
+        session, project=project, workspace_paths={relative}
+    )
+    moved = next(
+        (
+            item
+            for item in result.records
+            if item.outcome == "moved" and item.destination_path
+        ),
+        None,
+    )
+    return moved.destination_path if moved is not None else None
 
 
 def _inbox_prefix(project: Project) -> str:
@@ -227,6 +321,9 @@ def _build_manifest_markdown(
         f"already_filed: {result.counts.already_filed}",
         f"unresolved: {result.counts.unresolved}",
         f"skipped: {result.counts.skipped}",
+        f"waiting: {result.counts.waiting}",
+        f"needs_review: {result.counts.needs_review}",
+        f"failed: {result.counts.failed}",
         f"refused: {result.counts.refused}",
         "---",
         "",
@@ -239,6 +336,9 @@ def _build_manifest_markdown(
         f"- Already filed: {result.counts.already_filed}",
         f"- Unresolved: {result.counts.unresolved}",
         f"- Skipped: {result.counts.skipped}",
+        f"- Waiting: {result.counts.waiting}",
+        f"- Needs review: {result.counts.needs_review}",
+        f"- Failed: {result.counts.failed}",
         f"- Refused: {result.counts.refused}",
         "",
     ]
@@ -248,6 +348,9 @@ def _build_manifest_markdown(
         ("Already filed", "already-filed"),
         ("Unresolved", "unresolved"),
         ("Skipped", "skipped"),
+        ("Waiting", "waiting"),
+        ("Needs review", "needs-review"),
+        ("Failed", "failed"),
         ("Refused", "refused"),
     ):
         rows = [record for record in result.records if record.outcome == outcome]
@@ -448,11 +551,11 @@ async def sort_inbox_files(
                 SortFileRecord(
                     source_path=record.workspace_path,
                     filename=record.filename,
-                    outcome="skipped",
+                    outcome="waiting",
                     reason="Ingestion is still in progress",
                 )
             )
-            result.counts.skipped += 1
+            result.counts.waiting += 1
             continue
 
         if record.ingest_status == "failed":
@@ -460,20 +563,34 @@ async def sort_inbox_files(
                 SortFileRecord(
                     source_path=record.workspace_path,
                     filename=record.filename,
-                    outcome="skipped",
+                    outcome="failed",
                     reason="Ingestion failed; retry the upload before sorting",
                 )
             )
-            result.counts.skipped += 1
+            result.counts.failed += 1
             continue
 
         result.counts.inspected += 1
-        previews = await _file_previews(record)
-        destination_folder = classify_inbox_destination(
+        classification = await load_persisted_classification(session, record)
+        if classification is None:
+            classification = _filename_classification(record, project)
+        if classification.confidence < 0.65:
+            result.records.append(
+                SortFileRecord(
+                    source_path=record.workspace_path,
+                    filename=record.filename,
+                    outcome="needs-review",
+                    reason="Low confidence; tap to classify",
+                )
+            )
+            result.counts.needs_review += 1
+            continue
+
+        destination_folder = filing_destination(
+            classification,
             workspace_path=record.workspace_path,
             filename=record.filename,
             project_workspace_path=project.workspace_path,
-            preview_snippet=previews.classification,
         )
         if destination_folder is None:
             result.records.append(
@@ -498,7 +615,7 @@ async def sort_inbox_files(
             destination_folder=destination_folder,
             filename=record.filename,
             project=project,
-            preview_snippet=previews.for_identity,
+            preview_snippet=None,
             document_metadata=(
                 document_metadata if isinstance(document_metadata, dict) else None
             ),
@@ -533,7 +650,10 @@ async def sort_inbox_files(
                     source_path=record.workspace_path,
                     filed_path=destination_path,
                     filename=record.filename,
-                    preview_snippet=previews.for_identity,
+                    preview_snippet=None,
+                    document_metadata=(
+                        document_metadata if isinstance(document_metadata, dict) else None
+                    ),
                 )
                 result.records.append(
                     SortFileRecord(
@@ -594,7 +714,10 @@ async def sort_inbox_files(
             source_path=record.workspace_path,
             filed_path=destination_path,
             filename=destination_filename,
-            preview_snippet=previews.for_identity,
+            preview_snippet=None,
+            document_metadata=(
+                document_metadata if isinstance(document_metadata, dict) else None
+            ),
         )
         filed_doc_id = await asyncio.to_thread(
             source_document_id_for_path,
@@ -637,7 +760,19 @@ def _register_fields_from_path(
     filed_path: str,
     filename: str,
     preview_snippet: str | None = None,
+    document_metadata: dict[str, object] | None = None,
 ) -> dict[str, str | None]:
+    persisted = document_metadata or {}
+    number = persisted.get("document_number") or persisted.get("drawing_number")
+    title = persisted.get("title")
+    revision = persisted.get("revision")
+    if isinstance(title, str) and title.strip():
+        return {
+            "document_number": str(number).strip() if isinstance(number, str) and number.strip() else None,
+            "title": title.strip(),
+            "revision": str(revision).strip() if isinstance(revision, str) and revision.strip() else None,
+            "category": None,
+        }
     parsed = parse_document_metadata(
         file_name=filename,
         filed_path=filed_path,

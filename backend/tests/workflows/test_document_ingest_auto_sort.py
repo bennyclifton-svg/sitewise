@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from app.database.project import Project
 from app.database.source_document import SourceDocument
@@ -60,23 +60,15 @@ def test_ingest_auto_sorts_confident_inbox_drawing_and_promotes_firm() -> None:
         document_metadata={
             "discipline": "Hydraulic",
             "issuing_firm": "TDL Engineering Consulting Pty Ltd",
+            "confidence": "0.95",
+            "basis": "filename",
+            "subject": "none",
         },
     )
 
     session = AsyncMock()
     session.get = AsyncMock(side_effect=[record, document, document])
     session.commit = AsyncMock()
-
-    sort_result = MagicMock()
-    sort_result.counts.moved = 1
-    sort_result.records = [
-        MagicMock(
-            outcome="moved",
-            destination_path=(
-                "04-projects/petersham/03-design/hydraulic/H-001 COVER.pdf"
-            ),
-        )
-    ]
 
     with (
         patch(
@@ -96,10 +88,12 @@ def test_ingest_auto_sorts_confident_inbox_drawing_and_promotes_firm() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "app.workflows.document_ingest.sort_inbox_files",
+            "app.workflows.document_ingest.file_single_document",
             new_callable=AsyncMock,
-            return_value=sort_result,
-        ) as sort_mock,
+            return_value=(
+                "04-projects/petersham/03-design/hydraulic/H-001 COVER.pdf"
+            ),
+        ) as file_mock,
         patch(
             "app.database.activity_events.record_activity_events",
             new_callable=AsyncMock,
@@ -115,11 +109,63 @@ def test_ingest_auto_sorts_confident_inbox_drawing_and_promotes_firm() -> None:
         )
 
     assert result.ingest_status == "ingested"
-    sort_mock.assert_awaited_once()
-    paths = sort_mock.await_args.kwargs.get("workspace_paths") or set()
-    assert "04-projects/petersham/_inbox/H-001-COVER-Layout1.pdf" in paths
+    file_mock.assert_awaited_once()
     from app.projects.project_knowledge import list_shared_project_objects
 
     facts = list_shared_project_objects(project, kind="consultant")
     assert len(facts) == 1
     assert facts[0].value["firm"] == "TDL Engineering Consulting Pty Ltd"
+
+
+def test_file_single_document_is_noop_when_not_in_inbox() -> None:
+    from app.intake.sort_service import file_single_document
+
+    project = _project()
+    document = SourceDocument(
+        id=DOC_ID,
+        project_id=PROJECT_ID,
+        project="petersham",
+        phase="brief-planning",
+        document_class="drawing",
+        filename="H-001 COVER.pdf",
+        relative_path="04-projects/petersham/03-design/hydraulic/H-001 COVER.pdf",
+        normalized_content="x" * 200,
+        document_metadata={"confidence": "0.92", "basis": "filename", "subject": "none"},
+    )
+
+    with patch(
+        "app.intake.sort_service.sort_inbox_files", new_callable=AsyncMock
+    ) as sort_mock:
+        result = run_async(
+            file_single_document(AsyncMock(), project=project, document=document)
+        )
+
+    assert result is None
+    sort_mock.assert_not_awaited()
+
+
+def test_file_single_document_skips_low_confidence() -> None:
+    from app.intake.sort_service import file_single_document
+
+    project = _project()
+    document = SourceDocument(
+        id=DOC_ID,
+        project_id=PROJECT_ID,
+        project="petersham",
+        phase="brief-planning",
+        document_class="unknown",
+        filename="scan.pdf",
+        relative_path="04-projects/petersham/_inbox/scan.pdf",
+        normalized_content="x" * 200,
+        document_metadata={"confidence": "0.40", "basis": "default", "subject": "none"},
+    )
+
+    with patch(
+        "app.intake.sort_service.sort_inbox_files", new_callable=AsyncMock
+    ) as sort_mock:
+        result = run_async(
+            file_single_document(AsyncMock(), project=project, document=document)
+        )
+
+    assert result is None
+    sort_mock.assert_not_awaited()

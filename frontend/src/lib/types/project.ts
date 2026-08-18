@@ -753,6 +753,9 @@ export type SortFilesSummary = {
   unresolved: number;
   skipped: number;
   refused: number;
+  waiting: number;
+  needs_review: number;
+  failed: number;
 };
 
 export type SortFileRow = {

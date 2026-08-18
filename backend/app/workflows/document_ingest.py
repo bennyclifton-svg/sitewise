@@ -10,7 +10,7 @@ from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
-from app.intake.sort_service import sort_inbox_files
+from app.intake.sort_service import file_single_document
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
 from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from app.schemas.projects import WorkflowTraceEvent
@@ -123,23 +123,10 @@ async def ingest_project_document(
             document = await session.get(SourceDocument, record.source_document_id)
             if document is not None:
                 upsert_consultant_fact_from_document(project, document)
-            inbox_prefix = f"{project.workspace_path.rstrip('/')}/_inbox/"
-            if record.workspace_path.startswith(inbox_prefix):
-                sort_result = await sort_inbox_files(
-                    session,
-                    project=project,
-                    workspace_paths={record.workspace_path},
+                auto_sort_destination = await file_single_document(
+                    session, project=project, document=document
                 )
-                moved = next(
-                    (
-                        item
-                        for item in sort_result.records
-                        if item.outcome == "moved" and item.destination_path
-                    ),
-                    None,
-                )
-                if moved is not None:
-                    auto_sort_destination = moved.destination_path
+                if auto_sort_destination:
                     trace.append(
                         WorkflowTraceEvent(
                             step="auto_sort",
@@ -147,20 +134,22 @@ async def ingest_project_document(
                             message="Filed inbox document to a confident lifecycle folder.",
                             metadata={
                                 "source_path": record.workspace_path,
-                                "destination_path": moved.destination_path,
+                                "destination_path": auto_sort_destination,
                             },
                         )
                     )
                     filed_doc_id = await asyncio.to_thread(
                         source_document_id_for_path,
-                        moved.destination_path,
+                        auto_sort_destination,
                         project_id=project.id,
                     )
                     if filed_doc_id is not None:
                         filed_document = await session.get(SourceDocument, filed_doc_id)
                         if filed_document is not None:
                             upsert_consultant_fact_from_document(project, filed_document)
-                elif sort_result.counts.unresolved:
+                elif record.workspace_path.startswith(
+                    f"{project.workspace_path.rstrip('/')}/_inbox/"
+                ):
                     trace.append(
                         WorkflowTraceEvent(
                             step="auto_sort",
