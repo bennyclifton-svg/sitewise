@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 8 code complete; GATE 2 awaits human signature
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 8 code complete (`6fc7a9d2`); GATE 2 awaits human signature
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -835,7 +835,7 @@ Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
 Predecessors verified: Stage 6 [x] SHA a914dc7b; Stage 7 [x] SHA 432e3ce5
 Reading list actually read: 01-ground-truth.md §Consumers of document_class, TRACKER.md mapping + OD-1/OD-2, docs/acceptance/x1/audit-post-backfill.json. Owned consumers named in stage-08. Alembic 048 for down_revision (varchar(32) note from Stage 5).
 Failing test written: tests/ingest/test_taxonomy_migration.py (FileNotFoundError 049); test_catalog_passages_use_schedule_not_corpus_catalog (corpus_catalog); test_append_unindexed_inbox_workspace_files (inbox_pending); test_bootstrap_skips_statutory_instruments (did not skip)
-Commit SHA: (recorded in follow-up docs commit)
+Commit SHA: 6fc7a9d2
 Production LOC delta: ingest+intake 6073 vs Stage 0.6 5609 (+464 / +8.3%, <10%). Alembic 049 is data-only and outside that glob.
 Integration notes raised: OD-1/OD-2 defaults; attachments.py writer; _legacy_document_class marker; psql missing; classify_inbox_destination kept for repair; batched consumer commits
 Handoff: Stage 8 complete. GATE 2 awaits human signature. Then expand Stage 9 from 90-downstream-stages.md.
