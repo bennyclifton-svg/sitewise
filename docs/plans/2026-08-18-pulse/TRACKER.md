@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 5 complete (pending SHA)
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 5 complete (`90f12255`)
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -630,7 +630,7 @@ Branch/worktree: x1/stage-5-user-override (repo root)
 Predecessors verified: Stage 3 [x] tag x1-gate-1; Stage 4 [x] SHA 7052d143
 Reading list actually read: 00-doctrine.md §D4, backend/app/database/source_document.py, alembic/versions/047_programme.py, app/api/projects.py PUT authorization pattern, backend/AGENTS.md §Database Migrations. Stage-A hook: ingest/classify.py. Callers required by 5.3/5.5: ingest/hosted.py.
 Failing test written: tests/projects/test_classification_override.py (ImportError classification_override); tests/test_classification_override_api.py (404 "Not Found" missing route); tests/mcp_bridge/test_set_document_classification.py (missing tool); ClassificationChip.test.tsx (missing module)
-Commit SHA: (recorded after commit)
+Commit SHA: 90f12255c6147fd9685f8285675aac5eb87acde6
 Production LOC delta: classification_override.py 200; document_classification_override.py 70; alembic 048 113; projects.py +54; mcp_bridge/server.py +66; schemas +10; models +4; classify.py +8/−3; hosted.py +25. Frontend ClassificationChip.tsx new.
 Integration notes raised: alembic version_num varchar(32); hosted.py lookup (pipeline has no project_id); path-keyed move limitation; no re-embed on override; pre-existing CostPlanGrid lint
 Handoff: Stage 5 complete. Stage 6 is unblocked.
