@@ -114,6 +114,23 @@ async def audit() -> dict[str, object]:
             ).all()
         )
 
+        report["non_canonical_classes"] = _pairs(
+            (
+                await session.execute(
+                    text(
+                        """
+                SELECT document_class, count(*) FROM source_documents
+                WHERE document_class NOT IN (
+                  'drawing','specification','report','certificate','correspondence','contract',
+                  'commercial','schedule','statutory_instrument','photo','unknown'
+                )
+                GROUP BY 1
+            """
+                    )
+                )
+            ).all()
+        )
+
         report["null_content_hash"] = _count(
             (
                 await session.execute(

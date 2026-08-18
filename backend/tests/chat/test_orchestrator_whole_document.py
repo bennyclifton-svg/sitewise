@@ -24,7 +24,7 @@ def test_run_chat_turn_uses_whole_document_path() -> None:
         project="sitewise-platform",
         phase="reference",
         source_type="reference",
-        document_class="reference_guide",
+        document_class="report",
         filename="guide.md",
         relative_path="seed/guide.md",
         document_metadata={"knowledge_scope": "platform"},

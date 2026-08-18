@@ -27,14 +27,6 @@ ClassificationBasis = Literal[
     "user", "structural", "filename", "content", "model", "default",
 ]
 
-# Stage 8 migrates these out of document_class. Delete this alias when
-# TRACKER.md packet 8.9 closes. Tracked as a shim.
-LegacyDocumentClass = Literal[
-    "tender_submission", "trr", "evaluation", "rft", "addendum", "eoi", "tep",
-    "reference_guide", "doctrine", "planning_instrument",
-    "inbox_pending", "corpus_catalog",   # never declared, but present in the DB
-]
-
 IngestMode = Literal["full_text", "register_only", "hybrid"]
 
 SourceType = Literal["project_evidence", "reference", "doctrine"]

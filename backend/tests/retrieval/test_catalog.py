@@ -63,3 +63,23 @@ def test_catalog_passages_validate_project_excerpt() -> None:
     )
     validated = validator.validate(answer)
     assert validated.cited_passages
+
+
+def test_catalog_passages_use_schedule_not_corpus_catalog() -> None:
+    chunk_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    catalog = [
+        CorpusProjectSummary(
+            project="delivery-house",
+            phase="delivery",
+            source_type="project_evidence",
+            document_count=5,
+            sample_chunk_id=chunk_id,
+            sample_document_id=document_id,
+            sample_filename="contract.pdf",
+            sample_relative_path="delivery-house/contract.pdf",
+        )
+    ]
+    passage = catalog_to_passages(catalog)[0]
+    assert passage.document_class == "schedule"
+    assert passage.document_metadata["synthetic"] is True

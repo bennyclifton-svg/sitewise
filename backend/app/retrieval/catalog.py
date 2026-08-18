@@ -107,10 +107,14 @@ def catalog_to_passages(catalog: list[CorpusProjectSummary]) -> list[SourcePassa
                 project_id=entry.project_id,
                 phase=entry.phase,
                 source_type=entry.source_type,
-                document_class="corpus_catalog",
+                document_class="schedule",
                 filename=entry.sample_filename,
                 relative_path=entry.sample_relative_path,
-                document_metadata={"corpus_catalog": True, "document_count": entry.document_count},
+                document_metadata={
+                    "synthetic": True,
+                    "corpus_catalog": True,
+                    "document_count": entry.document_count,
+                },
                 chunk_metadata={"corpus_catalog": True},
                 score=1.0,
             )

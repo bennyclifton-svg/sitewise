@@ -4130,7 +4130,7 @@ async def attach_official_instrument(
                     }
                 )
                 document.source_type = "reference"
-                document.document_class = "planning_instrument"
+                document.document_class = "statutory_instrument"
                 document.document_type = "planning_instrument"
                 document.document_metadata = metadata
                 await session.commit()

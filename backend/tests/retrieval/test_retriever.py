@@ -26,7 +26,7 @@ def _hit(
         project_id=PROJECT_ID,
         phase="procurement",
         source_type="project_evidence",
-        document_class="evaluation",
+        document_class="commercial",
         filename="eval.pdf",
         relative_path=f"{project}/06 EVALUATION/eval.pdf",
         document_metadata={"procurement_stage": procurement_stage},

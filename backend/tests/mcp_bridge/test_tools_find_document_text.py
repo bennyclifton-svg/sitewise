@@ -145,7 +145,7 @@ def test_find_document_text_labels_official_planning_instruments(monkeypatch) ->
     )
     document.source_type = "reference"
     document.document_metadata = {"knowledge_scope": "official"}
-    document.document_class = "planning_instrument"
+    document.document_class = "statutory_instrument"
     session = _Session(project=_project(), source_documents=[document])
     server = _install(monkeypatch, session)
 
@@ -159,7 +159,7 @@ def test_find_document_text_labels_official_planning_instruments(monkeypatch) ->
 
     assert result.data[0]["source_type"] == "reference"
     assert result.data[0]["knowledge_scope"] == "official"
-    assert result.data[0]["document_class"] == "planning_instrument"
+    assert result.data[0]["document_class"] == "statutory_instrument"
 
 
 def test_find_document_text_publishes_document_name_in_status(monkeypatch) -> None:

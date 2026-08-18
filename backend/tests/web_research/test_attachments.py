@@ -87,7 +87,7 @@ def test_persist_official_attachment_writes_reference_not_evidence() -> None:
     )
 
     assert document.source_type == "reference"
-    assert document.document_class == "planning_instrument"
+    assert document.document_class == "statutory_instrument"
     assert document.document_metadata["knowledge_scope"] == "official"
     assert document.document_metadata["official_url"] == _URL
     assert document.relative_path == "official/act-1979-203"

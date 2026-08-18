@@ -126,16 +126,11 @@ def _classification_from_document(document: object) -> Classification:
         confidence = 0.0
     subject = meta.get("subject", "none") or "none"
     basis = meta.get("basis", "default") or "default"
-    from ingest.classify import canonicalize_document_class
-
-    document_class, meta = canonicalize_document_class(
-        getattr(document, "document_class", "unknown") or "unknown",
-        meta,
-    )
+    document_class = getattr(document, "document_class", "unknown") or "unknown"
     ingest_mode = getattr(document, "ingest_mode", None) or "full_text"
     return Classification(
-        document_class=document_class,
-        ingest_mode=ingest_mode,
+        document_class=document_class,  # type: ignore[arg-type]
+        ingest_mode=ingest_mode,  # type: ignore[arg-type]
         document_metadata=meta,
         document_subject=subject,  # type: ignore[arg-type]
         confidence=confidence,

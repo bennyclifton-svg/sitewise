@@ -229,7 +229,7 @@ def _passage(
         project=project,
         phase="reference",
         source_type=source_type,
-        document_class="reference_guide" if source_type == "reference" else source_type,
+        document_class="report" if source_type in ("reference", "doctrine") else source_type,
         filename=relative_path.split("/")[-1],
         relative_path=relative_path,
         document_metadata=(

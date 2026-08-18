@@ -74,7 +74,7 @@ def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> Non
     pending = merged[1]
     assert pending.id == workspace_file_id
     assert pending.category is None
-    assert pending.document_class == "inbox_pending"
+    assert pending.document_class == "unknown"
 
 
 def _source_document(filename: str, normalized_content: str):

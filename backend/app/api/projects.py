@@ -611,7 +611,7 @@ def _evidence_preview_from_workspace_file(record: WorkspaceFile) -> EvidencePrev
         filename=record.filename,
         relative_path=record.workspace_path,
         source_type="project_evidence",
-        document_class="inbox_pending",
+        document_class="unknown",
         excerpt="",
         content=None,
         document_number=None,

@@ -11,8 +11,6 @@ def has_useful_text(text: str | None) -> bool:
 def _extractor_for(classification: Classification, extension: str) -> str:
     if extension == ".pdf":
         return "pdf_odl"
-    if classification.document_class == "doctrine" or classification.document_class == "reference_guide":
-        return "markdown" if extension == ".md" else "unsupported"
     if classification.document_class == "drawing":
         if extension == ".dwg":
             return "dwg"

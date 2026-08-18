@@ -73,7 +73,7 @@ async def persist_official_attachment(
     metadata = _official_metadata(source, previous_hash=previous_hash)
     if existing is not None:
         existing.source_type = "reference"
-        existing.document_class = "planning_instrument"
+        existing.document_class = "statutory_instrument"
         existing.document_type = "planning_instrument"
         existing.ingest_mode = "full_text"
         existing.filename = source.title[:512]
@@ -87,7 +87,7 @@ async def persist_official_attachment(
         project=project_slug,
         phase="reference",
         document_type="planning_instrument",
-        document_class="planning_instrument",
+        document_class="statutory_instrument",
         ingest_mode="full_text",
         document_metadata=metadata,
         content_hash=source.content_hash,

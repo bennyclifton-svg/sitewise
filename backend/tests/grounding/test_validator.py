@@ -23,7 +23,7 @@ def _passage(
         project="clerk",
         phase="doctrine",
         source_type="doctrine",
-        document_class="doctrine",
+        document_class="report",
         filename="clerk-brief.md",
         relative_path="docs/clerk-brief.md",
         document_metadata=None,

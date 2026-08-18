@@ -105,20 +105,20 @@ grep -rn "inbox_pending" backend/ frontend/src/ | grep -v __pycache__
 
 One commit each. Tick them off here **and** in `TRACKER.md`:
 
-- [ ] `backend/app/retrieval/queries.py:43` — filter accepts canonical class
-- [ ] `backend/app/retrieval/register.py:48,93` — `== "drawing"` still valid, verify
-- [ ] `backend/app/retrieval/inventory.py` — display strings
-- [ ] `backend/app/retrieval/catalog.py:110` — stop writing `corpus_catalog`
-- [ ] `backend/app/projects/document_register.py:162` — `== "specification"` verify
-- [ ] `backend/app/projects/consultant_facts.py:125-171` — `== "certificate"` verify
-- [ ] `backend/app/projects/identity_bootstrap.py:35` — `planning_instrument` → `statutory_instrument`
-- [ ] `backend/app/cost_plan/consultant_appointment.py:527`
-- [ ] `backend/app/mcp_bridge/server.py:4128` — **writes** `planning_instrument`
-- [ ] `backend/app/mcp_bridge/server.py:697,4363` — reads
-- [ ] `backend/app/grounding/validator.py:35`
-- [ ] `backend/app/api/projects.py:494,558,593,644,877,909`
-- [ ] `backend/app/assistant/agent.py:231`
-- [ ] `backend/ingest/persist.py` + `pipeline.py`
+- [x] `backend/app/retrieval/queries.py:43` — filter accepts canonical class
+- [x] `backend/app/retrieval/register.py:48,93` — `== "drawing"` still valid, verify
+- [x] `backend/app/retrieval/inventory.py` — display strings
+- [x] `backend/app/retrieval/catalog.py:110` — stop writing `corpus_catalog`
+- [x] `backend/app/projects/document_register.py:162` — `== "specification"` verify
+- [x] `backend/app/projects/consultant_facts.py:125-171` — `== "certificate"` verify
+- [x] `backend/app/projects/identity_bootstrap.py:35` — `planning_instrument` → `statutory_instrument`
+- [x] `backend/app/cost_plan/consultant_appointment.py:527`
+- [x] `backend/app/mcp_bridge/server.py:4128` — **writes** `planning_instrument`
+- [x] `backend/app/mcp_bridge/server.py:697,4363` — reads
+- [x] `backend/app/grounding/validator.py:35`
+- [x] `backend/app/api/projects.py:494,558,593,644,877,909`
+- [x] `backend/app/assistant/agent.py:231`
+- [x] `backend/ingest/persist.py` + `pipeline.py`
 
 > `app/assistant/` is legacy but **must not be deleted** — root `AGENTS.md`
 > blocks that until the production cutover gate. Migrate it; do not remove it.

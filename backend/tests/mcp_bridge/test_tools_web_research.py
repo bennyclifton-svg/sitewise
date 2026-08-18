@@ -290,7 +290,7 @@ def test_attach_official_instrument_from_uploaded_document(monkeypatch) -> None:
     )
 
     assert document.source_type == "reference"
-    assert document.document_class == "planning_instrument"
+    assert document.document_class == "statutory_instrument"
     assert document.document_metadata["knowledge_scope"] == "official"
     assert result.data["document_id"] == str(document_id)
     assert result.data["title"] == "Inner West DCP 2022.pdf"

@@ -287,33 +287,6 @@ def _ingest_mode_for_class(document_class: DocumentClass) -> IngestMode:
     return "full_text"
 
 
-# Stage 8 migrates stored document_class values. Keep identical to TRACKER.md.
-_LEGACY_TO_CANONICAL: dict[str, tuple[DocumentClass, dict[str, str]]] = {
-    "tep":              ("commercial", {"procurement_stage": "tep"}),
-    "eoi":              ("commercial", {"procurement_stage": "eoi"}),
-    "rft":              ("commercial", {"procurement_stage": "rft"}),
-    "addendum":         ("commercial", {"procurement_stage": "addendum"}),
-    "tender_submission":("commercial", {"procurement_stage": "submission"}),
-    "evaluation":       ("commercial", {"procurement_stage": "evaluation"}),
-    "trr":              ("commercial", {"procurement_stage": "trr"}),
-    "planning_instrument": ("statutory_instrument", {}),
-    "doctrine":         ("report", {"reference_kind": "doctrine"}),        # OD-1
-    "reference_guide":  ("report", {"reference_kind": "reference_guide"}), # OD-1
-}
-
-
-def canonicalize_document_class(
-    raw_class: str, metadata: dict[str, str]
-) -> tuple[DocumentClass, dict[str, str]]:
-    mapped = _LEGACY_TO_CANONICAL.get(raw_class)
-    if mapped is None:
-        return raw_class, metadata  # type: ignore[return-value]
-    canonical, extra = mapped
-    if not extra:
-        return canonical, metadata
-    return canonical, {**metadata, **extra}
-
-
 def _pick_winner(scores: dict[str, int]) -> tuple[str | None, int, int]:
     if not scores:
         return None, 0, 0
@@ -516,22 +489,20 @@ def classify_entry(
         )
 
     if context.source_type == "doctrine":
-        document_class, metadata = canonicalize_document_class("doctrine", metadata)
         return _classification(
-            document_class,
+            "report",
             basis="structural",
             confidence=0.95,
-            metadata=metadata,
+            metadata={**metadata, "reference_kind": "doctrine"},
             subject=subject,
             extracted_text=extracted_text,
         )
     if context.source_type == "reference":
-        document_class, metadata = canonicalize_document_class("reference_guide", metadata)
         return _classification(
-            document_class,
+            "report",
             basis="structural",
             confidence=0.95,
-            metadata=metadata,
+            metadata={**metadata, "reference_kind": "reference_guide"},
             subject=subject,
             extracted_text=extracted_text,
         )

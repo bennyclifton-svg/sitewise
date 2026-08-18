@@ -68,7 +68,7 @@ def platform_passage(relative_path: str, source_type: str) -> SourcePassage:
         project="seed",
         phase="reference",
         source_type=source_type,
-        document_class="reference_guide" if source_type == "reference" else source_type,
+        document_class="report" if source_type in ("reference", "doctrine") else source_type,
         filename=relative_path.split("/")[-1],
         relative_path=relative_path,
         document_metadata={"knowledge_scope": "platform"},

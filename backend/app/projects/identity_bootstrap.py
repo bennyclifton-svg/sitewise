@@ -32,7 +32,7 @@ INGEST_PROPOSER = "ingest"
 def _is_official_planning_instrument(document: SourceDocument) -> bool:
     metadata = document.document_metadata or {}
     return (
-        document.document_class == "planning_instrument"
+        document.document_class == "statutory_instrument"
         or metadata.get("knowledge_scope") == "official"
     )
 

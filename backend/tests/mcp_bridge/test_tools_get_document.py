@@ -133,7 +133,7 @@ def test_get_document_labels_official_planning_instruments(monkeypatch) -> None:
     content = "4.15 Evaluation. A consent authority is to take into consideration."
     document = _source_document(content)
     document.source_type = "reference"
-    document.document_class = "planning_instrument"
+    document.document_class = "statutory_instrument"
     document.document_metadata = {
         "knowledge_scope": "official",
         "official_url": "https://legislation.nsw.gov.au/view/whole/html/inforce/current/act-1979-203",
@@ -147,7 +147,7 @@ def test_get_document_labels_official_planning_instruments(monkeypatch) -> None:
     )
 
     assert result.data["source_type"] == "reference"
-    assert result.data["document_class"] == "planning_instrument"
+    assert result.data["document_class"] == "statutory_instrument"
     assert result.data["knowledge_scope"] == "official"
 
 

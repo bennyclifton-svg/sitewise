@@ -42,7 +42,7 @@ def test_build_seed_inventory_answer_lists_paths() -> None:
             project="sitewise-platform",
             phase="reference",
             source_type="reference",
-            document_class="reference_guide",
+            document_class="report",
             knowledge_kind="seed",
         )
     ]
@@ -62,7 +62,7 @@ def test_platform_rows_to_passages_use_document_id_as_chunk_id() -> None:
             project="sitewise-platform",
             phase="reference",
             source_type="reference",
-            document_class="reference_guide",
+            document_class="report",
             knowledge_kind="seed",
         )
     ]

@@ -288,7 +288,7 @@ def _passage(*, project: str, source_type: str, relative_path: str) -> SourcePas
         project=project,
         phase="reference",
         source_type=source_type,
-        document_class="reference_guide" if source_type == "reference" else source_type,
+        document_class="report" if source_type in ("reference", "doctrine") else source_type,
         filename=relative_path.split("/")[-1],
         relative_path=relative_path,
         document_metadata={"knowledge_scope": "platform"}

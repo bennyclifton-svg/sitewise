@@ -27,7 +27,7 @@ def _passage() -> SourcePassage:
         project="procurement-blockb",
         phase="procurement",
         source_type="project_evidence",
-        document_class="evaluation",
+        document_class="commercial",
         filename="evaluation.pdf",
         relative_path="procurement-blockb/06 EVALUATION/evaluation.pdf",
         document_metadata={"procurement_stage": "evaluation"},
@@ -81,7 +81,7 @@ def test_run_chat_turn_uses_seed_inventory_fast_path() -> None:
             project="sitewise-platform",
             phase="reference",
             source_type="reference",
-            document_class="reference_guide",
+            document_class="report",
             knowledge_kind="seed",
         )
     ]

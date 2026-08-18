@@ -18,6 +18,7 @@ class PlatformDocumentRow(BaseModel):
     source_type: str | None
     document_class: str
     knowledge_kind: str | None
+    reference_kind: str | None = None
 
 
 async def list_platform_documents(
@@ -27,6 +28,7 @@ async def list_platform_documents(
 ) -> list[PlatformDocumentRow]:
     kind_expr = SourceDocument.document_metadata["sitewise_knowledge_kind"].astext
     scope_expr = SourceDocument.document_metadata["knowledge_scope"].astext
+    reference_kind_expr = SourceDocument.document_metadata["reference_kind"].astext
     stmt = (
         select(
             SourceDocument.id,
@@ -37,6 +39,7 @@ async def list_platform_documents(
             SourceDocument.source_type,
             SourceDocument.document_class,
             kind_expr.label("knowledge_kind"),
+            reference_kind_expr.label("reference_kind"),
         )
         .where(SourceDocument.project_id.is_(None), scope_expr == "platform")
         .order_by(SourceDocument.relative_path.asc())
@@ -55,6 +58,7 @@ async def list_platform_documents(
             source_type=row.source_type,
             document_class=row.document_class,
             knowledge_kind=row.knowledge_kind,
+            reference_kind=row.reference_kind,
         )
         for row in result.all()
     ]
@@ -74,7 +78,7 @@ def platform_rows_to_passages(rows: list[PlatformDocumentRow]) -> list[SourcePas
                 chunk_index=0,
                 content=(
                     f"Indexed platform document: {row.relative_path}. "
-                    f"Kind: {row.knowledge_kind or row.document_class}."
+                    f"Kind: {row.knowledge_kind or row.reference_kind or row.document_class}."
                 ),
                 page_or_section=None,
                 project=row.project,
@@ -86,6 +90,7 @@ def platform_rows_to_passages(rows: list[PlatformDocumentRow]) -> list[SourcePas
                 document_metadata={
                     "knowledge_scope": "platform",
                     "sitewise_knowledge_kind": row.knowledge_kind,
+                    "reference_kind": row.reference_kind,
                 },
                 chunk_metadata={"platform_inventory": True},
                 score=1.0,
@@ -109,7 +114,7 @@ def build_platform_inventory_answer(
     lines = [title, ""]
     citations: list[Citation] = []
     for row in rows:
-        kind = row.knowledge_kind or row.document_class
+        kind = row.knowledge_kind or row.reference_kind or row.document_class
         lines.append(f"- `{row.relative_path}` ({kind})")
         citations.append(
             Citation(

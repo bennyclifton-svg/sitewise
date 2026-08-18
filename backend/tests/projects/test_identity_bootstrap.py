@@ -107,8 +107,41 @@ def test_bootstrap_skips_official_planning_instruments() -> None:
             id=source_id,
             filename="Inner West DCP 2022.pdf",
             relative_path="official/dcp-2022.pdf",
-            document_class="planning_instrument",
+            document_class="statutory_instrument",
             document_metadata={"knowledge_scope": "official"},
+            normalized_content=(
+                "Project brief — proposed new dwelling at "
+                "42 Hargrave Street, Paddington NSW 2021"
+            ),
+            project="newtown-extension",
+            phase="reference",
+        )
+    )
+
+    result = asyncio.run(
+        bootstrap_identity_from_document(
+            session,
+            project=project,
+            source_document_id=source_id,
+        )
+    )
+
+    assert result.status == "noop"
+    assert result.detail == "official planning instrument"
+    assert read_profile(project).site_address is None
+
+
+def test_bootstrap_skips_statutory_instruments() -> None:
+    project = _project()
+    source_id = uuid.uuid4()
+    session = AsyncMock()
+    session.get = AsyncMock(
+        return_value=SourceDocument(
+            id=source_id,
+            filename="Inner West LEP 2022.pdf",
+            relative_path="04-planning/lep-2022.pdf",
+            document_class="statutory_instrument",
+            document_metadata={},
             normalized_content=(
                 "Project brief — proposed new dwelling at "
                 "42 Hargrave Street, Paddington NSW 2021"
