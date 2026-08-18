@@ -52,7 +52,13 @@ def test_classify_drawing_pdf():
     entry = _entry("delivery-bankstown/09 Hydraulic/H-102 [D].pdf")
     classification = classify_entry(entry)
     assert classification.document_class == "drawing"
-    assert classification.ingest_mode == "register_only"
+
+
+def test_classify_cost_plan_is_not_a_drawing():
+    entry = _entry("01-cost/Cost Plan.pdf")
+    classification = classify_entry(entry)
+    # Stage 1: was misclassified as drawing
+    assert classification.document_class != "drawing"
 
 
 def test_classify_split_mechanical_sheet_as_drawing():
@@ -64,7 +70,6 @@ def test_classify_split_mechanical_sheet_as_drawing():
     classification = classify_entry(entry)
 
     assert classification.document_class == "drawing"
-    assert classification.ingest_mode == "register_only"
 
 
 def test_classify_seed_reference():
@@ -91,7 +96,6 @@ def test_classify_site_plan_as_drawing():
     entry = _entry("delivery-house/OVERALL SITE PLAN WITH SEWER ZOI [02].pdf")
     classification = classify_entry(entry)
     assert classification.document_class == "drawing"
-    assert classification.ingest_mode == "register_only"
 
 
 def test_router_selects_odl_for_drawing_pdf():
@@ -111,7 +115,6 @@ def test_classify_markdown_civil_sheet_as_drawing():
     )
     classification = classify_entry(entry)
     assert classification.document_class == "drawing"
-    assert classification.ingest_mode == "register_only"
     assert classification.document_metadata["drawing_number"] == "C-001"
 
     context = infer_project_context(entry.relative_path)

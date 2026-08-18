@@ -31,21 +31,21 @@ def _entry(
 
 
 @pytest.mark.parametrize(
-    ("relative_path", "extension", "expected"),
+    ("relative_path", "extension", "extracted_text", "expected"),
     [
-        ("seed/defects-and-dlp-guide.md", ".md", True),
-        ("docs/clerk-brief.md", ".md", True),
-        ("skills/systems/L09-House-Price.xlsx", ".xlsx", False),
-        ("delivery-bankstown/09 Hydraulic/H-102 [D].pdf", ".pdf", False),
-        ("procurement-blockb/06 EVALUATION/matrix.pdf", ".pdf", True),
+        ("seed/defects-and-dlp-guide.md", ".md", "x" * 200, True),
+        ("docs/clerk-brief.md", ".md", "x" * 200, True),
+        ("skills/systems/L09-House-Price.xlsx", ".xlsx", "x" * 200, False),
+        ("delivery-bankstown/09 Hydraulic/H-102 [D].pdf", ".pdf", "x" * 200, True),
+        ("procurement-blockb/06 EVALUATION/matrix.pdf", ".pdf", "x" * 200, True),
     ],
 )
-def test_should_persist_chunks(relative_path, extension, expected) -> None:
+def test_should_persist_chunks(relative_path, extension, extracted_text, expected) -> None:
     entry = _entry(relative_path, extension=extension)
     context = infer_project_context(entry.relative_path)
     classification = classify_entry(entry)
     plan = build_ingest_plan(entry, context, classification)
-    assert should_persist_chunks(plan) is expected
+    assert should_persist_chunks(plan, extracted_text=extracted_text) is expected
 
 
 @patch("ingest.pipeline.persist_ingest", return_value=True)
@@ -62,7 +62,7 @@ def test_ingest_plan_chunks_and_embeds_platform_seed(
     plan = plan_entry(entry)
     chunk = MagicMock(content="Seed chunk")
     mock_extract.return_value = MagicMock(
-        normalized_content="Seed content",
+        normalized_content="Seed content " * 20,
         pages=[],
         extraction_metadata={},
     )
@@ -105,7 +105,7 @@ def test_plan_platform_knowledge_covers_doctrine_seed_and_reference(tmp_path) ->
         "reference",
         "reference",
     ]
-    assert all(should_persist_chunks(plan) for plan in plans)
+    assert all(should_persist_chunks(plan, extracted_text="x" * 200) for plan in plans)
 
 
 @patch("ingest.pipeline.persist_ingest", return_value=True)
@@ -122,7 +122,7 @@ def test_ingest_plan_chunks_and_embeds_reports(
     plan = plan_entry(entry)
     chunk = MagicMock(content="Report section")
     mock_extract.return_value = MagicMock(
-        normalized_content="Report content",
+        normalized_content="Report content " * 20,
         pages=[],
         extraction_metadata={"pdf_extraction_source": "text_layer_fallback"},
     )

@@ -33,6 +33,14 @@ _DRAWING_NAME_HINTS = (
     "cover sheet",
 )
 
+# Superseded by scored filename rules in Stage 4. Tactical fix only.
+_NOT_A_DRAWING_PLAN = (
+    "implementation plan", "management plan", "quality plan",
+    "cost plan", "business plan", "payment plan", "staging plan",
+    "specification plan", "traffic plan", "waste plan", "project plan",
+    "safety plan", "test plan", "communication plan", "procurement plan",
+)
+
 
 def _looks_like_drawing(filename: str) -> bool:
     lowered = filename.lower()
@@ -43,7 +51,7 @@ def _looks_like_drawing(filename: str) -> bool:
     if any(hint in lowered for hint in _DRAWING_NAME_HINTS):
         return True
     if re.search(r"\bplan\b", lowered) and not any(
-        skip in lowered for skip in ("implementation plan", "management plan", "quality plan")
+        skip in lowered for skip in _NOT_A_DRAWING_PLAN
     ):
         return True
     return False

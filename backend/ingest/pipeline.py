@@ -183,7 +183,7 @@ def ingest_plan(
         **extracted.extraction_metadata,
     )
 
-    if should_persist_chunks(plan):
+    if should_persist_chunks(plan, extracted_text=extracted.normalized_content):
         chunks = chunk_document(extracted, plan)
         if not chunks:
             logger.warning("chunk_empty", relative_path=plan.entry.relative_path)
@@ -218,7 +218,7 @@ def ingest_plan(
             trace_callback,
             "chunk",
             "skipped",
-            "Document class does not use retrieval chunks.",
+            "No useful extracted text to index.",
             chunker=plan.chunker,
         )
 

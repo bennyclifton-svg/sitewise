@@ -1,5 +1,12 @@
 from ingest.types import Classification, IngestPlan, ManifestEntry, ProjectContext
 
+USEFUL_TEXT_MIN_CHARS = 200
+
+
+def has_useful_text(text: str | None) -> bool:
+    """D3: the single definition of 'worth indexing'. Do not fork this."""
+    return bool(text) and len(text.strip()) >= USEFUL_TEXT_MIN_CHARS
+
 
 def _extractor_for(classification: Classification, extension: str) -> str:
     if extension == ".pdf":
@@ -22,21 +29,18 @@ def _extractor_for(classification: Classification, extension: str) -> str:
 
 
 def _chunker_for(classification: Classification) -> str:
-    if classification.ingest_mode == "register_only":
-        return "register"
     if classification.document_class == "specification":
         return "specification"
+    if classification.document_class == "drawing":
+        return "register"      # bounded chunker for title-block + notes
     return "prose"
 
 
-def should_persist_chunks(plan: IngestPlan) -> bool:
-    document_class = plan.classification.document_class
-    ingest_mode = plan.classification.ingest_mode
-    if ingest_mode == "register_only":
+def should_persist_chunks(plan: IngestPlan, *, extracted_text: str | None) -> bool:
+    """Persist chunks when there is useful text. Class never decides this (D3)."""
+    if plan.extractor == "unsupported":
         return False
-    if document_class in {"doctrine", "reference_guide"} and plan.entry.extension != ".md":
-        return False
-    return True
+    return has_useful_text(extracted_text)
 
 
 def build_ingest_plan(entry: ManifestEntry, context: ProjectContext, classification: Classification) -> IngestPlan:
