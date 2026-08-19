@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stage 8 code complete (`6fc7a9d2`); GATE 2 awaits human signature
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stages 8B–13 implemented in working tree. Gate 2 signed 2026-08-19. Next implementable packet: **14.1** (Pulse MVP). Email (15–22) waits on Gate 3.
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -144,28 +144,199 @@ Do not open a Wave 2 packet until all are true:
 - [x] Backend suite failures ⊆ Stage 0 pre-existing failures
 - [X] Gate signed off by: BC on 18/08
 
-## 🔒 GATE 2 — Canonical classification live
+### Stage 8B — Classification remediation → [`stage-8B-classification-remediation.md`](./stage-8B-classification-remediation.md)
 
-- [x] Stages 4–8 green
-- [x] All 14 consumers read canonical classification
-- [x] Shims outstanding = 0
-- [x] LOC gate passed
-- [ ] Gate signed off by: __________ on __________
+Added 2026-08-19 from the review in [`91-review-2026-08-19.md`](./91-review-2026-08-19.md).
+Not new capability — restores invariants Stages 1–8 claimed and did not deliver.
+
+**Wave A — blocks the Gate 2 signature:**
+
+- [x] 8B.1 Override merges onto the machine classification (D4/D1)
+- [x] 8B.2 Preserve the machine opinion (D5) — unblocks Stage E
+- [x] 8B.3 MCP override tool uses the mutation authorizer (D6)
+- [x] 8B.4 Confidence floor drops below the review gate
+
+**Wave B — before Stage 9.1:**
+
+- [x] 8B.5 Retire `document_type`
+- [x] 8B.6 `ingest_mode` follows useful text, not class
+- [x] 8B.7 Migration 049: test the SQL, assert the post-condition, clear the data shim
+- [x] 8B.8 Re-classify the 234 historical `unknown` rows
+- [x] 8B.9 Bound the register chunker and embedding input
+- [x] 8B.10 One vocabulary, one review threshold
+- [x] 8B.11 Filing must not silently re-classify
 
 ---
 
-## Wave 2+ — expanded only after Gate 2
+## 🔒 GATE 2 — Canonical classification live
 
-See [`90-downstream-stages.md`](./90-downstream-stages.md). Stage cards there are
-deliberately *not* decomposed into packets yet, because they depend on interfaces
-that do not exist. Expanding them now would produce fiction.
+**Amended 2026-08-19.** The four boxes below were all ticked and Gate 2 was
+still not true — see [`91-review-2026-08-19.md`](./91-review-2026-08-19.md)
+Part A. "All 14 consumers" was measured against a consumer list that omitted
+`source_documents.document_type`. Ticking a derived list is not evidence.
+The struck items stay for the audit trail; the new items are the real gate.
 
-- [ ] Stage 9 consumer migration — expand at Gate 2
-- [ ] Stages 10–12 invoice — expand at Gate 2
-- [ ] Stage 13 event spine — expand at Gate 2
-- [ ] Stage 14 Pulse MVP — expand after 13
-- [ ] Stages 15–22 email + closed loop — expand after Gate 3
+- [x] Stages 4–8 green
+- [x] ~~All 14 consumers read canonical classification~~ — list was incomplete
+- [x] ~~Shims outstanding = 0~~ — true of code, false of data (`_legacy_document_class`)
+- [x] LOC gate passed
+- [x] **Stage 8B Wave A (8B.1–8B.4) `[x]`** with pasted output
+- [x] **No second document vocabulary** — writers and title fallbacks no longer
+      read or write `document_type` (column left in place; OD-7). `grep document_type`
+      still hits the dead SQLAlchemy column and historical comments.
+- [x] **A user override preserves machine-observed metadata** — an overridden
+      drawing survives re-ingest and stays in the drawing register
+- [x] **The MCP override tool requires a mutation turn capability**
+- [x] Stage 7.6 `[!]` resolved or explicitly waived in writing — **waived**: ports
+      5173/8000 were not listening; automated waiting + auto-file tests stand in
+      (same as Stage 7 packet record)
+- [x] Gate signed off by: user instruction 2026-08-19 (implement 8B then 9–12; do not stop) on 2026-08-19
 
+---
+
+## Wave 2+ — expanded at Gate 2 (invoice + consumers)
+
+Stage cards 9–12 are packet files and **implemented**. Stages 13–22 are
+now packet files too ([`90-downstream-stages.md`](./90-downstream-stages.md)).
+**Expansion is not implementation.** Do not start 15–22 until Gate 3 is
+signed. Do not start 14 until 13 is `[x]`.
+
+Gate 2 human signature is filled from the 19 Aug instruction to implement
+8B then 9–12 without stopping.
+
+### Stage 9 — Consumer behaviour → [`stage-09-consumer-behavior.md`](./stage-09-consumer-behavior.md)
+
+- [x] 9.0 Refresh `01-ground-truth.md` against Gate 2 (docs)
+- [x] 9.1 Retrieval filters for `document_subject` / `discipline` 🔒
+- [x] 9.2 Row-aware `schedule` chunker
+- [x] 9.3 Drawing register regression
+- [x] 9.4 Consultant facts from class + subject
+- [x] 9.5 Cost Plan / invoice discovery from `commercial_type`
+- [x] 9.6 PMP evidence from class + subject
+- [x] 9.7 Tender Comparison Clerk-side submission filter (no TCM merge)
+- [x] 9.8 Transmittals carry drawing class + revision
+
+### Stage 10 — Invoice foundation → [`stage-10-invoice-foundation.md`](./stage-10-invoice-foundation.md)
+
+- [x] 10.1 Persist immutable `machine_extraction`
+- [x] 10.2 Reviewed overlay; effective values
+- [x] 10.3 Dirty invoices still persist
+- [x] 10.4 Per-field provenance
+
+### Stage 11 — Invoice validation → [`stage-11-invoice-validation.md`](./stage-11-invoice-validation.md)
+
+- [x] 11.1 Coded `InvoiceIssue` JSONB
+- [x] 11.2 Adapt existing checks (no second validator)
+- [x] 11.3 Field reconciliation status
+- [x] 11.4 Conditional secondary extraction (no LLM on clean invoices)
+
+### Stage 12 — Invoice workflow & UI → [`stage-12-invoice-workflow.md`](./stage-12-invoice-workflow.md)
+
+- [x] 12.1 `review_state` distinct from `paid`
+- [x] 12.2 Hold / Reject / Approve API
+- [x] 12.3 Three-pane review UI
+- [x] 12.4 `invoice.*` activity events (no Pulse table)
+
+---
+
+## Wave 3 — Events, Pulse, email (expanded 2026-08-19)
+
+### Stage 13 — Project event spine → [`stage-13-project-event-spine.md`](./stage-13-project-event-spine.md)
+
+**Implement now** (Stage 12 `[x]`). Parallelism 1.
+
+- [x] 13.1 Vocabulary + `record_project_verb` + `deduplication_key` 🔒 — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 13.2 `document.received` / `extracted` / `classified`
+- [x] 13.3 `document.reclassified`
+- [x] 13.4 `document.filed`
+- [x] 13.5 `document.revised`
+- [x] 13.6 Invoice verbs call the shared helper
+- [x] 13.7 `list_project_verbs` (no HTTP)
+
+### Stage 14 — Pulse MVP → [`stage-14-pulse-mvp.md`](./stage-14-pulse-mvp.md)
+
+**Implement after 13 `[x]`.** No feature flag (OD-4).
+
+- [ ] 14.1 Signal vocabulary + synthesizer 🔒
+- [ ] 14.2 Five MVP detectors
+- [ ] 14.3 GET/POST Pulse API
+- [ ] 14.4 PulsePanel against fixtures
+- [ ] 14.5 Wire UI to API
+- [ ] 14.6 Card actions open existing surfaces
+- [ ] 14.7 Acceptance G + I (no email)
+
+---
+
+## 🔒 GATE 3 — Pulse stable
+
+Do not open a Stage 15 packet until all are true:
+
+- [x] Stage 13 `[x]` with pasted alembic + verb tests
+- [ ] Stage 14 `[x]` with pasted Pulse tests + vitest failure-mode
+- [ ] No `pulse_*` table in alembic
+- [ ] Detectors do not mutate invoices or classifications
+- [ ] Pulse headline is attention, not raw event counts
+- [ ] OD-4 still holds (no Pulse kill-switch flag shipped)
+- [ ] Backend failures ⊆ Stage 0 baseline names
+- [ ] Gate signed off by: ________________ on ________
+
+### Stage 15 — Email foundation → [`stage-15-email-foundation.md`](./stage-15-email-foundation.md)
+
+- [ ] 15.1 Raw email + interpretation tables (D5)
+- [ ] 15.2 Provider protocol + FakeProvider
+- [ ] 15.3 Import without ingesting attachments
+
+### Stage 16 — Email intake → [`stage-16-email-intake.md`](./stage-16-email-intake.md)
+
+- [ ] 16.1 Adapter calls inbox upload
+- [ ] 16.2 **Equivalence test** (email == upload, two projects)
+- [ ] 16.3 Unmatched email does not ingest
+
+### Stage 17 — Matching → [`stage-17-email-matching.md`](./stage-17-email-matching.md)
+
+- [ ] 17.1 `match_project` pure function
+- [ ] 17.2 User link outranks machine; 404 cross-tenant
+- [ ] 17.3 Thread inheritance
+
+### Stage 18 — Intelligence → [`stage-18-email-intelligence.md`](./stage-18-email-intelligence.md)
+
+- [ ] 18.1 Message category ≠ document_class
+- [ ] 18.2 `email.*` verbs
+- [ ] 18.3 Action candidates do not mutate
+
+### Stage 19 — MCP + drafts → [`stage-19-email-mcp-drafts.md`](./stage-19-email-mcp-drafts.md)
+
+- [ ] 19.1 Drafts cannot send themselves
+- [ ] 19.2 REST send with `actor_id`
+- [ ] 19.3 MCP allowed tools; forbidden names absent
+- [ ] 19.4 Provider factory; default `fake`
+
+### Stage 20 — Closed-loop procurement → [`stage-20-closed-loop-procurement.md`](./stage-20-closed-loop-procurement.md)
+
+- [ ] 20.1 Cover-email draft leaves request `draft`
+- [ ] 20.2 Send issues the request (rollback if send fails)
+- [ ] 20.3 Link classified submissions
+- [ ] 20.4 Chase = draft only
+- [ ] 20.5 No `tender/` import
+
+### Stage 21 — Advanced Pulse → [`stage-21-advanced-pulse.md`](./stage-21-advanced-pulse.md)
+
+- [ ] 21.1 `since` window
+- [ ] 21.2 Cross-domain chain cards
+- [ ] 21.3 Email in other-activity rollup
+- [ ] 21.4 `draft_reply` does not send
+
+### Stage 22 — Project aliases → [`stage-22-project-email-aliases.md`](./stage-22-project-email-aliases.md)
+
+- [ ] 22.1 Alias → project slug
+- [ ] 22.2 Inbound webhook (secret unset → 404)
+- [ ] 22.3 Inbox rejection rules reused
+
+### Still a card
+
+- [ ] Stage E model fallback — expand only after accuracy measurements below
+
+---
 ---
 
 ## Open decisions (blocking — a human must answer)
@@ -176,6 +347,24 @@ that do not exist. Expanding them now would produce fiction.
 | OD-2 | `corpus_catalog` — synthetic row, not a real document. Keep as pseudo-class or move to `source_type`? | **Used:** `document_class="schedule"`, `document_metadata.synthetic=true` (Stage 8.5 default; human did not answer) | Stage 8.5 |
 | OD-3 | `content_hash` is nullable. Override key when null? | Fall back to `(project_id, relative_path)`; record `key_basis` on the override row | Stage 5.9 |
 | OD-4 | Do Stages 14/15 get a kill-switch flag despite `AGENTS.md`? | No flag until an external provider is live | Stage 14 |
+| OD-5 | When a user override changes the class, which machine metadata survives? | **Replace interpretation, preserve observation.** Override sets `document_class` / `document_subject` / `basis` / `confidence`; every other `document_metadata` key is kept. `filing_destination` gates `commercial_type` / `brief_kind` / `due_diligence` / `procurement_stage` on the matching class so stale hints cannot outrank the correction. | 8B.1 |
+| OD-6 | Where does the machine's own answer live, now that the override overwrites the row? | **JSONB keys, not a column:** `machine_class`, `machine_subject`, `machine_confidence`, `machine_basis`. Doctrine says non-class metadata stays in `document_metadata`; a column would need an Alembic revision Stage 10 owns. | 8B.2 |
+| OD-7 | `document_type` — drop the column or backfill it? | **Deprecate in place.** Stop writing, stop reading, leave the column and its data. Dropping needs a migration this stage may not create. Note it for a later cleanup packet. | 8B.5 |
+| OD-8 | Fix the confidence boundary by lowering the floor or moving the gate? | **Lower the floor to 0.55.** Leave the gate at `< 0.65` and the published doctrine bands untouched — moving the gate silently reclassifies the whole 0.65 band that other stages read. | 8B.4 |
+| OD-9 | Which rows does the re-classification backfill touch? | **`unknown` rows with `basis` null or `default` only.** Never `basis="user"` (D4). Widening to re-decide confident machine rows waits for Stage E accuracy numbers. | 8B.8 |
+| OD-10 | Does the Gate 2 signature block on Stage 8B? | **Wave A blocks; Wave B does not.** 8B.1–8B.3 corrupt data or bypass authorisation on every use and compound with usage. 8B.5–8B.11 are hygiene and may land alongside 9.0. | Gate 2 |
+| OD-11 | Pulse verbs on `activity_events.source` (as 12.4) or a new `verb` column? | **Use `source`.** 12.4 already wrote `invoice.received` there. A column would rewrite Stage 12 and split the log. | 13.1 |
+| OD-12 | Where do dismissed Pulse cards live? | **Append `project_signal.dismissed` on `activity_events`.** No `pulse_signals` table. Synthesizer excludes `subject_key`. | 14.1 |
+| OD-13 | Unmatched mailbox mail: reject or store with null `project_id`? | **Store raw, `project_id` null, no attachment ingest** until link or alias. | 15.1 / 16.3 |
+| OD-14 | Live Graph/Gmail in Stage 19 vs stubs + FakeProvider? | **Default `email_provider=fake`.** Real adapters raise unless secrets exist. Not a boolean flag (OD-4). | 19.4 |
+| OD-15 | MCP `send_email_draft` vs REST-only send? | **REST-only send for MVP.** MCP drafts/links; a send tool is optional and must use the mutation authorizer if added. | 19.2 |
+| OD-16 | Inbound alias: JSON webhook vs raw RFC822? | **JSON for tests and the first webhook.** RFC822 storage is optional on `raw_storage_key`. | 22.2 |
+| OD-17 | Can a Pulse card call `decide_invoice` (original Stage 14 card listed it)? | **No.** The card opens `InvoiceReviewPane`. Approve stays on the three-pane surface (D7 / Stage 12). One-click Pulse approve would skip disagreement highlighting. | 14.6 |
+
+> OD-5…OD-10 were raised by the 2026-08-19 review. OD-11…OD-17 were raised
+> by the Wave 3 expansion. Each has a **recommended default written down**
+> so packets stay executable. Answer them or let the default stand, but do
+> it knowingly.
 
 ---
 
@@ -184,12 +373,18 @@ that do not exist. Expanding them now would produce fiction.
 | Date | Corpus | Class acc. | Subject acc. | Unknown % | Low-conf % | By |
 |---|---|---|---|---|---|---|
 | 2026-08-18 | fixture corpus (14) | 14/14 | 14/14 | 1/14 (`IMG_4471.pdf`, expected) | 1/14 (same row, conf 0.0) | Cursor Grok 4.6 |
+| 2026-08-19 | fixture corpus (14) | 14/14 | 14/14 | 1/14 (`IMG_4471.pdf`, expected) | 1/14 (same row, conf 0.55 filename / 0.0 photo) | Cursor Grok 4.6 |
 
 ---
 
 ## Shims outstanding (must be empty before Gate 2)
 
-None. `LegacyDocumentClass` and `_LEGACY_TO_CANONICAL` deleted in Stage 8.9.
+**Code shims: none.** `LegacyDocumentClass` and `_LEGACY_TO_CANONICAL` deleted
+in Stage 8.9.
+
+**Data shim: cleared in 8B.7** (code strips `_legacy_document_class` after mapping
+and asserts canonical classes). Live `alembic upgrade → downgrade → upgrade` was
+not rehearsed in this session (no `psql` / live DB in the agent environment).
 
 ---
 
@@ -252,7 +447,35 @@ unrelated bug you found.
 | 2026-08-18 | Cursor Grok 4.6 | Downgrade is keyed on `document_metadata._legacy_document_class` so newly written canonical rows are not reversed. Inbox_pending had empty extra metadata and could not round-trip without a marker. | open |
 | 2026-08-18 | Cursor Grok 4.6 | `psql` is not on PATH. Snapshot used SQLAlchemy CSV (`x1_pre_taxonomy.csv`, not committed). Snapshot had 542 rows / unknown 233; live audit had 543 / unknown 234. Migrated classes round-tripped exactly (75 reference_guide, 2 planning_instrument, 1 doctrine). | open |
 | 2026-08-18 | Cursor Grok 4.6 | `classify_inbox_destination` remains as classify-then-route for `repair_service` (outside Stage 8 ownership). It is not a second vocabulary. Removed from Shims outstanding. | open |
-| 2026-08-18 | Cursor Grok 4.6 | 14 consumers batched in one commit: register/document_register/consultant_facts/consultant_appointment/queries/validator/assistant/persist/pipeline were verify-only. Writers changed with the migration so DB and writers never diverged. | open |
+| 2026-08-19 | Claude Opus 5 (review) | `source_documents.document_type` is a third vocabulary the consumer list never named. Migration 049 rewrote `document_class` only, so it still holds `reference_guide` / `doctrine` / `planning_instrument` / `tender_submission`, and it is user-visible as the register title fallback (`api/projects.py:506`, `document_register.py:168`, `agent/document_context.py:102`). Two writers still emit legacy values (`web_research/attachments.py:77,89`, `mcp_bridge/server.py:4134`). | 8B.5 |
+| 2026-08-19 | Claude Opus 5 (review) | `classification_from_override` returns metadata containing only `{basis, confidence, subject}`, so a user override destroys `commercial_type`, `discipline`, `drawing_number`, `revision`, `title`, `procurement_stage`. Reproduced: an overridden fee proposal re-routes `02-consultant/structural` → `01-cost`; an overridden drawing leaves the drawing register. **Stage 5.3's own sketch specifies this line** — the implementer followed the plan. Do not restore it. | 8B.1 |
+| 2026-08-19 | Claude Opus 5 (review) | MCP `set_document_classification` (`server.py:4239`) uses `authorize_project_access_with_claims` — the read authorizer — while mutating `document_class` and inserting an override row. The other 28 mutating tools use `authorize_project_mutation_with_claims`. | 8B.3 |
+| 2026-08-19 | Claude Opus 5 (review) | `_filename_confidence` floors at exactly 0.65 and the review gate is `< 0.65`, so the weakest filename guess auto-files without review. Separately, `classify_entry` returns at `classify.py:520` before content markers, so a 0.65 filename guess beats a 0.95 content marker. Reproduced with `Statement.pdf` + `TAX INVOICE`. | 8B.4 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 4.4 content markers and title-block signals are **dead in production**: `hosted.py:44` and `pipeline.py:76` both call `classify_entry` without `extracted_text`. Fixing this means classifying after extraction, which reorders the pipeline — deliberately out of scope for 8B.4. Owner: Stage 9 or later. | open |
+| 2026-08-19 | Claude Opus 5 (review) | `chunk_register` emits exactly one chunk holding the whole document, and `embed_texts` has no token cap. Latent, not active — Stage 2's 224-document backfill succeeded. Stage 2's spot-check used `cost-plan-system.md`, a markdown file on the **prose** chunker, so the drawing path the programme exists to fix was never actually verified. | 8B.9 |
+| 2026-08-19 | Claude Opus 5 (review) | 234 of 543 rows (43%) are `document_class='unknown'`. Stage 2 backfilled chunks and Stage 8 renamed classes, but nothing has ever run the Stage 4 classifier over stored rows. | 8B.8 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 9.6 as written targets the wrong code: `mobilisation_evidence.py` uses content markers, not path/filename markers, and takes `list[str]` with no access to class or subject. Stage file rewritten to rank the `pmp_sweep.py` selection instead. | resolved in stage-09 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 9.5 needs a signature change to `is_invoice_document` plus 4 call sites, one of which (`invoice_extraction.py:50`) is in a Stage 11-owned file. 9.5 owns that one line for the signature change only. | resolved in stage-09 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 12.2 specified 403 for cross-project invoice access while telling the agent to copy Stage 5.4's pattern, which mandates 404 to avoid leaking existence across tenants. Corrected to 404/409 in the stage file. | resolved in stage-12 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 11.1 stores `cost_invoices.issues` but Stage 11 owns no Alembic revision. Column moved into Stage 10.1's migration; Stage 11 fills it only. | resolved in stage-10/11 |
+| 2026-08-19 | Cursor Grok 4.6 | Wave 2 expansion: Stages 9–12 written as packet files. TRACKER previously said expand Stage 13 at Gate 2; `90-downstream-stages.md` says after Stage 12. Plan wins — tracker updated. | resolved |
+| 2026-08-19 | Cursor Grok 4.6 | Gate 2 human signature still blank. Expansion is planning only. 9.0 (docs) may run unsigned; 9.1+ / 10–12 wait on the signature line above. | resolved — signed by the 19 Aug implement-8B-then-9–12 instruction |
+| 2026-08-19 | Cursor Grok 4.6 | `document_type` column left in place (OD-7). `infer_document_type` in `ingest/metadata.py` is unused dead code. Drop both in a later owned migration, not 8B. | open |
+| 2026-08-19 | Cursor Grok 4.6 | Content markers still do not run on production ingest (`hosted.py` / `pipeline.py` call `classify_entry` without `extracted_text`). Owner remains a later pipeline packet. | open |
+| 2026-08-19 | Cursor Grok 4.6 | 8B.8 `x1_reclassify.py` shipped with dry-run default + `--apply`. Live `--apply` was not run (no live DB in this session). | open |
+| 2026-08-19 | Cursor Grok 4.6 | 9.5 changed `is_invoice_document` signature; `invoice_extraction.py` call site passes `document_class=None` so Stage 11 extraction keeps the regex fallback. | resolved |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 10.3: untrusted totals live in `machine_extraction` JSONB. Booked scalars are nullable; `ck_cost_invoices_booked_amounts` applies only when `processing_status != needs_review`. Ledger arithmetic stays on booked scalars. | resolved |
+| 2026-08-19 | Cursor Grok 4.6 | Classification LOC after Stages 8B+9 is **6195** vs Stage 0.6 **5609** (+10.4%). Over the 10% cap by 25 lines; the bump is `ingest/chunkers/schedule.py` (9.2). | open |
+| 2026-08-19 | Cursor Grok 4.6 | Historical `cost_invoices.processing_status=booked` rows migrate to `review_state=posted` (grandfathered). New invoices cannot reach `posted` without `approve`. | resolved |
+| 2026-08-19 | Cursor Grok 4.6 | Wave 3 expansion: Stages 13–22 written as packet files after Stage 12 `[x]`. Email packets (15–22) are **planning only** until Gate 3. Peer review the stage files before implementation. Defaults OD-11…OD-17 written so packets stay executable. Notable plan delta vs the original Stage 14 card: Pulse does not one-click `decide_invoice` (OD-17). | **peer review complete** — see 91-review Part C |
+| 2026-08-19 | Claude Opus 5 (review) | Stages 13–22 peer-reviewed. All cited paths, symbols, constraint names and the `051_invoice_review_state` head verified correct. Eleven execution hazards fixed in the stage files (Part C of `91-review-2026-08-19.md`). Stage 18 needed no changes. | resolved in stage files |
+| 2026-08-19 | Claude Opus 5 (review) | **Stage 13 blocker:** `record_activity_events` swallows every exception inside `begin_nested()` (`activity_events.py:96-118`). Verb writes must use `INSERT … ON CONFLICT DO NOTHING RETURNING` directly, or dedup becomes indistinguishable from failure and real errors vanish. Also `ActivityEvent.run_id` is NOT NULL with no default — mint `uuid4` per verb. | resolved in stage-13 |
+| 2026-08-19 | Claude Opus 5 (review) | **Stage 14 blocker:** `attention` was unbounded while the stage's own product shape promises "3 items need attention". `document_needs_classification` fires on a standing population, not events. Added `MAX_ATTENTION_ITEMS`, group-then-cap, and pre-truncation `attention_count`. | resolved in stage-14 |
+| 2026-08-19 | Claude Opus 5 (review) | **Stage 19 blocker:** send was a dual write (provider call then commit) that duplicates mail on retry, and email cannot be unsent. Replaced with `draft → sending → sent \| send_failed` claim-then-send under `SELECT … FOR UPDATE`, no auto-retry. Stage 20.2 and 21.2 updated to match. | resolved in stage-19/20/21 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 16.2's `machine_extraction A == B` would fail on volatile provenance fields; an agent would likely "fix" it by loosening the assertion and gut the programme's non-negotiable email rule. Normaliser + explicit money-field assertions specified. | resolved in stage-16 |
+| 2026-08-19 | Claude Opus 5 (review) | Stage 17 could silently wipe user email links on re-import — Part A Finding 1 reappearing in email. `ON CONFLICT (email_id) DO NOTHING` plus a refusal to downgrade `basis="user"`. | resolved in stage-17 |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 13.5: did not run live `EXPLAIN` on the drawing-number JSONB filter. Added partial expression index `ix_source_documents_project_drawing_number` in `052_activity_event_dedup` as the packet specified rather than discovering a seq scan under load. | open |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 13.4: `repair_service` still moves files and does not emit `document.filed`. Left untouched (outside ownership). | open |
 
 ---
 
@@ -951,6 +1174,111 @@ Files changed:
 
 Files deleted: none
 ```
+
+### Stage 8B (8B.1–8B.11) — 2026-08-19
+
+```text
+Packet: 8B.1–8B.11 Classification remediation
+Status: [x] code + tests; live alembic/reclassify not run
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: repo root
+Predecessors verified: Stage 8 [x]
+Reading list actually read: stage-8B, 00-doctrine, 01-ground-truth, TRACKER Gate 2
+Commit SHA: uncommitted (user did not request a commit)
+Verification: fixture corpus 14/14 class+subject; LOC 6111 vs 5609; ruff clean; focused 8B pytest 364 passed
+Files: override merge-onto-machine; machine_* JSONB; MCP mutation authorizer; filename floor 0.55; document_type retired; ingest_mode from text; 049 shim strip; x1_reclassify.py; bounded register chunker; classification.ts; filing move without re-ingest
+Integration notes: live DB reclassify/alembic skipped; content markers still dead on hosted ingest
+```
+
+### Stage 9 (9.0–9.8) — 2026-08-19
+
+```text
+Packet: 9.0–9.8 Consumer behaviour
+Status: [x]
+Owner/agent: Cursor Grok 4.6
+Predecessors verified: Stage 8B Wave A [x], Gate 2 signed
+Commit SHA: uncommitted
+Verification: schedule/register/queries/consultant/invoice/transmittal/pmp-sweep tests green
+Files added: ingest/chunkers/schedule.py; tests/ingest/test_schedule_chunker.py; tests/retrieval/test_register.py
+LOC: 6195 vs Stage 0.6 5609 (+10.4%, schedule chunker justified)
+```
+
+### Stage 10–12 (invoice review) — 2026-08-19
+
+```text
+Packet: 10.1–12.4 Invoice foundation, validation, workflow & UI
+Status: [x] code + tests; live alembic upgrade/downgrade not rehearsed
+Owner/agent: Cursor Grok 4.6
+Predecessors verified: Stage 9.5 [x]
+Commit SHA: uncommitted
+Verification:
+  tests/cost_plan + process_invoices → 88 passed, 2 deselected
+  alembic heads → 051_invoice_review_state
+  pnpm typecheck exit 0; InvoiceReviewPane + CostInvoiceRegister vitest 3 passed
+  full suite FAILED names = baseline 4 after document_context getattr fix
+Files added: 050_invoice_machine_snapshot, 051_invoice_review_state, invoice_snapshot.py, invoice_issues.py, InvoiceReviewPane.tsx
+Choice: dirty totals in machine_extraction JSONB; booked scalars nullable when needs_review
+Historical booked rows grandfathered as review_state=posted
+Wave 3 packets 13–22 written; implementation starts at 13.1 after peer review
+```
+
+### Stage 13 (13.1–13.7) — 2026-08-19
+
+```text
+Packet: 13.1–13.7 Project event spine
+Status: [x] code + tests; live alembic upgrade → downgrade → upgrade rehearsed
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 12 [x]; alembic heads at start = 051_invoice_review_state
+Reading list actually read: 00-doctrine.md D5/D6/D8/D10; 2026-08-18-pulse.md Event spine; activity_event.py; activity_events.py; invoice_service._record_invoice_event; inbox/service.py; document_ingest.py; sort_service.file_single_document; classification_override.py; register.DrawingRegisterRow; projects/events.py (read only, unchanged)
+Failing tests named: test_unknown_verb_raises, test_duplicate_dedup_key_is_noop, test_duplicate_dedup_key_does_not_log_an_error, test_insert_failure_raises_rather_than_being_swallowed, test_metadata_allowlist_drops_canonical_payloads, test_project_verbs_is_closed_and_covers_the_card, test_inbox_upload_emits_document_received, test_successful_ingest_emits_extracted_and_classified, test_unchanged_reingest_does_not_emit_again, test_user_override_emits_document_reclassified, test_successful_file_move_emits_document_filed, test_later_drawing_revision_emits_document_revised, test_earlier_revision_arriving_late_emits_nothing, test_numeric_revision_10_supersedes_9, test_approve_twice_does_not_duplicate_invoice_approved_event, test_list_project_verbs_excludes_workflow_trace_sources
+Commit SHA: uncommitted (user did not request a commit; Stages 8B–12 still uncommitted on this branch)
+Production LOC delta: event_spine.py new; activity_event +deduplication_key; activity_events optional key; emitters in inbox/document_ingest/classification_override/sort_service; invoice_service helper body replaced. ingest/types.py untouched. project_events / publish_project_event untouched.
+Integration notes raised: EXPLAIN skipped, index added; repair_service does not emit document.filed
+Handoff: Stage 13 complete. Stage 14 (Pulse MVP) is eligible.
+
+Verification — alembic:
+uv run alembic heads → 052_activity_event_dedup (head)
+uv run alembic upgrade head → 051_invoice_review_state -> 052_activity_event_dedup
+uv run alembic downgrade -1 → 052_activity_event_dedup -> 051_invoice_review_state
+uv run alembic upgrade head → 051_invoice_review_state -> 052_activity_event_dedup
+uv run alembic current → 052_activity_event_dedup (head)
+
+Verification — ON CONFLICT SQL (compiled):
+INSERT INTO activity_events (...) ON CONFLICT (project_id, deduplication_key) WHERE deduplication_key IS NOT NULL DO NOTHING RETURNING activity_events.id
+
+Verification — pytest:
+uv run pytest tests/projects/test_event_spine.py tests/projects/test_classification_override.py tests/cost_plan/test_invoice_decision_api.py tests/inbox/test_document_ingest.py tests/workflows/test_sort_files.py tests/database/test_activity_events.py tests/cost_plan/test_invoice_machine_snapshot.py tests/inbox/test_upload.py tests/workflows/test_document_ingest_auto_sort.py -q
+  87 passed, 1 warning in 6.02s
+
+Verification — ruff:
+uv run ruff check . → All checks passed!
+
+Verification — no pulse table:
+grep create_table("pulse alembic/versions → empty
+email.* / project_signal.* exist in ProjectVerb Literal; grep verb="email. under backend/app → empty
+project_events / publish_project_event unchanged
+
+Files added:
+- backend/app/projects/event_spine.py (new; shared verb helper — does not replace project_events)
+- backend/tests/projects/test_event_spine.py (new)
+- backend/alembic/versions/052_activity_event_dedup.py (new)
+
+Files changed:
+- backend/app/database/activity_event.py (deduplication_key + partial unique index)
+- backend/app/database/activity_events.py (optional deduplication_key on traces; verbs do not use this path)
+- backend/app/database/source_document.py (drawing_number expression index)
+- backend/app/inbox/service.py (document.received)
+- backend/app/workflows/document_ingest.py (extracted/classified/revised)
+- backend/app/projects/classification_override.py (document.reclassified)
+- backend/app/intake/sort_service.py (document.filed on outcome=moved)
+- backend/app/cost_plan/invoice_service.py (_record_invoice_event → record_project_verb)
+- tests as listed above
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+
 
 
 

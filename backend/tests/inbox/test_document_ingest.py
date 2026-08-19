@@ -23,13 +23,17 @@ def test_document_ingest_leaves_file_in_inbox_until_sort_is_explicit() -> None:
         ingest_status="queued",
         ingest_error=None,
         source_document_id=None,
+        content_hash="abc123",
     )
     source_document = SimpleNamespace(
+        id=source_document_id,
         document_metadata={"revision": "P1"},
         normalized_content="",
         relative_path=workspace_path,
-        document_class=None,
+        document_class="report",
         filename="brief.md",
+        content_hash="abc123",
+        project_id=project_id,
     )
     session = AsyncMock()
     # The workspace-file record loads first; every subsequent session.get
@@ -67,6 +71,14 @@ def test_document_ingest_leaves_file_in_inbox_until_sort_is_explicit() -> None:
                 "app.workflows.document_ingest.record_activity_events",
                 new=AsyncMock(),
             ) as record_activity,
+            patch(
+                "app.workflows.document_ingest.record_project_verb",
+                new=AsyncMock(),
+            ),
+            patch(
+                "app.workflows.document_ingest.maybe_record_document_revised",
+                new=AsyncMock(),
+            ),
         ):
             result = await ingest_project_document(
                 session,

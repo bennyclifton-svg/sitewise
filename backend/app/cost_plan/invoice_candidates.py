@@ -37,7 +37,19 @@ class InvoiceCandidate:
     content: str
 
 
-def is_invoice_document(*, filename: str, content: str) -> bool:
+def is_invoice_document(
+    *,
+    filename: str,
+    content: str,
+    document_class: str | None = None,
+    document_metadata: dict | None = None,
+) -> bool:
+    metadata = document_metadata if isinstance(document_metadata, dict) else {}
+    cls = (document_class or "").strip().lower()
+    if cls == "commercial":
+        return metadata.get("commercial_type") == "invoice"
+    if cls and cls != "unknown":
+        return False
     filename_hint = _INVOICE_FILENAME_RE.search(filename) is not None
     return bool(
         _INVOICE_HEADING_RE.search(content)
@@ -149,6 +161,12 @@ async def discover_invoice_candidates(
         if source_document_ids is None and not is_invoice_document(
             filename=document.filename,
             content=document.normalized_content,
+            document_class=document.document_class,
+            document_metadata=(
+                document.document_metadata
+                if isinstance(document.document_metadata, dict)
+                else None
+            ),
         ):
             continue
         content_hash = (

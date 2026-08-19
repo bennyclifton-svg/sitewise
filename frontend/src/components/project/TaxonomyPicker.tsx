@@ -486,16 +486,16 @@ function WorkScopeFields({
                 {itemValues.length > 1 ? (
                   <label
                     htmlFor={selectAllId}
-                    className="mb-0.5 flex items-center gap-2 border-b border-border pb-1.5"
+                    className="mb-0.5 flex items-start gap-2 border-b border-border pb-1.5 text-sm leading-snug"
                   >
-                    <span className="flex w-4 shrink-0 justify-center">
+                    <span className="flex w-4 shrink-0 justify-center pt-0.5">
                       <input
                         id={selectAllId}
                         type="checkbox"
                         checked={allSelected}
                         disabled={disabled}
                         aria-label={`Select all ${category.label}`}
-                        className="size-4 accent-primary"
+                        className="size-3"
                         ref={(element) => {
                           if (element) element.indeterminate = someSelected;
                         }}
@@ -504,10 +504,12 @@ function WorkScopeFields({
                         }
                       />
                     </span>
-                    <span className="text-xs font-medium">{category.label}</span>
+                    <span>{category.label}</span>
                   </label>
                 ) : (
-                  <span className="text-xs font-medium">{category.label}</span>
+                  <span className="border-b border-border pb-1.5 text-sm leading-snug">
+                    {category.label}
+                  </span>
                 )}
                 {category.items.map((item) => {
                   const inputId = `${idPrefix}-work-scope-${item.value}`;

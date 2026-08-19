@@ -42,6 +42,16 @@ def apply_document_filters(
         stmt = stmt.where(SourceDocument.source_type == filters.source_type)
     if filters.document_class is not None:
         stmt = stmt.where(SourceDocument.document_class == filters.document_class)
+    if filters.document_subject is not None:
+        stmt = stmt.where(
+            SourceDocument.document_metadata["subject"].astext
+            == filters.document_subject
+        )
+    if filters.discipline is not None:
+        stmt = stmt.where(
+            SourceDocument.document_metadata["discipline"].astext
+            == filters.discipline
+        )
     if filters.procurement_stage is not None:
         stmt = stmt.where(
             SourceDocument.document_metadata["procurement_stage"].astext

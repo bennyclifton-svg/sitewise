@@ -67,6 +67,7 @@ export function WorkspaceFolderPanel({
                         key={item.id}
                         documentClass={item.document_class}
                         documentSubject={item.document_subject}
+                        category={item.category}
                         confidence={item.confidence}
                         onChange={async ({ documentClass, documentSubject }) => {
                           await api.putDocumentClassification(projectId, item.id, {

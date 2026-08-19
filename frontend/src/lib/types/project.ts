@@ -539,6 +539,43 @@ export type InvoiceLedger = {
   cost_items: InvoiceCostItemOption[];
 };
 
+export type InvoiceReviewFields = {
+  invoice_number: string | null;
+  supplier_name: string | null;
+  supplier_abn: string | null;
+  invoice_date: string | null;
+  subtotal_ex_gst: string | null;
+  gst: string | null;
+  total_including_gst: string | null;
+};
+
+export type InvoiceReviewIssue = {
+  code: string;
+  severity: "error" | "warning" | "info";
+  field: string | null;
+  message: string;
+};
+
+export type InvoiceReview = {
+  invoice_id: string;
+  invoice_number: string;
+  original_excerpt: string;
+  machine: InvoiceReviewFields;
+  secondary: InvoiceReviewFields;
+  reviewed: InvoiceReviewFields;
+  reconciliation: Record<string, string>;
+  issues: InvoiceReviewIssue[];
+  allocations: {
+    description: string;
+    amount_ex_gst: string;
+    cost_item_label: string;
+    mapping_method: string;
+  }[];
+  review_state: string;
+  processing_status: string;
+  revision: number;
+};
+
 export type PlatformKnowledgeDocument = {
   filename: string;
   relative_path: string;

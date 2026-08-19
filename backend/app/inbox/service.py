@@ -10,6 +10,7 @@ from app.database.activity_events import record_activity_events
 from app.database.project import Project
 from app.database.workspace_files import get_workspace_file_by_path, upsert_workspace_file
 from app.inbox.paths import InboxPathError, build_inbox_workspace_path, build_storage_key, sanitize_filename
+from app.projects.event_spine import record_project_verb, verb_dedup_key
 from app.projects.locks import lock_project
 from app.schemas.projects import WorkflowTraceEvent
 from app.schemas.project_snapshot import ProjectSnapshot
@@ -254,6 +255,21 @@ async def _upload_single_file(
         ingest_status="queued",
         ingest_error=None,
         source_document_id=None,
+    )
+    await record_project_verb(
+        session,
+        project_id=project.id,
+        verb="document.received",
+        reference_type="workspace_file",
+        reference_id=record.id,
+        message=f"Received {filename}",
+        deduplication_key=verb_dedup_key(
+            "document.received",
+            reference_type="workspace_file",
+            reference_id=record.id,
+            extra=content_hash,
+        ),
+        metadata={"filename": filename, "content_hash": content_hash},
     )
     await _record_file_activity(
         session,

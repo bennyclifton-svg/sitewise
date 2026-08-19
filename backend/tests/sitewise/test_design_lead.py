@@ -28,15 +28,11 @@ def _project(work_scope: list[str], work_type: str = "refurb"):
 
 
 def test_mechanical_scope_leads_with_a_services_engineer() -> None:
-    assert design_lead_discipline("refurb", ["mechanical_hvac"]) == (
-        "Services Engineer (Mechanical)"
-    )
+    assert design_lead_discipline("refurb", ["mechanical_hvac"]) == "Mechanical"
 
 
 def test_electrical_scope_leads_with_an_electrical_engineer() -> None:
-    assert design_lead_discipline("refurb", ["electrical_power"]) == (
-        "Services Engineer (Electrical)"
-    )
+    assert design_lead_discipline("refurb", ["electrical_power"]) == "Electrical"
 
 
 def test_fitout_scope_still_leads_with_the_architect() -> None:
@@ -52,26 +48,26 @@ def test_no_scope_is_to_be_confirmed_not_architect() -> None:
 def test_services_outrank_condition_assessment_regardless_of_selection_order() -> None:
     assert design_lead_discipline(
         "refurb", ["mechanical_hvac", "building_condition"]
-    ) == "Services Engineer (Mechanical)"
+    ) == "Mechanical"
     assert design_lead_discipline(
         "refurb", ["building_condition", "mechanical_hvac"]
-    ) == "Services Engineer (Mechanical)"
+    ) == "Mechanical"
 
 
 def test_project_manager_is_never_the_design_lead() -> None:
     assert design_lead_discipline(
         "refurb", ["accessibility_upgrade", "live_environment_fitout"]
-    ) == "Access Consultant"
+    ) == "Access"
     assert design_lead_discipline(
         "refurb", ["live_environment_fitout", "accessibility_upgrade"]
-    ) == "Access Consultant"
+    ) == "Access"
 
 
 def test_building_consultant_is_never_the_design_lead() -> None:
     assert design_lead_discipline("refurb", ["building_condition"]) == (
         "to be confirmed"
     )
-    assert design_lead_discipline("advisory", ["technical_dd"]) == "Structural Engineer"
+    assert design_lead_discipline("advisory", ["technical_dd"]) == "Structural"
 
 
 def test_vertical_transport_leads_with_the_lift_consultant() -> None:
@@ -82,7 +78,7 @@ def test_vertical_transport_leads_with_the_lift_consultant() -> None:
 
 def test_facade_remediation_leads_with_the_facade_engineer() -> None:
     assert design_lead_discipline("remediation", ["facade_cladding"]) == (
-        "Facade Engineer"
+        "Facade"
     )
 
 
@@ -91,9 +87,9 @@ def test_rendered_register_leads_with_the_resolved_discipline() -> None:
     rows = [line for line in markdown.splitlines() if line.startswith("| ")]
     disciplines = [row.split("|")[1].strip() for row in rows[2:]]
 
-    assert disciplines[0] == "Services Engineer (Mechanical)"
+    assert disciplines[0] == "Mechanical"
     assert "Architect" not in disciplines
-    assert "The Services Engineer (Mechanical) row is the design lead" in markdown
+    assert "The Mechanical row is the design lead" in markdown
 
 
 def test_architect_is_not_duplicated_when_it_is_the_lead() -> None:
@@ -126,7 +122,7 @@ def test_consultants_brief_leads_with_the_resolved_discipline_not_architect() ->
         work_scope=("mechanical_hvac",),
         refs=(),
     )
-    assert "Services Engineer (Mechanical) first" in line
+    assert "Mechanical first" in line
     assert "Architect first" not in line
 
 
@@ -146,5 +142,5 @@ def test_non_design_consultants_cannot_be_named_as_lead() -> None:
         "project manager",
         "building consultant",
         "commissioning agent",
-        "building certifier",
+        "certifier",
     } <= non_design_consultants()

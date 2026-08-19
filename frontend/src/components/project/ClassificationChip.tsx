@@ -2,41 +2,14 @@ import { useState } from "react";
 
 import { MenuSelect } from "@/components/ui/menu-select";
 import { cn } from "@/lib/utils";
+import {
+  DOCUMENT_CATEGORIES,
+  DOCUMENT_CLASSES,
+  REVIEW_CONFIDENCE_MIN,
+  classificationLabel,
+  resolveCategorySlug,
+} from "@/lib/classification";
 
-const DOCUMENT_CLASSES = [
-  "drawing",
-  "specification",
-  "report",
-  "certificate",
-  "correspondence",
-  "contract",
-  "commercial",
-  "schedule",
-  "statutory_instrument",
-  "photo",
-  "unknown",
-] as const;
-
-const DOCUMENT_SUBJECTS = [
-  "planning",
-  "heritage",
-  "structural",
-  "services",
-  "hydraulic",
-  "fire",
-  "geotechnical",
-  "survey",
-  "cost",
-  "programme",
-  "contract_admin",
-  "defects",
-  "sustainability",
-  "access",
-  "acoustic",
-  "none",
-] as const;
-
-const LOW_CONFIDENCE = 0.65;
 const CANONICAL_CLASSES = new Set<string>(DOCUMENT_CLASSES);
 
 type ClassificationChange = {
@@ -47,37 +20,36 @@ type ClassificationChange = {
 type ClassificationChipProps = {
   documentClass: string;
   documentSubject?: string | null;
+  category?: string | null;
   confidence?: number | null;
   disabled?: boolean;
   onChange: (next: ClassificationChange) => Promise<void> | void;
 };
 
-function labelFor(value: string): string {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 const CLASS_OPTIONS = DOCUMENT_CLASSES.map((value) => ({
   value,
-  label: labelFor(value),
+  label: classificationLabel(value),
 }));
 
-const SUBJECT_OPTIONS = DOCUMENT_SUBJECTS.map((value) => ({
+const CATEGORY_OPTIONS = DOCUMENT_CATEGORIES.map((value) => ({
   value,
-  label: labelFor(value),
+  label: classificationLabel(value),
 }));
 
 export function ClassificationChip({
   documentClass,
   documentSubject,
+  category,
   confidence,
   disabled = false,
   onChange,
 }: ClassificationChipProps) {
+  const initialCategory = resolveCategorySlug({
+    documentSubject,
+    category,
+  });
   const [classValue, setClassValue] = useState(documentClass);
-  const [subjectValue, setSubjectValue] = useState(documentSubject || "none");
+  const [categoryValue, setCategoryValue] = useState(initialCategory);
 
   if (!CANONICAL_CLASSES.has(documentClass)) {
     return (
@@ -87,21 +59,21 @@ export function ClassificationChip({
     );
   }
 
-  async function commit(nextClass: string, nextSubject: string) {
+  async function commit(nextClass: string, nextCategory: string) {
     const previousClass = classValue;
-    const previousSubject = subjectValue;
+    const previousCategory = categoryValue;
     setClassValue(nextClass);
-    setSubjectValue(nextSubject);
+    setCategoryValue(nextCategory);
     try {
-      await onChange({ documentClass: nextClass, documentSubject: nextSubject });
+      await onChange({ documentClass: nextClass, documentSubject: nextCategory });
     } catch {
       setClassValue(previousClass);
-      setSubjectValue(previousSubject);
+      setCategoryValue(previousCategory);
     }
   }
 
   const showLowConfidence =
-    typeof confidence === "number" && confidence < LOW_CONFIDENCE;
+    typeof confidence === "number" && confidence < REVIEW_CONFIDENCE_MIN;
 
   return (
     <div
@@ -116,13 +88,13 @@ export function ClassificationChip({
         disabled={disabled}
         className="h-7 w-auto min-w-[7.5rem] px-2 text-xs"
         onChange={(value) => {
-          void commit(value, subjectValue);
+          void commit(value, categoryValue);
         }}
       />
       <MenuSelect
-        aria-label="Document subject"
-        value={subjectValue}
-        options={SUBJECT_OPTIONS}
+        aria-label="Category"
+        value={categoryValue}
+        options={CATEGORY_OPTIONS}
         disabled={disabled}
         className="h-7 w-auto min-w-[7.5rem] px-2 text-xs"
         onChange={(value) => {

@@ -19,7 +19,7 @@ describe("ClassificationChip", () => {
       screen.getByRole("button", { name: /document class/i }),
     ).toHaveTextContent("Report");
     expect(
-      screen.getByRole("button", { name: /document subject/i }),
+      screen.getByRole("button", { name: /category/i }),
     ).toHaveTextContent("Structural");
     expect(screen.getByText(/low confidence/i)).toBeInTheDocument();
   });
@@ -48,5 +48,34 @@ describe("ClassificationChip", () => {
     expect(
       await screen.findByRole("button", { name: /document class/i }),
     ).toHaveTextContent("Report");
+  });
+
+    it("offers Architect as a category", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ClassificationChip
+        documentClass="drawing"
+        documentSubject="none"
+        category="Architectural"
+        confidence={0.9}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /category/i }),
+    ).toHaveTextContent("Architect");
+
+    await user.click(screen.getByRole("button", { name: /category/i }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Mechanical" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Fire Services" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "BCA" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "ESD" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Interior Design" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Civil" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Civil Stormwater" })).not.toBeInTheDocument();
   });
 });

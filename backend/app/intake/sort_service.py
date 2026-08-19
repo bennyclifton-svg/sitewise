@@ -1,19 +1,16 @@
-"""Hosted Sort Files: classify inbox entries, move storage, re-ingest, build manifest."""
+"""Hosted Sort Files: classify inbox entries, move storage, update paths, build manifest."""
 
 from __future__ import annotations
 
 import asyncio
 import re
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_args
 
-from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.document_chunk import DocumentChunk
 from app.database.project import Project
 from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
@@ -26,6 +23,7 @@ from app.inbox.paths import build_storage_key
 from app.intake.classifier import filing_destination, is_intake_manifest
 from app.logging import get_logger
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
+from app.projects.event_spine import record_project_verb, verb_dedup_key
 from app.storage.project_files import (
     delete_project_files,
     download_project_file,
@@ -33,10 +31,17 @@ from app.storage.project_files import (
 )
 from ingest.classify import classify_entry
 from ingest.document_metadata import parse_document_metadata
-from ingest.hosted import ingest_hosted_file, source_document_id_for_path
-from ingest.ids import document_id
+from ingest.hosted import source_document_id_for_path
+from ingest.router import REVIEW_CONFIDENCE_MIN
 from ingest.title_block import pdf_title_block_preview
-from ingest.types import Classification, ManifestEntry
+from ingest.categories import canonical_category
+from ingest.types import (
+    Classification,
+    ClassificationBasis,
+    DocumentClass,
+    IngestMode,
+    ManifestEntry,
+)
 
 SortOutcome = Literal[
     "moved",
@@ -101,16 +106,6 @@ def _extension(filename: str) -> str:
 
 _PREVIEW_BYTE_LIMIT = 4096
 _TRUSTED_SPLIT_IDENTITY_METHODS = {"drawing_schedule_v1", "title_block_v1"}
-_SPLIT_IDENTITY_KEYS = {
-    "document_number",
-    "drawing_number",
-    "revision",
-    "sheet_index",
-    "sheet_number_label",
-    "sheet_scale",
-    "sheet_total",
-    "title",
-}
 
 
 def _classification_from_document(document: object) -> Classification:
@@ -124,17 +119,27 @@ def _classification_from_document(document: object) -> Classification:
         confidence = float(meta.get("confidence", "0") or 0)
     except ValueError:
         confidence = 0.0
-    subject = meta.get("subject", "none") or "none"
+    subject = canonical_category(meta.get("subject") or getattr(document, "document_subject", None))
+    if subject == "none":
+        subject = canonical_category(meta.get("discipline"))
     basis = meta.get("basis", "default") or "default"
+    if basis not in get_args(ClassificationBasis):
+        log.warning("invalid_classification_basis", basis=basis)
+        basis = "default"
     document_class = getattr(document, "document_class", "unknown") or "unknown"
+    if document_class not in get_args(DocumentClass):
+        log.warning("invalid_document_class", document_class=document_class)
+        document_class = "unknown"
     ingest_mode = getattr(document, "ingest_mode", None) or "full_text"
+    if ingest_mode not in get_args(IngestMode):
+        ingest_mode = "full_text"
     return Classification(
-        document_class=document_class,  # type: ignore[arg-type]
-        ingest_mode=ingest_mode,  # type: ignore[arg-type]
+        document_class=document_class,
+        ingest_mode=ingest_mode,
         document_metadata=meta,
-        document_subject=subject,  # type: ignore[arg-type]
+        document_subject=subject,
         confidence=confidence,
-        basis=basis,  # type: ignore[arg-type]
+        basis=basis,
     )
 
 
@@ -220,7 +225,7 @@ async def file_single_document(
         confidence = float(meta.get("confidence", 0) or 0)
     except (TypeError, ValueError):
         confidence = 0.0
-    if confidence < 0.65:
+    if confidence < REVIEW_CONFIDENCE_MIN:
         return None
     result = await sort_inbox_files(
         session, project=project, workspace_paths={relative}
@@ -255,45 +260,6 @@ def _next_manifest_version(files: list[WorkspaceFile], drafts_version: int) -> i
         if match:
             versions.append(int(match.group(1)))
     return max(versions, default=0) + 1
-
-
-def _purge_source_document(
-    relative_path: str,
-    project_id: uuid.UUID,
-    source_document_id: uuid.UUID | None = None,
-) -> None:
-    from ingest.db import get_sync_session_factory
-
-    candidate_ids = {
-        document_id(relative_path),
-        document_id(relative_path, project_id=project_id),
-    }
-    if source_document_id is not None:
-        candidate_ids.add(source_document_id)
-    candidate_id_values = tuple(candidate_ids)
-
-    factory = get_sync_session_factory()
-    with factory() as session:
-        stale_ids = set(
-            session.scalars(
-                select(SourceDocument.id).where(
-                    SourceDocument.project_id == project_id,
-                    or_(
-                        SourceDocument.id.in_(candidate_id_values),
-                        SourceDocument.relative_path == relative_path,
-                    )
-                )
-            )
-        )
-        if stale_ids:
-            stale_id_values = tuple(stale_ids)
-            session.execute(
-                delete(DocumentChunk).where(DocumentChunk.document_id.in_(stale_id_values))
-            )
-            session.execute(
-                delete(SourceDocument).where(SourceDocument.id.in_(stale_id_values))
-            )
-        session.commit()
 
 
 def _build_manifest_markdown(
@@ -404,16 +370,6 @@ async def _resolve_destination_filename(
     return parsed.canonical_file_name
 
 
-def _split_metadata_to_preserve(metadata: object) -> dict[str, object]:
-    if not isinstance(metadata, dict) or not metadata.get("split_from"):
-        return {}
-    return {
-        key: value
-        for key, value in metadata.items()
-        if key.startswith("split_") or key in _SPLIT_IDENTITY_KEYS
-    }
-
-
 async def _move_workspace_file(
     session: AsyncSession,
     *,
@@ -428,12 +384,9 @@ async def _move_workspace_file(
         folder = destination_workspace_path.rsplit("/", maxsplit=1)[0]
         destination_workspace_path = f"{folder}/{destination_filename}"
 
-    preserved_metadata: dict[str, object] = {}
+    source_document = None
     if record.source_document_id is not None:
         source_document = await session.get(SourceDocument, record.source_document_id)
-        preserved_metadata = _split_metadata_to_preserve(
-            getattr(source_document, "document_metadata", None)
-        )
 
     content = await asyncio.to_thread(
         download_project_file,
@@ -448,40 +401,14 @@ async def _move_workspace_file(
         filename=destination_filename,
     )
 
-    if record.source_document_id is not None or record.workspace_path:
-        await asyncio.to_thread(
-            _purge_source_document,
-            record.workspace_path,
-            project.id,
-            record.source_document_id,
-        )
-
-    extension = _extension(destination_filename)
-    ingested = await asyncio.to_thread(
-        ingest_hosted_file,
-        content=content,
-        workspace_path=destination_workspace_path,
-        project_id=project.id,
-        project_slug=project.slug,
-        project_phase=project.phase,
-        filename=destination_filename,
-        extension=extension,
-        skip_if_unchanged=False,
-    )
-    ingest_status = "ingested" if ingested else "skipped"
-    source_doc_id = await asyncio.to_thread(
-        source_document_id_for_path,
-        destination_workspace_path,
-        project_id=project.id,
-    )
-    if source_doc_id is not None and preserved_metadata:
-        destination_document = await session.get(SourceDocument, source_doc_id)
-        current_metadata = getattr(destination_document, "document_metadata", None)
-        if isinstance(current_metadata, dict):
-            destination_document.document_metadata = {
-                **current_metadata,
-                **preserved_metadata,
-            }
+    if source_document is not None:
+        source_document.relative_path = destination_workspace_path
+        source_document.filename = destination_filename
+        source_doc_id = source_document.id
+        ingest_status = "ingested"
+    else:
+        source_doc_id = None
+        ingest_status = record.ingest_status
 
     moved = await upsert_workspace_file(
         session,
@@ -569,7 +496,7 @@ async def sort_inbox_files(
         classification = await load_persisted_classification(session, record)
         if classification is None:
             classification = _filename_classification(record, project)
-        if classification.confidence < 0.65:
+        if classification.confidence < REVIEW_CONFIDENCE_MIN:
             result.records.append(
                 SortFileRecord(
                     source_path=record.workspace_path,
@@ -723,6 +650,26 @@ async def sort_inbox_files(
             filed_document = await session.get(SourceDocument, filed_doc_id)
             if isinstance(filed_document, SourceDocument):
                 upsert_consultant_fact_from_document(project, filed_document)
+        source_document_id = filed_doc_id or record.source_document_id
+        if source_document_id is not None:
+            await record_project_verb(
+                session,
+                project_id=project.id,
+                verb="document.filed",
+                reference_type="source_document",
+                reference_id=source_document_id,
+                message=f"Filed {record.filename} to {destination_path}",
+                deduplication_key=verb_dedup_key(
+                    "document.filed",
+                    reference_type="source_document",
+                    reference_id=source_document_id,
+                    extra=destination_path,
+                ),
+                metadata={
+                    "filename": destination_filename,
+                    "content_hash": record.content_hash,
+                },
+            )
         result.records.append(
             SortFileRecord(
                 source_path=record.workspace_path,

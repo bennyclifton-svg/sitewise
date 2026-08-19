@@ -223,9 +223,9 @@ def test_residential_new_scope_outweighs_compliance() -> None:
 def test_remediation_has_structural_remediation_scope() -> None:
     items = work_scope_options_for("remediation")
     structural = next(item for item in items if item.value == "structural_remediation")
-    assert structural.consultants[0] == "Structural Engineer"
+    assert structural.consultants[0] == "Structural"
     assert design_lead_discipline("remediation", ["structural_remediation"]) == (
-        "Structural Engineer"
+        "Structural"
     )
 
 
@@ -264,7 +264,7 @@ def test_energy_generation_storage_scope_on_extend_and_refurb() -> None:
         values = {item.value for item in work_scope_options_for(work_type)}
         assert "energy_generation_storage" in values
         assert design_lead_discipline(work_type, ["energy_generation_storage"]) == (
-            "Services Engineer (Electrical)"
+            "Electrical"
         )
 
 

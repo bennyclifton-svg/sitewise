@@ -67,9 +67,44 @@ def _item(
 def test_map_discipline_uses_classified_fee_proposal_labels() -> None:
     assert map_discipline_to_register_label("Town Planning") == "Town Planner"
     assert map_discipline_to_register_label("Architectural Services") == "Architect"
-    assert map_discipline_to_register_label("Structural Engineering") == "Structural Engineer"
-    assert map_discipline_to_register_label("Civil") == "Civil / stormwater"
-    assert map_discipline_to_register_label("Certification") == "Building Certifier"
+    assert map_discipline_to_register_label("Structural Engineering") == "Structural"
+    assert map_discipline_to_register_label("Civil") == "Civil"
+    assert map_discipline_to_register_label("Certification") == "Certifier"
+
+
+def test_looks_like_fee_proposal_prefers_commercial_type() -> None:
+    from app.cost_plan.consultant_appointment import _looks_like_fee_proposal
+
+    classified = SourceDocument(
+        filename="notes.md",
+        relative_path="02-consultant/structural/notes.md",
+        document_metadata={"commercial_type": "fee_proposal"},
+        normalized_content="",
+        project="demo",
+        phase="procurement",
+        document_class="commercial",
+    )
+    report_named_quote = SourceDocument(
+        filename="quote-looking-report.pdf",
+        relative_path="01-reports/quote-looking-report.pdf",
+        document_metadata={},
+        normalized_content="",
+        project="demo",
+        phase="brief-planning",
+        document_class="report",
+    )
+    unknown_named = SourceDocument(
+        filename="Acme Fee Proposal.pdf",
+        relative_path="_inbox/Acme Fee Proposal.pdf",
+        document_metadata={},
+        normalized_content="",
+        project="demo",
+        phase="procurement",
+        document_class="unknown",
+    )
+    assert _looks_like_fee_proposal(classified) is True
+    assert _looks_like_fee_proposal(report_named_quote) is False
+    assert _looks_like_fee_proposal(unknown_named) is True
 
 
 def test_extract_fee_proposal_reads_newtown_town_planner() -> None:

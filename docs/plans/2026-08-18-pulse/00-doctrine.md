@@ -13,8 +13,8 @@ the same row. No subsystem may hold a private opinion.
 ## D2 — Extract once
 
 A file is downloaded and parsed **once**. Downstream consumers read persisted
-extraction. `sort_service` must not re-download to sniff a preview
-(it currently does — `_file_previews`, `backend/app/intake/sort_service.py:119`).
+extraction. Sort Files no longer calls `_file_previews`; `repair_service` still
+does (`backend/app/intake/repair_service.py`).
 
 ## D3 — Classification never removes evidence
 
@@ -107,11 +107,15 @@ drawing  specification  report  certificate  correspondence  contract
 commercial  schedule  statutory_instrument  photo  unknown
 ```
 
-`document_subject` — closed set of 16:
+`document_subject` — closed category set (also the consultant roster):
 
 ```text
-planning heritage structural services hydraulic fire geotechnical survey
-cost programme contract_admin defects sustainability access acoustic none
+architect landscape interior_design structural civil geotechnical
+mechanical electrical hydraulic fire_engineer fire_services
+town_planner heritage archaeology surveyor quantity_surveyor certifier
+basix esd acoustic access roof_access facade traffic bca arborist
+ecology bushfire
+cost programme contract_admin defects none
 ```
 
 `basis` — closed set of 6, cheapest-to-most-expensive:

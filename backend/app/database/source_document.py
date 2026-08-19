@@ -76,4 +76,13 @@ class SourceDocument(Base):
             "document_metadata->>'knowledge_scope' <> 'platform' OR project_id IS NULL",
             name="ck_source_documents_platform_projectless",
         ),
+        Index(
+            "ix_source_documents_project_drawing_number",
+            "project_id",
+            text("(document_metadata->>'drawing_number')"),
+            postgresql_where=text(
+                "document_class = 'drawing' "
+                "AND document_metadata->>'drawing_number' IS NOT NULL"
+            ),
+        ),
     )

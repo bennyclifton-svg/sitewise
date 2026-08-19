@@ -4131,7 +4131,6 @@ async def attach_official_instrument(
                 )
                 document.source_type = "reference"
                 document.document_class = "statutory_instrument"
-                document.document_type = "planning_instrument"
                 document.document_metadata = metadata
                 await session.commit()
                 source = web_source_from_attachment(
@@ -4221,22 +4220,30 @@ async def set_document_classification(
     """
     from typing import get_args
 
-    from ingest.types import DocumentClass, DocumentSubject
+    from ingest.categories import canonical_category
+    from ingest.types import DocumentClass
 
-    pid = uuid.UUID(project_id)
+    try:
+        pid = uuid.UUID(project_id)
+    except ValueError as exc:
+        raise ToolError("project_id must be a UUID") from exc
     try:
         parsed_document_id = uuid.UUID(document_id)
     except ValueError as exc:
         raise ToolError("document_id must be a UUID") from exc
     if document_class not in get_args(DocumentClass):
         raise ToolError("document_class is not a canonical class")
-    subject = document_subject
-    if subject is not None and subject not in get_args(DocumentSubject):
+    subject = None if document_subject is None else canonical_category(document_subject)
+    if (
+        document_subject
+        and subject == "none"
+        and document_subject.strip().lower() not in {"none", "unassigned"}
+    ):
         raise ToolError("document_subject is not a canonical subject")
 
     async with get_session_factory()() as session:
         try:
-            authorization = await authorize_project_access_with_claims(
+            authorization = await authorize_project_mutation_with_claims(
                 session, authorization_header=_auth_header(), project_id=pid
             )
             document = await set_document_classification_service(

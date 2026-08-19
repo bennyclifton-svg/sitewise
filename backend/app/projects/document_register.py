@@ -165,7 +165,6 @@ def _register_title(document: SourceDocument, metadata: dict) -> str:
         return stem.replace("_", " ").replace("-", " ").strip() or document.filename
     return (
         _metadata_text(metadata, "title")
-        or document.document_type
         or document.filename
     )
 

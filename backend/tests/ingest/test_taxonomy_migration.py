@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 _MIGRATION_PATH = (
     Path(__file__).resolve().parents[2]
     / "alembic"
@@ -78,3 +80,32 @@ def test_production_writers_do_not_emit_legacy_document_class() -> None:
                 if _LEGACY_WRITER.search(line):
                     hits.append(f"{path.relative_to(_BACKEND_ROOT)}:{line_no}:{line.strip()}")
     assert hits == []
+
+
+def test_upgrade_strips_legacy_class_marker() -> None:
+    migration = _load_migration()
+    _, merged = migration.apply_class_mapping("doctrine", {"title": "Keep me"})
+    assert merged["_legacy_document_class"] == "doctrine"
+    cleaned = dict(merged)
+    cleaned.pop(migration.LEGACY_CLASS_MARKER)
+    assert "_legacy_document_class" not in cleaned
+    assert cleaned["title"] == "Keep me"
+    assert cleaned["reference_kind"] == "doctrine"
+
+
+def test_assert_canonical_classes_rejects_leftover_legacy() -> None:
+    migration = _load_migration()
+
+    class _Conn:
+        def execute(self, _stmt, _params=None):
+            return _Result([("reference_guide", 75)])
+
+    class _Result:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def all(self):
+            return self._rows
+
+    with pytest.raises(AssertionError, match="non-canonical"):
+        migration.assert_canonical_classes(_Conn())

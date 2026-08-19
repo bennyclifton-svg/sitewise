@@ -10,18 +10,15 @@ from app.projects.project_knowledge import list_shared_project_objects
 
 
 def test_map_discipline_to_register_label_normalizes_services_aliases():
-    assert map_discipline_to_register_label("Hydraulic") == "Services Engineer (Hydraulic)"
-    assert (
-        map_discipline_to_register_label("Electrical")
-        == "Services Engineer (Electrical)"
-    )
-    assert map_discipline_to_register_label("Structural") == "Structural Engineer"
-    assert map_discipline_to_register_label("Acoustic") == "Acoustic Consultant"
+    assert map_discipline_to_register_label("Hydraulic") == "Hydraulic"
+    assert map_discipline_to_register_label("Electrical") == "Electrical"
+    assert map_discipline_to_register_label("Structural") == "Structural"
+    assert map_discipline_to_register_label("Acoustic") == "Acoustic"
     assert map_discipline_to_register_label("Fire") == "Fire Engineer"
     assert map_discipline_to_register_label("Town Planning") == "Town Planner"
     assert map_discipline_to_register_label("Architectural Services") == "Architect"
-    assert map_discipline_to_register_label("Certification") == "Building Certifier"
-    assert map_discipline_to_register_label("Civil") == "Civil / stormwater"
+    assert map_discipline_to_register_label("Certification") == "Certifier"
+    assert map_discipline_to_register_label("Civil") == "Civil"
 
 
 def test_upsert_consultant_fact_from_document_metadata():
@@ -43,7 +40,7 @@ def test_upsert_consultant_fact_from_document_metadata():
 
     assert fact is not None
     assert fact.value["firm"] == "TDL Engineering Consulting Pty Ltd"
-    assert fact.value["discipline"] == "Services Engineer (Hydraulic)"
+    assert fact.value["discipline"] == "Hydraulic"
     assert fact.value["status"] == evidence_status_for_kind("certificate")
     assert document.relative_path in fact.value["evidence_paths"]
 
@@ -95,3 +92,22 @@ def test_reconcile_merges_same_discipline_firm_and_skips_empty():
     assert len(facts[0].value["evidence_paths"]) == 2
     # Certificate evidence is stronger than a layout sheet.
     assert facts[0].value["status"] == evidence_status_for_kind("certificate")
+
+
+def test_certificate_looking_report_does_not_get_certificate_status() -> None:
+    assert (
+        evidence_status_for_kind(
+            "report", filename="Certificate-looking-report.pdf"
+        )
+        == "Report/drawings on file; appointment unverified"
+    )
+    assert (
+        evidence_status_for_kind("certificate", filename="notes.pdf")
+        == "Certificate/DCD on file; appointment unverified"
+    )
+    assert (
+        evidence_status_for_kind(
+            "unknown", filename="Hydraulic Design Certificate.pdf"
+        )
+        == "Certificate/DCD on file; appointment unverified"
+    )

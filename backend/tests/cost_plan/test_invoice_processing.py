@@ -394,6 +394,32 @@ def test_non_invoice_document_is_rejected() -> None:
         extract_invoice(candidate)
 
 
+def test_classified_invoice_is_discovered_without_filename_hint() -> None:
+    assert is_invoice_document(
+        filename="QUOIN-2601.md",
+        content="Professional fees for schematic design.",
+        document_class="commercial",
+        document_metadata={"commercial_type": "invoice"},
+    )
+
+
+def test_unknown_class_document_still_falls_back_to_the_regex() -> None:
+    candidate = _candidate("11-tax-invoice-quoin-architecture-01.md")
+    assert is_invoice_document(
+        filename=candidate.filename,
+        content=candidate.content,
+        document_class="unknown",
+    )
+
+
+def test_non_commercial_document_with_invoice_in_the_filename_is_not_a_candidate() -> None:
+    assert not is_invoice_document(
+        filename="Invoice-looking-report.pdf",
+        content="# TAX INVOICE\n\n**Invoice number:** FAKE-1",
+        document_class="report",
+    )
+
+
 def test_manual_invoice_controls_increment_revision_and_resolve_review() -> None:
     project_id = uuid.uuid4()
     user_id = uuid.uuid4()
@@ -504,7 +530,7 @@ def test_paid_and_billing_month_update_is_invoice_level() -> None:
 
 
 def test_invoice_field_update_requires_a_change_and_month_start() -> None:
-    with pytest.raises(ValidationError, match="paid or billing_month is required"):
+    with pytest.raises(ValidationError, match="paid, billing_month, invoice_number, or supplier_name is required"):
         InvoiceFieldsUpdate(expected_revision=1, expected_cost_plan_version=2)
     with pytest.raises(ValidationError, match="must be the first day"):
         InvoiceFieldsUpdate(

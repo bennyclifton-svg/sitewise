@@ -70,3 +70,23 @@ def test_filename_scoring(filename: str, expected: str | None) -> None:
 
 def test_filename_matrix_has_at_least_40_cases() -> None:
     assert len(CASES) >= 40
+
+
+def test_single_weak_signal_is_below_the_review_gate() -> None:
+    from pathlib import Path
+
+    from ingest.classify import classify_entry
+    from ingest.types import ManifestEntry
+
+    entry = ManifestEntry(
+        absolute_path=Path("Statement.pdf"),
+        relative_path="04-projects/demo/_inbox/Statement.pdf",
+        project="demo",
+        filename="Statement.pdf",
+        extension=".pdf",
+        size_bytes=100,
+    )
+    classification = classify_entry(entry)
+    assert classification.document_class == "report"
+    assert classification.basis == "filename"
+    assert classification.confidence < 0.65

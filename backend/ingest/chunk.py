@@ -2,6 +2,7 @@ from ingest.chunkers.base import TextChunk
 from ingest.sanitize import sanitize_text
 from ingest.chunkers.prose import chunk_prose
 from ingest.chunkers.register import chunk_register
+from ingest.chunkers.schedule import chunk_schedule
 from ingest.chunkers.specification import chunk_specification
 from ingest.extractors.base import ExtractedDocument
 from ingest.types import IngestPlan
@@ -10,6 +11,7 @@ _CHUNKERS = {
     "prose": chunk_prose,
     "specification": chunk_specification,
     "register": chunk_register,
+    "schedule": chunk_schedule,
 }
 
 

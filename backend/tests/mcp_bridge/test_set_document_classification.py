@@ -149,6 +149,15 @@ def test_set_document_classification_calls_shared_service(
     }
     session = _Session(project=_project(), source_document=updated)
     server = _install(monkeypatch, session, service_result=updated)
+    authorization = SimpleNamespace(
+        project=session.project,
+        claims=SimpleNamespace(user_id=USER_ID),
+    )
+    monkeypatch.setattr(
+        server,
+        "authorize_project_mutation_with_claims",
+        AsyncMock(return_value=authorization),
+    )
     service = server.set_document_classification_service
 
     result = _call(
@@ -166,3 +175,37 @@ def test_set_document_classification_calls_shared_service(
     assert result.data["document_class"] == "certificate"
     assert result.data["basis"] == "user"
     assert result.data["confidence"] == "1.0"
+
+
+def test_tool_refuses_without_an_active_mutation_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = _Session(project=_project(), source_document=_source_document())
+    server = _install(monkeypatch, session)
+
+    with pytest.raises(ToolError, match="durable turn"):
+        _call(
+            server,
+            {
+                "project_id": str(PROJECT_ID),
+                "document_id": str(DOCUMENT_ID),
+                "document_class": "certificate",
+            },
+        )
+
+
+def test_tool_rejects_malformed_project_id_as_tool_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = _Session(project=_project(), source_document=_source_document())
+    server = _install(monkeypatch, session)
+
+    with pytest.raises(ToolError, match="project_id"):
+        _call(
+            server,
+            {
+                "project_id": "not-a-uuid",
+                "document_id": str(DOCUMENT_ID),
+                "document_class": "certificate",
+            },
+        )

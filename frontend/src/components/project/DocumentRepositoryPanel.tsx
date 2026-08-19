@@ -34,6 +34,7 @@ import {
 import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { documentCategoryLabel } from "@/lib/classification";
 import { ApiError } from "@/lib/http";
 import { IngestBatchEstimator, type IngestBatchSnapshot } from "@/lib/ingest-progress";
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
@@ -987,7 +988,7 @@ export function DocumentRepositoryPanel({
               <col className="w-[5rem]" />
               <col />
               <col className="w-[2rem]" />
-              <col className="w-[2.75rem]" />
+              <col className="w-[7.5rem]" />
               <col className="w-5" />
             </colgroup>
             <thead className="sticky top-0 z-[1] border-b bg-[var(--sw-panel)]">
@@ -1113,7 +1114,10 @@ export function DocumentRepositoryPanel({
                 const row = scheduleRow.evidence;
                 const active = selectedEvidenceId === row.id;
                 const selected = selectedIds.has(row.id);
-                const inInbox = isInboxEvidence(row);
+                const categoryLabel = documentCategoryLabel({
+                  documentSubject: row.document_subject,
+                  category: row.category,
+                });
                 const deletingRow =
                   bulkDeletingIds.has(row.id) ||
                   (deleteEvidence.isPending && deleteEvidence.variables === row.id);
@@ -1150,9 +1154,9 @@ export function DocumentRepositoryPanel({
                     </td>
                     <td
                       className="truncate px-0.5 py-2"
-                      title={inInbox ? "Inbox" : row.category?.trim() || undefined}
+                      title={categoryLabel || undefined}
                     >
-                      {inInbox ? "Inbox" : displayValue(row.category)}
+                      {displayValue(categoryLabel)}
                     </td>
                     <td className="px-0 py-1.5 text-center">
                       <button
@@ -1471,9 +1475,10 @@ function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
     case "revision":
       return plainMetadataText(row.evidence.revision);
     case "category":
-      return isInboxEvidence(row.evidence)
-        ? "Inbox"
-        : (row.evidence.category?.trim() ?? "");
+      return documentCategoryLabel({
+        documentSubject: row.evidence.document_subject,
+        category: row.evidence.category,
+      });
   }
 }
 

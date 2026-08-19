@@ -96,6 +96,28 @@ def test_persist_official_attachment_writes_reference_not_evidence() -> None:
     assert session.added == [document]
 
 
+def test_official_attachment_writes_no_document_type() -> None:
+    session = _Session()
+    source = _source()
+
+    document = run_async(
+        persist_official_attachment(
+            session,
+            project_id=PROJECT_ID,
+            project_slug="newtown-extension",
+            source=source,
+            text=source.excerpt,
+        )
+    )
+
+    assert getattr(document, "document_type", None) not in {
+        "planning_instrument",
+        "reference_guide",
+        "doctrine",
+        "tender_submission",
+    }
+
+
 def test_persist_official_attachment_replaces_same_url_and_keeps_previous_hash() -> None:
     existing = SimpleNamespace(
         id=uuid.uuid4(),

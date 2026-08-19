@@ -19,9 +19,9 @@ _HOUSE_WORK_TYPES = frozenset({"new", "extend", "refurb"})
 
 HOUSE_CONSULTANTS: tuple[str, ...] = (
     "Architect",
-    "Structural Engineer",
+    "Structural",
     "Town Planner",
-    "Civil / stormwater",
+    "Civil",
 )
 
 

@@ -35,12 +35,16 @@ def test_routes_every_class_subject_pair() -> None:
         ("commercial", "contract_admin"): "01-cost/variations",
         ("report", "structural"): "03-design/structural",
         ("report", "geotechnical"): "03-design/01-due-diligence",
-        ("report", "survey"): "03-design/01-due-diligence",
+        ("report", "surveyor"): "03-design/01-due-diligence",
         ("report", "heritage"): "03-design/01-due-diligence",
-        ("report", "planning"): "04-planning-and-authorities",
-        ("certificate", "planning"): "04-planning-and-authorities",
+        ("report", "town_planner"): "04-planning-and-authorities",
+        ("certificate", "town_planner"): "04-planning-and-authorities",
         ("schedule", "programme"): "06-programme",
         ("schedule", "cost"): "01-cost",
+        ("drawing", "architect"): "03-design/architect",
+        ("report", "architect"): "03-design/architect",
+        ("specification", "architect"): "03-design/architect",
+        ("drawing", "mechanical"): "03-design/mechanical",
     }
     for (document_class, subject), folder in expected.items():
         assert _destination(_classification(document_class, subject)) == folder, (
@@ -102,4 +106,16 @@ def test_brief_kind_routes_to_brief_pmp() -> None:
 
 def test_due_diligence_flag_routes_to_due_diligence_folder() -> None:
     classification = _classification("report", due_diligence="true")
+    assert _destination(classification) == "03-design/01-due-diligence"
+
+
+def test_stale_commercial_type_does_not_route_an_overridden_report() -> None:
+    """Preserved metadata from a superseded class must not outrank the user's class."""
+    classification = _classification(
+        "report",
+        "heritage",
+        commercial_type="fee_proposal",
+        discipline="structural",
+        procurement_stage="rft",
+    )
     assert _destination(classification) == "03-design/01-due-diligence"

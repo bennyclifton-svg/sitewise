@@ -202,6 +202,7 @@ async def search_documents(
     query: str,
     source_type: str | None = None,
     procurement_stage: str | None = None,
+    document_subject: str | None = None,
     tenderer_id: str | None = None,
 ) -> str:
     """Hybrid search over the Clerk corpus. Returns chunk summaries with chunk_id values for citation."""
@@ -225,6 +226,8 @@ async def search_documents(
         or (ctx.deps.filters.source_type if ctx.deps.filters else None),
         procurement_stage=procurement_stage
         or (ctx.deps.filters.procurement_stage if ctx.deps.filters else None),
+        document_subject=document_subject
+        or (ctx.deps.filters.document_subject if ctx.deps.filters else None),
         tenderer_id=tenderer_id
         or (ctx.deps.filters.tenderer_id if ctx.deps.filters else None),
         phase=ctx.deps.filters.phase if ctx.deps.filters else None,

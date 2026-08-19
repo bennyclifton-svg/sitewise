@@ -258,6 +258,10 @@ describe("TaxonomyPicker", () => {
     await user.click(screen.getByRole("button", { name: "Extension / addition" }));
     expect(screen.getByText("Scope")).toBeInTheDocument();
     expect(screen.getByLabelText("Structural Tie-In")).toBeVisible();
+    expect(screen.getByLabelText("Select all Extension Interface")).toHaveClass(
+      "size-3",
+    );
+    expect(screen.getByLabelText("Structural Tie-In")).toHaveClass("size-3");
     await user.click(screen.getByLabelText("Structural Tie-In"));
 
     expect(latest.work_scope).toEqual(["structural_tie_in"]);

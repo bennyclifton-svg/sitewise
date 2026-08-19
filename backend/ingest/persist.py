@@ -15,8 +15,8 @@ from ingest.ids import chunk_id, document_id
 from ingest.consultant_firm import extract_issuing_firm_from_text
 from ingest.document_metadata import parse_document_metadata
 from ingest.frontmatter import parse_frontmatter
-from ingest.metadata import infer_document_type
 from ingest.platform import sitewise_platform_metadata
+from ingest.router import has_useful_text
 from ingest.types import IngestPlan
 
 logger = structlog.get_logger(__name__)
@@ -86,7 +86,11 @@ def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[s
     return fields
 
 
-def _merged_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict:
+def _merged_metadata(
+    plan: IngestPlan,
+    extracted: ExtractedDocument,
+    existing: dict | None = None,
+) -> dict:
     metadata = dict(plan.classification.document_metadata)
     platform_metadata = sitewise_platform_metadata(plan.entry.relative_path)
     metadata.update(platform_metadata)
@@ -99,7 +103,38 @@ def _merged_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict:
     metadata["confidence"] = f"{plan.classification.confidence:.2f}"
     metadata["basis"] = plan.classification.basis
     metadata["subject"] = plan.classification.document_subject
+    _record_machine_answer(metadata, plan.classification, existing)
     return metadata
+
+
+_MACHINE_KEYS = (
+    "machine_class",
+    "machine_subject",
+    "machine_confidence",
+    "machine_basis",
+)
+
+
+def _record_machine_answer(
+    metadata: dict,
+    classification,
+    existing: dict | None = None,
+) -> None:
+    """Stamp the machine opinion once; never overwrite it (D5, OD-6)."""
+    for key in _MACHINE_KEYS:
+        value = (existing or {}).get(key)
+        if value:
+            metadata[key] = str(value)
+    if all(key in metadata for key in _MACHINE_KEYS):
+        return
+    if classification.basis == "user":
+        return
+    metadata.setdefault("machine_class", classification.document_class)
+    metadata.setdefault("machine_subject", classification.document_subject)
+    metadata.setdefault(
+        "machine_confidence", f"{classification.confidence:.2f}"
+    )
+    metadata.setdefault("machine_basis", classification.basis)
 
 
 def should_skip_unchanged(session, plan: IngestPlan, content_hash: str) -> bool:
@@ -134,23 +169,31 @@ def upsert_document(
             ]
         )
     persisted_id = session.scalar(select(SourceDocument.id).where(*conditions))
+    existing_metadata = None
+    if persisted_id is not None:
+        existing_metadata = session.scalar(
+            select(SourceDocument.document_metadata).where(
+                SourceDocument.id == persisted_id
+            )
+        )
     doc_id = persisted_id or document_id(
         plan.entry.relative_path,
         project_id=plan.context.project_id,
-    )
-    document_type = infer_document_type(
-        plan.entry.filename,
-        plan.classification.document_class,
     )
     values = {
         "id": doc_id,
         "project_id": plan.context.project_id,
         "project": plan.context.project,
         "phase": plan.context.phase,
-        "document_type": document_type,
         "document_class": plan.classification.document_class,
-        "ingest_mode": plan.classification.ingest_mode,
-        "document_metadata": _merged_metadata(plan, extracted),
+        "ingest_mode": (
+            "full_text"
+            if has_useful_text(extracted.normalized_content)
+            else "register_only"
+        ),
+        "document_metadata": _merged_metadata(
+            plan, extracted, existing=existing_metadata
+        ),
         "content_hash": content_hash,
         "source_type": plan.context.source_type,
         "filename": plan.entry.filename,
@@ -174,7 +217,6 @@ def upsert_document(
                 "project_id": values["project_id"],
                 "project": values["project"],
                 "phase": values["phase"],
-                "document_type": values["document_type"],
                 "document_class": values["document_class"],
                 "ingest_mode": values["ingest_mode"],
                 "document_metadata": values["document_metadata"],

@@ -5,7 +5,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 Money = Decimal
 GstTreatment = Literal["exclusive", "inclusive", "not_applicable"]
@@ -246,7 +246,12 @@ class ExtractedInvoice(BaseModel):
         return _decimal(value, field=info.field_name)
 
     @model_validator(mode="after")
-    def reconcile_totals(self) -> "ExtractedInvoice":
+    def reconcile_totals(self, info: ValidationInfo) -> "ExtractedInvoice":
+        strict = True
+        if info.context:
+            strict = bool(info.context.get("strict", True))
+        if not strict:
+            return self
         line_total = sum(
             (line.amount_ex_gst for line in self.lines), Decimal("0")
         ).quantize(Decimal("0.01"))
@@ -382,11 +387,18 @@ class InvoiceFieldsUpdate(BaseModel):
     expected_cost_plan_version: int = Field(ge=1)
     paid: bool | None = None
     billing_month: date | None = None
+    invoice_number: str | None = Field(default=None, max_length=128)
+    supplier_name: str | None = Field(default=None, max_length=512)
 
     @model_validator(mode="after")
     def validate_changes(self) -> "InvoiceFieldsUpdate":
-        if self.paid is None and self.billing_month is None:
-            raise ValueError("paid or billing_month is required")
+        if (
+            self.paid is None
+            and self.billing_month is None
+            and self.invoice_number is None
+            and self.supplier_name is None
+        ):
+            raise ValueError("paid, billing_month, invoice_number, or supplier_name is required")
         if self.billing_month is not None and self.billing_month.day != 1:
             raise ValueError("billing_month must be the first day of a month")
         return self
@@ -398,3 +410,42 @@ class InvoiceAllocationUpdate(BaseModel):
     expected_revision: int = Field(ge=1)
     expected_cost_plan_version: int = Field(ge=1)
     cost_item_key: str = Field(min_length=1, max_length=255)
+
+
+class InvoiceDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["hold", "reject", "approve"]
+    reason: str | None = Field(default=None, max_length=4000)
+
+
+class InvoiceReviewFieldValues(BaseModel):
+    invoice_number: str | None = None
+    supplier_name: str | None = None
+    supplier_abn: str | None = None
+    invoice_date: str | None = None
+    subtotal_ex_gst: str | None = None
+    gst: str | None = None
+    total_including_gst: str | None = None
+
+
+class InvoiceReviewAllocation(BaseModel):
+    description: str
+    amount_ex_gst: str
+    cost_item_label: str
+    mapping_method: str
+
+
+class InvoiceReviewResponse(BaseModel):
+    invoice_id: uuid.UUID
+    invoice_number: str
+    original_excerpt: str
+    machine: InvoiceReviewFieldValues
+    secondary: InvoiceReviewFieldValues
+    reviewed: InvoiceReviewFieldValues
+    reconciliation: dict[str, str]
+    issues: list[dict[str, Any]]
+    allocations: list[InvoiceReviewAllocation]
+    review_state: str
+    processing_status: str
+    revision: int

@@ -47,7 +47,12 @@ _SUBTOTAL_LABELS = {
 
 def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
     content = candidate.content
-    if not is_invoice_document(filename=candidate.filename, content=content):
+    if not is_invoice_document(
+        filename=candidate.filename,
+        content=content,
+        document_class=None,
+        document_metadata=None,
+    ):
         raise InvoiceExtractionError(f"{candidate.relative_path} is not an invoice")
 
     supplier_name, supplier_abn = _supplier(content)
@@ -133,33 +138,62 @@ def extract_invoice(candidate: InvoiceCandidate) -> ExtractedInvoice:
     subtotal = sum((line.amount_ex_gst for line in lines), Decimal("0")).quantize(
         Decimal("0.01")
     )
-    try:
-        return ExtractedInvoice(
-            supplier_name=supplier_name,
-            supplier_abn=supplier_abn,
-            invoice_number=invoice_number,
-            invoice_date=_date(invoice_date_text),
-            due_date=_date(due_date_text) if due_date_text else None,
-            po_number=_field(content, r"(?:po|purchase order)(?:\s+number|\s+no\.?)?"),
-            related_reference=_field(
-                content,
-                r"(?:related\s+(?:proposal|building proposal|contract)|our\s+reference)",
-            ),
-            subtotal_ex_gst=subtotal,
-            gst=gst,
-            total_including_gst=total_including_gst,
-            lines=lines,
-            provenance={
-                "extractor": "deterministic_markdown_v1",
-                "source_document_id": str(candidate.source_document_id),
-                "source_path": candidate.relative_path,
-                "source_content_hash": candidate.content_hash,
+    invoice_number_line = _field_line(content, r"invoice\s+(?:number|no\.?)")
+    payload = {
+        "supplier_name": supplier_name,
+        "supplier_abn": supplier_abn,
+        "invoice_number": invoice_number,
+        "invoice_date": _date(invoice_date_text),
+        "due_date": _date(due_date_text) if due_date_text else None,
+        "po_number": _field(content, r"(?:po|purchase order)(?:\s+number|\s+no\.?)?"),
+        "related_reference": _field(
+            content,
+            r"(?:related\s+(?:proposal|building proposal|contract)|our\s+reference)",
+        ),
+        "subtotal_ex_gst": subtotal,
+        "gst": gst,
+        "total_including_gst": total_including_gst,
+        "lines": [line.model_dump(mode="json") for line in lines],
+        "provenance": {
+            "extractor": "deterministic_markdown_v1",
+            "source_document_id": str(candidate.source_document_id),
+            "source_path": candidate.relative_path,
+            "source_content_hash": candidate.content_hash,
+            "fields": {
+                "invoice_number": {
+                    "source": "header_regex",
+                    "locator": f"line {invoice_number_line}" if invoice_number_line else "header",
+                    "confidence": 0.82,
+                },
+                "supplier_name": {
+                    "source": "header_regex",
+                    "locator": "supplier heading",
+                    "confidence": 0.8,
+                },
+                "invoice_date": {
+                    "source": "header_regex",
+                    "locator": "invoice date",
+                    "confidence": 0.8,
+                },
             },
-        )
-    except ValueError as exc:
-        raise InvoiceExtractionError(
-            f"Invoice totals do not reconcile in {candidate.relative_path}: {exc}"
-        ) from exc
+        },
+    }
+    try:
+        return ExtractedInvoice.model_validate(payload)
+    except ValueError:
+        return ExtractedInvoice.model_validate(payload, context={"strict": False})
+
+
+def extract_invoice_secondary(candidate: InvoiceCandidate) -> dict[str, str | None]:
+    """Second deterministic parse: table-cell labels instead of bold headers."""
+    content = candidate.content
+    invoice_number = _table_field(content, r"invoice\s+(?:number|no\.?)")
+    invoice_date = _table_field(content, "invoice date")
+    return {
+        "invoice_number": invoice_number,
+        "invoice_date": invoice_date,
+        "supplier_name": _supplier(content)[0],
+    }
 
 
 def _supplier(content: str) -> tuple[str | None, str | None]:
@@ -177,12 +211,32 @@ def _supplier(content: str) -> tuple[str | None, str | None]:
 
 
 def _field(content: str, label: str) -> str | None:
+    value, _line = _field_match(content, label)
+    return value
+
+
+def _field_line(content: str, label: str) -> int | None:
+    _value, line = _field_match(content, label)
+    return line
+
+
+def _field_match(content: str, label: str) -> tuple[str | None, int | None]:
     for template in (_FIELD_RE, _TABLE_FIELD_RE):
         pattern = re.compile(template.pattern.format(label=label), template.flags)
         match = pattern.search(content)
         if match:
-            return " ".join(_strip_markdown(match.group(1)).split())
-    return None
+            value = " ".join(_strip_markdown(match.group(1)).split())
+            line = content[: match.start()].count("\n") + 1
+            return value, line
+    return None, None
+
+
+def _table_field(content: str, label: str) -> str | None:
+    pattern = re.compile(_TABLE_FIELD_RE.pattern.format(label=label), _TABLE_FIELD_RE.flags)
+    match = pattern.search(content)
+    if match is None:
+        return None
+    return " ".join(_strip_markdown(match.group(1)).split())
 
 
 def _date(value: str):

@@ -5,6 +5,7 @@ import { ClassificationChip } from "@/components/project/ClassificationChip";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { api } from "@/lib/api";
+import { documentCategoryLabel } from "@/lib/classification";
 import { ApiError } from "@/lib/http";
 import { cn } from "@/lib/utils";
 import type { EvidencePreview } from "@/lib/types/project";
@@ -155,10 +156,11 @@ function WorkspaceFilePanelContent({
                   <p className="min-w-0 break-all text-sm text-muted-foreground">
                     {displayEvidence.relative_path}
                   </p>
-                  <ClassificationChip
+                    <ClassificationChip
                     key={displayEvidence.id}
                     documentClass={displayEvidence.document_class}
                     documentSubject={displayEvidence.document_subject}
+                    category={displayEvidence.category}
                     confidence={displayEvidence.confidence}
                     onChange={async ({ documentClass, documentSubject }) => {
                       await api.putDocumentClassification(projectId, displayEvidence.id, {
@@ -180,7 +182,12 @@ function WorkspaceFilePanelContent({
                   />
                   <MetaItem
                     label="Category"
-                    value={displayEvidence.category?.trim() || "-"}
+                    value={
+                      documentCategoryLabel({
+                        documentSubject: displayEvidence.document_subject,
+                        category: displayEvidence.category,
+                      }) || "-"
+                    }
                   />
                   <MetaItem label="Filename" value={displayEvidence.filename} />
                   <MetaItem

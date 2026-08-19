@@ -16,59 +16,18 @@ from app.projects.project_knowledge import (
     upsert_shared_project_object,
     write_shared_project_object,
 )
+from ingest.categories import (
+    CONSULTANT_CATEGORIES,
+    canonical_category,
+    category_label,
+)
 from ingest.consultant_firm import (
     extract_issuing_firm_from_text,
     is_noise_firm_candidate,
 )
 
-# Map document discipline labels / folder cues onto PMP register rows.
-_DISCIPLINE_TO_REGISTER: dict[str, str] = {
-    "architect": "Architect",
-    "architectural": "Architect",
-    "architectural services": "Architect",
-    "structural": "Structural Engineer",
-    "structural engineering": "Structural Engineer",
-    "civil": "Civil / stormwater",
-    "civil engineering": "Civil / stormwater",
-    "civil and stormwater": "Civil / stormwater",
-    "civil / stormwater": "Civil / stormwater",
-    "civil and stormwater engineering": "Civil / stormwater",
-    "stormwater": "Civil / stormwater",
-    "town planning": "Town Planner",
-    "town planner": "Town Planner",
-    "planning": "Town Planner",
-    "certifier": "Building Certifier",
-    "certification": "Building Certifier",
-    "building certification": "Building Certifier",
-    "building certifier": "Building Certifier",
-    "principal certifier": "Building Certifier",
-    "surveyor": "Surveyor",
-    "quantity surveyor": "Quantity Surveyor",
-    "energy assessment": "BASIX / energy assessor",
-    "energy assessor": "BASIX / energy assessor",
-    "basix": "BASIX / energy assessor",
-    "heritage": "Heritage Consultant",
-    "arborist": "Arborist",
-    "bushfire": "Bushfire Consultant",
-    "bushfire consultant": "Bushfire Consultant",
-    "geotechnical": "Geotechnical Engineer",
-    "hydraulic": "Services Engineer (Hydraulic)",
-    "electrical": "Services Engineer (Electrical)",
-    "mechanical": "Services Engineer (Mechanical)",
-    "services": "Services Engineer",
-    "fire": "Fire Engineer",
-    "facade": "Facade Engineer",
-    "landscape": "Landscape Architect",
-    "landscape architectural": "Landscape Architect",
-    "acoustic": "Acoustic Consultant",
-    "access": "Access Consultant",
-    "traffic": "Traffic Engineer",
-    "vertical transportation": "Vertical Transport Consultant",
-    "vertical transport": "Vertical Transport Consultant",
-    "waterproofing": "Waterproofing Consultant",
-    "demolition": "Demolition Consultant",
-    "hazmat": "Hazmat Consultant",
-}
+# Map leftover long labels onto the canonical register names.
+_DISCIPLINE_TO_REGISTER: dict[str, str] = {}
 
 APPOINTED_STATUS = "Appointed"
 
@@ -85,11 +44,11 @@ _FIRM_PREFERENCE = {
         "TDL Engineering Consulting Pty Ltd",
     ),
     "architect": ("Roda Architects Pty Ltd",),
-    "services engineer (hydraulic)": ("TDL Engineering Consulting Pty Ltd",),
-    "structural engineer": ("Zait Engineering Solutions Pty Ltd",),
-    "landscape architect": ("Sulphurcrest Enterprises Pty Ltd",),
-    "acoustic consultant": ("Acoustic Logic Pty Ltd",),
-    "access consultant": ("Vista Access Architects Pty Ltd",),
+    "hydraulic": ("TDL Engineering Consulting Pty Ltd",),
+    "structural": ("Zait Engineering Solutions Pty Ltd",),
+    "landscape": ("Sulphurcrest Enterprises Pty Ltd",),
+    "acoustic": ("Acoustic Logic Pty Ltd",),
+    "access": ("Vista Access Architects Pty Ltd",),
 }
 
 
@@ -103,16 +62,19 @@ def _prefer_firm(discipline: str, current: str | None, candidate: str) -> str:
     return candidate or (current or "")
 
 _CERT_HINT = re.compile(r"(?i)\b(?:certificate|dcd|design\s+compliance)\b")
+_CDC_CC_HINT = re.compile(r"(?i)\b(?:cdc|complying\s+development|\bcc\b|construction\s+certificate)\b")
 
 
 def map_discipline_to_register_label(discipline: str | None) -> str | None:
     if not discipline:
         return None
+    slug = canonical_category(discipline)
+    if slug != "none" and slug in CONSULTANT_CATEGORIES:
+        return category_label(slug)
     key = re.sub(r"\s+", " ", discipline).strip().lower()
     key = re.sub(r"\s+(services|engineering|engineer)$", "", key).strip()
     if key in _DISCIPLINE_TO_REGISTER:
         return _DISCIPLINE_TO_REGISTER[key]
-    # Already a taxonomy register label.
     if "engineer" in key or "consultant" in key or key == "architect":
         return discipline.strip()
     return None
@@ -122,9 +84,21 @@ def object_id_for_discipline(register_label: str) -> str:
     return _object_id_for_discipline(register_label)
 
 
-def evidence_status_for_kind(document_class: str | None, *, filename: str = "") -> str:
-    blob = f"{document_class or ''} {filename}"
-    if _CERT_HINT.search(blob) or (document_class or "").lower() == "certificate":
+def evidence_status_for_kind(
+    document_class: str | None,
+    *,
+    filename: str = "",
+    document_subject: str | None = None,
+) -> str:
+    cls = (document_class or "").strip().lower()
+    subject = (document_subject or "").strip().lower()
+    if cls == "certificate":
+        return "Certificate/DCD on file; appointment unverified"
+    if canonical_category(subject) == "town_planner" and _CDC_CC_HINT.search(filename):
+        return "Certificate/DCD on file; appointment unverified"
+    if cls and cls != "unknown":
+        return "Report/drawings on file; appointment unverified"
+    if _CERT_HINT.search(filename):
         return "Certificate/DCD on file; appointment unverified"
     return "Report/drawings on file; appointment unverified"
 
@@ -167,8 +141,12 @@ def upsert_consultant_fact_from_document(
     existing = get_shared_project_object(
         project, kind="consultant", object_id=object_id
     )
+    metadata = document.document_metadata if isinstance(document.document_metadata, dict) else {}
+    subject = metadata.get("subject")
     evidence_kind = evidence_status_for_kind(
-        document.document_class, filename=document.filename or ""
+        document.document_class,
+        filename=document.filename or "",
+        document_subject=str(subject) if isinstance(subject, str) else None,
     )
     paths: list[str] = []
     if existing and isinstance(existing.value.get("evidence_paths"), list):

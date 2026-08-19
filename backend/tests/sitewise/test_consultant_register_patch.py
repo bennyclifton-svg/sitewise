@@ -19,7 +19,7 @@ def test_consultant_appointment_rows_from_shared_facts():
         update=SharedProjectObjectUpdate(
             expected_revision=0,
             value={
-                "discipline": "Services Engineer (Hydraulic)",
+                "discipline": "Hydraulic",
                 "firm": "TDL Engineering Consulting Pty Ltd",
                 "status": "Certificate/DCD on file; appointment unverified",
                 "evidence_paths": [
@@ -30,7 +30,7 @@ def test_consultant_appointment_rows_from_shared_facts():
         source="evidence",
     )
     rows = consultant_appointment_rows(project)
-    assert rows[0]["discipline"] == "Services Engineer (Hydraulic)"
+    assert rows[0]["discipline"] == "Hydraulic"
     assert rows[0]["firm"] == "TDL Engineering Consulting Pty Ltd"
 
 
@@ -38,18 +38,18 @@ def test_expand_discipline_lump_splits_mosaic_style_bundle():
     assert expand_discipline_lump(
         "Structural / civil / geotech / facade / waterproof / fire"
     ) == [
-        "Structural Engineer",
-        "Civil Engineer",
-        "Geotechnical Engineer",
-        "Facade Engineer",
+        "Structural",
+        "Civil",
+        "Geotechnical",
+        "Facade",
         "Waterproofing Consultant",
         "Fire Engineer",
     ]
 
 
 def test_expand_discipline_lump_keeps_single_discipline():
-    assert expand_discipline_lump("Structural Engineer") is None
-    assert expand_discipline_lump("Services Engineer (Hydraulic)") is None
+    assert expand_discipline_lump("Structural") is None
+    assert expand_discipline_lump("Hydraulic") is None
 
 
 def test_apply_expands_mega_lump_into_individual_rows():
@@ -79,10 +79,10 @@ def test_apply_expands_mega_lump_into_individual_rows():
 """
     patched = apply_consultant_register_facts(markdown, project=project)
     assert "Structural / civil / geotech / facade / waterproof / fire" not in patched
-    assert "| Structural Engineer | TBC |  | Assumption / Not evidenced | — |" in patched
-    assert "| Civil Engineer | TBC |  | Assumption / Not evidenced | — |" in patched
-    assert "| Geotechnical Engineer | TBC |  | Assumption / Not evidenced | — |" in patched
-    assert "| Facade Engineer | TBC |  | Assumption / Not evidenced | — |" in patched
+    assert "| Structural | TBC |  | Assumption / Not evidenced | — |" in patched
+    assert "| Civil | TBC |  | Assumption / Not evidenced | — |" in patched
+    assert "| Geotechnical | TBC |  | Assumption / Not evidenced | — |" in patched
+    assert "| Facade | TBC |  | Assumption / Not evidenced | — |" in patched
     assert "| Waterproofing Consultant | TBC |  | Assumption / Not evidenced | — |" in patched
     assert (
         "| Fire Engineer | Fire Safety Studio Pty Ltd |  | "
@@ -101,12 +101,12 @@ def test_apply_expands_mega_lump_without_shared_facts():
 """
     patched = apply_consultant_register_facts(markdown, project=project)
     assert "Facade / waterproofing / fire / vertical transport / landscape / traffic" not in patched
-    assert "| Facade Engineer | TBC |" in patched
+    assert "| Facade | TBC |" in patched
     assert "| Waterproofing Consultant | TBC |" in patched
     assert "| Fire Engineer | TBC |" in patched
     assert "| Vertical Transport Consultant | TBC |" in patched
-    assert "| Landscape Architect | TBC |" in patched
-    assert "| Traffic Engineer | TBC |" in patched
+    assert "| Landscape | TBC |" in patched
+    assert "| Traffic | TBC |" in patched
 
 
 def test_apply_expands_services_lump_into_specialist_rows():
@@ -118,7 +118,7 @@ def test_apply_expands_services_lump_into_specialist_rows():
         update=SharedProjectObjectUpdate(
             expected_revision=0,
             value={
-                "discipline": "Services Engineer (Hydraulic)",
+                "discipline": "Hydraulic",
                 "firm": "TDL Engineering Consulting Pty Ltd",
                 "status": "Certificate/DCD on file; appointment unverified",
                 "evidence_paths": ["hydraulic-cert.pdf"],
@@ -135,9 +135,9 @@ def test_apply_expands_services_lump_into_specialist_rows():
 """
     patched = apply_consultant_register_facts(markdown, project=project)
     assert "Services Engineer / hydraulic / mechanical / electrical" not in patched
-    assert "| Services Engineer (Hydraulic) | TDL Engineering Consulting Pty Ltd |" in patched
-    assert "| Services Engineer (Mechanical) | TBC |" in patched
-    assert "| Services Engineer (Electrical) | TBC |" in patched
+    assert "| Hydraulic | TDL Engineering Consulting Pty Ltd |" in patched
+    assert "| Mechanical | TBC |" in patched
+    assert "| Electrical | TBC |" in patched
 
 
 def test_apply_consultant_register_facts_fills_blank_and_adds_missing_rows():
@@ -149,7 +149,7 @@ def test_apply_consultant_register_facts_fills_blank_and_adds_missing_rows():
         update=SharedProjectObjectUpdate(
             expected_revision=0,
             value={
-                "discipline": "Structural Engineer",
+                "discipline": "Structural",
                 "firm": "Zait Engineering Solutions Pty Ltd",
                 "status": "Report/drawings on file; appointment unverified",
                 "evidence_paths": ["04-projects/demo/_inbox/S100-03.pdf"],
@@ -179,7 +179,7 @@ def test_apply_consultant_register_facts_fills_blank_and_adds_missing_rows():
 | Discipline | Firm | Fee | Status | Citation |
 |---|---|---|---|---|
 | Architect | Roda Architects Pty Ltd |  | Report/drawings on file; appointment unverified | [7] |
-| Structural Engineer |  |  | Assumption / Not evidenced | — |
+| Structural |  |  | Assumption / Not evidenced | — |
 | Services Engineer / hydraulic / mechanical / electrical |  |  | Assumption / Not evidenced | — |
 
 ## Planning and Compliance
@@ -196,13 +196,13 @@ Body
     )
     assert "Zait Engineering Solutions Pty Ltd" in patched
     assert "Fire Safety Studio Pty Ltd" in patched
-    assert "Structural Engineer |" in patched
+    assert "Structural |" in patched
     assert (
-        "| Structural Engineer | Zait Engineering Solutions Pty Ltd |" in patched
-        or "| Structural Engineer | Zait Engineering Solutions Pty Ltd |"
+        "| Structural | Zait Engineering Solutions Pty Ltd |" in patched
+        or "| Structural | Zait Engineering Solutions Pty Ltd |"
         in patched.replace("  ", " ")
     )
     assert "Services Engineer / hydraulic / mechanical / electrical" not in patched
-    assert "| Services Engineer (Hydraulic) |" in patched
-    assert "| Services Engineer (Mechanical) |" in patched
-    assert "| Services Engineer (Electrical) |" in patched
+    assert "| Hydraulic |" in patched
+    assert "| Mechanical |" in patched
+    assert "| Electrical |" in patched

@@ -8,17 +8,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.billing.entitlements import require_active_entitlement
 from app.cost_plan.invoice_service import (
+    InvoiceDecisionBlocked,
+    InvoiceIllegalTransition,
     InvoiceNotFound,
     InvoiceRevisionConflict,
+    decide_invoice,
     invoice_ledger_response,
+    invoice_review_payload,
     update_invoice_allocation,
     update_invoice_fields,
 )
 from app.cost_plan.schemas import (
     CostPlanState,
     InvoiceAllocationUpdate,
+    InvoiceDecisionRequest,
     InvoiceFieldsUpdate,
     InvoiceLedgerResponse,
+    InvoiceReviewResponse,
 )
 from app.cost_plan.service import (
     CostPlanNotFound,
@@ -147,6 +153,9 @@ async def patch_invoice(
             expected_revision=body.expected_revision,
             paid=body.paid,
             billing_month=body.billing_month,
+            invoice_number=body.invoice_number,
+            supplier_name=body.supplier_name,
+            actor_id=user.id,
         )
     except InvoiceNotFound as exc:
         raise HTTPException(
@@ -233,4 +242,61 @@ async def patch_invoice_allocation(
             "cost_item_key": target.item_key,
             "cost_item_label": target.item,
         },
+    )
+
+
+@router.get(
+    "/{project_id}/invoices/{invoice_id}/review",
+    response_model=InvoiceReviewResponse,
+)
+async def get_invoice_review(
+    project_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> InvoiceReviewResponse:
+    await _project_and_state(session, project_id=project_id, user_id=user.id)
+    try:
+        return await invoice_review_payload(
+            session, project_id=project_id, invoice_id=invoice_id
+        )
+    except InvoiceNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        ) from exc
+
+
+@router.post(
+    "/{project_id}/invoices/{invoice_id}/decision",
+    response_model=InvoiceReviewResponse,
+)
+async def post_invoice_decision(
+    project_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    body: InvoiceDecisionRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> InvoiceReviewResponse:
+    await _project_and_state(session, project_id=project_id, user_id=user.id)
+    await require_active_entitlement(session, user)
+    try:
+        invoice = await decide_invoice(
+            session,
+            project_id=project_id,
+            invoice_id=invoice_id,
+            actor_id=user.id,
+            decision=body.decision,
+            reason=body.reason,
+        )
+    except InvoiceNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        ) from exc
+    except (InvoiceIllegalTransition, InvoiceDecisionBlocked) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    await session.commit()
+    return await invoice_review_payload(
+        session, project_id=project_id, invoice_id=invoice.id
     )

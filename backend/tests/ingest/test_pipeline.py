@@ -72,7 +72,9 @@ def test_ingest_plan_chunks_and_embeds_platform_seed(
     assert ingest_plan(plan, skip_if_unchanged=False) is True
 
     mock_chunk.assert_called_once()
-    mock_embed.assert_called_once_with(["Seed chunk"])
+    mock_embed.assert_called_once_with(
+        ["Seed chunk"], relative_paths=["seed/defects-and-dlp-guide.md"]
+    )
     mock_persist.assert_called_once()
     assert mock_persist.call_args[0][2] == mock_chunk.return_value
     assert mock_persist.call_args[0][3] == mock_embed.return_value
@@ -139,7 +141,10 @@ def test_ingest_plan_chunks_and_embeds_reports(
     )
 
     mock_chunk.assert_called_once()
-    mock_embed.assert_called_once_with(["Report section"])
+    mock_embed.assert_called_once_with(
+        ["Report section"],
+        relative_paths=["procurement-blockb/06 EVALUATION/matrix.pdf"],
+    )
     mock_persist.assert_called_once()
     extract_event = next(event for event in events if event[0] == "extract")
     assert extract_event[3]["pdf_extraction_source"] == "text_layer_fallback"

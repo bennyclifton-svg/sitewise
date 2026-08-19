@@ -16,7 +16,8 @@ def _preview(document_id: uuid.UUID, filename: str = "structural-invoice.md"):
         filename=filename,
         relative_path=f"projects/kavanagh/_inbox/{filename}",
         source_type="project_evidence",
-        document_class="project_evidence",
+        document_class="commercial",
+        commercial_type="invoice",
         excerpt="# TAX INVOICE\n\n**Invoice number:** CST-2601",
     )
 

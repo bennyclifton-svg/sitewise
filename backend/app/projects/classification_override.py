@@ -14,8 +14,10 @@ from app.database.document_classification_override import DocumentClassification
 from app.database.project import Project
 from app.database.source_document import SourceDocument
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
+from app.projects.event_spine import record_project_verb, verb_dedup_key
 from app.projects.events import publish_project_event
-from ingest.types import Classification, DocumentClass, DocumentSubject
+from ingest.categories import canonical_category
+from ingest.types import Classification, DocumentClass, DocumentSubject, IngestMode
 
 _USER_CONFIDENCE = "1.0"
 
@@ -28,19 +30,32 @@ class DocumentClassificationInvalid(ValueError):
     pass
 
 
-def classification_from_override(row: object) -> Classification:
+def classification_from_override(
+    row: object, *, machine: Classification | None = None
+) -> Classification:
+    """Replace interpretation; preserve every observed metadata key (OD-5)."""
     document_class = cast(DocumentClass, getattr(row, "document_class"))
     raw_subject = getattr(row, "document_subject", None) or "none"
-    subject = cast(DocumentSubject, raw_subject)
+    subject = canonical_category(raw_subject)
+    metadata: dict[str, str] = {}
+    ingest_mode: IngestMode = "full_text"
+    if machine is not None:
+        metadata.update(machine.document_metadata)
+        ingest_mode = machine.ingest_mode
+        metadata.setdefault("machine_class", machine.document_class)
+        metadata.setdefault("machine_subject", machine.document_subject)
+        metadata.setdefault(
+            "machine_confidence", f"{machine.confidence:.2f}"
+        )
+        metadata.setdefault("machine_basis", machine.basis)
+    metadata["basis"] = "user"
+    metadata["confidence"] = _USER_CONFIDENCE
+    metadata["subject"] = subject
     return Classification(
         document_class=document_class,
         document_subject=subject,
-        ingest_mode="full_text",
-        document_metadata={
-            "basis": "user",
-            "confidence": _USER_CONFIDENCE,
-            "subject": subject,
-        },
+        ingest_mode=ingest_mode,
+        document_metadata=metadata,
         confidence=1.0,
         basis="user",
     )
@@ -99,10 +114,14 @@ def _validate_vocab(
         raise DocumentClassificationInvalid(
             f"document_class is not canonical: {document_class}"
         )
-    subject: DocumentSubject = document_subject or "none"
-    if subject not in get_args(DocumentSubject):
+    subject = canonical_category(document_subject)
+    if (
+        subject == "none"
+        and document_subject
+        and str(document_subject).strip().lower() not in {"none", "unassigned"}
+    ):
         raise DocumentClassificationInvalid(
-            f"document_subject is not canonical: {subject}"
+            f"document_subject is not canonical: {document_subject}"
         )
     return subject
 
@@ -195,6 +214,28 @@ async def set_document_classification(
         },
         changes_context=False,
         locked_project=project,
+    )
+    await record_project_verb(
+        session,
+        project_id=project_id,
+        verb="document.reclassified",
+        reference_type="source_document",
+        reference_id=document.id,
+        message=(
+            f"Reclassified {document.filename} from {previous_class} to {document_class}"
+        ),
+        deduplication_key=verb_dedup_key(
+            "document.reclassified",
+            reference_type="source_document",
+            reference_id=document.id,
+            extra=f"{previous_class}:{document_class}:{document.content_hash or ''}",
+        ),
+        metadata={
+            "filename": document.filename,
+            "document_class": document_class,
+            "document_subject": subject,
+            "content_hash": document.content_hash,
+        },
     )
     await session.flush()
     return document

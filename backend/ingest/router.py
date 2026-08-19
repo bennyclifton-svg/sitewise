@@ -1,6 +1,7 @@
 from ingest.types import Classification, IngestPlan, ManifestEntry, ProjectContext
 
 USEFUL_TEXT_MIN_CHARS = 200
+REVIEW_CONFIDENCE_MIN = 0.65
 
 
 def has_useful_text(text: str | None) -> bool:
@@ -30,7 +31,9 @@ def _chunker_for(classification: Classification) -> str:
     if classification.document_class == "specification":
         return "specification"
     if classification.document_class == "drawing":
-        return "register"      # bounded chunker for title-block + notes
+        return "register"
+    if classification.document_class == "schedule":
+        return "schedule"
     return "prose"
 
 

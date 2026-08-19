@@ -584,11 +584,33 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
     fireEvent.click(screen.getByRole("button", { name: "Category" }));
     fireEvent.click(screen.getByRole("button", { name: "Category" }));
 
-    expect(scheduleTitles()).toEqual(["Structural", "Services", "Architectural"]);
+    expect(scheduleTitles()).toEqual(["Structural", "Architectural", "Services"]);
     expect(screen.getByRole("columnheader", { name: "Category" })).toHaveAttribute(
       "aria-sort",
       "descending",
     );
+  });
+
+  it("shows document category instead of Inbox for unfiled files", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-arch",
+        title: "Site Plan",
+        relative_path: "04-projects/newtown/_inbox/ARCHITECTURE/CC-A-010.pdf",
+                    category: "Architectural",
+        document_subject: "none",
+      }),
+      evidenceRow({
+        id: "doc-his",
+        title: "HIS",
+        relative_path: "04-projects/newtown/_inbox/heritage-impact.pdf",
+        document_subject: "heritage",
+      }),
+    ]);
+
+    expect(screen.getByText("Architect")).toBeInTheDocument();
+    expect(screen.getByText("Heritage")).toBeInTheDocument();
+    expect(screen.queryByText("Inbox")).not.toBeInTheDocument();
   });
 
   it("sorts by revision when the Rev header is clicked", () => {

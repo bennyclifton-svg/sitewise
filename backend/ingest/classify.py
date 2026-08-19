@@ -1,14 +1,16 @@
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import PurePosixPath
 
 from ingest.document_metadata import (
     DISCIPLINE_FOLDER_LABELS,
     infer_discipline_from_file_name,
 )
+from ingest.categories import canonical_category
 from ingest.drawing_parse import parse_drawing_filename
 from ingest.metadata import infer_project_context
 from ingest.title_block import TitleBlockFields
+from ingest.router import has_useful_text
 from ingest.types import (
     Classification,
     ClassificationBasis,
@@ -105,20 +107,37 @@ _FILENAME_SIGNALS: list[tuple[re.Pattern[str], DocumentClass, int]] = [
 
 _SUBJECT_SIGNALS: list[tuple[re.Pattern[str], DocumentSubject, int]] = [
     (re.compile(r"\bheritage\b", re.I), "heritage", 5),
+    (re.compile(r"\blandscape\s+architect", re.I), "landscape", 6),
+    (re.compile(r"\barchitectural\b|\barchitecture\b", re.I), "architect", 5),
     (re.compile(r"\bstructural\b", re.I), "structural", 5),
     (re.compile(r"\bhydraulic\b", re.I), "hydraulic", 5),
     (re.compile(r"\bgeotechnical\b|\bgeotech\b", re.I), "geotechnical", 5),
+    (re.compile(r"\bmechanical\b|\bhvac\b", re.I), "mechanical", 5),
+    (re.compile(r"\belectrical\b", re.I), "electrical", 5),
     (re.compile(r"\bacoustic\b", re.I), "acoustic", 5),
-    (re.compile(r"\bsustainab", re.I), "sustainability", 5),
+    (re.compile(r"\bfire\s+services\b|\bfire\s+protection\b|\bhydrant\b|\bsprinkler\b", re.I),
+     "fire_services", 6),
+    (re.compile(r"\bfire\s+engineer|\bfire\s+engineering\b|\bFER\b", re.I), "fire_engineer", 6),
+    (re.compile(r"\bBCA\b|\bNCC\b|building\s+code\s+of\s+australia", re.I), "bca", 5),
+    (re.compile(r"\bbasix\b|\bnathers\b", re.I), "basix", 6),
+    (re.compile(r"\bESD\b|\becologically\s+sustainable", re.I), "esd", 6),
+    (re.compile(r"\bsustainab", re.I), "esd", 4),
+    (re.compile(r"\binterior\s+design", re.I), "interior_design", 6),
+    (re.compile(r"\barchaeolog", re.I), "archaeology", 6),
+    (re.compile(r"\becology\b|\becological\s+(assessment|report|survey|impact)", re.I),
+     "ecology", 6),
+    (re.compile(r"\broof\s+access\b", re.I), "roof_access", 6),
     (re.compile(r"\bdefect", re.I), "defects", 5),
-    (re.compile(r"\bmechanical\b|\belectrical\b|\bservices\b", re.I), "services", 4),
-    (re.compile(r"\bfire\b", re.I), "fire", 4),
-    (re.compile(r"\bsurvey\b", re.I), "survey", 4),
+    (re.compile(r"\bfire\b", re.I), "fire_engineer", 3),
+    (re.compile(r"\bsurvey\b", re.I), "surveyor", 4),
     (re.compile(r"\binvoice\b|\bcost\b|\bbudget\b|\bpayment\b", re.I), "cost", 4),
     (re.compile(r"\bprogramme\b|\bgantt\b|\blookahead\b", re.I), "programme", 4),
     (re.compile(r"\bvariation\b|\bEOT\b|\bcontract admin", re.I), "contract_admin", 4),
-    (re.compile(r"\bplanning\b|\bcouncil\b|\bdetermination\b|\bconsent\b", re.I), "planning", 4),
+    (re.compile(r"\bplanning\b|\bcouncil\b|\bdetermination\b|\bconsent\b", re.I), "town_planner", 4),
     (re.compile(r"\baccess\b|\bDDA\b", re.I), "access", 4),
+    (re.compile(r"\bfacade\b|\bfaçade\b", re.I), "facade", 4),
+    (re.compile(r"\btraffic\b", re.I), "traffic", 4),
+    (re.compile(r"\blandscape\b", re.I), "landscape", 4),
 ]
 
 _PLANNING_INSTRUMENT_EXCLUDE_RE = re.compile(
@@ -155,11 +174,11 @@ _FILENAME_EXTRAS: list[tuple[re.Pattern[str], dict[str, str]]] = [
     (re.compile(r"\bgeotech", re.I), {"due_diligence": "true"}),
     (re.compile(r"\bheritage[-_ ]?(advisor|desktop|assessment)\b", re.I),
      {"due_diligence": "true"}),
-    (re.compile(r"\bplanning[-_ ]?pathway\b", re.I), {"subject": "planning"}),
-    (re.compile(r"\bauthorit(y|ies)[-_ ]?pathway\b", re.I), {"subject": "planning"}),
-    (re.compile(r"\bcdc[-_ ]?screening\b", re.I), {"subject": "planning"}),
-    (re.compile(r"\bcertifier[-_ ]?appointment\b", re.I), {"subject": "planning"}),
-    (re.compile(r"\bprincipal[-_ ]?certifier\b", re.I), {"subject": "planning"}),
+    (re.compile(r"\bplanning[-_ ]?pathway\b", re.I), {"subject": "town_planner"}),
+    (re.compile(r"\bauthorit(y|ies)[-_ ]?pathway\b", re.I), {"subject": "town_planner"}),
+    (re.compile(r"\bcdc[-_ ]?screening\b", re.I), {"subject": "town_planner"}),
+    (re.compile(r"\bcertifier[-_ ]?appointment\b", re.I), {"subject": "town_planner"}),
+    (re.compile(r"\bprincipal[-_ ]?certifier\b", re.I), {"subject": "certifier"}),
 ]
 
 _CONTENT_MARKERS: list[
@@ -171,9 +190,9 @@ _CONTENT_MARKERS: list[
      {"commercial_type": "fee_proposal"}, 0.90),
     (re.compile(r"^\s*#\s*engagement[-_ ]?letter\b", re.I | re.M), "commercial", "none",
      {"commercial_type": "fee_proposal"}, 0.90),
-    (re.compile(r"^\s*#\s*planning\s+pathway\s+memo\b", re.I | re.M), "report", "planning",
+    (re.compile(r"^\s*#\s*planning\s+pathway\s+memo\b", re.I | re.M), "report", "town_planner",
      {}, 0.90),
-    (re.compile(r"\bprincipal\s+certifier\s+appointed\b", re.I), "certificate", "planning",
+    (re.compile(r"\bprincipal\s+certifier\s+appointed\b", re.I), "certificate", "certifier",
      {}, 0.90),
     (re.compile(r"^\s*#\s*price\s+estimate\b", re.I | re.M), "commercial", "cost",
      {"commercial_type": "quote"}, 0.90),
@@ -190,7 +209,7 @@ _CONTENT_MARKERS: list[
     (re.compile(r"\bbrief formal sign[-_ ]?off\b", re.I), "report", "none",
      {"brief_kind": "project_brief"}, 0.85),
     (re.compile(r"^\s*#\s*(feature\s*[&]\s*)?level\s*survey\b", re.I | re.M),
-     "report", "survey", {"due_diligence": "true"}, 0.90),
+     "report", "surveyor", {"due_diligence": "true"}, 0.90),
     (re.compile(r"^\s*#\s*dilapidation\s+condition\s+report\b", re.I | re.M),
      "report", "defects", {"due_diligence": "true"}, 0.90),
     (re.compile(r"\bsewerage services diagram\b", re.I), "report", "none",
@@ -200,7 +219,7 @@ _CONTENT_MARKERS: list[
     (re.compile(r"\bHERITAGE IMPACT STATEMENT\b", re.I), "report", "heritage", {}, 0.95),
     (re.compile(r"\bBUSINESS PLAN\b", re.I), "report", "none", {}, 0.85),
     (re.compile(r"\bCONDITIONS OF CONSENT\b|\bNOTICE OF DETERMINATION\b", re.I),
-     "certificate", "planning", {}, 0.95),
+     "certificate", "town_planner", {}, 0.95),
     (re.compile(r"\bREQUEST FOR TENDER\b", re.I), "commercial", "none",
      {"procurement_stage": "rft"}, 0.90),
     (re.compile(r"\bTENDER SUBMISSION\b|\blump sum tender price\b", re.I), "commercial", "none",
@@ -281,10 +300,8 @@ def parse_procurement_stage(relative_path: str) -> dict[str, str]:
     return {}
 
 
-def _ingest_mode_for_class(document_class: DocumentClass) -> IngestMode:
-    if document_class == "drawing":
-        return "register_only"
-    return "full_text"
+def _ingest_mode_for_text(extracted_text: str | None) -> IngestMode:
+    return "full_text" if has_useful_text(extracted_text) else "register_only"
 
 
 def _pick_winner(scores: dict[str, int]) -> tuple[str | None, int, int]:
@@ -337,12 +354,41 @@ def _score_subject(text: str) -> DocumentSubject:
     return winner  # type: ignore[return-value]
 
 
+_DISCIPLINE_SUBJECT: dict[str, DocumentSubject] = {
+    "architect": "architect",
+    "landscape-architect": "landscape",
+    "structural": "structural",
+    "civil": "civil",
+    "geotechnical": "geotechnical",
+    "mechanical": "mechanical",
+    "electrical": "electrical",
+    "hydraulic": "hydraulic",
+    "fire": "fire_engineer",
+    "town-planner": "town_planner",
+    "surveyor": "surveyor",
+    "quantity-surveyor": "quantity_surveyor",
+    "certifier": "certifier",
+    "energy-assessor": "basix",
+    "acoustic": "acoustic",
+    "arborist": "arborist",
+    "bushfire-consultant": "bushfire",
+}
+
+
+def _subject_from_discipline(
+    subject: DocumentSubject, discipline: str | None
+) -> DocumentSubject:
+    if subject != "none" or not discipline:
+        return subject
+    return _DISCIPLINE_SUBJECT.get(discipline, subject)
+
+
 def _filename_confidence(winner_score: int, margin: int) -> float:
     if winner_score >= 5 and margin >= 4:
         return 0.90
     if winner_score >= 4:
         return 0.80
-    return 0.65
+    return 0.55
 
 
 def _structural_class(
@@ -430,7 +476,7 @@ def _classification(
     merged["subject"] = document_subject
     return Classification(
         document_class=document_class,
-        ingest_mode=_ingest_mode_for_class(document_class),
+        ingest_mode=_ingest_mode_for_text(extracted_text),
         document_metadata=merged,
         document_subject=document_subject,
         confidence=confidence,
@@ -447,7 +493,14 @@ def classify_entry(
 ) -> Classification:
     resolved = override if override is not None else _user_override(entry)
     if resolved is not None:
-        return resolved
+        subject = canonical_category(resolved.document_subject)
+        metadata = dict(resolved.document_metadata)
+        metadata["subject"] = subject
+        return replace(
+            resolved,
+            document_subject=subject,
+            document_metadata=metadata,
+        )
 
     context = infer_project_context(entry.relative_path)
     metadata = parse_procurement_stage(entry.relative_path)
@@ -461,10 +514,11 @@ def classify_entry(
         if key != "subject":
             metadata.setdefault(key, value)
     if subject == "none" and subject_override:
-        subject = subject_override  # type: ignore[assignment]
+        subject = canonical_category(subject_override)
     discipline = _discipline_slug(filename, extracted_text or "")
     if discipline:
         metadata.setdefault("discipline", discipline)
+        subject = _subject_from_discipline(subject, discipline)
 
     identity = parse_drawing_filename(filename)
     if identity.drawing_number:
@@ -517,17 +571,33 @@ def classify_entry(
             extracted_text=extracted_text,
         )
 
+    content = _content_match(extracted_text) if extracted_text else None
     if scored.winner is not None:
+        filename_confidence = _filename_confidence(
+            scored.winner_score, scored.margin
+        )
+        if content is not None and content[3] > filename_confidence:
+            document_class, content_subject, extra, confidence = content
+            metadata.update(extra)
+            chosen_subject = (
+                subject if content_subject == "none" and subject != "none" else content_subject
+            )
+            return _classification(
+                document_class,
+                basis="content",
+                confidence=confidence,
+                metadata=metadata,
+                subject=chosen_subject,
+            )
         return _classification(
             scored.winner,
             basis="filename",
-            confidence=_filename_confidence(scored.winner_score, scored.margin),
+            confidence=filename_confidence,
             metadata=metadata,
             subject=subject,
             extracted_text=extracted_text,
         )
 
-    content = _content_match(extracted_text) if extracted_text else None
     if content is not None:
         document_class, content_subject, extra, confidence = content
         metadata.update(extra)

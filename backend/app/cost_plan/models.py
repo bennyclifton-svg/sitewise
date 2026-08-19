@@ -207,17 +207,31 @@ class CostInvoice(Base):
     billing_month: Mapped[date] = mapped_column(Date, nullable=False)
     po_number: Mapped[str | None] = mapped_column(String(128))
     related_reference: Mapped[str | None] = mapped_column(String(255))
-    subtotal_ex_gst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    gst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    total_including_gst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    subtotal_ex_gst: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
+    gst: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
+    total_including_gst: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="AUD")
     paid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     processing_status: Mapped[str] = mapped_column(
         String(24), nullable=False, default="booked"
     )
+    review_state: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="received"
+    )
     extraction_provenance: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict
     )
+    machine_extraction: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
+    reviewed_extraction: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
+    issues: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     processed_by_workflow_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("workflow_runs.id", ondelete="SET NULL")
     )
@@ -248,12 +262,17 @@ class CostInvoice(Base):
             name="ck_cost_invoices_processing_status",
         ),
         CheckConstraint(
-            "subtotal_ex_gst > 0 AND gst >= 0 AND total_including_gst > 0",
-            name="ck_cost_invoices_positive_amounts",
+            "review_state IN ('received','extracting','ready_for_review',"
+            "'needs_attention','approved','rejected','posted','duplicate','conflict')",
+            name="ck_cost_invoices_review_state",
         ),
         CheckConstraint(
-            "subtotal_ex_gst + gst = total_including_gst",
-            name="ck_cost_invoices_total_reconciles",
+            "processing_status = 'needs_review' OR ("
+            "subtotal_ex_gst IS NOT NULL AND gst IS NOT NULL AND "
+            "total_including_gst IS NOT NULL AND subtotal_ex_gst > 0 AND gst >= 0 "
+            "AND total_including_gst > 0 AND subtotal_ex_gst + gst = total_including_gst"
+            ")",
+            name="ck_cost_invoices_booked_amounts",
         ),
         CheckConstraint(
             "billing_month = date_trunc('month', invoice_date)::date",

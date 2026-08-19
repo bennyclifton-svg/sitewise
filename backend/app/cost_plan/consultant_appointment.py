@@ -61,20 +61,31 @@ _SUBHEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 
 _COST_PLAN_TOKENS: dict[str, tuple[str, ...]] = {
     "Architect": ("architect",),
-    "Structural Engineer": ("structural",),
+    "Structural": ("structural",),
     "Town Planner": ("town planner", "town planning"),
-    "Civil / stormwater": ("civil", "stormwater"),
-    "Civil Engineer": ("civil", "stormwater"),
-    "Building Certifier": ("certif", "principal certifier"),
-    "Geotechnical Engineer": ("geotech",),
+    "Civil": ("civil", "stormwater"),
+    "Geotechnical": ("geotech",),
     "Surveyor": ("surveyor",),
-    "Services Engineer (Hydraulic)": ("hydraulic", "wastewater"),
-    "BASIX / energy assessor": ("basix", "energy assess"),
+    "Hydraulic": ("hydraulic", "wastewater"),
+    "Mechanical": ("mechanical",),
+    "Electrical": ("electrical",),
+    "BASIX": ("basix", "energy assess"),
+    "ESD": ("esd", "section j", "nabers"),
+    "Certifier": ("certif", "principal certifier"),
     "Quantity Surveyor": ("quantity survey", "cost advisory", " qs "),
-    "Heritage Consultant": ("heritage",),
-    "Landscape Architect": ("landscape",),
-    "Acoustic Consultant": ("acoustic",),
-    "Fire Engineer": ("fire",),
+    "Heritage": ("heritage",),
+    "Archaeology": ("archaeolog",),
+    "Landscape": ("landscape",),
+    "Interior Design": ("interior design",),
+    "Acoustic": ("acoustic",),
+    "Access": ("access",),
+    "Roof Access": ("roof access",),
+    "Facade": ("facade",),
+    "Traffic": ("traffic",),
+    "Ecology": ("ecology", "ecological"),
+    "Fire Engineer": ("fire engineer", "fire engineering"),
+    "Fire Services": ("fire services", "fire protection"),
+    "BCA": ("bca", "ncc", "building code"),
 }
 
 _ARCHITECT_CATEGORIES = ("fee", "consult")
@@ -523,9 +534,15 @@ async def _resolve_document(
 
 
 def _looks_like_fee_proposal(document: SourceDocument) -> bool:
-    blob = _normalize(
-        f"{document.document_class} {document.filename} {document.relative_path}"
+    metadata = (
+        document.document_metadata if isinstance(document.document_metadata, dict) else {}
     )
+    cls = (document.document_class or "").strip().lower()
+    if cls == "commercial":
+        return metadata.get("commercial_type") == "fee_proposal"
+    if cls and cls != "unknown":
+        return False
+    blob = _normalize(f"{document.filename} {document.relative_path}")
     return "fee proposal" in blob or "fee_proposal" in blob or "quote" in blob
 
 

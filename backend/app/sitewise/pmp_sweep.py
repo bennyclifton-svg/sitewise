@@ -148,6 +148,28 @@ def _chunk_documents(documents: tuple, batch_size: int) -> list[tuple[int, tuple
     return batches
 
 
+_PREFERRED_PMP_CLASSES = frozenset(
+    {"report", "statutory_instrument", "certificate"}
+)
+_PREFERRED_PMP_SUBJECTS = frozenset({"town_planner", "planning", "heritage"})
+
+
+def _pmp_evidence_priority(document) -> tuple[int, str]:
+    metadata = (
+        document.document_metadata
+        if isinstance(getattr(document, "document_metadata", None), dict)
+        else {}
+    )
+    subject = str(metadata.get("subject") or "none")
+    preferred = (
+        0
+        if document.document_class in _PREFERRED_PMP_CLASSES
+        and subject in _PREFERRED_PMP_SUBJECTS
+        else 1
+    )
+    return (preferred, document.relative_path or "")
+
+
 async def sweep_current_pmp_corpus(
     session: AsyncSession,
     *,
@@ -157,7 +179,18 @@ async def sweep_current_pmp_corpus(
     listing = await list_current_pmp_corpus_documents(
         session,
         project_id=project.id,
-        max_documents=settings.pmp_sweep_max_documents,
+        max_documents=None,
+    )
+    ranked = tuple(sorted(listing.documents, key=_pmp_evidence_priority))
+    cap = settings.pmp_sweep_max_documents
+    capped = cap is not None and len(ranked) > cap
+    documents = ranked[:cap] if cap is not None else ranked
+    listing = CorpusListingResult(
+        documents=documents,
+        total_indexed=listing.total_indexed,
+        skipped_superseded=listing.skipped_superseded,
+        skipped_revision_duplicate=listing.skipped_revision_duplicate,
+        capped=capped,
     )
     trace_events: list[WorkflowTraceEvent] = []
     if listing.capped:
@@ -167,7 +200,7 @@ async def sweep_current_pmp_corpus(
                 "warning",
                 (
                     f"Active corpus exceeds sweep cap ({settings.pmp_sweep_max_documents}); "
-                    "only the first capped documents were swept."
+                    "planning and heritage evidence is ranked first."
                 ),
                 active_documents=len(listing.documents),
                 cap=settings.pmp_sweep_max_documents,

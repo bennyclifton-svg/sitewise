@@ -39,11 +39,11 @@ fixtures:
 
   - filename: "Notice of Determination.pdf"
     body: "NOTICE OF DETERMINATION\nDevelopment Application DA-2026-114\nCONDITIONS OF CONSENT"
-    expect: { class: certificate, subject: planning }
+    expect: { class: certificate, subject: town_planner }
 
   - filename: "Council RFI response.pdf"
     body: "Dear Sir/Madam\nWe respond to your request for further information.\nYours sincerely"
-    expect: { class: correspondence, subject: planning }
+    expect: { class: correspondence, subject: town_planner }
 
   - filename: "Invoice 0043.pdf"
     body: "TAX INVOICE\nABN 12 345 678 901\nInvoice No 0043\nSubtotal $8,500\nGST $850\nTotal $9,350"

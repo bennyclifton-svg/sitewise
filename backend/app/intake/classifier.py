@@ -66,12 +66,35 @@ _FILENAME_ROUTING_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 _ROUTES: dict[tuple[str, str], str] = {
     ("commercial", "cost"): "01-cost",
     ("commercial", "contract_admin"): "01-cost/variations",
+    ("drawing", "architect"): "03-design/architect",
+    ("report", "architect"): "03-design/architect",
+    ("specification", "architect"): "03-design/architect",
+    ("drawing", "mechanical"): "03-design/mechanical",
+    ("report", "mechanical"): "03-design/mechanical",
+    ("drawing", "electrical"): "03-design/electrical",
+    ("report", "electrical"): "03-design/electrical",
+    ("drawing", "hydraulic"): "03-design/hydraulic",
+    ("report", "hydraulic"): "03-design/hydraulic",
+    ("drawing", "fire_engineer"): "03-design/fire",
+    ("drawing", "fire_services"): "03-design/fire",
+    ("report", "fire_engineer"): "03-design/fire",
+    ("report", "fire_services"): "03-design/fire",
+    ("drawing", "landscape"): "03-design/landscape-architect",
+    ("drawing", "civil"): "03-design/civil",
+    ("drawing", "civil_stormwater"): "03-design/civil",
+    ("drawing", "interior_design"): "03-design/architect",
+    ("report", "esd"): "03-design/energy-assessor",
+    ("report", "ecology"): "03-design/01-due-diligence",
+    ("report", "archaeology"): "03-design/01-due-diligence",
+    ("report", "roof_access"): "03-design/architect",
     ("report", "structural"): "03-design/structural",
+    ("drawing", "structural"): "03-design/structural",
     ("report", "geotechnical"): "03-design/01-due-diligence",
-    ("report", "survey"): "03-design/01-due-diligence",
+    ("report", "surveyor"): "03-design/01-due-diligence",
     ("report", "heritage"): "03-design/01-due-diligence",
-    ("report", "planning"): "04-planning-and-authorities",
-    ("certificate", "planning"): "04-planning-and-authorities",
+    ("report", "town_planner"): "04-planning-and-authorities",
+    ("certificate", "town_planner"): "04-planning-and-authorities",
+    ("certificate", "certifier"): "04-planning-and-authorities",
     ("schedule", "programme"): "06-programme",
     ("schedule", "cost"): "01-cost",
 }
@@ -169,19 +192,20 @@ def filing_destination(
         return dest
 
     metadata = classification.document_metadata
-    if metadata.get("procurement_stage"):
+    document_class = classification.document_class
+    if document_class == "commercial" and metadata.get("procurement_stage"):
         return "05-procurement"
 
     commercial_type = metadata.get("commercial_type")
-    if commercial_type == "fee_proposal":
+    if document_class == "commercial" and commercial_type == "fee_proposal":
         return _consultant_destination(
             _discipline_for(classification, filename=filename)
         )
-    if commercial_type == "quote":
+    if document_class == "commercial" and commercial_type == "quote":
         return "05-procurement/quotes"
-    if metadata.get("brief_kind"):
+    if document_class == "report" and metadata.get("brief_kind"):
         return "00-brief-pmp"
-    if metadata.get("due_diligence"):
+    if document_class == "report" and metadata.get("due_diligence"):
         return "03-design/01-due-diligence"
 
     pair = _ROUTES.get((classification.document_class, classification.document_subject))

@@ -30,6 +30,7 @@ class SelectedTurnDocument(BaseModel):
     title: str = Field(max_length=512)
     revision: str | None = Field(default=None, max_length=255)
     category: str | None = Field(default=None, max_length=255)
+    document_class: str | None = Field(default=None, max_length=64)
 
 
 async def resolve_selected_turn_documents(
@@ -98,8 +99,6 @@ def _selected_document(
     metadata = source_document.document_metadata if source_document is not None else None
     metadata = metadata if isinstance(metadata, dict) else {}
     title = _metadata_text(metadata, "title")
-    if title is None and source_document is not None:
-        title = source_document.document_type
     return SelectedTurnDocument(
         workspace_file_id=workspace_file.id,
         source_document_id=workspace_file.source_document_id,
@@ -107,10 +106,12 @@ def _selected_document(
         filename=workspace_file.filename,
         content_hash=workspace_file.content_hash,
         size_bytes=workspace_file.size_bytes,
-        document_number=_metadata_text(metadata, "document_number"),
+        document_number=_metadata_text(metadata, "document_number")
+        or _metadata_text(metadata, "drawing_number"),
         title=title or workspace_file.filename,
         revision=_metadata_text(metadata, "revision"),
         category=_metadata_text(metadata, "discipline"),
+        document_class=getattr(source_document, "document_class", None),
     )
 
 

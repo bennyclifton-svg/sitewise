@@ -496,14 +496,13 @@ def _filename_title(filename: str) -> str:
 def _register_title_from_fields(
     *,
     metadata: dict | None,
-    document_type: str | None,
     document_class: str,
     filename: str,
 ) -> str:
     metadata = metadata if isinstance(metadata, dict) else {}
     if document_class == "specification":
         return _filename_title(filename)
-    return _metadata_text(metadata, "title") or document_type or filename
+    return _metadata_text(metadata, "title") or _filename_title(filename)
 
 
 def _is_xlsx_filename(filename: str) -> bool:
@@ -568,7 +567,6 @@ def _metadata_confidence(metadata: dict | None) -> float | None:
 def _evidence_preview_from_values(
     *,
     document_id: uuid.UUID,
-    document_type: str | None,
     metadata: dict | None,
     filename: str,
     relative_path: str,
@@ -584,7 +582,6 @@ def _evidence_preview_from_values(
         workspace_file_id=workspace_file_id,
         title=_register_title_from_fields(
             metadata=metadata,
-            document_type=document_type,
             document_class=document_class,
             filename=filename,
         ),
@@ -593,6 +590,7 @@ def _evidence_preview_from_values(
         source_type=source_type,
         document_class=document_class,
         document_subject=_metadata_text(metadata, "subject"),
+        commercial_type=_metadata_text(metadata, "commercial_type"),
         confidence=_metadata_confidence(metadata),
         classification_basis=_metadata_text(metadata, "basis"),
         excerpt=_excerpt(excerpt_source),
@@ -657,7 +655,6 @@ def _evidence_preview_from_document(
     excerpt_source = document.normalized_content or ""
     return _evidence_preview_from_values(
         document_id=document.id,
-        document_type=document.document_type,
         metadata=metadata,
         filename=document.filename,
         relative_path=document.relative_path,
@@ -890,7 +887,6 @@ async def _list_project_evidence_previews(
     stmt = (
         select(
             SourceDocument.id,
-            SourceDocument.document_type,
             SourceDocument.document_metadata,
             SourceDocument.filename,
             SourceDocument.relative_path,
@@ -922,7 +918,6 @@ async def _list_project_evidence_previews(
         previews.append(
             _evidence_preview_from_values(
                 document_id=row.id,
-                document_type=row.document_type,
                 metadata=row.document_metadata,
                 filename=row.filename,
                 relative_path=relative_path,
@@ -1011,7 +1006,16 @@ async def _apply_invoice_statuses(
             continue
         if preview.invoice_status in {"reading", "failed"}:
             continue
-        if not is_invoice_document(filename=preview.filename, content=preview.excerpt):
+        if not is_invoice_document(
+            filename=preview.filename,
+            content=preview.excerpt,
+            document_class=preview.document_class,
+            document_metadata=(
+                {"commercial_type": preview.commercial_type}
+                if preview.commercial_type
+                else None
+            ),
+        ):
             continue
         preview.invoice_status = (
             "processing"

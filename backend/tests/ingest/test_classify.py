@@ -45,7 +45,7 @@ def test_classify_tender_submission():
     entry = _entry("procurement-blockb/05 SUBMISSION 01/bid.pdf")
     classification = classify_entry(entry)
     assert classification.document_class == "commercial"
-    assert classification.ingest_mode == "full_text"
+    assert classification.ingest_mode == "register_only"
     assert classification.document_metadata["procurement_stage"] == "submission"
     assert classification.document_metadata["tenderer_id"] == "01"
     assert classification.document_subject == "none"
@@ -57,6 +57,19 @@ def test_classify_drawing_pdf():
     entry = _entry("delivery-bankstown/09 Hydraulic/H-102 [D].pdf")
     classification = classify_entry(entry)
     assert classification.document_class == "drawing"
+
+
+def test_cc_a_drawing_is_architecture_subject() -> None:
+    entry = _entry("04-projects/newtown/_inbox/ARCHITECTURE/CC-A-010 SITE PLAN.pdf")
+    classification = classify_entry(entry)
+    assert classification.document_class == "drawing"
+    assert classification.document_subject == "architect"
+
+
+def test_architectural_filename_sets_architecture_subject() -> None:
+    entry = _entry("04-projects/newtown/_inbox/Architectural Design Report.pdf")
+    classification = classify_entry(entry)
+    assert classification.document_subject == "architect"
 
 
 def test_classify_cost_plan_is_not_a_drawing():
@@ -82,7 +95,7 @@ def test_classify_seed_reference():
     classification = classify_entry(entry)
     assert classification.document_class == "report"
     assert classification.document_metadata["reference_kind"] == "reference_guide"
-    assert classification.ingest_mode == "full_text"
+    assert classification.ingest_mode == "register_only"
     assert classification.basis == "structural"
     assert classification.confidence == 0.95
 
@@ -145,7 +158,7 @@ def test_classify_lep_filename_as_planning_instrument():
     entry = _entry("delivery-newtown/official/Inner-West-LEP-2022.pdf")
     classification = classify_entry(entry)
     assert classification.document_class == "statutory_instrument"
-    assert classification.ingest_mode == "full_text"
+    assert classification.ingest_mode == "register_only"
 
 
 def test_router_selects_rtf_for_planning_instrument_upload():
@@ -220,7 +233,7 @@ def test_planning_pathway_filename_sets_planning_subject() -> None:
     )
     classification = classify_entry(entry)
     assert classification.document_class == "report"
-    assert classification.document_subject == "planning"
+    assert classification.document_subject == "town_planner"
 
 
 def test_engagement_letter_sets_fee_proposal_type() -> None:
@@ -289,7 +302,7 @@ def test_planning_pathway_memo_heading_is_report_planning() -> None:
         extracted_text="# PLANNING PATHWAY MEMO\n\nPursue DA + CC pathway.",
     )
     assert classification.document_class == "report"
-    assert classification.document_subject == "planning"
+    assert classification.document_subject == "town_planner"
     assert classification.basis == "content"
 
 
@@ -302,3 +315,25 @@ def test_parsed_title_block_is_structural_drawing() -> None:
     assert classification.document_class == "drawing"
     assert classification.basis == "structural"
     assert classification.confidence == 0.95
+
+
+def test_ingest_mode_follows_useful_text_not_class() -> None:
+    entry = _entry("delivery-bankstown/09 Hydraulic/H-102 [D].pdf")
+    without_text = classify_entry(entry)
+    with_text = classify_entry(entry, extracted_text="title block notes " * 40)
+    assert without_text.document_class == "drawing"
+    assert without_text.ingest_mode == "register_only"
+    assert with_text.document_class == "drawing"
+    assert with_text.ingest_mode == "full_text"
+
+
+def test_strong_content_marker_beats_a_weak_filename_guess() -> None:
+    entry = _entry("04-projects/demo/_inbox/Statement.pdf")
+    classification = classify_entry(
+        entry,
+        extracted_text="TAX INVOICE\nABN 12 345 678 901\nInvoice No 0043\nTotal $9,350",
+    )
+    assert classification.document_class == "commercial"
+    assert classification.basis == "content"
+    assert classification.confidence >= 0.95
+    assert classification.document_metadata.get("commercial_type") == "invoice"

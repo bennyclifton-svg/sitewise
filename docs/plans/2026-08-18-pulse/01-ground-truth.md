@@ -1,93 +1,72 @@
 # Verified Codebase Map
 
-> Every claim below was read from the repo on 2026-08-18 at commit `acb10131`.
-> Line numbers drift — **re-grep before trusting a line number**, but the file
-> paths and shapes are correct.
+> Rewritten 2026-08-19 against HEAD after Stage 8B. Line numbers drift —
+> **re-grep before trusting a line number**, but the file paths and shapes
+> are correct.
 >
 > Read this once when you start a stage. It replaces exploration.
+> Do not "fix" Stages 1–8 from facts that look surprising; they are current.
 
-## The two classifiers (this is the whole problem)
+## One classifier (Gate 2)
 
-### Classifier A — semantic, corpus-side
+**`backend/ingest/classify.py`** → `classify_entry(...) -> Classification`
 
-**`backend/ingest/classify.py`** → `classify_entry(entry: ManifestEntry) -> Classification`
+Cascade: user override (Stage A) → structural signals → scored filename →
+content markers. Vocabularies are frozen in `ingest/types.py` (`x1-gate-1`).
 
-- Decides `document_class` from extension + filename + path.
-- Emits `ingest_mode` via `_ingest_mode_for_class` (`classify.py:~135`).
-- **Reads no document content at all.** Filename and path only.
+**`backend/app/intake/classifier.py`** → `filing_destination(Classification) -> str | None`
 
-### Classifier B — filing, app-side
+Routing only. It reads the canonical `Classification`; it does not classify.
+`commercial_type` / `brief_kind` / `due_diligence` / `procurement_stage` are
+consulted only when they match the current class (8B.1).
 
-**`backend/app/intake/classifier.py`** → `classify_inbox_destination(...) -> str | None`
+`classify_inbox_destination` remains as a classify-then-route shim.
+**The only remaining production caller is `app/intake/repair_service.py`.**
 
-- Returns a destination folder string (e.g. `"03-design/structural"`) directly.
-- Uses `INBOX_PACKAGE_DESTINATIONS`, then ~9 ordered regex families.
-- **Does read content** via `preview_snippet` (first 4096 bytes).
-- Has zero knowledge of `Classification`.
+## Facts a Wave 2 agent must not "discover" and fix
 
-**These two never talk.** That is the duplication Stage 6 removes.
+| Fact | Where |
+|---|---|
+| Content markers do **not** run on production ingest — `hosted.py` and `pipeline.py` call `classify_entry` without `extracted_text` | `ingest/hosted.py`, `ingest/pipeline.py` |
+| `title_block` is never passed in production either | same |
+| `machine_*` metadata keys are the classifier's own answer (8B.2) | `ingest/persist.py` |
+| `document_type` is dead — do not read or write it (8B.5) | `app/database/source_document.py` column left in place |
+| `ingest_mode` follows useful text, not class (8B.6) | `ingest/router.py` `has_useful_text`; persist corrects |
+| `filing_destination` gates routing metadata on class (8B.1) | `app/intake/classifier.py` |
+| `repair_service` is the only remaining `classify_inbox_destination` caller | `app/intake/repair_service.py` |
+| Weak filename guesses score **0.55** and sit below the review gate **0.65** (`REVIEW_CONFIDENCE_MIN`) | `ingest/classify.py`, `ingest/router.py` |
 
-## Where evidence gets suppressed
+## Where evidence gets indexed
 
 `backend/ingest/router.py`:
 
 ```python
-def _chunker_for(classification):
-    if classification.ingest_mode == "register_only":
-        return "register"
-    ...
+USEFUL_TEXT_MIN_CHARS = 200
+REVIEW_CONFIDENCE_MIN = 0.65
 
-def should_persist_chunks(plan) -> bool:
-    if ingest_mode == "register_only":
-        return False          # <-- evidence dies here
-    if document_class in {"doctrine", "reference_guide"} and extension != ".md":
-        return False          # <-- and here
-    return True
+def has_useful_text(text: str | None) -> bool:
+    return bool(text) and len(text.strip()) >= USEFUL_TEXT_MIN_CHARS
+
+def should_persist_chunks(plan, *, extracted_text) -> bool:
+    if plan.extractor == "unsupported":
+        return False
+    return has_useful_text(extracted_text)
 ```
 
-Combined with `classify.py`'s `drawing → register_only`, any file classified
-`drawing` loses all searchable text.
+Class never decides whether text is indexed (D3). Drawings with useful text
+are chunked by `chunk_register` (bounded) and embedded.
 
-**Important nuance the original plan missed:** extraction still happens.
-`_extractor_for` returns `"pdf_odl"` for *any* `.pdf` before the drawing branch
-is reached, so the text is extracted and then discarded at chunk time. The fix
-is in `router.py`, **not** in the extractors.
+## Canonical `DocumentClass` (frozen at Gate 1)
 
-## The `plan` bug, exactly
-
-`backend/ingest/classify.py`, `_looks_like_drawing`:
-
-```python
-if re.search(r"\bplan\b", lowered) and not any(
-    skip in lowered for skip in ("implementation plan", "management plan", "quality plan")
-):
-    return True
-```
-
-Three exclusions only. So these are all misclassified `drawing` → `register_only`
-→ unsearchable:
-
-`Cost Plan.pdf` · `Business Plan.pdf` · `Payment Plan.pdf` ·
-`Structural Specification Plan.pdf` · `Staging Plan.pdf` · `Traffic Plan.pdf`
-
-## Current `DocumentClass` vs. target
-
-`backend/ingest/types.py` declares 18 values:
+`backend/ingest/types.py`:
 
 ```text
-unknown contract specification tender_submission trr evaluation rft addendum
-eoi tep drawing report certificate correspondence schedule reference_guide
-doctrine planning_instrument
+drawing specification report certificate correspondence contract
+commercial schedule statutory_instrument photo unknown
 ```
 
-**Two values are written to the DB but are NOT in the Literal — existing type violations:**
-
-| Value | Written at |
-|---|---|
-| `inbox_pending` | `backend/app/api/projects.py:593` |
-| `corpus_catalog` | `backend/app/retrieval/catalog.py:110` |
-
-Stage 8 must handle both. The original plan mentioned only `inbox_pending`.
+Subject, basis, and the review threshold are served from the same contract
+(`frontend/src/lib/classification.ts` + `tests/ingest/test_classification_contract.py`).
 
 ## Persistence
 
@@ -98,55 +77,29 @@ document_class: Mapped[str] = mapped_column(String(64), nullable=False, default=
 ingest_mode:    Mapped[str | None] = mapped_column(String(32))
 document_metadata: Mapped[dict | None] = mapped_column(JSONB)
 content_hash:   Mapped[str | None] = mapped_column(String(64))
-source_type:    Mapped[str | None] = mapped_column(String(64))
-normalized_content: Mapped[str] = mapped_column(Text, nullable=False)
+document_type:  Mapped[str | None] = mapped_column(String(128))  # dead column (8B.5)
 ```
 
-**`document_class` is `String(64)`, not a Postgres enum.** This is load-bearing
-good news: the Stage 8 taxonomy change needs **no schema migration**, only a
-data migration. The original plan over-scoped this.
+**`document_class` is `String(64)`, not a Postgres enum.**
 
-`content_hash` is nullable — Stage 5 keys overrides on it, so Stage 5 must
-handle the null case explicitly.
+`document_metadata` holds `subject`, `basis`, `confidence`, routing extras, and
+`machine_class` / `machine_subject` / `machine_confidence` / `machine_basis`
+(written once, never overwritten).
 
 ## Sort Files path
 
 ```text
 frontend ProjectCockpitPage.tsx
-  → POST (app/api/projects.py:3400 post_sort_files)
-  → app/workflows/sort_files.py:100 run_sort_files_workflow
-  → app/intake/sort_service.py:413 sort_inbox_files
+  → POST sort-files
+  → app/workflows/sort_files.py run_sort_files_workflow
+  → app/intake/sort_service.py sort_inbox_files
 ```
 
-Also auto-invoked post-ingest: `app/workflows/document_ingest.py:128`.
+Also auto-invoked post-ingest: `app/workflows/document_ingest.py`.
 
-### What already exists (do not rebuild it)
-
-`sort_service.py` already models per-file outcomes:
-
-```python
-SortOutcome = Literal["moved", "already-filed", "unresolved", "skipped", "refused"]
-
-@dataclass
-class SortFilesCounts:
-    inspected: int; moved: int; already_filed: int
-    unresolved: int; skipped: int; refused: int
-```
-
-and already distinguishes skip reasons in free text (`sort_service.py:~446`):
-
-- `"Prior intake manifest"`
-- `"Ingestion is still in progress"`  ← the "0 moved" case
-- `"Ingestion failed; retry the upload before sorting"`
-
-**So the backend is ~80% of the way to the plan's §15 acceptance criteria.**
-The real gaps are:
-1. `"still in progress"` is a *reason string*, not a machine-readable outcome,
-   so the UI cannot distinguish "waiting" from "genuinely skipped".
-2. The frontend collapses everything into one count.
-3. Sorting re-reads file previews instead of using persisted classification (D2).
-
-Scope Stage 7 accordingly. Do not write a new outcome model.
+Outcomes include `waiting` and `needs-review`. Filing **moves storage and
+updates `relative_path`**; it does not re-extract, re-embed, or re-classify
+(8B.11). Sort Files does not call `_file_previews`. `repair_service` still does.
 
 ## Invoice code that already exists
 
@@ -156,33 +109,51 @@ Scope Stage 7 accordingly. Do not write a new outcome model.
 
 Stages 10–12 **extend** these. Adding an `invoice/` package is a D8 violation.
 
-## Consumers of `document_class` (Wave 2 blast radius)
+## Consumers of classification (rebuild from grep, 2026-08-19)
+
+Not just `document_class`. Include JSONB subject/discipline/`commercial_type`,
+`machine_*` keys, and the dead `document_type` column so nobody revives it.
 
 ```text
-backend/app/retrieval/queries.py:43       filter
-backend/app/retrieval/register.py:48,93   == "drawing"
-backend/app/retrieval/inventory.py        display
-backend/app/retrieval/catalog.py:110      writes "corpus_catalog"
-backend/app/projects/document_register.py:162  == "specification"
-backend/app/projects/consultant_facts.py:125-171  == "certificate"
-backend/app/projects/identity_bootstrap.py:35     == "planning_instrument"
-backend/app/cost_plan/consultant_appointment.py:527
-backend/app/mcp_bridge/server.py:697, 4128, 4363  writes "planning_instrument"
-backend/app/grounding/validator.py:35
-backend/app/api/projects.py:494,558,593,644,877,909
-backend/app/assistant/agent.py:231
-backend/ingest/router.py, persist.py, pipeline.py
+backend/ingest/classify.py              writer
+backend/ingest/persist.py               writer (class, metadata, machine_*, ingest_mode)
+backend/ingest/hosted.py                override merge onto machine classification
+backend/ingest/router.py                chunker by class; ingest_mode from text
+backend/ingest/chunkers/register.py     drawing chunker
+backend/ingest/chunkers/schedule.py     schedule row chunker (9.2)
+backend/app/intake/classifier.py        filing_destination (class-gated metadata)
+backend/app/intake/sort_service.py      persisted Classification; path move
+backend/app/intake/repair_service.py    last classify_inbox_destination caller
+backend/app/projects/classification_override.py  user override (preserves observation)
+backend/app/database/source_document.py document_class + dead document_type column
+backend/app/database/document_classification_override.py
+backend/app/api/projects.py             evidence preview; classification PUT
+backend/app/retrieval/queries.py        filter by class / procurement_stage
+backend/app/retrieval/schemas.py        RetrievalFilters
+backend/app/retrieval/register.py       drawing register == "drawing"
+backend/app/retrieval/inventory.py      display
+backend/app/retrieval/catalog.py        synthetic schedule rows
+backend/app/projects/document_register.py
+backend/app/projects/consultant_facts.py
+backend/app/projects/identity_bootstrap.py
+backend/app/cost_plan/consultant_appointment.py
+backend/app/mcp_bridge/server.py        set_document_classification (mutation turn)
+backend/app/web_research/attachments.py statutory_instrument writer
+backend/app/agent/document_context.py   title from metadata, not document_type
+backend/app/assistant/agent.py          search_documents filters
+backend/app/sitewise/pmp_sweep.py       evidence selection
+backend/app/grounding/validator.py
+backend/app/workflows/procurement_register.py
+backend/frontend/src/lib/classification.ts  frozen vocab + REVIEW_CONFIDENCE_MIN
 ```
 
-**14 files.** Every Wave 2 packet must be checked against this list.
+`source_documents.document_type` is **not** a consumer. Do not read or write it.
 
 ## Commands (use these exactly)
 
 ```bash
 # Backend — run from backend/
-uv run pytest                                  # full suite
-uv run pytest tests/ingest/test_classify.py -v # targeted
-uv run pytest -m "not integration" -q          # fast subset
+uv run pytest -q --tb=line --import-mode=importlib
 uv run ruff check .
 uv run alembic upgrade head
 
@@ -193,15 +164,5 @@ pnpm test
 pnpm build
 ```
 
-## Test files you will touch
-
-```text
-backend/tests/ingest/test_classify.py          (asserts register_only 4x — Stage 1 rewrites)
-backend/tests/workflows/test_sort_files.py     (~630 lines)
-backend/tests/workflows/test_document_ingest_auto_sort.py
-backend/tests/inbox/test_upload.py
-frontend/src/components/project/ProjectControlBoard.test.tsx
-```
-
-`backend/tests/ingest/test_classify.py` lines 55, 67, 94, 114 all assert
-`ingest_mode == "register_only"`. Stage 1 **must** rewrite these, not delete them.
+Exact `uv run pytest -q` cannot collect (duplicate test basenames). Compare
+against `docs/acceptance/x1/baseline-backend-failures.txt`.

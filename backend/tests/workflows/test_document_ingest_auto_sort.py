@@ -98,6 +98,14 @@ def test_ingest_auto_sorts_confident_inbox_drawing_and_promotes_firm() -> None:
             "app.database.activity_events.record_activity_events",
             new_callable=AsyncMock,
         ),
+        patch(
+            "app.workflows.document_ingest.record_project_verb",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "app.workflows.document_ingest.maybe_record_document_revised",
+            new_callable=AsyncMock,
+        ),
     ):
         result = run_async(
             ingest_project_document(

@@ -17,6 +17,7 @@ def _document() -> SelectedTurnDocument:
         title="Ground | floor plan",
         revision="C02",
         category="Architectural",
+        document_class="drawing",
     )
 
 
@@ -35,8 +36,40 @@ def test_transmittal_is_a_deterministic_unissued_draft() -> None:
 
     assert "**Draft only — not issued or sent.**" in markdown
     assert "TBC — confirm before issue" in markdown
-    assert "| A101 | Ground \\| floor plan | C02 | Architectural |" in markdown
+    assert "| drawing | A101 | Ground \\| floor plan | C02 | Architectural |" in markdown
     assert "Issue only the document revisions listed above." in markdown
     assert transmittal_workspace_path(project, version=2).endswith(
         "/05-procurement/00-transmittals/transmittal_v02.draft.md"
     )
+
+
+def test_transmittal_does_not_label_non_drawings_as_drawings() -> None:
+    project = SimpleNamespace(
+        title="Walsh Renovation",
+        workspace_path="04-projects/walsh-renovation",
+    )
+    spec = SelectedTurnDocument(
+        workspace_file_id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+        source_document_id=uuid.UUID("55555555-5555-5555-5555-555555555555"),
+        workspace_path="04-projects/demo/04-spec/specification.pdf",
+        filename="specification.pdf",
+        content_hash="b" * 64,
+        size_bytes=2048,
+        document_number="SPEC-01",
+        title="Project specification",
+        revision="A",
+        category="Architectural",
+        document_class="specification",
+    )
+    markdown = render_transmittal_markdown(
+        project=project,
+        documents=[spec],
+        recipient="Architect",
+        purpose="Issue for tender",
+    )
+    assert "| specification | SPEC-01 | Project specification | A | Architectural |" in markdown
+    spec_row = next(
+        line for line in markdown.splitlines() if "SPEC-01" in line
+    )
+    assert "drawing" not in spec_row
+

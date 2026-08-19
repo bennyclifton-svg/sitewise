@@ -15,6 +15,16 @@ from app.intake.sort_service import (
 from app.workflows.sort_files import run_sort_files_workflow
 from tests.conftest import run_async
 
+
+@pytest.fixture(autouse=True)
+def _silent_sort_verbs() -> None:
+    with patch(
+        "app.intake.sort_service.record_project_verb",
+        new_callable=AsyncMock,
+    ):
+        yield
+
+
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 
@@ -189,6 +199,56 @@ def test_low_confidence_reports_needs_review() -> None:
     assert result.records[0].outcome == "needs-review"
     assert result.counts.needs_review == 1
     assert result.counts.moved == 0
+    move.assert_not_awaited()
+
+
+def test_weak_filename_guess_reports_needs_review() -> None:
+    from ingest.classify import classify_entry
+    from ingest.types import ManifestEntry
+    from pathlib import Path
+
+    classification = classify_entry(
+        ManifestEntry(
+            absolute_path=Path("Statement.pdf"),
+            relative_path="04-projects/greenfield-demo/_inbox/Statement.pdf",
+            project="greenfield-demo",
+            filename="Statement.pdf",
+            extension=".pdf",
+            size_bytes=100,
+        )
+    )
+    session = AsyncMock()
+    doc_id = uuid.uuid4()
+    source = _workspace_file(
+        source_document_id=doc_id,
+        ingest_status="ingested",
+        filename="Statement.pdf",
+        workspace_path="04-projects/greenfield-demo/_inbox/Statement.pdf",
+    )
+    document = SimpleNamespace(
+        document_class=classification.document_class,
+        ingest_mode="full_text",
+        document_metadata={
+            "confidence": f"{classification.confidence:.2f}",
+            "basis": classification.basis,
+            "subject": classification.document_subject,
+        },
+        relative_path=source.workspace_path,
+    )
+    session.get = AsyncMock(return_value=document)
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[source]),
+        ),
+        patch("app.intake.sort_service._move_workspace_file", new=AsyncMock()) as move,
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert classification.confidence < 0.65
+    assert result.records[0].outcome == "needs-review"
+    assert result.counts.needs_review == 1
     move.assert_not_awaited()
 
 
@@ -382,6 +442,56 @@ def test_sort_inbox_moves_confident_match() -> None:
     assert result.records[0].destination_path.endswith("/03-design/architect/CC-A-010 - SITE PLAN.pdf")
 
 
+def test_successful_file_move_emits_document_filed() -> None:
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=None)
+    doc_id = uuid.uuid4()
+    source = _workspace_file(source_document_id=doc_id)
+    moved_record = _workspace_file(
+        workspace_path="04-projects/greenfield-demo/03-design/architect/CC-A-010 - SITE PLAN.pdf",
+        filename="CC-A-010 - SITE PLAN.pdf",
+        source_document_id=doc_id,
+    )
+    verb = AsyncMock()
+
+    with (
+        patch(
+            "app.intake.sort_service.list_workspace_files_under_prefix",
+            new=AsyncMock(return_value=[source]),
+        ),
+        patch(
+            "app.intake.sort_service.get_workspace_file_by_path",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.intake.sort_service._resolve_destination_filename",
+            new=AsyncMock(return_value="CC-A-010 - SITE PLAN.pdf"),
+        ),
+        patch(
+            "app.intake.sort_service._move_workspace_file",
+            new=AsyncMock(return_value=moved_record),
+        ),
+        patch(
+            "app.intake.sort_service.source_document_id_for_path",
+            return_value=doc_id,
+        ),
+        patch(
+            "app.intake.sort_service.record_project_verb",
+            new=verb,
+        ),
+    ):
+        result = run_async(sort_inbox_files(session, project=_project()))
+
+    assert result.counts.moved == 1
+    verb.assert_awaited()
+    kwargs = verb.await_args.kwargs
+    assert kwargs["verb"] == "document.filed"
+    assert kwargs["reference_id"] == doc_id
+    assert kwargs["deduplication_key"].endswith(
+        result.records[0].destination_path
+    )
+
+
 def test_sort_inbox_moves_chen_authority_pack() -> None:
     session = AsyncMock()
     planning = _workspace_file(
@@ -439,27 +549,28 @@ def test_sort_inbox_moves_chen_authority_pack() -> None:
     )
 
 
-def test_move_workspace_file_purges_old_source_document_id() -> None:
+def test_move_workspace_file_updates_existing_source_document_path() -> None:
     session = AsyncMock()
-    old_source_document_id = uuid.uuid4()
-    new_source_document_id = uuid.uuid4()
-    source = _workspace_file(source_document_id=old_source_document_id)
+    source_document_id = uuid.uuid4()
+    source = _workspace_file(source_document_id=source_document_id)
     moved_record = _workspace_file(
         workspace_path="04-projects/greenfield-demo/03-design/architect/CC-A-010.pdf",
         filename="CC-A-010.pdf",
-        source_document_id=new_source_document_id,
+        source_document_id=source_document_id,
     )
+    document = SimpleNamespace(
+        id=source_document_id,
+        document_class="drawing",
+        filename="CC-A-010.pdf",
+        relative_path=source.workspace_path,
+        document_metadata={"drawing_number": "CC-A-010", "basis": "filename"},
+    )
+    session.get = AsyncMock(return_value=document)
 
     with (
         patch("app.intake.sort_service.download_project_file", return_value=b"content"),
         patch("app.intake.sort_service.upload_project_file"),
         patch("app.intake.sort_service.delete_project_files"),
-        patch("app.intake.sort_service._purge_source_document") as purge,
-        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
-        patch(
-            "app.intake.sort_service.source_document_id_for_path",
-            return_value=new_source_document_id,
-        ),
         patch(
             "app.intake.sort_service.upsert_workspace_file",
             new=AsyncMock(return_value=moved_record),
@@ -476,7 +587,9 @@ def test_move_workspace_file_purges_old_source_document_id() -> None:
         )
 
     assert result == moved_record
-    purge.assert_called_once_with(source.workspace_path, PROJECT_ID, old_source_document_id)
+    assert document.relative_path == moved_record.workspace_path
+    assert document.filename == moved_record.filename
+    assert document.document_class == "drawing"
     session.delete.assert_awaited_once_with(source)
     session.flush.assert_awaited_once()
 
@@ -502,44 +615,28 @@ def test_split_schedule_identity_controls_sorted_filename() -> None:
     assert result == "LPCC 23 - 226 - 3 - Section & Details Rev D.pdf"
 
 
-def test_move_workspace_file_preserves_split_identity_after_reingest() -> None:
+def test_filed_document_keeps_the_classification_that_routed_it() -> None:
     session = AsyncMock()
-    old_source_document_id = uuid.uuid4()
-    new_source_document_id = uuid.uuid4()
-    source = _workspace_file(source_document_id=old_source_document_id)
+    source_document_id = uuid.uuid4()
+    source = _workspace_file(source_document_id=source_document_id)
     moved_record = _workspace_file(
-        workspace_path="04-projects/greenfield-demo/03-design/landscape-architect/sheet.pdf",
-        filename="sheet.pdf",
-        source_document_id=new_source_document_id,
+        workspace_path="04-projects/greenfield-demo/01-cost/Invoice 0043.pdf",
+        filename="Invoice 0043.pdf",
+        source_document_id=source_document_id,
     )
-    old_document = SimpleNamespace(
-        document_metadata={
-            "split_from": "Landscape Design [D].pdf",
-            "split_method": "drawing_schedule_v1",
-            "document_number": "LPCC 23 - 226 / 3",
-            "title": "Section & Details",
-            "revision": "D",
-        }
+    document = SimpleNamespace(
+        id=source_document_id,
+        document_class="commercial",
+        filename="Invoice 0043.pdf",
+        relative_path=source.workspace_path,
+        document_metadata={"commercial_type": "invoice", "basis": "filename"},
     )
-    new_document = SimpleNamespace(
-        document_metadata={
-            "document_number": "LPCC 23 - 226 / 3",
-            "title": "Details",
-            "revision": "D",
-        }
-    )
-    session.get.side_effect = [old_document, new_document]
+    session.get = AsyncMock(return_value=document)
 
     with (
         patch("app.intake.sort_service.download_project_file", return_value=b"content"),
         patch("app.intake.sort_service.upload_project_file"),
         patch("app.intake.sort_service.delete_project_files"),
-        patch("app.intake.sort_service._purge_source_document"),
-        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
-        patch(
-            "app.intake.sort_service.source_document_id_for_path",
-            return_value=new_source_document_id,
-        ),
         patch(
             "app.intake.sort_service.upsert_workspace_file",
             new=AsyncMock(return_value=moved_record),
@@ -555,8 +652,51 @@ def test_move_workspace_file_preserves_split_identity_after_reingest() -> None:
             )
         )
 
-    assert new_document.document_metadata["title"] == "Section & Details"
-    assert new_document.document_metadata["split_from"] == "Landscape Design [D].pdf"
+    assert document.document_class == "commercial"
+    assert document.document_metadata["commercial_type"] == "invoice"
+    assert document.relative_path == moved_record.workspace_path
+
+
+def test_move_does_not_reextract_or_reembed() -> None:
+    import app.intake.sort_service as sort_service
+
+    assert not hasattr(sort_service, "ingest_hosted_file")
+    session = AsyncMock()
+    source = _workspace_file(source_document_id=uuid.uuid4())
+    moved_record = _workspace_file(
+        workspace_path="04-projects/greenfield-demo/03-design/architect/CC-A-010.pdf",
+        filename="CC-A-010.pdf",
+        source_document_id=source.source_document_id,
+    )
+    document = SimpleNamespace(
+        id=source.source_document_id,
+        document_class="drawing",
+        filename=source.filename,
+        relative_path=source.workspace_path,
+        document_metadata={},
+    )
+    session.get = AsyncMock(return_value=document)
+
+    with (
+        patch("app.intake.sort_service.download_project_file", return_value=b"content"),
+        patch("app.intake.sort_service.upload_project_file"),
+        patch("app.intake.sort_service.delete_project_files"),
+        patch(
+            "app.intake.sort_service.upsert_workspace_file",
+            new=AsyncMock(return_value=moved_record),
+        ),
+    ):
+        run_async(
+            _move_workspace_file(
+                session,
+                project=_project(),
+                record=source,
+                destination_workspace_path=moved_record.workspace_path,
+                destination_filename=moved_record.filename,
+            )
+        )
+
+    session.get.assert_awaited()
 
 
 def test_move_workspace_file_deletes_source_blob_only_after_commit() -> None:
@@ -573,12 +713,6 @@ def test_move_workspace_file_deletes_source_blob_only_after_commit() -> None:
         patch("app.intake.sort_service.download_project_file", return_value=b"content"),
         patch("app.intake.sort_service.upload_project_file") as upload,
         patch("app.intake.sort_service.delete_project_files") as delete_source,
-        patch("app.intake.sort_service._purge_source_document"),
-        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
-        patch(
-            "app.intake.sort_service.source_document_id_for_path",
-            return_value=new_source_document_id,
-        ),
         patch(
             "app.intake.sort_service.upsert_workspace_file",
             new=AsyncMock(return_value=moved_record),
@@ -613,12 +747,6 @@ def test_move_workspace_file_keeps_source_blob_when_commit_fails() -> None:
         patch("app.intake.sort_service.download_project_file", return_value=b"content"),
         patch("app.intake.sort_service.upload_project_file"),
         patch("app.intake.sort_service.delete_project_files") as delete_source,
-        patch("app.intake.sort_service._purge_source_document"),
-        patch("app.intake.sort_service.ingest_hosted_file", return_value=True),
-        patch(
-            "app.intake.sort_service.source_document_id_for_path",
-            return_value=uuid.uuid4(),
-        ),
         patch(
             "app.intake.sort_service.upsert_workspace_file",
             new=AsyncMock(return_value=moved_record),

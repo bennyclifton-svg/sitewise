@@ -208,3 +208,20 @@ def test_merged_metadata_round_trips_confidence_and_basis() -> None:
     assert classification.basis in {"filename", "content", "structural"}
     assert classification.confidence >= 0.65
 
+
+def test_machine_answer_recorded_on_first_persist() -> None:
+    entry = _entry("04-projects/demo/_inbox/Invoice 0043.pdf")
+    context = infer_project_context(entry.relative_path)
+    from ingest.classify import classify_entry
+
+    classification = classify_entry(entry)
+    plan = build_ingest_plan(entry, context, classification)
+    extracted = ExtractedDocument(normalized_content="Invoice body")
+    metadata = _merged_metadata(plan, extracted)
+
+    assert metadata["machine_class"] == classification.document_class
+    assert metadata["machine_subject"] == classification.document_subject
+    assert metadata["machine_confidence"] == f"{classification.confidence:.2f}"
+    assert metadata["machine_basis"] == classification.basis
+    assert metadata["machine_basis"] != "user"
+

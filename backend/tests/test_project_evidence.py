@@ -44,7 +44,6 @@ def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> Non
     workspace_file_id = uuid.UUID("55555555-5555-5555-5555-555555555555")
     indexed = _evidence_preview_from_values(
         document_id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
-        document_type=None,
         metadata={},
         filename="indexed.md",
         relative_path="04-projects/demo/_inbox/indexed.md",
@@ -75,6 +74,18 @@ def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> Non
     assert pending.id == workspace_file_id
     assert pending.category is None
     assert pending.document_class == "unknown"
+
+
+def test_register_title_ignores_legacy_document_type() -> None:
+    from app.api.projects import _register_title_from_fields
+
+    title = _register_title_from_fields(
+        metadata={"title": ""},
+        document_class="report",
+        filename="sitewise-doctrine.md",
+    )
+    assert title != "reference_guide"
+    assert "doctrine" in title.lower()
 
 
 def _source_document(filename: str, normalized_content: str):
@@ -112,7 +123,6 @@ def test_evidence_preview_omits_content_when_not_requested() -> None:
 def test_evidence_preview_strips_markdown_emphasis_from_document_number() -> None:
     preview = _evidence_preview_from_values(
         document_id=uuid.UUID("99999999-9999-9999-9999-999999999999"),
-        document_type="Drawing",
         metadata={
             "document_number": "**A-000**",
             "title": "**Cover Sheet and Drawing Register**",
@@ -134,7 +144,6 @@ def test_evidence_preview_strips_markdown_emphasis_from_document_number() -> Non
 def test_specification_preview_uses_filename_title_over_body_derived_metadata() -> None:
     preview = _evidence_preview_from_values(
         document_id=uuid.UUID("88888888-8888-8888-8888-888888888888"),
-        document_type="specification",
         metadata={
             "title": "Construction Traffic Management Plan",
             "metadata_confidence": "medium",
@@ -152,7 +161,6 @@ def test_specification_preview_uses_filename_title_over_body_derived_metadata() 
 def _preview(relative_path: str):
     return _evidence_preview_from_values(
         document_id=uuid.uuid4(),
-        document_type=None,
         metadata={},
         filename=relative_path.rsplit("/", 1)[-1],
         relative_path=relative_path,

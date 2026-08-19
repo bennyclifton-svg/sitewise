@@ -68,6 +68,7 @@ import type {
   EvidencePreview,
   InboxUploadResult,
   InvoiceLedger,
+  InvoiceReview,
   PdfAnalyzeResult,
   PlatformKnowledgeContent,
   PlatformKnowledgeStatus,
@@ -608,6 +609,22 @@ export const api = {
       `/projects/${projectId}/invoice-allocations/${allocationId}`,
       input,
       { timeoutMs: WORKFLOW_TIMEOUT_MS },
+    ),
+
+  getInvoiceReview: async (
+    projectId: string,
+    invoiceId: string,
+  ): Promise<InvoiceReview> =>
+    api.get<InvoiceReview>(`/projects/${projectId}/invoices/${invoiceId}/review`),
+
+  decideInvoice: async (
+    projectId: string,
+    invoiceId: string,
+    input: { decision: "hold" | "reject" | "approve"; reason?: string | null },
+  ): Promise<InvoiceReview> =>
+    api.post<InvoiceReview>(
+      `/projects/${projectId}/invoices/${invoiceId}/decision`,
+      input,
     ),
 
   downloadWorkspaceFile: async (

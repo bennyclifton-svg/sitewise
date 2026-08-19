@@ -135,6 +135,10 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
                     )()
                 ),
             ),
+            patch(
+                "app.inbox.service.record_project_verb",
+                new=AsyncMock(),
+            ),
         ):
             outcomes = await upload_inbox_files(
                 mock_session,

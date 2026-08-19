@@ -203,7 +203,10 @@ def ingest_plan(
             chunker=plan.chunker,
             chunk_count=len(chunks),
         )
-        embeddings = embed_texts([chunk.content for chunk in chunks])
+        embeddings = embed_texts(
+            [chunk.content for chunk in chunks],
+            relative_paths=[plan.entry.relative_path] * len(chunks),
+        )
         _emit_trace(
             trace_callback,
             "embed",

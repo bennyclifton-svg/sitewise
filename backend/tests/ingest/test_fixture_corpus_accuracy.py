@@ -2,6 +2,7 @@ from pathlib import Path
 
 from tests.fixtures.classification import Fixture, load_fixtures
 from ingest.classify import classify_entry
+from ingest.router import REVIEW_CONFIDENCE_MIN
 from ingest.types import ManifestEntry
 
 
@@ -33,7 +34,9 @@ def test_report_fixture_corpus_accuracy(capsys) -> None:
         or result.document_subject == fixture.expect["subject"]
     )
     unknown = sum(1 for result in results if result.document_class == "unknown")
-    low_confidence = sum(1 for result in results if result.confidence < 0.65)
+    low_confidence = sum(
+        1 for result in results if result.confidence < REVIEW_CONFIDENCE_MIN
+    )
     print(f"class accuracy: {correct_class}/{len(fixtures)}")
     print(f"subject accuracy: {correct_subject}/{len(fixtures)}")
     print(f"unknown rate: {unknown}/{len(fixtures)}")

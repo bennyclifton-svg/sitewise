@@ -852,6 +852,85 @@ async def test_sweep_respects_config_cap(monkeypatch: pytest.MonkeyPatch) -> Non
     assert any(event.status == "warning" for event in result.trace_events)
 
 
+@pytest.mark.anyio
+async def test_sweep_prioritises_planning_and_heritage_evidence_under_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "pmp_sweep_max_documents", 3)
+    preferred = [
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            project="demo-project",
+            phase="brief-planning",
+            source_type="project_evidence",
+            document_class="report",
+            filename="heritage-impact.md",
+            relative_path="zz-late/heritage-impact.md",
+            normalized_content="Heritage impact statement content.",
+            document_metadata={"subject": "heritage"},
+            updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        ),
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            project="demo-project",
+            phase="brief-planning",
+            source_type="project_evidence",
+            document_class="statutory_instrument",
+            filename="lep.md",
+            relative_path="zz-late/lep.md",
+            normalized_content="Local environmental plan.",
+            document_metadata={"subject": "planning"},
+            updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        ),
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            project="demo-project",
+            phase="brief-planning",
+            source_type="project_evidence",
+            document_class="certificate",
+            filename="cdc.md",
+            relative_path="zz-late/cdc.md",
+            normalized_content="Complying development certificate.",
+            document_metadata={"subject": "planning"},
+            updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        ),
+    ]
+    others = [
+        SimpleNamespace(
+            id=uuid.uuid4(),
+            project="demo-project",
+            phase="brief-planning",
+            source_type="project_evidence",
+            document_class="unknown",
+            filename=f"early-{index}.md",
+            relative_path=f"00-early/doc-{index}.md",
+            normalized_content="Unclassified evidence.",
+            document_metadata=None,
+            updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        )
+        for index in range(6)
+    ]
+    docs = others + preferred
+    session = SimpleNamespace(
+        execute=AsyncMock(
+            return_value=SimpleNamespace(
+                scalars=lambda: SimpleNamespace(all=lambda: docs)
+            )
+        )
+    )
+    project = SimpleNamespace(id=PROJECT_ID, slug="demo-project")
+    result = await sweep_current_pmp_corpus(
+        session, project=project, previous_evidence_refs=[]
+    )
+    paths = [document.relative_path for document in result.listing.documents]
+    assert len(paths) == 3
+    assert set(paths) == {
+        "zz-late/heritage-impact.md",
+        "zz-late/lep.md",
+        "zz-late/cdc.md",
+    }
+
+
 _THIN_ACCOMMODATION = """## Accommodation Schedule
 
 Rooms, zones and outdoor spaces the project covers.

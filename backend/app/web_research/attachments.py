@@ -74,7 +74,6 @@ async def persist_official_attachment(
     if existing is not None:
         existing.source_type = "reference"
         existing.document_class = "statutory_instrument"
-        existing.document_type = "planning_instrument"
         existing.ingest_mode = "full_text"
         existing.filename = source.title[:512]
         existing.normalized_content = text
@@ -86,7 +85,6 @@ async def persist_official_attachment(
         project_id=project_id,
         project=project_slug,
         phase="reference",
-        document_type="planning_instrument",
         document_class="statutory_instrument",
         ingest_mode="full_text",
         document_metadata=metadata,

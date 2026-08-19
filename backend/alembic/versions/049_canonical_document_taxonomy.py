@@ -110,6 +110,39 @@ def upgrade() -> None:
             },
         )
     _print_counts(conn, "after")
+    conn.execute(
+        text(
+            """
+            UPDATE source_documents
+            SET document_metadata = document_metadata - :marker
+            WHERE document_metadata ? :marker
+            """
+        ),
+        {"marker": LEGACY_CLASS_MARKER},
+    )
+    assert_canonical_classes(conn)
+
+
+def assert_canonical_classes(conn) -> None:
+    from typing import get_args
+
+    from ingest.types import DocumentClass
+
+    classes = get_args(DocumentClass)
+    placeholders = ", ".join(f":c{i}" for i in range(len(classes)))
+    params = {f"c{i}": value for i, value in enumerate(classes)}
+    leftover = conn.execute(
+        text(
+            f"""
+            SELECT document_class, count(*)
+            FROM source_documents
+            WHERE document_class NOT IN ({placeholders})
+            GROUP BY document_class
+            """
+        ),
+        params,
+    ).all()
+    assert leftover == [], f"non-canonical classes remain: {leftover}"
 
 
 def downgrade() -> None:

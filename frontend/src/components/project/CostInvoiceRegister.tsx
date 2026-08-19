@@ -1,9 +1,10 @@
 import { Check, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { InvoiceReviewPane } from "@/components/project/InvoiceReviewPane";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { InvoiceLedger } from "@/lib/types/project";
+import type { InvoiceLedger, InvoiceReview } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
 type InvoiceEdit =
@@ -42,6 +43,7 @@ function CostInvoiceRegisterState({
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [review, setReview] = useState<InvoiceReview | null>(null);
   const confirmedLedgerRef = useRef<InvoiceLedger | null>(null);
   const queueRef = useRef<InvoiceEdit[]>([]);
   const drainingRef = useRef(false);
@@ -160,6 +162,33 @@ function CostInvoiceRegisterState({
     }
   }
 
+  async function openReview(invoiceId: string) {
+    try {
+      setReview(await api.getInvoiceReview(projectId, invoiceId));
+      setError(null);
+    } catch (loadError) {
+      setError(
+        loadError instanceof ApiError
+          ? loadError.message
+          : "Invoice review could not load.",
+      );
+    }
+  }
+
+  async function decide(decision: "hold" | "reject" | "approve") {
+    if (!review) return;
+    try {
+      setReview(await api.decideInvoice(projectId, review.invoice_id, { decision }));
+      setError(null);
+    } catch (decideError) {
+      setError(
+        decideError instanceof ApiError
+          ? decideError.message
+          : "Invoice decision could not be saved.",
+      );
+    }
+  }
+
   if (!ledger && !error) {
     return (
       <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
@@ -223,7 +252,15 @@ function CostInvoiceRegisterState({
                   <td className="px-3 py-2 whitespace-nowrap">{row.invoice_date}</td>
                   <td className="px-3 py-2">{row.company}</td>
                   <td className="px-3 py-2">{row.po_number ?? ""}</td>
-                  <td className="px-3 py-2">{row.invoice_number}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      className="text-left underline-offset-2 hover:underline"
+                      onClick={() => void openReview(row.invoice_id)}
+                    >
+                      {row.invoice_number}
+                    </button>
+                  </td>
                   <td className="px-3 py-2">{row.description}</td>
                   <td className="cost-invoice-cell--editable px-3 py-1.5">
                     <select
@@ -309,6 +346,16 @@ function CostInvoiceRegisterState({
           </tbody>
         </table>
       </div>
+      {review ? (
+        <div className="border-t border-[var(--border-hair)] p-3">
+          <InvoiceReviewPane
+            review={review}
+            onHold={() => void decide("hold")}
+            onReject={() => void decide("reject")}
+            onApprove={() => void decide("approve")}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

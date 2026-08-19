@@ -62,6 +62,7 @@ async def record_activity_events(
     reference_type: str | None = None,
     reference_id: uuid.UUID | None = None,
     events: Sequence[WorkflowTraceEvent | Mapping[str, Any]],
+    deduplication_key: str | None = None,
 ) -> None:
     if not events:
         return
@@ -90,6 +91,7 @@ async def record_activity_events(
                     if isinstance(event, WorkflowTraceEvent)
                     else dict(event.get("metadata") or {})
                 ),
+                deduplication_key=deduplication_key,
                 created_at=created_at + timedelta(microseconds=index),
             )
         )

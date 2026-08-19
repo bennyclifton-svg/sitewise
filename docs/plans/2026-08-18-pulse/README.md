@@ -9,7 +9,10 @@ Converge document classification, filing, invoice review, project events, Pulse
 and email onto **one intake spine**, without creating a parallel `v2` system.
 
 Authoritative doctrine: [`00-doctrine.md`](./00-doctrine.md) (~120 lines, always read it)
-Verified codebase map: [`01-ground-truth.md`](./01-ground-truth.md) (read once per stage)
+Verified codebase map: [`01-ground-truth.md`](./01-ground-truth.md) (read once per stage —
+**stale at Gate 2; packet 9.0 rewrites it**)
+Review checkpoint: [`91-review-2026-08-19.md`](./91-review-2026-08-19.md) (Stages 8B / 9–12)
+Wave 3 packets: Stages 13–22 — **peer-review the stage files before implementing**
 Progress ledger: [`TRACKER.md`](./TRACKER.md) (**you must update this**)
 Product vision + rationale: [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md) (read only if you need *why*)
 
@@ -29,7 +32,22 @@ file it names. That is your entire reading list.
 | 6 | [`stage-06-collapse-classifiers.md`](./stage-06-collapse-classifiers.md) | one decision engine |
 | 7 | [`stage-07-auto-filing.md`](./stage-07-auto-filing.md) | Sort Files UX |
 | 8 | [`stage-08-taxonomy-migration.md`](./stage-08-taxonomy-migration.md) | **Gate 2** |
-| 9–22 | [`90-downstream-stages.md`](./90-downstream-stages.md) | expanded at Gate 2, not before |
+| 8B | [`stage-8B-classification-remediation.md`](./stage-8B-classification-remediation.md) | **Gate 2 (Wave A blocks it)** |
+| 9 | [`stage-09-consumer-behavior.md`](./stage-09-consumer-behavior.md) | retrieval / PMP / cost discovery |
+| 10 | [`stage-10-invoice-foundation.md`](./stage-10-invoice-foundation.md) | D5 invoice snapshot |
+| 11 | [`stage-11-invoice-validation.md`](./stage-11-invoice-validation.md) | coded invoice issues |
+| 12 | [`stage-12-invoice-workflow.md`](./stage-12-invoice-workflow.md) | approval gate; unblocks 13 |
+| 13 | [`stage-13-project-event-spine.md`](./stage-13-project-event-spine.md) | **shared verb vocabulary** — unblocks 14 |
+| 14 | [`stage-14-pulse-mvp.md`](./stage-14-pulse-mvp.md) | **Gate 3** — Pulse MVP |
+| 15 | [`stage-15-email-foundation.md`](./stage-15-email-foundation.md) | raw email store; after Gate 3 |
+| 16 | [`stage-16-email-intake.md`](./stage-16-email-intake.md) | attachments = canonical intake |
+| 17 | [`stage-17-email-matching.md`](./stage-17-email-matching.md) | project match + threads |
+| 18 | [`stage-18-email-intelligence.md`](./stage-18-email-intelligence.md) | categories as metadata; `email.*` verbs |
+| 19 | [`stage-19-email-mcp-drafts.md`](./stage-19-email-mcp-drafts.md) | MCP + user-approved send |
+| 20 | [`stage-20-closed-loop-procurement.md`](./stage-20-closed-loop-procurement.md) | issue RFT via approved email |
+| 21 | [`stage-21-advanced-pulse.md`](./stage-21-advanced-pulse.md) | since-window + chains |
+| 22 | [`stage-22-project-email-aliases.md`](./stage-22-project-email-aliases.md) | `PROJECTCODE@in.sitewise.au` |
+| E | [`90-downstream-stages.md`](./90-downstream-stages.md) § Stage E | model fallback — measurements, not a date |
 
 ## Context budget (this is a hard rule)
 

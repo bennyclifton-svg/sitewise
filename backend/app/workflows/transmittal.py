@@ -51,13 +51,14 @@ def render_transmittal_markdown(
         raise ValueError("At least one selected document is required for a transmittal.")
 
     rows = [
-        "| # | Document no. | Title | Rev | Category |",
-        "| --- | --- | --- | --- | --- |",
+        "| # | Class | Document no. | Title | Rev | Category |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for index, document in enumerate(documents, start=1):
         rows.append(
-            "| {index} | {number} | {title} | {revision} | {category} |".format(
+            "| {index} | {document_class} | {number} | {title} | {revision} | {category} |".format(
                 index=index,
+                document_class=_table_value(_transmittal_class_label(document)),
                 number=_table_value(document.document_number),
                 title=_table_value(document.title),
                 revision=_table_value(document.revision),
@@ -200,6 +201,13 @@ async def sync_transmittal_draft_workspace(
         content_hash=content_hash,
     )
     return canonical_path
+
+
+def _transmittal_class_label(document: SelectedTurnDocument) -> str | None:
+    cls = (document.document_class or "").strip()
+    if cls == "drawing":
+        return "drawing"
+    return cls or None
 
 
 def _table_value(value: str | None) -> str:

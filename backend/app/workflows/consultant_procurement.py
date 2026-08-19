@@ -619,6 +619,7 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("stormwater consultant"): _normalise_key(
         "civil / stormwater engineer"
     ),
+    _normalise_key("esd"): _normalise_key("sustainability consultant"),
     _normalise_key("esd consultant"): _normalise_key("sustainability consultant"),
     _normalise_key("ecologically sustainable design consultant"): _normalise_key(
         "sustainability consultant"
@@ -631,6 +632,19 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("town planning"): _normalise_key("town planner"),
     _normalise_key("town planning consultant"): _normalise_key("town planner"),
     _normalise_key("planning consultant"): _normalise_key("town planner"),
+    _normalise_key("structural"): _normalise_key("structural engineer"),
+    _normalise_key("mechanical"): _normalise_key("mechanical services engineer"),
+    _normalise_key("electrical"): _normalise_key("electrical services engineer"),
+    _normalise_key("hydraulic"): _normalise_key("hydraulic engineer"),
+    _normalise_key("civil"): _normalise_key("civil / stormwater engineer"),
+    _normalise_key("civil stormwater"): _normalise_key("civil / stormwater engineer"),
+    _normalise_key("landscape"): _normalise_key("landscape architect"),
+    _normalise_key("heritage"): _normalise_key("heritage consultant"),
+    _normalise_key("geotechnical"): _normalise_key("geotechnical engineer"),
+    _normalise_key("acoustic"): _normalise_key("acoustic consultant"),
+    _normalise_key("access"): _normalise_key("access consultant"),
+    _normalise_key("facade"): _normalise_key("facade consultant"),
+    _normalise_key("traffic"): _normalise_key("traffic consultant"),
 }
 
 _NON_CONSULTANT_TERMS = (

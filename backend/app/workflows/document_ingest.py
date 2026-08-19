@@ -12,6 +12,11 @@ from app.database.source_document import SourceDocument
 from app.database.workspace_file import WorkspaceFile
 from app.intake.sort_service import file_single_document
 from app.projects.consultant_facts import upsert_consultant_fact_from_document
+from app.projects.event_spine import (
+    maybe_record_document_revised,
+    record_project_verb,
+    verb_dedup_key,
+)
 from app.projects.identity_bootstrap import safe_bootstrap_identity_from_document
 from app.schemas.projects import WorkflowTraceEvent
 from app.schemas.project_snapshot import DOCUMENT_INGEST_FAILURE_DETAIL
@@ -122,7 +127,14 @@ async def ingest_project_document(
             )
             document = await session.get(SourceDocument, record.source_document_id)
             if document is not None:
+                await _emit_extracted_and_classified(
+                    session,
+                    project_id=project.id,
+                    record=record,
+                    document=document,
+                )
                 upsert_consultant_fact_from_document(project, document)
+                await maybe_record_document_revised(session, document=document)
                 auto_sort_destination = await file_single_document(
                     session, project=project, document=document
                 )
@@ -217,4 +229,56 @@ async def ingest_project_document(
     return DocumentIngestResult(
         workspace_file_id=str(record.id),
         ingest_status=record.ingest_status,
+    )
+
+
+async def _emit_extracted_and_classified(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    record: WorkspaceFile,
+    document: SourceDocument,
+) -> None:
+    content_hash = record.content_hash or document.content_hash or ""
+    document_class = document.document_class
+    document_subject = ""
+    metadata = document.document_metadata or {}
+    subject = metadata.get("subject")
+    if isinstance(subject, str):
+        document_subject = subject
+    display = {
+        "filename": record.filename,
+        "document_class": document_class,
+        "document_subject": document_subject,
+        "content_hash": content_hash,
+    }
+    await record_project_verb(
+        session,
+        project_id=project_id,
+        verb="document.extracted",
+        reference_type="source_document",
+        reference_id=document.id,
+        message=f"Extracted {record.filename}",
+        deduplication_key=verb_dedup_key(
+            "document.extracted",
+            reference_type="source_document",
+            reference_id=document.id,
+            extra=content_hash,
+        ),
+        metadata=display,
+    )
+    await record_project_verb(
+        session,
+        project_id=project_id,
+        verb="document.classified",
+        reference_type="source_document",
+        reference_id=document.id,
+        message=f"Classified {record.filename} as {document_class}",
+        deduplication_key=verb_dedup_key(
+            "document.classified",
+            reference_type="source_document",
+            reference_id=document.id,
+            extra=f"{content_hash}:{document_class}:{document_subject}",
+        ),
+        metadata=display,
     )

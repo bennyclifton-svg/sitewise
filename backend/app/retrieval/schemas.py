@@ -15,6 +15,8 @@ class RetrievalFilters(BaseModel):
     phase: str | None = None
     source_type: str | None = None
     document_class: str | None = None
+    document_subject: str | None = None
+    discipline: str | None = None
     procurement_stage: str | None = None
     tenderer_id: str | None = None
 

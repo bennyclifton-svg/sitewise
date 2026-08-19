@@ -31,7 +31,7 @@ def _workspace_file() -> SimpleNamespace:
 def _source_document() -> SimpleNamespace:
     return SimpleNamespace(
         id=SOURCE_DOCUMENT_ID,
-        document_type="Drawing",
+        document_class="drawing",
         document_metadata={
             "document_number": "A101",
             "title": "Ground floor plan",
@@ -64,6 +64,7 @@ def test_resolves_source_document_register_row_to_server_owned_file() -> None:
     assert document.title == "Ground floor plan"
     assert document.revision == "C02"
     assert document.category == "Architectural"
+    assert document.document_class == "drawing"
 
 
 def test_rejects_a_register_row_that_does_not_resolve_in_the_project() -> None:

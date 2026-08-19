@@ -470,6 +470,7 @@ class EvidencePreview(BaseModel):
     source_type: str | None
     document_class: str
     document_subject: str | None = None
+    commercial_type: str | None = None
     confidence: float | None = None
     classification_basis: str | None = None
     excerpt: str
