@@ -14,6 +14,9 @@ from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.config import router as config_router
 from app.api.cost_invoices import router as cost_invoices_router
+from app.api.inbound_email import cap_inbound_email_body
+from app.api.inbound_email import router as inbound_email_router
+from app.api.project_emails import router as project_emails_router
 from app.api.projects import router as projects_router
 from app.api.pulse import router as pulse_router
 from app.api.projects import sitewise_router
@@ -69,6 +72,7 @@ async def lifespan(_app: FastAPI):
 
 
 fastapi_app = FastAPI(title="SiteWise API", lifespan=lifespan)
+fastapi_app.middleware("http")(cap_inbound_email_body)
 
 
 @fastapi_app.middleware("http")
@@ -124,11 +128,13 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError):
 
 
 fastapi_app.include_router(auth_router)
+fastapi_app.include_router(inbound_email_router)
 fastapi_app.include_router(billing_router)
 fastapi_app.include_router(config_router)
 fastapi_app.include_router(chat_router)
 fastapi_app.include_router(cost_invoices_router)
 fastapi_app.include_router(pulse_router)
+fastapi_app.include_router(project_emails_router)
 fastapi_app.include_router(projects_router)
 fastapi_app.include_router(sitewise_router)
 fastapi_app.include_router(tender_router)

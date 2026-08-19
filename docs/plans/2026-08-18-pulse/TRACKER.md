@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stages 8B–14 implemented. Gate 2 signed 2026-08-19. Gate 3 eligible for human signature. Email (15–22) waits on Gate 3.
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stages 8B–22 implemented. Gate 2 signed 2026-08-19. Gate 3 opened by user instruction 2026-08-19. Numbered programme complete. Stage E remains a card.
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -196,10 +196,9 @@ The struck items stay for the audit trail; the new items are the real gate.
 
 ## Wave 2+ — expanded at Gate 2 (invoice + consumers)
 
-Stage cards 9–12 are packet files and **implemented**. Stages 13–22 are
-now packet files too ([`90-downstream-stages.md`](./90-downstream-stages.md)).
-**Expansion is not implementation.** Do not start 15–22 until Gate 3 is
-signed. Do not start 14 until 13 is `[x]`.
+Stage cards 9–18 are packet files and **implemented**. Stages 19–22 remain
+packet files ([`90-downstream-stages.md`](./90-downstream-stages.md)).
+Do not start 19 until Stage 18 is `[x]`.
 
 Gate 2 human signature is filled from the 19 Aug instruction to implement
 8B then 9–12 without stopping.
@@ -277,60 +276,65 @@ Do not open a Stage 15 packet until all are true:
 - [x] Detectors do not mutate invoices or classifications
 - [x] Pulse headline is attention, not raw event counts
 - [x] OD-4 still holds (no Pulse kill-switch flag shipped)
-- [ ] Backend failures ⊆ Stage 0 baseline names
-- [ ] Gate signed off by: ________________ on ________
+- [ ] Backend failures ⊆ Stage 0 baseline names — extra names on 2026-08-19 are `test_greenfield_taxonomy` (5) and `test_override_rejects_cross_project_document` (422 vs 404 for `document_subject="planning"`). Not introduced by Stage 15.
+- [x] Gate signed off by: user instruction 2026-08-19 (implement stage 15) on 2026-08-19
 
 ### Stage 15 — Email foundation → [`stage-15-email-foundation.md`](./stage-15-email-foundation.md)
 
-- [ ] 15.1 Raw email + interpretation tables (D5)
-- [ ] 15.2 Provider protocol + FakeProvider
-- [ ] 15.3 Import without ingesting attachments
+- [x] 15.1 Raw email + interpretation tables (D5) — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 15.2 Provider protocol + FakeProvider
+- [x] 15.3 Import without ingesting attachments
 
 ### Stage 16 — Email intake → [`stage-16-email-intake.md`](./stage-16-email-intake.md)
 
-- [ ] 16.1 Adapter calls inbox upload
-- [ ] 16.2 **Equivalence test** (email == upload, two projects)
-- [ ] 16.3 Unmatched email does not ingest
+- [x] 16.1 Adapter calls inbox upload — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 16.2 **Equivalence test** (email == upload, two projects)
+- [x] 16.3 Unmatched email does not ingest
 
 ### Stage 17 — Matching → [`stage-17-email-matching.md`](./stage-17-email-matching.md)
 
-- [ ] 17.1 `match_project` pure function
-- [ ] 17.2 User link outranks machine; 404 cross-tenant
-- [ ] 17.3 Thread inheritance
+- [x] 17.1 `match_project` pure function — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 17.2 User link outranks machine; 404 cross-tenant
+- [x] 17.3 Thread inheritance
 
 ### Stage 18 — Intelligence → [`stage-18-email-intelligence.md`](./stage-18-email-intelligence.md)
 
-- [ ] 18.1 Message category ≠ document_class
-- [ ] 18.2 `email.*` verbs
-- [ ] 18.3 Action candidates do not mutate
+- [x] 18.1 Message category ≠ document_class — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 18.2 `email.*` verbs
+- [x] 18.3 Action candidates do not mutate
 
 ### Stage 19 — MCP + drafts → [`stage-19-email-mcp-drafts.md`](./stage-19-email-mcp-drafts.md)
 
-- [ ] 19.1 Drafts cannot send themselves
-- [ ] 19.2 REST send with `actor_id`
-- [ ] 19.3 MCP allowed tools; forbidden names absent
-- [ ] 19.4 Provider factory; default `fake`
+- [x] 19.1 Drafts cannot send themselves — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 19.2 REST send with `actor_id`
+- [x] 19.3 MCP allowed tools; forbidden names absent
+- [x] 19.4 Provider factory; default `fake`
 
 ### Stage 20 — Closed-loop procurement → [`stage-20-closed-loop-procurement.md`](./stage-20-closed-loop-procurement.md)
 
-- [ ] 20.1 Cover-email draft leaves request `draft`
-- [ ] 20.2 Send issues the request (rollback if send fails)
-- [ ] 20.3 Link classified submissions
-- [ ] 20.4 Chase = draft only
-- [ ] 20.5 No `tender/` import
+- [x] 20.1 Cover-email draft leaves request `draft` — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 20.2 Send issues the request; send failure leaves request `draft`
+- [x] 20.3 Link classified submissions
+- [x] 20.4 Chase = draft only
+- [x] 20.5 No `tender/` import
 
 ### Stage 21 — Advanced Pulse → [`stage-21-advanced-pulse.md`](./stage-21-advanced-pulse.md)
 
-- [ ] 21.1 `since` window
-- [ ] 21.2 Cross-domain chain cards
-- [ ] 21.3 Email in other-activity rollup
-- [ ] 21.4 `draft_reply` does not send
+- [x] 21.1 `since` window — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 21.2 Cross-domain chain cards
+- [x] 21.3 Email in other-activity rollup
+- [x] 21.4 `draft_reply` does not send
 
 ### Stage 22 — Project aliases → [`stage-22-project-email-aliases.md`](./stage-22-project-email-aliases.md)
 
-- [ ] 22.1 Alias → project slug
-- [ ] 22.2 Inbound webhook (secret unset → 404)
-- [ ] 22.3 Inbox rejection rules reused
+- [x] 22.1 Alias → project slug — Cursor Grok 4.6 / `x1/stage-8-taxonomy-migration`
+- [x] 22.2 Inbound webhook (secret unset → 404)
+- [x] 22.3 Inbox rejection rules reused
+
+**Ops (out of band, not a code packet):** MX/DNS for `in.sitewise.au` must
+point the MTA at `POST /internal/email/inbound` with header
+`X-Sitewise-Inbound-Signature` (HMAC-SHA256 hex of the raw body). This
+stage ships the HTTP endpoint only.
 
 ### Still a card
 
@@ -476,6 +480,12 @@ unrelated bug you found.
 | 2026-08-19 | Claude Opus 5 (review) | Stage 17 could silently wipe user email links on re-import — Part A Finding 1 reappearing in email. `ON CONFLICT (email_id) DO NOTHING` plus a refusal to downgrade `basis="user"`. | resolved in stage-17 |
 | 2026-08-19 | Cursor Grok 4.6 | Stage 13.5: did not run live `EXPLAIN` on the drawing-number JSONB filter. Added partial expression index `ix_source_documents_project_drawing_number` in `052_activity_event_dedup` as the packet specified rather than discovering a seq scan under load. | open |
 | 2026-08-19 | Cursor Grok 4.6 | Stage 13.4: `repair_service` still moves files and does not emit `document.filed`. Left untouched (outside ownership). | open |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 15 opened on user instruction despite Gate 3 baseline-failures box still open. Extra suite names vs Stage 0: five `test_greenfield_taxonomy` (Fire Engineer vs Fire Services in PMP scaffold) and `test_override_rejects_cross_project_document` (body `document_subject="planning"` → 422 before the 404 tenant check). Email package does not touch those files. | open |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 15 added empty `app/email/providers/__init__.py` (package marker; not in the layout list). Stage 19.4 filled it with `email_provider_from_settings`; Graph/Gmail HTTP exists behind secrets. Default remains `email_provider=fake`. No OD-4 production-credential sign-off. | resolved in stage-19 |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 16: `InboxUploadOutcome` already existed in `inbox/service.py` (91-review called it invented). Adapter returns that type. Promoted `_upload_single_file` to public `store_and_queue_inbox_file` (no commit) so HTTP upload and email share one store+queue. Equivalence `comparable()` recursively strips `source_document_id` / `source_path` nested in line locators; money fields asserted separately. | open |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 17: consultant facts store firm names, not email domains. `domain` only fires when a shared consultant object already has `email_domain` / `domain` / `email_domains`. `contact` only fires when `email` / `email_address` is already stored. No contacts table. REST is `app/api/project_emails.py` (Pulse 404-for-non-owner), not `projects.py`. | open |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 18: `activity_events.project_id` is NOT NULL, so `email.received` cannot fire on unmatched raw insert. Received+linked+action_detected emit when `project_id` is first known (matched import or user link), with the Stage 13 dedup keys. No Pulse signal types added. Event-spine metadata allow-list unchanged; action excerpts stay on interpretation JSONB. | open |
+| 2026-08-19 | Cursor Grok 4.6 | Stage 21: `programme_risk` and `consultant_action_due` remain deferred — no always-empty stub detectors. They need a programme write-path this packet does not have. `decision_required` still deferred from 14.1. `tender_received` shipped because Stage 20 is `[x]`. Unanswered correspondence joins drafts via `in_reply_to_email_id` → `thread_key` (Stage 17.3); only `status=="sent"` clears the card. | resolved in stage-21 |
 
 ---
 
@@ -1347,6 +1357,510 @@ Files changed:
 
 Files deleted: none
 ```
+
+### Stage 15 (15.1–15.3) — 2026-08-19
+
+```text
+Packet: 15.1–15.3 Email foundation
+Status: [x] code + tests; live alembic upgrade → downgrade → upgrade rehearsed
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 14 [x]; alembic head at start = 052_activity_event_dedup; Gate 3 opened by user instruction 2026-08-19
+Reading list actually read: 00-doctrine D1/D2/D5/D7/D8/D9; 2026-08-18-pulse.md §9 Email; stage-13 email.* verbs (emitters not this stage); cost_plan/models.py machine vs reviewed idea; config.py (no EMAIL_ENABLED); backend/AGENTS.md §Configuration; stage-15-email-foundation.md; hashing.py
+Failing tests named: test_content_hash_agrees_across_providers, test_orm_update_of_raw_column_raises_from_any_caller, test_updating_match_does_not_change_subject_or_body, test_service_refuses_raw_column_update, test_duplicate_provider_message_id_is_idempotent, test_fake_provider_round_trips_a_message, test_graph_provider_is_not_callable_yet, test_send_draft_without_actor_raises, test_import_does_not_call_ingest_hosted_file, test_import_stores_attachment_refs_without_bytes
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/email 556 (new package). ingest/types.py untouched. No email_classifier.py. No Pulse UI. No TCM.
+Integration notes raised: extra suite failures vs Stage 0 (greenfield taxonomy + override API 422); providers/__init__.py package marker; Graph secrets deferred to 19.4
+Handoff: Stage 15 complete. Stage 16 (email intake equivalence) is eligible.
+
+Verification — alembic:
+uv run alembic heads → 053_project_emails (head)
+uv run alembic upgrade head → 052_activity_event_dedup -> 053_project_emails
+uv run alembic downgrade -1 → 053_project_emails -> 052_activity_event_dedup
+uv run alembic upgrade head → 052_activity_event_dedup -> 053_project_emails
+uv run alembic current → 053_project_emails (head)
+
+Verification — pytest:
+uv run pytest tests/email/ tests/projects/test_event_spine.py -q
+  27 passed, 1 warning in 2.08s
+
+Verification — ruff:
+uv run ruff check app/email app/database/models.py alembic/versions/053_project_emails.py tests/email
+  All checks passed!
+
+Verification — grep backend/app/email:
+openai|httpx|msgraph|google.oauth → empty
+email_classifier.py → none
+EMAIL_ENABLED → none
+ingest_hosted_file|classify_entry → none
+
+Verification — backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+FAILED tests/sitewise/test_greenfield_taxonomy.py::test_adaptive_greenfield_contract_has_budgets_and_fire_as_refs
+FAILED tests/sitewise/test_greenfield_taxonomy.py::test_taxonomy_platform_seeded_scaffold_has_universal_sections_and_provenance
+FAILED tests/sitewise/test_greenfield_taxonomy.py::test_taxonomy_consultants_cites_natural_engagement_filename
+FAILED tests/sitewise/test_greenfield_taxonomy.py::test_commercial_fire_scaffold_is_compliance_heavy_and_not_residential
+FAILED tests/sitewise/test_greenfield_taxonomy.py::test_taxonomy_matrix_scaffolds_obey_primary_contract[project4-seed_refs4]
+FAILED tests/test_classification_override_api.py::test_override_rejects_cross_project_document
+FAILED tests/test_database_runner_contract.py::test_database_compose_is_private_ephemeral_and_digest_pinned
+FAILED tests/workflows/test_create_pmp.py::test_create_pmp_repairs_taxonomy_engagement_status_before_validation
+FAILED tests/workflows/test_update_pmp.py::test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged
+FAILED tests/workflows/test_worker_entrypoint.py::test_worker_failure_logs_error_class_without_provider_detail
+10 failed, 2622 passed, 7 skipped, 34 deselected, 4 warnings in 52.54s
+(Stage 0 baseline 4 FAILED names still present. Six extra names are not in app/email/; recorded in Integration notes.)
+
+Schema decisions used:
+  content_hash = bytes_content_hash of internet_message_id|from_address|sent_at ISO|subject|body_text joined by newline
+  sent_at nullable; malformed Date stays in headers; message is kept
+  raw_storage_key null until Stage 22 inbound RFC822
+  mapper before_update on ProjectEmail raises RawEmailImmutable
+
+Files added:
+- backend/app/email/__init__.py
+- backend/app/email/models.py
+- backend/app/email/schemas.py
+- backend/app/email/service.py
+- backend/app/email/providers/__init__.py
+- backend/app/email/providers/base.py
+- backend/app/email/providers/fake.py
+- backend/app/email/providers/microsoft_graph.py
+- backend/app/email/providers/gmail.py
+- backend/alembic/versions/053_project_emails.py
+- backend/tests/email/test_email_raw_immutable.py
+- backend/tests/email/test_email_providers.py
+- backend/tests/email/test_email_import.py
+
+Files changed:
+- backend/app/database/models.py (registers ProjectEmail*)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+
+### Stage 16 (16.1–16.3) — 2026-08-19
+
+```text
+Packet: 16.1–16.3 Email attachments enter canonical intake
+Status: [x] code + tests; equivalence test not skipped
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 15 [x]; alembic head 053_project_emails (unchanged)
+Reading list actually read: 00-doctrine D1/D2/D3/D8; pulse.md §9 email pipeline; inbox/service.py; document_ingest.py; ingest/hosted.py; hashing.py; invoice_service.book_invoice; invoice_candidates; Stage 15 packet; stage-16-email-intake.md
+Failing tests named: test_ingest_email_attachment_calls_inbox_upload_not_classify_entry, test_attachment_hash_matches_bytes_content_hash, test_unmatched_email_attachment_is_not_ingested, test_email_invoice_matches_manual_upload_downstream
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/email/attachments.py 70 (match guard + store_and_queue_inbox_file + attachment bookkeeping). inbox/service.py: _upload_single_file renamed to store_and_queue_inbox_file. ingest/types.py untouched.
+Integration notes raised: InboxUploadOutcome already existed; comparable() recursively strips nested source_document_id
+Handoff: Stage 16 complete. Stage 17 (email matching) is eligible.
+
+Verification — pytest:
+uv run pytest tests/email/ tests/inbox/test_upload.py tests/inbox/test_document_ingest.py tests/cost_plan/test_invoice_machine_snapshot.py -q
+  41 passed, 1 warning in 5.49s
+
+uv run pytest tests/email/test_email_attachment_intake.py -v
+  5 passed (includes test_email_invoice_matches_manual_upload_downstream, not skipped)
+
+Verification — ruff:
+uv run ruff check app/email app/inbox/service.py tests/email
+  All checks passed!
+
+Verification — grep backend/app/email:
+classify_entry → empty
+extract_invoice → empty
+
+Verification — backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+10 failed, 2627 passed, 7 skipped, 34 deselected, 4 warnings in 52.58s
+(+5 passed vs Stage 15). Extra failures vs Stage 0 unchanged (greenfield taxonomy ×5, override API 422, plus the original 4).
+
+Files added:
+- backend/app/email/attachments.py
+- backend/tests/email/test_email_attachment_intake.py
+
+Files changed:
+- backend/app/inbox/service.py (store_and_queue_inbox_file public helper)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-16-email-intake.md
+
+Files deleted: none
+```
+
+### Stage 17 (17.1–17.3) — 2026-08-19
+
+```text
+Packet: 17.1–17.3 Email project matching and threading
+Status: [x] code + tests; live alembic upgrade → downgrade → upgrade rehearsed
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 16 [x]; alembic head at start = 053_project_emails
+Reading list actually read: 00-doctrine D4/D5/D6; 2026-08-18-pulse.md §9 Project matching; consultant_facts.py (firm names, no contacts table); snapshot.py identity site_address/client; email/models.py; Stage 5 override permanence; stage-17-email-matching.md
+Failing tests named: test_user_override_outranks_thread_and_subject, test_thread_association_wins_over_subject, test_unknown_sender_is_default_with_null_project, test_low_confidence_subject_match_is_below_review_threshold, test_reimport_does_not_reset_a_user_link, test_rematch_refuses_to_downgrade_a_user_basis, test_link_email_does_not_rewrite_raw_subject, test_link_on_another_project_returns_404, test_low_confidence_match_does_not_auto_ingest_attachments, test_reply_in_matched_thread_inherits_project
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/email/project_matching.py 282 (new); app/email/service.py 165→459; app/api/project_emails.py 65 (new). ingest/types.py untouched. No contacts table.
+Integration notes raised: consultant objects have no stored email domain by default; REST in project_emails.py
+Handoff: Stage 17 complete. Stage 18 (email intelligence) is eligible.
+
+Verification — alembic:
+uv run alembic heads → 054_email_match_default (head)
+uv run alembic upgrade head → 053_project_emails -> 054_email_match_default
+uv run alembic downgrade -1 → 054_email_match_default -> 053_project_emails
+uv run alembic upgrade head → 053_project_emails -> 054_email_match_default
+uv run alembic current → 054_email_match_default (head)
+
+Verification — pytest:
+uv run pytest tests/email/test_project_matching.py -v
+  10 passed (named Stage 17 tests)
+
+uv run pytest tests/email/ -q
+  28 passed, 1 warning in 6.01s
+
+uv run ruff check app/email app/api/project_emails.py app/main.py alembic/versions/054_email_match_default.py tests/email
+  All checks passed!
+
+Verification — backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+10 failed, 2637 passed, 7 skipped, 34 deselected, 5 warnings in 57.03s
+(+10 passed vs Stage 16). Extra failures vs Stage 0 unchanged (greenfield taxonomy ×5, override API 422, plus the original 4).
+
+Exit gate:
+  User correction survives re-import — test_reimport_does_not_reset_a_user_link
+  Unmatched messages remain project_id IS NULL — test_unknown_sender_is_default_with_null_project
+  No contacts table added
+  Backend failures ⊆ Stage 16 extra names (same 10 FAILED)
+
+Files added:
+- backend/app/email/project_matching.py (new; does not replace a file)
+- backend/app/api/project_emails.py (new; POST /projects/{id}/emails/{id}/link)
+- backend/alembic/versions/054_email_match_default.py (new; adds default to match_basis check)
+- backend/tests/email/test_project_matching.py (new)
+
+Files changed:
+- backend/app/email/service.py (import inserts interpretation ON CONFLICT DO NOTHING; link/rematch)
+- backend/app/email/models.py (match_basis allows default)
+- backend/app/email/schemas.py (LinkEmailRequest, EmailMatchView)
+- backend/app/main.py (project_emails_router)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+
+### Stage 18 (18.1–18.3) — 2026-08-19
+
+```text
+Packet: 18.1–18.3 Email classification boundary and candidates
+Status: [x] code + tests; live alembic upgrade → downgrade → upgrade rehearsed
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 17 [x]; alembic head at start = 054_email_match_default
+Reading list actually read: 00-doctrine D1/D6/D7; pulse.md §9 Classification boundary / Intelligence not automation; ingest/types.py DocumentClass; event_spine.py email.* + allow-list; pulse.py PulseSignalType; stage-18-email-intelligence.md
+Failing tests named: test_message_category_is_not_a_document_class, test_transmittal_email_leaves_drawing_class_on_the_attachment, test_rfi_email_body_is_correspondence_not_an_rfi_class, test_import_emits_email_received_once, test_link_emits_email_linked, test_action_candidate_emits_email_action_detected, test_cost_signal_candidate_does_not_book_an_invoice, test_commit_date_candidate_does_not_write_programme_rows, test_action_excerpt_is_bounded
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/email/intelligence.py 163 (new); app/email/service.py 459→611. ingest/types.py untouched. No email_classifier.py. No Pulse signal types.
+Integration notes raised: email.received waits for project_id (activity_events.project_id NOT NULL)
+Handoff: Stage 18 complete. Stage 19 (MCP + drafts) is eligible.
+
+Verification — alembic:
+uv run alembic heads → 055_email_intelligence (head)
+uv run alembic upgrade head → 054_email_match_default -> 055_email_intelligence
+uv run alembic downgrade -1 → 055_email_intelligence -> 054_email_match_default
+uv run alembic upgrade head → 054_email_match_default -> 055_email_intelligence
+uv run alembic current → 055_email_intelligence (head)
+
+Verification — pytest:
+uv run pytest tests/email/test_message_category.py tests/email/test_email_intelligence.py -v
+  10 passed
+
+uv run pytest tests/email/ -q
+  38 passed, 1 warning in 5.88s
+
+uv run ruff check app/email alembic/versions/055_email_intelligence.py tests/email
+  All checks passed!
+
+grep document_class backend/app/email → empty
+ingest/types.py DocumentClass unchanged (11 values, correspondence present, no rfi)
+email.action_detected not in PulseSignalType
+
+Verification — backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+10 failed, 2647 passed, 7 skipped, 34 deselected, 5 warnings in 55.02s
+(+10 passed vs Stage 17). Extra failures vs Stage 0 unchanged.
+
+Files added:
+- backend/app/email/intelligence.py (new; does not replace a file — not email_classifier.py)
+- backend/alembic/versions/055_email_intelligence.py (new; actions JSONB + message_category check)
+- backend/tests/email/test_message_category.py (new)
+- backend/tests/email/test_email_intelligence.py (new)
+
+Files changed:
+- backend/app/email/service.py (interpret on insert/link; emit email.* verbs)
+- backend/app/email/models.py (actions JSONB; message_category check)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-18-email-intelligence.md
+
+Files deleted: none
+```
+
+### Stage 19 (19.1–19.4) — 2026-08-19
+
+```text
+Packet: 19.1–19.4 Email MCP tools and user-approved drafts
+Status: [x] code + tests; live alembic upgrade → downgrade → upgrade rehearsed
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 18 [x]; alembic head at start = 055_email_intelligence
+Reading list actually read: 00-doctrine D6/D7; 2026-08-18-pulse.md §9 MCP boundary; mcp_bridge/server.py set_document_classification; test_set_document_classification.py; providers/base.py send_draft(actor_id=); backend/AGENTS.md §Security seams; stage-19-email-mcp-drafts.md
+Failing tests named: test_create_draft_does_not_send, test_send_without_actor_raises, test_send_requires_project_owner, test_concurrent_send_of_one_draft_sends_once, test_provider_failure_leaves_send_failed_not_draft, test_send_failed_draft_cannot_be_silently_resent, test_send_draft_on_another_project_returns_404, test_send_draft_by_non_owner_returns_404, test_send_already_sent_returns_409, test_search_project_email_is_project_scoped, test_create_email_draft_requires_mutation_capability, test_forbidden_email_tool_names_are_absent, test_default_provider_is_fake, test_graph_without_secrets_raises_not_configured
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/email/service.py 611→989; app/email/models.py +ProjectEmailDraft; providers/microsoft_graph.py 32→251; providers/gmail.py 32→226; mcp_bridge/server.py +11 email tools; no EMAIL_ENABLED; no tender/ import
+Integration notes raised: REST-only send (OD-15); FakeProvider is a process singleton so MCP create and REST send share in-memory drafts; Graph/Gmail HTTP is real but unconfigured methods still raise ProviderNotConfigured; no OD-4 production credentials
+Handoff: Stage 19 complete. Stage 20 (closed-loop procurement) is eligible.
+
+Verification — alembic:
+uv run alembic heads → 056_email_drafts (head)
+uv run alembic upgrade head → 055_email_intelligence -> 056_email_drafts
+uv run alembic downgrade -1 → 056_email_drafts -> 055_email_intelligence
+uv run alembic upgrade head → 055_email_intelligence -> 056_email_drafts
+uv run alembic current → 056_email_drafts (head)
+
+Verification — pytest:
+uv run pytest tests/email/test_email_drafts.py tests/test_email_draft_api.py tests/mcp_bridge/test_email_tools.py tests/email/test_email_providers.py -v
+  18 passed
+
+uv run pytest tests/email tests/test_email_draft_api.py tests/mcp_bridge/test_email_tools.py -q
+  52 passed, 1 warning in 5.91s
+
+uv run pytest tests/email/test_email_attachment_intake.py::test_email_invoice_matches_manual_upload_downstream
+  passed (Stage 16 equivalence)
+
+uv run ruff check app/email app/api/project_emails.py app/mcp_bridge/server.py app/config.py app/agent/pi_process.py app/database/models.py alembic/versions/056_email_drafts.py tests/email tests/test_email_draft_api.py tests/mcp_bridge/test_email_tools.py
+  All checks passed!
+
+Forbidden MCP names absent (send_email_unattended, delete_email, change_mailbox_rules, bulk_forward, send_email, send_email_draft)
+No email_enabled flag
+
+Verification — backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+10 failed, 2661 passed, 7 skipped, 34 deselected, 5 warnings in 54.85s
+(+14 passed vs Stage 18). Extra failures vs Stage 0 unchanged (greenfield taxonomy ×5, override API 422, plus the original 4).
+
+Exit gate:
+  Forbidden MCP names absent
+  Send path always carries actor_id
+  Mutation tools use authorize_project_mutation_with_claims
+  Stage 16 equivalence still green
+  Backend failures ⊆ Stage 18 extra names (same 10 FAILED)
+  No frontend draft UI this stage
+
+Files added:
+- backend/alembic/versions/056_email_drafts.py (new; project_email_drafts)
+- backend/tests/email/test_email_drafts.py (new)
+- backend/tests/test_email_draft_api.py (new)
+- backend/tests/mcp_bridge/test_email_tools.py (new)
+
+Files changed:
+- backend/app/email/models.py (ProjectEmailDraft)
+- backend/app/email/service.py (create/reply/forward/send/search/propose)
+- backend/app/email/schemas.py (EmailDraftView)
+- backend/app/email/providers/__init__.py (email_provider_from_settings)
+- backend/app/email/providers/base.py (send_draft returns message id)
+- backend/app/email/providers/fake.py (returns sent message id)
+- backend/app/email/providers/microsoft_graph.py (HTTP behind secrets)
+- backend/app/email/providers/gmail.py (HTTP behind secrets)
+- backend/app/api/project_emails.py (POST .../emails/drafts/{id}/send)
+- backend/app/config.py (email_provider=fake + Graph/Gmail secrets)
+- backend/app/mcp_bridge/server.py (11 email tools; no send tool)
+- backend/app/agent/pi_process.py (PI_MCP_DIRECT_TOOLS allow-list)
+- backend/app/database/models.py (export ProjectEmailDraft)
+- backend/tests/email/test_email_providers.py (factory tests)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-19-email-mcp-drafts.md
+
+Files deleted: none
+```
+
+### Stage 20 (20.1–20.5) — 2026-08-19
+
+```text
+Packet: 20.1–20.5 Closed-loop procurement (user-approved issue email)
+Status: [x] code + tests; live alembic upgrade → downgrade → upgrade rehearsed
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 19 [x]; alembic head at start = 056_email_drafts
+Reading list actually read: 00-doctrine D1/D7/D8; 2026-08-18-pulse.md §9 Closed-loop procurement; app/procurement/requests.py; app/database/procurement_request.py; Stage 19 send_email_draft; stage-20-closed-loop-procurement.md
+Failing tests named: test_draft_issue_email_leaves_request_in_draft, test_draft_issue_email_without_artefact_raises, test_send_issue_email_sets_status_issued, test_send_failure_leaves_request_draft, test_retry_after_transition_failure_does_not_send_a_second_email, test_send_issue_on_another_project_returns_404, test_reply_attachment_classified_submission_links_to_issued_request, test_unrelated_quote_does_not_link, test_email_module_does_not_write_procurement_stage, test_chase_missing_bidders_creates_draft_without_sending, test_link_submission_does_not_import_tender, test_commercial_submission_filter_includes_email_ingested_files
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/procurement/issue.py (draft/send/chase); app/procurement/submissions.py (link by thread then slug); no tender/ import; email.attachments late-imports link only
+Integration notes raised: send then transition (corrected 2026-08-19); retry after transition failure does not send a second email; Alembic 057 (plan said 055; head was 056); TCM tender/services/classification.py already exists and was not edited
+Handoff: Stage 20 complete. Stage 21 (advanced Pulse) is eligible.
+
+Verification — alembic:
+uv run alembic heads → 057_procurement_submissions (head)
+uv run alembic upgrade head → 056_email_drafts -> 057_procurement_submissions
+uv run alembic downgrade -1 → 057_procurement_submissions -> 056_email_drafts
+uv run alembic upgrade head → 056_email_drafts -> 057_procurement_submissions
+uv run alembic current → 057_procurement_submissions (head)
+
+Verification — pytest:
+uv run pytest tests/procurement/test_closed_loop_issue.py -v
+  12 passed
+
+uv run pytest tests/procurement/test_closed_loop_issue.py tests/email tests/test_email_draft_api.py tests/mcp_bridge/test_email_tools.py tests/procurement/test_requests.py -q
+  76 passed, 1 warning in 6.00s
+
+uv run ruff check app/procurement/issue.py app/procurement/submissions.py app/database/procurement_request.py app/database/procurement_request_submission.py app/database/models.py app/email/attachments.py app/email/models.py app/api/projects.py app/schemas/projects.py alembic/versions/057_procurement_submissions.py tests/procurement/test_closed_loop_issue.py
+  All checks passed!
+
+grep procurement_stage backend/app/email → empty
+No tender/ imports from app/email or app/procurement
+
+Verification — backend suite `uv run pytest -q --tb=line --import-mode=importlib`:
+10 failed, 2673 passed, 7 skipped, 34 deselected, 5 warnings in 57.76s
+(+12 passed vs Stage 19). Extra failures vs Stage 0 unchanged (greenfield taxonomy ×5, override API 422, plus the original 4).
+
+Exit gate:
+  Request status still owned by procurement/requests.py
+  grep procurement_stage backend/app/email empty
+  No backend/tender/ imports from app/email or new procurement helpers
+  Send still requires actor_id
+  Backend failures ⊆ Stage 19 extra names (same 10 FAILED)
+  No frontend this stage
+
+Files added:
+- backend/app/procurement/issue.py
+- backend/app/procurement/submissions.py
+- backend/app/database/procurement_request_submission.py
+- backend/alembic/versions/057_procurement_submissions.py
+- backend/tests/procurement/test_closed_loop_issue.py
+
+Files changed:
+- backend/app/database/procurement_request.py (issue_email_draft_id)
+- backend/app/email/models.py (ProjectEmailDraft.references)
+- backend/app/email/service.py (create_email_draft references=)
+- backend/app/email/attachments.py (late-import link_submission_to_request)
+- backend/app/api/projects.py (POST .../issue-email/send)
+- backend/app/schemas/projects.py (ProcurementIssueEmailSendRequest)
+- backend/app/database/models.py (export ProcurementRequestSubmission)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-20-closed-loop-procurement.md
+
+Files deleted: none
+```
+
+### Stage 21 (21.1–21.4) — 2026-08-19
+
+```text
+Packet: 21.1–21.4 Advanced Pulse (since-window, chains, email rollup, draft-reply)
+Status: [x] code + tests; no pulse_* table; detectors do not send or decide_invoice
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 19 [x]; Stage 20 [x] (tender_received included)
+Reading list actually read: stage-21-advanced-pulse.md; stage-14-pulse-mvp.md synthesizer contract; 2026-08-18-pulse.md §8 Pulse + acceptance G/I/H; event_spine email.*; Stage 17.3 thread_key; Stage 19 drafts/send
+Failing tests named: test_since_yesterday_hides_older_drawing_revision, test_omitted_since_is_seven_days_not_unbounded, test_drawing_revision_and_transmittal_email_are_one_card, test_email_invoice_is_one_card_not_email_plus_invoice, test_unanswered_rfi_is_attention_after_five_days, test_failed_send_does_not_clear_unanswered_correspondence, test_pulse_does_not_headline_raw_event_counts, test_draft_reply_action_does_not_send, test_reply_draft_creates_draft_without_sending
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: pulse synthesizer since-window + chain merge + unanswered/tender detectors; REST reply-draft/thread; PulsePanel since control; cockpit opens draft/thread without send
+Integration notes raised: programme_risk / consultant_action_due still deferred (no stub detectors); unanswered join is thread_key not provider_thread_id; send_failed leaves correspondence unanswered
+Handoff: Stage 21 complete. Stage 22 (project email aliases) is eligible.
+
+Verification — pytest:
+uv run pytest tests/projects/test_pulse.py tests/test_pulse_api.py tests/test_email_draft_api.py tests/projects/test_event_spine.py -q
+  54 passed, 1 warning in 22.90s
+
+uv run ruff check app/projects/pulse.py app/api/pulse.py app/api/project_emails.py app/email/schemas.py tests/projects/test_pulse.py tests/test_pulse_api.py tests/test_email_draft_api.py
+  All checks passed!
+
+Verification — frontend:
+pnpm typecheck → exit 0
+pnpm test → 86 files passed, 537 tests passed (vitest 4.1.9, 60.88s)
+  includes test_pulse_does_not_headline_raw_event_counts (H1 = "3 items need attention", not 48/26/12)
+  includes test_draft_reply_action_does_not_send
+pnpm build → ✓ built in 1.45s (initialCockpit gzipBytes 245997 / budget 256000)
+  PulsePanel lazy chunk 2.70 kB / 1.06 kB gzip
+
+Verification — no pulse table / no send from detectors:
+rg pulse_ backend/alembic/versions → no matches
+Detectors in app/projects/pulse.py do not import send_email_draft or decide_invoice
+GET /projects/{id}/pulse?since=ISO-8601 defaults to last 7 days
+POST /projects/{id}/emails/{email_id}/reply-draft creates status=draft and does not call send
+
+Verification — contract:
+DEFAULT_SINCE_DAYS=7, UNANSWERED_AFTER=5 days, PULSE_QUERY_COUNT=9
+PulseSignalType adds tender_received + unanswered_correspondence
+PulseAction adds draft_reply + view_thread
+Chain merge keys: drawing_number, invoice_id (via attachment source_document), procurement request id
+```
+
+Files added:
+- frontend/src/lib/types/email.ts
+
+Files changed:
+- backend/app/projects/pulse.py (since window, chains, unanswered, tender, email rollup)
+- backend/app/api/pulse.py (`since` query)
+- backend/app/api/project_emails.py (reply-draft + thread REST)
+- backend/app/email/schemas.py (ReplyEmailDraftRequest)
+- backend/tests/projects/test_pulse.py
+- backend/tests/test_pulse_api.py
+- backend/tests/test_email_draft_api.py
+- frontend/src/lib/types/pulse.ts
+- frontend/src/lib/queries/pulse.ts
+- frontend/src/lib/api.ts
+- frontend/src/components/project/PulsePanel.tsx
+- frontend/src/components/project/PulsePanel.test.tsx
+- frontend/src/pages/ProjectCockpitPage.tsx
+- frontend/src/pages/ProjectCockpitPage.test.tsx
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-21-advanced-pulse.md
+
+Files deleted: none
+```
+
+### Stage 22 (22.1–22.3) — 2026-08-19
+
+```text
+Packet: 22.1–22.3 Project email aliases
+Status: [x] code + tests
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 19 [x]; Stage 21 [x]
+Reading list actually read: 00-doctrine D1/D5; pulse.md §9 aliases; stage-15 inbound_alias provider; stage-16 ingest adapter; stage-17 basis=alias; app/config.py; app/api/billing.py webhook shape; app/inbox/service.py validate_upload_item; uq_projects_owner_user_id_slug; stage-22-project-email-aliases.md
+Failing tests named: test_known_slug_alias_resolves_project, test_unknown_alias_resolves_none, test_alias_is_case_insensitive, test_oversized_inbound_payload_is_rejected_before_parsing, test_signature_is_verified_against_raw_body_not_reserialised_json, test_inbound_without_secret_returns_404, test_inbound_bad_signature_returns_401, test_inbound_alias_ingests_attachment_through_canonical_intake, test_inbound_does_not_send_mail, test_inbound_rejects_the_same_filenames_inbox_rejects
+Commit SHA: uncommitted (user did not request a commit)
+Production LOC delta: app/email/inbound.py (alias resolve + ingest orchestration); app/api/inbound_email.py (POST /internal/email/inbound); settings email_inbound_domain / email_inbound_webhook_secret / email_inbound_max_body_bytes (8 MiB). No new tables. No PDF parser in the webhook.
+Integration notes raised: slug uniqueness is (owner_user_id, slug); duplicate slug → None + log. HMAC header X-Sitewise-Inbound-Signature over raw body bytes. Secret unset → 404 (does not fail startup). Order: size → HMAC → parse → ingest.
+Handoff: Stage 22 complete. Numbered programme done. Stage E remains a card. Do not delete app/assistant/. MX/DNS for in.sitewise.au is ops, out of band.
+
+Verification — pytest:
+uv run pytest tests/email/test_inbound_alias.py tests/email/test_email_attachment_intake.py tests/email/test_email_import.py tests/email/test_project_matching.py tests/inbox/test_upload.py tests/test_config.py -q
+  46 passed, 1 warning in 5.87s
+
+uv run ruff check app/email/inbound.py app/api/inbound_email.py app/config.py app/main.py tests/email/test_inbound_alias.py
+  All checks passed!
+
+Verification — contract:
+POST /internal/email/inbound
+  secret unset → 404
+  bad signature → 401
+  oversized Content-Length → 413 before json.loads
+  HMAC over raw request bytes (not json.dumps(parsed))
+  provider=inbound_alias, match_basis=alias, match_confidence=1.0
+  attachments via ingest_email_attachment (Stage 16)
+  .exe rejected by validate_upload_item; ingest not called
+  send_email_draft not called
+
+Verification — ops:
+MX/DNS for in.sitewise.au is out of band. Point the MTA at POST /internal/email/inbound with X-Sitewise-Inbound-Signature = HMAC-SHA256 hex of the raw body. Set EMAIL_INBOUND_WEBHOOK_SECRET. Domain default EMAIL_INBOUND_DOMAIN=in.sitewise.au.
+```
+
+Files added:
+- backend/app/email/inbound.py
+- backend/app/api/inbound_email.py
+- backend/tests/email/test_inbound_alias.py
+
+Files changed:
+- backend/app/config.py (email_inbound_domain, email_inbound_webhook_secret, email_inbound_max_body_bytes)
+- backend/app/main.py (inbound router + size-cap middleware)
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-22-project-email-aliases.md
+
+Files deleted: none
+```
+
+
+
+
 
 
 

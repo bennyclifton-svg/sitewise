@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,430 +7,431 @@
     <meta name="theme-color" content="#060608" />
     <meta
       name="description"
-      content="SiteWise builds the plans, reports and comparisons your project runs on, from the drawings, specs and invoices you already have — with every line still pointing back at its source. You do the judgement."
+      content="SiteWise reads the title searches, surveys, planning advice, geotech reports and cost plans a project arrives in, works out what each document is, and pulls the facts that matter into one project you can read. You do the judgement."
     />
     <title>SiteWise — you do the judgement, SiteWise does the assembly</title>
     <link rel="icon" type="image/svg+xml" href="/style-guide/logo/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/style-guide/tokens.css" />
     <link rel="stylesheet" href="/style-guide/satoshi-font.css" />
     <link rel="stylesheet" href="/style-guide/light.css" />
     <link rel="stylesheet" href="/style-guide/motion.css" />
-    <link rel="stylesheet" href="/landing-assets/landing.css" />
+    <link rel="stylesheet" href="/landing-assets/landing-story.css" />
   </head>
   <body>
     <!--
-      THESIS: SiteWise turns disordered project material into professional work through one recognisable system: the open-corner Mark 3 facet engine.
-      OWN-WORLD: Near-black architectural ground, graphite and bone planes, one moving structural-blue judgement facet, real project records, and restrained technical annotation.
-      STORY: The real project-profile workspace establishes the product first; the mark then opens into deterministic tools; a clean artefact leaves through the missing facet.
-      FIRST VIEWPORT: A plain-language promise sits beside the actual Greenbank project-profile view. Scrolling rotates the 3D mark, reveals its six-sector geometry, and resolves the work into a current SiteWise issue sheet.
-      FORM: Artefact-forward production line expressed through the exact isometric geometry of SiteWise Mark 3; seed brief-facet-engine-20260806.
-      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+      THESIS: A project arrives as a pile of unrelated evidence. SiteWise reads all of it,
+              works out what each document is, keeps the lines that carry the project, and
+              lets those lines meet each other — so the constraint surfaces early.
+      OWN-WORLD: Near-black graphite ground, bone type, one blue reading pulse. Amber appears
+              exactly once, on the constraint, and nowhere else on the page.
+      STORY:  Hero — the evidence field is read. Then: it knows what each file is; it keeps
+              the line that matters; the facts meet each other and a constraint surfaces;
+              you get a document, not an answer.
+      MOTION: One authored moment — the pulse crossing the evidence field, once, on load.
     -->
-    <a class="sw-skip-link" href="#main-content">Skip to content</a>
+    <a class="lp-skip" href="#main">Skip to content</a>
+
     <div class="sw-light-sun" aria-hidden="true"></div>
     <div class="sw-light-key" aria-hidden="true"></div>
     <div class="sw-light-vignette" aria-hidden="true"></div>
     <div class="sw-grain" aria-hidden="true"></div>
     <div class="sw-progress" aria-hidden="true"></div>
 
-    <header class="sw-landing-nav">
-      <a class="sw-landing-brand" href="/landing.html" aria-label="SiteWise home">
-        <img
-          src="/style-guide/logo/mark.svg"
-          alt=""
-          width="40"
-          height="40"
-          class="sw-landing-brand__mark"
-        />
-        <span class="sw-landing-brand__word">SiteWise</span>
+    <header class="lp-nav">
+      <a class="lp-brand" href="/landing.html" aria-label="SiteWise home">
+        <img src="/style-guide/logo/mark.svg" alt="" width="30" height="30" />
+        <span>SiteWise</span>
       </a>
-      <nav class="sw-landing-nav__links" aria-label="Landing page">
-        <a href="#how-it-works">How it works</a>
-        <a href="#inside-sitewise">Inside SiteWise</a>
-        <a href="#outputs">What it makes</a>
+      <nav class="lp-nav__links" aria-label="Landing page">
+        <a href="#reads">How it reads</a>
+        <a href="#constraint">What it catches</a>
+        <a href="#builds">What it makes</a>
       </nav>
-      <a class="sw-landing-nav__cta sw-transition" href="/login">Sign in</a>
+      <a class="lp-nav__cta sw-transition" href="/login">Sign in</a>
     </header>
 
-    <main id="main-content">
-      <section class="sw-mark-story" id="hero" aria-labelledby="hero-title">
-        <div class="sw-mark-stage" data-phase="source">
-          <div class="sw-mark-story__copy sw-enter">
-            <h1 class="sw-landing-display sw-landing-display--split" id="hero-title">
-              <b>You do the judgement.</b>
-              <b><span>SiteWise</span> does the assembly.</b>
-            </h1>
-            <p class="sw-landing-lede">
-              Drop in the drawings, specs, site notes and invoices as they land.
-              SiteWise reads them, files them, and builds the plan, report or
-              comparison you were going to write by hand — with every line still
-              pointing back at the document it came from.
-            </p>
-            <div class="sw-landing-cta-row">
-              <a class="sw-btn sw-btn--primary sw-transition" href="/login">
-                Open SiteWise
-                <svg viewBox="0 0 20 20" aria-hidden="true">
-                  <path d="M4 10h11M11 6l4 4-4 4" />
-                </svg>
-              </a>
-              <a class="sw-btn sw-btn--text sw-transition" href="#inside-sitewise">
-                See the working application
-              </a>
-            </div>
-            <p class="sw-mark-scroll-cue"><i aria-hidden="true"></i>Scroll the mark open</p>
+    <main id="main">
+      <!-- ============================================================
+           HERO — the evidence field, and the pulse that reads it
+           ============================================================ -->
+      <section class="lp-shell lp-hero" aria-labelledby="hero-title">
+        <div class="lp-hero__copy sw-enter">
+          <h1 class="lp-display" id="hero-title">
+            <b>You do the judgement.</b>
+            <b><em>SiteWise</em> does the assembly.</b>
+          </h1>
+          <p class="lp-lede">
+            A project arrives as a pile — a title search, a detail survey, planning
+            advice buried in a forwarded thread, a geotech report someone scanned as
+            <span class="lp-mono">scan004.pdf</span>. SiteWise reads all of it, works
+            out what each document is, and keeps the lines that carry the project.
+            Every one of them still points back at the file it came from.
+          </p>
+          <div class="lp-actions">
+            <a class="lp-btn lp-btn--primary sw-transition" href="/login">
+              Open SiteWise
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M4 10h11M11 6l4 4-4 4" />
+              </svg>
+            </a>
+            <a class="lp-btn lp-btn--quiet sw-transition" href="#builds">
+              See what it makes
+            </a>
           </div>
-
-          <div class="sw-mark-world">
-            <figure class="sw-source-deck sw-profile-view" aria-labelledby="profile-view-title">
-              <div class="sw-profile-view__frame">
-                <img
-                  src="/landing-assets/application/project-profile-greenbank.png"
-                  alt="SiteWise project profile for Greenbank, showing project classification, scale and complexity fields beside the drawing register"
-                  width="1902"
-                  height="943"
-                  decoding="async"
-                />
-                <div class="sw-profile-ingest" aria-hidden="true">
-                  <div class="sw-ingest-window">
-                    <span>Incoming documents</span>
-                    <i></i><i></i><i></i>
-                  </div>
-                  <div class="sw-profile-dropzone"><span>Document repository</span></div>
-                  <div class="sw-drop-document sw-drop-document--invoice">
-                    <img src="/landing-assets/source-documents/invoice-public-record.jpg" alt="" />
-                  </div>
-                  <div class="sw-drop-document sw-drop-document--plan">
-                    <img src="/landing-assets/source-documents/architectural-plan.jpg" alt="" />
-                  </div>
-                  <div class="sw-drop-document sw-drop-document--legislation">
-                    <img src="/landing-assets/source-documents/legislation-nsw.png" alt="" />
-                  </div>
-                </div>
-              </div>
-              <figcaption>
-                <span id="profile-view-title">Project profile + document repository</span>
-                <small>Greenbank / current application view</small>
-              </figcaption>
-            </figure>
-            <figure class="sw-facet-system" aria-labelledby="facet-system-title">
-              <div class="sw-mark-scene" aria-hidden="true">
-                <canvas id="sw-mark-canvas"></canvas>
-                <img id="sw-mark-fallback" src="/style-guide/logo/mark.svg" alt="" width="420" height="420" hidden />
-              </div>
-
-              <div class="sw-facet-engine" aria-label="The SiteWise mark opened into six working facets">
-                <svg class="sw-facet-axes" viewBox="0 0 100 100" aria-hidden="true">
-                  <path d="M50 0v100M0 25l100 50M100 25L0 75" />
-                </svg>
-                <article class="sw-facet sw-facet--parse">
-                  <div><small>Recognise</small><strong>Parse</strong><span>Text, tables, pages</span></div>
-                </article>
-                <article class="sw-facet sw-facet--retrieve">
-                  <div><small>Ground</small><strong>Retrieve</strong><span>The right record</span></div>
-                </article>
-                <article class="sw-facet sw-facet--filter">
-                  <div><small>Scope</small><strong>Filter</strong><span>Files and revisions</span></div>
-                </article>
-                <article class="sw-facet sw-facet--calculate">
-                  <div><small>Resolve</small><strong>Calculate</strong><span>Totals and deltas</span></div>
-                </article>
-                <article class="sw-facet sw-facet--validate">
-                  <div><small>Control</small><strong>Validate</strong><span>Complete and consistent</span></div>
-                </article>
-                <article class="sw-facet sw-facet--aperture">
-                  <div><small>Open facet</small><strong>Issue</strong><span>Review, edit, export</span></div>
-                </article>
-                <div class="sw-agent-token" aria-hidden="true"><span>AI</span><small>Judgement</small></div>
-                <div class="sw-facet-centre" aria-hidden="true"></div>
-              </div>
-
-              <figcaption>
-                <span id="facet-system-title" data-mark-caption>Read the project record</span>
-                <small data-mark-detail>Five fixed tool facets. One moving judgement facet.</small>
-              </figcaption>
-            </figure>
-
-            <figure class="sw-issued-sheet" aria-labelledby="issued-sheet-title">
-              <div class="sw-issued-sheet__frame">
-                <img src="/landing-assets/sitewise-export-preview.png" alt="A clean Project Management Plan rendered from the current SiteWise issue export template" width="1265" height="1242" loading="lazy" decoding="async" />
-              </div>
-              <figcaption>
-                <span id="issued-sheet-title">Current SiteWise issue template</span>
-                <small>Application-rendered / source-grounded / editable</small>
-              </figcaption>
-            </figure>
-          </div>
-
-          <ol class="sw-mark-rail" aria-label="From application to issued work">
-            <li class="is-active" data-story-step="source"><b>Read</b><span>Every document, as it lands</span></li>
-            <li data-story-step="mark"><b>Interpret</b><span>Language needs judgement</span></li>
-            <li data-story-step="tools"><b>Run tools</b><span>Exact and repeatable</span></li>
-            <li data-story-step="issue"><b>Issue</b><span>Clean working artefact</span></li>
-          </ol>
         </div>
+
+        <figure class="lp-stage sw-enter" style="animation-delay: 120ms" aria-labelledby="stage-caption">
+          <!-- Cadastral ground: the linework the evidence lands on -->
+          <svg class="lp-stage__ground" viewBox="0 0 800 610" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <g fill="none" stroke="#4A4E57" stroke-width="1">
+              <path d="M42 78h300v190H42zM342 78h250v120H342zM342 198h250v70H342z" />
+              <path d="M42 268h300v240H42zM342 268h250v240H342zM592 78h180v430H592z" />
+              <path d="M0 540h800" stroke="#5C6069" stroke-width="1.5" />
+              <path d="M0 566h800" stroke-dasharray="16 12" />
+            </g>
+            <g fill="none" stroke="#3A3E46" stroke-width="1" stroke-dasharray="5 7">
+              <path d="M42 168h550M42 388h550M192 78v430M442 78v430" />
+            </g>
+          </svg>
+
+          <div class="lp-pulse" aria-hidden="true"></div>
+
+          <figcaption id="stage-caption" class="lp-sr">
+            Five project documents of different kinds, each reduced to the single
+            fact it contributes.
+          </figcaption>
+
+          <!-- Depth only: the rest of the pile, nothing extra to read -->
+          <article class="lp-ev lp-ev--ghost" style="--x: 61%; --y: 25%; --w: 29cqw; --r: -1.2deg; --d: 1.30s; z-index: 2" aria-hidden="true">
+            <div class="lp-ev__noise"><i></i><i></i><i></i></div>
+          </article>
+
+          <article class="lp-ev lp-ev--ghost" style="--x: 8%; --y: 72%; --w: 30cqw; --r: 1.7deg; --d: 0.60s; z-index: 3" aria-hidden="true">
+            <div class="lp-ev__noise"><i></i><i></i><i></i></div>
+          </article>
+
+          <!-- Read, in the order the pulse reaches them -->
+          <article class="lp-ev" style="--x: 1%; --y: 4%; --w: 38cqw; --r: -1.5deg; --d: 0.44s; z-index: 4">
+            <span class="lp-ev__name">Title search</span>
+            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <span class="lp-ev__fact"><b>Easement</b>Easement for drainage, 1.5m wide</span>
+          </article>
+
+          <article class="lp-ev" style="--x: 3%; --y: 40%; --w: 38cqw; --r: 1.2deg; --d: 0.49s; z-index: 5">
+            <span class="lp-ev__name">Detail survey rev C</span>
+            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <span class="lp-ev__fact"><b>Boundary</b>Easement centreline, western boundary</span>
+          </article>
+
+          <article class="lp-ev" style="--x: 41%; --y: 2%; --w: 37cqw; --r: 1.3deg; --d: 1.25s; z-index: 3">
+            <span class="lp-ev__name">FW: feasibility (email)</span>
+            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <span class="lp-ev__fact"><b>Yield</b>Yield potentially supportable — confirm easement</span>
+          </article>
+
+          <article class="lp-ev" style="--x: 58%; --y: 65%; --w: 38cqw; --r: 0.9deg; --d: 1.64s; z-index: 6">
+            <span class="lp-ev__name">Cost plan v3.xlsx</span>
+            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span class="lp-ev__fact"><b>Estimate</b>Feasibility estimate, 7.5% contingency</span>
+          </article>
+
+          <article class="lp-ev" style="--x: 33%; --y: 36%; --w: 41cqw; --r: -0.6deg; --d: 1.09s; z-index: 7">
+            <span class="lp-ev__name">scan004.pdf</span>
+            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <span class="lp-ev__fact"><b>Geotechnical</b>Fill encountered to approx. 1.2m</span>
+          </article>
+
+        </figure>
       </section>
-      <section class="sw-product-proof sw-reveal" id="inside-sitewise" aria-labelledby="proof-title">
-        <div class="sw-section-intro sw-section-intro--proof">
-          <h2 id="proof-title">This is the assembly.</h2>
-          <p>
-            A real planning drawing, read by SiteWise and built into the plan beside it.
-            The register marks which documents the open artefact actually used, and every
-            statement keeps the source it came from — so checking the ones that matter is
-            cheap, and you can leave the rest alone.
+
+      <hr class="lp-rule" />
+
+      <!-- ============================================================
+           BEAT 1 — it knows what each file is
+           ============================================================ -->
+      <section class="lp-shell lp-beat" id="reads" aria-labelledby="reads-title">
+        <div class="lp-beat__copy">
+          <h2 class="lp-h2" id="reads-title">It knows what scan004.pdf is.</h2>
+          <p class="lp-body">
+            No renaming, no foldering, no chasing anyone for a tidier version. Send
+            the files exactly as they landed — phone photos, forwarded threads,
+            forty-page reports — and SiteWise opens each one, reads it, and files it
+            where that kind of document belongs.
+          </p>
+          <p class="lp-body">
+            The filing is <strong>ordinary software</strong>. Once SiteWise knows a
+            document is a geotechnical report, where it goes is not a judgement call.
           </p>
         </div>
 
-        <figure class="sw-evidence-assembly" aria-labelledby="assembly-caption">
-          <figcaption class="sw-evidence-assembly__header" id="assembly-caption">
-            <span>Open artefact · Project Management Plan</span>
-            <span>Public-source demonstration</span>
-          </figcaption>
-
-          <div class="sw-source-schedule">
-            <header>
-              <div>
-                <strong>Document register</strong>
-                <small>Public document samples</small>
-              </div>
-              <span><i></i>Used by open PMP</span>
-            </header>
-            <div class="sw-source-schedule__columns" aria-hidden="true">
-              <span>No.</span><span>Document</span><span>Discipline</span>
-            </div>
-            <ul>
-              <li class="sw-source-schedule__unused">
-                <code>INV-44</code>
-                <span>FOI-released tax invoice</span>
-                <small>NIAA public record</small>
-              </li>
-              <li>
-                <code>DA-1100</code>
-                <span>Ground floor plan</span>
-                <small>NSW Planning Portal</small>
-                <i title="Used by the open Project Management Plan" aria-label="Used by the open Project Management Plan"></i>
-              </li>
-              <li class="sw-source-schedule__unused">
-                <code>STR-060</code>
-                <span>Structural general notes</span>
-                <small>Infrastructure FOI</small>
-              </li>
-              <li class="sw-source-schedule__unused">
-                <code>B80-031</code>
-                <span>Concrete work specification</span>
-                <small>Transport for NSW</small>
-              </li>
-              <li class="sw-source-schedule__unused">
-                <code>EPA-2021</code>
-                <span>EP&amp;A Regulation 2021</span>
-                <small>NSW Legislation</small>
-              </li>
-            </ul>
+        <div class="lp-beat__visual">
+          <div class="lp-register">
+            <table>
+              <caption class="lp-sr">
+                Documents as received, the class SiteWise reads them as, and where they are filed
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">As received</th>
+                  <th scope="col">Read as</th>
+                  <th scope="col">Filed to</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="lp-register__file">scan004.pdf</td>
+                  <td class="lp-register__class">report · geotechnical</td>
+                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>03-design/01-due-diligence</td>
+                </tr>
+                <tr>
+                  <td class="lp-register__file">Detail Survey Rev C.pdf</td>
+                  <td class="lp-register__class">report · surveyor</td>
+                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>03-design/01-due-diligence</td>
+                </tr>
+                <tr>
+                  <td class="lp-register__file">10.7 cert.pdf</td>
+                  <td class="lp-register__class">certificate · town planner</td>
+                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>04-planning-and-authorities</td>
+                </tr>
+                <tr>
+                  <td class="lp-register__file">FW_ feasibility.msg</td>
+                  <td class="lp-register__class">correspondence</td>
+                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>08-meetings-reporting</td>
+                </tr>
+                <tr>
+                  <td class="lp-register__file">IMG_8842.JPG</td>
+                  <td class="lp-register__class">photo</td>
+                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>07-construction/photos</td>
+                </tr>
+                <tr>
+                  <td class="lp-register__file">Cost plan v3.xlsx</td>
+                  <td class="lp-register__class">commercial · cost</td>
+                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>01-cost</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+          <p class="lp-note">Classes and destinations are SiteWise's own filing routes</p>
+        </div>
+      </section>
 
-          <div class="sw-fact-stream" aria-label="Information selected from project evidence">
-            <span><b>Project</b>Brisbane Water apartments</span>
-            <span><b>Drawing</b>DA-1100 · ground floor</span>
-            <span><b>Status</b>Preliminary</span>
-            <span><b>Parking</b>14 internal spaces</span>
-            <span><b>Sources</b>1 cited drawing</span>
-          </div>
+      <hr class="lp-rule" />
 
-          <article class="sw-export-proof-panel">
-            <div class="sw-export-proof-panel__image">
+      <!-- ============================================================
+           BEAT 2 — it keeps the line, and where the line came from
+           ============================================================ -->
+      <section class="lp-shell lp-beat lp-beat--flip" id="facts" aria-labelledby="facts-title">
+        <div class="lp-beat__copy">
+          <h2 class="lp-h2" id="facts-title">One line out of forty pages.</h2>
+          <p class="lp-body">
+            The easement width off the title. The fill depth off the geotech. The
+            yield the planner actually agreed to. SiteWise keeps the lines that carry
+            the project and lets the rest go quiet.
+          </p>
+          <p class="lp-body">
+            Every line it keeps is marked with the file it came from, so
+            <strong>spot-checking the ones that matter costs you a click</strong>,
+            not an afternoon. That is the point of the citation — not auditing
+            everything, but checking cheaply.
+          </p>
+        </div>
+
+        <div class="lp-beat__visual">
+          <figure class="lp-shot">
+            <div class="lp-shot__window">
               <img
-                src="/landing-assets/sitewise-export-preview.png"
-                alt="Project Management Plan rendered by the current SiteWise issue export template"
-                width="1265"
-                height="1242"
-                loading="lazy"
+                src="/landing-assets/sitewise-app-workspace.png"
+                alt="A SiteWise project plan showing each field beside its current position and a numbered citation, including rows flagged as evidence conflicts."
+                width="1894"
+                height="962"
                 decoding="async"
               />
             </div>
-            <footer>
-              <span>Current application issue template</span>
-              <span>PDF / Word ready</span>
-            </footer>
-          </article>
-          <div class="sw-proof-principles">
-            <p><strong>Grounded</strong><span>Every statement keeps its project source.</span></p>
-            <p><strong>Deterministic</strong><span>Known fields are selected, checked and placed by software.</span></p>
-            <p><strong>Editable</strong><span>The result remains a working project document.</span></p>
-          </div>
-        </figure>
+            <figcaption class="lp-shot__caption">
+              <span>Project plan · current position by field</span>
+              <span>Citations at right</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
 
-        <figure class="sw-workspace-peek">
-          <div>
+      <hr class="lp-rule" />
+
+      <!-- ============================================================
+           BEAT 3 — the facts meet each other. The one amber moment.
+           ============================================================ -->
+      <section class="lp-shell lp-constraint" id="constraint" aria-labelledby="constraint-title">
+        <div class="lp-constraint__head">
+          <h2 class="lp-h2" id="constraint-title">Then the facts meet each other.</h2>
+          <p class="lp-body" style="max-width: 62ch">
+            A 1.5m drainage easement on the title. A footprint on the concept sketch.
+            Separately, both are fine, and they sit in separate documents nobody reads
+            side by side. Overlaid, one is sitting on the other — and you find out
+            <strong>now</strong>, while it is still a sketch.
+          </p>
+        </div>
+
+        <div class="lp-overlay">
+          <svg viewBox="0 0 1200 620" role="img" aria-labelledby="overlay-title overlay-desc">
+            <title id="overlay-title">Concept footprints overlaid on the surveyed site</title>
+            <desc id="overlay-desc">
+              A drainage easement 1.5 metres wide crosses the western side of the site.
+              The rearmost concept footprint overlaps it; the overlap is highlighted.
+            </desc>
+
+            <defs>
+              <pattern id="lp-hatch" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="9" stroke="#8F939B" stroke-width="1" stroke-opacity="0.45" />
+              </pattern>
+            </defs>
+
+            <g transform="rotate(-3.2 600 310)">
+              <!-- Site boundary -->
+              <path d="M96 96H1116V524H96Z" fill="none" stroke="#B6B9BF" stroke-width="1.6" />
+              <text class="lp-overlay__label" x="104" y="86" fill="#8F939B" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.6">
+                SITE BOUNDARY — DETAIL SURVEY
+              </text>
+
+              <!-- Drainage easement, 1.5m, crossing the western side -->
+              <rect x="178" y="96" width="48" height="428" fill="url(#lp-hatch)" />
+              <path d="M178 96V524M226 96V524" stroke="#8F939B" stroke-width="1.2" stroke-dasharray="10 6" />
+              <g class="lp-overlay__label" stroke="#8F939B" stroke-width="1.2">
+                <path d="M178 552h48" />
+                <path d="M178 546v12M226 546v12" />
+              </g>
+              <text class="lp-overlay__label" x="238" y="558" fill="#8F939B" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.4">
+                EASEMENT FOR DRAINAGE — 1.5m
+              </text>
+
+              <!-- Concept footprints -->
+              <g fill="#2F72C4" fill-opacity="0.14" stroke="#7FB0E4" stroke-width="1.4">
+                <rect x="142" y="212" width="168" height="186" />
+                <rect x="334" y="212" width="168" height="186" />
+                <rect x="526" y="212" width="168" height="186" />
+                <rect x="718" y="212" width="168" height="186" />
+                <rect x="910" y="212" width="168" height="186" />
+              </g>
+              <text class="lp-overlay__label" x="910" y="426" fill="#7FB0E4" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.4">
+                CONCEPT FOOTPRINT
+              </text>
+
+              <!-- The intersection: the only amber on the page -->
+              <rect x="178" y="212" width="48" height="186" fill="oklch(72% 0.14 75)" fill-opacity="0.34" />
+              <rect x="178" y="212" width="48" height="186" fill="none" stroke="oklch(72% 0.14 75)" stroke-width="2" />
+              <path class="lp-overlay__label" d="M202 398V452H330" fill="none" stroke="oklch(72% 0.14 75)" stroke-width="1.4" />
+              <text class="lp-overlay__label" x="340" y="457" fill="oklch(72% 0.14 75)" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.4">
+                FOOTPRINT OVER EASEMENT
+              </text>
+            </g>
+          </svg>
+
+          <p class="lp-overlay__flag"><i aria-hidden="true"></i>Site constraint · title vs. concept</p>
+        </div>
+
+        <p class="lp-note">
+          Overlay illustrates the check. Every fact in it stays tied to its source document.
+        </p>
+      </section>
+
+      <hr class="lp-rule" />
+
+      <!-- ============================================================
+           BEAT 4 — you get a document
+           ============================================================ -->
+      <section class="lp-shell lp-beat" id="builds" aria-labelledby="builds-title">
+        <div class="lp-beat__copy">
+          <h2 class="lp-h2" id="builds-title">You get a document, not an answer.</h2>
+          <p class="lp-body">
+            A project plan, a cost plan, an RFT, a tender comparison — built from the
+            live project and issued with a citation key at the back. Not a chat log
+            you still have to turn into work yourself.
+          </p>
+          <p class="lp-body">
+            It comes out as an <strong>editable working draft</strong>, because the
+            last call on what the document says was always going to be yours.
+          </p>
+          <ul class="lp-outputs">
+            <li>Project profile</li>
+            <li>Project plan</li>
+            <li>Cost plan</li>
+            <li>RFP / RFT</li>
+            <li>Tender comparison</li>
+          </ul>
+        </div>
+
+        <div class="lp-beat__visual">
+          <figure class="lp-artefact">
+            <div class="lp-artefact__window">
             <img
-              src="/landing-assets/sitewise-app-workspace.png"
-              alt="Current SiteWise project workspace showing an open project management plan with citations and blue source-use dots in the document register"
-              width="1894"
-              height="962"
+              src="/landing-assets/sitewise-export-preview.png"
+              alt="An issued SiteWise Project Management Plan: project snapshot, ground-floor brief, coordination controls and a citation key referencing the public planning record it was built from."
+              width="1265"
+              height="1242"
               loading="lazy"
               decoding="async"
             />
-          </div>
-          <figcaption>
-            <strong>Inside the working application</strong>
-            <span>The open PMP, its citations and the contributing source documents stay together.</span>
-          </figcaption>
-        </figure>
-      </section>
-
-      <section class="sw-boundary sw-reveal" id="how-it-works" aria-labelledby="boundary-title">
-        <div class="sw-section-intro">
-          <h2 id="boundary-title">Where the judgement actually happens.</h2>
-          <p>
-            Two kinds of judgement run this project. Yours, over what the document
-            should say. The model's, over what a sentence means. Everything between
-            them — finding, filtering, counting, checking — is ordinary software, and
-            it runs the same way every time.
-          </p>
-        </div>
-
-        <div class="sw-boundary-board">
-          <div class="sw-boundary-lane sw-boundary-lane--code">
-            <header>
-              <h3>Deterministic backbone</h3>
-              <p>Exact, testable and repeatable</p>
-            </header>
-            <ol>
-              <li><span>01</span><b>Parse</b><small>Text, tables and pages</small></li>
-              <li><span>02</span><b>Retrieve</b><small>The right project records</small></li>
-              <li><span>03</span><b>Filter</b><small>Files, revisions and scope</small></li>
-              <li><span>04</span><b>Calculate</b><small>Totals, deltas and comparables</small></li>
-              <li><span>05</span><b>Validate</b><small>Completeness and consistency</small></li>
-              <li><span>06</span><b>Assemble</b><small>The working artefact</small></li>
-            </ol>
-          </div>
-
-          <div class="sw-boundary-lane sw-boundary-lane--ai">
-            <header>
-              <h3>Judgement layer</h3>
-              <p>Called only when language needs judgement</p>
-            </header>
-            <ul>
-              <li><b>Interpret</b><small>Understand what you want done</small></li>
-              <li><b>Classify</b><small>Recognise what a document contains</small></li>
-              <li><b>Extract</b><small>Map language into a known schema</small></li>
-              <li><b>Draft</b><small>Write around checked facts and figures</small></li>
-            </ul>
-            <p class="sw-boundary-note">
-              The model is never the calculator and never the source of a project fact.
-            </p>
-          </div>
+            </div>
+            <figcaption class="lp-shot__caption">
+              <span>Issued PMP · citation key at the back</span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
-      <section class="sw-outputs sw-reveal" id="outputs" aria-labelledby="outputs-title">
-        <div class="sw-section-intro sw-section-intro--outputs">
-          <h2 id="outputs-title">You get a document, not an answer.</h2>
-          <p>
-            Six artefacts, built from the live project, ready to review and issue.
-            Not a chat log you have to turn into work yourself.
-          </p>
+      <!-- ============================================================
+           CLOSE
+           ============================================================ -->
+      <section class="lp-shell lp-close" aria-labelledby="close-title">
+        <h2 class="lp-h2" id="close-title">You've still got the last word.</h2>
+        <p class="lp-body">
+          Bring the documents. Say what needs doing. Review what comes out.
+        </p>
+        <div class="lp-actions">
+          <a class="lp-btn lp-btn--primary sw-transition" href="/login">
+            Open SiteWise
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 10h11M11 6l4 4-4 4" />
+            </svg>
+          </a>
         </div>
-
-        <div class="sw-output-register" role="table" aria-label="SiteWise artefacts">
-          <div class="sw-output-register__head" role="row">
-            <span role="columnheader">Artefact</span>
-            <span role="columnheader">Built from</span>
-            <span role="columnheader">Software checks</span>
-          </div>
-          <div role="row">
-            <strong role="cell" data-label="Artefact" aria-label="Artefact: Request for proposal">Request for proposal</strong>
-            <span role="cell" data-label="Built from" aria-label="Built from: Briefs, scope and consultant register">Briefs, scope and consultant register</span>
-            <span role="cell" data-label="Software checks" aria-label="Software checks: Completeness and issue history">Completeness · issue history</span>
-          </div>
-          <div role="row">
-            <strong role="cell" data-label="Artefact" aria-label="Artefact: Tender comparison">Tender comparison</strong>
-            <span role="cell" data-label="Built from" aria-label="Built from: Submissions, inclusions and exclusions">Submissions, inclusions and exclusions</span>
-            <span role="cell" data-label="Software checks" aria-label="Software checks: Normalisation, arithmetic and deltas">Normalisation · arithmetic · deltas</span>
-          </div>
-          <div role="row">
-            <strong role="cell" data-label="Artefact" aria-label="Artefact: Project management plan">Project management plan</strong>
-            <span role="cell" data-label="Built from" aria-label="Built from: Project evidence and platform guidance">Project evidence and platform guidance</span>
-            <span role="cell" data-label="Software checks" aria-label="Software checks: Source trace and revision control">Source trace · revision control</span>
-          </div>
-          <div role="row">
-            <strong role="cell" data-label="Artefact" aria-label="Artefact: Cost plan">Cost plan</strong>
-            <span role="cell" data-label="Built from" aria-label="Built from: Estimates, invoices and variations">Estimates, invoices and variations</span>
-            <span role="cell" data-label="Software checks" aria-label="Software checks: Totals and reconciliation">Totals · reconciliation</span>
-          </div>
-          <div role="row">
-            <strong role="cell" data-label="Artefact" aria-label="Artefact: Transmittal">Transmittal</strong>
-            <span role="cell" data-label="Built from" aria-label="Built from: Drawing register and contacts">Drawing register and contacts</span>
-            <span role="cell" data-label="Software checks" aria-label="Software checks: Revision and recipient checks">Revision · recipient checks</span>
-          </div>
-          <div role="row">
-            <strong role="cell" data-label="Artefact" aria-label="Artefact: Claim assessment">Claim assessment</strong>
-            <span role="cell" data-label="Built from" aria-label="Built from: Contract and progress evidence">Contract and progress evidence</span>
-            <span role="cell" data-label="Software checks" aria-label="Software checks: Quantities and reconciliation">Quantities · reconciliation</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="sw-close sw-reveal" aria-labelledby="close-title">
-        <div>
-          <h2 id="close-title">You've still got the last word.</h2>
-          <p>Bring the documents. Say what needs doing. Review what comes out.</p>
-        </div>
-        <a class="sw-btn sw-btn--primary sw-transition" href="/login">
-          Open SiteWise
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M4 10h11M11 6l4 4-4 4" />
-          </svg>
-        </a>
       </section>
     </main>
 
-    <footer class="sw-footer">
-      <a class="sw-landing-brand" href="/landing.html" aria-label="SiteWise home">
-        <img src="/style-guide/logo/mark-mono.svg" alt="" width="28" height="28" />
-        <span class="sw-landing-brand__word">SiteWise</span>
-      </a>
-      <p>You keep the judgement.</p>
+    <hr class="lp-rule" />
+
+    <footer class="lp-footer">
+      <span class="lp-footer__mark">
+        <img src="/style-guide/logo/mark-mono.svg" alt="" width="20" height="20" />
+        You keep the judgement.
+      </span>
+      <a href="#reads">How it reads</a>
+      <a href="#constraint">What it catches</a>
+      <a href="#builds">What it makes</a>
       <a href="/login">Sign in</a>
     </footer>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
-        }
-      }
-    </script>
-    <script type="module" src="/landing-assets/sitewise-hero.js?v=20260806-facets-2"></script>
-    <script type="module">
-      let tx = innerWidth * 0.42;
-      let ty = innerHeight * 0.3;
-      let cx = tx;
-      let cy = ty;
-      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      if (!reduced) {
-        addEventListener(
-          "pointermove",
-          (event) => {
-            tx = event.clientX;
-            ty = event.clientY;
-          },
-          { passive: true },
-        );
-
-        (function moveKeyLight() {
+    <script>
+      /* The key light tracks the pointer with damped easing — see light.css. */
+      (function () {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (!window.matchMedia('(pointer: fine)').matches) return;
+        var root = document.documentElement;
+        var tx = innerWidth * 0.42, ty = innerHeight * 0.3, cx = tx, cy = ty;
+        addEventListener('pointermove', function (e) { tx = e.clientX; ty = e.clientY; }, { passive: true });
+        (function tick() {
           cx += (tx - cx) * 0.055;
           cy += (ty - cy) * 0.055;
-          document.documentElement.style.setProperty("--sw-key-x", `${cx.toFixed(1)}px`);
-          document.documentElement.style.setProperty("--sw-key-y", `${cy.toFixed(1)}px`);
-          requestAnimationFrame(moveKeyLight);
+          root.style.setProperty('--sw-key-x', cx.toFixed(1) + 'px');
+          root.style.setProperty('--sw-key-y', cy.toFixed(1) + 'px');
+          requestAnimationFrame(tick);
         })();
-      }
+      })();
     </script>
   </body>
 </html>

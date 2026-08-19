@@ -164,10 +164,10 @@ without a user click.
 
 ## Exit gate
 
-- [ ] User correction survives re-import of the same `provider_message_id`
+- [x] User correction survives re-import of the same `provider_message_id`
       (idempotent raw insert + interpretation kept)
-- [ ] Unmatched messages remain `project_id IS NULL`
-- [ ] No contacts table added
-- [ ] Backend failures ⊆ baseline
+- [x] Unmatched messages remain `project_id IS NULL`
+- [x] No contacts table added
+- [x] Backend failures ⊆ baseline
 
 **After this stage:** [`stage-18-email-intelligence.md`](./stage-18-email-intelligence.md).

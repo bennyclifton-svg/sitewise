@@ -46,6 +46,10 @@ class ProcurementRequest(Base):
     )
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    issue_email_draft_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("project_email_drafts.id", ondelete="SET NULL"),
+    )
     revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )

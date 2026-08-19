@@ -135,6 +135,18 @@ class Settings(BaseSettings):
     web_search_max_results: int = 6
     web_fetch_timeout_seconds: float = 12.0
     web_fetch_max_bytes: int = 4 * 1024 * 1024
+    email_provider: str = "fake"
+    email_inbound_domain: str = "in.sitewise.au"
+    email_inbound_webhook_secret: str | None = None
+    email_inbound_max_body_bytes: int = 8 * 1024 * 1024
+    microsoft_graph_tenant_id: str | None = None
+    microsoft_graph_client_id: str | None = None
+    microsoft_graph_client_secret: str | None = None
+    microsoft_graph_refresh_token: str | None = None
+    microsoft_graph_mailbox_user: str | None = None
+    gmail_client_id: str | None = None
+    gmail_client_secret: str | None = None
+    gmail_refresh_token: str | None = None
 
     @field_validator("database_url")
     @classmethod
@@ -214,6 +226,47 @@ class Settings(BaseSettings):
             raise ValueError(
                 "WEB_SEARCH_PROVIDER is brave, but BRAVE_SEARCH_API_KEY is missing"
             )
+        return self
+
+    @field_validator("email_provider")
+    @classmethod
+    def validate_email_provider(cls, value: str) -> str:
+        if value not in {"fake", "microsoft_graph", "gmail"}:
+            raise ValueError("EMAIL_PROVIDER must be fake, microsoft_graph, or gmail")
+        return value
+
+    @model_validator(mode="after")
+    def require_email_provider_secrets(self) -> "Settings":
+        if self.email_provider == "microsoft_graph":
+            missing = [
+                name
+                for name, value in {
+                    "MICROSOFT_GRAPH_TENANT_ID": self.microsoft_graph_tenant_id,
+                    "MICROSOFT_GRAPH_CLIENT_ID": self.microsoft_graph_client_id,
+                    "MICROSOFT_GRAPH_CLIENT_SECRET": self.microsoft_graph_client_secret,
+                }.items()
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "EMAIL_PROVIDER is microsoft_graph, but these settings are missing: "
+                    + ", ".join(missing)
+                )
+        if self.email_provider == "gmail":
+            missing = [
+                name
+                for name, value in {
+                    "GMAIL_CLIENT_ID": self.gmail_client_id,
+                    "GMAIL_CLIENT_SECRET": self.gmail_client_secret,
+                    "GMAIL_REFRESH_TOKEN": self.gmail_refresh_token,
+                }.items()
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "EMAIL_PROVIDER is gmail, but these settings are missing: "
+                    + ", ".join(missing)
+                )
         return self
 
     @field_validator("pmp_model_provider")

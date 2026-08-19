@@ -623,6 +623,11 @@ class ProcurementRequestStatusUpdate(BaseModel):
     expected_revision: int = Field(ge=1)
 
 
+class ProcurementIssueEmailSendRequest(BaseModel):
+    draft_id: uuid.UUID
+    expected_revision: int = Field(ge=1)
+
+
 class ProcurementRequestView(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID

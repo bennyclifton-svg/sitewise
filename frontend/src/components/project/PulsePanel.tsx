@@ -1,5 +1,10 @@
 import { Button } from "@/components/ui/button";
-import type { PulseAction, PulseFeed, PulseItem } from "@/lib/types/pulse";
+import type {
+  PulseAction,
+  PulseFeed,
+  PulseItem,
+  PulseSincePreset,
+} from "@/lib/types/pulse";
 import { cn } from "@/lib/utils";
 
 const ACTION_LABEL: Record<PulseAction, string> = {
@@ -7,7 +12,15 @@ const ACTION_LABEL: Record<PulseAction, string> = {
   classify_document: "Classify",
   view_evidence: "View",
   dismiss: "Dismiss",
+  draft_reply: "Draft reply",
+  view_thread: "View thread",
 };
+
+const SINCE_PRESETS: { id: PulseSincePreset; label: string }[] = [
+  { id: "yesterday", label: "Since yesterday" },
+  { id: "7d", label: "Last 7 days" },
+  { id: "30d", label: "Last 30 days" },
+];
 
 function attentionHeadline(count: number): string {
   if (count === 0) return "Nothing needs attention";
@@ -21,9 +34,13 @@ function isPulseAction(value: string): value is PulseAction {
 
 export function PulsePanel({
   feed,
+  sincePreset = "7d",
+  onSinceChange,
   onAction,
 }: {
   feed: PulseFeed;
+  sincePreset?: PulseSincePreset;
+  onSinceChange?: (preset: PulseSincePreset) => void;
   onAction?: (item: PulseItem, action: PulseAction) => void;
 }) {
   return (
@@ -38,6 +55,25 @@ export function PulsePanel({
           {attentionHeadline(feed.attention_count)}
         </h1>
       </header>
+
+      <div
+        className="mt-2 flex flex-wrap gap-1"
+        role="group"
+        aria-label="Pulse time window"
+      >
+        {SINCE_PRESETS.map((preset) => (
+          <Button
+            key={preset.id}
+            type="button"
+            size="xs"
+            variant={sincePreset === preset.id ? "outline" : "ghost"}
+            aria-pressed={sincePreset === preset.id}
+            onClick={() => onSinceChange?.(preset.id)}
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
 
       {feed.attention.length > 0 ? (
         <ol className="mt-3 grid gap-2">
@@ -81,9 +117,7 @@ export function PulsePanel({
       {feed.other.map((item) => (
         <p
           key={item.id}
-          className={cn(
-            "mt-3 text-xs text-[var(--sw-text-secondary)]",
-          )}
+          className={cn("mt-3 text-xs text-[var(--sw-text-secondary)]")}
           data-testid="pulse-other-activity"
         >
           <span className="font-mono uppercase tracking-[0.14em] text-[var(--sw-text-quiet)]">

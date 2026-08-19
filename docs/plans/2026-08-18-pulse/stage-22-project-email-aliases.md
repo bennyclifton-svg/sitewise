@@ -141,13 +141,13 @@ another project.
 
 ## Exit gate
 
-- [ ] Alias match is `basis=alias` at 1.00
-- [ ] Unset secret → 404
-- [ ] Attachment path is Stage 16 adapter (no PDF parser in the webhook)
-- [ ] Stage 16 equivalence still green
-- [ ] No outbound send from the alias
-- [ ] Backend failures ⊆ baseline
-- [ ] Ops note in `TRACKER.md`: MX/DNS is out of band
+- [x] Alias match is `basis=alias` at 1.00
+- [x] Unset secret → 404
+- [x] Attachment path is Stage 16 adapter (no PDF parser in the webhook)
+- [x] Stage 16 equivalence still green
+- [x] No outbound send from the alias
+- [x] Backend failures ⊆ baseline
+- [x] Ops note in `TRACKER.md`: MX/DNS is out of band
 
 **After this stage:** the numbered programme is done. Stage E remains a
 card until accuracy measurements exist. Cleanup milestone in the product

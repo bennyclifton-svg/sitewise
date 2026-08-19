@@ -194,11 +194,11 @@ equivalence already proves class; this proves the filter sees them).
 
 ## Exit gate
 
-- [ ] Request status still owned by `procurement/requests.py`
-- [ ] `grep procurement_stage backend/app/email` empty (or read-only)
-- [ ] No `backend/tender/` imports from `app/email` or new procurement
+- [x] Request status still owned by `procurement/requests.py`
+- [x] `grep procurement_stage backend/app/email` empty (or read-only)
+- [x] No `backend/tender/` imports from `app/email` or new procurement
       helpers
-- [ ] Send still requires `actor_id`
-- [ ] Backend failures ⊆ baseline
+- [x] Send still requires `actor_id`
+- [x] Backend failures ⊆ baseline
 
 **After this stage:** [`stage-21-advanced-pulse.md`](./stage-21-advanced-pulse.md).

@@ -139,7 +139,7 @@ async def upload_inbox_files(
     outcomes: list[InboxUploadOutcome] = []
 
     for item in items:
-        outcome = await _upload_single_file(
+        outcome = await store_and_queue_inbox_file(
             session,
             project=project,
             item=item,
@@ -152,7 +152,7 @@ async def upload_inbox_files(
     return outcomes
 
 
-async def _upload_single_file(
+async def store_and_queue_inbox_file(
     session: AsyncSession,
     *,
     project: Project,
@@ -160,6 +160,12 @@ async def _upload_single_file(
     user_id: uuid.UUID,
     snapshot: ProjectSnapshot,
 ) -> InboxUploadOutcome:
+    """Store one file in the project inbox and queue ingest.
+
+    Shared by HTTP upload and email attachment intake. Replaces the former
+    private `_upload_single_file` so email cannot fork a second ingest.
+    Does not commit; the HTTP batch still commits once after the loop.
+    """
     run_id = uuid.uuid4()
     filename = sanitize_filename(item.filename)
     content_hash = bytes_content_hash(item.content)

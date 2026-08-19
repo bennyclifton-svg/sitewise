@@ -14,7 +14,14 @@ from sqlalchemy.sql.selectable import Select
 
 from app.cost_plan.models import CostInvoice
 from app.database.activity_event import ActivityEvent
+from app.database.procurement_request_submission import ProcurementRequestSubmission
 from app.database.source_document import SourceDocument
+from app.email.models import (
+    ProjectEmail,
+    ProjectEmailAttachment,
+    ProjectEmailDraft,
+    ProjectEmailInterpretation,
+)
 from app.projects.pulse import (
     MAX_ATTENTION_ITEMS,
     MIN_GROUPED,
@@ -68,10 +75,13 @@ def _document(
     confidence: str | None = None,
     created_at: datetime | None = None,
     document_id: uuid.UUID | None = None,
+    drawing_number: str | None = None,
 ) -> SourceDocument:
     metadata: dict = {}
     if confidence is not None:
         metadata["confidence"] = confidence
+    if drawing_number is not None:
+        metadata["drawing_number"] = drawing_number
     return SourceDocument(
         id=document_id or uuid.uuid4(),
         project_id=PROJECT_ID,
@@ -96,10 +106,12 @@ def _invoice(
     total: str = "8400.00",
     created_at: datetime | None = None,
     invoice_id: uuid.UUID | None = None,
+    source_document_id: uuid.UUID | None = None,
 ) -> CostInvoice:
     return CostInvoice(
         id=invoice_id or uuid.uuid4(),
         project_id=PROJECT_ID,
+        source_document_id=source_document_id,
         source_content_hash="a" * 64,
         source_locator="inbox/invoice.pdf",
         supplier_name=supplier_name,
@@ -125,17 +137,119 @@ def _snapshot(
     invoices: list[CostInvoice] | None = None,
     documents: list[SourceDocument] | None = None,
     dismissed: list[ActivityEvent] | None = None,
+    emails: list | None = None,
+    drafts: list | None = None,
+    attachments: list | None = None,
+    submissions: list | None = None,
 ) -> PulseSnapshot:
     return PulseSnapshot(
         verbs=tuple(verbs or ()),
         invoices=tuple(invoices or ()),
         documents=tuple(documents or ()),
         dismissed=tuple(dismissed or ()),
+        emails=tuple(emails or ()),
+        drafts=tuple(drafts or ()),
+        attachments=tuple(attachments or ()),
+        submissions=tuple(submissions or ()),
+    )
+
+
+def _email(
+    *,
+    email_id: uuid.UUID | None = None,
+    subject: str = "Hello",
+    body_text: str = "",
+    from_address: str = "qs@consultant.com",
+    provider_thread_id: str | None = None,
+    internet_message_id: str | None = None,
+    headers: dict | None = None,
+    created_at: datetime | None = None,
+    message_category: str | None = None,
+    provider_message_id: str | None = None,
+) -> ProjectEmail:
+    stamp = created_at or NOW
+    eid = email_id or uuid.uuid4()
+    email = ProjectEmail(
+        id=eid,
+        provider="fake",
+        provider_message_id=provider_message_id or f"msg-{eid}",
+        provider_thread_id=provider_thread_id,
+        internet_message_id=internet_message_id or f"<{eid}@example.com>",
+        from_address=from_address,
+        to_addresses=["pm@owner.com"],
+        cc_addresses=[],
+        subject=subject,
+        sent_at=stamp,
+        body_text=body_text,
+        headers=headers or {},
+        content_hash="b" * 64,
+        created_at=stamp,
+    )
+    email.interpretation = ProjectEmailInterpretation(
+        email_id=eid,
+        project_id=PROJECT_ID,
+        message_category=message_category,
+        actions=[],
+        updated_at=stamp,
+    )
+    return email
+
+
+def _draft(
+    *,
+    in_reply_to_email_id: uuid.UUID | None = None,
+    status: str = "draft",
+    sent_at: datetime | None = None,
+    created_at: datetime | None = None,
+) -> ProjectEmailDraft:
+    return ProjectEmailDraft(
+        id=uuid.uuid4(),
+        project_id=PROJECT_ID,
+        created_by_user_id=uuid.uuid4(),
+        in_reply_to_email_id=in_reply_to_email_id,
+        to_addresses=["qs@consultant.com"],
+        cc_addresses=[],
+        subject="Re: Hello",
+        body_text="Thanks",
+        status=status,
+        sent_at=sent_at,
+        references={},
+    )
+
+
+def _attachment(
+    *,
+    email_id: uuid.UUID,
+    source_document_id: uuid.UUID | None = None,
+    filename: str = "file.pdf",
+) -> ProjectEmailAttachment:
+    return ProjectEmailAttachment(
+        id=uuid.uuid4(),
+        email_id=email_id,
+        provider_attachment_id=f"att-{uuid.uuid4()}",
+        filename=filename,
+        content_type="application/pdf",
+        size_bytes=100,
+        source_document_id=source_document_id,
+    )
+
+
+def _submission(
+    *,
+    request_id: uuid.UUID | None = None,
+    source_document_id: uuid.UUID | None = None,
+    created_at: datetime | None = None,
+) -> ProcurementRequestSubmission:
+    return ProcurementRequestSubmission(
+        request_id=request_id or uuid.uuid4(),
+        source_document_id=source_document_id or uuid.uuid4(),
+        created_at=created_at or NOW,
     )
 
 
 def _feed(**kwargs) -> object:
-    return synthesize_pulse_feed(_snapshot(**kwargs), now=NOW)
+    since = kwargs.pop("since", None)
+    return synthesize_pulse_feed(_snapshot(**kwargs), now=NOW, since=since)
 
 
 class CountingSession:
@@ -146,18 +260,38 @@ class CountingSession:
         invoices: list[CostInvoice] | None = None,
         verbs: list[ActivityEvent] | None = None,
         dismissed: list[ActivityEvent] | None = None,
+        emails: list | None = None,
+        drafts: list | None = None,
+        attachments: list | None = None,
+        submissions: list | None = None,
+        interpretations: list | None = None,
     ) -> None:
         self.calls: list = []
         self.documents = documents or []
         self.invoices = invoices or []
         self.verbs = verbs or []
         self.dismissed = dismissed or []
+        self.emails = emails or []
+        self.drafts = drafts or []
+        self.attachments = attachments or []
+        self.submissions = submissions or []
+        self.interpretations = interpretations or []
 
     async def execute(self, statement):
         assert_read_only(statement)
         self.calls.append(statement)
         sql = str(statement.compile()).upper()
-        if "COST_INVOICES" in sql:
+        if "PROCUREMENT_REQUEST_SUBMISSIONS" in sql:
+            rows = self.submissions
+        elif "PROJECT_EMAIL_DRAFTS" in sql:
+            rows = self.drafts
+        elif "PROJECT_EMAIL_ATTACHMENTS" in sql:
+            rows = self.attachments
+        elif "PROJECT_EMAILS" in sql:
+            rows = self.emails
+        elif "PROJECT_EMAIL_INTERPRETATIONS" in sql:
+            rows = self.interpretations
+        elif "COST_INVOICES" in sql:
             rows = self.invoices
         elif "SOURCE_DOCUMENTS" in sql:
             rows = self.documents
@@ -187,10 +321,12 @@ def test_pulse_signal_types_are_closed() -> None:
         "invoice_review_required",
         "potential_cost_change",
         "document_needs_classification",
+        "tender_received",
+        "unanswered_correspondence",
     }
     assert "programme_risk" not in PULSE_SIGNAL_TYPES
     assert "decision_required" not in PULSE_SIGNAL_TYPES
-    assert "unanswered_correspondence" not in PULSE_SIGNAL_TYPES
+    assert "consultant_action_due" not in PULSE_SIGNAL_TYPES
 
 
 def test_dismissed_subject_key_is_excluded() -> None:
@@ -491,6 +627,33 @@ def test_detectors_do_not_call_decide_invoice() -> None:
         decide.assert_not_called()
 
 
+def test_detectors_do_not_call_send_email_draft() -> None:
+    received = NOW - timedelta(days=5)
+    email = _email(
+        subject="RFI-12: slab thickness",
+        message_category="rfi",
+        created_at=received,
+    )
+    with patch(
+        "app.email.service.send_email_draft",
+        new=AsyncMock(side_effect=AssertionError("send_email_draft must not run")),
+    ) as send:
+        feed = _feed(
+            emails=[email],
+            verbs=[
+                _verb(
+                    "email.received",
+                    reference_id=email.id,
+                    reference_type="email",
+                    created_at=received,
+                )
+            ],
+        )
+        assert feed.attention
+        assert "draft_reply" in feed.attention[0].actions
+        send.assert_not_called()
+
+
 def test_dismissed_invoice_card_returns_when_review_state_changes() -> None:
     invoice_id = uuid.uuid4()
     first = _invoice(invoice_id=invoice_id, review_state="ready_for_review")
@@ -592,3 +755,300 @@ def test_select_statements_are_not_treated_as_writes() -> None:
     stmt = sa_select(ActivityEvent.id)
     assert isinstance(stmt, Select)
     assert_read_only(stmt)
+
+
+def test_since_yesterday_hides_older_drawing_revision() -> None:
+    yesterday = NOW - timedelta(days=1)
+    older_id = uuid.uuid4()
+    newer_id = uuid.uuid4()
+    feed = _feed(
+        since=yesterday,
+        verbs=[
+            _verb(
+                "document.revised",
+                reference_id=older_id,
+                metadata={
+                    "drawing_number": "S201",
+                    "revision": "C",
+                    "previous_revision": "B",
+                },
+                created_at=NOW - timedelta(days=3),
+            ),
+            _verb(
+                "document.revised",
+                reference_id=newer_id,
+                metadata={
+                    "drawing_number": "S203",
+                    "revision": "C",
+                    "previous_revision": "B",
+                },
+                created_at=NOW - timedelta(hours=2),
+            ),
+        ],
+    )
+    assert feed.since == yesterday
+    assert [item.evidence[0].reference_id for item in feed.attention] == [newer_id]
+
+
+def test_omitted_since_is_seven_days_not_unbounded() -> None:
+    from app.projects.pulse import DEFAULT_SINCE_DAYS
+
+    older_id = uuid.uuid4()
+    newer_id = uuid.uuid4()
+    feed = _feed(
+        verbs=[
+            _verb(
+                "document.revised",
+                reference_id=older_id,
+                metadata={
+                    "drawing_number": "S199",
+                    "revision": "C",
+                    "previous_revision": "B",
+                },
+                created_at=NOW - timedelta(days=8),
+            ),
+            _verb(
+                "document.revised",
+                reference_id=newer_id,
+                metadata={
+                    "drawing_number": "S203",
+                    "revision": "C",
+                    "previous_revision": "B",
+                },
+                created_at=NOW - timedelta(days=2),
+            ),
+        ]
+    )
+    assert DEFAULT_SINCE_DAYS == 7
+    assert feed.since == NOW - timedelta(days=7)
+    assert [item.evidence[0].reference_id for item in feed.attention] == [newer_id]
+
+
+def test_drawing_revision_and_transmittal_email_are_one_card() -> None:
+    doc_id = uuid.uuid4()
+    email = _email(
+        subject="Transmittal S203 Rev C",
+        message_category="document_transmittal",
+        body_text="Please find S203 attached.",
+    )
+    feed = _feed(
+        verbs=[
+            _verb(
+                "document.revised",
+                reference_id=doc_id,
+                metadata={
+                    "drawing_number": "S203",
+                    "revision": "C",
+                    "previous_revision": "B",
+                    "filename": "S203.pdf",
+                },
+            ),
+            _verb(
+                "email.received",
+                reference_id=email.id,
+                reference_type="email",
+                metadata={"subject_key": str(email.id)},
+            ),
+        ],
+        emails=[email],
+        attachments=[
+            _attachment(email_id=email.id, source_document_id=doc_id, filename="S203.pdf")
+        ],
+        documents=[
+            _document(
+                document_id=doc_id,
+                document_class="drawing",
+                filename="S203.pdf",
+                confidence="0.95",
+                drawing_number="S203",
+            )
+        ],
+    )
+    assert len(feed.attention) == 1
+    card = feed.attention[0]
+    assert "transmittal" in card.title.lower()
+    assert "S203" in card.title
+    evidence_types = {ref.reference_type for ref in card.evidence}
+    assert "source_document" in evidence_types
+    assert "email" in evidence_types
+
+
+def test_email_invoice_is_one_card_not_email_plus_invoice() -> None:
+    doc_id = uuid.uuid4()
+    invoice = _invoice(source_document_id=doc_id)
+    email = _email(
+        subject="Invoice 009 attached",
+        message_category="invoice_notice",
+    )
+    feed = _feed(
+        invoices=[invoice],
+        emails=[email],
+        attachments=[
+            _attachment(
+                email_id=email.id,
+                source_document_id=doc_id,
+                filename="Invoice 009.pdf",
+            )
+        ],
+        verbs=[
+            _verb(
+                "email.received",
+                reference_id=email.id,
+                reference_type="email",
+                metadata={"subject_key": str(email.id)},
+            ),
+            _verb(
+                "invoice.needs_review",
+                reference_id=invoice.id,
+                reference_type="cost_invoice",
+            ),
+        ],
+    )
+    assert len(feed.attention) == 1
+    card = feed.attention[0]
+    assert "email" in card.title.lower()
+    assert "review_invoice" in card.actions
+    evidence_types = {ref.reference_type for ref in card.evidence}
+    assert "cost_invoice" in evidence_types
+    assert "email" in evidence_types
+
+
+def test_unanswered_rfi_is_attention_after_five_days() -> None:
+    received = NOW - timedelta(days=5)
+    email = _email(
+        subject="RFI-12: slab thickness",
+        message_category="rfi",
+        created_at=received,
+    )
+    feed = _feed(
+        emails=[email],
+        verbs=[
+            _verb(
+                "email.received",
+                reference_id=email.id,
+                reference_type="email",
+                metadata={"subject_key": str(email.id)},
+                created_at=received,
+            )
+        ],
+    )
+    assert len(feed.attention) == 1
+    card = feed.attention[0]
+    assert card.signal_type == "unanswered_correspondence"
+    assert "draft_reply" in card.actions
+    assert "view_thread" in card.actions
+    assert "dismiss" in card.actions
+
+
+def test_failed_send_does_not_clear_unanswered_correspondence() -> None:
+    received = NOW - timedelta(days=5)
+    email = _email(
+        subject="RFI-12: slab thickness",
+        message_category="rfi",
+        created_at=received,
+    )
+    feed = _feed(
+        emails=[email],
+        drafts=[
+            _draft(in_reply_to_email_id=email.id, status="send_failed"),
+            _draft(in_reply_to_email_id=None, status="sent", sent_at=NOW),
+        ],
+        verbs=[
+            _verb(
+                "email.received",
+                reference_id=email.id,
+                reference_type="email",
+                metadata={"subject_key": str(email.id)},
+                created_at=received,
+            )
+        ],
+    )
+    assert len(feed.attention) == 1
+    assert feed.attention[0].signal_type == "unanswered_correspondence"
+
+
+def test_sent_reply_on_thread_key_clears_unanswered_correspondence() -> None:
+    received = NOW - timedelta(days=6)
+    original = _email(
+        subject="RFI-12: slab thickness",
+        message_category="rfi",
+        internet_message_id="<rfi-12@example.com>",
+        created_at=received,
+    )
+    follow_up = _email(
+        subject="Re: RFI-12: slab thickness",
+        message_category="rfi",
+        internet_message_id="<rfi-12-follow@example.com>",
+        headers={"In-Reply-To": "<rfi-12@example.com>"},
+        created_at=received + timedelta(days=1),
+    )
+    feed = _feed(
+        emails=[original, follow_up],
+        drafts=[
+            _draft(
+                in_reply_to_email_id=follow_up.id,
+                status="sent",
+                sent_at=NOW - timedelta(days=1),
+            )
+        ],
+        verbs=[
+            _verb(
+                "email.received",
+                reference_id=original.id,
+                reference_type="email",
+                created_at=received,
+            )
+        ],
+    )
+    assert feed.attention == []
+
+
+def test_tender_received_from_linked_submission() -> None:
+    doc_id = uuid.uuid4()
+    request_id = uuid.uuid4()
+    document = _document(
+        document_id=doc_id,
+        document_class="commercial",
+        filename="Builder B final.pdf",
+        confidence="0.90",
+    )
+    feed = _feed(
+        documents=[document],
+        submissions=[_submission(request_id=request_id, source_document_id=doc_id)],
+    )
+    assert len(feed.attention) == 1
+    card = feed.attention[0]
+    assert card.signal_type == "tender_received"
+    assert card.title == "Submission received from Builder B final.pdf"
+    assert all(item.id != card.id or item is card for item in feed.attention)
+
+
+def test_other_activity_rollup_mentions_emails() -> None:
+    emails = [
+        _email(
+            subject=f"Consultant note {index}",
+            message_category="information_only",
+            created_at=NOW - timedelta(hours=index + 1),
+        )
+        for index in range(2)
+    ]
+    feed = _feed(
+        emails=emails,
+        verbs=[
+            _verb("document.filed", created_at=NOW - timedelta(hours=1)),
+            *[
+                _verb(
+                    "email.received",
+                    reference_id=email.id,
+                    reference_type="email",
+                    created_at=email.created_at,
+                )
+                for email in emails
+            ],
+        ],
+    )
+    assert feed.attention == []
+    assert feed.other
+    body = feed.other[0].body
+    assert "1 document filed" in body
+    assert "2 consultant replies" in body

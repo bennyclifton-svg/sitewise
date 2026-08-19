@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
@@ -34,18 +35,32 @@ async def _owned_project(
 @router.get("/{project_id}/pulse", response_model=PulseFeed)
 async def get_project_pulse(
     project_id: uuid.UUID,
+    since: datetime | None = Query(
+        default=None,
+        description=(
+            "Inclusive ISO-8601 window start. Default: last 7 days "
+            "(not unbounded / all time)."
+        ),
+    ),
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> PulseFeed:
     await require_active_entitlement(session, user)
     await _owned_project(session, project_id=project_id, user_id=user.id)
-    return await build_pulse_feed(session, project_id)
+    return await build_pulse_feed(session, project_id, since=since)
 
 
 @router.post("/{project_id}/pulse/dismiss", response_model=PulseFeed)
 async def dismiss_project_pulse(
     project_id: uuid.UUID,
     body: PulseDismissRequest,
+    since: datetime | None = Query(
+        default=None,
+        description=(
+            "Inclusive ISO-8601 window start. Default: last 7 days "
+            "(not unbounded / all time)."
+        ),
+    ),
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> PulseFeed:
@@ -71,4 +86,4 @@ async def dismiss_project_pulse(
         },
     )
     await session.commit()
-    return await build_pulse_feed(session, project.id)
+    return await build_pulse_feed(session, project.id, since=since)

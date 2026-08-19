@@ -13,6 +13,7 @@ from app.database.project_decision import ProjectDecision
 from app.database.project_event import ProjectEvent
 from app.database.project_profile_proposal import ProjectProfileProposal
 from app.database.procurement_request import ProcurementRequest
+from app.database.procurement_request_submission import ProcurementRequestSubmission
 from app.database.project_document_selection import (
     ProjectDocumentSelection,
     ProjectDocumentSelectionGroup,
@@ -37,6 +38,12 @@ from app.cost_plan.models import (
     CostPlanVersion,
 )
 from app.programme.models import ProgrammeActivity, ProgrammeVersion
+from app.email.models import (
+    ProjectEmail,
+    ProjectEmailAttachment,
+    ProjectEmailDraft,
+    ProjectEmailInterpretation,
+)
 
 __all__ = [
     "Base",
@@ -54,6 +61,7 @@ __all__ = [
     "ProjectEvent",
     "ProjectProfileProposal",
     "ProcurementRequest",
+    "ProcurementRequestSubmission",
     "ProjectDocumentSelection",
     "ProjectDocumentSelectionRevision",
     "ProjectDocumentSelectionGroup",
@@ -73,4 +81,8 @@ __all__ = [
     "CostInvoiceMappingMemory",
     "ProgrammeActivity",
     "ProgrammeVersion",
+    "ProjectEmail",
+    "ProjectEmailInterpretation",
+    "ProjectEmailAttachment",
+    "ProjectEmailDraft",
 ]

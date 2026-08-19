@@ -70,6 +70,21 @@ from app.projects.classification_override import (
     DocumentClassificationNotFound,
     set_document_classification as set_document_classification_service,
 )
+from app.email.service import (
+    EmailNotFound as EmailRecordNotFound,
+    create_email_draft as persist_email_draft,
+    email_draft_payload,
+    forward_email_draft as persist_forward_email_draft,
+    get_email_attachment as load_email_attachment,
+    link_email_to_project as persist_link_email_to_project,
+    list_project_correspondence as load_project_correspondence,
+    propose_email_action as persist_propose_email_action,
+    propose_project_decision as persist_propose_project_decision,
+    read_email_thread as load_email_thread,
+    reply_email_draft as persist_reply_email_draft,
+    search_project_emails,
+)
+from app.email.providers import email_provider_from_settings
 from app.projects.artefact_revisions import (
     ArtefactPolicyViolation,
     ArtefactRevisionConflict,
@@ -4777,3 +4792,290 @@ async def read_platform_knowledge(
             "available_sections": loaded.available_sections,
             "content": loaded.passage.content,
         }
+
+
+def _email_uuid(value: str, name: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError as exc:
+        raise ToolError(f"{name} must be a UUID") from exc
+
+
+def _email_tool_error(exc: Exception) -> ToolError:
+    if isinstance(exc, EmailRecordNotFound):
+        return ToolError("Email not found")
+    return ToolError(str(exc))
+
+
+@mcp.tool
+async def search_project_email(project_id: str, query: str = "") -> list[dict]:
+    """Search mail already linked to this project. Never searches other projects."""
+    pid = _email_uuid(project_id, "project_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            return await search_project_emails(
+                session, project_id=authorization.project.id, query=query
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+
+
+@mcp.tool
+async def read_email_thread(project_id: str, email_id: str) -> list[dict]:
+    """Read one project-scoped email thread. Cross-project ids are not found."""
+    pid = _email_uuid(project_id, "project_id")
+    eid = _email_uuid(email_id, "email_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            return await load_email_thread(
+                session, project_id=authorization.project.id, email_id=eid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+
+
+@mcp.tool
+async def get_email_attachment(project_id: str, attachment_id: str) -> dict:
+    """Return attachment metadata and any existing source document id. Does not parse."""
+    pid = _email_uuid(project_id, "project_id")
+    aid = _email_uuid(attachment_id, "attachment_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            return await load_email_attachment(
+                session, project_id=authorization.project.id, attachment_id=aid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+
+
+@mcp.tool
+async def list_project_correspondence(project_id: str) -> list[dict]:
+    """List correspondence already linked to this project."""
+    pid = _email_uuid(project_id, "project_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            return await load_project_correspondence(
+                session, project_id=authorization.project.id
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+
+
+@mcp.tool
+async def create_email_draft(
+    project_id: str,
+    to_addresses: list[str],
+    subject: str,
+    body_text: str,
+    cc_addresses: list[str] | None = None,
+    in_reply_to_email_id: str | None = None,
+) -> dict:
+    """Create a project email draft. Does not send."""
+    pid = _email_uuid(project_id, "project_id")
+    reply_id = (
+        None
+        if in_reply_to_email_id is None
+        else _email_uuid(in_reply_to_email_id, "in_reply_to_email_id")
+    )
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            draft = await persist_email_draft(
+                session,
+                project_id=authorization.project.id,
+                created_by_user_id=authorization.claims.user_id,
+                to_addresses=to_addresses,
+                cc_addresses=cc_addresses,
+                subject=subject,
+                body_text=body_text,
+                in_reply_to_email_id=reply_id,
+                provider=email_provider_from_settings(settings),
+            )
+            await session.commit()
+            return email_draft_payload(draft)
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+
+
+@mcp.tool
+async def reply_email_draft(
+    project_id: str,
+    email_id: str,
+    body_text: str,
+    to_addresses: list[str] | None = None,
+    cc_addresses: list[str] | None = None,
+) -> dict:
+    """Draft a reply to a project email. Does not send."""
+    pid = _email_uuid(project_id, "project_id")
+    eid = _email_uuid(email_id, "email_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            draft = await persist_reply_email_draft(
+                session,
+                project_id=authorization.project.id,
+                created_by_user_id=authorization.claims.user_id,
+                email_id=eid,
+                body_text=body_text,
+                to_addresses=to_addresses,
+                cc_addresses=cc_addresses,
+                provider=email_provider_from_settings(settings),
+            )
+            await session.commit()
+            return email_draft_payload(draft)
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+
+
+@mcp.tool
+async def forward_email_draft(
+    project_id: str,
+    email_id: str,
+    to_addresses: list[str],
+    body_text: str = "",
+    cc_addresses: list[str] | None = None,
+) -> dict:
+    """Draft a forward of a project email. Does not send."""
+    pid = _email_uuid(project_id, "project_id")
+    eid = _email_uuid(email_id, "email_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            draft = await persist_forward_email_draft(
+                session,
+                project_id=authorization.project.id,
+                created_by_user_id=authorization.claims.user_id,
+                email_id=eid,
+                to_addresses=to_addresses,
+                body_text=body_text,
+                cc_addresses=cc_addresses,
+                provider=email_provider_from_settings(settings),
+            )
+            await session.commit()
+            return email_draft_payload(draft)
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+
+
+@mcp.tool
+async def link_email_to_project(
+    project_id: str, email_id: str, reason: str | None = None
+) -> dict:
+    """Link an unmatched email to this project. User basis, confidence 1.0."""
+    pid = _email_uuid(project_id, "project_id")
+    eid = _email_uuid(email_id, "email_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            interpretation = await persist_link_email_to_project(
+                session,
+                email_id=eid,
+                project_id=authorization.project.id,
+                actor_id=authorization.claims.user_id,
+                reason=reason,
+                provider=email_provider_from_settings(settings),
+            )
+            await session.commit()
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+    confidence = interpretation.match_confidence
+    return {
+        "email_id": str(interpretation.email_id),
+        "project_id": None
+        if interpretation.project_id is None
+        else str(interpretation.project_id),
+        "match_basis": interpretation.match_basis,
+        "match_confidence": None if confidence is None else float(confidence),
+    }
+
+
+@mcp.tool
+async def propose_email_action(
+    project_id: str, email_id: str, action_type: str, excerpt: str
+) -> dict:
+    """Record an action candidate on an email. Does not mutate cost or programme."""
+    pid = _email_uuid(project_id, "project_id")
+    eid = _email_uuid(email_id, "email_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            candidate = await persist_propose_email_action(
+                session,
+                project_id=authorization.project.id,
+                email_id=eid,
+                action_type=action_type,
+                excerpt=excerpt,
+                actor_id=authorization.claims.user_id,
+            )
+            await session.commit()
+            return candidate
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+
+
+@mcp.tool
+async def propose_project_decision(
+    project_id: str,
+    title: str,
+    body: str,
+    email_id: str | None = None,
+) -> dict:
+    """Record a decision candidate. Does not write project_decisions."""
+    pid = _email_uuid(project_id, "project_id")
+    eid = None if email_id is None else _email_uuid(email_id, "email_id")
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            candidate = await persist_propose_project_decision(
+                session,
+                project_id=authorization.project.id,
+                actor_id=authorization.claims.user_id,
+                title=title,
+                body=body,
+                email_id=eid,
+            )
+            await session.commit()
+            return candidate
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        except EmailRecordNotFound as exc:
+            raise _email_tool_error(exc) from exc
+

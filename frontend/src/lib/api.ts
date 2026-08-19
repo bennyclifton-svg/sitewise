@@ -22,6 +22,7 @@ import {
 } from "@/lib/http";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type { PulseFeed } from "@/lib/types/pulse";
+import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
 import type {
   BillingPlansResponse,
   BillingStatus,
@@ -556,16 +557,49 @@ export const api = {
       `/projects/${projectId}/activity${since ? `?since=${encodeURIComponent(since)}` : ""}`,
     ),
 
-  getProjectPulse: async (projectId: string): Promise<PulseFeed> =>
-    api.get<PulseFeed>(`/projects/${projectId}/pulse`),
+  getProjectPulse: async (
+    projectId: string,
+    since?: string,
+  ): Promise<PulseFeed> =>
+    api.get<PulseFeed>(
+      `/projects/${projectId}/pulse${since ? `?since=${encodeURIComponent(since)}` : ""}`,
+    ),
 
   dismissProjectPulse: async (
     projectId: string,
     subjectKey: string,
+    since?: string,
   ): Promise<PulseFeed> =>
-    api.post<PulseFeed>(`/projects/${projectId}/pulse/dismiss`, {
-      subject_key: subjectKey,
-    }),
+    api.post<PulseFeed>(
+      `/projects/${projectId}/pulse/dismiss${since ? `?since=${encodeURIComponent(since)}` : ""}`,
+      { subject_key: subjectKey },
+    ),
+
+  replyProjectEmailDraft: async (
+    projectId: string,
+    emailId: string,
+    body?: { body_text?: string; to_addresses?: string[]; cc_addresses?: string[] },
+  ): Promise<ProjectEmailDraft> =>
+    api.post<ProjectEmailDraft>(
+      `/projects/${projectId}/emails/${emailId}/reply-draft`,
+      { body_text: body?.body_text ?? "", ...body },
+    ),
+
+  getProjectEmailThread: async (
+    projectId: string,
+    emailId: string,
+  ): Promise<ProjectEmailMessage[]> =>
+    api.get<ProjectEmailMessage[]>(
+      `/projects/${projectId}/emails/${emailId}/thread`,
+    ),
+
+  sendProjectEmailDraft: async (
+    projectId: string,
+    draftId: string,
+  ): Promise<ProjectEmailDraft> =>
+    api.post<ProjectEmailDraft>(
+      `/projects/${projectId}/emails/drafts/${draftId}/send`,
+    ),
 
   deleteProjectActivityRuns: async (
     projectId: string,

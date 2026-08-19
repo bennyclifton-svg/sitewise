@@ -169,10 +169,10 @@ Stage 22 aliases always have `project_id`, so they pass.
 
 ## Exit gate
 
-- [ ] Equivalence test green (not skipped)
-- [ ] `grep classify_entry backend/app/email` empty
-- [ ] `grep extract_invoice backend/app/email` empty
-- [ ] Adapter production LOC is an inbox call plus bookkeeping
-- [ ] Backend failures ⊆ baseline
+- [x] Equivalence test green (not skipped)
+- [x] `grep classify_entry backend/app/email` empty
+- [x] `grep extract_invoice backend/app/email` empty
+- [x] Adapter production LOC is an inbox call plus bookkeeping
+- [ ] Backend failures ⊆ baseline — extra names recorded in TRACKER (not this packet)
 
 **After this stage:** [`stage-17-email-matching.md`](./stage-17-email-matching.md).

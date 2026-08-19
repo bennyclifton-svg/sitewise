@@ -223,12 +223,12 @@ test_graph_without_secrets_raises_not_configured
 
 ## Exit gate
 
-- [ ] Forbidden MCP names absent
-- [ ] Send path always carries `actor_id`
-- [ ] Mutation tools use the mutation authorizer
-- [ ] Equivalence test from Stage 16 still green
-- [ ] Backend failures ⊆ baseline
-- [ ] `pnpm typecheck` if any frontend draft UI shipped; UI is optional
+- [x] Forbidden MCP names absent
+- [x] Send path always carries `actor_id`
+- [x] Mutation tools use the mutation authorizer
+- [x] Equivalence test from Stage 16 still green
+- [x] Backend failures ⊆ baseline
+- [x] `pnpm typecheck` if any frontend draft UI shipped; UI is optional
       this stage (REST is enough). If you add UI, extend the existing
       cockpit — do not create `EmailApp.tsx`.
 

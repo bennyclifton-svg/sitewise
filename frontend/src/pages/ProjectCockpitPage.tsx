@@ -38,7 +38,8 @@ import {
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
-import { EMPTY_PULSE_FEED, type PulseAction, type PulseItem } from "@/lib/types/pulse";
+import { EMPTY_PULSE_FEED, pulseSinceIso, type PulseAction, type PulseItem, type PulseSincePreset } from "@/lib/types/pulse";
+import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
 import { useDismissPulse, usePulseFeed } from "@/lib/queries/pulse";
 import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
@@ -197,10 +198,14 @@ function ProjectCockpitContents() {
     projectId ?? "",
     { enabled: bootstrapLoaded && !!projectId },
   );
+  const [pulseSincePreset, setPulseSincePreset] =
+    useState<PulseSincePreset>("7d");
+  const pulseSince = pulseSinceIso(pulseSincePreset);
   const pulseQuery = usePulseFeed(projectId ?? "", {
     enabled: bootstrapLoaded && !!projectId,
+    since: pulseSince,
   });
-  const dismissPulse = useDismissPulse(projectId ?? "");
+  const dismissPulse = useDismissPulse(projectId ?? "", pulseSince);
   const [platformStatus, setPlatformStatus] =
     useState<PlatformKnowledgeStatus | null>(null);
   const [selectedPlatformKnowledge, setSelectedPlatformKnowledge] =
@@ -240,6 +245,12 @@ function ProjectCockpitContents() {
   const [procurementRefreshToken, setProcurementRefreshToken] = useState(0);
   const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
   const [pulseInvoiceId, setPulseInvoiceId] = useState<string | null>(null);
+  const [pulseEmailDraft, setPulseEmailDraft] = useState<ProjectEmailDraft | null>(
+    null,
+  );
+  const [pulseEmailThread, setPulseEmailThread] = useState<
+    ProjectEmailMessage[] | null
+  >(null);
   const [pendingChatInstruction, setPendingChatInstruction] =
     useState<PendingChatInstruction | null>(null);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
@@ -803,6 +814,27 @@ function ProjectCockpitContents() {
       showWorkbench("cost-plan");
       return;
     }
+    const emailId = item.evidence.find(
+      (ref) => ref.reference_type === "email",
+    )?.reference_id;
+    if (action === "draft_reply") {
+      if (!emailId || !projectId) return;
+      void api.replyProjectEmailDraft(projectId, emailId, { body_text: "" }).then(
+        (draft) => {
+          setPulseEmailThread(null);
+          setPulseEmailDraft(draft);
+        },
+      );
+      return;
+    }
+    if (action === "view_thread") {
+      if (!emailId || !projectId) return;
+      void api.getProjectEmailThread(projectId, emailId).then((thread) => {
+        setPulseEmailDraft(null);
+        setPulseEmailThread(thread);
+      });
+      return;
+    }
     const documentId = item.evidence.find(
       (ref) => ref.reference_type === "source_document",
     )?.reference_id;
@@ -1114,8 +1146,46 @@ function ProjectCockpitContents() {
       <Suspense fallback={null}>
         <PulsePanel
           feed={pulseQuery.data ?? EMPTY_PULSE_FEED}
+          sincePreset={pulseSincePreset}
+          onSinceChange={setPulseSincePreset}
           onAction={handlePulseAction}
         />
+        {pulseEmailDraft ? (
+          <aside
+            className="border-b border-[var(--border-hair)] bg-[var(--bg-surface)] px-4 py-3 lg:px-6"
+            data-testid="pulse-email-draft"
+          >
+            <p className="cockpit-eyebrow text-[var(--sw-text-quiet)]">
+              Draft reply
+            </p>
+            <p className="mt-1 text-sm text-[var(--sw-text-primary)]">
+              {pulseEmailDraft.subject}
+            </p>
+            <p className="mt-1 text-xs text-[var(--sw-text-secondary)]">
+              Saved as draft — not sent
+            </p>
+          </aside>
+        ) : null}
+        {pulseEmailThread ? (
+          <aside
+            className="border-b border-[var(--border-hair)] bg-[var(--bg-surface)] px-4 py-3 lg:px-6"
+            data-testid="pulse-email-thread"
+          >
+            <p className="cockpit-eyebrow text-[var(--sw-text-quiet)]">
+              Thread
+            </p>
+            <ol className="mt-2 grid gap-2">
+              {pulseEmailThread.map((message) => (
+                <li key={message.email_id} className="text-sm">
+                  <p className="text-[var(--sw-text-primary)]">{message.subject}</p>
+                  <p className="text-xs text-[var(--sw-text-secondary)]">
+                    {message.from_address}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </aside>
+        ) : null}
       </Suspense>
       {activeView === "workbench" ? (
         <ProjectControlBoard

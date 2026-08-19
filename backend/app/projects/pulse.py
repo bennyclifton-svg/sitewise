@@ -13,19 +13,28 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Literal, get_args
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Float, cast, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Delete, Insert, Update
 
 from app.cost_plan.models import CostInvoice
 from app.database.activity_event import ActivityEvent
+from app.database.procurement_request import ProcurementRequest
+from app.database.procurement_request_submission import ProcurementRequestSubmission
 from app.database.source_document import SourceDocument
-from app.projects.event_spine import list_project_verbs
+from app.email.models import (
+    ProjectEmail,
+    ProjectEmailAttachment,
+    ProjectEmailDraft,
+    ProjectEmailInterpretation,
+)
+from app.email.project_matching import thread_key
+from app.projects.event_spine import PROJECT_VERBS
 from ingest.router import REVIEW_CONFIDENCE_MIN
 
 PulseSignalType = Literal[
@@ -34,6 +43,8 @@ PulseSignalType = Literal[
     "invoice_review_required",
     "potential_cost_change",
     "document_needs_classification",
+    "tender_received",
+    "unanswered_correspondence",
 ]
 
 PulseAttentionKind = Literal["attention", "other"]
@@ -42,6 +53,8 @@ PulseAction = Literal[
     "classify_document",
     "view_evidence",
     "dismiss",
+    "draft_reply",
+    "view_thread",
 ]
 
 PULSE_SIGNAL_TYPES: frozenset[str] = frozenset(get_args(PulseSignalType))
@@ -49,7 +62,10 @@ PULSE_ACTIONS: frozenset[str] = frozenset(get_args(PulseAction))
 
 MAX_ATTENTION_ITEMS = 7
 MIN_GROUPED = 3
-PULSE_QUERY_COUNT = 4
+PULSE_QUERY_COUNT = 9
+DEFAULT_SINCE_DAYS = 7
+UNANSWERED_AFTER = timedelta(days=5)
+_UNANSWERED_CATEGORIES = frozenset({"rfi", "action_required"})
 _GROUPED_EVIDENCE = 3
 _REVIEW_STATES = ("ready_for_review", "needs_attention")
 _COST_CHANGE_CODES = frozenset(
@@ -90,6 +106,13 @@ class PulseFeed(BaseModel):
     other: list[PulseItem]
     attention_count: int
     generated_at: datetime
+    since: datetime = Field(
+        description=(
+            "Inclusive window start. Verbs and canonical rows are considered "
+            "when the triggering event is >= since. Omitted query defaults to "
+            f"{DEFAULT_SINCE_DAYS} days before generated_at, not all time."
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -98,6 +121,10 @@ class PulseSnapshot:
     invoices: tuple[CostInvoice, ...]
     documents: tuple[SourceDocument, ...]
     dismissed: tuple[ActivityEvent, ...]
+    emails: tuple[ProjectEmail, ...] = ()
+    drafts: tuple[ProjectEmailDraft, ...] = ()
+    attachments: tuple[ProjectEmailAttachment, ...] = ()
+    submissions: tuple[ProcurementRequestSubmission, ...] = ()
 
 
 def subject_key(
@@ -136,6 +163,16 @@ def _as_datetime(value: datetime | None) -> datetime:
     return datetime.now(UTC)
 
 
+def resolve_pulse_since(
+    *,
+    now: datetime,
+    since: datetime | None,
+) -> datetime:
+    if since is not None:
+        return since
+    return now - timedelta(days=DEFAULT_SINCE_DAYS)
+
+
 def _confidence_of(document: SourceDocument) -> float | None:
     raw = _doc_meta(document).get("confidence")
     try:
@@ -166,6 +203,67 @@ def _money(amount: Decimal | None) -> str:
 def _filename_supports_determination(*parts: str | None) -> bool:
     haystack = " ".join(part for part in parts if part).casefold()
     return any(marker in haystack for marker in _DETERMINATION_MARKERS)
+
+
+def _email_category(email: ProjectEmail) -> str | None:
+    interpretation = getattr(email, "interpretation", None)
+    if interpretation is None:
+        return None
+    category = interpretation.message_category
+    return category if isinstance(category, str) else None
+
+
+def _drawing_number_of(item: PulseItem, documents_by_id: dict[uuid.UUID, SourceDocument]) -> str | None:
+    for ref in item.evidence:
+        document = documents_by_id.get(ref.reference_id)
+        if document is not None:
+            number = _doc_meta(document).get("drawing_number")
+            if isinstance(number, str) and number.strip():
+                return number.strip()
+    token = item.title.split(" ", 1)[0].strip()
+    return token or None
+
+
+def _email_has_drawing(
+    email: ProjectEmail,
+    drawing: str,
+    attachments: Sequence[ProjectEmailAttachment],
+    documents_by_id: dict[uuid.UUID, SourceDocument],
+) -> bool:
+    needle = drawing.casefold()
+    parts = [email.subject or "", email.body_text or ""]
+    for attachment in attachments:
+        if attachment.email_id != email.id:
+            continue
+        parts.append(attachment.filename or "")
+        document = (
+            documents_by_id.get(attachment.source_document_id)
+            if attachment.source_document_id is not None
+            else None
+        )
+        if document is not None:
+            number = _doc_meta(document).get("drawing_number")
+            if isinstance(number, str) and number.casefold() == needle:
+                return True
+            parts.append(document.filename or "")
+    return needle in " ".join(parts).casefold()
+
+
+def _answered_thread_keys(
+    drafts: Sequence[ProjectEmailDraft],
+    emails_by_id: dict[uuid.UUID, ProjectEmail],
+) -> set[str]:
+    keys: set[str] = set()
+    for draft in drafts:
+        if draft.status != "sent":
+            continue
+        if draft.in_reply_to_email_id is None:
+            continue
+        email = emails_by_id.get(draft.in_reply_to_email_id)
+        if email is None:
+            continue
+        keys.add(thread_key(email))
+    return keys
 
 
 def detect_drawing_revision(verbs: Sequence[ActivityEvent]) -> list[PulseItem]:
@@ -394,6 +492,201 @@ def merge_invoice_cards(
     return merged
 
 
+def merge_drawing_and_transmittal(
+    items: Sequence[PulseItem],
+    emails: Sequence[ProjectEmail],
+    attachments: Sequence[ProjectEmailAttachment],
+    documents: Sequence[SourceDocument],
+) -> list[PulseItem]:
+    documents_by_id = {document.id: document for document in documents}
+    transmittals = [
+        email for email in emails if _email_category(email) == "document_transmittal"
+    ]
+    used: set[uuid.UUID] = set()
+    merged: list[PulseItem] = []
+    for item in items:
+        if item.signal_type != "drawing_revision":
+            merged.append(item)
+            continue
+        drawing = _drawing_number_of(item, documents_by_id)
+        match = None
+        if drawing:
+            for email in transmittals:
+                if email.id in used:
+                    continue
+                if _email_has_drawing(email, drawing, attachments, documents_by_id):
+                    match = email
+                    break
+        if match is None:
+            merged.append(item)
+            continue
+        used.add(match.id)
+        evidence = list(item.evidence) + [
+            PulseEvidenceRef(
+                reference_type="email",
+                reference_id=match.id,
+                label=match.subject or "Transmittal",
+            )
+        ]
+        title = (
+            f"Structural drawing {drawing} revised; issued on transmittal"
+            if drawing
+            else "Structural drawing revised; issued on transmittal"
+        )
+        merged.append(
+            item.model_copy(
+                update={
+                    "title": title,
+                    "body": f"{item.title}. Issued on transmittal.",
+                    "evidence": evidence,
+                    "actions": ["view_evidence", "view_thread", "dismiss"],
+                }
+            )
+        )
+    return merged
+
+
+def merge_invoice_and_email(
+    items: Sequence[PulseItem],
+    invoices: Sequence[CostInvoice],
+    emails: Sequence[ProjectEmail],
+    attachments: Sequence[ProjectEmailAttachment],
+) -> list[PulseItem]:
+    emails_by_id = {email.id: email for email in emails}
+    email_by_document = {
+        attachment.source_document_id: emails_by_id[attachment.email_id]
+        for attachment in attachments
+        if attachment.source_document_id is not None
+        and attachment.email_id in emails_by_id
+    }
+    invoices_by_id = {invoice.id: invoice for invoice in invoices}
+    merged: list[PulseItem] = []
+    for item in items:
+        if item.signal_type not in {
+            "invoice_review_required",
+            "potential_cost_change",
+        }:
+            merged.append(item)
+            continue
+        parent = None
+        for ref in item.evidence:
+            if ref.reference_type != "cost_invoice":
+                continue
+            invoice = invoices_by_id.get(ref.reference_id)
+            if invoice is None or invoice.source_document_id is None:
+                continue
+            parent = email_by_document.get(invoice.source_document_id)
+            if parent is not None:
+                break
+        if parent is None:
+            merged.append(item)
+            continue
+        evidence = list(item.evidence) + [
+            PulseEvidenceRef(
+                reference_type="email",
+                reference_id=parent.id,
+                label=parent.subject or "Invoice email",
+            )
+        ]
+        actions = list(item.actions)
+        if "view_thread" not in actions:
+            actions.insert(-1 if "dismiss" in actions else len(actions), "view_thread")
+        title = item.title
+        if item.signal_type != "potential_cost_change":
+            title = "Invoice arrived by email"
+        merged.append(
+            item.model_copy(
+                update={
+                    "title": title,
+                    "body": title,
+                    "evidence": evidence,
+                    "actions": actions,
+                }
+            )
+        )
+    return merged
+
+
+def detect_unanswered_correspondence(
+    emails: Sequence[ProjectEmail],
+    drafts: Sequence[ProjectEmailDraft],
+    *,
+    now: datetime,
+) -> list[PulseItem]:
+    emails_by_id = {email.id: email for email in emails}
+    answered = _answered_thread_keys(drafts, emails_by_id)
+    items: list[PulseItem] = []
+    seen_threads: set[str] = set()
+    for email in emails:
+        category = _email_category(email)
+        if category not in _UNANSWERED_CATEGORIES:
+            continue
+        stamp = _as_datetime(email.sent_at or email.created_at)
+        if now - stamp < UNANSWERED_AFTER:
+            continue
+        key = thread_key(email)
+        if key in answered or key in seen_threads:
+            continue
+        seen_threads.add(key)
+        label = "RFI" if category == "rfi" else "action required"
+        title = f"Unanswered {label}: {email.subject or 'correspondence'}"
+        items.append(
+            PulseItem(
+                id=subject_key("unanswered_correspondence", "email", email.id),
+                kind="attention",
+                signal_type="unanswered_correspondence",
+                title=title,
+                body=title,
+                domain="CORRESPONDENCE",
+                evidence=[
+                    PulseEvidenceRef(
+                        reference_type="email",
+                        reference_id=email.id,
+                        label=email.subject or label,
+                    )
+                ],
+                actions=["draft_reply", "view_thread", "dismiss"],
+                created_at=stamp,
+            )
+        )
+    return items
+
+
+def detect_tender_received(
+    submissions: Sequence[ProcurementRequestSubmission],
+    documents: Sequence[SourceDocument],
+) -> list[PulseItem]:
+    documents_by_id = {document.id: document for document in documents}
+    grouped: dict[uuid.UUID, list[ProcurementRequestSubmission]] = {}
+    for submission in submissions:
+        grouped.setdefault(submission.request_id, []).append(submission)
+    items: list[PulseItem] = []
+    for request_id, members in grouped.items():
+        latest = max(members, key=lambda row: _as_datetime(row.created_at))
+        document = documents_by_id.get(latest.source_document_id)
+        filename = document.filename if document is not None else "submission"
+        items.append(
+            PulseItem(
+                id=subject_key("tender_received", "procurement_request", request_id),
+                kind="attention",
+                signal_type="tender_received",
+                title=f"Submission received from {filename}",
+                body=f"Submission received from {filename}",
+                domain="COMMERCIAL",
+                evidence=[
+                    PulseEvidenceRef(
+                        reference_type="source_document",
+                        reference_id=latest.source_document_id,
+                        label=filename,
+                    )
+                ],
+                actions=["view_evidence", "dismiss"],
+                created_at=_as_datetime(latest.created_at),
+            )
+        )
+    return items
+
+
 def _group_title(signal_type: str, count: int) -> str:
     labels = {
         "drawing_revision": f"{count} revised drawings received",
@@ -401,6 +694,8 @@ def _group_title(signal_type: str, count: int) -> str:
         "invoice_review_required": f"{count} invoices need review",
         "potential_cost_change": f"{count} invoices may change project cost",
         "document_needs_classification": f"{count} documents need classification",
+        "tender_received": f"{count} tender submissions received",
+        "unanswered_correspondence": f"{count} unanswered items",
     }
     return labels.get(signal_type, f"{count} items")
 
@@ -416,6 +711,8 @@ def _group_actions(signal_type: str) -> list[str]:
         return ["review_invoice", "dismiss"]
     if signal_type == "document_needs_classification":
         return ["classify_document", "dismiss"]
+    if signal_type == "unanswered_correspondence":
+        return ["draft_reply", "view_thread", "dismiss"]
     return ["view_evidence", "dismiss"]
 
 
@@ -486,6 +783,7 @@ def _other_rollup(
     attention: Sequence[PulseItem],
     truncated: Sequence[PulseItem],
     generated_at: datetime,
+    window_start: datetime,
 ) -> list[PulseItem]:
     attention_invoice_ids = {
         ref.reference_id
@@ -493,14 +791,38 @@ def _other_rollup(
         for ref in item.evidence
         if ref.reference_type == "cost_invoice"
     }
-    filed = sum(1 for event in snapshot.verbs if event.source == "document.filed")
+    attention_email_ids = {
+        ref.reference_id
+        for item in (*attention, *truncated)
+        for ref in item.evidence
+        if ref.reference_type == "email"
+    }
+    filed = sum(
+        1
+        for event in snapshot.verbs
+        if event.source == "document.filed"
+        and _as_datetime(event.created_at) >= window_start
+    )
     leftover_invoices = sum(
-        1 for invoice in snapshot.invoices if invoice.id not in attention_invoice_ids
+        1
+        for invoice in snapshot.invoices
+        if invoice.id not in attention_invoice_ids
+        and _as_datetime(invoice.updated_at or invoice.created_at) >= window_start
+    )
+    leftover_emails = sum(
+        1
+        for event in snapshot.verbs
+        if event.source == "email.received"
+        and (event.reference_id is None or event.reference_id not in attention_email_ids)
+        and _as_datetime(event.created_at) >= window_start
     )
     parts: list[str] = []
     if filed:
         noun = "document" if filed == 1 else "documents"
         parts.append(f"{filed} {noun} filed")
+    if leftover_emails:
+        noun = "consultant reply" if leftover_emails == 1 else "consultant replies"
+        parts.append(f"{leftover_emails} {noun}")
     if leftover_invoices:
         noun = "invoice" if leftover_invoices == 1 else "invoices"
         parts.append(f"{leftover_invoices} {noun} ready for review")
@@ -529,20 +851,43 @@ def synthesize_pulse_feed(
     snapshot: PulseSnapshot,
     *,
     now: datetime | None = None,
+    since: datetime | None = None,
 ) -> PulseFeed:
     generated_at = now or datetime.now(UTC)
+    window_start = resolve_pulse_since(now=generated_at, since=since)
     dismissed_at = _dismissed_map(snapshot.dismissed)
     items: list[PulseItem] = []
-    items.extend(detect_drawing_revision(snapshot.verbs))
+    items.extend(
+        merge_drawing_and_transmittal(
+            detect_drawing_revision(snapshot.verbs),
+            snapshot.emails,
+            snapshot.attachments,
+            snapshot.documents,
+        )
+    )
     items.extend(detect_approval_received(snapshot.verbs))
     items.extend(
-        merge_invoice_cards(
-            detect_invoice_review(snapshot.invoices),
-            detect_cost_change(snapshot.invoices),
+        merge_invoice_and_email(
+            merge_invoice_cards(
+                detect_invoice_review(snapshot.invoices),
+                detect_cost_change(snapshot.invoices),
+            ),
+            snapshot.invoices,
+            snapshot.emails,
+            snapshot.attachments,
         )
     )
     items.extend(detect_needs_classification(snapshot.documents))
-    visible = [item for item in items if item.id not in dismissed_at]
+    items.extend(
+        detect_unanswered_correspondence(
+            snapshot.emails,
+            snapshot.drafts,
+            now=generated_at,
+        )
+    )
+    items.extend(detect_tender_received(snapshot.submissions, snapshot.documents))
+    in_window = [item for item in items if item.created_at >= window_start]
+    visible = [item for item in in_window if item.id not in dismissed_at]
     grouped = group_attention(visible, dismissed_at)
     grouped.sort(key=lambda item: item.created_at, reverse=True)
     attention_count = len(grouped)
@@ -550,9 +895,12 @@ def synthesize_pulse_feed(
     truncated = grouped[MAX_ATTENTION_ITEMS:]
     return PulseFeed(
         attention=attention,
-        other=_other_rollup(snapshot, attention, truncated, generated_at),
+        other=_other_rollup(
+            snapshot, attention, truncated, generated_at, window_start
+        ),
         attention_count=attention_count,
         generated_at=generated_at,
+        since=window_start,
     )
 
 
@@ -577,8 +925,20 @@ def assert_read_only(statement: object) -> None:
 async def load_pulse_snapshot(
     session: AsyncSession,
     project_id: uuid.UUID,
+    *,
+    since: datetime,
 ) -> PulseSnapshot:
-    verbs = await list_project_verbs(session, project_id=project_id, limit=200)
+    verb_result = await session.execute(
+        select(ActivityEvent)
+        .where(
+            ActivityEvent.project_id == project_id,
+            ActivityEvent.source.in_(PROJECT_VERBS),
+            ActivityEvent.created_at >= since,
+        )
+        .order_by(ActivityEvent.created_at.desc())
+        .limit(200)
+    )
+    verbs = tuple(verb_result.scalars().all())
     invoice_result = await session.execute(
         select(CostInvoice).where(
             CostInvoice.project_id == project_id,
@@ -604,17 +964,63 @@ async def load_pulse_snapshot(
             ActivityEvent.source == "project_signal.dismissed",
         )
     )
+    interp_result = await session.execute(
+        select(ProjectEmailInterpretation).where(
+            ProjectEmailInterpretation.project_id == project_id
+        )
+    )
+    interpretations = tuple(interp_result.scalars().all())
+    email_result = await session.execute(
+        select(ProjectEmail).where(
+            ProjectEmail.id.in_(
+                select(ProjectEmailInterpretation.email_id).where(
+                    ProjectEmailInterpretation.project_id == project_id
+                )
+            )
+        )
+    )
+    emails = tuple(email_result.scalars().all())
+    interp_by_id = {row.email_id: row for row in interpretations}
+    for email in emails:
+        email.interpretation = interp_by_id.get(email.id)
+    draft_result = await session.execute(
+        select(ProjectEmailDraft).where(ProjectEmailDraft.project_id == project_id)
+    )
+    attachment_result = await session.execute(
+        select(ProjectEmailAttachment).where(
+            ProjectEmailAttachment.email_id.in_(
+                select(ProjectEmailInterpretation.email_id).where(
+                    ProjectEmailInterpretation.project_id == project_id
+                )
+            )
+        )
+    )
+    submission_result = await session.execute(
+        select(ProcurementRequestSubmission).join(
+            ProcurementRequest,
+            ProcurementRequest.id == ProcurementRequestSubmission.request_id,
+        ).where(ProcurementRequest.project_id == project_id)
+    )
     return PulseSnapshot(
-        verbs=tuple(verbs),
+        verbs=verbs,
         invoices=tuple(invoice_result.scalars().all()),
         documents=tuple(document_result.scalars().all()),
         dismissed=tuple(dismissed_result.scalars().all()),
+        emails=emails,
+        drafts=tuple(draft_result.scalars().all()),
+        attachments=tuple(attachment_result.scalars().all()),
+        submissions=tuple(submission_result.scalars().all()),
     )
 
 
 async def build_pulse_feed(
     session: AsyncSession,
     project_id: uuid.UUID,
+    *,
+    since: datetime | None = None,
+    now: datetime | None = None,
 ) -> PulseFeed:
-    snapshot = await load_pulse_snapshot(session, project_id)
-    return synthesize_pulse_feed(snapshot)
+    generated_at = now or datetime.now(UTC)
+    window_start = resolve_pulse_since(now=generated_at, since=since)
+    snapshot = await load_pulse_snapshot(session, project_id, since=window_start)
+    return synthesize_pulse_feed(snapshot, now=generated_at, since=window_start)

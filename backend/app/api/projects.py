@@ -125,6 +125,7 @@ from app.schemas.projects import (
     PlatformKnowledgeDocument,
     PlatformKnowledgeStatus,
     ProcurementRequestCreateRequest,
+    ProcurementIssueEmailSendRequest,
     ProcurementRequestListResponse,
     ProcurementRequestStatusUpdate,
     ProcurementRequestView,
@@ -255,6 +256,9 @@ from app.projects.draft_instructions_service import (
     StaleAnchorError,
     apply_draft_instructions,
 )
+from app.email.providers import email_provider_from_settings
+from app.email.service import EmailDraftConflict, EmailNotFound
+from app.procurement.issue import send_procurement_issue_email
 from app.procurement.requests import (
     ProcurementRequestNotFound,
     ProcurementRequestRevisionConflict,
@@ -3448,6 +3452,44 @@ async def patch_project_procurement_request_status(
             status_code=status.HTTP_404_NOT_FOUND, detail="Request not found"
         ) from exc
     except (ProcurementRequestRevisionConflict, ProcurementRequestStateConflict) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    return await _procurement_request_view(session, updated)
+
+
+@router.post("/{project_id}/procurement-requests/{request_id}/issue-email/send")
+async def post_send_procurement_issue_email(
+    project_id: uuid.UUID,
+    request_id: uuid.UUID,
+    body: ProcurementIssueEmailSendRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementRequestView:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        await get_procurement_request(
+            session, project_id=project_id, request_id=request_id
+        )
+        updated = await send_procurement_issue_email(
+            session,
+            project_id=project_id,
+            request_id=request_id,
+            draft_id=body.draft_id,
+            actor_id=user.id,
+            expected_revision=body.expected_revision,
+            provider=email_provider_from_settings(settings),
+        )
+    except (ProcurementRequestNotFound, EmailNotFound) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Request not found"
+        ) from exc
+    except (
+        ProcurementRequestRevisionConflict,
+        ProcurementRequestStateConflict,
+        EmailDraftConflict,
+    ) as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc

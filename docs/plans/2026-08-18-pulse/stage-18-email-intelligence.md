@@ -149,11 +149,11 @@ test_action_excerpt_is_bounded
 
 ## Exit gate
 
-- [ ] `grep document_class backend/app/email` only reads attachment
+- [x] `grep document_class backend/app/email` only reads attachment
       documents, never writes a non-canonical class
-- [ ] `ingest/types.py` DocumentClass unchanged
-- [ ] `email.action_detected` does not appear as a Pulse attention type
+- [x] `ingest/types.py` DocumentClass unchanged
+- [x] `email.action_detected` does not appear as a Pulse attention type
       yet (Stage 21)
-- [ ] Backend failures ⊆ baseline
+- [x] Backend failures ⊆ baseline
 
 **After this stage:** [`stage-19-email-mcp-drafts.md`](./stage-19-email-mcp-drafts.md).

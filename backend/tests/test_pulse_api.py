@@ -44,6 +44,7 @@ def _feed(*items: PulseItem) -> PulseFeed:
         other=[],
         attention_count=len(items),
         generated_at=NOW,
+        since=NOW,
     )
 
 
@@ -179,3 +180,23 @@ def test_dismiss_subject_key_is_in_the_body_not_the_path(client: TestClient) -> 
 
     assert missing.status_code == 404
     assert ok.status_code == 200
+
+
+def test_pulse_since_query_is_passed_to_builder(client: TestClient) -> None:
+    since = datetime(2026, 8, 18, 0, 0, tzinfo=UTC)
+    with (
+        patch("app.api.pulse.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.pulse.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.pulse.build_pulse_feed",
+            new=AsyncMock(return_value=_feed()),
+        ) as build,
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/pulse",
+            params={"since": since.isoformat()},
+        )
+
+    assert response.status_code == 200
+    build.assert_called_once()
+    assert build.call_args.kwargs["since"] == since

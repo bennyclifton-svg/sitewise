@@ -4,12 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PulsePanel } from "@/components/project/PulsePanel";
 import { api } from "@/lib/api";
-import type { PulseFeed, PulseItem } from "@/lib/types/pulse";
+import type { PulseFeed, PulseItem, PulseSincePreset } from "@/lib/types/pulse";
 
 vi.mock("@/lib/api", () => ({
   api: {
     decideInvoice: vi.fn(),
     putDocumentClassification: vi.fn(),
+    sendProjectEmailDraft: vi.fn(),
   },
 }));
 
@@ -61,7 +62,7 @@ function feed(overrides: Partial<PulseFeed> = {}): PulseFeed {
         kind: "other",
         signal_type: null,
         title: "Other activity",
-        body: "26 documents filed",
+        body: "48 emails · 26 documents · 12 events",
         domain: "ACTIVITY",
         evidence: [],
         actions: [],
@@ -70,6 +71,7 @@ function feed(overrides: Partial<PulseFeed> = {}): PulseFeed {
     ],
     attention_count: attention.length,
     generated_at: "2026-08-19T00:00:00Z",
+    since: "2026-08-12T00:00:00Z",
     ...overrides,
   };
 }
@@ -81,14 +83,36 @@ describe("PulsePanel", () => {
   });
 
   it("test_pulse_does_not_headline_raw_event_counts", () => {
-    render(<PulsePanel feed={feed()} />);
+    render(<PulsePanel feed={feed({ attention_count: 3 })} />);
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("2 items need attention");
-    expect(heading).not.toHaveTextContent("28");
+    expect(heading).toHaveTextContent("3 items need attention");
+    expect(heading).not.toHaveTextContent("48");
     expect(heading).not.toHaveTextContent("26 documents");
+    expect(heading).not.toHaveTextContent("12 events");
     expect(screen.getByTestId("pulse-other-activity")).toHaveTextContent(
-      "26 documents filed",
+      "48 emails · 26 documents · 12 events",
     );
+  });
+
+  it("labels the since window in product language", async () => {
+    const user = userEvent.setup();
+    const onSinceChange = vi.fn();
+    render(
+      <PulsePanel
+        feed={feed()}
+        sincePreset={"7d" as PulseSincePreset}
+        onSinceChange={onSinceChange}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Last 7 days" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Since yesterday" }));
+    expect(onSinceChange).toHaveBeenCalledWith("yesterday");
+    await user.click(screen.getByRole("button", { name: "Last 30 days" }));
+    expect(onSinceChange).toHaveBeenCalledWith("30d");
   });
 
   it("test_review_invoice_action_is_a_button_not_inline_logic", async () => {
@@ -119,5 +143,45 @@ describe("PulsePanel", () => {
     expect(screen.queryByRole("button", { name: "Hold" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
     expect(api.decideInvoice).not.toHaveBeenCalled();
+  });
+
+  it("test_draft_reply_action_does_not_send", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(
+      <PulsePanel
+        feed={feed({
+          attention: [
+            item({
+              id: "unanswered_correspondence:email:mail-1",
+              signal_type: "unanswered_correspondence",
+              title: "Unanswered RFI: slab thickness",
+              body: "Unanswered RFI: slab thickness",
+              domain: "CORRESPONDENCE",
+              evidence: [
+                {
+                  reference_type: "email",
+                  reference_id: "mail-1",
+                  label: "RFI-12",
+                },
+              ],
+              actions: ["draft_reply", "view_thread", "dismiss"],
+            }),
+          ],
+        })}
+        onAction={onAction}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Draft reply" }));
+
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actions: expect.arrayContaining(["draft_reply"]),
+      }),
+      "draft_reply",
+    );
+    expect(api.sendProjectEmailDraft).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
   });
 });

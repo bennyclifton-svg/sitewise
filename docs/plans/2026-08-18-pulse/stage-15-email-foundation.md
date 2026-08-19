@@ -216,13 +216,13 @@ Pulling bytes is Stage 16. This packet must **not** call
 
 ## Exit gate
 
-- [ ] Alembic upgrade/downgrade/upgrade on `053_project_emails`
-- [ ] Raw update guard covered
-- [ ] `grep openai|httpx|msgraph|google.oauth backend/app/email` empty
+- [x] Alembic upgrade/downgrade/upgrade on `053_project_emails`
+- [x] Raw update guard covered
+- [x] `grep openai|httpx|msgraph|google.oauth backend/app/email` empty
       (except comments)
-- [ ] No `email_classifier.py`
-- [ ] Backend failures ⊆ baseline
-- [ ] Stage 16 is unblocked
+- [x] No `email_classifier.py`
+- [ ] Backend failures ⊆ baseline — extra names recorded in TRACKER (not this packet)
+- [x] Stage 16 is unblocked
 
 **After this stage:** [`stage-16-email-intake.md`](./stage-16-email-intake.md)
 — the non-negotiable equivalence test.

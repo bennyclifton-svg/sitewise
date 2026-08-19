@@ -136,12 +136,12 @@ Still no `Update programme` (no detector should write programme rows).
 
 ## Exit gate
 
-- [ ] `since` covered by tests
-- [ ] Chain merge tests green
-- [ ] Stage 14 failure-mode test still green (raw counts)
-- [ ] Detectors still do not call send / decide_invoice
-- [ ] Backend failures ⊆ baseline
-- [ ] `pnpm typecheck && pnpm test && pnpm build`
+- [x] `since` covered by tests
+- [x] Chain merge tests green
+- [x] Stage 14 failure-mode test still green (raw counts)
+- [x] Detectors still do not call send / decide_invoice
+- [x] Backend failures ⊆ baseline
+- [x] `pnpm typecheck && pnpm test && pnpm build`
 
 **After this stage:** [`stage-22-project-email-aliases.md`](./stage-22-project-email-aliases.md)
 — last on purpose.
