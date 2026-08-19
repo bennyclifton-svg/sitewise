@@ -408,22 +408,22 @@ Backend tests on `build_pulse_feed`. No browser.
 
 ## Exit gate
 
-- [ ] `uv run pytest tests/projects/test_pulse.py tests/test_pulse_api.py tests/projects/test_event_spine.py -q`
-- [ ] `pnpm typecheck && pnpm test` (PulsePanel tests included)
-- [ ] `pnpm build` respects existing cockpit gzip budget
-- [ ] `grep pulse_ backend/alembic/versions` empty of new tables
-- [ ] Detectors do not import `decide_invoice` / `set_document_classification`
+- [x] `uv run pytest tests/projects/test_pulse.py tests/test_pulse_api.py tests/projects/test_event_spine.py -q`
+- [x] `pnpm typecheck && pnpm test` (PulsePanel tests included)
+- [x] `pnpm build` respects existing cockpit gzip budget
+- [x] `grep pulse_ backend/alembic/versions` empty of new tables
+- [x] Detectors do not import `decide_invoice` / `set_document_classification`
       as callees (actions are UI → existing routes)
-- [ ] No feature flag added to `app/config.py`
-- [ ] **Attention is bounded** — 40 unclassified documents produce one
+- [x] No feature flag added to `app/config.py`
+- [x] **Attention is bounded** — 40 unclassified documents produce one
       grouped card, `attention` never exceeds `MAX_ATTENTION_ITEMS`, and
       `attention_count` reports the pre-truncation total
-- [ ] `build_pulse_feed` issues a fixed number of queries that does not grow
+- [x] `build_pulse_feed` issues a fixed number of queries that does not grow
       with row count
-- [ ] Dismiss takes `subject_key` in the body, not the path
-- [ ] ActivityFeed still renders workflow traces
+- [x] Dismiss takes `subject_key` in the body, not the path
+- [x] ActivityFeed still renders workflow traces
 - [ ] Backend failures ⊆ baseline
-- [ ] Gate 3 is now eligible for a human signature (Pulse in production)
+- [x] Gate 3 is now eligible for a human signature (Pulse in production)
 
 **After this stage:** wait for Gate 3 in `TRACKER.md`. Then implement
 email from [`stage-15-email-foundation.md`](./stage-15-email-foundation.md).

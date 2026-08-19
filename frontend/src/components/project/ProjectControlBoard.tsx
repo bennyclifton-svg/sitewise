@@ -138,6 +138,7 @@ export function ProjectControlBoard({
   onSelectEvidenceIds,
   onTransmittalSessionChange,
   invoiceProcessResult = null,
+  openInvoiceId = null,
 }: {
   project: ProjectDetail;
   profileProposals?: ProjectProfileProposal[];
@@ -193,6 +194,7 @@ export function ProjectControlBoard({
     session: { draftId: string; workflowType: string } | null,
   ) => void;
   invoiceProcessResult?: ProcessInvoicesResult | null;
+  openInvoiceId?: string | null;
 }) {
   const lifecycle = buildLifecycleTiles({
     project,
@@ -278,6 +280,7 @@ export function ProjectControlBoard({
           onSelectEvidenceIds={onSelectEvidenceIds}
           onTransmittalSessionChange={onTransmittalSessionChange}
           invoiceProcessResult={invoiceProcessResult}
+          openInvoiceId={openInvoiceId}
         />
       </section>
     </div>
@@ -897,6 +900,7 @@ function WorkflowDetail({
   selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
+  openInvoiceId = null,
 }: {
   tile: WorkflowTile;
   project: ProjectDetail;
@@ -946,6 +950,7 @@ function WorkflowDetail({
     session: { draftId: string; workflowType: string } | null,
   ) => void;
   invoiceProcessResult: ProcessInvoicesResult | null;
+  openInvoiceId?: string | null;
 }) {
   const isProjectProfile = tile.id === "project-profile";
   const isCreatePmp = tile.id === "create-pmp";
@@ -1305,6 +1310,7 @@ function WorkflowDetail({
                 onDraftUpdated={(draft) => {
                   onDraftUpdated?.(draft);
                 }}
+                reviewInvoiceId={openInvoiceId}
               />
             </Suspense>
           </>

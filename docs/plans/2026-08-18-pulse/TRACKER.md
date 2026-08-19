@@ -1,6 +1,6 @@
 # X1 Programme Tracker
 
-**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stages 8B–13 implemented in working tree. Gate 2 signed 2026-08-19. Next implementable packet: **14.1** (Pulse MVP). Email (15–22) waits on Gate 3.
+**Created:** 2026-08-18 · **Baseline commit:** `acb10131` · **Status:** Stages 8B–14 implemented. Gate 2 signed 2026-08-19. Gate 3 eligible for human signature. Email (15–22) waits on Gate 3.
 
 This file is the programme's memory. Authoritative spec:
 [`../2026-08-18-pulse.md`](../2026-08-18-pulse.md). Binding rules:
@@ -257,13 +257,13 @@ Gate 2 human signature is filled from the 19 Aug instruction to implement
 
 **Implement after 13 `[x]`.** No feature flag (OD-4).
 
-- [ ] 14.1 Signal vocabulary + synthesizer 🔒
-- [ ] 14.2 Five MVP detectors
-- [ ] 14.3 GET/POST Pulse API
-- [ ] 14.4 PulsePanel against fixtures
-- [ ] 14.5 Wire UI to API
-- [ ] 14.6 Card actions open existing surfaces
-- [ ] 14.7 Acceptance G + I (no email)
+- [x] 14.1 Signal vocabulary + synthesizer 🔒
+- [x] 14.2 Five MVP detectors
+- [x] 14.3 GET/POST Pulse API
+- [x] 14.4 PulsePanel against fixtures
+- [x] 14.5 Wire UI to API
+- [x] 14.6 Card actions open existing surfaces
+- [x] 14.7 Acceptance G + I (no email)
 
 ---
 
@@ -272,11 +272,11 @@ Gate 2 human signature is filled from the 19 Aug instruction to implement
 Do not open a Stage 15 packet until all are true:
 
 - [x] Stage 13 `[x]` with pasted alembic + verb tests
-- [ ] Stage 14 `[x]` with pasted Pulse tests + vitest failure-mode
-- [ ] No `pulse_*` table in alembic
-- [ ] Detectors do not mutate invoices or classifications
-- [ ] Pulse headline is attention, not raw event counts
-- [ ] OD-4 still holds (no Pulse kill-switch flag shipped)
+- [x] Stage 14 `[x]` with pasted Pulse tests + vitest failure-mode
+- [x] No `pulse_*` table in alembic
+- [x] Detectors do not mutate invoices or classifications
+- [x] Pulse headline is attention, not raw event counts
+- [x] OD-4 still holds (no Pulse kill-switch flag shipped)
 - [ ] Backend failures ⊆ Stage 0 baseline names
 - [ ] Gate signed off by: ________________ on ________
 
@@ -1232,7 +1232,7 @@ Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
 Predecessors verified: Stage 12 [x]; alembic heads at start = 051_invoice_review_state
 Reading list actually read: 00-doctrine.md D5/D6/D8/D10; 2026-08-18-pulse.md Event spine; activity_event.py; activity_events.py; invoice_service._record_invoice_event; inbox/service.py; document_ingest.py; sort_service.file_single_document; classification_override.py; register.DrawingRegisterRow; projects/events.py (read only, unchanged)
 Failing tests named: test_unknown_verb_raises, test_duplicate_dedup_key_is_noop, test_duplicate_dedup_key_does_not_log_an_error, test_insert_failure_raises_rather_than_being_swallowed, test_metadata_allowlist_drops_canonical_payloads, test_project_verbs_is_closed_and_covers_the_card, test_inbox_upload_emits_document_received, test_successful_ingest_emits_extracted_and_classified, test_unchanged_reingest_does_not_emit_again, test_user_override_emits_document_reclassified, test_successful_file_move_emits_document_filed, test_later_drawing_revision_emits_document_revised, test_earlier_revision_arriving_late_emits_nothing, test_numeric_revision_10_supersedes_9, test_approve_twice_does_not_duplicate_invoice_approved_event, test_list_project_verbs_excludes_workflow_trace_sources
-Commit SHA: uncommitted (user did not request a commit; Stages 8B–12 still uncommitted on this branch)
+Commit SHA: 0f3260824ff43f0efb04a63743c8d5120be43feb
 Production LOC delta: event_spine.py new; activity_event +deduplication_key; activity_events optional key; emitters in inbox/document_ingest/classification_override/sort_service; invoice_service helper body replaced. ingest/types.py untouched. project_events / publish_project_event untouched.
 Integration notes raised: EXPLAIN skipped, index added; repair_service does not emit document.filed
 Handoff: Stage 13 complete. Stage 14 (Pulse MVP) is eligible.
@@ -1275,6 +1275,75 @@ Files changed:
 - backend/app/cost_plan/invoice_service.py (_record_invoice_event → record_project_verb)
 - tests as listed above
 - docs/plans/2026-08-18-pulse/TRACKER.md
+
+Files deleted: none
+```
+
+### Stage 14 (14.1–14.7) — 2026-08-19
+
+```text
+Packet: 14.1–14.7 Pulse MVP
+Status: [x] code + tests; no pulse_* table; no feature flag
+Owner/agent: Cursor Grok 4.6
+Branch/worktree: x1/stage-8-taxonomy-migration (repo root)
+Predecessors verified: Stage 13 [x]; alembic head = 052_activity_event_dedup (unchanged)
+Reading list actually read: stage-14-pulse-mvp.md; 00-doctrine D5/D6/D7/D8/D9; event_spine.py; invoice_issues.py; cost_invoices._project_and_state; ingest/router.py REVIEW_CONFIDENCE_MIN; ProjectCockpitPage; InvoiceReviewPane; CostInvoiceRegister
+Failing tests named: test_pulse_signal_types_are_closed, test_dismissed_subject_key_is_excluded, test_synthesizer_does_not_write_canonical_rows, test_forty_unclassified_documents_produce_one_grouped_card, test_attention_never_exceeds_max_attention_items, test_truncated_items_appear_in_other_rollup, test_attention_count_reflects_pre_truncation_total, test_build_pulse_feed_issues_a_fixed_number_of_queries, test_drawing_revision_detector_uses_document_revised_verb, test_invoice_with_unapproved_variation_is_potential_cost_change, test_low_confidence_document_needs_classification, test_certificate_classified_is_approval_received, test_one_invoice_does_not_produce_two_attention_cards, test_detectors_do_not_call_decide_invoice, test_dismissed_invoice_card_returns_when_review_state_changes, test_pulse_on_another_project_returns_404, test_dismiss_is_idempotent_and_drops_the_card, test_dismiss_does_not_change_invoice_review_state, test_pulse_does_not_headline_raw_event_counts, test_review_invoice_action_is_a_button_not_inline_logic
+Commit SHA: this commit
+Handoff: Stage 14 complete. Gate 3 eligible for human signature. Do not start Stages 15–22 until Gate 3 is signed.
+
+Verification — pytest:
+uv run pytest tests/projects/test_pulse.py tests/test_pulse_api.py tests/projects/test_event_spine.py -q
+  38 passed, 1 warning in 15.90s
+
+Verification — ruff (Pulse files):
+uv run ruff check app/projects/pulse.py app/api/pulse.py app/schemas/pulse.py app/main.py tests/projects/test_pulse.py tests/test_pulse_api.py
+  All checks passed!
+
+Verification — frontend:
+pnpm typecheck → exit 0
+pnpm test → 86 files passed, 535 tests passed (vitest 4.1.9, 56.63s)
+  includes test_pulse_does_not_headline_raw_event_counts (H1 = "2 items need attention", not 26/28)
+pnpm build → ✓ built in 2.47s (initialCockpit gzipBytes 245408 / budget 256000)
+  PulsePanel lazy chunk 2.25 kB / 0.90 kB gzip
+
+Verification — no pulse table / no flag:
+rg pulse_ backend/alembic/versions → no matches
+rg pulse_enabled backend/app/config.py → no matches
+Detectors in app/projects/pulse.py do not import decide_invoice or set_document_classification
+
+Verification — contract:
+MAX_ATTENTION_ITEMS=7, MIN_GROUPED=3, PULSE_QUERY_COUNT=4
+Dismiss POST /projects/{id}/pulse/dismiss JSON body {"subject_key"}
+404 for other projects / non-owners, never 403
+ActivityFeed.tsx unchanged
+
+Files added:
+- backend/app/projects/pulse.py
+- backend/app/api/pulse.py
+- backend/app/schemas/pulse.py
+- backend/tests/projects/test_pulse.py
+- backend/tests/test_pulse_api.py
+- frontend/src/components/project/PulsePanel.tsx
+- frontend/src/components/project/PulsePanel.test.tsx
+- frontend/src/lib/queries/pulse.ts
+- frontend/src/lib/types/pulse.ts
+
+Files changed:
+- backend/app/main.py (pulse_router)
+- frontend/src/lib/api.ts (getProjectPulse, dismissProjectPulse)
+- frontend/src/lib/queries/project-data.ts (invalidate pulse on evidence/workflow)
+- frontend/src/pages/ProjectCockpitPage.tsx (Pulse strip above workbench)
+- frontend/src/components/project/ProjectControlBoard.tsx (openInvoiceId)
+- frontend/src/components/project/DraftReviewPanel.tsx (reviewInvoiceId)
+- frontend/src/components/project/CostPlanGrid.tsx (force invoices tab)
+- frontend/src/components/project/CostInvoiceRegister.tsx (open review; invalidate pulse on decide)
+- frontend/src/components/project/WorkspaceFilePanel.tsx (invalidate pulse on classify)
+- frontend/src/components/project/WorkspaceFolderPanel.tsx (invalidate pulse on classify)
+- frontend/src/pages/ProjectCockpitPage.test.tsx
+- frontend/src/components/project/CostInvoiceRegister.test.tsx
+- docs/plans/2026-08-18-pulse/TRACKER.md
+- docs/plans/2026-08-18-pulse/stage-14-pulse-mvp.md
 
 Files deleted: none
 ```

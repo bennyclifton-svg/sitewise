@@ -15,6 +15,7 @@ from app.api.chat import router as chat_router
 from app.api.config import router as config_router
 from app.api.cost_invoices import router as cost_invoices_router
 from app.api.projects import router as projects_router
+from app.api.pulse import router as pulse_router
 from app.api.projects import sitewise_router
 from app.auth.dependencies import create_auth_http_client
 from app.config import settings
@@ -127,6 +128,7 @@ fastapi_app.include_router(billing_router)
 fastapi_app.include_router(config_router)
 fastapi_app.include_router(chat_router)
 fastapi_app.include_router(cost_invoices_router)
+fastapi_app.include_router(pulse_router)
 fastapi_app.include_router(projects_router)
 fastapi_app.include_router(sitewise_router)
 fastapi_app.include_router(tender_router)

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { api } from "@/lib/api";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
+import { pulseKeys } from "@/lib/queries/pulse";
 import type { ResourceEvent } from "@/lib/chat-events";
 import type {
   EvidencePreview,
@@ -336,6 +337,7 @@ function invalidationKeys(projectId: string, resourceType: string) {
         projectKeys.detail(projectId),
         projectKeys.evidence(projectId),
         projectKeys.workspaceTree(projectId),
+        pulseKeys.feed(projectId),
       ];
     case "workspace_file":
     case "draft_artifact":
@@ -348,6 +350,7 @@ function invalidationKeys(projectId: string, resourceType: string) {
         projectKeys.detail(projectId),
         projectKeys.evidence(projectId),
         projectActivityKeys.root(projectId),
+        pulseKeys.feed(projectId),
       ];
     case "tender_job":
       return [projectActivityKeys.root(projectId)];

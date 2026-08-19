@@ -21,6 +21,7 @@ import {
   type UploadProgressHandler,
 } from "@/lib/http";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
+import type { PulseFeed } from "@/lib/types/pulse";
 import type {
   BillingPlansResponse,
   BillingStatus,
@@ -554,6 +555,17 @@ export const api = {
     api.get<ProjectActivityResponse>(
       `/projects/${projectId}/activity${since ? `?since=${encodeURIComponent(since)}` : ""}`,
     ),
+
+  getProjectPulse: async (projectId: string): Promise<PulseFeed> =>
+    api.get<PulseFeed>(`/projects/${projectId}/pulse`),
+
+  dismissProjectPulse: async (
+    projectId: string,
+    subjectKey: string,
+  ): Promise<PulseFeed> =>
+    api.post<PulseFeed>(`/projects/${projectId}/pulse/dismiss`, {
+      subject_key: subjectKey,
+    }),
 
   deleteProjectActivityRuns: async (
     projectId: string,

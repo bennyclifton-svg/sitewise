@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { InvoiceReviewPane } from "@/components/project/InvoiceReviewPane";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { queryClient } from "@/lib/query-client";
+import { pulseKeys } from "@/lib/queries/pulse";
 import type { InvoiceLedger, InvoiceReview } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
@@ -22,22 +24,30 @@ type InvoiceEdit =
 export function CostInvoiceRegister({
   projectId,
   revision = null,
+  reviewInvoiceId = null,
 }: {
   projectId: string;
   /** When the published Cost Plan revision changes, reload the register. */
   revision?: number | null;
+  reviewInvoiceId?: string | null;
 }) {
   return (
-    <CostInvoiceRegisterState projectId={projectId} revision={revision} />
+    <CostInvoiceRegisterState
+      projectId={projectId}
+      revision={revision}
+      reviewInvoiceId={reviewInvoiceId}
+    />
   );
 }
 
 function CostInvoiceRegisterState({
   projectId,
   revision,
+  reviewInvoiceId,
 }: {
   projectId: string;
   revision: number | null;
+  reviewInvoiceId?: string | null;
 }) {
   const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -175,11 +185,37 @@ function CostInvoiceRegisterState({
     }
   }
 
+  useEffect(() => {
+    if (!reviewInvoiceId) return;
+    let cancelled = false;
+    void api.getInvoiceReview(projectId, reviewInvoiceId).then(
+      (data) => {
+        if (!cancelled) {
+          setReview(data);
+          setError(null);
+        }
+      },
+      (loadError) => {
+        if (!cancelled) {
+          setError(
+            loadError instanceof ApiError
+              ? loadError.message
+              : "Invoice review could not load.",
+          );
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, reviewInvoiceId]);
+
   async function decide(decision: "hold" | "reject" | "approve") {
     if (!review) return;
     try {
       setReview(await api.decideInvoice(projectId, review.invoice_id, { decision }));
       setError(null);
+      void queryClient.invalidateQueries({ queryKey: pulseKeys.feed(projectId) });
     } catch (decideError) {
       setError(
         decideError instanceof ApiError

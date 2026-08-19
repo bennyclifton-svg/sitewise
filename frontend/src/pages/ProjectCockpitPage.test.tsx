@@ -28,6 +28,8 @@ const mocks = vi.hoisted(() => ({
     getWorkflowResult: vi.fn(),
     cancelWorkflowRun: vi.fn(),
     createProcurementRequest: vi.fn(),
+    getProjectPulse: vi.fn(),
+    dismissProjectPulse: vi.fn(),
   },
   reloadProjectWorkspaceTree: vi.fn(),
   seedProjectData: vi.fn(),
@@ -246,6 +248,12 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     mocks.api.getLatestDraft.mockResolvedValue(costPlanSummary);
     mocks.api.getProjectDraft.mockResolvedValue(costPlanDraft);
     mocks.api.getProject.mockResolvedValue(project);
+    mocks.api.getProjectPulse.mockResolvedValue({
+      attention: [],
+      other: [],
+      attention_count: 0,
+      generated_at: "2026-08-19T00:00:00Z",
+    });
     mocks.api.startWorkflowRun.mockResolvedValue({
       id: "run-1",
       project_id: project.id,

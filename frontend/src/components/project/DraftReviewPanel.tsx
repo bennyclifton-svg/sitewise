@@ -288,6 +288,7 @@ export function DraftReviewPanel({
   onSelectEvidenceIds,
   onTransmittalSessionChange,
   onOpenProgram,
+  reviewInvoiceId = null,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
@@ -303,6 +304,7 @@ export function DraftReviewPanel({
     session: { draftId: string; workflowType: string } | null,
   ) => void;
   onOpenProgram?: () => void;
+  reviewInvoiceId?: string | null;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
@@ -1049,7 +1051,11 @@ export function DraftReviewPanel({
           embedded ? "" : "p-4 lg:p-6",
         )}
       >
-        <CostPlanGrid projectId={projectId} revision={displayDraft.version} />
+        <CostPlanGrid
+          projectId={projectId}
+          revision={displayDraft.version}
+          reviewInvoiceId={reviewInvoiceId}
+        />
         {!isLoadingDraft && loadedDraft ? (
           <details
             ref={draftDetailsRef}

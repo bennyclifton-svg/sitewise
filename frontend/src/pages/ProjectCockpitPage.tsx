@@ -38,6 +38,8 @@ import {
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
+import { EMPTY_PULSE_FEED, type PulseAction, type PulseItem } from "@/lib/types/pulse";
+import { useDismissPulse, usePulseFeed } from "@/lib/queries/pulse";
 import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
@@ -107,6 +109,12 @@ const PlatformKnowledgeViewer = lazy(() =>
 const ChatRail = lazy(() =>
   import("@/components/chat/ChatRail").then((module) => ({
     default: module.ChatRail,
+  })),
+);
+
+const PulsePanel = lazy(() =>
+  import("@/components/project/PulsePanel").then((module) => ({
+    default: module.PulsePanel,
   })),
 );
 
@@ -189,6 +197,10 @@ function ProjectCockpitContents() {
     projectId ?? "",
     { enabled: bootstrapLoaded && !!projectId },
   );
+  const pulseQuery = usePulseFeed(projectId ?? "", {
+    enabled: bootstrapLoaded && !!projectId,
+  });
+  const dismissPulse = useDismissPulse(projectId ?? "");
   const [platformStatus, setPlatformStatus] =
     useState<PlatformKnowledgeStatus | null>(null);
   const [selectedPlatformKnowledge, setSelectedPlatformKnowledge] =
@@ -227,6 +239,7 @@ function ProjectCockpitContents() {
   const procurementError = null;
   const [procurementRefreshToken, setProcurementRefreshToken] = useState(0);
   const [sortFilesRunId, setSortFilesRunId] = useState<string | null>(null);
+  const [pulseInvoiceId, setPulseInvoiceId] = useState<string | null>(null);
   const [pendingChatInstruction, setPendingChatInstruction] =
     useState<PendingChatInstruction | null>(null);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(true);
@@ -776,6 +789,26 @@ function ProjectCockpitContents() {
     setActiveView("file");
   }
 
+  function handlePulseAction(item: PulseItem, action: PulseAction) {
+    if (action === "dismiss") {
+      dismissPulse.mutate(item.id);
+      return;
+    }
+    if (action === "review_invoice") {
+      const invoiceId = item.evidence.find(
+        (ref) => ref.reference_type === "cost_invoice",
+      )?.reference_id;
+      if (!invoiceId) return;
+      setPulseInvoiceId(invoiceId);
+      showWorkbench("cost-plan");
+      return;
+    }
+    const documentId = item.evidence.find(
+      (ref) => ref.reference_type === "source_document",
+    )?.reference_id;
+    if (documentId) selectEvidenceFromRepository(documentId);
+  }
+
   async function selectWorkspacePath(path: string) {
     const keepTenderRoute = isTenderRouteActive();
     if (!keepTenderRoute) {
@@ -1078,6 +1111,12 @@ function ProjectCockpitContents() {
     >
       {tenderOutlet ?? (
         <>
+      <Suspense fallback={null}>
+        <PulsePanel
+          feed={pulseQuery.data ?? EMPTY_PULSE_FEED}
+          onAction={handlePulseAction}
+        />
+      </Suspense>
       {activeView === "workbench" ? (
         <ProjectControlBoard
           project={project}
@@ -1129,6 +1168,7 @@ function ProjectCockpitContents() {
           onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
           onTransmittalSessionChange={setTransmittalSession}
           onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
+          openInvoiceId={pulseInvoiceId}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}
           sortFilesDraft={sortFilesDraft}

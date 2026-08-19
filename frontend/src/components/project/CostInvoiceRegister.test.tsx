@@ -12,6 +12,8 @@ vi.mock("@/lib/api", () => ({
     getInvoiceLedger: vi.fn(),
     updateInvoiceAllocation: vi.fn(),
     updateInvoice: vi.fn(),
+    getInvoiceReview: vi.fn(),
+    decideInvoice: vi.fn(),
   },
 }));
 

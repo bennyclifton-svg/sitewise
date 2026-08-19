@@ -67,26 +67,37 @@ const TABLE_COL_COUNT = 13;
 export function CostPlanGrid({
   projectId,
   revision = null,
+  reviewInvoiceId = null,
 }: {
   projectId: string;
   /** When the published Cost Plan revision changes (e.g. agent edit), reload. */
   revision?: number | null;
+  reviewInvoiceId?: string | null;
 }) {
   const [state, setState] = useState<CostPlanState | null>(null);
   const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
-  const [tab, setTab] = useState<CostPlanTab>(() => readCostPlanTab(projectId));
+  const [tab, setTab] = useState<CostPlanTab>(() =>
+    reviewInvoiceId ? "invoices" : readCostPlanTab(projectId),
+  );
+  const [tabProjectId, setTabProjectId] = useState(projectId);
+  const [openedInvoiceId, setOpenedInvoiceId] = useState(reviewInvoiceId ?? null);
   const [sort, setSort] = useState<CostPlanSort | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(currentBillingMonthValue);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    setTab(readCostPlanTab(projectId));
-  }, [projectId]);
+  if (projectId !== tabProjectId) {
+    setTabProjectId(projectId);
+    setOpenedInvoiceId(reviewInvoiceId ?? null);
+    setTab(reviewInvoiceId ? "invoices" : readCostPlanTab(projectId));
+  } else if (reviewInvoiceId && reviewInvoiceId !== openedInvoiceId) {
+    setOpenedInvoiceId(reviewInvoiceId);
+    setTab("invoices");
+  }
 
   function selectTab(next: CostPlanTab) {
     setTab(next);
@@ -269,7 +280,11 @@ export function CostPlanGrid({
       </div>
 
       {tab === "invoices" ? (
-        <CostInvoiceRegister projectId={projectId} revision={state.version} />
+        <CostInvoiceRegister
+          projectId={projectId}
+          revision={state.version}
+          reviewInvoiceId={reviewInvoiceId}
+        />
       ) : null}
       {tab === "variations" ? (
         <div className="px-3 py-8 text-sm text-muted-foreground">

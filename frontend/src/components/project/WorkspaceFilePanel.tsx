@@ -7,6 +7,8 @@ import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { api } from "@/lib/api";
 import { documentCategoryLabel } from "@/lib/classification";
 import { ApiError } from "@/lib/http";
+import { queryClient } from "@/lib/query-client";
+import { pulseKeys } from "@/lib/queries/pulse";
 import { cn } from "@/lib/utils";
 import type { EvidencePreview } from "@/lib/types/project";
 
@@ -166,6 +168,9 @@ function WorkspaceFilePanelContent({
                       await api.putDocumentClassification(projectId, displayEvidence.id, {
                         document_class: documentClass,
                         document_subject: documentSubject,
+                      });
+                      void queryClient.invalidateQueries({
+                        queryKey: pulseKeys.feed(projectId),
                       });
                     }}
                   />

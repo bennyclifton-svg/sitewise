@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { isMarkdownFilename } from "@/lib/markdown";
+import { queryClient } from "@/lib/query-client";
+import { pulseKeys } from "@/lib/queries/pulse";
 import type { EvidencePreview, WorkspaceTreeNode } from "@/lib/types/project";
 
 export function WorkspaceFolderPanel({
@@ -73,6 +75,9 @@ export function WorkspaceFolderPanel({
                           await api.putDocumentClassification(projectId, item.id, {
                             document_class: documentClass,
                             document_subject: documentSubject,
+                          });
+                          void queryClient.invalidateQueries({
+                            queryKey: pulseKeys.feed(projectId),
                           });
                         }}
                       />
