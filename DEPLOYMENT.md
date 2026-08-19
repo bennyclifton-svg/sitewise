@@ -442,6 +442,7 @@ unless a migration rollback has been explicitly planned and tested — **do not*
 
 | Date | Commit | What shipped | Outcome |
 | --- | --- | --- | --- |
+| 2026-08-19 | `371520cd` | X1 Pulse 8B–22 (email intake, project aliases, Pulse correspondence) + story landing page | Live via SSH `compose up -d --build`. `/api/health` ok with `pi_model` keys; API healthy; workers and web started. Alembic already at `057_procurement_submissions`. Disk pruned to 72% after build peaked at 92%. Inbound alias webhook stays 404 until `EMAIL_INBOUND_WEBHOOK_SECRET` is set in Dokploy. |
 | 2026-08-11 | `955256a1` | Cockpit Rules-of-Hooks fix + EOI citation-gate exclusion; preflight test/fixture sync | Live via SSH `compose up -d --build` after Dokploy checkout-only auto deploy. `/api/health` ok with GPT-5.6 models; API + core worker healthy; tender worker ready; web 200. Alembic already at `045_project_context_version`. Disk pruned to 72% after build peaked at 92%. |
 | 2026-08-02 | `cc167bf8` | GPT-5.6 model migration (chat/PMP/cost plan/tender/Hermes) + Responses API provider switch | Live. `/api/health` reports chat `gpt-5.6-luna`, Hermes/PMP `gpt-5.6-terra`, cost plan `gpt-5.6-luna`, and embedding `text-embedding-3-small`. |
 | 2026-08-02 | `5f597424` | Polar removed; Stripe is the only billing provider | Live. Required Stripe values are present in the running container; values were not printed or committed. |
