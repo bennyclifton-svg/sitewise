@@ -27,5 +27,16 @@ class EmailProvider(Protocol):
     async def create_draft(self, draft: ProviderDraft) -> str: ...
 
     async def send_draft(
-        self, provider_draft_id: str, *, actor_id: uuid.UUID | None
-    ) -> str | None: ...
+        self,
+        provider_draft_id: str,
+        *,
+        actor_id: uuid.UUID | None,
+        draft: ProviderDraft | None = None,
+    ) -> str | None:
+        """Send a previously created draft.
+
+        `draft` carries the content for providers that hold no server-side
+        draft of their own (Mailgun). Providers that do — Gmail, Graph — ignore
+        it and send the copy they already have.
+        """
+        ...

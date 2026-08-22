@@ -162,6 +162,10 @@ export type ProjectSummary = {
   status: string;
   overlay_status: OverlayStatus;
   updated_at: string;
+  // Where mail for this project should be sent. Server-derived from the same
+  // setting the inbound resolver reads, so it is never an address that 404s.
+  // Null when the slug cannot receive (a reserved local-part such as "support").
+  inbound_address?: string | null;
 };
 
 export type CreateProjectInput = {
@@ -693,6 +697,8 @@ export type ProcurementRequest = {
   kind: ProcurementRequestKind;
   target_name: string;
   target_slug: string;
+  discipline_code?: string | null;
+  strategy_row_id?: string | null;
   status: ProcurementRequestStatus;
   current_draft_artifact_id: string | null;
   current_draft: DraftArtifactSummary | null;
@@ -705,6 +711,94 @@ export type ProcurementRequest = {
 
 export type ProcurementRequestListResponse = {
   requests: ProcurementRequest[];
+};
+
+export type ProcurementParticipantType = "consultant" | "trade" | "supplier";
+
+export type ProjectDiscipline = {
+  code: string;
+  label: string;
+  participant_type: ProcurementParticipantType;
+  request_kind: ProcurementRequestKind;
+  workspace_slug: string;
+};
+
+export type ProcurementStrategyStatus =
+  | "not_started"
+  | "researching"
+  | "shortlisting"
+  | "request_drafted"
+  | "issued"
+  | "responses_received"
+  | "evaluating"
+  | "awarded"
+  | "cancelled";
+
+export type ProcurementStrategyCandidate = {
+  id: string;
+  slot: number;
+  company_name: string;
+  website_url: string | null;
+  location_text: string | null;
+  source_url: string | null;
+  source_title: string | null;
+  researched_at: string | null;
+};
+
+export type ProcurementStrategyRow = {
+  id: string;
+  discipline_code: string | null;
+  discipline_label: string;
+  participant_type: ProcurementParticipantType;
+  request_kind: ProcurementRequestKind;
+  status: ProcurementStrategyStatus;
+  notes: string;
+  display_order: number;
+  origin: "derived" | "existing_request" | "manual";
+  locked: boolean;
+  candidates: ProcurementStrategyCandidate[];
+  linked_request_ids: string[];
+  no_longer_required: boolean;
+};
+
+export type ProcurementStrategy = {
+  id: string;
+  project_id: string;
+  revision: number;
+  tenderer_column_count: 3 | 4;
+  source_fingerprint: string;
+  rows: ProcurementStrategyRow[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProcurementStrategyOperation = {
+  operation:
+    | "ADD_ROW"
+    | "UPDATE_ROW"
+    | "MOVE_ROW"
+    | "DELETE_ROW"
+    | "LOCK_ROW"
+    | "UNLOCK_ROW"
+    | "UPSERT_CANDIDATE"
+    | "CLEAR_CANDIDATE"
+    | "SET_TENDERER_COLUMN_COUNT";
+  row_id?: string;
+  discipline_code?: string;
+  discipline_label?: string;
+  participant_type?: ProcurementParticipantType;
+  request_kind?: ProcurementRequestKind;
+  status?: ProcurementStrategyStatus;
+  notes?: string;
+  before_row_id?: string;
+  after_row_id?: string;
+  slot?: number;
+  company_name?: string;
+  website_url?: string;
+  location_text?: string;
+  source_url?: string;
+  source_title?: string;
+  tenderer_column_count?: 3 | 4;
 };
 
 export type ProjectCockpitBootstrap = {

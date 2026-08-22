@@ -760,7 +760,9 @@ async def send_email_draft(
         if not draft.provider_draft_id:
             raise EmailDraftConflict("draft has no provider_draft_id")
         message_id = await provider.send_draft(
-            draft.provider_draft_id, actor_id=actor_id
+            draft.provider_draft_id,
+            actor_id=actor_id,
+            draft=await _outbound_payload(session, draft, project=project),
         )
     except EmailDraftConflict:
         draft.status = "send_failed"
@@ -779,6 +781,43 @@ async def send_email_draft(
     await session.commit()
     await session.refresh(draft)
     return draft
+
+
+async def _outbound_payload(
+    session: AsyncSession,
+    draft: ProjectEmailDraft,
+    *,
+    project: Project,
+) -> ProviderDraft:
+    """The content to send, addressed as the project.
+
+    Providers holding their own server-side draft (Gmail, Graph) ignore this;
+    Mailgun needs it, because the canonical draft is the database row.
+    """
+    from app.email.alias_names import inbound_address_for_slug
+
+    in_reply_to: str | None = None
+    references: list[str] = []
+    if draft.in_reply_to_email_id is not None:
+        original = await session.get(ProjectEmail, draft.in_reply_to_email_id)
+        # Thread on the RFC Message-ID, not our row id — mail clients key on it.
+        if original is not None and original.internet_message_id:
+            in_reply_to = original.internet_message_id
+            references = [original.internet_message_id]
+    stored = draft.references or {}
+    if isinstance(stored, dict):
+        prior = stored.get("references")
+        if isinstance(prior, list):
+            references = [str(item) for item in prior if item] or references
+    return ProviderDraft(
+        to_addresses=list(draft.to_addresses or []),
+        cc_addresses=list(draft.cc_addresses or []),
+        subject=draft.subject or "",
+        body_text=draft.body_text or "",
+        in_reply_to=in_reply_to,
+        from_address=inbound_address_for_slug(project.slug),
+        references=references,
+    )
 
 
 async def _require_project_email(
@@ -882,6 +921,76 @@ async def list_project_correspondence(
     return await search_project_emails(
         session, project_id=project_id, query="", limit=limit
     )
+
+
+def email_register_row_from_inbound(view: dict[str, Any]) -> dict[str, Any]:
+    email_id = str(view["email_id"])
+    return {
+        "id": email_id,
+        "kind": "inbound",
+        "direction": "in",
+        "subject": view.get("subject") or "",
+        "party": view.get("from_address") or "",
+        "sent_at": view.get("sent_at"),
+        "message_category": view.get("message_category"),
+        "status": None,
+        "email_id": email_id,
+        "draft_id": None,
+    }
+
+
+def email_register_row_from_draft(draft: ProjectEmailDraft) -> dict[str, Any]:
+    to_addresses = list(draft.to_addresses or [])
+    sent_at = draft.sent_at.isoformat() if draft.sent_at is not None else None
+    return {
+        "id": str(draft.id),
+        "kind": "outbound",
+        "direction": "out",
+        "subject": draft.subject or "",
+        "party": to_addresses[0] if to_addresses else "",
+        "sent_at": sent_at,
+        "message_category": None,
+        "status": draft.status,
+        "email_id": None
+        if draft.in_reply_to_email_id is None
+        else str(draft.in_reply_to_email_id),
+        "draft_id": str(draft.id),
+    }
+
+
+def merge_email_register(
+    inbound: list[dict[str, Any]], drafts: Sequence[ProjectEmailDraft]
+) -> list[dict[str, Any]]:
+    rows = [email_register_row_from_inbound(item) for item in inbound]
+    rows.extend(email_register_row_from_draft(draft) for draft in drafts)
+    rows.sort(key=_register_sort_key, reverse=True)
+    return rows
+
+
+def _register_sort_key(row: dict[str, Any]) -> str:
+    sent_at = row.get("sent_at")
+    if isinstance(sent_at, str) and sent_at:
+        return sent_at
+    return "9999-12-31T23:59:59+00:00"
+
+
+async def list_project_email_register(
+    session: AsyncSession, *, project_id: uuid.UUID, limit: int = 80
+) -> list[dict[str, Any]]:
+    inbound = await search_project_emails(
+        session, project_id=project_id, query="", limit=limit
+    )
+    draft_stmt = (
+        select(ProjectEmailDraft)
+        .where(
+            ProjectEmailDraft.project_id == project_id,
+            ProjectEmailDraft.status.in_(("draft", "sending", "sent", "send_failed")),
+        )
+        .order_by(ProjectEmailDraft.sent_at.desc().nulls_last())
+        .limit(limit)
+    )
+    drafts = (await session.execute(draft_stmt)).scalars().all()
+    return merge_email_register(inbound, drafts)[:limit]
 
 
 async def read_email_thread(

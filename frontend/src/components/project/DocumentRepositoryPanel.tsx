@@ -45,12 +45,15 @@ import {
   useDeleteDraft,
   useDeleteEvidence,
 } from "@/lib/queries/project-data";
-import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
+import type {
+  ProjectEmailDraft,
+  ProjectEmailMessage,
+  ProjectEmailRegisterRow,
+} from "@/lib/types/email";
 import type {
   PulseAction,
   PulseFeed,
   PulseItem,
-  PulseSincePreset,
 } from "@/lib/types/pulse";
 import type {
   DeleteDraftResponse,
@@ -157,8 +160,10 @@ export function DocumentRepositoryPanel({
   isRunningSortFiles = false,
   overlayReady = true,
   pulseFeed = null,
-  pulseSincePreset = "7d",
-  onPulseSinceChange,
+  pulseEmails = [],
+  selectedPulseEmailId = null,
+  pulseInboundAddress = null,
+  onSelectPulseEmail,
   onPulseAction,
   pulseEmailDraft = null,
   pulseEmailSending = false,
@@ -171,7 +176,6 @@ export function DocumentRepositoryPanel({
   onOpenDraft,
   onArtefactDeleted,
   usageHighlightArtefactId = null,
-  transmittalCuration = false,
 }: {
   projectId: string;
   evidence: EvidencePreview[];
@@ -190,8 +194,10 @@ export function DocumentRepositoryPanel({
   isRunningSortFiles?: boolean;
   overlayReady?: boolean;
   pulseFeed?: PulseFeed | null;
-  pulseSincePreset?: PulseSincePreset;
-  onPulseSinceChange?: (preset: PulseSincePreset) => void;
+  pulseEmails?: ProjectEmailRegisterRow[];
+  selectedPulseEmailId?: string | null;
+  pulseInboundAddress?: string | null;
+  onSelectPulseEmail?: (row: ProjectEmailRegisterRow) => void;
   onPulseAction?: (item: PulseItem, action: PulseAction) => void;
   pulseEmailDraft?: ProjectEmailDraft | null;
   pulseEmailSending?: boolean;
@@ -205,8 +211,6 @@ export function DocumentRepositoryPanel({
   onArtefactDeleted?: (result: DeleteDraftResponse) => void;
   /** When set, show source-doc dots only for this displayed artefact (e.g. open PMP). */
   usageHighlightArtefactId?: string | null;
-  /** Additive row clicks while curating an RFP/PMP transmittal schedule. */
-  transmittalCuration?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
@@ -373,10 +377,7 @@ export function DocumentRepositoryPanel({
     event: MouseEvent<HTMLTableRowElement>,
     row: ScheduleRow,
   ) {
-    // During Transmittal curation, plain clicks should add/remove without
-    // replacing the whole selection (Ctrl/Cmd still works the same way).
-    const additive =
-      event.ctrlKey || event.metaKey || transmittalCuration;
+    const additive = event.ctrlKey || event.metaKey;
 
     if (event.shiftKey) {
       const anchorId =
@@ -883,11 +884,11 @@ export function DocumentRepositoryPanel({
                 )}
                 aria-label={
                   pulseFeed.attention_count > 0
-                    ? `Project pulse, ${attentionHeadline(pulseFeed.attention_count)}`
-                    : "Project pulse"
+                    ? `Correspondence, ${attentionHeadline(pulseFeed.attention_count)}`
+                    : "Correspondence"
                 }
                 aria-pressed={pulseOpen}
-                title="Project pulse"
+                title="Correspondence"
                 onClick={() => setPulseOpen((open) => !open)}
               >
                 <Activity className="size-3.5" aria-hidden />
@@ -986,8 +987,10 @@ export function DocumentRepositoryPanel({
           <>
             <PulsePanel
               feed={pulseFeed}
-              sincePreset={pulseSincePreset}
-              onSinceChange={onPulseSinceChange}
+              emails={pulseEmails}
+              selectedEmailId={selectedPulseEmailId}
+              inboundAddress={pulseInboundAddress}
+              onSelectEmail={onSelectPulseEmail}
               onAction={onPulseAction}
             />
             {pulseEmailDraft ? (

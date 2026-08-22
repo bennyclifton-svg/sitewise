@@ -56,7 +56,21 @@ async def lifespan(_app: FastAPI):
         pi_model_provider=settings.pi_model_provider,
         embedding_model=settings.openai_embedding_model,
         log_level=settings.log_level,
+        email_inbound_domain=settings.email_inbound_domain,
+        mailgun_inbound_configured=bool(settings.mailgun_inbound_signing_key),
+        environment=settings.environment,
+        email_provider=settings.email_provider,
+        mailgun_outbound_configured=bool(settings.mailgun_api_key),
     )
+    if settings.email_provider == "fake":
+        # Reads as sent in the UI, delivers nothing. Say so on every boot.
+        log.warning(
+            "email_outbound_is_fake",
+            detail=(
+                "EMAIL_PROVIDER=fake marks drafts sent without delivering them. "
+                "Set MAILGUN_API_KEY and EMAIL_PROVIDER=mailgun to send."
+            ),
+        )
     _app.state.auth_http_client = create_auth_http_client()
     # The MCP session manager needs its own lifespan running alongside ours.
     worker_handle = await start_inprocess_tender_worker()
@@ -154,6 +168,10 @@ async def health() -> dict[str, str]:
         "pi_model": settings.pi_model,
         "pi_model_provider": settings.pi_model_provider,
         "embedding_model": settings.openai_embedding_model,
+        "email_inbound_domain": settings.email_inbound_domain,
+        "mailgun_inbound": "configured"
+        if settings.mailgun_inbound_signing_key
+        else "unset",
     }
 
 

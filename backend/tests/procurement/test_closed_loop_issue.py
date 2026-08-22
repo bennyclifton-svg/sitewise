@@ -281,7 +281,13 @@ def test_send_failure_leaves_request_draft() -> None:
     )
 
     class _BoomProvider(FakeProvider):
-        async def send_draft(self, provider_draft_id: str, *, actor_id: uuid.UUID | None):
+        async def send_draft(
+            self,
+            provider_draft_id: str,
+            *,
+            actor_id: uuid.UUID | None,
+            draft=None,
+        ):
             raise RuntimeError("mailbox unavailable")
 
     provider = _BoomProvider()

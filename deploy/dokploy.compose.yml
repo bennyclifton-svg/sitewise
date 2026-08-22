@@ -28,7 +28,7 @@ x-sitewise-api-environment: &sitewise-api-environment
   AGENT_MCP_URL: ${AGENT_MCP_URL:-http://127.0.0.1:8000/mcp}
   AGENT_WORKSPACE_ROOT: ${AGENT_WORKSPACE_ROOT:-/app/agent-workspaces}
   AGENT_MAX_CONCURRENT_TURNS: ${AGENT_MAX_CONCURRENT_TURNS:-4}
-  AGENT_TURN_TIMEOUT_SECONDS: ${AGENT_TURN_TIMEOUT_SECONDS:-180}
+  AGENT_TURN_TIMEOUT_SECONDS: ${AGENT_TURN_TIMEOUT_SECONDS:-360}
   AGENT_TURN_TOKEN_SECRET: ${AGENT_TURN_TOKEN_SECRET}
   AGENT_MONTHLY_TURN_QUOTA: ${AGENT_MONTHLY_TURN_QUOTA:-500}
   AGENT_WEB_RESEARCH_ENABLED: ${AGENT_WEB_RESEARCH_ENABLED:-false}
@@ -54,10 +54,17 @@ x-sitewise-api-environment: &sitewise-api-environment
   # Stamped onto every generated artefact so a document is attributable to a
   # build. Passed as a build arg too, since the runtime image has no .git.
   BUILD_SHA: ${BUILD_SHA:-}
+  # Left at development until Mailgun sending is configured. Setting this to
+  # production makes EMAIL_PROVIDER=fake refuse, so flip it together with
+  # MAILGUN_API_KEY and EMAIL_PROVIDER=mailgun, never on its own.
+  ENVIRONMENT: ${ENVIRONMENT:-development}
   EMAIL_PROVIDER: ${EMAIL_PROVIDER:-fake}
   EMAIL_INBOUND_DOMAIN: ${EMAIL_INBOUND_DOMAIN:-sitewise.au}
   EMAIL_INBOUND_WEBHOOK_SECRET: ${EMAIL_INBOUND_WEBHOOK_SECRET:-}
   MAILGUN_INBOUND_SIGNING_KEY: ${MAILGUN_INBOUND_SIGNING_KEY:-}
+  MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+  MAILGUN_SENDING_DOMAIN: ${MAILGUN_SENDING_DOMAIN:-sitewise.au}
+  MAILGUN_API_BASE: ${MAILGUN_API_BASE:-https://api.mailgun.net}
   GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
   GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
   GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}

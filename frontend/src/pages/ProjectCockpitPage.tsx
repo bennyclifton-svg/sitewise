@@ -39,8 +39,9 @@ import {
 } from "@/lib/queries/project-data";
 import { prefetchWorkbench } from "@/lib/queries/workbench";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
-import { EMPTY_PULSE_FEED, pulseSinceIso, type PulseAction, type PulseItem, type PulseSincePreset } from "@/lib/types/pulse";
-import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
+import { useProjectEmails, invalidateProjectEmails } from "@/lib/queries/emails";
+import { EMPTY_PULSE_FEED, pulseSinceIso, type PulseAction, type PulseItem } from "@/lib/types/pulse";
+import type { ProjectEmailDraft, ProjectEmailMessage, ProjectEmailRegisterRow } from "@/lib/types/email";
 import { useDismissPulse, usePulseFeed } from "@/lib/queries/pulse";
 import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
@@ -193,14 +194,18 @@ function ProjectCockpitContents() {
     projectId ?? "",
     { enabled: bootstrapLoaded && !!projectId },
   );
-  const [pulseSincePreset, setPulseSincePreset] =
-    useState<PulseSincePreset>("7d");
-  const pulseSince = pulseSinceIso(pulseSincePreset);
+  const pulseSince = pulseSinceIso("7d");
   const pulseQuery = usePulseFeed(projectId ?? "", {
     enabled: bootstrapLoaded && !!projectId,
     since: pulseSince,
   });
   const dismissPulse = useDismissPulse(projectId ?? "", pulseSince);
+  const emailsQuery = useProjectEmails(projectId ?? "", {
+    enabled: bootstrapLoaded && !!projectId,
+  });
+  const [selectedPulseEmailId, setSelectedPulseEmailId] = useState<string | null>(
+    null,
+  );
   const [platformStatus, setPlatformStatus] =
     useState<PlatformKnowledgeStatus | null>(null);
   const [selectedPlatformKnowledge, setSelectedPlatformKnowledge] =
@@ -813,6 +818,16 @@ function ProjectCockpitContents() {
     setActiveView("file");
   }
 
+  function handleSelectPulseEmail(row: ProjectEmailRegisterRow) {
+    const emailId = row.email_id;
+    setSelectedPulseEmailId(row.id);
+    if (!emailId || !projectId) return;
+    void api.getProjectEmailThread(projectId, emailId).then((thread) => {
+      setPulseEmailDraft(null);
+      setPulseEmailThread(thread);
+    });
+  }
+
   function handlePulseAction(item: PulseItem, action: PulseAction) {
     if (action === "dismiss") {
       dismissPulse.mutate(item.id);
@@ -860,6 +875,7 @@ function ProjectCockpitContents() {
     try {
       const sent = await api.sendProjectEmailDraft(projectId, pulseEmailDraft.id);
       setPulseEmailDraft(sent);
+      invalidateProjectEmails(queryClient, projectId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Send failed";
       setPulseEmailDraft((current) =>
@@ -1139,8 +1155,10 @@ function ProjectCockpitContents() {
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
           pulseFeed={pulseQuery.data ?? EMPTY_PULSE_FEED}
-          pulseSincePreset={pulseSincePreset}
-          onPulseSinceChange={setPulseSincePreset}
+          pulseEmails={emailsQuery.data ?? []}
+          selectedPulseEmailId={selectedPulseEmailId}
+          pulseInboundAddress={project.inbound_address ?? null}
+          onSelectPulseEmail={handleSelectPulseEmail}
           onPulseAction={handlePulseAction}
           pulseEmailDraft={pulseEmailDraft}
           pulseEmailSending={pulseEmailSending}
@@ -1173,14 +1191,6 @@ function ProjectCockpitContents() {
             void refreshWorkspaceTree();
           }}
           usageHighlightArtefactId={usageHighlightArtefactId}
-          transmittalCuration={
-            transmittalSession !== null ||
-            (activeView === "workbench" &&
-              selectedWorkflowId === "procurement-requests") ||
-            (activeView === "draft" &&
-              activeDraft !== null &&
-              isProcurementDraftWorkflow(activeDraft.workflow_type))
-          }
         />
       }
     >
@@ -1217,6 +1227,11 @@ function ProjectCockpitContents() {
           onRunSortFiles={() => void runSortFiles()}
           onRunProcurement={(kind, targetName, action) =>
             submitChatInstruction(procurementChatCommand(kind, targetName, action))
+          }
+          onEditProcurementStrategyRow={(row) =>
+            submitChatInstruction(
+              `Update the ${row.discipline_label} row in Procurement Strategy: `,
+            )
           }
           onCancelSortFiles={() => {
             if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);

@@ -93,7 +93,7 @@ class ProjectEmail(Base):
             name="uq_project_emails_provider_message",
         ),
         CheckConstraint(
-            "provider IN ('fake','microsoft_graph','gmail','inbound_alias')",
+            "provider IN ('fake','microsoft_graph','gmail','mailgun','inbound_alias')",
             name="ck_project_emails_provider",
         ),
     )

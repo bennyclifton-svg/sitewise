@@ -144,10 +144,18 @@ def test_concurrent_send_of_one_draft_sends_once() -> None:
             self.started = asyncio.Event()
             self.proceed = asyncio.Event()
 
-        async def send_draft(self, provider_draft_id: str, *, actor_id: uuid.UUID | None):
+        async def send_draft(
+            self,
+            provider_draft_id: str,
+            *,
+            actor_id: uuid.UUID | None,
+            draft=None,
+        ):
             self.started.set()
             await self.proceed.wait()
-            return await super().send_draft(provider_draft_id, actor_id=actor_id)
+            return await super().send_draft(
+                provider_draft_id, actor_id=actor_id, draft=draft
+            )
 
     provider = _GateProvider()
     lock = asyncio.Lock()
@@ -197,7 +205,13 @@ def test_provider_failure_leaves_send_failed_not_draft() -> None:
     from app.email.service import create_email_draft, send_email_draft
 
     class _BoomProvider(FakeProvider):
-        async def send_draft(self, provider_draft_id: str, *, actor_id: uuid.UUID | None):
+        async def send_draft(
+            self,
+            provider_draft_id: str,
+            *,
+            actor_id: uuid.UUID | None,
+            draft=None,
+        ):
             raise RuntimeError("mailbox unavailable")
 
     provider = _BoomProvider()
@@ -233,7 +247,13 @@ def test_send_failed_draft_cannot_be_silently_resent() -> None:
     from app.email.service import EmailDraftConflict, create_email_draft, send_email_draft
 
     class _BoomProvider(FakeProvider):
-        async def send_draft(self, provider_draft_id: str, *, actor_id: uuid.UUID | None):
+        async def send_draft(
+            self,
+            provider_draft_id: str,
+            *,
+            actor_id: uuid.UUID | None,
+            draft=None,
+        ):
             raise RuntimeError("mailbox unavailable")
 
     provider = _BoomProvider()

@@ -6,7 +6,9 @@ import uuid
 
 from pydantic import BaseModel, Field
 
-EmailProviderName = Literal["fake", "microsoft_graph", "gmail", "inbound_alias"]
+EmailProviderName = Literal[
+    "fake", "microsoft_graph", "gmail", "mailgun", "inbound_alias"
+]
 
 
 class RawProviderAttachment(BaseModel):
@@ -37,6 +39,10 @@ class ProviderDraft(BaseModel):
     subject: str
     body_text: str
     in_reply_to: str | None = None
+    # Only providers that can send as an arbitrary address honour this. Gmail
+    # and Graph always send as the connected mailbox and ignore it.
+    from_address: str | None = None
+    references: list[str] = Field(default_factory=list)
 
 
 class LinkEmailRequest(BaseModel):
@@ -70,3 +76,16 @@ class ReplyEmailDraftRequest(BaseModel):
     body_text: str = ""
     to_addresses: list[str] | None = None
     cc_addresses: list[str] | None = None
+
+
+class EmailRegisterRow(BaseModel):
+    id: str
+    kind: Literal["inbound", "outbound"]
+    direction: Literal["in", "out"]
+    subject: str
+    party: str
+    sent_at: datetime | None = None
+    message_category: str | None = None
+    status: str | None = None
+    email_id: uuid.UUID | None = None
+    draft_id: uuid.UUID | None = None

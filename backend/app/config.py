@@ -127,7 +127,7 @@ class Settings(BaseSettings):
     agent_platform_api_key: str | None = None
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"
     agent_max_concurrent_turns: int = 4
-    agent_turn_timeout_seconds: int = 180
+    agent_turn_timeout_seconds: int = 360
     agent_workspace_root: Path = Path.home() / ".clerk" / "agent-workspaces"
     agent_web_research_enabled: bool = False
     web_search_provider: str = "nsw_legislation"
@@ -135,11 +135,19 @@ class Settings(BaseSettings):
     web_search_max_results: int = 6
     web_fetch_timeout_seconds: float = 12.0
     web_fetch_max_bytes: int = 4 * 1024 * 1024
+    # "production" makes the fake email provider unreachable. Anything else
+    # (dev, test) keeps it available.
+    environment: str = "development"
     email_provider: str = "fake"
     email_inbound_domain: str = "sitewise.au"
     email_inbound_webhook_secret: str | None = None
     email_inbound_max_body_bytes: int = 8 * 1024 * 1024
     mailgun_inbound_signing_key: str | None = None
+    # Mailgun outbound. Sending from the project's own alias is what lets a
+    # reply thread back into the project instead of a personal mailbox.
+    mailgun_api_key: str | None = None
+    mailgun_sending_domain: str = "sitewise.au"
+    mailgun_api_base: str = "https://api.mailgun.net"
     microsoft_graph_tenant_id: str | None = None
     microsoft_graph_client_id: str | None = None
     microsoft_graph_client_secret: str | None = None

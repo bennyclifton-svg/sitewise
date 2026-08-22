@@ -61,8 +61,12 @@ class FakeProvider:
         return draft_id
 
     async def send_draft(
-        self, provider_draft_id: str, *, actor_id: uuid.UUID | None
-    ) -> None:
+        self,
+        provider_draft_id: str,
+        *,
+        actor_id: uuid.UUID | None,
+        draft: ProviderDraft | None = None,
+    ) -> str:
         if actor_id is None:
             raise ValueError("actor_id is required to send a draft")
         if provider_draft_id not in self._drafts:

@@ -116,7 +116,9 @@ Agent and billing values:
 
 Email values (inbound is dark until a signing key is set):
 
-- `EMAIL_PROVIDER=fake` until a Gmail or Graph mailbox is connected
+- `ENVIRONMENT=development` until Mailgun sending is configured; `production` refuses `EMAIL_PROVIDER=fake`
+- `EMAIL_PROVIDER=fake` until Mailgun sending is configured, then `mailgun`
+- `MAILGUN_API_KEY` / `MAILGUN_SENDING_DOMAIN` / `MAILGUN_API_BASE` for outbound
 - `EMAIL_INBOUND_DOMAIN=sitewise.au`
 - `EMAIL_INBOUND_WEBHOOK_SECRET` — native JSON webhook; optional if Mailgun is used
 - `MAILGUN_INBOUND_SIGNING_KEY` — Mailgun HTTP webhook signing key
@@ -139,9 +141,16 @@ settings model is `extra="ignore"` — and can be deleted at leisure.
 
 ### Email (project alias `@sitewise.au`)
 
-Inbound address is `{project-slug}@sitewise.au`. DNS is at Crazy Domains.
-There is currently no MX on the apex. Mailgun receives the message and POSTs
-to:
+Inbound address is `{project-slug}@sitewise.au`, shown in the app at the top
+of the Pulse panel with a copy button (server-derived, so it is always an
+address the resolver accepts). Beware the slug: a project titled "Newtown
+Extension" can be slugged `newtown-extension-2` if the name was used before.
+
+DNS is at Crazy Domains and **is already live** (verified 2026-08-22):
+`mxa.mailgun.org` / `mxb.mailgun.org` at priority 10, SPF
+`v=spf1 include:mailgun.org ~all`, DKIM at `mailo._domainkey`. There is no
+DMARC record yet — add `_dmarc.sitewise.au` at `p=none` before sending volume.
+Mailgun receives the message and POSTs to:
 
 ```text
 https://sitewise.au/api/internal/email/inbound/mailgun
@@ -157,10 +166,28 @@ https://sitewise.au/api/internal/email/inbound/mailgun
    `MAILGUN_INBOUND_SIGNING_KEY`. Set `EMAIL_INBOUND_DOMAIN=sitewise.au`.
 5. Redeploy `sitewise-api`. The Mailgun route 404s until that key is set.
 
-Outbound is a separate mailbox. Keep `EMAIL_PROVIDER=fake` until Gmail or
-Graph secrets exist. Then set `EMAIL_PROVIDER=gmail` (or `microsoft_graph`)
-and the matching OAuth values. The agent only drafts; the project owner
-sends. From-address is the connected mailbox, not the project alias.
+Outbound goes through Mailgun, sending as the project's own alias so replies
+return down the inbound route into the same project. The agent only drafts;
+the project owner sends.
+
+`EMAIL_PROVIDER=fake` marks a draft **sent** while delivering nothing, so it
+logs `email_outbound_is_fake` on every boot and is refused outright when
+`ENVIRONMENT=production`. To turn real sending on, set all three together —
+setting `ENVIRONMENT` alone will break sending on purpose:
+
+```
+MAILGUN_API_KEY=<Mailgun private API key, not the inbound signing key>
+EMAIL_PROVIDER=mailgun
+ENVIRONMENT=production
+```
+
+The private API key is under *Mailgun → Send → Domain settings → Sending API
+keys*. `MAILGUN_SENDING_DOMAIN` defaults to `sitewise.au` and
+`MAILGUN_API_BASE` to `https://api.mailgun.net` (the US region, which is what
+the current MX records point at — an EU domain needs `api.eu.mailgun.net`).
+
+Gmail and Microsoft Graph remain supported but always send as the connected
+mailbox, which breaks the reply loop. Prefer Mailgun.
 
 Native JSON intake remains at `/api/internal/email/inbound` with header
 `X-Sitewise-Inbound-Signature` (HMAC-SHA256 of the raw body) when

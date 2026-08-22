@@ -1,4 +1,4 @@
-"""Project-scoped email match corrections (X1 Stage 17)."""
+"""Project-scoped email register, drafts, and match corrections."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from app.email.providers import email_provider_from_settings
 from app.email.schemas import (
     EmailDraftView,
     EmailMatchView,
+    EmailRegisterRow,
     LinkEmailRequest,
     ReplyEmailDraftRequest,
 )
@@ -23,6 +24,7 @@ from app.email.service import (
     EmailDraftConflict,
     EmailNotFound,
     link_email_to_project,
+    list_project_email_register,
     read_email_thread,
     reply_email_draft,
     send_email_draft,
@@ -62,6 +64,18 @@ def _draft_view(draft) -> EmailDraftView:
         sent_at=draft.sent_at,
         sent_by_user_id=draft.sent_by_user_id,
     )
+
+
+@router.get("/{project_id}/emails", response_model=list[EmailRegisterRow])
+async def get_project_email_register(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[EmailRegisterRow]:
+    await require_active_entitlement(session, user)
+    await _owned_project(session, project_id=project_id, user_id=user.id)
+    rows = await list_project_email_register(session, project_id=project_id)
+    return [EmailRegisterRow.model_validate(row) for row in rows]
 
 
 @router.post(

@@ -97,7 +97,11 @@ class GmailProvider:
         return str(draft_id)
 
     async def send_draft(
-        self, provider_draft_id: str, *, actor_id: uuid.UUID | None
+        self,
+        provider_draft_id: str,
+        *,
+        actor_id: uuid.UUID | None,
+        draft: ProviderDraft | None = None,
     ) -> str:
         self._ensure()
         if actor_id is None:

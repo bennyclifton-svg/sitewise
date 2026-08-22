@@ -7,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    computed_field,
     field_validator,
     model_validator,
 )
@@ -63,6 +64,18 @@ class ProjectSummary(BaseModel):
     status: str
     overlay_status: OverlayStatus
     updated_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def inbound_address(self) -> str | None:
+        """Where mail for this project should be sent. None if it cannot receive.
+
+        Derived from the same setting the inbound resolver reads, so the
+        address on screen is always one that actually resolves.
+        """
+        from app.email.alias_names import inbound_address_for_slug
+
+        return inbound_address_for_slug(self.slug)
 
 
 class ProjectListResponse(BaseModel):
@@ -608,6 +621,8 @@ ProcurementRequestStatus = Literal["draft", "issued", "closed", "cancelled"]
 class ProcurementRequestCreateRequest(BaseModel):
     kind: ProcurementRequestKind
     target_name: str = Field(min_length=1, max_length=512)
+    discipline_code: str | None = Field(default=None, max_length=128)
+    strategy_row_id: uuid.UUID | None = None
 
     @field_validator("target_name")
     @classmethod
@@ -635,6 +650,8 @@ class ProcurementRequestView(BaseModel):
     kind: ProcurementRequestKind
     target_name: str
     target_slug: str
+    discipline_code: str | None = None
+    strategy_row_id: uuid.UUID | None = None
     status: ProcurementRequestStatus
     current_draft_artifact_id: uuid.UUID | None = None
     current_draft: DraftArtifactSummary | None = None
@@ -647,6 +664,108 @@ class ProcurementRequestView(BaseModel):
 
 class ProcurementRequestListResponse(BaseModel):
     requests: list[ProcurementRequestView]
+
+
+ProcurementStrategyStatus = Literal[
+    "not_started",
+    "researching",
+    "shortlisting",
+    "request_drafted",
+    "issued",
+    "responses_received",
+    "evaluating",
+    "awarded",
+    "cancelled",
+]
+ProcurementParticipantType = Literal["consultant", "trade", "supplier"]
+
+
+class ProjectDisciplineView(BaseModel):
+    code: str
+    label: str
+    participant_type: ProcurementParticipantType
+    request_kind: ProcurementRequestKind
+    workspace_slug: str
+
+
+class ProjectDisciplineListResponse(BaseModel):
+    disciplines: list[ProjectDisciplineView]
+
+
+class ProcurementStrategyCandidateView(BaseModel):
+    id: uuid.UUID
+    slot: int
+    company_name: str
+    website_url: str | None = None
+    location_text: str | None = None
+    source_url: str | None = None
+    source_title: str | None = None
+    researched_at: datetime | None = None
+
+
+class ProcurementStrategyRowView(BaseModel):
+    id: uuid.UUID
+    discipline_code: str | None = None
+    discipline_label: str
+    participant_type: ProcurementParticipantType
+    request_kind: ProcurementRequestKind
+    status: ProcurementStrategyStatus
+    notes: str
+    display_order: int
+    origin: Literal["derived", "existing_request", "manual"]
+    locked: bool
+    candidates: list[ProcurementStrategyCandidateView] = Field(default_factory=list)
+    linked_request_ids: list[uuid.UUID] = Field(default_factory=list)
+    no_longer_required: bool = False
+
+
+class ProcurementStrategyView(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    revision: int
+    tenderer_column_count: Literal[3, 4]
+    source_fingerprint: str
+    rows: list[ProcurementStrategyRowView]
+    created_at: datetime
+    updated_at: datetime
+
+
+ProcurementStrategyOperationType = Literal[
+    "ADD_ROW",
+    "UPDATE_ROW",
+    "MOVE_ROW",
+    "DELETE_ROW",
+    "LOCK_ROW",
+    "UNLOCK_ROW",
+    "UPSERT_CANDIDATE",
+    "CLEAR_CANDIDATE",
+    "SET_TENDERER_COLUMN_COUNT",
+]
+
+
+class ProcurementStrategyOperation(BaseModel):
+    operation: ProcurementStrategyOperationType
+    row_id: uuid.UUID | None = None
+    discipline_code: str | None = Field(default=None, max_length=128)
+    discipline_label: str | None = Field(default=None, max_length=512)
+    participant_type: ProcurementParticipantType | None = None
+    request_kind: ProcurementRequestKind | None = None
+    status: ProcurementStrategyStatus | None = None
+    notes: str | None = Field(default=None, max_length=10_000)
+    before_row_id: uuid.UUID | None = None
+    after_row_id: uuid.UUID | None = None
+    slot: int | None = Field(default=None, ge=1, le=4)
+    company_name: str | None = Field(default=None, max_length=512)
+    website_url: str | None = Field(default=None, max_length=2048)
+    location_text: str | None = Field(default=None, max_length=512)
+    source_url: str | None = Field(default=None, max_length=2048)
+    source_title: str | None = Field(default=None, max_length=512)
+    tenderer_column_count: Literal[3, 4] | None = None
+
+
+class ApplyProcurementStrategyOperationsRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    operations: list[ProcurementStrategyOperation] = Field(min_length=1, max_length=50)
 
 
 class ProjectCockpitBootstrapResponse(BaseModel):
